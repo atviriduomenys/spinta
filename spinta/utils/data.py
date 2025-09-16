@@ -1,7 +1,8 @@
+from spinta.utils.nestedstruct import split_excluding_parentheses
 from spinta.utils.schema import NA
 
 
-def take(keys, *args):
+def take(keys, *args, separator="."):
     """Ultimate data extraction function
 
     Examples:
@@ -54,18 +55,15 @@ def take(keys, *args):
         keys.remove(all)
         for arg in reversed(args):
             for k in arg:
-                if not k.startswith('_') and k not in keys:
+                if not k.startswith("_") and k not in keys:
                     keys.append(k)
 
     if len(keys) == 0:
         return {
-            k: v
-            for a in reversed(args)
-            for k, v in a.items()
-            if v is not NA and (reserved or not k.startswith('_'))
+            k: v for a in reversed(args) for k, v in a.items() if v is not NA and (reserved or not k.startswith("_"))
         }
     else:
-        keys = [k.split('.') for k in keys]
+        keys = [split_excluding_parentheses(k, separator=separator) for k in keys]
 
     data = {}
     for k in keys:
@@ -79,7 +77,7 @@ def take(keys, *args):
                 if v is not NA:
                     if key:
                         return v
-                    data['.'.join(k)] = v
+                    data[separator.join(k)] = v
                     break
 
     if key:

@@ -1,20 +1,5 @@
 .. default-role:: literal
 
-Development environment
-=======================
-
-You can use docker-compose to run dependant services for spinta development::
-
-   docker-compose up -d
-
-If migrations are not applied, spinta will crash. To launch migrations::
-
-   env/bin/spinta migrate
-
-You can run the app using::
-
-   make run
-
 
 System dependencies
 -------------------
@@ -22,6 +7,47 @@ System dependencies
 Archlinux::
 
    sudo pacman -S --needed docker docker-compose $(pacman -Sgq base-devel)
+
+Ubuntu::
+
+    sudo apt update
+    sudo apt upgrade
+    sudo apt install git docker-compose curl
+
+`Install Poetry`_ if your system does not have a newest Poetry package::
+
+    curl -sSL https://install.python-poetry.org | python3 -
+
+.. _Install Poetry: https://python-poetry.org/docs/#installation
+
+
+Development environment
+=======================
+
+Clone code repository::
+
+    git clone https://github.com/atviriduomenys/spinta.git
+
+Check active directory to the one you just cloned::
+
+    cd spinta
+
+You can use docker-compose to run dependant services for spinta development::
+
+    docker-compose up -d
+
+Install python packages into local python development environment:
+
+    poetryinstall
+
+Run tests::
+
+    poetry run pytest -vvx --tb=short tests
+
+
+Run Spinta::
+
+    poetry run spinta run
 
 
 Diretory tree

@@ -8,4 +8,4 @@ from spinta.backends.fs.components import FileSystem
 
 @commands.load.register(Context, FileSystem, dict)
 def load(context: Context, backend: FileSystem, config: Dict[str, Any]):
-    backend.path = pathlib.Path(config['path'])
+    backend.path = pathlib.Path(config["path"])

@@ -8,4 +8,3 @@ from spinta.core.ufuncs import Env
 class NameFormatter(Env):
     model: Model
     prop: Property
-

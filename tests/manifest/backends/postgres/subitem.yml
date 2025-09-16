@@ -1,7 +1,6 @@
 ---
 type: model
-name: backends/postgres/subitem
-endpoint: backends/postgres/subitems
+name: backends/postgres/Subitem
 title: "Subitem"
 version:
   id: 1

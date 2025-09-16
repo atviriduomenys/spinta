@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/dtypes/array/string
+name: backends/postgres/dtypes/array/String
 version:
   id: 1
   date: 2020-02-02

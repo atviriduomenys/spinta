@@ -2,278 +2,339 @@ import pathlib
 
 
 CONFIG = {
-    'config': [],
-    'commands': {
-        'modules': [
-            'spinta.backends',
-            'spinta.formats',
-            'spinta.commands',
-            'spinta.types',
-            'spinta.urlparams',
-            'spinta.manifests',
-            'spinta.datasets',
-            'spinta.dimensions',
-            'spinta.naming',
-            'spinta.ufuncs',
+    "config": [],
+    "commands": {
+        "modules": [
+            "spinta.cli",
+            "spinta.backends",
+            "spinta.formats",
+            "spinta.commands",
+            "spinta.types",
+            "spinta.urlparams",
+            "spinta.manifests",
+            "spinta.datasets",
+            "spinta.dimensions",
+            "spinta.naming",
+            "spinta.ufuncs",
         ],
-        'service': {
-            'range': 'spinta.commands.helpers:range_',
+        "service": {
+            "range": "spinta.commands.helpers:range_",
         },
     },
-    'ufuncs': [
-        'spinta.ufuncs',
-        'spinta.datasets.backends.sql.commands.query',
+    "ufuncs": [
+        "spinta.ufuncs",
+        "spinta.backends.postgresql.ufuncs",
+        "spinta.backends.mongo.ufuncs",
+        "spinta.datasets.backends.sql.ufuncs",
+        "spinta.datasets.backends.dataframe.ufuncs",
     ],
-    'components': {
-        'core': {
-            'context': 'spinta.components:Context',
-            'config': 'spinta.components:Config',
-            'store': 'spinta.components:Store',
+    "components": {
+        "core": {
+            "context": "spinta.components:Context",
+            "config": "spinta.components:Config",
+            "store": "spinta.components:Store",
         },
-        'accesslog': {
-            'file': 'spinta.accesslog.file:FileAccessLog',
-            'python': 'spinta.accesslog.python:PythonAccessLog',
+        "accesslog": {
+            "file": "spinta.accesslog.file:FileAccessLog",
+            "python": "spinta.accesslog.python:PythonAccessLog",
         },
-        'manifests': {
-            'backend': 'spinta.manifests.backend.components:BackendManifest',
-            'yaml': 'spinta.manifests.yaml.components:YamlManifest',
-            'inline': 'spinta.manifests.yaml.components:InlineManifest',
-            'tabular': 'spinta.manifests.tabular.components:CsvManifest',
-            'csv': 'spinta.manifests.tabular.components:CsvManifest',
-            'ascii': 'spinta.manifests.tabular.components:AsciiManifest',
-            'xlsx': 'spinta.manifests.tabular.components:XlsxManifest',
-            'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
+        "manifests": {
+            "backend": "spinta.manifests.backend.components:BackendManifest",
+            "yaml": "spinta.manifests.yaml.components:YamlManifest",
+            "inline": "spinta.manifests.yaml.components:InlineManifest",
+            "tabular": "spinta.manifests.tabular.components:CsvManifest",
+            "csv": "spinta.manifests.tabular.components:CsvManifest",
+            "ascii": "spinta.manifests.tabular.components:AsciiManifest",
+            "xlsx": "spinta.manifests.tabular.components:XlsxManifest",
+            "rdf": "spinta.manifests.rdf.components:RdfManifest",
+            "gsheets": "spinta.manifests.tabular.components:GsheetsManifest",
+            "sql": "spinta.manifests.sql.components:SqlManifest",
+            "memory": "spinta.manifests.memory.components:MemoryManifest",
+            "json": "spinta.manifests.dict.components:JsonManifest",
+            "xml": "spinta.manifests.dict.components:XmlManifest",
+            "internal": "spinta.manifests.internal_sql.components:InternalSQLManifest",
+            "xsd": "spinta.manifests.xsd.components:XsdManifest",
+            "xsd2": "spinta.manifests.xsd2.components:XsdManifest2",
+            "openapi": "spinta.manifests.open_api.components:OpenAPIManifest",
         },
-        'backends': {
+        "backends": {
             # In memory backends mostly usable in tests
-            'memory': 'spinta.backends.memory.components:Memory',
-
+            "memory": "spinta.backends.memory.components:Memory",
             # Internal backends
-            'postgresql': 'spinta.backends.postgresql.components:PostgreSQL',
-            'mongo': 'spinta.backends.mongo.components:Mongo',
-            'fs': 'spinta.backends.fs.components:FileSystem',
-
+            "postgresql": "spinta.backends.postgresql.components:PostgreSQL",
+            "mongo": "spinta.backends.mongo.components:Mongo",
+            "fs": "spinta.backends.fs.components:FileSystem",
             # External backends
             # XXX: Probably these should be moved to components.resources?
-            'sql': 'spinta.datasets.backends.sql.components:Sql',
-            'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
-            'csv': 'spinta.datasets.backends.csv.components:Csv',
-            'xml': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
-            'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
-            'json': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
-            'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
-            'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+            "sql": "spinta.datasets.backends.sql.components:Sql",
+            "sql/sqlite": "spinta.datasets.backends.sql.backends.sqlite.components:Sqlite",
+            "sql/postgresql": "spinta.datasets.backends.sql.backends.postgresql.components:PostgreSQL",
+            "sql/mssql": "spinta.datasets.backends.sql.backends.mssql.components:MSSQL",
+            "sql/mysql": "spinta.datasets.backends.sql.backends.mysql.components:MySQL",
+            "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.components:MariaDB",
+            "sql/oracle": "spinta.datasets.backends.sql.backends.oracle.components:Oracle",
+            "sqldump": "spinta.datasets.backends.sqldump.components:SqlDump",
+            "dask": "spinta.datasets.backends.dataframe.components:DaskBackend",
+            "dask/csv": "spinta.datasets.backends.dataframe.backends.csv.components:Csv",
+            "dask/xml": "spinta.datasets.backends.dataframe.backends.xml.components:Xml",
+            "dask/json": "spinta.datasets.backends.dataframe.backends.json.components:Json",
+            "dask/memory": "spinta.datasets.backends.dataframe.backends.memory.components:MemoryDaskBackend",
+            "xlsx": "spinta.datasets.backends.notimpl.components:BackendNotImplemented",
+            "geojson": "spinta.datasets.backends.notimpl.components:BackendNotImplemented",
+            "html": "spinta.datasets.backends.notimpl.components:BackendNotImplemented",
+            "soap": "spinta.datasets.backends.dataframe.backends.soap.components:Soap",
+            "wsdl": "spinta.datasets.backends.wsdl.components:WsdlBackend",
+            # This will be deprecated, when all datasources migrate to `dask` version
+            "csv": "spinta.compat:CsvDeprecated",
+            "xml": "spinta.compat:XmlDeprecated",
+            "json": "spinta.compat:JsonDeprecated",
         },
-        'migrations': {
-            'alembic': 'spinta.migrations.schema.alembic:Alembic',
+        "querybuilders": {
+            # Default query builder
+            "": "spinta.ufuncs.querybuilder.components:QueryBuilder",
+            # Internal query builders
+            "postgresql": "spinta.backends.postgresql.ufuncs.query.components:PgQueryBuilder",
+            "mongo": "spinta.backends.mongo.ufuncs.components:MongoQueryBuilder",
+            # External query builders
+            "sql": "spinta.datasets.backends.sql.ufuncs.query.components:SqlQueryBuilder",
+            "sql/sqlite": "spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components:SqliteQueryBuilder",
+            "sql/mssql": "spinta.datasets.backends.sql.backends.mssql.ufuncs.query.components:MSSQLQueryBuilder",
+            "sql/postgresql": "spinta.datasets.backends.sql.backends.postgresql.ufuncs.query.components:PostgreSQLQueryBuilder",
+            "sql/oracle": "spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components:OracleQueryBuilder",
+            "sql/mysql": "spinta.datasets.backends.sql.backends.mysql.ufuncs.query.components:MySQLQueryBuilder",
+            "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder",
+            "dask": "spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder",
+            "soap": "spinta.datasets.backends.dataframe.backends.soap.ufuncs.components:SoapQueryBuilder",
         },
-        'nodes': {
-            'ns': 'spinta.components:Namespace',
-            'model': 'spinta.components:Model',
-            'owner': 'spinta.types.owner:Owner',
-            'project': 'spinta.types.project:Project',
-            'dataset': 'spinta.datasets.components:Dataset',
+        "resultbuilders": {
+            # Default result builder
+            "": "spinta.ufuncs.resultbuilder.components:ResultBuilder",
+            # Internal result builders
+            "postgresql": "spinta.backends.postgresql.ufuncs.result.components:PgResultBuilder",
+            # External result builders
+            "sql": "spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder",
         },
-        'datasets': {
-            'resource': 'spinta.datasets.components:Resource',
-            'entity': 'spinta.datasets.components:Entity',
-            'attribute': 'spinta.datasets.components:Attribute',
+        "migrations": {
+            "alembic": "spinta.migrations.schema.alembic:Alembic",
         },
-        'keymaps': {
-            'sqlalchemy': 'spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap',
+        "nodes": {
+            "ns": "spinta.components:Namespace",
+            "model": "spinta.components:Model",
+            "dataset": "spinta.datasets.components:Dataset",
+            "base": "spinta.components:Base",
         },
-        'types': {
-            'any': 'spinta.types.datatype:DataType',
-            'pk': 'spinta.types.datatype:PrimaryKey',
-            'date': 'spinta.types.datatype:Date',
-            'time': 'spinta.types.datatype:Time',
-            'datetime': 'spinta.types.datatype:DateTime',
-            'temporal': 'spinta.types.datatype:DateTime',
-            'string': 'spinta.types.datatype:String',
-            'binary': 'spinta.types.datatype:Binary',
-            'integer': 'spinta.types.datatype:Integer',
-            'number': 'spinta.types.datatype:Number',
-            'boolean': 'spinta.types.datatype:Boolean',
-            'url': 'spinta.types.datatype:URL',
-            'uri': 'spinta.types.datatype:URI',
-            'image': 'spinta.types.datatype:Image',
-            'geometry': 'spinta.types.geometry.components:Geometry',
-            'spatial': 'spinta.types.geometry.components:Spatial',
-            'money': 'spinta.types.money.components:Money',
-            'ref': 'spinta.types.datatype:Ref',
-            'backref': 'spinta.types.datatype:BackRef',
-            'generic': 'spinta.types.datatype:Generic',
-            'array': 'spinta.types.datatype:Array',
-            'object': 'spinta.types.datatype:Object',
-            'file': 'spinta.types.datatype:File',
-            'rql': 'spinta.types.datatype:RQL',
-            'json': 'spinta.types.datatype:JSON',
+        "datasets": {
+            "resource": "spinta.datasets.components:Resource",
+            "entity": "spinta.datasets.components:Entity",
+            "attribute": "spinta.datasets.components:Attribute",
         },
-        'urlparams': {
-            'component': 'spinta.urlparams:UrlParams',
+        "keymaps": {
+            "sqlalchemy": "spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap",
         },
-        'dimensions': {
-            'prefix': 'spinta.dimensions.prefix.components:UriPrefix',
-        }
+        "types": {
+            "any": "spinta.types.datatype:DataType",
+            "pk": "spinta.types.datatype:PrimaryKey",
+            "date": "spinta.types.datatype:Date",
+            "time": "spinta.types.datatype:Time",
+            "datetime": "spinta.types.datatype:DateTime",
+            "temporal": "spinta.types.datatype:DateTime",
+            "string": "spinta.types.datatype:String",
+            "text": "spinta.types.text.components:Text",
+            "binary": "spinta.types.datatype:Binary",
+            "integer": "spinta.types.datatype:Integer",
+            "number": "spinta.types.datatype:Number",
+            "boolean": "spinta.types.datatype:Boolean",
+            "url": "spinta.types.datatype:URL",
+            "uri": "spinta.types.datatype:URI",
+            "image": "spinta.types.datatype:Image",
+            "geometry": "spinta.types.geometry.components:Geometry",
+            "spatial": "spinta.types.geometry.components:Spatial",
+            "ref": "spinta.types.datatype:Ref",
+            "backref": "spinta.types.datatype:BackRef",
+            "array_backref": "spinta.types.datatype:ArrayBackRef",
+            "generic": "spinta.types.datatype:Generic",
+            "array": "spinta.types.datatype:Array",
+            "object": "spinta.types.datatype:Object",
+            "file": "spinta.types.datatype:File",
+            "rql": "spinta.types.datatype:RQL",
+            "json": "spinta.types.datatype:JSON",
+            "denorm": "spinta.types.datatype:Denorm",
+            "_external_ref": "spinta.types.datatype:ExternalRef",
+            "inherit": "spinta.types.datatype:Inherit",
+            "page": "spinta.types.datatype:PageType",
+            "partial": "spinta.types.datatype:Partial",
+            "partial_array": "spinta.types.datatype:PartialArray",
+            "uuid": "spinta.types.datatype:UUID",
+            "money": "spinta.types.money.components:Money",
+        },
+        "urlparams": {
+            "component": "spinta.urlparams:UrlParams",
+        },
+        "dimensions": {
+            "prefix": "spinta.dimensions.prefix.components:UriPrefix",
+        },
     },
-    'exporters': {
-        'ascii': 'spinta.formats.ascii.components:Ascii',
-        'csv': 'spinta.formats.csv.components:Csv',
-        'json': 'spinta.formats.json.components:Json',
-        'jsonl': 'spinta.formats.jsonlines.components:JsonLines',
-        'html': 'spinta.formats.html.components:Html',
+    "exporters": {
+        "ascii": "spinta.formats.ascii.components:Ascii",
+        "csv": "spinta.formats.csv.components:Csv",
+        "json": "spinta.formats.json.components:Json",
+        "jsonl": "spinta.formats.jsonlines.components:JsonLines",
+        "html": "spinta.formats.html.components:Html",
+        "rdf": "spinta.formats.rdf.components:Rdf",
+        "xlsx": "spinta.formats.xlsx.components:Xlsx",
     },
-    'accesslog': {
-        'type': 'file',
-        'file': '/dev/null',
+    "accesslog": {
+        "type": "file",
+        "file": "/dev/null",
     },
-    'manifests': {
-        'default': {
-            'type': 'memory',
-            'backend': '',
-            'mode': 'internal',
-            'keymap': '',
+    "manifests": {
+        "default": {
+            "type": "memory",
+            "backend": "default",
+            "mode": "internal",
+            "keymap": "",
         },
     },
-
-    'manifest': 'default',
-
+    "manifest": "default",
     # Parameters for datasets, for example credentials. Example:
     #
     #   datasets: {default: {gov/vpk: {resource: sql://user:pass@host/db}}
     #
     # There configuraiton parameters should be read directly by datasets.
-    'datasets': {},
-
+    "datasets": {},
     # When scanning for manifest YAML files, ignore these files.
-    'ignore': [
-        '.travis.yml',
-        '/prefixes.yml',
-        '/schema/',
-        '/env/',
+    "ignore": [
+        ".travis.yml",
+        "/prefixes.yml",
+        "/schema/",
+        "/env/",
     ],
-
-    'debug': False,
-
+    "debug": False,
     # How much time to wait in seconds for the backends to go up.
-    'wait': 30,
-
+    "wait": 30,
     # Configuration path, where clients, keys and other configuration files are
     # stored. Defaults to ~/.config/spinta.
-    'config_path': None,
-
+    "config_path": None,
     # Data path, where all data files are stored, like push state, keymap, etc.
     # Defaults to ~/.local/share/spinta.
-    'data_path': None,
-
+    "data_path": None,
     # Path to documentation folder. If set will serve the folder at `/docs`.
-    'docs_path': None,
-
+    "docs_path": None,
     # Credentials file for remote Spinta instances.
-    'credentials_file': None,
-
-    'server_url': 'https://example.com/',
-
+    "credentials_file": None,
+    "server_url": "https://example.com/",
     # This prefix will be added to autogenerated scope names.
-    'scope_prefix': 'spinta_',
-
+    "scope_prefix": "spinta_",
     # Scope name formatter.
-    'scope_formatter': 'spinta.auth:get_scope_name',
-
+    "scope_formatter": "spinta.auth:get_scope_name",
     # Part of the scope will be replaced with a hash to fit scope_max_length.
-    'scope_max_length': 60,
-
+    "scope_max_length": 60,
+    # If True, then scopes are added to access logs.
+    "scope_log": True,
     # If True, then 'id' property is always included into Action.SEARCH result,
     # even if not explicitly asked.
-    'always_show_id': False,
-
-    'default_auth_client': 'default',
-
+    "always_show_id": False,
+    "default_auth_client": "default",
     # Public JWK key for validating auth bearer tokens.
-    'token_validation_key': None,
-
+    "token_validation_key": None,
     # Limit access to specified namespace root.
-    'root': None,
-
-    'env': 'prod',
-
-    'environments': {
-        'dev': {
-            'keymaps.default': {
-                'type': 'sqlalchemy',
-                'dsn': 'sqlite:///{data_dir}/keymap.db',
+    "root": None,
+    "env": "prod",
+    # Default limit of objects in a page
+    # If None is given default is 100000
+    "default_page_size": 100000,
+    # Enable pagination by default for all requests (push/get)
+    # If None is given default is True
+    "enable_pagination": True,
+    # Limit of objects in a page
+    # If None is given default is 100000
+    "sync_page_size": 100000,
+    # Default languages
+    # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
+    # Last updated: 2023-11-08
+    "languages": ["lt", "ru", "de", "en", "fr", "it", "es", "pl", "uk", "ro", "nl"],
+    # Used to determine max file size (MB) that can be uploaded using API (to prevent DoS attacks)
+    # If nothing is set, default is 100 MB
+    "max_file_size": 100,
+    # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
+    "max_error_count_on_insert": 100,
+    "environments": {
+        "dev": {
+            "keymaps.default": {
+                "type": "sqlalchemy",
+                "dsn": "sqlite:///{data_dir}/keymap.db",
             },
-            'backends': {
-                'default': {
-                    'type': 'postgresql',
-                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta',
-                    'migrate': 'alembic',
+            "backends": {
+                "default": {
+                    "type": "postgresql",
+                    "dsn": "postgresql://admin:admin123@localhost:54321/spinta",
+                    "migrate": "alembic",
                 },
-                'mongo': {
-                    'type': 'mongo',
-                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
-                    'db': 'spinta',
+                "mongo": {
+                    "type": "mongo",
+                    "dsn": "mongodb://admin:admin123@localhost:27017/",
+                    "db": "spinta",
                 },
-                'fs': {
-                    'type': 'fs',
-                    'path': pathlib.Path() / 'var/files',
+                "fs": {
+                    "type": "fs",
+                    "path": pathlib.Path() / "var/files",
                 },
             },
-            'manifests': {
+            "manifests": {
                 # TODO: remove `default` manifest
-                'default': {
-                    'type': 'yaml',
-                    'path': pathlib.Path() / 'tests/manifest',
-                    'sync': None,
-                    'keymap': 'default',
-                    'mode': 'internal',
-                    'backend': 'default',
+                "default": {
+                    "type": "yaml",
+                    "path": pathlib.Path() / "tests/manifest",
+                    "sync": None,
+                    "keymap": "default",
+                    "mode": "internal",
+                    "backend": "default",
                 },
-                'yaml': {
-                    'type': 'yaml',
-                    'backend': 'default',
-                    'path': pathlib.Path() / 'tests/manifest',
+                "yaml": {
+                    "type": "yaml",
+                    "backend": "default",
+                    "path": pathlib.Path() / "tests/manifest",
                 },
             },
-            'config_path': pathlib.Path('tests/config'),
+            "config_path": pathlib.Path("tests/config"),
         },
-        'test': {
-            'accesslog': {
-                'type': 'python',
+        "test": {
+            "accesslog": {
+                "type": "python",
             },
-            'backends': {
-                'default': {
-                    'type': 'postgresql',
-                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+            "backends": {
+                "default": {
+                    "type": "postgresql",
+                    "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
                 },
-                'mongo': {
-                    'type': 'mongo',
-                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
-                    'db': 'spinta_tests',
+                "mongo": {
+                    "type": "mongo",
+                    "dsn": "mongodb://admin:admin123@localhost:27017/",
+                    "db": "spinta_tests",
                 },
-                'fs': {
-                    'type': 'fs',
-                    'path': pathlib.Path() / 'var/files',
+                "fs": {
+                    "type": "fs",
+                    "path": pathlib.Path() / "var/files",
                 },
             },
-            'manifests': {
+            "manifests": {
                 # TODO: remove `default` manifest
-                'default': {
-                    'type': 'yaml',
-                    'path': pathlib.Path() / 'tests/manifest',
-                    'sync': None,
-                    'backend': 'default',
-                    'keymap': 'default',
-                    'mode': 'internal',
+                "default": {
+                    "type": "yaml",
+                    "path": pathlib.Path() / "tests/manifest",
+                    "sync": None,
+                    "backend": "default",
+                    "keymap": "default",
+                    "mode": "internal",
                 },
-                'yaml': {
-                    'type': 'yaml',
-                    'backend': 'default',
-                    'path': pathlib.Path() / 'tests/manifest',
+                "yaml": {
+                    "type": "yaml",
+                    "backend": "default",
+                    "path": pathlib.Path() / "tests/manifest",
                 },
             },
-            'config_path': pathlib.Path('tests/config'),
-            'default_auth_client': 'baa448a8-205c-4faa-a048-a10e4b32a136',
-        }
+            "config_path": pathlib.Path("tests/config"),
+            "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+        },
     },
 }

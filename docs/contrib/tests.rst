@@ -1,5 +1,7 @@
 .. default-role:: literal
 
+.. _writing-tests:
+
 #############
 Writing tests
 #############

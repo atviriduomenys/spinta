@@ -6,13 +6,14 @@ from sqlalchemy.dialects.mssql.base import ischema_names
 from geoalchemy2.types import Geometry
 
 
-ischema_names['geometry'] = Geometry
+ischema_names["geometry"] = Geometry
 
 
 class utcnow(FunctionElement):
+    inherit_cache = True
     type = sa.DateTime()
 
 
-@compiles(utcnow, 'postgresql')
+@compiles(utcnow, "postgresql")
 def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"

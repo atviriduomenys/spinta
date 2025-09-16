@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Optional, List
-
-import importlib
+import dataclasses
 import functools
+import importlib
+from typing import Any, Optional, List, Union
 from typing import Dict
 from typing import TYPE_CHECKING
 from typing import Tuple
 
-from spinta.dispatcher import Command
 from spinta import spyna
+from spinta.dispatcher import Command
 from spinta.exceptions import UnknownMethod
 from spinta.utils.schema import NA
 
@@ -29,29 +29,30 @@ class Expr:
         self.args = tuple(args)
         self.kwargs = kwargs
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(spyna.unparse(self.todict(), raw=True))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(spyna.unparse(self.todict()))
 
+    def __eq__(self, other) -> bool:
+        return isinstance(other, Expr) and self.todict() == other.todict()
+
     def todict(self) -> dict:
-        args = [
-            v.todict() if isinstance(v, Expr) else v
-            for v in self.args
-        ]
+        args = [v.todict() if isinstance(v, Expr) else v for v in self.args]
         kwargs = [
             {
-                'name': 'bind',
-                'args': [k, v.todict() if isinstance(v, Expr) else v],
-            } for k, v in self.kwargs.items()
+                "name": "bind",
+                "args": [k, v.todict() if isinstance(v, Expr) else v],
+            }
+            for k, v in self.kwargs.items()
         ]
         return {
-            'name': self.name,
-            'args': args + kwargs,
+            "name": self.name,
+            "args": args + kwargs,
         }
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Expr:
         return type(self)(self.name, *args, **kwargs)
 
     def resolve(self, env: Env) -> Tuple[List[Any], Dict[str, Any]]:
@@ -78,7 +79,7 @@ class ShortExpr(Expr):
     def todict(self) -> dict:
         return {
             **super().todict(),
-            'type': 'expression',
+            "type": "expression",
         }
 
 
@@ -91,7 +92,7 @@ class MethodExpr(Expr):
     def todict(self) -> dict:
         return {
             **super().todict(),
-            'type': 'method',
+            "type": "method",
         }
 
 
@@ -106,14 +107,12 @@ def unparse(expr: Any):
 
 
 class Ufunc(Command):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.autoargs = True
 
 
 class UFuncRegistry:
-
     def __init__(self, ufuncs=None):
         self._ufuncs = ufuncs or []
 
@@ -131,6 +130,7 @@ class UFuncRegistry:
                     func_ = _inject_name(func, name_)
                     self._ufuncs.append((name_, func_, types))
             return func
+
         return decorator
 
     def collect(self, modules: List[str]):
@@ -148,11 +148,7 @@ class UFuncRegistry:
                 ufuncs[name] = Ufunc(name)
             dispatcher = ufuncs[name]
             dispatcher.add(types, func)
-            if (
-                len(types) > 1 and
-                not isinstance(types[1], tuple) and
-                issubclass(types[1], Expr)
-            ):
+            if len(types) > 1 and not isinstance(types[1], tuple) and issubclass(types[1], Expr):
                 # If function is registered with @resolve(Env, Expr), then
                 # disable autoargs. This means, that arguments must be resolved
                 # manually by calling ufunc(env, expr).
@@ -163,6 +159,7 @@ class UFuncRegistry:
 def _inject_name(func, name):
     def wrapper(env, *args, **kwargs):
         return func(env, name, *args, **kwargs)
+
     return wrapper
 
 
@@ -183,7 +180,7 @@ class Env:
         scope=None,
     ):
         if resolvers is None or executors is None:
-            config = context.get('config')
+            config = context.get("config")
             resolvers = resolvers or config.resolvers
             executors = executors or config.executors
         self.context = context
@@ -224,7 +221,6 @@ class Env:
 
         if expr.name in self._resolvers:
             ufunc = self._resolvers[expr.name]
-
         else:
             args, kwargs = expr.resolve(self)
             return self.default_resolver(expr, *args, **kwargs)
@@ -261,14 +257,14 @@ class Env:
 
 def asttoexpr(ast) -> Expr:
     if isinstance(ast, dict):
-        args = [asttoexpr(x) for x in ast['args']]
-        typ = ast.get('type')
-        if typ == 'expression':
-            return ShortExpr(ast['name'], *args)
-        elif typ == 'method':
-            return MethodExpr(ast['name'], *args)
+        args = [asttoexpr(x) for x in ast["args"]]
+        typ = ast.get("type")
+        if typ == "expression":
+            return ShortExpr(ast["name"], *args)
+        elif typ == "method":
+            return MethodExpr(ast["name"], *args)
         else:
-            return Expr(ast['name'], *args)
+            return Expr(ast["name"], *args)
     else:
         return ast
 
@@ -278,22 +274,23 @@ class Unresolved:
 
 
 class Bind(Unresolved):
-
     def __init__(self, name):
         self.name = name
 
     def __repr__(self):
         return self.name
 
+    def __str__(self):
+        return self.name
+
 
 class Pair(Unresolved):
-
     def __init__(self, name, value):
         self.name = name
         self.value = value
 
     def __repr__(self):
-        return f'{self.name}: {self.value!r}'
+        return f"{self.name}: {self.value!r}"
 
 
 class Negative(Bind):
@@ -304,4 +301,21 @@ class Positive(Bind):
     pass
 
 
-bind = functools.partial(Expr, 'bind')
+@dataclasses.dataclass
+class GetAttr(Unresolved):
+    obj: str
+    name: Union[GetAttr, Bind]
+
+    def __str__(self):
+        return f"{self.obj}.{str(self.name)}"
+
+
+bind = functools.partial(Expr, "bind")
+
+
+class NoOp(Expr):
+    def __init__(self):
+        self.name = "noop"
+
+    def todict(self) -> dict:
+        return {"name": self.name, "args": []}

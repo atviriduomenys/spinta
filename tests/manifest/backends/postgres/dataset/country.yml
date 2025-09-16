@@ -1,5 +1,5 @@
 type: model
-name: datasets/backends/postgres/dataset/country
+name: datasets/backends/postgres/dataset/Country
 external:
   dataset: datasets/backends/postgres/dataset
   resource: sql
@@ -11,4 +11,4 @@ properties:
     unique: true
   continent:
     type: ref
-    model: datasets/backends/postgres/dataset/continent
+    model: datasets/backends/postgres/dataset/Continent

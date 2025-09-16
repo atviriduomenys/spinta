@@ -1,11 +1,13 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from spinta.components import Context, Action, UrlParams, Node
+from spinta.components import Context, UrlParams, Node
+from spinta.core.enums import Action
 from spinta import commands
 from spinta.formats.json.components import Json
+from spinta.types.text.components import Text
 from spinta.utils.response import aiter, peek_and_stream
 
 
@@ -57,8 +59,27 @@ def _render(
     elif action == Action.DELETE:
         return Response(None, status_code=status_code, headers=headers)
     else:
-        return JSONResponse(
-            fmt.data(data),
-            status_code=status_code,
-            headers=headers
-        )
+        return JSONResponse(fmt.data(data), status_code=status_code, headers=headers)
+
+
+@commands.prepare_dtype_for_response.register(Context, Json, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Json,
+    dtype: Text,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if "C" in value:
+        value[""] = value.pop("C")
+
+    if len(value) == 1 and select is not None:
+        for key, data in value.items():
+            key = "C" if key == "" else key
+            if key not in select.keys():
+                return data
+
+    return value

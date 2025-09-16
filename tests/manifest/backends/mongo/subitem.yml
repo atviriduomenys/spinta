@@ -1,7 +1,6 @@
 ---
 type: model
-name: backends/mongo/subitem
-endpoint: backends/mongo/subitems
+name: backends/mongo/Subitem
 backend: mongo
 title: "Subitem"
 version:

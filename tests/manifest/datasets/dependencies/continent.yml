@@ -1,5 +1,5 @@
 type: model
-name: datasets/dependencies/continent
+name: datasets/dependencies/Continent
 external:
   dataset: datasets/dependencies
   resource: continents

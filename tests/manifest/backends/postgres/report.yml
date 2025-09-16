@@ -1,7 +1,6 @@
 ---
 type: model
-name: backends/postgres/report
-endpoint: backends/postgres/reports
+name: backends/postgres/Report
 title: "Report"
 version:
   id: 1

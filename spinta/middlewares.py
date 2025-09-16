@@ -23,9 +23,9 @@ class ContextMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] in ["http", "websocket"]:
-            with self.context.fork('request') as context:
-                scope.setdefault('state', {})
-                scope['state']['context'] = context
+            with self.context.fork("request") as context:
+                scope.setdefault("state", {})
+                scope["state"]["context"] = context
                 await self.app(scope, receive, send)
         else:
             await self.app(scope, receive, send)

@@ -13,18 +13,22 @@ BUILDDIR      = _build
 	python -m venv .venv
 	.venv/bin/pip install -r requirements.txt
 
-.venv/bin/pip-compile: env/bin/pip
+.venv/bin/pip-compile: .venv/bin/pip
 	.venv/bin/pip install pip-tools
 
 requirements.txt: .venv/bin/pip-compile requirements.in
 	.venv/bin/pip-compile requirements.in -o requirements.txt
+
+.PHONY: upgrade
+upgrade: .venv/bin/pip-compile
+	.venv/bin/pip-compile --upgrade requirements.in -o requirements.txt
 
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 auto:
-		$(VENVDIR)/bin/sphinx-autobuild --port 8080 -b html $(SOURCEDIR) $(BUILDDIR)/html
+		$(VENVDIR)/bin/sphinx-autobuild --port 8000 -b html $(SOURCEDIR) $(BUILDDIR)/html
 
 open:
 		xdg-open http://127.0.0.1:8000

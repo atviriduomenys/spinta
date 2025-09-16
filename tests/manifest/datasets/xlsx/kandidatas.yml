@@ -1,5 +1,5 @@
 type: model
-name: datasets/xlsx/rinkimai/kandidatas
+name: datasets/xlsx/Rinkimai/Kandidatas
 external:
   dataset: datasets/xlsx
   resource: data
@@ -43,21 +43,21 @@ properties:
     external: Gauti balsai (iš anksto)
   rinkimai:
     type: ref
-    model: datasets/xlsx/rinkimai
+    model: datasets/xlsx/Rinkimai
     external: Rinkimai
   turas:
     type: ref
-    model: datasets/xlsx/rinkimai/turas
+    model: datasets/xlsx/Rinkimai/Turas
     external:
       - Rinkimai
       - Turas
   apygarda:
     type: ref
-    model: datasets/xlsx/rinkimai/apygarda
+    model: datasets/xlsx/Rinkimai/Apygarda
     external: Apygardos Nr.
   apylinke:
     type: ref
-    model: datasets/xlsx/rinkimai/apylinke
+    model: datasets/xlsx/Rinkimai/Apylinke
     external:
       - Apygardos Nr.
       - Apylinkės Nr.

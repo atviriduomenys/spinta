@@ -6,7 +6,7 @@ class Dimension(Node):
 
 
 class UriPrefix(Dimension):
-    type: str = 'prefix'
+    type: str = "prefix"
     id: str = None
     eid: str = None
     name: str = None
@@ -15,13 +15,13 @@ class UriPrefix(Dimension):
     description: str = None
 
     schema = {
-        'id': {'type': 'string'},
-        'eid': {'type': 'string'},
-        'type': {'type': 'string'},
-        'name': {'type': 'string'},
-        'uri': {'type': 'string'},
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
+        "id": {"type": "string"},
+        "eid": {"type": "string"},
+        "type": {"type": "string"},
+        "name": {"type": "string"},
+        "uri": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
     }
 
     def __repr__(self):

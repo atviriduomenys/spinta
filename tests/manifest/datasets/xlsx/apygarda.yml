@@ -1,5 +1,5 @@
 type: model
-name: datasets/xlsx/rinkimai/apygarda
+name: datasets/xlsx/Rinkimai/Apygarda
 external:
   dataset: datasets/xlsx
   resource: data
@@ -15,11 +15,11 @@ properties:
     external: Apygardos pavadinimas
   rinkimai:
     type: ref
-    model: datasets/xlsx/rinkimai
+    model: datasets/xlsx/Rinkimai
     external: Rinkimai
   turas:
     type: ref
-    model: datasets/xlsx/rinkimai/turas
+    model: datasets/xlsx/Rinkimai/Turas
     external:
       - Rinkimai
       - Turas

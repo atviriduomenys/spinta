@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import base64
 import datetime
 import decimal
+import json
 import pathlib
 import uuid
 from typing import Any
@@ -10,36 +13,55 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 
+import dateutil
+import shapely.geometry.base
+from geoalchemy2.elements import WKTElement, WKBElement
+from geoalchemy2.shape import to_shape
+from shapely import wkt
+
 from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import get_model_reserved_props
-from spinta.backends.helpers import select_keys
-from spinta.backends.helpers import select_props
-from spinta.backends.helpers import check_unknown_props
+from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response
 from spinta.backends.helpers import flat_select_to_nested
-from spinta.backends.helpers import select_model_props
+from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import select_keys
+from spinta.backends.helpers import select_model_props
+from spinta.backends.helpers import select_props
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
-from spinta.exceptions import ConflictingValue
+from spinta.components import UrlParams, page_in_data
+from spinta.core.enums import Action
+from spinta.core.ufuncs import asttoexpr
+from spinta.exceptions import (
+    ConflictingValue,
+    RequiredProperty,
+    LangNotDeclared,
+    TooManyLangsGiven,
+    UnableToDetermineRequiredLang,
+    CoordinatesOutOfRange,
+    InheritPropertyValueMissmatch,
+    SRIDNotSetForGeometry,
+    InvalidUuidValue,
+    DirectRefValueUnassignment,
+)
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array
+from spinta.manifests.components import Manifest
+from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
-from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import File
 from spinta.types.money.components import Money
@@ -49,48 +71,49 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
-from spinta.utils.data import take
+from spinta.types.datatype import Time
+from spinta.types.datatype import UUID
+from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.helpers import get_crs_bounding_area
+from spinta.types.text.components import Text
+from spinta.utils.config import asbool
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
 def prepare_for_write(
-    context: Context,
-    model: Model,
-    backend: Backend,
-    patch: Dict[str, Any],
-    *,
-    action: Action,
+    context: Context, model: Model, backend: Backend, patch: Dict[str, Any], *, action: Action, params: UrlParams = None
 ) -> dict:
     # prepares model's data for storing in a backend
     backend = model.backend
     result = {}
     for name, value in patch.items():
-        if not name.startswith('_'):
+        if not name.startswith("_"):
             prop = model.properties[name]
-            value = commands.prepare_for_write(context, prop.dtype, backend, value)
+            if params:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value, params)
+            else:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value)
         result[name] = value
     return result
 
 
 @commands.prepare_for_write.register(Context, Property, Backend, object)
 def prepare_for_write(
-    context: Context,
-    prop: Property,
-    backend: Backend,
-    value: Any,
-    *,
-    action: Action,
+    context: Context, prop: Property, backend: Backend, value: Any, *, action: Action, params: UrlParams = None
 ) -> Any:
     if prop.name in value:
-        value[prop.name] = commands.prepare_for_write(
-            context,
-            prop.dtype,
-            prop.dtype.backend,
-            value[prop.name],
-        )
+        value[prop.name] = commands.prepare_for_write(context, prop.dtype, prop.dtype.backend, value[prop.name], params)
     return value
+
+
+@commands.prepare_for_write.register(Context, DataType, Backend, object, UrlParams)
+def prepare_for_write(context: Context, dtype: DataType, backend: Backend, value: Any, params: UrlParams) -> Any:
+    executor = commands.prepare_for_write[Context, type(dtype), type(backend), type(value)]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @commands.prepare_for_write.register(Context, DataType, Backend, object)
@@ -114,10 +137,17 @@ def prepare_for_write(
     value: List[Any],
 ) -> List[Any]:
     # prepare array and it's items for datastore
-    return [
-        commands.prepare_for_write(context, dtype.items.dtype, backend, v)
-        for v in value
-    ]
+    return [commands.prepare_for_write(context, dtype.items.dtype, backend, v) for v in value]
+
+
+@commands.prepare_for_write.register(Context, ArrayBackRef, Backend, list)
+def prepare_for_write(
+    context: Context,
+    dtype: ArrayBackRef,
+    backend: Backend,
+    value: List[Any],
+) -> List[Any]:
+    return [commands.prepare_for_write(context, dtype.items.dtype, backend, v) for v in value]
 
 
 @commands.prepare_for_write.register(Context, Object, Backend, dict)
@@ -135,9 +165,52 @@ def prepare_for_write(
     return prepped
 
 
+@commands.prepare_for_write.register(Context, Text, Backend, str, UrlParams)
+def prepare_for_write(context: Context, dtype: Text, backend: Backend, value: str, params: UrlParams) -> Any:
+    default_langs = context.get("config").languages
+    preferred_lang = None
+    # First Step: Check Content-Language if lang exists in the property
+    if params.content_langs:
+        if len(params.content_langs) > 1:
+            raise TooManyLangsGiven(dtype, amount=len(params.content_langs))
+
+        if params.content_langs[0] not in dtype.langs:
+            raise LangNotDeclared(dtype, lang=params.content_langs[0])
+
+        preferred_lang = dtype.langs[params.content_langs[0]]
+
+    # Second Step: if Content-Language not given check default languages
+    if not preferred_lang:
+        for lang in default_langs:
+            if lang in dtype.langs:
+                preferred_lang = dtype.langs[lang]
+                break
+
+    # Third Step: if Content-Language and default language does not exist, check for C language (unknown)
+    if not preferred_lang:
+        if not commands.identifiable(dtype.prop) and "C" in dtype.langs:
+            preferred_lang = dtype.langs["C"]
+
+    # Fourth Step: if nothing works raise Exception that language was not determined
+    if not preferred_lang:
+        raise UnableToDetermineRequiredLang()
+
+    value = {preferred_lang.name: value}
+    executor = commands.prepare_for_write[Context, Text, type(backend), dict]
+    result = executor(context, dtype, backend, value)
+    return result
+
+
+@commands.prepare_for_write.register(Context, Text, Backend, dict, UrlParams)
+def prepare_for_write(context: Context, dtype: Text, backend: Backend, value: dict, params: UrlParams) -> Any:
+    if "" in value:
+        value["C"] = value.pop("")
+    return value
+
+
 @prepare.register(Context, Backend, Property)
-def prepare(context: Context, backend: Backend, prop: Property):
-    return prepare(context, backend, prop.dtype)
+def prepare(context: Context, backend: Backend, prop: Property, **kwargs):
+    return prepare(context, backend, prop.dtype, **kwargs)
 
 
 @commands.simple_data_check.register(Context, DataItem, Model, Backend)
@@ -193,14 +266,31 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
-    check_type_value(dtype, value)
+    if data.action in (Action.UPDATE, Action.INSERT, Action.PATCH, Action.UPSERT):
+        check_type_value(dtype, value, data.action)
 
     # Action.DELETE is ignore for qvarn compatibility reasons.
     # XXX: make `spinta` check for revision on Action.DELETE,
     #      implementers can override this command as they please.
-    updating = data.action in (Action.UPDATE, Action.PATCH)
-    if updating and '_revision' not in data.given:
+    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
+    if updating and "_revision" not in data.given:
         raise NoItemRevision(prop)
+
+
+@commands.simple_data_check.register(Context, DataItem, UUID, Property, Backend, str)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: UUID,
+    prop: Property,
+    backend: Backend,
+    value: str,
+) -> None:
+    if not isinstance(value, uuid.UUID):
+        try:
+            uuid.UUID(str(value))
+        except ValueError:
+            raise InvalidUuidValue(prop, value=value)
 
 
 @commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
@@ -217,18 +307,139 @@ def simple_data_check(
         simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
 
 
-@commands.simple_data_check.register(Context, DataItem, Array, Property, Backend, list)
+@commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
 def simple_data_check(
     context: Context,
     data: DataItem,
-    dtype: Array,
+    dtype: Object,
     prop: Property,
     backend: Backend,
-    value: list,
+    value: Dict[str, Any],
 ) -> None:
-    dtype = dtype.items.dtype
-    for v in value:
-        simple_data_check(context, data, dtype, prop, dtype.backend, v)
+    for prop in dtype.properties.values():
+        v = value.get(prop.name, NA)
+        simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, Text, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Text,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    langs = dtype.langs
+    for lang, val in value.items():
+        if lang not in langs:
+            if lang == "" and "C" in langs:
+                continue
+            raise LangNotDeclared(dtype, lang=lang)
+
+
+@commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: ExternalRef,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    if value is None:
+        return
+
+    denorm_prop_keys = [key for key in dtype.properties.keys()]
+
+    if dtype.model.given.pkeys or dtype.explicit:
+        allowed_keys = [prop.name for prop in dtype.refprops]
+    else:
+        allowed_keys = ["_id"]
+
+    allowed_keys.extend(denorm_prop_keys)
+    for key in value.keys():
+        if key not in allowed_keys:
+            raise exceptions.FieldNotInResource(prop, property=key)
+        elif key in denorm_prop_keys:
+            commands.simple_data_check(
+                context, data, dtype.properties[key].dtype, dtype.properties[key], backend, value[key]
+            )
+
+    if value and isinstance(value, dict):
+        if all(val is None for key, val in value.items() if key in allowed_keys):
+            raise DirectRefValueUnassignment(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Ref,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is None:
+        return
+
+    if value and not isinstance(value, dict):
+        raise exceptions.InvalidRefValue(prop, value=value)
+
+    if isinstance(value, dict) and "_id" in value and value["_id"] is None:
+        raise DirectRefValueUnassignment(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: BackRef,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is not NA:
+        raise exceptions.CannotModifyBackRefProp(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, ArrayBackRef, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: ArrayBackRef,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is not NA:
+        raise exceptions.CannotModifyBackRefProp(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, str)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Geometry,
+    prop: Property,
+    backend: Backend,
+    value: str,
+) -> None:
+    if value:
+        if ";" in value:
+            shape = shapely.wkt.loads(value.split(";", 1)[1])
+        else:
+            shape = shapely.wkt.loads(value)
+
+        srid = dtype.srid
+
+        if srid is None:
+            raise SRIDNotSetForGeometry(dtype, property=prop)
+
+        bounding_area = get_crs_bounding_area(srid)
+
+        if not bounding_area.contains(shape):
+            raise CoordinatesOutOfRange(dtype, given=value, srid=srid, bounds=bounding_area.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -239,12 +450,12 @@ def complex_data_check(
     backend: Backend,
 ) -> None:
     # XXX: Maybe Action.DELETE should also provide revision.
-    updating = data.action in (Action.UPDATE, Action.PATCH)
-    if updating and '_revision' not in data.given:
+    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
+    if updating and "_revision" not in data.given:
         raise NoItemRevision(model)
 
-    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
-        for k in ('_type', '_revision'):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE, Action.MOVE):
+        for k in ("_type", "_revision"):
             if k in data.given and data.saved[k] != data.given[k]:
                 raise ConflictingValue(
                     model.properties[k],
@@ -261,6 +472,23 @@ def complex_model_properties_check(
     backend: Backend,
     data: DataItem,
 ) -> None:
+    base_data = {}
+    if model.base and any(isinstance(prop.dtype, Inherit) for prop in model.properties.values()):
+        id_ = data.given.get("_id", None)
+        if id_ is not None:
+            where = {
+                "name": "eq",
+                "args": [
+                    {"name": "bind", "args": ["_id"]},
+                    id_,
+                ],
+            }
+            query = asttoexpr(where)
+            result = commands.getall(context, model.base.parent, backend, query=query)
+            for row in result:
+                base_data = row
+                break
+
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
         # XXX: But I think, it should be mandatory.
@@ -276,27 +504,15 @@ def complex_model_properties_check(
                     data.backend,
                     given,
                 )
-            complex_data_check(
-                context,
-                data,
-                prop.dtype,
-                prop,
-                data.backend,
-                given,
-            )
+            complex_data_check(context, data, prop.dtype, prop, data.backend, given, base_data=base_data)
 
 
 @complex_data_check.register(Context, DataItem, DataType, Property, Backend, object)
 def complex_data_check(
-    context: Context,
-    data: DataItem,
-    dtype: DataType,
-    prop: Property,
-    backend: Backend,
-    value: object,
+    context: Context, data: DataItem, dtype: DataType, prop: Property, backend: Backend, value: object, **kwargs
 ):
-    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
-        for k in ('_type', '_revision'):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE, Action.MOVE):
+        for k in ("_type", "_revision"):
             if k in data.given and data.saved[k] != data.given[k]:
                 raise ConflictingValue(
                     dtype,
@@ -305,14 +521,46 @@ def complex_data_check(
                 )
 
 
-def check_type_value(dtype: DataType, value: object):
-    if dtype.required and (value is None or value is NA):
-        # FIXME: Raise a UserError
-        raise Exception(f"{dtype.prop.name!r} is required for {dtype.prop.model.name!r}.")
+@complex_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Inherit,
+    prop: Property,
+    backend: Backend,
+    value: object,
+    base_data: dict = {},
+    **kwargs,
+):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE, Action.MOVE):
+        for k in ("_type", "_revision"):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    dtype,
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )
+
+    if value is not NA and dtype.prop.name in base_data:
+        inherited_value = base_data[dtype.prop.name]
+        if inherited_value != value:
+            raise InheritPropertyValueMissmatch(dtype, expected=inherited_value, given=value)
+
+
+def check_type_value(dtype: DataType, value: object, action: Action):
+    if dtype.required and (
+        (action == Action.PATCH and value is None) or (action != Action.PATCH and (value is None or value is NA))
+    ):
+        raise RequiredProperty(dtype.prop)
 
 
 @gen_object_id.register(Context, Backend, Node)
 def gen_object_id(context: Context, backend: Backend, model: Node):
+    return str(uuid.uuid4())
+
+
+@gen_object_id.register(Context, Backend)
+def gen_object_id(context: Context, backend: Backend):
     return str(uuid.uuid4())
 
 
@@ -324,10 +572,10 @@ def is_object_id(context: Context, value: str):
     # XXX: other option would be to implement two pass URL parsing, to get
     #      information about model, and then call is_object_id directly with
     #      backend and model. That would be nice.
-    store = context.get('store')
+    store = context.get("store")
     candidates = set()
     manifest = store.manifest
-    for model in manifest.objects.get('model', {}).values():
+    for model in manifest.objects.get("model", {}).values():
         candidates.add((model.backend.__class__, model.__class__))
 
     # Currently all models use UUID, but dataset models use id generated from
@@ -335,7 +583,7 @@ def is_object_id(context: Context, value: str):
     for Backend_, Model_ in candidates:
         backend = Backend_()
         model = Model_()
-        model.name = ''
+        model.name = ""
         if is_object_id(context, backend, model, value):
             return True
 
@@ -346,6 +594,11 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
+
+
+@is_object_id.register(Context, Backend, Model, uuid.UUID)
+def is_object_id(context: Context, backend: Backend, model: Model, value: uuid.UUID):
+    return value.version == 4
 
 
 @is_object_id.register(Context, Backend, Model, object)
@@ -383,11 +636,11 @@ def prepare_data_for_response(
             select=sel,
         )
         for prop, val, sel in select_model_props(
-            ns.manifest.models['_ns'],
+            commands.get_model(context, ns.manifest, "_ns"),
             prop_names,
             value,
             select,
-            reserved=['_id'],
+            reserved=["_id"],
         )
     }
 
@@ -418,7 +671,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action),
+            get_model_reserved_props(action, page_in_data(value)),
         )
     }
 
@@ -448,9 +701,75 @@ def prepare_data_for_response(
             dtype,
             value,
             select,
-            ['_type', '_revision'],
+            ["_type", "_revision"],
         )
     }
+
+
+def _extract_id_data_from_dataitem(data: DataItem) -> dict | None:
+    # MOVE action edge case, when saved and patch _id is used differently
+    if data.patch and data.saved and data.action is Action.MOVE:
+        return {"_id": data.saved["_id"], "_same_as": data.patch["_id"]}
+
+    if data.patch and "_id" in data.patch and data.prop is None:
+        return {"_id": data.patch["_id"]}
+    elif data.patch and data.prop and data.patch[data.prop.name] and "_id" in data.patch[data.prop.name]:
+        return {"_id": data.patch[data.prop.name]["_id"]}
+    elif data.saved and data.prop and data.saved[data.prop.name] and "_id" in data.saved[data.prop.name]:
+        return {"_id": data.saved[data.prop.name]["_id"]}
+    elif data.saved:
+        return {"_id": data.saved["_id"]}
+
+
+@commands.prepare_data_for_response.register(Context, Format, DataItem)
+def prepare_data_for_response(
+    context: Context,
+    fmt: Format,
+    data: DataItem,
+) -> dict:
+    resp = prepare_response(context, data)
+    resp = {k: v for k, v in resp.items() if not k.startswith("_")}
+    if data.prop or data.model:
+        resp["_type"] = (data.prop or data.model).model_type()
+
+    id_data = _extract_id_data_from_dataitem(data)
+    resp.update(id_data)
+
+    if data.patch and "_revision" in data.patch:
+        resp["_revision"] = data.patch["_revision"]
+    elif data.saved:
+        resp["_revision"] = data.saved["_revision"]
+
+    if data.action and (data.model or data.prop):
+        if data.prop:
+            resp = commands.prepare_data_for_response(
+                context,
+                data.prop.dtype,
+                fmt,
+                resp,
+                action=data.action,
+            )
+        else:
+            select_tree = get_select_tree(context, data.action, None)
+            prop_names = get_select_prop_names(
+                context, data.model, data.model.properties, data.action, select_tree, include_denorm_props=False
+            )
+            resp = commands.prepare_data_for_response(
+                context,
+                data.model,
+                fmt,
+                resp,
+                action=data.action,
+                select=select_tree,
+                prop_names=prop_names,
+            )
+    if data.error is not None:
+        return {
+            **resp,
+            "_errors": [exceptions.error_response(data.error)],
+        }
+    else:
+        return resp
 
 
 @commands.prepare_data_for_response.register(Context, File, Format, dict)
@@ -465,7 +784,7 @@ def prepare_data_for_response(
     property_: Property = None,
 ) -> dict:
     prop = dtype.prop
-    reserved = ['_type', '_revision']
+    reserved = ["_type", "_revision"]
 
     if prop.name in value and value[prop.name]:
         check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
@@ -519,6 +838,20 @@ def _select_prop_props(
         )
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, Property, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    prop: Property,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(context, fmt, prop.dtype, value, data=data, action=action, select=select)
+
+
 @commands.prepare_dtype_for_response.register(Context, Format, DataType, object)
 def prepare_dtype_for_response(
     context: Context,
@@ -530,7 +863,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None))), (
+    assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -566,6 +899,20 @@ def prepare_dtype_for_response(
     return float(value)
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, UUID, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: UUID,
+    value: object,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return str(value)
+
+
 @commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
@@ -578,8 +925,8 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return {
-        '_id': None,
-        '_content_type': None,
+        "_id": None,
+        "_content_type": None,
     }
 
 
@@ -597,28 +944,28 @@ def prepare_dtype_for_response(
     data = {
         key: val
         for key, val, sel in select_keys(
-            ['_id', '_content_type'],
+            ["_id", "_content_type"],
             value,
             select,
         )
     }
 
-    if isinstance(data.get('_id'), pathlib.Path):
+    if isinstance(data.get("_id"), pathlib.Path):
         # _id on FileSystem backend is a Path.
-        data['_id'] = str(data['_id'])
+        data["_id"] = str(data["_id"])
 
     # File content is returned only if explicitly requested.
-    if select and '_content' in select:
-        if '_content' in value:
-            content = value['_content']
+    if select and "_content" in select:
+        if "_content" in value:
+            content = value["_content"]
         else:
             prop = dtype.prop
             content = commands.getfile(context, prop, dtype, dtype.backend, data=value)
 
         if content is None:
-            data['_content'] = None
+            data["_content"] = None
         else:
-            data['_content'] = base64.b64encode(content).decode()
+            data["_content"] = base64.b64encode(content).decode()
 
     return data
 
@@ -679,7 +1026,35 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    return base64.b64encode(value).decode('ascii')
+    return base64.b64encode(value).decode("ascii")
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Geometry, shapely.geometry.base.BaseGeometry)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Geometry,
+    value: shapely.geometry.base.BaseGeometry,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return value.wkt
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: PageType,
+    value: list,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return encode_page_values(value).decode("ascii")
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))
@@ -694,21 +1069,26 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     if value is None:
-        value = {'_id': None}
+        return None
 
-    if select and select != {'*': {}}:
+    properties = dtype.model.properties.copy()
+    properties.update(dtype.properties)
+
+    nullable = True
+    if select and select != {"*": {}}:
+        nullable = False
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            properties,
             action,
             select,
-            reserved=['_id'],
+            reserved=["_id"],
         )
     else:
-        names = ['_id']
+        names = value.keys()
 
-    data = {
+    result = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
@@ -721,13 +1101,20 @@ def prepare_dtype_for_response(
         for prop, val, sel in select_props(
             dtype.model,
             names,
-            dtype.model.properties,
+            properties,
             value,
             select,
         )
     }
 
-    return data
+    # Apply None checks at the end, since there might be nested values that are only calculated at the end
+    # There are some cases where data changelog was not logging ref unassignment correctly and would store values as
+    # empty string, instead of null
+    # https://github.com/atviriduomenys/spinta/issues/556
+    if nullable and all(val is None or val == "" for val in result.values()):
+        return None
+
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
@@ -743,7 +1130,68 @@ def prepare_dtype_for_response(
 ):
     # FIXME: Backend should never return references as strings! References
     #        should always be dicts.
-    return {'_id': value}
+
+    # This is a workaround for `"value": ""` cases, where they should have been `"value": null`
+    # https://github.com/atviriduomenys/spinta/issues/556
+    if value == "":
+        return None
+
+    return {"_id": value}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ExternalRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ExternalRef,
+    value: Optional[Dict[str, Any]],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None:
+        return None
+
+    nullable = True
+    if select and select != {"*": {}}:
+        nullable = False
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+        )
+    else:
+        names = value.keys()
+
+    result = {}
+    props = dtype.model.properties.copy()
+    props.update(dtype.properties)
+
+    for prop, val, sel in select_props(
+        dtype.model,
+        names,
+        props,
+        value,
+        select,
+    ):
+        result[prop.name] = commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=value,
+            action=action,
+            select=sel,
+        )
+
+    # Apply None checks at the end, since there might be nested values that are only calculated at the end
+    if nullable and all(val is None for val in result.values()):
+        return None
+
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Object, dict)
@@ -831,6 +1279,20 @@ def prepare_dtype_for_response(
     )
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, DateTime, datetime.datetime)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DateTime,
+    value: datetime.datetime,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return value.isoformat()
+
+
 def _prepare_array_for_response(
     context: Context,
     dtype: Array,
@@ -913,6 +1375,221 @@ def prepare_dtype_for_response(
     return float(value)
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, Inherit, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DataType,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    base_model = get_property_base_model(dtype.prop.model, dtype.prop.name)
+    if base_model:
+        prop = base_model.properties[dtype.prop.name]
+        return commands.prepare_dtype_for_response(
+            context, fmt, prop.dtype, value, data=data, action=action, select=select
+        )
+    return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Inherit, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DataType,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if dtype.prop.name == "_base" and value:
+        data = {}
+        for name in value.keys():
+            base_model = get_property_base_model(dtype.prop.model, name)
+            if base_model:
+                data.update(
+                    {
+                        prop.name: commands.prepare_dtype_for_response(
+                            context,
+                            fmt,
+                            prop.dtype,
+                            val,
+                            data=data,
+                            action=action,
+                            select=sel,
+                        )
+                        for prop, val, sel in select_props(
+                            base_model,
+                            [name],
+                            base_model.properties,
+                            value,
+                            select,
+                        )
+                    }
+                )
+        return data
+    return {}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Inherit, NotAvailable)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Inherit,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Denorm, (object, NotAvailable))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Denorm,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(
+        context, fmt, dtype.rel_prop, value, data=data, action=action, select=select
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, (list, tuple))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ArrayBackRef,
+    value: (list, tuple),
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+) -> list:
+    return _prepare_array_for_response(
+        context,
+        dtype,
+        fmt,
+        value,
+        data,
+        action,
+        select,
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ArrayBackRef,
+    value: type(None),
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+) -> list:
+    return []
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, BackRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: BackRef,
+    value: Optional[Dict[str, Any]],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None or all(val is None for val in value.values()):
+        return None
+
+    if select and select != {"*": {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+            reserved=["_id"],
+        )
+    else:
+        names = value.keys()
+
+    data = {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=data,
+            action=action,
+            select=sel,
+        )
+        for prop, val, sel in select_props(
+            dtype.model,
+            names,
+            dtype.model.properties,
+            value,
+            select,
+        )
+    }
+
+    return data
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, BackRef, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: BackRef,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return {"_id": value}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Text,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if len(value) == 1 and select is not None:
+        for key, data in value.items():
+            if key not in select.keys():
+                return data
+    return value
+
+
+def get_property_base_model(model: Model, name: str):
+    model = model
+    base_model = None
+    while model.base and model.base.parent:
+        model = model.base.parent
+        if name in model.properties and not isinstance(model.properties[name].dtype, Inherit):
+            base_model = model
+            break
+    return base_model
+
+
 @commands.unload_backend.register(Context, Backend)
 def unload_backend(context: Context, backend: Backend):
     pass
@@ -927,13 +1604,13 @@ def load_operator_value(
     *,
     query_params: dict,
 ):
-    operator = query_params['name']
+    operator = query_params["name"]
     # XXX: That is probably not a very reliable way of getting original operator
     #      name. Maybe at least this should be documented some how.
-    operator_name = query_params.get('origin', operator)
-    if operator in ('startswith', 'contains') and not isinstance(dtype, (String, PrimaryKey)):
+    operator_name = query_params.get("origin", operator)
+    if operator in ("startswith", "contains") and not isinstance(dtype, (String, PrimaryKey)):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
-    if operator in ('gt', 'ge', 'lt', 'le') and isinstance(dtype, String):
+    if operator in ("gt", "ge", "lt", "le") and isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
 
 
@@ -994,7 +1671,9 @@ def update(
     stop_on_error: bool = True,
 ):
     return commands.update(
-        context, prop.model, prop.model.backend,
+        context,
+        prop.model,
+        prop.model.backend,
         dstream=dstream,
         stop_on_error=stop_on_error,
     )
@@ -1011,7 +1690,9 @@ def patch(
     stop_on_error: bool = True,
 ):
     return commands.update(
-        context, prop.model, prop.model.backend,
+        context,
+        prop.model,
+        prop.model.backend,
         dstream=dstream,
         stop_on_error=stop_on_error,
     )
@@ -1029,7 +1710,9 @@ def delete(
 ):
     dstream = _prepare_property_for_delete(prop, dstream)
     return commands.update(
-        context, prop.model, prop.model.backend,
+        context,
+        prop.model,
+        prop.model.backend,
         dstream=dstream,
         stop_on_error=stop_on_error,
     )
@@ -1042,7 +1725,7 @@ async def _prepare_property_for_delete(
     async for data in dstream:
         if data.patch:
             data.patch = {
-                **{k: v for k, v in data.patch.items() if k.startswith('_')},
+                **{k: v for k, v in data.patch.items() if k.startswith("_")},
                 prop.name: None,
             }
         yield data
@@ -1054,79 +1737,254 @@ def cast_backend_to_python(
     model: Model,
     backend: Backend,
     data: dict,
+    *,
+    extra_properties: dict[str, Property] = None,
+    **kwargs,
 ) -> dict:
+    properties = model.properties
+    if extra_properties is not None:
+        properties = properties.copy()
+        properties.update(extra_properties)
+
     return {
-        k: commands.cast_backend_to_python(
-            context,
-            model.properties[k].dtype,
-            backend,
-            v,
-        ) if k in model.properties else v
+        k: commands.cast_backend_to_python(context, properties[k].dtype, backend, v, **kwargs) if k in properties else v
         for k, v in data.items()
     }
 
 
 @commands.cast_backend_to_python.register(Context, Property, Backend, object)
-def cast_backend_to_python(
-    context: Context,
-    prop: Property,
-    backend: Backend,
-    data: object,
-) -> dict:
-    return commands.cast_backend_to_python(context, prop.dtype, backend, data)
+def cast_backend_to_python(context: Context, prop: Property, backend: Backend, data: object, **kwargs) -> dict:
+    return commands.cast_backend_to_python(context, prop.dtype, backend, data, **kwargs)
 
 
 @commands.cast_backend_to_python.register(Context, DataType, Backend, object)
-def cast_backend_to_python(
-    context: Context,
-    dtype: DataType,
-    backend: Backend,
-    data: Any,
-) -> Any:
+def cast_backend_to_python(context: Context, dtype: DataType, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
     return data
+
+
+@commands.cast_backend_to_python.register(Context, UUID, Backend, object)
+def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return uuid.UUID(str(data))
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, DateTime, Backend, object)
+def cast_backend_to_python(context: Context, dtype: DateTime, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return dateutil.parser.isoparse(data)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Time, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Time, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str) and ":" in data:
+        try:
+            isoparser = dateutil.parser.isoparser()
+            return isoparser.parse_isotime(data)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Date, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Date, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            isoparser = dateutil.parser.isoparser()
+            return isoparser.parse_isodate(data)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Integer, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Integer, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            new = data
+            if "," in data and "." not in data and data.count(",") == 1:
+                new = data.replace(",", ".")
+            elif "," in data:
+                new = data.replace(",", "")
+            return int(new)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Number, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Number, backend: Backend, data: Any, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            new = data
+            if "," in data and "." not in data and data.count(",") == 1:
+                new = data.replace(",", ".")
+            elif "," in data:
+                new = data.replace(",", "")
+            return float(new)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
+def cast_backend_to_python(context: Context, dtype: Binary, backend: Backend, data: str, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return base64.b64decode(data)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Boolean, Backend, str)
+def cast_backend_to_python(context: Context, dtype: Boolean, backend: Backend, data: str, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return asbool(data)
+        except ValueError:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, str)
+def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: str, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return wkt.loads(data)
+        except Exception:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, WKTElement)
+def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: WKTElement, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    return to_shape(data)
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, WKBElement)
+def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: WKBElement, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    return to_shape(data)
+
+
+@commands.cast_backend_to_python.register(Context, Ref, Backend, dict)
+def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data: Dict[str, Any], **kwargs) -> Any:
+    if not data:
+        return data
+
+    processed_data = {}
+    for key in data:
+        prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
+        if prop is not None:
+            processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)
+
+    for prop in dtype.refprops:
+        if prop.name not in processed_data and prop.name in data:
+            processed_data[prop.name] = commands.cast_backend_to_python(
+                context, prop, backend, data[prop.name], **kwargs
+            )
+
+    if not processed_data or all(value is None for value in processed_data.values()):
+        return None
+
+    return processed_data
 
 
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
 def cast_backend_to_python(
-    context: Context,
-    dtype: Object,
-    backend: Backend,
-    data: Dict[str, Any],
+    context: Context, dtype: Object, backend: Backend, data: Dict[str, Any], **kwargs
 ) -> Dict[str, Any]:
-    return {
-        k: commands.cast_backend_to_python(
-            context,
-            dtype.properties[k].dtype,
-            backend,
-            v,
-        ) if k in dtype.properties else v
-        for k, v in data.items()
-    }
+    if data:
+        return {
+            k: commands.cast_backend_to_python(context, dtype.properties[k].dtype, backend, v, **kwargs)
+            if k in dtype.properties
+            else v
+            for k, v in data.items()
+        }
+    return data
 
 
 @commands.cast_backend_to_python.register(Context, Array, Backend, list)
-def cast_backend_to_python(
-    context: Context,
-    dtype: Array,
-    backend: Backend,
-    data: List[Any],
-) -> List[Any]:
-    return [
-        commands.cast_backend_to_python(
-            context,
-            dtype.items.dtype,
-            backend,
-            v,
-        )
-        for v in data
-    ]
+def cast_backend_to_python(context: Context, dtype: Array, backend: Backend, data: List[Any], **kwargs) -> List[Any]:
+    if data and dtype:
+        return [commands.cast_backend_to_python(context, dtype.items.dtype, backend, v, **kwargs) for v in data]
+    return data
 
 
-@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
-def cast_backend_to_python(
-    context: Context,
-    dtype: Binary,
-    backend: Backend,
-    data: str,
-) -> bytes:
-    return base64.b64decode(data)
+@commands.cast_backend_to_python.register(Context, Array, Backend, str)
+def cast_backend_to_python(context: Context, dtype: Array, backend: Backend, data: str, **kwargs):
+    val = json.loads(data)
+    return commands.cast_backend_to_python(context, dtype, backend, val, **kwargs)
+
+
+@commands.cast_backend_to_python.register(Context, Denorm, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, data: Any, **kwargs) -> Any:
+    return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
+
+
+@commands.reload_backend_metadata.register(Context, Manifest, Backend)
+def reload_backend_metadata(context, manifest, backend):
+    pass
+
+
+@commands.reload_backend_metadata.register(Context, Manifest, type(None))
+def reload_backend_metadata(context, manifest, backend):
+    pass
+
+
+def _check_if_nan(value: Any) -> bool:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if value != value:
+        return True
+    return False
+
+
+@commands.get_error_context.register(Backend)
+def get_error_context(backend: Backend, *, prefix="this") -> Dict[str, str]:
+    return {
+        "type": f"{prefix}.type",
+        "name": f"{prefix}.name",
+        "origin": f"{prefix}.origin",
+        "features": f"{prefix}.features",
+    }
+
+
+@commands.get_error_context.register(str)
+def get_error_context(message: str, *, prefix="this") -> Dict[str, str]:
+    return {}
+
+
+@commands.redirect.register(Context, Backend, Model, str)
+def redirect(context: Context, backend: Backend, model: Model, data: str):
+    return None

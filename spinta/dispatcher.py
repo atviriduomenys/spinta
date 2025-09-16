@@ -14,7 +14,7 @@ from typing import cast
 from multipledispatch.dispatcher import Dispatcher
 from multipledispatch.dispatcher import str_signature
 
-F = TypeVar('F', bound=Callable[[], Any])
+F = TypeVar("F", bound=Callable[[], Any])
 
 _commands: Dict[str, Command] = {}
 
@@ -48,16 +48,14 @@ class Command(Dispatcher):
             types = signature_types or tuple(_find_func_types(func))
             self.add(types, func)
             return self
+
         return cast(Command, _)
 
     def __getitem__(self, types):
         types = types if isinstance(types, tuple) else (types,)
         func = self.dispatch(*types)
         if not func:
-            raise NotImplementedError(
-                f"Could not find signature for {self.name}: "
-                f"<{str_signature(types)}>"
-            )
+            raise NotImplementedError(f"Could not find signature for {self.name}: <{str_signature(types)}>")
         return func
 
     def print_methods(self, *args, **kwargs) -> None:
@@ -71,17 +69,14 @@ class Command(Dispatcher):
 
         base = pathlib.Path().resolve()
         arg_names = _extend_duplicate_names(self.ordering)
-        print('---')
+        print("---")
         for args in self.ordering:
             func_ = self.funcs[args]
             mark = func_ is func
             _print_method(base, func_, self.name, arg_names, args, mark)
 
 
-def _extend_duplicate_names(
-    argslist: List[Tuple[type]]
-) -> Dict[type, str]:
-
+def _extend_duplicate_names(argslist: List[Tuple[type]]) -> Dict[type, str]:
     argnames = collections.defaultdict(set)
     for args in argslist:
         for arg in args:
@@ -94,11 +89,11 @@ def _extend_duplicate_names(
             if len(argnames[name]) == 1:
                 continue
             found = True
-            n = name.count('.') + 1
+            n = name.count(".") + 1
             args = argnames.pop(name)
             for arg in args:
-                name = arg.__module__.split('.')[-n:] + [arg.__name__]
-                name = '.'.join(name)
+                name = arg.__module__.split(".")[-n:] + [arg.__name__]
+                name = ".".join(name)
                 argnames[name].add(arg)
         if not found:
             break
@@ -115,10 +110,10 @@ def _print_method(base, func, name, argnames, args, mark=False):
         # If two paths do not have common base, then fallback to full
         # file path.
         pass
-    argsn = ', '.join([argnames[arg] for arg in args])
-    signature = f'{name}({argsn}):'
-    marker = ' * ' if mark else '   '
-    print(f'{marker}{signature:<60} {file}:{line}')
+    argsn = ", ".join([argnames[arg] for arg in args])
+    signature = f"{name}({argsn}):"
+    marker = " * " if mark else "   "
+    print(f"{marker}{signature:<60} {file}:{line}")
 
 
 def _find_func_types(func):

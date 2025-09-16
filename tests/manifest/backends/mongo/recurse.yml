@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/recurse
+name: backends/mongo/Recurse
 backend: mongo
 version:
   id: 1

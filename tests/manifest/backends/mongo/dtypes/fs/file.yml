@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/dtypes/fs/file
+name: backends/mongo/dtypes/fs/File
 backend: mongo
 properties:
   file:

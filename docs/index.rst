@@ -28,12 +28,14 @@ You can open data following these simple steps:
 
 1. Describe your dataset.
 
-   You can automatically inspect you data source using this command::
+   You can automatically inspect your data source using this command::
 
       spinta inspect sqlite:////data.db -o manifest.xlsx
 
-   Then you need to open `manifest.xlsx` using your favorite spreadsheed
-   program and fill in missing metadata, specified which columns you want to
+   This will create a file `manifest.xslx`.
+
+   Then you need to open `manifest.xlsx` using your favorite spreadsheet
+   program and fill in missing metadata, specifying which columns you want to
    open.
 
    While describing your data you can preview how things would look, before
@@ -74,6 +76,7 @@ Opening and publishing your data has never been so simple!
 
    reference/components
    reference/commands
+   reference/cli
 
 .. toctree::
    :maxdepth: 2

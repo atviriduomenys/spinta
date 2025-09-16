@@ -1,5 +1,5 @@
 type: model
-name: datasets/json/rinkimai
+name: datasets/json/Rinkimai
 external:
   dataset: datasets/json
   resource: data

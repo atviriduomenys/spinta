@@ -13,9 +13,14 @@
 /tags
 /var/
 /.idea/
+ruff.toml
+config.yml
+manifest.*
 
 # pyenv
 .python-version
 /keymaps.db
 /.vscode/
 /reports/
+/config.yml
+/manifest.csv

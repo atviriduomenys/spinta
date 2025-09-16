@@ -1,10 +1,14 @@
+from pathlib import Path
 from typing import List
 from typing import Tuple
 
 import pytest
+from _pytest.fixtures import FixtureRequest
 
-from spinta.testing.client import TestClient
+from spinta.core.config import RawConfig
+from spinta.testing.client import TestClient, create_test_client
 from spinta.testing.data import listdata
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.utils.schema import NA
 
@@ -14,271 +18,354 @@ def _excluding(
     value: str,
     data: List[Tuple[str, str]],
 ) -> List[Tuple[str, str]]:
-    return [
-        (_type, status)
-        for _type, status in data
-        if not (_type == name and status == value)
-    ]
+    return [(_type, status) for _type, status in data if not (_type == name and status == value)]
 
 
 def test_wipe_all(app):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe'])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
     # Create some data in different models
-    resp = app.post('/', json={'_data': [
-        {'_op': 'insert', '_type': 'report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'ok'},
-    ]})
+    resp = app.post(
+        "/",
+        json={
+            "_data": [
+                {"_op": "insert", "_type": "Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
+            ]
+        },
+    )
     assert resp.status_code == 200, resp.json()
 
     # Get data from all models
-    resp = app.get('/:all')
-    data = sorted([(r['_type'], r.get('status')) for r in resp.json()['_data']])
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
     # Wipe all data
-    resp = app.delete('/:wipe')
+    resp = app.delete("/:wipe")
     assert resp.status_code == 200, resp.json()
 
     # Check what data again
-    resp = app.get('/:all')
+    resp = app.get("/:all")
     assert resp.status_code == 200, resp.json()
-    assert len(resp.json()['_data']) == 0
+    assert len(resp.json()["_data"]) == 0
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    "backends/mongo/Report",
+    "backends/postgres/Report",
 )
 def test_wipe_model(model, app):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe'])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
     # Create some data in different models
-    resp = app.post('/', json={'_data': [
-        {'_op': 'insert', '_type': 'report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'ok'},
-    ]})
+    resp = app.post(
+        "/",
+        json={
+            "_data": [
+                {"_op": "insert", "_type": "Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
+            ]
+        },
+    )
     assert resp.status_code == 200, resp.json()
 
     # Get data from all models
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
     # Wipe model data
-    resp = app.delete(f'/{model}/:wipe')
+    resp = app.delete(f"/{model}/:wipe")
     assert resp.status_code == 200, resp.json()
-    resp = app.delete(f'/_txn/:wipe')
+    resp = app.delete("/_txn/:wipe")
     assert resp.status_code == 200, resp.json()
 
     # Check the data again
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == _excluding(model, 'ok', [
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
-    ])
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == _excluding(
+        model,
+        "ok",
+        [
+            ("Report", "ok"),
+            ("backends/mongo/Report", "ok"),
+            ("backends/postgres/Report", "ok"),
+        ],
+    )
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    "backends/mongo/Report",
+    "backends/postgres/Report",
 )
 def test_wipe_row(model: str, app: TestClient):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe'])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
     # Create some data in different models
-    resp = app.post('/', json={'_data': [
-        {'_op': 'insert', '_type': 'report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'nb'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'nb'},
-    ]})
+    resp = app.post(
+        "/",
+        json={
+            "_data": [
+                {"_op": "insert", "_type": "Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "nb"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "nb"},
+            ]
+        },
+    )
     _id_idx = {
-        'backends/mongo/report': 1,
-        'backends/postgres/report': 3,
+        "backends/mongo/Report": 1,
+        "backends/postgres/Report": 3,
     }
-    _id = listdata(resp, '_id')[_id_idx[model]]
+    _id = listdata(resp, "_id")[_id_idx[model]]
 
     # Get data from all models
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'nb'),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'nb'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "nb"),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "nb"),
+        ("backends/postgres/Report", "ok"),
     ]
 
     # Wipe model row data
     with pytest.raises(NotImplementedError):
-        resp = app.delete(f'/{model}/{_id}/:wipe')
+        resp = app.delete(f"/{model}/{_id}/:wipe")
     assert resp.status_code == 200, resp.json()
-    resp = app.delete(f'/_txn/:wipe')
+    resp = app.delete("/_txn/:wipe")
     assert resp.status_code == 200, resp.json()
 
     # Check the data again.
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('backends/mongo/report', 'nb'),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'nb'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("backends/mongo/Report", "nb"),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "nb"),
+        ("backends/postgres/Report", "ok"),
     ]
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    "backends/mongo/Report",
+    "backends/postgres/Report",
 )
 def test_wipe_check_scope(model, app):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_delete'])
-    resp = app.delete(f'/{model}/:wipe')
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
+    resp = app.delete(f"/{model}/:wipe")
     assert resp.status_code == 403
 
 
 def test_wipe_check_ns_scope(app):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_delete'])
-    resp = app.delete(f'/:wipe')
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
+    resp = app.delete("/:wipe")
     assert resp.status_code == 403
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    "backends/mongo/Report",
+    "backends/postgres/Report",
 )
 def test_wipe_in_batch(model, app):
-    app.authorize(['spinta_wipe'])
-    resp = app.post(f'/', json={
-        '_data': [
-            {'_op': 'wipe', '_type': model}
-        ]
-    })
+    app.authorize(["spinta_wipe"])
+    resp = app.post("/", json={"_data": [{"_op": "wipe", "_type": model}]})
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ['UnknownAction']
+    assert get_error_codes(resp.json()) == ["UnknownAction"]
 
 
 def test_wipe_all_access(app: TestClient):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_delete'])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
 
     # Create some data in different models.
-    resp = app.post('/', json={'_data': [
-        {'_op': 'insert', '_type': 'report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'ok'},
-    ]})
+    resp = app.post(
+        "/",
+        json={
+            "_data": [
+                {"_op": "insert", "_type": "Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
+            ]
+        },
+    )
     assert resp.status_code == 200, resp.json()
 
     # Get data from all models.
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
     # Wipe all data
-    resp = app.delete('/:wipe')
+    resp = app.delete("/:wipe")
     assert resp.status_code == 403  # Forbidden
 
     # Check the data again.
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    "backends/mongo/Report",
+    "backends/postgres/Report",
 )
 def test_wipe_model_access(model, app):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_delete'])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
 
     # Create some data in different models
-    resp = app.post('/', json={'_data': [
-        {'_op': 'insert', '_type': 'report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'ok'},
-    ]})
+    resp = app.post(
+        "/",
+        json={
+            "_data": [
+                {"_op": "insert", "_type": "Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
+            ]
+        },
+    )
     assert resp.status_code == 200, resp.json()
 
     # Get data from all models
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
     # Wipe model data
-    resp = app.delete(f'/{model}/:wipe')
+    resp = app.delete(f"/{model}/:wipe")
     assert resp.status_code == 403, resp.json()
 
     # Check what data again
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    "backends/mongo/Report",
+    "backends/postgres/Report",
 )
 def test_wipe_row_access(model, app):
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_delete'])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
 
     # Create some data in different models
-    resp = app.post('/', json={'_data': [
-        {'_op': 'insert', '_type': 'report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/mongo/report', 'status': 'ok'},
-        {'_op': 'insert', '_type': 'backends/postgres/report', 'status': 'ok'},
-    ]})
-    ids = dict(listdata(resp, '_type', '_id'))
+    resp = app.post(
+        "/",
+        json={
+            "_data": [
+                {"_op": "insert", "_type": "Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
+                {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
+            ]
+        },
+    )
+    ids = dict(listdata(resp, "_type", "_id"))
     _id = ids[model]
 
     # Get data from all models
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
 
     # Wipe model row data
     with pytest.raises(NotImplementedError):
-        resp = app.delete(f'/{model}/{_id}/:wipe')
+        resp = app.delete(f"/{model}/{_id}/:wipe")
         assert resp.status_code == 403, resp.json()
 
     # Check what data again
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/mongo/report', 'ok'),
-        ('backends/postgres/report', 'ok'),
-        ('report', 'ok'),
+    resp = app.get("/:all")
+    assert listdata(resp, "_type", "status") == [
+        ("Report", "ok"),
+        ("_txn", NA),
+        ("backends/mongo/Report", "ok"),
+        ("backends/postgres/Report", "ok"),
     ]
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_wipe_with_long_names(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property                 | type     | ref
+    backends/postgres/very/long/name/models  |          |
+      |   |   | ModelWithVeryVeryVeryLongName|          |
+      |   |   |   | status                   | string   |
+    """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True,
+        request=request,
+    )
+    with context:
+        app = create_test_client(context)
+        app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
+
+        # Create some data
+        resp = app.post(
+            "/",
+            json={
+                "_data": [
+                    {
+                        "_op": "insert",
+                        "_type": "backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName",
+                        "status": "ok",
+                    },
+                ]
+            },
+        )
+        assert resp.status_code == 200, resp.json()
+
+        # Get data from all models
+        resp = app.get("/:all")
+        assert listdata(resp, "_type", "status") == [
+            ("_txn", NA),
+            ("backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName", "ok"),
+        ]
+
+        # Wipe all data
+        resp = app.delete("/:wipe")
+        assert resp.status_code == 200, resp.json()
+
+        # Check what data again
+        resp = app.get("/:all")
+        assert resp.status_code == 200, resp.json()
+        assert len(resp.json()["_data"]) == 0

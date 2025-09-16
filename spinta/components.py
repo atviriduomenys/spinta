@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -7,19 +9,20 @@ from typing import Iterator
 from typing import Set
 from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
-import enum
 import contextlib
 import dataclasses
 import pathlib
 from typing import Type
 from typing import TypedDict
 
+from spinta.core.ufuncs import Expr, Bind
+from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access
-from spinta.datasets.enums import Level
+from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -65,10 +68,7 @@ class Context:
 
             # We only copy explicitly set keys, and exclude keys coming from
             # `bind` or `attach`.
-            copy_keys = set(parent._context[-1]) - (
-                set(parent._cmgrs[-1]) |
-                set(parent._factory[-1])
-            )
+            copy_keys = set(parent._context[-1]) - (set(parent._cmgrs[-1]) | set(parent._factory[-1]))
             self._context = [{k: parent._context[-1][k] for k in copy_keys}]
         else:
             self._cmgrs = [{}]
@@ -80,13 +80,10 @@ class Context:
         name = []
         parent = self
         while parent is not None:
-            name.append(f'{parent._name}:{len(parent._context) - 1}')
+            name.append(f"{parent._name}:{len(parent._context) - 1}")
             parent = parent._parent
-        name = ' < '.join(reversed(name))
-        return (
-            f'<{self.__class__.__module__}.{self.__class__.__name__}({name}) '
-            f'at 0x{id(self):02x}>'
-        )
+        name = " < ".join(reversed(name))
+        return f"<{self.__class__.__module__}.{self.__class__.__name__}({name}) at 0x{id(self):02x}>"
 
     def __enter__(self):
         self._context.append(self._context[-1].copy())
@@ -173,9 +170,7 @@ class Context:
         https://www.python.org/dev/peps/pep-0343/
         https://docs.python.org/3/library/contextlib.html
         """
-        assert self._exitstack[-1] is not None, (
-            "You can attach only inside `with context:` block."
-        )
+        assert self._exitstack[-1] is not None, "You can attach only inside `with context:` block."
         self._set_local_name(name)
         self._cmgrs[-1][name] = (factory, args, kwargs)
 
@@ -288,7 +283,6 @@ class Context:
 
 
 class _CommandsConfig:
-
     def __init__(self):
         self.modules = []
         self.pull = {}
@@ -300,6 +294,7 @@ class Store:
     Contains all essential objects like manifest, backends, access log, etc.
 
     """
+
     manifest: Manifest = None
     internal: InternalManifest = None
     accesslog: AccessLog = None
@@ -325,7 +320,7 @@ class Node(Component):
     path: pathlib.Path = None
 
     def __repr__(self) -> str:
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
+        return f"<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>"
 
     def __hash__(self) -> int:
         # This is a recursive hash, goes down to all parents. There can be nodes
@@ -355,7 +350,7 @@ class Node(Component):
         """
         specifier = self.model_specifier()
         if specifier:
-            return f'{self.name}/{specifier}'
+            return f"{self.name}/{specifier}"
         else:
             return self.name
 
@@ -366,11 +361,11 @@ class Node(Component):
         `model:dataset` always has a specifier, that looks like this
         `:dataset/dsname`, also, `ns` models have `:ns` specifier.
         """
-        return ''
+        return ""
 
     @property
     def basename(self):
-        return self.name.split('/')[-1]
+        return self.name and self.name.split("/")[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -385,30 +380,36 @@ class MetaData(Node):
     """
 
     eid: EntryId
+    id: str
 
     schema = {
-        'type': {'type': 'string', 'required': True},
-        'name': {'type': 'string', 'required': True},
-        'id': {'type': 'string'},
+        "type": {"type": "string", "required": True},
+        "name": {"type": "string", "required": True},
+        "id": {"type": "string"},
         # FIXME: `eid` should be here, but currently it overrides eid, coming
         #        from somewhere else, this has to be fixed.
         # 'eid': {'type': 'string'},
-        'version': {'type': 'string'},
-        'title': {'type': 'string'},
-        'description': {},
-        'lang': {'type': 'object'},
+        "version": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {},
+        "lang": {"type": "object"},
     }
 
     def get_eid_for_error_context(self):
         if (
-            isinstance(self.eid, pathlib.Path) and
-            self.manifest and
-            isinstance(getattr(self.manifest, 'path', None), pathlib.Path)
+            isinstance(self.eid, pathlib.Path)
+            and self.manifest
+            and isinstance(getattr(self.manifest, "path", None), pathlib.Path)
         ):
             # XXX: Didn't wanted to create command just for this so added na if.
             return str(self.eid.relative_to(self.manifest.path))
         else:
             return str(self.eid)
+
+
+class ExtraMetaData(Node):
+    id: str = None
+    schema = {"id": {"type": "string"}}
 
 
 class NamespaceGiven:
@@ -434,75 +435,265 @@ class Namespace(MetaData):
         self.given = NamespaceGiven()
 
     def model_specifier(self):
-        return ':ns'
+        return ":ns"
 
     def parents(self) -> Iterator[Namespace]:
         ns = self.parent
+        i = 0
         while isinstance(ns, Namespace):
             yield ns
             ns = ns.parent
+            i += 1
+            if i > 99:
+                raise RuntimeError("Namespace references to itself?")
 
     def is_root(self) -> bool:
         # TODO: Move Namespace component to spinta.namespaces
         from spinta.manifests.components import Manifest
+
         return isinstance(self.parent, Manifest)
 
 
-class Base(Node):
-    model: Model        # a.base.b - here `model` is `b`
-    parent: Model       # a.base.b - here `parent` is `a`
+class Base(ExtraMetaData):
+    model: Model  # a.base.b - here `model` is `b`
+    parent: Model  # a.base.b - here `parent` is `a`
     pk: List[Property]  # a.base.b - list of properties of `a` model
     lang: LangData = None
+    level: Level
 
     schema = {
-        'model': {'type': 'string'},
-        'pk': {'type': 'string'},
-        'lang': {'type': 'object'},
+        "name": {},
+        "model": {"type": "string"},
+        "parent": {"type": "string"},
+        "pk": {
+            "type": "array",
+            "items": {"type": "object"},
+        },
+        "lang": {"type": "object"},
+        "level": {
+            "type": "integer",
+            "choices": Level,
+            "inherit": "external.resource.level",
+        },
     }
 
 
 class ModelGiven:
     access: str = None
+    pkeys: list[str] = None
+    name: str = None
+
+
+class PageBy:
+    prop: Property
+    value: Any
+
+    def __init__(self, prop: Property, value: Any = None):
+        self.prop = prop
+        self.value = value
+
+
+class PageInfo:
+    model: Model
+    enabled: bool
+    keys: Dict[str, Property]
+    size: int
+
+    def __init__(self, model: Model, enabled: bool = True, size: int = None, keys: Dict[str, Property] = None):
+        self.model = model
+        self.enabled = enabled
+        self.size = size
+        self.keys = keys or {}
+
+
+class Page:
+    model: Model
+    enabled: bool
+    by: Dict[str, PageBy]
+    size: int
+    filter_only: bool
+    first_time: bool
+
+    def __init__(self, by=None, size=None, enabled=True, filter_only=False, model=None, first_time=True):
+        self.by = {} if by is None else by
+        self.size = size
+        self.enabled = enabled
+        self.filter_only = filter_only
+        self.model = model
+        self.first_time = first_time
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.enabled = self.enabled
+        result.size = self.size
+        result.by = {}
+        result.model = self.model
+        result.filter_only = self.filter_only
+        result.first_time = self.first_time
+        for by, page_by in self.by.items():
+            result.by[by] = PageBy(page_by.prop, page_by.value)
+        return result
+
+    def add_prop(self, by: str, prop: Property, value: Any = None):
+        self.by[by] = PageBy(prop, value)
+
+    def update_value(self, by: str, prop: Property, value: Any):
+        cleaned_up = by[1:] if by.startswith("-") else by
+
+        if cleaned_up != by and cleaned_up in self.by:
+            renamed_dict = {by if key == cleaned_up else key: value for key, value in self.by.items()}
+            self.by = renamed_dict
+
+        if by not in self.by:
+            self.by[by] = PageBy(prop)
+        self.by[by].value = value
+
+    def clear(self):
+        for item in self.by.values():
+            item.value = None
+
+    def clear_till_depth(self, depth: int):
+        for i, item in enumerate(reversed(self.by.values())):
+            if i < depth:
+                item.value = None
+
+    def update_values_from_page_key(self, key: str):
+        loaded = decode_page_values(key)
+        if len(loaded) != len(self.by):
+            raise InvalidPageKey(key=key)
+        for i, (by, page_by) in enumerate(self.by.items()):
+            self.update_value(by, page_by.prop, loaded[i])
+
+    def update_values_from_list(self, values: list):
+        if len(values) != len(self.by.values()):
+            raise InvalidPushWithPageParameterCount(properties=list(self.by.keys()))
+
+        for i, (by, page_by) in enumerate(self.by.items()):
+            self.update_value(by, page_by.prop, values[i])
+
+    def update_values_from_page(self, page: Page):
+        self.clear()
+        for by, page_by in page.by.items():
+            self.update_value(by, page_by.prop, page_by.value)
+
+    def all_none(self):
+        return all([value.value is None for value in self.by.values()])
+
+    def get_repr_for_error(self):
+        # size - 1, because we fetch + 1 to check if size is not too small.
+        return_dict = {
+            "key": encode_page_values(list([val.value for val in self.by.values()])),
+            "key_values": {key: value.value for key, value in self.by.items()},
+            "size": self.size - 1 if self.size else self.size,
+        }
+        return return_dict
+
+
+def decode_page_values(encoded: Any):
+    decoded = base64.urlsafe_b64decode(encoded)
+    return json.loads(decoded)
+
+
+def get_page_size(config: Config, model: Model, page: Page = None):
+    page_size = page.size if page is not None else None
+    return page_size or model.page.size or config.default_page_size
+
+
+def pagination_enabled(model: Model, params: UrlParams = None) -> bool:
+    # Need to import there, because of circular import issues
+    # Once loaded python should store it in cache and not import it again
+    from spinta.backends.constants import BackendFeatures
+
+    # If model backend does not support pagination, we ignore anything else
+    if not model.backend or not model.backend.supports(BackendFeatures.PAGINATION):
+        return False
+
+    # Prioritize UrlParams page (if is_enabled not None, it means that it was explicitly given in URL).
+    if params is not None and params.page is not None and params.page.is_enabled is not None:
+        return params.page.is_enabled
+
+    return model.page.enabled
+
+
+def page_in_data(data: dict) -> bool:
+    return "_page" in data
+
+
+class ParamsPage:
+    values: List[Any]
+    size: int
+    is_enabled: bool
+
+    def __init__(self, key=None, values=None, size=None, is_enabled=None):
+        if key is None:
+            key = []
+
+        self.key = key
+        self.values = values
+        self.size = size
+        self.is_enabled = is_enabled
 
 
 class Model(MetaData):
-    id: str
     level: Level
     access: Access
     title: str
     description: str
     ns: Namespace
-    endpoint: str = None
     external: Entity = None
     properties: Dict[str, Property]
     mode: Mode = None
     given: ModelGiven
     lang: LangData = None
     comments: List[Comment] = None
+    base: Base = None
+    uri: str = None
+    uri_prop: Property = None
+    page: PageInfo = None
+    features: str = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
+
+    required_keymap_properties = None
 
     schema = {
-        'keymap': {'type': 'string'},
-        'backend': {'type': 'string'},
-        'unique': {'default': []},
-        'base': {},
-        'link': {},
-        'properties': {'default': {}},
-        'endpoint': {},
-        'external': {},
-        'level': {
-            'type': 'integer',
-            'choices': Level,
-            'inherit': 'external.resource.level',
+        "keymap": {"type": "string"},
+        "backend": {"type": "string"},
+        "unique": {"default": []},
+        "base": {},
+        "link": {},
+        "properties": {"default": {}},
+        "external": {},
+        "level": {
+            "type": "integer",
+            "choices": Level,
+            "inherit": "external.resource.level",
         },
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'external.resource.access',
-            'default': 'protected',
+        "access": {
+            "type": "string",
+            "choices": Access,
+            "inherit": "external.resource.access",
+            "default": "protected",
         },
-        'lang': {'type': 'object'},
-        'params': {'type': 'object'},
-        'comments': {},
+        "lang": {"type": "object"},
+        "params": {"type": "object"},
+        "comments": {},
+        "uri": {"type": "string"},
+        "given_name": {"type": "string", "default": None},
+        "features": {},
+        "status": {"type": "string", "choices": Status, "default": "develop"},
+        "visibility": {
+            "type": "string",
+            "choices": Visibility,
+            "default": "private",
+        },
+        "eli": {"type": "string"},
+        "count": {"type": "integer"},
+        "origin": {"type": "string"},
     }
 
     def __init__(self):
@@ -519,24 +710,46 @@ class Model(MetaData):
         self.leafprops = {}
         self.given = ModelGiven()
         self.params = {}
+        self.required_keymap_properties = []
+        self.page = PageInfo(self)
+        self.uri_prop = None
 
     def model_type(self):
         return self.name
 
     def get_name_without_ns(self):
-        if '/' in self.name:
-            return self.name.split('/')[-1]
-        else:
-            return self.name
+        # todo workaround, maybe remove after dealing with /: properly
+        #  https://github.com/atviriduomenys/spinta/issues/927
+        return self.basename
+
+        # return self.name.split('/')[-1]
+
+    def add_keymap_property_combination(self, given_props: List[Property]):
+        extract_names = list([prop.name for prop in given_props])
+        if extract_names not in self.required_keymap_properties:
+            self.required_keymap_properties.append(extract_names)
+
+    def get_given_properties(self):
+        return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith("_")}
 
 
 class PropertyGiven:
-    access: str = None
-    enum: str = None
-    unit: str = None
+    access: str | None = None
+    enum: str | None = None
+    unit: str | None = None
+    name: str | None = None
+    explicit: bool = True
+    type: str | None = None
+    prepare: list[PrepareGiven] = []
 
 
-class Property(Node):
+class PrepareGiven(TypedDict):
+    appended: bool
+    source: str
+    prepare: str
+
+
+class Property(ExtraMetaData):
     place: str = None  # Dotted property path
     title: str = None
     description: str = None
@@ -550,35 +763,56 @@ class Property(Node):
     model: Model = None
     uri: str = None
     given: PropertyGiven
-    enum: EnumValue = None        # Enum name from Enums dict.
+    enum: EnumValue = None  # Enum name from Enums dict.
     enums: Enums
     lang: LangData = None
-    unit: Unit = None       # Given in ref column.
+    unit: Unit = None  # Given in ref column.
     comments: List[Comment] = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     schema = {
-        'title': {},
-        'description': {},
-        'link': {},
-        'hidden': {'type': 'boolean', 'default': False},
-        'level': {
-            'type': 'integer',
-            'choices': Level,
-            'inherit': 'model.level',
+        "title": {},
+        "description": {},
+        "link": {},
+        "hidden": {"type": "boolean", "default": False},
+        "level": {
+            "type": "integer",
+            "choices": Level,
+            "inherit": "model.level",
         },
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'model.access',
-            'default': 'protected',
+        "access": {
+            "type": "string",
+            "choices": Access,
+            "inherit": "model.access",
+            "default": "protected",
         },
-        'external': {},
-        'uri': {'type': 'string'},
-        'enum': {'type': 'string'},
-        'enums': {},
-        'units': {'type': 'string'},
-        'lang': {'type': 'object'},
-        'comments': {},
+        "external": {},
+        "uri": {"type": "string"},
+        "enum": {"type": "string"},
+        "enums": {},
+        "units": {"type": "string"},
+        "lang": {"type": "object"},
+        "comments": {},
+        "given_name": {"type": "string", "default": None},
+        "explicitly_given": {"type": "boolean"},
+        "prepare_given": {"required": False},
+        "status": {
+            "type": "string",
+            "choices": Status,
+            "default": "develop",
+        },
+        "visibility": {
+            "type": "string",
+            "choices": Visibility,
+            "default": "private",
+        },
+        "eli": {"type": "string"},
+        "count": {"type": "integer"},
+        "origin": {"type": "string"},
     }
 
     def __init__(self):
@@ -586,25 +820,24 @@ class Property(Node):
 
     def __repr__(self):
         pypath = [type(self).__module__, type(self).__name__]
-        pypath = '.'.join(pypath)
-        dtype = self.dtype.name if self.dtype else 'none'
+        pypath = ".".join(pypath)
+        dtype = self.dtype.name if self.dtype else "none"
         kwargs = [
-            f'name={self.place!r}',
-            f'type={dtype!r}',
-            f'model={self.model.name!r}',
+            f"name={self.place!r}",
+            f"type={dtype!r}",
+            f"model={self.model.name!r}",
         ]
-        kwargs = ', '.join(kwargs)
-        return f'<{pypath}({kwargs})>'
+        kwargs = ", ".join(kwargs)
+        return f"<{pypath}({kwargs})>"
 
     def model_type(self):
-        return f'{self.model.name}.{self.place}'
+        return f"{self.model.name}.{self.place}"
 
     def is_reserved(self):
-        return self.name.startswith('_')
+        return self.name.startswith("_")
 
 
 class Command:
-
     def __init__(self):
         self.name = None
         self.command = None
@@ -615,7 +848,6 @@ class Command:
 
 
 class CommandList:
-
     def __init__(self):
         self.commands = None
 
@@ -624,40 +856,16 @@ class CommandList:
 
 
 @dataclasses.dataclass
+class FuncProperty:
+    func: Expr | None
+    prop: Property
+
+
+@dataclasses.dataclass
 class Attachment:
     content_type: str
     filename: str
     data: bytes
-
-
-class Action(enum.Enum):
-    INSERT = 'insert'
-    UPSERT = 'upsert'
-    UPDATE = 'update'
-    PATCH = 'patch'
-    DELETE = 'delete'
-
-    WIPE = 'wipe'
-
-    GETONE = 'getone'
-    GETALL = 'getall'
-    SEARCH = 'search'
-
-    CHANGES = 'changes'
-
-    CHECK = 'check'
-
-    @classmethod
-    def has_value(cls, value):
-        return value in cls._value2member_map_
-
-    @classmethod
-    def by_value(cls, value):
-        return cls._value2member_map_[value]
-
-    @classmethod
-    def values(cls):
-        return list(cls._value2member_map_.keys())
 
 
 class UrlParseNode(TypedDict):
@@ -670,7 +878,7 @@ class UrlParams:
 
     path_parts: List[str] = None
     path: Optional[str] = None
-    model: Optional[Model] = None
+    model: Optional[Model, Namespace] = None
     pk: Optional[str] = None
     prop: Optional[Property] = None
     # Tells if we accessing property content or reference. Applies only for some
@@ -691,16 +899,18 @@ class UrlParams:
     formatparams: dict
 
     select: Optional[List[str]] = None
+    select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
+    select_funcs: Optional[Dict[str, FuncProperty]] = None
+
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None
     # Limit can be enforced even if it is not explicitly given in URL.
     limit_enforced: bool = False
     limit_enforced_to: int = 100
-    # XXX: Deprecated, count should be part of `select`.
-    count: bool = False
     # In batch requests, return summary of what was done.
     summary: bool = False
+    bbox: Optional[List[float]] = None
     # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
 
@@ -712,12 +922,19 @@ class UrlParams:
 
     query: List[Dict[str, Any]] = None
 
+    page: Optional[ParamsPage] = None
+
+    expand: Optional[List[str]] = None
+
+    lang: Optional[List[str]] = None
+
+    accept_langs: Optional[List[str]] = None
+    content_langs: Optional[List[str]] = None
+
     def changed_parsetree(self, change):
-        ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
+        ptree = {x["name"]: x["args"] for x in (self.parsetree or [])}
         ptree.update(change)
-        return [
-            {'name': k, 'args': v} for k, v in ptree.items()
-        ]
+        return [{"name": k, "args": v} for k, v in ptree.items()]
 
 
 class Version:
@@ -725,15 +942,15 @@ class Version:
 
 
 class DataItem:
-    model: Optional[Model] = None       # Data model.
-    prop: Optional[Property] = None     # Action on a property, not a whole model.
-    propref: bool = False               # Action on property reference or instance.
-    backend: Optional[Backend] = None   # Model or property backend depending on prop and propref.
-    action: Optional[Action] = None     # Action.
-    payload: Optional[dict] = None      # Original data from request.
-    given: Optional[dict] = None        # Request data converted to Python-native data types.
-    saved: Optional[dict] = None        # Current data stored in database.
-    patch: Optional[dict] = None        # Patch that is going to be stored to database.
+    model: Optional[Model] = None  # Data model.
+    prop: Optional[Property] = None  # Action on a property, not a whole model.
+    propref: bool = False  # Action on property reference or instance.
+    backend: Optional[Backend] = None  # Model or property backend depending on prop and propref.
+    action: Optional[Action] = None  # Action.
+    payload: Optional[dict] = None  # Original data from request.
+    given: Optional[dict] = None  # Request data converted to Python-native data types.
+    saved: Optional[dict] = None  # Current data stored in database.
+    patch: Optional[dict] = None  # Patch that is going to be stored to database.
     error: Optional[exceptions.UserError] = None  # Error while processing data.
 
     def __init__(
@@ -758,24 +975,21 @@ class DataItem:
         self.patch = NA
 
     def __getitem__(self, key):
-        return DataSubItem(self, *(
-            d.get(key, NA) if d else NA
-            for d in (self.given, self.saved, self.patch)
-        ))
+        return DataSubItem(self, *(d.get(key, NA) if d else NA for d in (self.given, self.saved, self.patch)))
 
-    def copy(self, **kwargs) -> 'DataItem':
+    def copy(self, **kwargs) -> "DataItem":
         data = DataItem()
         attrs = [
-            'model',
-            'prop',
-            'propref',
-            'backend',
-            'action',
-            'payload',
-            'given',
-            'saved',
-            'patch',
-            'error',
+            "model",
+            "prop",
+            "propref",
+            "backend",
+            "action",
+            "payload",
+            "given",
+            "saved",
+            "patch",
+            "error",
         ]
         assert len(set(kwargs) - set(attrs)) == 0
         for name in attrs:
@@ -791,7 +1005,6 @@ class DataItem:
 
 
 class DataSubItem:
-
     def __init__(self, parent, given, saved, patch):
         if isinstance(parent, DataSubItem):
             self.root = parent.root
@@ -802,10 +1015,7 @@ class DataSubItem:
         self.patch = patch
 
     def __getitem__(self, key):
-        return DataSubItem(self, *(
-            d.get(key, NA) if d else NA
-            for d in (self.given, self.saved, self.patch)
-        ))
+        return DataSubItem(self, *(d.get(key, NA) if d else NA for d in (self.given, self.saved, self.patch)))
 
     def __iter__(self):
         yield from self.iter(given=True, saved=True, patch=True)
@@ -831,22 +1041,14 @@ class DataSubItem:
 
 DataStream = AsyncIterator[DataItem]
 
-
-class Mode(enum.Enum):
-    # Internal mode always use internal backend set on manifest, namespace or
-    # model.
-    internal = 'internal'
-
-    # External model always sue external backend set on dataset or model's
-    # source entity.
-    external = 'external'
-
-
-ScopeFormatterFunc = Callable[[
-    Context,
-    Union[Namespace, Model, Property],
-    Action,
-], str]
+ScopeFormatterFunc = Callable[
+    [
+        Context,
+        Union[Namespace, Model, Property],
+        Action,
+    ],
+    str,
+]
 
 
 class Config:
@@ -856,6 +1058,7 @@ class Config:
     used at runtime.
 
     """
+
     # TODO: `rc` should not be here, because `Config` might be initialized from
     #       different configuration sources.
     rc: RawConfig
@@ -865,6 +1068,7 @@ class Config:
     scope_prefix: str
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
+    scope_log: bool
     default_auth_client: str
     http_basic_auth: bool
     token_validation_key: dict = None
@@ -878,6 +1082,18 @@ class Config:
     data_path: pathlib.Path
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
+    default_page_size: int
+    enable_pagination: bool
+    sync_page_size: int = None
+    languages: List[str]
+    check_names: bool = False
+    # MB
+    max_api_file_size: int
+    max_error_count_on_insert: int
+
+    # Config variable that should only be set when running `upgrade` `cli` command, used to track when certain errors
+    # can be ignored (like missing migrations while loading configs)
+    upgrade_mode: bool = False
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -25,7 +25,7 @@
 
 {% if empty %}
     <div>No data.</div>
-{% elif params.pk %}
+{% elif params.pk and not params.changes %}
     {% for row in data %}
     <table class="table">
         <tbody>
@@ -74,6 +74,14 @@
 
     {% if not data.exhausted %}
         <p>Number of rows is limited up to {{ data.limit }} rows.</p>
+
+
+    {% endif %}
+    {% if data.last_page %}
+        <div class="container">
+            <a href="{{ data.last_page }}">next page</a>
+        </div>
+
     {% endif %}
 {% endif %}
 

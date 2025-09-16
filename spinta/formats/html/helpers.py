@@ -8,6 +8,7 @@ from typing import Optional
 from typing import Tuple
 from typing import TypedDict
 
+from spinta import commands
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -21,13 +22,16 @@ from spinta.types.datatype import File
 from spinta.types.datatype import Ref
 from spinta.utils.url import build_url_path
 
-CurrentLocation = List[Tuple[
-    str,            # Link title
-    Optional[str],  # Link URL
-]]
+CurrentLocation = List[
+    Tuple[
+        str,  # Link title
+        Optional[str],  # Link URL
+    ]
+]
 
 
 def get_current_location(
+    context: Context,
     config: Config,
     model: Model,
     params: UrlParams,
@@ -36,20 +40,20 @@ def get_current_location(
     path = params.path
     if config.root:
         if path.startswith(config.root):
-            path = path[len(config.root) + 1:]
+            path = path[len(config.root) + 1 :]
         elif config.root.startswith(path):
-            path = ''
+            path = ""
 
-    parts = _split_path(model.manifest, config.root, path)
+    parts = _split_path(context, model.manifest, config.root, path)
     if len(parts) > 0:
         parts, last = parts[:-1], parts[-1]
     else:
         parts, last = [], None
 
-    loc: CurrentLocation = [('🏠', '/')]
+    loc: CurrentLocation = [("🏠", "/")]
     loc += [(p.title, p.link) for p in parts]
 
-    if model.name == '_ns':
+    if model.name == "_ns":
         if last is not None:
             loc += [(last.title, None)]
 
@@ -71,9 +75,9 @@ def get_current_location(
                 loc += [(pks, None)]
 
         if changes:
-            loc += [('Changes', None)]
+            loc += [("Changes", None)]
         else:
-            loc += [('Changes', get_model_link(model, pk=pk, changes=[-10]))]
+            loc += [("Changes", get_model_link(model, pk=pk, changes=[-10]))]
 
     return loc
 
@@ -95,30 +99,28 @@ def get_cell(
 ) -> Cell:
     link = None
     model = None
-    if prop.dtype.name == 'ref':
-        value = row.get(f'{name}._id')
+    if prop.dtype.name == "ref":
+        value = row.get(f"{name}._id")
     elif isinstance(prop.dtype, File):
         # XXX: In listing, row is flattened, in single object view row is
         #      nested, because of that, we need to check both cases here.
-        value = row.get(f'{name}._id') or row.get(name, {}).get('_id')
+        value = row.get(f"{name}._id") or row.get(name, {}).get("_id")
         if pk:
             # Primary key might not be given in select, for example
             # select(count()).
-            link = '/' + build_url_path(
-                get_model_link_params(prop.model, pk=pk, prop=prop.place)
-            )
+            link = "/" + build_url_path(get_model_link_params(prop.model, pk=pk, prop=prop.place))
     else:
         value = row.get(name)
 
-    if prop.name == '_id' and value:
+    if prop.name == "_id" and value:
         model = prop.model
     elif isinstance(prop.dtype, Ref) and prop.dtype.model and value:
         model = prop.dtype.model
 
     if model:
-        link = '/' + build_url_path(get_model_link_params(model, pk=value))
+        link = "/" + build_url_path(get_model_link_params(model, pk=value))
 
-    if prop.dtype.name in ('ref', 'pk') and shorten and isinstance(value, str):
+    if prop.dtype.name in ("ref", "pk") and shorten and isinstance(value, str):
         value = short_id(value)
 
     if isinstance(value, datetime.datetime):
@@ -126,10 +128,10 @@ def get_cell(
 
     max_column_length = 200
     if shorten and isinstance(value, str) and len(value) > max_column_length:
-        value = value[:max_column_length] + '...'
+        value = value[:max_column_length] + "..."
 
     if value is None:
-        value = ''
+        value = ""
         if color is None:
             color = Color.null
 
@@ -138,29 +140,29 @@ def get_cell(
 
 def get_ns_data(rows) -> Iterator[List[Cell]]:
     yield [
-        Cell('title'),
-        Cell('description'),
+        Cell("title"),
+        Cell("description"),
     ]
     for row in rows:
-        if row['title']:
-            title = row['title']
+        if row["title"]:
+            title = row["title"]
         else:
-            parts = row['_id'].split('/')
-            if row['_type'] == 'ns':
+            parts = row["_id"].split("/")
+            if row["_type"] == "ns":
                 title = parts[-2]
             else:
                 title = parts[-1]
 
-        if row['_type'] == 'ns':
-            icon = '📁'
-            suffix = '/'
+        if row["_type"] == "ns":
+            icon = "📁"
+            suffix = "/"
         else:
-            icon = '📄'
-            suffix = ''
+            icon = "📄"
+            suffix = ""
 
         yield [
-            Cell(f'{icon} {title}{suffix}', link='/' + row['_id']),
-            Cell(row['description']),
+            Cell(f"{icon} {title}{suffix}", link="/" + row["_id"]),
+            Cell(row["description"]),
         ]
 
 
@@ -176,98 +178,95 @@ def get_model_link_params(
     prop: Optional[str] = None,
     **extra,
 ) -> List[_ParsedNode]:
-    assert prop is None or (prop and pk), (
-        "If prop is given, pk must be given too."
-    )
+    assert prop is None or (prop and pk), "If prop is given, pk must be given too."
 
     ptree = [
         {
-            'name': 'path',
-            'args': (
-                model.name.split('/') +
-                ([pk] if pk is not None else []) +
-                ([prop] if prop is not None else [])
-            ),
+            "name": "path",
+            "args": (model.name.split("/") + ([pk] if pk is not None else []) + ([prop] if prop is not None else [])),
         }
     ]
 
     for k, v in extra.items():
-        ptree.append({
-            'name': k,
-            'args': v,
-        })
+        ptree.append(
+            {
+                "name": k,
+                "args": v,
+            }
+        )
 
     return ptree
 
 
 def get_model_link(*args, **kwargs):
-    return '/' + build_url_path(get_model_link_params(*args, **kwargs))
+    return "/" + build_url_path(get_model_link_params(*args, **kwargs))
 
 
 class PathInfo(NamedTuple):
-    path: str = ''
-    name: str = ''
-    link: str = ''
-    title: str = ''
+    path: str = ""
+    name: str = ""
+    link: str = ""
+    title: str = ""
 
 
 def _split_path(
+    context: Context,
     manifest: Manifest,
     base: str,
     orig_path: str,
 ) -> List[PathInfo]:
-    parts = orig_path.split('/') if orig_path else []
+    parts = orig_path.split("/") if orig_path else []
     result: List[PathInfo] = []
     last = len(parts)
     base = [base] if base else []
     for i, part in enumerate(parts, 1):
-        path = '/'.join(base + parts[:i])
-        if i == last and path in manifest.models:
-            title = manifest.models[path].title
-        elif path in manifest.namespaces:
-            title = manifest.namespaces[path].title
+        path = "/".join(base + parts[:i])
+        if i == last and commands.has_model(context, manifest, path):
+            title = commands.get_model(context, manifest, path).title
+        elif commands.has_namespace(context, manifest, path):
+            title = commands.get_namespace(context, manifest, path).title
         else:
-            title = ''
+            title = ""
         title = title or part
-        result.append(PathInfo(
-            path=path,
-            name=part,
-            link=f'/{path}',
-            title=title,
-        ))
+        result.append(
+            PathInfo(
+                path=path,
+                name=part,
+                link=f"/{path}",
+                title=title,
+            )
+        )
     return result
 
 
 def get_template_context(context: Context, model, params: UrlParams):
-    config: Config = context.get('config')
+    config: Config = context.get("config")
     return {
-        'location': get_current_location(config, model, params),
+        "location": get_current_location(context, config, model, params),
     }
 
 
 def _get_output_format_link(fmt: str, params: UrlParams) -> str:
-    query = ''
-    change = {'format': [fmt]}
+    query = ""
+    change = {"format": [fmt]}
 
     if params.changes:
         params.changes_offset = -10
-        query = 'limit(100)'
+        query = "limit(100)"
 
     params = params.changed_parsetree(change)
-    link = '/' + build_url_path(params)
+    link = "/" + build_url_path(params)
     if query:
-        link = link + '?' + query
+        link = link + "?" + query
     return link
 
 
 def get_output_formats(params: UrlParams):
     links = [
-        ('CSV', 'csv'),
-        ('JSON', 'json'),
-        ('JSONL', 'jsonl'),
-        ('ASCII', 'ascii'),
+        ("CSV", "csv"),
+        ("JSON", "json"),
+        ("JSONL", "jsonl"),
+        ("ASCII", "ascii"),
+        ("RDF", "rdf"),
     ]
-    return [
-        (label, _get_output_format_link(fmt, params))
-        for label, fmt in links
-    ]
+    return [(label, _get_output_format_link(fmt, params)) for label, fmt in links]

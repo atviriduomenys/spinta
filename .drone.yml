@@ -1,0 +1,30 @@
+kind: pipeline
+type: docker
+name: deploy-docker-compose
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: deploy-with-docker-compose
+    image: docker:cli
+    volumes:
+    - name: docker_sock
+      path: /var/run/docker.sock
+    privileged: true
+    commands:
+      - echo "Deploying application for branch ${DRONE_BRANCH}..."
+      - apk add gettext
+      - export BRANCH=${DRONE_BRANCH/\//-}
+      - envsubst < docker-compose.template.yml > docker-compose.${DRONE_BRANCH/\//-}.yml
+      - env > template.env
+      - sed -i '/^\(SPINTA_\|-t\(h\|o\)\)/!d' template.env
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml build --no-cache
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml down || true
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml up -d
+      - docker image prune -a -f
+volumes:
+- name: docker_sock
+  host:
+    path: /var/run/docker.sock

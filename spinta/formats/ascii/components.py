@@ -1,22 +1,24 @@
 import operator
 import itertools
 
-from spinta.components import Context, Action, UrlParams, Model
+from spinta import commands
+from spinta.components import Context, UrlParams, Model
+from spinta.core.enums import Action
+from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_border, draw_header, draw_row
 from spinta.manifests.components import Manifest
 from spinta.formats.components import Format
-from spinta.formats.ascii.helpers import draw
-from spinta.utils.nestedstruct import flatten
-from spinta.formats.helpers import get_model_tabular_header
+from spinta.utils.nestedstruct import flatten, sepgetter
+from spinta.formats.helpers import get_model_tabular_header, rename_page_col
 
 
 class Ascii(Format):
-    content_type = 'text/plain'
+    content_type = "text/plain"
     accept_types = {
-        'text/plain',
+        "text/plain",
     }
     params = {
-        'width': {'type': 'integer'},
-        'colwidth': {'type': 'integer'},
+        "width": {"type": "integer"},
+        "colwidth": {"type": "integer"},
     }
 
     def __call__(
@@ -27,9 +29,12 @@ class Ascii(Format):
         params: UrlParams,
         data,
         width=None,
-        colwidth=42,
+        max_col_width=None,
+        max_value_length=100,
+        rows_to_check=200,
+        separator="  ",
     ):
-        manifest: Manifest = context.get('store').manifest
+        manifest: Manifest = context.get("store").manifest
 
         if action == Action.GETONE:
             data = [data]
@@ -42,31 +47,41 @@ class Ascii(Format):
 
         data = itertools.chain([peek], data)
 
-        if '_type' in peek:
-            groups = itertools.groupby(data, operator.itemgetter('_type'))
+        if "_type" in peek:
+            groups = itertools.groupby(data, operator.itemgetter("_type"))
         else:
             groups = [(None, data)]
 
         for name, group in groups:
             if name:
-                yield f'\n\nTable: {name}\n'
-                model = manifest.models[name]
+                yield f"\n\nTable: {name}\n"
+                model = commands.get_model(context, manifest, name)
 
-            rows = flatten(group)
+            rows = flatten(group, sepgetter(model))
+            rows = rename_page_col(rows)
             cols = get_model_tabular_header(context, model, action, params)
+            cols = [col if col != "_page" else "_page.next" for col in cols]
+            read_rows, widths = get_widths(rows, cols, max_value_length, max_col_width, rows_to_check)
+            rows = itertools.chain(read_rows, rows)
+            if width:
+                shortened, displayed_cols = get_displayed_cols(widths, width, separator)
+            else:
+                shortened, displayed_cols = False, cols
 
-            if colwidth:
-                width = len(cols) * colwidth
+            yield draw_border(widths, displayed_cols, separator, shortened)
+            yield draw_header(widths, displayed_cols, separator, shortened)
 
-            buffer = [cols]
-            tnum = 1
-
+            memory = next(rows)
             for row in rows:
-                buffer.append([row.get(c) for c in cols])
-                if len(buffer) > 100:
-                    yield from draw(buffer, name, tnum, width)
-                    buffer = [cols]
-                    tnum += 1
+                yield draw_row(
+                    {k: v for k, v in memory.items() if k != "_page.next"},
+                    widths,
+                    displayed_cols,
+                    max_value_length,
+                    separator,
+                    shortened,
+                )
+                memory = row
+            yield draw_row(memory, widths, displayed_cols, max_value_length, separator, shortened)
 
-            if buffer:
-                yield from draw(buffer, name, tnum, width)
+            yield draw_border(widths, displayed_cols, separator, shortened)

@@ -16,22 +16,21 @@ def load_prefixes(
     node: Union[Manifest, Dataset],
     prefixes: Dict[str, Dict[str, Any]],
 ) -> Dict[str, UriPrefix]:
-    config = context.get('config')
+    config = context.get("config")
     loaded = {}
     for name, data in prefixes.items():
         prefix: UriPrefix = get_node(
+            context,
             config,
             manifest,
-            data['eid'],
+            data["eid"],
             data,
-            group='dimensions',
+            group="dimensions",
             parent=node,
         )
-        prefix.eid = data['eid']
-        prefix.type = data['type']
+        prefix.eid = data["eid"]
+        prefix.type = data["type"]
         prefix.parent = node
         commands.load(context, prefix, data, parent=node)
         loaded[name] = prefix
     return loaded
-
-

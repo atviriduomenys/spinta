@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Union
 from typing import Optional
 
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Unresolved
 from spinta.exceptions import IncompatibleForeignProperties
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, BackRef
 from spinta.types.datatype import Ref
 
 
@@ -58,7 +58,7 @@ class ForeignProperty(Unresolved):
     def __init__(
         self,
         fpr: Optional[ForeignProperty],
-        left: Ref,
+        left: Union[Ref, BackRef],
         right: DataType = None,
         *,
         # Used internally by swap method and only when fpr is None.
@@ -80,15 +80,15 @@ class ForeignProperty(Unresolved):
         model = self.chain[0].left.prop.model.name
         place = self / (self.right.prop if self.right else None)
         if self.right:
-            return f'{name}({model}, {place}:{self.right.name})'
+            return f"{name}({model}, {place}:{self.right.name})"
         else:
-            return f'{name}({model}, {place})'
+            return f"{name}({model}, {place})"
 
     def __truediv__(self, prop: Optional[Property]) -> str:
         if prop:
-            return f'{self.name} -> {prop.place}'
+            return f"{self.name} -> {prop.place}"
         else:
-            return f'{self.name} -> None'
+            return f"{self.name} -> None"
 
     def join(self, fpr: ForeignProperty) -> ForeignProperty:
         """Join two ForeignProperty instances into one
@@ -137,8 +137,7 @@ class ForeignProperty(Unresolved):
             return self.swap(right)
         else:
             raise RuntimeError(
-                f"Can't push {right} to {self}, because right is a "
-                f"{type(self.right)}, but it should be a Ref."
+                f"Can't push {right} to {self}, because right is a {type(self.right)}, but it should be a Ref."
             )
 
     def swap(self, right: Optional[Property] = None) -> ForeignProperty:
@@ -162,10 +161,17 @@ class ForeignProperty(Unresolved):
             expr = None
         for fpr in reversed(self.chain[:-1]):
             if expr:
-                expr = Expr('getattr', fpr.right.get_bind_expr(), expr)
+                expr = Expr("getattr", fpr.right.get_bind_expr(), expr)
             else:
                 fpr.right.get_bind_expr()
         if expr:
-            return Expr('getattr', self.chain[0].left.get_bind_expr(), expr)
+            return Expr("getattr", self.chain[0].left.get_bind_expr(), expr)
         else:
             return self.chain[0].left.get_bind_expr()
+
+    @property
+    def place(self):
+        fixed_name = self.right.prop.place
+        if fixed_name.startswith(f"{self.left.prop.place}."):
+            fixed_name = fixed_name.replace(f"{self.left.prop.place}.", "", 1)
+        return ".".join([fpr.left.prop.place for fpr in self.chain] + [fixed_name])

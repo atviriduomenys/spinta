@@ -3,5 +3,5 @@ type: dataset
 name: datasets/nested/dataset/name
 resources:
   resource:
-    type: csv
+    type: dask/csv
     external: https://example.com/resource.csv

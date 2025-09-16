@@ -42,9 +42,7 @@ def change_base_model(
     model: Model,
     fpr: ForeignProperty,
 ) -> Expr:
-    """Rewrite given expr by changing all binds to a new base model.
-
-    """
+    """Rewrite given expr by changing all binds to a new base model."""
     expr = model.external.prepare
     env = ChangeModelBase(context)
     env.update(model=model)

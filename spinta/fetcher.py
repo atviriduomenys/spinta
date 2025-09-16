@@ -10,7 +10,6 @@ def _get_cache_path(base: Path, key: str) -> Path:
 
 
 class Cache:
-
     def __init__(self, path: Path):
         self.path = path
 
@@ -25,19 +24,19 @@ class Cache:
         key = get_ref_id(key)
         path = _get_cache_path(self.path, key)
         path.parent.mkdir(parents=True, exist_ok=True)
-        mode = 'wt' if text else 'wb'
-        encoding = 'utf-8' if text else None
+        mode = "wt" if text else "wb"
+        encoding = "utf-8" if text else None
         with path.open(mode, encoding=encoding) as f:
             yield f
 
 
 def fetch(context: Context, url: str, *, text: bool = False) -> Path:
-    cache = context.get('cache')
+    cache = context.get("cache")
     path = cache.get(url)
     if path is not None:
         return path
 
-    requests = context.get('requests')
+    requests = context.get("requests")
     with requests.get(url, stream=True) as r:
         with cache.set(url, text=text) as f:
             chunks = r.iter_content(chunk_size=8192, decode_unicode=text)

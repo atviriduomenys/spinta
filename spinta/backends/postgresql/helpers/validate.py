@@ -1,10 +1,6 @@
-import sqlalchemy as sa
-
-from spinta.utils.schema import NA
-from spinta.components import Context, Action, Property
-from spinta.components import Context, Property, Action, DataItem
+from spinta.components import Context, Property
+from spinta.components import Context, Property, DataItem
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.exceptions import UniqueConstraint
 
 
 def pg_check_unique_constraint(
@@ -15,6 +11,9 @@ def pg_check_unique_constraint(
     data: DataItem,
     value: str,
 ):
+    """
+    DISABLED SINCE UNIQUE CONSTRAINT CHECK IS HANDLED AT POSTGRESQL LEVEL
+
     table = backend.get_table(prop)
 
     if (
@@ -34,3 +33,4 @@ def pg_check_unique_constraint(
     result = backend.get(connection, table.c[name], condition, default=default)
     if result is not default:
         raise UniqueConstraint(prop)
+    """

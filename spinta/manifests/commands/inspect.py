@@ -17,7 +17,7 @@ def inspect(
     manifest: Manifest,
     source: None,
 ) -> Iterator[ManifestSchema]:
-    for dataset in manifest.datasets.values():
+    for dataset in commands.get_datasets(context, manifest).values():
         yield from commands.inspect(context, manifest.backend, dataset, None)
 
 
@@ -29,10 +29,7 @@ def inspect(
     source: None,
 ) -> Iterator[ManifestSchema]:
     eid, schema = dataset_to_schema(dataset)
-    schema['resources'] = {
-        resource.name: resource_to_schema(resource)[1]
-        for resource in dataset.resources.values()
-    }
+    schema["resources"] = {resource.name: resource_to_schema(resource)[1] for resource in dataset.resources.values()}
     yield eid, schema
     for resource in dataset.resources.values():
         yield from commands.inspect(context, resource.backend, resource, None)

@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/dtypes/postgres/file
+name: backends/mongo/dtypes/postgres/File
 backend: mongo
 version:
   id: 1

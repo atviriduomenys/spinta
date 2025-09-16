@@ -1,5 +1,5 @@
 type: model
-name: datasets/backends/postgres/dataset/continent
+name: datasets/backends/postgres/dataset/Continent
 external:
   dataset: datasets/backends/postgres/dataset
   resource: sql

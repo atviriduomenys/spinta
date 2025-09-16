@@ -1,5 +1,5 @@
 type: model
-name: datasets/generator/continent
+name: datasets/generator/Continent
 external:
   dataset: datasets/generator
   resource: continents

@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/dtypes/binary
+name: backends/postgres/dtypes/Binary
 version:
   id: 1
   date: 2020-01-24

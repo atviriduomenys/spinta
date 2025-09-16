@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -11,6 +13,7 @@ from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.core.enums import load_level, load_status, load_visibility
 from spinta.core.ufuncs import asttoexpr
 from spinta.dimensions.enum.components import EnumFormula
 from spinta.dimensions.enum.components import EnumItem
@@ -35,13 +38,19 @@ def _load_enum_item(
     if item.prepare is not NA:
         ast = item.prepare
         expr = asttoexpr(ast)
-        env = EnumFormula(context, scope={
-            'this': item.source,
-            'node': parent,
-        })
+        env = EnumFormula(
+            context,
+            scope={
+                "this": item.source,
+                "node": parent,
+            },
+        )
         item.prepare = env.resolve(expr)
 
-    load_access_param(item, data.get('access'), parents)
+    load_access_param(item, data.get("access"), parents)
+    load_level(item, data.get("level"))
+    load_status(item, data.get("status"))
+    load_visibility(item, data.get("visibility"))
     return item
 
 
@@ -53,10 +62,7 @@ def load_enums(
     if enums is None:
         return
     return {
-        name: {
-            source: _load_enum_item(context, parents, item)
-            for source, item in enum.items()
-        }
+        name: {source: _load_enum_item(context, parents, item) for source, item in enum.items()}
         for name, enum in enums.items()
     }
 
@@ -77,18 +83,13 @@ def get_prop_enum(prop: Optional[Property]) -> EnumValue:
         return prop.enum
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def prepare_enum_value(prop: Property, value: T) -> Union[T, List[T]]:
     if enum := get_prop_enum(prop):
         source = [
-            item.source
-            for item in enum.values()
-            if (
-                (item.prepare is None and value is None) or
-                item.prepare == value
-            )
+            item.source for item in enum.values() if ((item.prepare is None and value is None) or item.prepare == value)
         ]
         if len(source) == 0:
             raise ValueNotInEnum(prop, value=value)

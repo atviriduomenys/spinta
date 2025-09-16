@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/country
+name: backends/mongo/Country
 backend: mongo
 title: Country
 version:
@@ -15,4 +15,4 @@ properties:
     title: Two letters country code
   continent:
     type: ref
-    model: backends/mongo/continent
+    model: backends/mongo/Continent

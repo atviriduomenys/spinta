@@ -1,10 +1,1646 @@
-.. default-role:: literal
-
 Changes
 #######
 
-0.1.43 (unreleased)
+0.2dev6 (unreleased)
+====================
+
+Improvements:
+
+- Updated `authlib` minimal version to 1.0.0 (`#675`_).
+- `private` and `public` keys now include `kid` field (`#675`_).
+
+  .. _#675: https://github.com/atviriduomenys/spinta/issues/675
+
+0.2dev4 (unreleased)
+====================
+
+New Features:
+
+- Added support for specifying SOAP request body in SOAP requests.(`#1274`_)
+- Allow `Client` POST and PATCH endpoints to save variable `backends` that can store
+  extra authentication data. Implement `.creds("key")` prepare function to read values
+  from saved `backends`. (`#1275`_)
+- Implement the skeleton of `spinta sync` command. (`#1378`_)
+- Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
+- Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415`_)
+- During synchronization, create a Data Service and not a Dataset as was done initially. (`#1415`_)
+- Adjust synchronization credentials retrieve, to include organization name & type. (`#1415`_)
+- Add `spinta inspect` logic to `spinta sync` & loop through all the datasets from inspection instead of using the first one only. (`#1415`_)
+- Refactor tests for synchronization to be more maintainable + assert what endpoints are called with and not only that they are called. (`#1415`_)
+- Build full dataset name following UDTS conventions. (`#1415`_)
+- Remove private source/resource values from DSA. (`#1415`_)
+- Change `spinta sync` hierarchy creation to: Data Service -> Dataset -> Distribution. (`#1415`_)
+- Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
+- Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
+- Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
+
+  .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
+  .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
+  .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
+  .. _#1260: https://github.com/atviriduomenys/spinta/issues/1260
+  .. _#1377: https://github.com/atviriduomenys/spinta/issues/1377
+  .. _#1381: https://github.com/atviriduomenys/spinta/issues/1381
+  .. _#1382: https://github.com/atviriduomenys/spinta/issues/1382
+  .. _#1389: https://github.com/atviriduomenys/spinta/issues/1389
+  .. _#1415: https://github.com/atviriduomenys/spinta/issues/1415
+
+
+Bug fixes:
+
+- Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
+- Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
+- Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`1358`_)
+
+  .. _#981: https://github.com/atviriduomenys/spinta/issues/981
+  .. _#986: https://github.com/atviriduomenys/spinta/issues/986
+  .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
+  .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
+
+0.2dev3
+=======
+
+New Features:
+
+- Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
+- Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+- Added `soap` backend for basic SOAP data reading from WSDL (`#1273`_)
+- Added separate `wsdl` backend to read WSDL file and `wsdl(...)` function to link any `soap` type resource with
+  `wsdl` type resource for WSDL/SOAP data reading (`#279`_)
+
+  .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
+  .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+  .. _#1273: https://github.com/atviriduomenys/spinta/issues/1273
+  .. _#279: https://github.com/atviriduomenys/spinta/issues/279
+
+Bug fixes:
+
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+- Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
+
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
+
+0.2dev2
+=======
+
+Backwards incompatible:
+
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
+- Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
+  be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
+  optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
+  of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
+  For local development - `poetry install --all-extras` should be used to install all packages.
+
+  .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
+
+New Features:
+
+- Added OpenAPI Schema manifest (`#1211`_)
+- Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
+- Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
+- Added new CLI command `getall` which returns JSON representation of YAML data. (`#1229`_)
+
+  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
+  .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
+  .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+  .. _#1229: https://github.com/atviriduomenys/spinta/issues/1229
+
+Bug fixes:
+
+- Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+- Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
+
+  .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+
+0.2dev1
+=======
+
+Backwards incompatible:
+ - conversion of XSD schemas to DSA manifests in an improved way. (`#842`_)
+ - support for language tag for properties. (`#582`_)
+
+  .. _#842: https://github.com/atviriduomenys/spinta/issues/842
+  .. _#582: https://github.com/atviriduomenys/spinta/issues/582
+
+0.1.86 (unreleased)
 ===================
+
+Backwards incompatible:
+
+- To support `redirect`, we introduced a new `API` endpoint `/:move` that creates redirect entries. Because all data
+  manipulations must be logged in the `changelog`, we needed a way to indicate that one `_id` was moved to another `_id`.
+  Since `_id` is unique and cannot be reused, we added a new property, `_same_as`, used exclusively to track which `_id`
+  an entry was moved to. As a result, this property is now included in all tabular results (HTML, ASCII, CSV),
+  even though it will typically be empty (`#1290`_).
+
+- In order to add `move` support and to deobfuscate `SqlAlchemyKeymap` new migration system was added. From now on any
+  schema changes to keymap should be done using `spinta upgrade`. Keymap now stores separate table called `_migrations`,
+  it stores all already executed migrations. Each time `spinta` configures keymap, it will check if all of
+  required migrations have been executed on it (`#1307`_).
+
+- The `spinta upgrade` command no longer uses the `-r` argument to specify a script. Instead, you can now pass one or more
+  scripts directly as arguments, e.g., `spinta upgrade redirect` or `spinta upgrade clients redirect` (`#1340`_).
+
+Improvements:
+
+- `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
+  Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
+  raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
+
+- The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
+  any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
+
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+- The `spinta upgrade` and `spinta admin` commands no longer require the `-r` or `--run` argument to specify scripts.
+  Instead, script names can be passed directly as arguments, allowing multiple scripts to be run at once (`#1340`_).
+
+- Reintroduced the legacy `SqlAlchemyKeymap` synchronization mode for models without a primary key.
+  This is a temporary workaround until such models are reworked to restrict access to features that require a primary key (`#1340`_).
+
+- Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
+  duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
+
+- `keymap sync` now has `--check-all` flag, that allows model dependency checks on models that does not have source set (`#1402`_).
+
+- Reserved models, no longer generate additional meta tables for `postgresql` backend (`#1419`_).
+
+- `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
+
+- Added support for `ruff` linting and code formatting (`#434`_).
+
+  .. _#434: https://github.com/atviriduomenys/spinta/issues/434
+  .. _#1419: https://github.com/atviriduomenys/spinta/issues/1419
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+  .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402
+  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
+  .. _#1230: https://github.com/atviriduomenys/spinta/issues/1230
+
+New Features:
+
+- Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
+  specific scripts to be passed and cannot run all scripts by default (`#1340`_).
+
+- Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
+  (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
+  to ensure a single active local-global key pair (`#1340`_).
+
+- Added a `redirect` upgrade script (`spinta upgrade redirect`) that checks if the current `backend` supports redirects.
+  If not, it will attempt to add the missing features (`#1290`_).
+
+- Added a `deduplicate` admin script (`spinta admin deduplicate`). This checks models with assigned primary keys
+  (`model.ref`) to ensure uniqueness is enforced. If not, it scans for duplicates, aggregates them using `model.ref` keys,
+  and processes them via the `/:move` endpoint (keeping the oldest entry as the root). It then attempts to enforce
+  uniqueness going forward (`#1290`_).
+
+- Implemented `redirect` support. When trying to fetch an entry that no longer exists, the `API` will redirect the request
+  if a mapping exists in the `redirect` table (`#1290`_).
+
+- Added `DELETE` `/:move` endpoint, that removes an entry and marks it as moved to another existing entry via
+  the `redirect` table (`#1290`_).
+
+  .. _#1290: https://github.com/atviriduomenys/spinta/issues/1290
+  .. _#1340: https://github.com/atviriduomenys/spinta/issues/1340
+
+Bug fixes:
+
+- Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
+
+- Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
+
+- Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
+
+- Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
+
+- Fixed `migration` script sometimes applying name compression twice (`#1409`_).
+
+- Fixed several exponential backtracking regex issues (`#1435`_).
+
+  .. _#1435: https://github.com/atviriduomenys/spinta/issues/1435
+  .. _#1409: https://github.com/atviriduomenys/spinta/issues/1409
+  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+  .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
+
+0.1.85 (2025-04-08)
+===================
+
+Backwards incompatible:
+
+- The `Sql` backend no longer generates random UUIDs whenever `internal` models are being accessed in `external` mode.
+  Instead, if a value mapping is not found, an error is raised. The only way to resolve this error is to update `keymap`
+  by running `keymap sync` command (`#1214`_).
+
+New Features:
+
+- Added `split('...')` function support to `sql` backend (`#760`_).
+
+- Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
+
+  .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
+
+Improvements:
+
+- Added `Array` push support for `sql` backend (`#760`_).
+
+  .. _#760: https://github.com/atviriduomenys/spinta/issues/760
+
+- Replaced `from_wkt` and `to_wkt`, to `wkt.loads` and `wkt.dumps`. This will ensure, that older versions of `shapely`
+  will still be supported (`#1186`_).
+
+  .. _#1186: https://github.com/atviriduomenys/spinta/issues/1186
+
+- `cast_backend_to_python` now allows extra properties to be passed (custom `select` functions that create new temporary
+  properties can now be properly cast to python types) (`#1052`_).
+
+- Better support for `Denorm` properties with `Sql` backend (`#1214`_).
+
+  .. _#1214: https://github.com/atviriduomenys/spinta/issues/1214
+
+- Added a specific `NoModelDefined` error when property is defined without a model (`#1000`_).
+
+  .. _#1000: https://github.com/atviriduomenys/spinta/issues/1000
+
+Bug fixes:
+
+- Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
+
+- Fixed `cast_backend_to_python` not propagating casting to `Ref` children (`#1052`_).
+
+- Fixed `cast_backend_to_python` not casting `Denorm` values with required type (`#1052`_).
+
+- Added an additional check for properties that are not given a `type` and the `type` can not be inherited from the base model (`#1019`_).
+
+  .. _#1019: https://github.com/atviriduomenys/spinta/issues/1019
+
+- Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
+
+  .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
+
+- Fixed tabular reader using `dtype` instead of `raw` type when handling datatype column (`#983`_).
+
+  .. _#983: https://github.com/atviriduomenys/spinta/issues/983
+
+0.1.84 (2025-02-19)
+===================
+
+Bug fixes:
+
+- Fixed `SqliteQueryBuilder` importing wrong `Sqlite` class (`#1174`_).
+
+  .. _#1174: https://github.com/atviriduomenys/spinta/issues/1174
+
+0.1.83 (2025-02-18)
+===================
+
+Backwards incompatible:
+
+- `sql` backend no longer tries to automatically change it's query functions based on dsn dialect. Now in order to access
+  specific dialect's functionality, you need to specify it through type (`#1127`_).
+
+  Currently supported `sql` backend types:
+    - `sql` - generic default sql type (tries to use dialect indifferent functions).
+    - `sql/postgresql` - PostgreSQL dialect.
+    - `sql/mssql` - Microsoft SQL server dialect.
+    - `sql/mysql` - MySQL dialect.
+    - `sql/mariadb` - MariaDB dialect.
+    - `sql/sqlite` - Sqlite dialect.
+    - `sql/oracle` - Oracle database dialect.
+
+  It is recommended to specify dialects in the manifest or config, this will ensure better performance and can unlock
+  more functionality (in case some dialects support unique functions). Because system no longer tries to automatically
+  detect the dialect there is a possibility of errors or invalid values if you do not set the correct dialect.
+
+- `Backend` objects now store `result_builder_class` and `query_builder_class` properties, which can be used to initialize
+  their respective builders. This changes how `QueryBuilders` and `ResultBuilders` are now created. Each `Backend` now has
+  to specify their builder through `result_builder_type` and `query_builder_type`, which are strings, that map with
+  corresponding classes in `config.components` (`#1127`_).
+
+  All `QueryBuilder` classes are stored in `config.components.querybuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default query builder.
+    - `postgresql` - Internal postgresql query builder.
+    - `mongo` - Internal mongo query builder.
+    - `sql`- External default sql query builder.
+    - `sql/sqlite` - External sqlite dialect query builder.
+    - `sql/mssql` - External microsoft sql dialect query builder.
+    - `sql/postgresql` - External postgresql dialect query builder.
+    - `sql/oracle` - External oracle dialect query builder.
+    - `sql/mysql` - External mysql dialect query builder.
+    - `sql/mariadb` - External mariadb dialect query builder.
+    - `dask` - External Dask dataframe query builder.
+
+  All `ResultBuilder` classes are stored in `config.components.resultbuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default result builder.
+    - `postgresql` - Internal postgresql result builder.
+    - `sql`- External sql result builder.
+
+- In order to maintain cohesiveness in code and data structure, dask backends have gone through same treatment as `sql`.
+  Before they worked similar to the new system (users had to manually specify their type), but now to make sure that
+  naming convention is same with all components `csv`, `json` and `xml` types have been renamed to `dask/csv`, `dask/json`,
+  `dask/xml`. If you used these backends before, you will now need to add `dask/` prefix to their types (`#1127`_).
+
+  Because so many datasets use `csv`, `json` and `xml` types, they will not be fully removed, but they will be deprecated
+  and eventually might be removed, so it's encouraged to change them to `dask` format.
+
+
+New features:
+
+- Added exposed intermediate table support for external `Sql` backend (`#663`_).
+
+  .. _#663: https://github.com/atviriduomenys/spinta/issues/663
+
+Improvements:
+
+- Added better error messages for scalar to ref migrations (when system cannot determine previous primary keys) (`#1123`_).
+
+  .. _#1123: https://github.com/atviriduomenys/spinta/issues/1123
+
+- `export` command now supports `access` argument, that can filter models and properties
+  if they are the same or higher level than given `access` (default is `private`, meaning everything is exported) (`#1130`_).
+
+  .. _#1130: https://github.com/atviriduomenys/spinta/issues/1130
+
+- Separated `sql` `backend` dialects to their own separate backends (`#1127`_).
+
+- Added `dask/` prefix to `csv`, `xml` and `json` backends (`#1127`_).
+
+  .. _#1127: https://github.com/atviriduomenys/spinta/issues/1127
+
+
+Bug fix:
+
+- Convertion from scalar to ref (and ref to scalar) now uses `alias` when there is self reference (`#1105`_).
+
+  .. _#1105: https://github.com/atviriduomenys/spinta/issues/1105
+
+- `spyna` when reading string values and escaping characters now properly restores converted `unicode` characters back
+  to `utf-8` encoding, which will allow the use Lithuanian characters in query (`#1139`_).
+
+  .. _#1139: https://github.com/atviriduomenys/spinta/issues/1139
+
+
+0.1.82 (2025-01-21)
+===================
+
+Backwards incompatible:
+
+- `postgresql` `backend` now no longer ignores `prepare` functions. Meaning if there are properties, which has functions
+  set in `prepare` column, it can cause errors (if those functions are not supported in `postgresql` `backend`) (`#1048`_).
+
+- `InternalSqlManifest` no longer is capable of knowing when to hide `Text` or `C` language (`#940`_). That means if you have
+  `tabular` `manifest` with hidden `Text`, like so:
+
+  .. code-block:: text
+
+    d | r | b | m | property | type    | ref       | access | title
+    example                  |         |           |        |
+                             |         |           |        |
+      |   |   | City         |         | id        |        |
+      |   |   |   | id       | integer |           | open   |
+      |   |   |   | name@lt  | string  |           | open   |
+      |   |   |   | name@en  | string  |           | open   |
+
+  if you were to convert it to `InternalSqlManifest` and back, you would get this result:
+
+  .. code-block:: text
+
+    d | r | b | m | property | type    | ref       | access | title
+    example                  |         |           |        |
+                             |         |           |        |
+      |   |   | City         |         | id        |        |
+      |   |   |   | id       | integer |           | open   |
+      |   |   |   | name     | text    |           | open   |
+      |   |   |   | name@lt  | string  |           | open   |
+      |   |   |   | name@en  | string  |           | open   |
+
+New features:
+
+- Added support for `Object` type with `external` `Sql` `backend` (`#973`_).
+
+  .. _#973: https://github.com/atviriduomenys/spinta/issues/973
+
+- Added 'flip` function, which currently only supports `Geometry` type (flips coordinate axis). This features only works
+  when reading data, meaning, when writing, you still need to provide coordinates in the right order (`#1048`_).
+
+  .. _#1048: https://github.com/atviriduomenys/spinta/issues/1048
+
+- Added `point` function support to `postgresql` `backend` (`#1053`_).
+
+  .. _#1053: https://github.com/atviriduomenys/spinta/issues/1053
+
+Improvements:
+
+- Client data and `keymap` is now cached. This will reduce amount of file reads with each request (`#948`_).
+
+  .. _#948: https://github.com/atviriduomenys/spinta/issues/948
+
+- `Tabular` `manifest` now supports `Text` type nesting with other complex types (`Object`, `Ref`, etc.) (`#940`_).
+
+  .. _#940: https://github.com/atviriduomenys/spinta/issues/940
+
+0.1.81 (2024-12-17)
+===================
+
+Backwards incompatible:
+
+- `SqlAlchemyKeyMap` synchronization no longer uses individual transactions for each synchronization action. Now it
+  batches the actions under multiple transactions. By default it batches `10000` rows. In order to change that value,
+  set `sync_transaction_size` in `config` under your `keymaps` configuration (`#1011`_).
+
+  Like so:
+
+  .. code-block:: yaml
+
+      keymaps:
+        default:
+            type: sqlalchemy
+            dsn: ...
+            sync_transaction_size: 20000
+
+- Changed `postgresql` naming convention. This will result in old tables having incorrect constraint and index names.
+  `spinta migrate` should be able to find most of them (`P#153`).
+
+- `AccessLog` no longer stores `scope` field on every request. Instead it will store `token` field (token `JTI` value).
+  In order to track what scopes token uses, now we log `auth` requests (`/auth/token`), which will store list of scopes.
+  This change should reduce the spam in logging and reduce log file size.
+
+  In order track unique token identifiers, `JTI` field has been added to all new tokens (meaning old tokens, that still
+  do not have the field, will not be properly logged) (`#1003`_).
+
+Improvements:
+
+- `SqlAlchemyKeyMap` now uses batch transactions to synchronize data, which greatly improves performance (`#1011`_).
+
+  .. _#1011: https://github.com/atviriduomenys/spinta/issues/1011
+
+- added enum level support, allowing to indicate a level for enum. (`#982`_)
+
+  .. _#982: https://github.com/atviriduomenys/spinta/issues/982
+
+- Standardized `postgresql` naming convention, now all new constraints and indexes should follow same naming
+  scheme (`P#153`).
+
+- `spinta migrate` now tries to rename constraints and indexes (if the name only changed) instead of dropping them and
+  adding them with correct name (`P#153`).
+
+- `JWT` tokens now also store `JTI` claim (`#1003`_).
+
+- `AccessLog` now has `auth` logging (`#1003`_).
+
+  .. _#1003: https://github.com/atviriduomenys/spinta/issues/1003
+
+Bug fix:
+
+- `Postgresql` `summary` now properly handles tables with long names (`P#160`).
+
+- Fixed various cases where `migrate` command would not take into account truncated names (`P#153`).
+
+0.1.80 (2024-12-03)
+===================
+
+Backwards incompatible:
+
+- Keymap synchronization now uses `sync_page_size` config argument to limit amount of data being fetched with a single
+  request. This will result in more actions being called to remote server. If `keymap` synchronization takes too long
+  to start the process, reduce `sync_page_size` value. Keep in mind, that lower values reduce performance and increase
+  server load (`#985`_).
+
+- `push` command now has explicit timeouts set for requests.
+  Previously, there were no timeouts set for requests, which meant that execution time was unlimited.
+  After the changes the default values are `300` seconds  (5min) for `read` and `5` seconds for `connect` timeouts.
+  The timeout values can be adjusted using `--read-timeout` and `--connect-timeout` push command options (`#662`_).
+
+New features:
+
+- Add `-d --datasets` option to migrate command (`#935`_).
+
+  .. _#935: https://github.com/atviriduomenys/spinta/issues/935
+
+- Add `export` cli command, that will export data to specified format (`#960`_).
+
+  .. _#960: https://github.com/atviriduomenys/spinta/issues/960
+
+- Add `keymap sync` command (`#666`_).
+
+  .. _#666: https://github.com/atviriduomenys/spinta/issues/666
+
+- Add `--read-timeout`, `--connect-timeout` options to `spinta push` command (`#662`_).
+
+  .. _#662: https://github.com/atviriduomenys/spinta/issues/662
+
+Improvements:
+
+- Keymap synchronization now uses pagination to fetch data (`#985`_).
+
+  .. _#985: https://github.com/atviriduomenys/spinta/issues/985
+
+0.1.79 (2024-11-12)
+===================
+
+New features:
+
+- Added support for `Denorm` type migrations (`#932`_).
+
+  .. _#932: https://github.com/atviriduomenys/spinta/issues/932
+
+Improvements:
+
+- Added better support for migrations with nested data types (`#722`_).
+
+- Added a check for reading client data files, to provide better error messages (`#933`_).
+
+  .. _#933: https://github.com/atviriduomenys/spinta/issues/933
+
+- Added scope information to access logs (`#903`_).
+
+  .. _#903: https://github.com/atviriduomenys/spinta/issues/903
+
+- Improved `summary` `query` memory usage (`#955`_).
+
+  .. _#955: https://github.com/atviriduomenys/spinta/issues/955
+
+Bug fix:
+
+- Resolved ambiguity warning messages (`#895`_).
+
+  .. _#895: https://github.com/atviriduomenys/spinta/issues/895
+
+- Fixed `Denorm` properties being mapped to `Ref` foreign key migrations (`#722`_).
+
+  .. _#722: https://github.com/atviriduomenys/spinta/issues/722
+
+- Fixed memory leak caused by `resource_filename` function (`#954`_).
+
+  .. _#954: https://github.com/atviriduomenys/spinta/issues/954
+
+0.1.78 (2024-10-22)
+===================
+
+Bug fix:
+
+- Removed `pymssql` library from requirements (was added in previous version by accident).
+
+0.1.77 (2024-10-22)
+===================
+
+Backwards incompatible changes:
+
+- `wait` command no longer raises exceptions, when it fails to connect to backend (`PostgresSql` and `Sql`).
+  This means that you will only know if `backend` failed to connect, when you try to call `transaction` or `begin` methods,
+  which should be called on every request (`#730`_).
+
+- Changed minimum `starlette` version requirement to `0.40>=` (fixes vulnerability issue).
+  More about it: https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
+
+New features:
+
+- Added support for literal values in `property` `prepare` expression (`#670`_).
+
+  .. _#670: https://github.com/atviriduomenys/spinta/issues/670
+
+- Added uuid data type (`#660`_).
+
+  .. _#660: https://github.com/atviriduomenys/spinta/issues/660
+
+Improvements:
+
+- Added `backend``transaction` and `begin` method validations (`PostgresSql` and `Sql` backends). When launching
+  `spinta` server, `wait` command no longer raises exceptions if it failed to connect to backend (`#730`_).
+
+  .. _#730: https://github.com/atviriduomenys/spinta/issues/730
+
+- Added the ability for 'Backref' to have nested properties; improved 'Backref' and 'ArrayBackref' handling (`#664`_).
+
+  .. _#664: https://github.com/atviriduomenys/spinta/issues/664
+
+
+0.1.76 (2024-10-08)
+===================
+
+
+Backwards incompatible changes:
+
+- You can no longer directly set `Ref` foreign key values to `None`. Meaning you cannot set `"ref": {"_id": None}`.
+  Now, if you want to unassign `Ref` value, you have to set it to `None` (`"ref": None`), it will also now set all
+  nested values (`Denorm`) to `None` as well, this new feature now ensures, that there cannot be floating `Denorm` values
+  when trying to remove references (`#846`_).
+
+
+Improvements:
+
+- Added removal of duplicate models when converting `XSD` to `DSA` even when `source` is different (`#787`_).
+
+  .. _#787: https://github.com/atviriduomenys/spinta/issues/787
+
+- Improved invalid scope error messaging for token auth (`#537`_).
+
+  .. _#537: https://github.com/atviriduomenys/spinta/issues/537
+
+- Added ability to remove all nested property values for `Ref` type, when assigning `None` to the value itself (`#846`_).
+
+
+Bug fixes:
+
+- Fixed a bug in XSD->DSA conversion, where properties need to become arrays in a `choice` which has `maxOccurs="unbounded"` (`#837`_).
+
+  .. _#837: https://github.com/atviriduomenys/spinta/issues/837
+
+- Fixed `checksum()` function bug, where it tried to calculate checksums before converting data from `backend` specific to
+  python types (`#832`_).
+
+- Fixed an oversight where `geoalchemy2` values were propagated to `prepare_dtype_for_response` instead of being converted to
+  `backend` indifferent type (`shapely.geometry.base.BaseGeometry`) (`#832`_).
+
+  .. _#832: https://github.com/atviriduomenys/spinta/issues/832
+
+- Fixed errors when `Ref` changelog values were incorrect. Now, if changelog ref `_id`, or ref itself is `""`, it assumes
+  that it is supposed to be `None` (`#556`_).
+
+  .. _#556: https://github.com/atviriduomenys/spinta/issues/556
+
+- Fixed `Ref` value unassignment not updating the values in database (`#846`_).
+
+  .. _#846: https://github.com/atviriduomenys/spinta/issues/846
+
+
+0.1.75 (2024-09-24)
+===================
+
+Improvements:
+
+- Reverted github actions `postgresql` version to `11`, until production server is updated to `16`, so we don't get similar
+  issues again (`#827`_).
+
+
+Bug fixes:
+
+- Fixed `summary` for `Geometry` not working with older than 16 `postgresql` version (`#827`_).
+
+  .. _#827: https://github.com/atviriduomenys/spinta/issues/827
+
+
+0.1.74 (2024-09-24)
+===================
+
+Bug fixes:
+
+- Fixed `api` `inspect` `clean_up` function failing when there are exceptions while reading `manifest` files (`#813`_).
+
+  .. _#813: https://github.com/atviriduomenys/spinta/issues/813
+
+- Fixed `client add` not finding `config_path` when using `config.yml` instead of setting it with `-p` (`#818`_).
+
+  .. _#818: https://github.com/atviriduomenys/spinta/issues/818
+
+
+0.1.73 (2024-09-19)
+===================
+
+Backwards incompatible changes:
+
+- Changed `pymongo` version requirement from `"*"` to `"<=4.8.0"`. Version `4.9.0` changed import paths, that broke `spinta` (`#806`_).
+
+  .. _#806: https://github.com/atviriduomenys/spinta/issues/806
+
+0.1.72 (2024-09-18)
+===================
+
+Improvements:
+
+- Added support for negative float values in `starlette` float routing (use `spinta_float` instead of `float` type) (`#781`_).
+
+  .. _#781: https://github.com/atviriduomenys/spinta/issues/781
+
+- Changed `manifests.default.backend` config value from `''` to `'default'`. Now if nothing is set, default backend will be
+  `MemoryBackend` instead of nothing (`#798`_).
+
+  .. _#798: https://github.com/atviriduomenys/spinta/issues/798
+
+- Added removal of duplicate models when converting `XSD` to `DSA` (`#752`_).
+
+  .. _#752: https://github.com/atviriduomenys/spinta/issues/752
+
+Bug fixes:
+
+- Fixed `_srid` routing error, when using negative float values as coordinates (`#781`_).
+
+- Fixed `Geometry` boundary check not respecting `SRID` latitude and longitude order (used to always assume, that x = longitude,
+  y = latitude, now it will try to switch based on `SRID`) (`#737`_).
+
+  .. _#737: https://github.com/atviriduomenys/spinta/issues/737
+
+- Fixed some errors when trying to access api endpoints, while server is running with default config settings (`#798`_).
+
+- Fixed a problem in `PropertyReader` and `EnumReader` where enums were always added to the top level `property` (`#540`_).
+
+  .. _#540: https://github.com/atviriduomenys/spinta/issues/540
+
+0.1.71 (2024-09-12)
+===================
+
+Backwards incompatible:
+
+- Spinta no longer automatically migrates `clients` structure (`#122`_). Now you have to manually use
+  `spinta upgrade` command to migrate files. Meaning if there are issues with `clients` file structure you will going to
+  get errors, suggesting to fix the problem, or run `spinta upgrade` command (`#764`_).
+
+Improvements:
+
+- Changed `postgresql` github actions and docker compose version to `16-3.4` (`P#129`).
+
+- Changed report bug link to `atviriduomenys@vssa.lt` email (`#758`_).
+
+  .. _#758: https://github.com/atviriduomenys/spinta/issues/758
+
+New features:
+
+- Added `spinta upgrade` command, that will migrate backwards incompatible changes between versions (`#764`_).
+
+  - Use `spinta upgrade` to run all scripts.
+  - `spinta upgrade -m <script_name>` to run specific script.
+  - `spinta upgrade -f` to skip all checks and forcefully run scripts.
+  - `spinta upgrade -d` to run destructive mode, which, depending on script, will override existing changes.
+    Only use destructive mode, if you know what will be changed, and you have made backups.
+
+- Added `clients` migrate script to `spinta upgrade` command (`#764`_).
+  Main goal is to migrate client files from old structure to newly introduced one in `#122`_ task.
+
+  - You can specify it with `spinta upgrade -r clients` command.
+  - Use `spinta upgrade -r clients -f` if you want to make sure that all files are migrated correctly. It will skip
+    already migrated files and update `keymap.yml`.
+  - `spinta upgrade -r clients -f -d` will override any new files that match old ones. This is destructive and there are
+    no rollbacks for it, so only use it if you have backups and understand what will be changed.
+
+  .. _#764: https://github.com/atviriduomenys/spinta/issues/764
+
+Bug fixes:
+
+- Added missing cluster limit to `:summary` for `Geometry` type properties. Now it's set to 25 clusters (`P#130`).
+
+
+0.1.70 (2024-08-27)
+===================
+
+Improvements:
+
+- Improved performance of `PostgreSQL` and `SQL` `backend` `getall` functions (`#746`_).
+
+  .. _#746: https://github.com/atviriduomenys/spinta/issues/746
+
+0.1.69 (2024-08-23)
+===================
+
+Improvements:
+
+- Nested properties for XSD. (`#622`_).
+
+  .. _#622: https://github.com/atviriduomenys/spinta/issues/622
+
+Bug fixes:
+
+- Removed `from mypy.dmypy.client import request` import from `spinta/components.py`.
+
+0.1.68 (2024-08-23)
+===================
+
+Backwards incompatible:
+
+- Renamed `push_page_size` config field to `default_page_size` (`#735`_).
+
+Improvements:
+
+- Changed default config `sync_page_size` and `default_page_size` parameters to be `100000` instead of `1000` (`#735`_).
+
+New features:
+
+- Added `enable_pagination` config field, which will enable or disable default pagination behaviour. Request and schema
+  specifications take priority, meaning even if `enable_pagination` is set to `False`, you can still specify `page(disable:false)`
+  to enable it for specific requests (`#735`_).
+
+  .. _#735: https://github.com/atviriduomenys/spinta/issues/735
+
+0.1.67 (2024-08-02)
+===================
+
+Backwards incompatible:
+
+- Changed `spinta_sqlite` driver name to `spinta`. Old naming was unnecessary since you needed to use `sqlite+spinta_sqlite:///...`,
+  now you can just use `sqlite+spinta:///...` (`#723`_).
+- `spinta push` `state` database now will always going to append `sqlite+spinta:///` prefix, instead of `sqlite:///`. This
+  ensures, that `sqlite` version is now dependant on `sqlean` library, instead of taking default python `sqlite` version
+  (makes it easier to ensure, that users are using correct version of `sqlite`) (`#723`_).
+- Changed `sqlalchemy` default `sqlite` driver to `SQLiteDialect_spinta` (instead of `SQLiteDialect_pysqlite`). Meaning
+  every time you use `sqlite:///...` it will default to `spinta` driver, instead of `pysqlite` (default `sqlalchemy`) (`#723`_).
+
+Improvements:
+
+- Writing `InternalSQLManifest` now is done using `transaction`, meaning if there are errors, it will rollback any changes
+  (This is useful when doing `copy` on already existing structure, since it clears all old data before writing new) (`#715`_).
+
+- Changed `state` db, to always use `spinta` `sqlite` driver (`#723`_).
+
+  .. _#723: https://github.com/atviriduomenys/spinta/issues/723
+
+Bug fixes:
+
+- Fixed `InternalSQLManifest` structure being fetched without index order (`#715`_).
+
+  .. _#715: https://github.com/atviriduomenys/spinta/issues/715
+
+0.1.66 (2024-07-23)
+===================
+
+New features:
+
+- Added support for `eq`, `&` and `|` operators to `Dask` `backend` (`#702`_).
+
+  .. _#702: https://github.com/atviriduomenys/spinta/issues/702
+
+
+Bug fixes:
+
+- Fixed `formula` being ignored when using `inspect` (`#685`_).
+
+  .. _#685: https://github.com/atviriduomenys/spinta/issues/685
+
+- Fixed errors with different formats when returning empty data (`#684`_).
+
+  .. _#684: https://github.com/atviriduomenys/spinta/issues/684
+
+- Fixed `keymap.yml` not updating mapping when changing `client_name` (`#688`_).
+
+  .. _#688: https://github.com/atviriduomenys/spinta/issues/688
+
+- Fixed error when opening `changes` in `html` format, when there is no `select` and you have
+  only one language given to `Text` property (`#693`_).
+
+  .. _#693: https://github.com/atviriduomenys/spinta/issues/693
+
+- Fixed assertion error when only selecting not expanded `array` (`#696`_).
+
+  .. _#696: https://github.com/atviriduomenys/spinta/issues/696
+
+- Fixed issue, where sometimes `json` `blank nodes` gets discarded and return empty `dict` (`#699`_).
+
+  .. _#699: https://github.com/atviriduomenys/spinta/issues/696
+
+- Fixed error when trying to use `Dask` `backend` `&` and `|` operators (`#705`_).
+
+  .. _#705: https://github.com/atviriduomenys/spinta/issues/705
+
+0.1.65 (2024-07-03)
+===================
+
+Backwards incompatible changes:
+
+- Changed `starlette` version requirement from `"*"` to `">=0.22"`. From version `0.22.0` `starlette` added better
+  compatibility support for `AnyIO`.
+
+Bug fixes:
+
+- Fixed `getone` with `jsonl` format (`#679`_)
+
+- Rolled back `Templates` warning fixes (caused errors with older `starlette` versions) (`#679`_)
+
+.. _#679: https://github.com/atviriduomenys/spinta/issues/679
+
+0.1.64 (2024-07-02)
+===================
+
+Bug fixes:
+
+- Changed json Geometry type converter import to BaseGeometry (`#673`_)
+
+    .. _#673: https://github.com/atviriduomenys/spinta/issues/673
+
+0.1.63 (2024-06-27)
+===================
+
+Backwards incompatible changes:
+
+- When migrating from version of `spinta`, where `push` pagination
+  was not supported, to a version, where it is, the old `push state` database
+  structure is outdated and it can result in getting `InfiniteLoopWithPagination`
+  or `TooShortPageSize` errors (new `push state` database structure now stores pagination values, while old one does not).
+  With the addition of (`P#98`) change, you now are able to run `push --sync` command to synchronize `push state` database.
+  It is important to note that it will also update pagination values, which could fix some of the infinite loop errors.
+
+- With (`P#98`) change, `internal` will no longer disable pagination when page key types are not supported.
+  Before this change, when model's page went through `link` process, if there was any page keys, that were not supported,
+  pagination was disabled, no matter what type of backend is used. Since all internal backends support `_id` property,
+  which is always present and unique, if we find page keys that are not supported, we can always force pagination using `_id`.
+  This results in that all of the requests will now by default going to be sorted by `_id` property.
+  Important to note, if we use `sort` with unsupported keys, pagination is still going to be disabled.
+
+
+New features:
+
+- Mermaid format support for ability to create class diagrams (`#634`_).
+
+  .. _#634: https://github.com/atviriduomenys/spinta/issues/634
+
+- Parametrization support for XML and JSON external backends (`#217`_,
+  `#256`_).
+
+  .. _#217: https://github.com/atviriduomenys/spinta/issues/217
+  .. _#256: https://github.com/atviriduomenys/spinta/issues/256
+
+- Added new manifest backend for XSD schemas (`#160`_).
+
+  .. _#160: https://github.com/atviriduomenys/spinta/issues/160
+
+- Added `distinct()` function to `model.prepare` (`#579`_).
+
+  .. _#579: https://github.com/atviriduomenys/spinta/issues/579
+
+- Added push state database synchronization. (`P#98`)
+
+- Added `checksum()` `select` function to PostgreSQL backend. (`P#98`)
+
+Improvements:
+
+- Added `ResultBuilder` support to PostgreSQL backend, also changed it's
+  `QueryBuilder` to work like external SQL. (`P#98`)
+
+- Changed `internal` backend page assignment logic to default to `_id`
+  property, if any of the page keys are not supported. (`P#98`)
+
+- Added proper support for functions in `select()` expressions (`P#100`).
+
+Bug fixes:
+
+- Migrate internal backend changed types (`#580`_).
+
+  .. _#580: https://github.com/atviriduomenys/spinta/issues/580
+
+- Added support for language tags in RDF strings (`#549`_).
+
+  .. _#549: https://github.com/atviriduomenys/spinta/issues/549
+
+- Show values of `text` type in tabular output (`#550`_, `#581`_).
+
+  .. _#550: https://github.com/atviriduomenys/spinta/issues/550
+  .. _#581: https://github.com/atviriduomenys/spinta/issues/581
+
+- Added support for PostgreSQL OID type (`#568`_).
+
+  .. _#568: https://github.com/atviriduomenys/spinta/issues/568
+
+- Fixed sorting issue with MySQL and MSSQL external backends (`P#90`).
+
+- Fixed issue with open transactions when writing data (`P#92`).
+
+- Fixed issue with outdated page key in push state tables (`P#95`).
+
+- Words in dataset names separated by underscores. (`#626`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/626
+
+- Added support for `getone` for `sql` backend (`#513`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/513
+
+- Fixed Ref id mapping with non-primary keys when primary keys were not initialized (`#653`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/653
+
+- Fixed issue with Geometry type conversion when pushing data (`#652`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/652
+
+- Fixed issue with Geometry bounding box check not applying CRS projection (`#654`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/654
+
+
+0.1.62 (2024-02-29)
+===================
+
+New features:
+
+- Add possibility to update manifest via HTTP API, without restarting server
+  (`#479`_).
+
+  .. _#479: https://github.com/atviriduomenys/spinta/issues/479
+
+Bug fixes:
+
+- Fixed error with index names exceeding 63 character limit on PostgreSQL
+  (`#566`_).
+
+  .. _#566: https://github.com/atviriduomenys/spinta/issues/566
+
+- Set WGS84 SRID for geometry tupe if SRID is not given as specified in
+  documentation (`#562`_).
+
+  .. _#562: https://github.com/atviriduomenys/spinta/issues/562
+
+
+0.1.61 (2024-01-31)
+===================
+
+Backwards incompatible changes:
+
+- Check geometry boundaries (`#454`_). Previously you could publish spatial
+  data, with geometries out of CRS bounds, now if your geometry is out of CRS
+  bound, you will get error. To fix that, you need to check if you specify
+  correct SRID and if you pass geometries according to specified SRID
+  specifikation.
+
+  .. _#454: https://github.com/atviriduomenys/spinta/issues/454
+
+
+New features:
+
+- New type of manifest read from database, this enables live schema updates
+  (`#113`_).
+
+  .. _#113: https://github.com/atviriduomenys/spinta/issues/113
+
+- Automatic migrations with `spinta migrate` command, this command compares
+  manifest and database schema and migrates database schema, to match given
+  manifest table (`#372`_).
+
+  .. _#372: https://github.com/atviriduomenys/spinta/issues/372
+
+- HTTP API for inspect (`#477`_). Now it is possible to inspect data source
+  not only from CLI, but also via HTTP API.
+
+  .. _#477: https://github.com/atviriduomenys/spinta/issues/477
+
+
+Improvements:
+
+- Generate next page only for last object (`#529`_).
+
+  .. _#529: https://github.com/atviriduomenys/spinta/issues/529
+
+
+Bug fixes:
+
+- Fixing denormalized properties (`#379`_, `#380`_).
+
+  .. _#379: https://github.com/atviriduomenys/spinta/issues/379
+  .. _#380: https://github.com/atviriduomenys/spinta/issues/380
+
+- Fix join with base model (`#437`_).
+
+  .. _#437: https://github.com/atviriduomenys/spinta/issues/437
+
+- Fix WIPE timeout with large amounts of related data (`#432`_). This is fixed
+  by adding indexes on related columns.
+
+  .. _#432: https://github.com/atviriduomenys/spinta/issues/432
+
+- Fix changed dictionaly size error (`#554`_).
+
+  .. _#554: https://github.com/atviriduomenys/spinta/issues/554
+
+- Fix pagination infinite loop error (`#542`_).
+
+  .. _#542: https://github.com/atviriduomenys/spinta/issues/542
+
+
+
+0.1.60 (2023-11-21)
+===================
+
+New features:
+
+- Add new `text` type (`#204`_).
+
+  .. _#204: https://github.com/atviriduomenys/spinta/issues/204
+
+Bug fixes:
+
+- Fix client files migration issue (`#544`_).
+
+  .. _#544: https://github.com/atviriduomenys/spinta/issues/544
+
+- Fix pagination infinite loop error (`#542`_).
+
+  .. _#542: https://github.com/atviriduomenys/spinta/issues/542
+
+- Do not sync keymap on models not required for push operation (`#541`_).
+
+  .. _#541: https://github.com/atviriduomenys/spinta/issues/541
+
+- Fix `/:all` on RDF format (`#543`_).
+
+  .. _#543: https://github.com/atviriduomenys/spinta/issues/543
+
+
+0.1.59 (2023-11-14)
+===================
+
+Backwards incompatible changes:
+
+- With addition of new API for client management, structure how client files
+  are stored, was changed.
+
+  Previously clients were stored in `SPINTA_CONFIG_PATH` like this::
+
+    clients/
+    └── myclient.yml
+
+  Where `myclient` was usually a client name if given, if not given it was
+  an UUID.
+
+  Client file content looked like this:
+
+  .. code-block:: yaml
+
+      client_id: myclient
+      client_secret: secret
+      client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
+      scopes:
+        - spinta_getall
+        - spinta_getone
+
+  Now `clients/` folder structure looks like this::
+
+    ├── helpers/
+    │   └── keymap.yml
+    └── id/
+        └── 7e/
+            └── 1c/
+                └── 0625-fd42-4215-bd86-f0ddff04fda1.yml
+
+  In the new structure, all clients are stored under `id/` folder and client
+  files are named after client_id uuid form.
+
+  In the example above `7e1c0625-fd42-4215-bd86-f0ddff04fda1` is a `client_id`.
+
+  `client_id` now a clear meaning ant now it is just a client id in UUID form.
+  Client name is stored in `client_name`. If client name is not given, then
+  `client_name` is the same as `client_id`.
+
+  There is another file called `helpers/keymap.yml`, that looks like this:
+
+  .. code-block:: yaml
+
+      myclient: 7e1c0625-fd42-4215-bd86-f0ddff04fda1
+
+  This file, stores a mapping of client names as an index to help locating
+  clients by name faster.
+
+  Client names can change, but id can't.
+
+  Structure of client file mostly stays the same, except `client_id` is not
+  only id in UUID form and a new option `client_name` was added to store
+  client name. For example content of
+  `id/7e/1c/0625-fd42-4215-bd86-f0ddff04fda1.yml` now looks like this:
+
+  .. code-block:: yaml
+
+      client_id: 7e1c0625-fd42-4215-bd86-f0ddff04fda1
+      client_name: myclient
+      client_secret: secret
+      client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
+      scopes:
+        - spinta_getall
+        - spinta_getone
+
+
+New features:
+
+- Add possibility to manage clients via API (`#122`_).
+
+  .. _#122: https://github.com/atviriduomenys/spinta/issues/122
+
+
+Improvements:
+
+- Add better support for denormalized properties (`#397`_).
+
+  .. _#397: https://github.com/atviriduomenys/spinta/issues/397
+
+
+Bug fixes:
+
+- Fix error on object counting when running `spinta push` (`#535`_).
+
+  .. _#535: https://github.com/atviriduomenys/spinta/issues/535
+
+- Restore recognition of views in `spinta inspect` (`#476`_).
+
+  .. _#476: https://github.com/atviriduomenys/spinta/issues/476
+
+- Fix single object change list rendering in HTML format (`#459`_).
+
+  .. _#459: https://github.com/atviriduomenys/spinta/issues/459
+
+
+0.1.58 (2023-10-31)
+===================
+
+Bug fixes:
+
+- Fix error in CSV containing NULL data (`#528`_).
+
+  .. _#528: https://github.com/atviriduomenys/spinta/issues/528
+
+- Fix `swap()` containing quotes (`#508`_).
+
+  .. _#508: https://github.com/atviriduomenys/spinta/issues/508
+
+- Fix `UnauthorizedKeymapSync` error on `spinta push` command (`#532`_).
+
+  .. _#532: https://github.com/atviriduomenys/spinta/issues/532
+
+
+0.1.57 (2023-10-24)
+===================
+
+New features:
+
+- Add support for array type (`#161`_).
+
+  .. _#161: https://github.com/atviriduomenys/spinta/issues/161
+
+- Add support for backref type (`#96`_).
+
+  .. _#96: https://github.com/atviriduomenys/spinta/issues/96
+
+- Add support for XML resources (`#217`_).
+
+  .. _#217: https://github.com/atviriduomenys/spinta/issues/217
+
+- Add support for JSON resources (`#256`_).
+
+  .. _#256: https://github.com/atviriduomenys/spinta/issues/256
+
+- Add support for CSV resources (`#268`_).
+
+  .. _#268: https://github.com/atviriduomenys/spinta/issues/268
+
+
+Improvements:
+
+- Add support for custom subject URI in RDF/XML format (`#512`_).
+
+  .. _#512: https://github.com/atviriduomenys/spinta/issues/512
+
+
+Bug fixes:
+
+- Fixed pagination error with date types (`#516`_).
+
+  .. _#516: https://github.com/atviriduomenys/spinta/issues/516
+
+- Fix issue with old SQLite versions used for keymaps (`#518`_).
+
+  .. _#518: https://github.com/atviriduomenys/spinta/issues/518
+
+- Fix summary bbox function with negative values (`#523`_).
+
+  .. _#523: https://github.com/atviriduomenys/spinta/issues/523
+
+
+0.1.56 (2023-09-30)
+===================
+
+New features:
+
+- Pagination, this should enable possibility to push large amounts of data
+  (`#366`_).
+
+  .. _#366: https://github.com/atviriduomenys/spinta/issues/366
+
+- Push models using bases (`#346`_, `#391`_).
+
+  .. _#346: https://github.com/atviriduomenys/spinta/issues/346
+  .. _#391: https://github.com/atviriduomenys/spinta/issues/391
+
+- Sync push state from push target (`#289`_).
+
+  .. _#289: https://github.com/atviriduomenys/spinta/issues/289
+
+- Add support for non-primary key refs in push (`#345`_).
+
+  .. _#345: https://github.com/atviriduomenys/spinta/issues/345
+
+- Push models with external dependencies (`#394`_).
+
+  .. _#394: https://github.com/atviriduomenys/spinta/issues/394
+
+- `swap()` function (`#508`_).
+
+  .. _#508: https://github.com/atviriduomenys/spinta/issues/508
+
+
+0.1.55 (2023-08-18)
+===================
+
+New features:
+
+- Summary for numeric and date types (`#452`_).
+
+  .. _#452: https://github.com/atviriduomenys/spinta/issues/452
+
+- Summary for geometry types (`#451`_).
+
+  .. _#451: https://github.com/atviriduomenys/spinta/issues/451
+
+Bug fixes:
+
+- Fixed error on `_id>"UUID"` (`#490`_).
+
+  .. _#490: https://github.com/atviriduomenys/spinta/issues/490
+
+
+- Fixed an error with unique constraints (`#500`_).
+
+  .. _#500: https://github.com/atviriduomenys/spinta/issues/500
+
+
+0.1.53 (2023-08-01)
+===================
+
+New features:
+
+- Add support for RDF as manifest format (`#336`_).
+
+  .. _#336: https://github.com/atviriduomenys/spinta/issues/336
+
+- Add support for XML as manifest format (`#89`_).
+
+  .. _#89: https://github.com/atviriduomenys/spinta/issues/89
+
+Improvements:
+
+- Delete push target objects in correct order (`#458`_).
+
+  .. _#458: https://github.com/atviriduomenys/spinta/issues/458
+
+Bug fixes:
+
+- Add support for Oracle RAW type (`#493`_).
+
+  .. _#493: https://github.com/atviriduomenys/spinta/issues/493
+
+
+0.1.52 (2023-06-21)
+===================
+
+Improvements:
+
+- Recognize Oracle ROWID data type.
+
+
+0.1.51 (2023-06-20)
+===================
+
+New features:
+
+- Add support for `param` dimension (`#210`_).
+
+  .. _#210: https://github.com/atviriduomenys/spinta/issues/210
+
+- Spinta inspect now supports JSON data as schema source (`#98`_).
+
+  .. _#98: https://github.com/atviriduomenys/spinta/issues/98
+
+
+Improvements:
+
+- Recognize CHAR and BYTES data types (`#469`_).
+
+  .. _#469: https://github.com/atviriduomenys/spinta/issues/469
+
+
+- Allow writing data to models with base (`#205`_).
+
+  .. _#205: https://github.com/atviriduomenys/spinta/issues/205
+
+
+Bug fixes:
+
+- Fix spint push with ref type set to level 3 or below (`#460`_).
+
+  .. _#460: https://github.com/atviriduomenys/spinta/issues/460
+
+
+- Automatically add unique constraints for all primary keys specified in
+  model.ref (`#371`_).
+
+  .. _#371: https://github.com/atviriduomenys/spinta/issues/371
+
+
+
+0.1.50 (2023-05-22)
+===================
+
+New features:
+
+- Add support for reading data from models with base (`#273`_).
+
+  .. _#273: https://github.com/atviriduomenys/spinta/issues/273
+
+- Add support for `unique` constraints in tabular manifests (`#148`_).
+
+  .. _#148: https://github.com/atviriduomenys/spinta/issues/148
+
+Improvements:
+
+- Much better implementation for updating manifest files from SQL as data
+  source (`#364`_).
+
+  .. _#364: https://github.com/atviriduomenys/spinta/issues/364
+
+- Show better error messages on foreign key constraint errors (`#363`_).
+
+  .. _#363: https://github.com/atviriduomenys/spinta/issues/363
+
+- Return a non-zero error code if `spinta push` command fails with an error
+  (`#423`_).
+
+  .. _#423: https://github.com/atviriduomenys/spinta/issues/423
+
+- Add support for older SQLite versions (`#411`_).
+
+  .. _#411: https://github.com/atviriduomenys/spinta/issues/411
+
+Bug fixes:
+
+- Correctly handle level 3 references, when referenced model does not have a
+  primary key or property references a non-primary key (`#400`_).
+
+  .. _#400: https://github.com/atviriduomenys/spinta/issues/400
+
+- WIPE command now works on tables with long names (`#431`_).
+
+  .. _#431: https://github.com/atviriduomenys/spinta/issues/431
+
+
+0.1.49 (2023-04-19)
+===================
+
+Bug fixes:
+
+- Fix issue with order of axes in geometry properties (`#410`_).
+
+  .. _#410: https://github.com/atviriduomenys/spinta/issues/410
+
+
+- Fix write operations models containing geometry properties (`#417`_,
+  `#418`_).
+
+  .. _#417: https://github.com/atviriduomenys/spinta/issues/417
+  .. _#418: https://github.com/atviriduomenys/spinta/issues/418
+
+
+0.1.48 (2023-04-14)
+===================
+
+Bug fixes:
+
+- Fix issue with dask/pandas version incompatibility (`dask#10164`_).
+
+  .. _dask#10164: https://github.com/dask/dask/issues/10164
+
+
+0.1.47 (2023-03-27)
+===================
+
+Improvements:
+
+- Add support for `point(x,y)` and `cast()` functions for sql backend
+  (`#407`_).
+
+  .. _#407: https://github.com/atviriduomenys/spinta/issues/407
+
+Bug fixes:
+
+- Error when loading manifest from XLSX file, where level is read as integer
+  (`#405`_).
+
+  .. _#405: https://github.com/atviriduomenys/spinta/issues/405
+
+
+
+0.1.46 (2023-03-21)
+===================
+
+Bug fixes:
+
+- Correctly handle cases, when a weak referece, references a model, that does
+  not have primary key specified, in that case `_id` is used as primary key
+  (`#399`_).
+
+  .. _#399: https://github.com/atviriduomenys/spinta/issues/399
+
+
+0.1.45 (2023-03-20)
+===================
+
+Improvements:
+
+- Multiple improvements in `spinta push` command (`#311`_):
+
+  - New `--no-progress-bar` option to disable progress bar, this also skips
+    counting of rows, which can be slow in some cases, for example when reading
+    data from views (`#332`_).
+
+  - New `--retry-count` option, to repeat push operation only with objects that
+    ended up in an error on previous push. By default 5 times are retried.
+
+  - New `--max-error-count` option, to stop push operation after specified
+    number of errors, by default 50 errors is set.
+
+  - Now instead of sending `upsert`, push became more sofisticated and sends
+    `insert`, `patch` or `delete`.
+
+  - If objects were deleted from source, they are also deleted from target
+    server.
+
+  - Errors are automatically retried after each push.
+
+  .. _#311: https://github.com/atviriduomenys/spinta/issues/311
+  .. _#332: https://github.com/atviriduomenys/spinta/issues/332
+
+- Now it is possible to reference external models, this is done by specifying 3
+  or lower data maturity level. When `property.level` is set to 3 or lower for
+  `ref` type properties, local values are accepted, testing notes
+  `notes/types/ref/external`_ (`#208`_).
+
+  .. _notes/types/ref/external: https://github.com/atviriduomenys/spinta/blob/a3d0157baaa4f82a7a760141a830ca2731b23387/notes/types/ref/external.sh
+  .. _#208: https://github.com/atviriduomenys/spinta/issues/208
+
+- Now it is possible to specify `required` properties in `property.type`_
+  (`#259`_).
+
+  .. _property.type: https://atviriduomenys.readthedocs.io/dsa/dimensijos.html#property.type
+  .. _#259: https://github.com/atviriduomenys/spinta/issues/259
+
+- Specifying SRID for `geometry` type data on writes is no longer required
+  (`#330`_).
+
+  .. _#330: https://github.com/atviriduomenys/spinta/issues/330
+
+- Now it is pssible to specify `geometry(geometry)` and `geometry(geometryz)`
+  types.
+
+- `base` dimension is now supported in tabular manifest files (`#325`_), but reading and
+  writing to models with base is still not fully implemented.
+
+  .. _#325: https://github.com/atviriduomenys/spinta/issues/325
+
+- Support for new `RDF` format was added (`#308`_).
+
+  .. _#308: https://github.com/atviriduomenys/spinta/issues/308
+
+
+Bug fixes:
+
+- New ascii table formater, that should fix memory issues, when large amounts
+  of data are downloaded (`#359`_).
+
+  .. _#359: https://github.com/atviriduomenys/spinta/issues/359
+
+- Fix order logitude and latidude when creatling links to OSM maps (`#334`_).
+
+  .. _#334: https://github.com/atviriduomenys/spinta/issues/334
+
+- Add possibility to explicitly select `_revision` (`#339`_).
+
+  .. _#339: https://github.com/atviriduomenys/spinta/issues/339
+
+
+0.1.44 (2022-11-23)
+===================
+
+Bug fixes:
+
+- Convert a non-WGS coordinates into WGS, before giving link to OSM if SRID is
+  not given, then link to OSM is not added too. Also long WKT expressions like
+  polygons now are shortened in HTML output (`#298`_).
+
+  .. _#298: https://github.com/atviriduomenys/spinta/issues/298
+
+
+0.1.43 (2022-11-15)
+===================
+
+Improvements:
+
+- Add `pid` (process id) to `request` messages in access log.
+
+Bug fixes:
+
+- Fix recursion error on getone (`#255`_).
+
+  .. _#255: https://github.com/atviriduomenys/spinta/issues/255
 
 
 0.1.42 (2022-11-08)
@@ -21,9 +1657,9 @@ Improvements:
 Improvements:
 
 - Add support for HTML format in manifest files, without actual backend
-  implementing it. (`#318`__).
+  implementing it. (`#318`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/318
+  .. _#318: https://github.com/atviriduomenys/spinta/issues/318
 
 
 0.1.40 (2022-11-01)
@@ -31,17 +1667,17 @@ Improvements:
 
 Improvements:
 
-- Add memory usage logging in order to find memory leaks (`#171`__).
+- Add memory usage logging in order to find memory leaks (`#171`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/171
+  .. _#171: https://github.com/atviriduomenys/spinta/issues/171
 
 Bug fixes:
 
-- Changes loads indefinitely (`#307`__). Cleaned empty patches, fixed
+- Changes loads indefinitely (`#291`_). Cleaned empty patches, fixed
   `:/changes/<offset>` API call, now it actually works. Also empty patches now
   are not saved into the changelog.
 
-  __ https://github.com/atviriduomenys/spinta/issues/291
+  .. _#291: https://github.com/atviriduomenys/spinta/issues/291
 
 - `wipe` action, now also resets changelog change id.
 
@@ -51,9 +1687,9 @@ Bug fixes:
 
 Bug fixes:
 
-- Correctly handle invalid JSON responses on push command (`#307`__).
+- Correctly handle invalid JSON responses on push command (`#307`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/307
+  .. _#307: https://github.com/atviriduomenys/spinta/issues/307
 
 - Fix freezing, when XLSX file has large number of empty rows.
 
@@ -64,9 +1700,9 @@ Bug fixes:
 
 Bug fixes:
 
-- Incorrect enum type checking (`#305`__).
+- Incorrect enum type checking (`#305`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/305
+  .. _#305: https://github.com/atviriduomenys/spinta/issues/305
 
 
 0.1.37 (2022-10-02)
@@ -79,23 +1715,21 @@ New features:
 
 Bug fixes:
 
-- Correctly handle situation, when no is received from server (`#301`__).
-
-  __ https://github.com/atviriduomenys/spinta/issues/301
+- Correctly handle situation, when no is received from server (`#301`_).
 
 Improvements:
 
-- More informative error message by showing exact failing item (`#301`__).
+- More informative error message by showing exact failing item (`#301`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/301
+  .. _#301: https://github.com/atviriduomenys/spinta/issues/301
 
 - Upgrade versions of all packages. All tests pass, but this might introduce
   new bugs.
 
-- Improve unit detection (`#292`__). There was an idea to disable unit checks,
+- Improve unit detection (`#292`_). There was an idea to disable unit checks,
   but decided to give it another try.
 
-  __ https://github.com/atviriduomenys/spinta/issues/292
+  .. _#292: https://github.com/atviriduomenys/spinta/issues/292
 
 
 0.1.36 (2022-07-25)
@@ -103,19 +1737,19 @@ Improvements:
 
 New features:
 
-- Add support for HTTP HEAD method (`#240`__).
+- Add support for HTTP HEAD method (`#240`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/240
+  .. _#240: https://github.com/atviriduomenys/spinta/issues/240
 
-- Check number of row cells agains header (`#257`__).
+- Check number of row cells agains header (`#257`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/257
+  .. _#257: https://github.com/atviriduomenys/spinta/issues/257
 
 Bug fixes:
 
-- Error on getone request with ascii format (`#52`__).
+- Error on getone request with ascii format (`#52`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/52
+  .. _#52: https://github.com/atviriduomenys/spinta/issues/52
 
 
 
@@ -124,24 +1758,24 @@ Bug fixes:
 
 New features:
 
-- Allow to use existing backend with -r option (`#231`__).
+- Allow to use existing backend with -r option (`#231`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/231
+  .. _#231: https://github.com/atviriduomenys/spinta/issues/231
 
-- Add non-SI units accepted for use with SI (`#214`__).
+- Add non-SI units accepted for use with SI (`#214`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/214
+  .. _#214: https://github.com/atviriduomenys/spinta/issues/214
 
-- Add `uri` type (`#232`__).
+- Add `uri` type (`#232`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/232
+  .. _#232: https://github.com/atviriduomenys/spinta/issues/232
 
 
 Bug fixes:
 
-- Allow NULL values for properties with enum constraints (`#230`__).
+- Allow NULL values for properties with enum constraints (`#230`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/230
+  .. _#230: https://github.com/atviriduomenys/spinta/issues/230
 
 
 0.1.34 (2022-04-22)
@@ -149,9 +1783,9 @@ Bug fixes:
 
 But fixes:
 
-- Fix bug with duplicate `_id`'s (`#228`__).
+- Fix bug with duplicate `_id`'s (`#228`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/228
+  .. _#228: https://github.com/atviriduomenys/spinta/issues/228
 
 
 0.1.33 (2022-04-22)
@@ -159,14 +1793,14 @@ But fixes:
 
 But fixes:
 
-- Fix `select(prop._id)` bug (`#226`__).
+- Fix `select(prop._id)` bug (`#226`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/226
+  .. _#226: https://github.com/atviriduomenys/spinta/issues/226
 
 
-- Fix bug when selecting from two refs from the same model (`#227`__).
+- Fix bug when selecting from two refs from the same model (`#227`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/227
+  .. _#227: https://github.com/atviriduomenys/spinta/issues/227
 
 
 0.1.32 (2022-04-20)
@@ -174,9 +1808,9 @@ But fixes:
 
 New features:
 
-- Add `time` type support (`#223`__).
+- Add `time` type support (`#223`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/223
+  .. _#223: https://github.com/atviriduomenys/spinta/issues/223
 
 
 0.1.31 (2022-04-20)
@@ -184,9 +1818,9 @@ New features:
 
 New features:
 
-- Add support for `geometry` data type in SQL data sources (`#220`__).
+- Add support for `geometry` data type in SQL data sources (`#220`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/220
+  .. _#220: https://github.com/atviriduomenys/spinta/issues/220
 
 
 0.1.30 (2022-04-19)
@@ -194,9 +1828,9 @@ New features:
 
 Bug fixes:
 
-- Fix `KeyError` issue when joining two tables (`#219`__).
+- Fix `KeyError` issue when joining two tables (`#219`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/219
+  .. _#219: https://github.com/atviriduomenys/spinta/issues/219
 
 
 0.1.29 (2022-04-12)
@@ -204,13 +1838,13 @@ Bug fixes:
 
 Bug fixes:
 
-- Fix errr on `select(left.right)` when left has multiple references to the same model (`#211`__).
+- Fix errr on `select(left.right)` when left has multiple references to the same model (`#211`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/211
+  .. _#211: https://github.com/atviriduomenys/spinta/issues/211
 
-- Fix `geojson` resource type (`#215`__).
+- Fix `geojson` resource type (`#215`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/215
+  .. _#215: https://github.com/atviriduomenys/spinta/issues/215
 
 
 0.1.28 (2022-03-17)
@@ -218,13 +1852,13 @@ Bug fixes:
 
 Bug fixes:
 
-- Fix error on `select(_id_)` (`#207`__).
+- Fix error on `select(_id_)` (`#207`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/207
+  .. _#207: https://github.com/atviriduomenys/spinta/issues/207
 
-- Fix error on `prop._id="..."` (`#206`__).
+- Fix error on `prop._id="..."` (`#206`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/206
+  .. _#206: https://github.com/atviriduomenys/spinta/issues/206
 
 
 0.1.27 (2022-03-02)
@@ -330,9 +1964,9 @@ Backwards incompatible changes:
   not a response content. Previously whole response content was logged, which
   created huge log files pretty quickly. Now logs should be a lot smaller.
   But information about each individual object accessed is no longer
-  available. (`#97`__)
+  available. (`#97`_)
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/97
+  .. _#97: https://gitlab.com/atviriduomenys/spinta/-/issues/97
 
 New features:
 
@@ -399,9 +2033,9 @@ Bug fixes:
 
 - Fix a bug on external sql backend in dynamic query construction from related
   models with filters. Bug appeared only of a model had more than one related
-  models (`#120`__).
+  models (`#120`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/120
+  .. _#120: https://gitlab.com/atviriduomenys/spinta/-/issues/120
 
 - Fix a bug on external sql backend, when select was used with joins to
   related tables.
@@ -412,36 +2046,36 @@ Bug fixes:
 
 Backwards incompatible changes:
 
-- Use different push state file for each server (`#110`__). Previously push
+- Use different push state file for each server (`#110`_). Previously push
   state was stored in `{data_dir}/pushstate.db`, now it is moved to
   `{data_dir}/push/{remote}.db`, where remote is section name without client
   name part from credentials.cfg file. When upgrading, you need to move
   `pushstate.db` manually to desired location. If not moved, you will loose
   you state and all data will be pushed.
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
+  .. _#110: https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
-- Use different location for keymap SQLite database file (`#117`__).
+- Use different location for keymap SQLite database file (`#117`_).
   Previously, by default `keymaps.db` file, was stored in a current working
   directory, but now file was moved to `{data_dir}/keymap.db`. Please move
   `keymaps.db` file to `{data_dir}/keymap.db` after upgrade. By default
   `{data_dir}` is set to `~/.local/share/spinta`.
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/117
+  .. _#117: https://gitlab.com/atviriduomenys/spinta/-/issues/117
 
 New features:
 
 - Show server error and first item from data chunk sent to server, this will
-  help to understand what was wrong in case of an error (`#111`__).
+  help to understand what was wrong in case of an error (`#111`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/111
+  .. _#111: https://gitlab.com/atviriduomenys/spinta/-/issues/111
 
 - Add `--log-file` and `--log-level` arguments to `spinta` command.
 
 - In HTML format view, show file name and link to a file if `_id` is included
-  in the query (`#114`__).
+  in the query (`#114`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/114
+  .. _#114: https://gitlab.com/atviriduomenys/spinta/-/issues/114
 
 - Add support for ASCII manifest files. This makes it easy to test examples
   from tests or documentation. ASCII manifests files must have `.txt` file
@@ -450,9 +2084,9 @@ New features:
 Bug fixes:
 
 - Fix issue with self referenced models, external SQL backend ended up with
-  an infinite recursion on self referenced models (`#113`__).
+  an infinite recursion on self referenced models (`#110`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
+  .. _#110: https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
 
 0.1.18 (2021-07-30)
@@ -561,14 +2195,14 @@ Performance improvements:
 
 New features:
 
-- Add support for XLSX format for manifest tables (`#79`__).
+- Add support for XLSX format for manifest tables (`#79`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/79
+  .. _#79: https://gitlab.com/atviriduomenys/spinta/-/issues/79
 
 - Add `lang` support in manifest files, now it is possible to describe data
-  structures in multiple languages (`#85`__).
+  structures in multiple languages (`#85`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/85
+  .. _#85: https://gitlab.com/atviriduomenys/spinta/-/issues/85
 
 - Add `spinta pii detect --limit` which is set to 1000 by default.
 
@@ -581,9 +2215,9 @@ Bug fixes:
   streaming request.
 
 - Fix bug with incorrect type conversion before calculating patch, which
-  resulted in incorrect patch, for example with date types (`#85`__).
+  resulted in incorrect patch, for example with date types (`#94`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/94
+  .. _#94: https://gitlab.com/atviriduomenys/spinta/-/issues/94
 
 
 0.1.12 (2021-03-04)
@@ -601,9 +2235,9 @@ New features:
 
 - Add implicit filters for external sql backend. With implicit filters, now
   you can specify filter on models once and they will be used automatically on
-  related models (`#74`__).
+  related models (`#74`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/74
+  .. _#74: https://gitlab.com/atviriduomenys/spinta/-/issues/74
 
 Bug fixes:
 
@@ -625,36 +2259,36 @@ New features:
 - Change ufunc `schema(name)` to `connect(self, schema: name)`.
 
 - Possibility to provide title and description metadata for namespaces
-  (`#56`__).
+  (`#56`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/56
+  .. _#56: https://gitlab.com/atviriduomenys/spinta/-/issues/56
 
-- Fix duplicate items in `/:ns/:all` query results (`#23`__).
+- Fix duplicate items in `/:ns/:all` query results (`#23`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/23
+  .. _#23: https://gitlab.com/atviriduomenys/spinta/-/issues/23
 
-- Add `spinta copy --format-name` option, to reformat names on copy (`#53`__).
+- Add `spinta copy --format-name` option, to reformat names on copy (`#53`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/53
+  .. _#53: https://gitlab.com/atviriduomenys/spinta/-/issues/53
 
 - Add `spinta copy --output --columns` flags. Now by default `spinta copy`
-  writes to stdout instead of a file (`#76`__). `--columns` is only available
+  writes to stdout instead of a file (`#76`_). `--columns` is only available
   when writing to stdout.
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/76
+  .. _#76: https://gitlab.com/atviriduomenys/spinta/-/issues/76
 
-- Add `spinta copy --order-by access` flag (`#53`__).
+- Add `spinta copy --order-by access` flag (`#53`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/53
+  .. _#53: https://gitlab.com/atviriduomenys/spinta/-/issues/53
 
 - Add `enum` type dimension for properties. This allows to list possible values
-  of a property (`#72`__).
+  of a property (`#72`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/72
+  .. _#72: https://gitlab.com/atviriduomenys/spinta/-/issues/72
 
-- Filter data automatically by `enum.access` (`#73`__).
+- Filter data automatically by `enum.access` (`#73`_).
 
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/73
+  .. _#73: https://gitlab.com/atviriduomenys/spinta/-/issues/73
 
 
 0.1.9 (2021-02-01)
@@ -677,9 +2311,9 @@ New features:
 0.1.8 (2021-01-29)
 ==================
 
-- Fix incorrectly built python packages (`python-poetry/poetry/issues/3610`__).
+- Fix incorrectly built python packages (`poetry#3610`_).
 
-__ https://github.com/python-poetry/poetry/issues/3610
+.. _poetry#3610: https://github.com/python-poetry/poetry/issues/3610
 
 
 0.1.7 (2021-01-28)
@@ -773,7 +2407,7 @@ Backwards incompatible features:
   manifest types `internal` and `yaml`.
 
   `internal` manifest is stored in `manifests..backend` database, in `_schema`
-  and `_schema/version` models.
+  and `_schema/Version` models.
 
   `yaml` manifest is same manifest as was used previously.
 
@@ -883,7 +2517,7 @@ New features:
   `spinta bootstrap` - this command does same thing as previously did `spinta
   migrate` it simply creates all missing tables from scratch and upates all
   migration versions as applied. With `internal` manifest `bootstrap` does
-  nothing if it finds that `_schema/version` table is created. But with `yaml`
+  nothing if it finds that `_schema/Version` table is created. But with `yaml`
   manifest `bootstrap` always tries to create all missing tables.
 
   `spinta sync` - this command updates default manifest from list of other
@@ -1100,8 +2734,8 @@ Internal changes:
     from spinta.testing.client import create_test_client
     from spinta.testing.context import create_test_context
 
-    def test(rc, cli, tmpdir, request):
-        create_manifest_files(tmpdir, {
+    def test(rc, cli, tmp_path, request):
+        create_manifest_files(tmp_path, {
             'country.yml': {
                 'type': 'model',
                 'name': 'country',
@@ -1111,7 +2745,7 @@ Internal changes:
             },
         })
 
-        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmpdir)})
+        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmp_path)})
 
         cli.invoke(rc, freeze)
 
@@ -1123,7 +2757,7 @@ Internal changes:
         client = create_test_client(context)
         client.authmodel('_version', ['getall', 'search'])
 
-        data = client.get('/_schema/version').json()
+        data = client.get('/_schema/Version').json()
 
 - There is no longer separate `internal` manifest. Since now there is only one
   manifest, `internal` manifest does not exist as a separate manifest, but it

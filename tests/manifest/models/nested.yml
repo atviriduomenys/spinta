@@ -1,4 +1,4 @@
-name: nested
+name: Nested
 properties:
   _id: {type: pk}
   some:

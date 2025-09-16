@@ -5,12 +5,12 @@ from spinta.backends.postgresql.components import PostgreSQL
 
 
 @commands.prepare.register(Context, PostgreSQL, Object)
-def prepare(context: Context, backend: PostgreSQL, dtype: Object):
+def prepare(context: Context, backend: PostgreSQL, dtype: Object, **kwargs):
     columns = []
     for prop in dtype.properties.values():
-        if prop.name.startswith('_') and prop.name not in ('_revision',):
+        if prop.name.startswith("_") and prop.name not in ("_revision",):
             continue
-        column = commands.prepare(context, backend, prop)
+        column = commands.prepare(context, backend, prop, **kwargs)
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:

@@ -1,5 +1,5 @@
 type: model
-name: datasets/xlsx/rinkimai
+name: datasets/xlsx/Rinkimai
 external:
   dataset: datasets/xlsx
   resource: data

@@ -1,5 +1,5 @@
 type: model
-name: datasets/nested/dataset/name/model
+name: datasets/nested/dataset/name/Model
 external:
   dataset: datasets/nested/dataset/name
   resource: resource

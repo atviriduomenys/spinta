@@ -6,12 +6,12 @@ import contextlib
 
 from spinta.typing import ObjectData
 from spinta.backends.components import Backend
-from spinta.backends.components import BackendFeatures
+from spinta.backends.constants import BackendFeatures
 
 
 class Memory(Backend):
     metadata = {
-        'name': 'memory',
+        "name": "memory",
     }
 
     features = {
@@ -19,11 +19,11 @@ class Memory(Backend):
     }
 
     data: Dict[
-        str,                # table
+        str,  # table
         Dict[
-            str,            # id
-            ObjectData,     # data
-        ]
+            str,  # id
+            ObjectData,  # data
+        ],
     ]
 
     def __init__(self):
@@ -32,14 +32,16 @@ class Memory(Backend):
     @contextlib.contextmanager
     def transaction(self, write=False):
         if write:
-            obj = self.insert({
-                '_type': '_txn',
-                'datetime': datetime.datetime.utcnow(),
-                'client_type': '',
-                'client_id': '',
-                'errors': 0,
-            })
-            yield WriteTransaction(self, obj['_id'])
+            obj = self.insert(
+                {
+                    "_type": "_txn",
+                    "datetime": datetime.datetime.utcnow(),
+                    "client_type": "",
+                    "client_id": "",
+                    "errors": 0,
+                }
+            )
+            yield WriteTransaction(self, obj["_id"])
         else:
             yield ReadTransaction(self)
 
@@ -57,14 +59,14 @@ class Memory(Backend):
     def insert(self, obj: ObjectData):
         obj = obj.copy()
 
-        table = obj['_type']
+        table = obj["_type"]
         if table not in self.data:
             raise RuntimeError(f"Table {table!r} does not exist.")
 
-        if '_id' not in obj:
-            obj['_id'] = str(uuid.uuid4())
+        if "_id" not in obj:
+            obj["_id"] = str(uuid.uuid4())
 
-        pk = obj['_id']
+        pk = obj["_id"]
         self.data[table][pk] = obj
 
         return obj
@@ -80,7 +82,6 @@ class ReadTransaction:
 
 
 class WriteTransaction(ReadTransaction):
-
     def __init__(self, connection: Memory, id_: str):
         super().__init__(connection)
         self.id = id_

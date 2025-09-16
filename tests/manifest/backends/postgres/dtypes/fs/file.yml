@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/dtypes/fs/file
+name: backends/postgres/dtypes/fs/File
 properties:
   file:
     type: file

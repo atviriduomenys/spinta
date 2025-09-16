@@ -1,5 +1,5 @@
 type: model
-name: datasets/backends/postgres/dataset/org
+name: datasets/backends/postgres/dataset/Org
 external:
   dataset: datasets/backends/postgres/dataset
   resource: sql
@@ -10,4 +10,4 @@ properties:
     type: string
   country:
     type: ref
-    model: datasets/backends/postgres/dataset/country
+    model: datasets/backends/postgres/dataset/Country

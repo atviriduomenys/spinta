@@ -5,7 +5,7 @@
 Configuration
 #############
 
-Spinta can be configured using multiple configuration soruces. By default these
+Spinta can be configured using multiple configuration sources. By default these
 sources are used in precedence order:
 
 - Command line arguments.
@@ -14,7 +14,8 @@ sources are used in precedence order:
 
 - `.env` file.
 
-- Configuration sources provided by extensions via `config` option.
+- Configuration file spcified with `config` option (for example `spinta -o
+  config=config.yml`).
 
 - Default Spinta configuration `spinta.config:CONFIG`.
 
@@ -23,9 +24,6 @@ There is an additional configuration source `config_path`. `config_path` is a
 directory where additional configuration files are looked for.
 
 
-More on configuration
-=====================
-
 .. toctree::
    :maxdepth: 1
 
@@ -33,31 +31,124 @@ More on configuration
    backend
    manifest
 
+.. _config-file:
 
-Inspecting configuration
-========================
+Configuration file
+******************
 
-You can inspect current configuration by using following command::
+After reading configuration values from command line arguments, environment
+variables and `.env` file, Spinta reads additional configuration sources set
+via `config` option.
 
-  spinta config
+`config` option can contain list of comma separated values. Each value can be a
+path to `.yml` file or it can be a python dotted path like
+`myapp.config:CONFIG`, pointing to a dict.
 
-This command will list current configuration values and will also tell source of
-origin of each configuration value.
+For example we can create an `/tmp/custom.yaml` configuration file:
 
-You can filter listed configuration options by providing list of prefixes, for
-example::
+.. code-block:: yaml
 
-  spinta config backends manifests
+    env: production
+    default_auth_client: default
 
-Since Spinta is usually configured using envoronment varialbes, you can show
-configuration options names as environemtn variables by adding `-f env`
-argument::
+    keymaps:
+      default:
+        type: sqlalchemy
+        dsn: sqlite:////path/to/keymap.db
 
-  spinta config -f env backends manifests
+    backends:
+      default:
+        type: postgresql
+        dsn: postgresql://user:pass@host:5432/spinta
+
+    manifest: default
+    manifests:
+      default:
+        type: csv
+        path: /path/to/manifest.csv
+        backend: default
+        keymap: default
+        mode: external
+
+    accesslog:
+      type: file
+      file: /path/to/accesslog.json
+
+And use it to configure Spinta::
+
+  export SPINTA_CONFIG=/tmp/custom.yml
+  spinta config backends
+
+Output::
+
+  Origin           Name               Value
+  ---------------  -----------------  -----
+  /tmp/custom.yml  backends.foo.type  mongo
 
 
-Configuring spinta
-==================
+Environment variables
+*********************
+
+All environment variables must use `SPINTA_` prefix and hierarchy levels must
+be separated with `__`. For example::
+
+  SPINTA_BACKENDS__FOO__TYPE=mongo spinta config backends
+
+Output::
+
+  Origin   Name               Value
+  -------  -----------------  -----
+  cliargs  backends.foo.type  mongo
+
+
+`.env` file
+***********
+
+Spinta tries to read `.env` file from current directory if such file exists.
+`.env` file simply contains list environemnt variables.
+
+Empty lines and lines starting with `#` are ignored.
+
+Example `.env` file:
+
+.. code-block:: sh
+
+    UTHLIB_INSECURE_TRANSPORT=0
+    SPINTA_CONFIG=config.yml
+
+
+.. _config_path:
+
+Configuration directory
+***********************
+
+In addition to main configuration, there are other configuration files, for
+example client credentials, token authorization keys, client access and other
+files. All this addition files are stored in `$XDG_CONFIG_HOME/spinta`__ directory, usually it is `~/.config/spinta` directory.
+
+__ https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
+
+Path to this directory can be changed via `config_path` configuration option.
+
+
+Command line arguments
+**********************
+
+All spinta commands have `-o` command line argument. With `-o` you can set
+configuration values using dotted notation, for example::
+
+  > spinta -o backends.foo.type=mongo config backends
+  Origin   Name               Value
+  -------  -----------------  -----
+  cliargs  backends.foo.type  mongo
+
+`-o` must be use immediately after `spinta` command and before any subcommands.
+
+You can use `-o` multiple times, to set multiple configuration options.
+
+
+Configuration syntax
+********************
 
 Spinta configuration values are organized in a hierarchy of options. Usually
 hierarchy levels are separated by a `.` or by a `__`. `__` is used for
@@ -79,86 +170,23 @@ This will remove all configuration options except `backends.pg` and
 `backends.fs`. In this case, `backends.mongo` will be removed.
 
 
-Command line
-------------
+Inspecting configuration
+************************
 
-All spinta commands have `-o` command line argument. With `-o` you can set
-configuration values, for example::
+You can inspect current configuration by using following command::
 
-  > spinta -o backends.foo.type=mongo config backends
-  Origin   Name               Value
-  -------  -----------------  -----
-  cliargs  backends.foo.type  mongo
+  spinta config
 
-`-o` must be use immediately after `spinta` command and before any subcommands.
+This command will list current configuration values and will also tell source of
+origin of each configuration value.
 
-You can use `-o` multipe times, to set multiple configuraiton options.
+You can filter listed configuration options by providing list of prefixes, for
+example::
 
+  spinta config backends manifests
 
-Environemtn variables
----------------------
+Since Spinta is usually configured using environment variables, you can show
+configuration options names as environment variables by adding `-f env`
+argument::
 
-All environemnt variables must use `SPINTA_` prefix and hierarchy levels must
-be separated with `__`. For example::
-
-  > SPINTA_BACKENDS__FOO__TYPE=mongo spinta config backends
-  Origin   Name               Value
-  -------  -----------------  -----
-  cliargs  backends.foo.type  mongo
-
-
-.env file
----------
-
-Spinta tries to riead `.env` file from current directory if such file exists.
-`.env` file simply contains list environemnt variables.
-
-Empty lines and lines starting with `#` are ignored.
-
-
-Additional configuration sources
---------------------------------
-
-After reading configuration values from command line arguments, environment
-variables and `.env` file, Spinta reads additional configuration sources set
-via `config` option.
-
-`config` option can contain list of comma separated values. Each value can be a
-path to `.yml` file or it can be a python dotted path like
-`myapp.config:CONFIG`, pointing to a dict.
-
-For example we can create and additional configuration file:
-
-.. code-block:: bash
-
-  > cat > /tmp/custom.yml <<EOF
-  backends:
-    foo:
-      type: mongo
-  EOF
-
-And use it to configure Spinta::
-
-  > spinta -o config=/tmp/custom.yml config backends
-  Origin           Name               Value
-  ---------------  -----------------  -----
-  /tmp/custom.yml  backends.foo.type  mongo
-
-
-This way of configuring Spinta is meant for extensions to provide custom default
-values, overriding defaults coming from `spinta.config:CONFIG`.
-
-
-.. _config_path:
-
-Configuration directory
-=======================
-
-In addition to main configuration, there are other configuration files, for
-example client credentials, token authorization keys, client access and other
-files. All this addition files are stored in `$XDG_CONFIG_HOME/spinta
-kataloge`__ directory, usually it is `~/.config/spinta` directory.
-
-__ https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
-
-Path to this directory can be changed via `config_path` configuration option.
+  spinta config -f env backends manifests

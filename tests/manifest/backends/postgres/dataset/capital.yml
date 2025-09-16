@@ -1,5 +1,5 @@
 type: model
-name: datasets/backends/postgres/dataset/capital
+name: datasets/backends/postgres/dataset/Capital
 external:
   dataset: datasets/backends/postgres/dataset
   resource: sql
@@ -8,4 +8,4 @@ properties:
     type: string
   country:
     type: ref
-    model: datasets/backends/postgres/dataset/country
+    model: datasets/backends/postgres/dataset/Country

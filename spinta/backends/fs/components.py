@@ -1,11 +1,10 @@
 import pathlib
 
 from spinta.backends.components import Backend
-from spinta.backends.components import BackendFeatures
+from spinta.backends.constants import BackendFeatures
 
 
 class FileSystem(Backend):
-
     features = {
         BackendFeatures.WRITE,
     }

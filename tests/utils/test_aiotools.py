@@ -22,4 +22,10 @@ async def test_aslice():
     assert await alist(aslice(it, 0, 100, 2)) == [1, 3, 5]
 
     it = aiter([1, 2, 3, 4, 5])
-    assert await alist(aslice(it, 2, 100,)) == [3, 4, 5]
+    assert await alist(
+        aslice(
+            it,
+            2,
+            100,
+        )
+    ) == [3, 4, 5]

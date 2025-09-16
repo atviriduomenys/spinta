@@ -8,4 +8,4 @@ from spinta.types.helpers import set_dtype_backend
 def link(context: Context, dtype: Object) -> None:
     set_dtype_backend(dtype)
     for prop in dtype.properties.values():
-        commands.link(context, prop.dtype)
+        commands.link(context, prop)

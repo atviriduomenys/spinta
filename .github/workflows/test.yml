@@ -3,59 +3,55 @@
 # For more information see:
 # https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python application
+name: Tests. Python 3.9-3.13
 
 on:
   push:
-    branches: [ master ]
+    branches: [master, "[0-9]+.[0-9]+"]
   pull_request:
-    branches: [ master ]
+    types: [opened, synchronize, reopened]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
+      # https://github.com/marketplace/actions/setup-postgresql-with-postgis-12
+      - name: Start PostgreSQL with PostGIS
+        uses: ireznik/postgis-action@v12
+        with:
+          # https://hub.docker.com/r/postgis/postgis
+          postgresql version: "16-3.4"
+          postgresql password: "secret"
+          postgresql user: "ci"
+          postgresql db: "spinta"
 
-    # https://github.com/marketplace/actions/setup-postgresql-with-postgis
-    - name: Start PostgreSQL with PostGIS
-      uses: huaxk/postgis-action@v1
-      with:
-        # https://https://hub.docker.com/r/mdillon/postgis
-        postgresql version: '11'
-        postgresql password: 'secret'
-        postgresql user: 'ci'
-        postgresql db: 'spinta'
+      # https://github.com/marketplace/actions/mongodb-in-github-actions
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.7.0
+        with:
+          mongodb-version: "4.0.9"
 
-    # https://github.com/marketplace/actions/mongodb-in-github-actions
-    - name: Start MongoDB
-      uses: supercharge/mongodb-github-action@1.7.0
-      with:
-        mongodb-version: "4.0.9"
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
-      with:
-        python-version: "3.9"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry --version
+          poetry install --all-extras -vv
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install poetry
-        poetry --version
-        poetry install -vv
-        
-    - name: Test with pytest
-      env:
-        SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost/spinta
-        SPINTA_BACKENDS__MONGO__DSN: mongodb://localhost/
-      run: |
-        poetry run pytest -vvxra \
-           --tb=short \
-          --log-level=debug \
-          --cov=spinta \
-          --cov-report=term-missing \
-          tests
+      - name: Test with pytest
+        env:
+          SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost/spinta
+          SPINTA_BACKENDS__MONGO__DSN: mongodb://localhost/
+        run: make test-github

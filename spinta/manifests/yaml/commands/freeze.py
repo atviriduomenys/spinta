@@ -1,4 +1,5 @@
 from spinta import commands
+from spinta.manifests.components import get_manifest_object_names
 from spinta.migrations import get_new_schema_version
 from spinta.components import Context
 from spinta.manifests.yaml.components import YamlManifest
@@ -22,18 +23,16 @@ def freeze(context: Context, current: YamlManifest):
 
     # Read current nodes, get freezed versions and freeze changes between
     # current and previously freezed node into a new version.
-    for ntype, nodes in current.objects.items():
-
-        if ntype == 'ns':
+    for ntype in get_manifest_object_names():
+        if ntype == "ns":
             # Namespaces do not have physical form, yet, se there is no need to
             # freeze them.
             continue
 
-        for name, cnode in nodes.items():
-
+        for name, cnode in commands.get_nodes(context, current, ntype).items():
             # Get freezed node
-            if name in freezed.objects[ntype]:
-                fnode = freezed.objects[ntype][name]
+            if commands.has_node(context, freezed, ntype, name):
+                fnode = commands.get_node(context, freezed, ntype, name)
             else:
                 fnode = None
 

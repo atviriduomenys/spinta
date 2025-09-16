@@ -2,7 +2,6 @@ from spinta.formats.components import Format
 
 
 class IterableFile:
-
     def __init__(self):
         self.writes = []
 
@@ -15,8 +14,8 @@ class IterableFile:
 
 
 class Csv(Format):
-    content_type = 'text/csv'
+    content_type = "text/csv"
     accept_types = {
-        'text/csv',
+        "text/csv",
     }
     params = {}

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from typing import Union
 
 from spinta.core.enums import Access
-from spinta.utils.enums import enum_by_name
+from spinta.utils.enums import enum_by_name, get_enum_by_name
 
 if TYPE_CHECKING:
     from spinta.dimensions.enum.components import EnumItem
@@ -26,16 +26,22 @@ def load_access_param(
         Property,
         EnumItem,
     ],
-    given_access: str,
-    parents: Iterable[Union[
-        Manifest,
-        Dataset,
-        Namespace,
-        Model,
-        Property,
-    ]] = (),
+    given_access: Union[str, Access],
+    parents: Iterable[
+        Union[
+            Manifest,
+            Dataset,
+            Namespace,
+            Model,
+            Property,
+        ]
+    ] = (),
 ) -> None:
-    access = enum_by_name(component, 'access', Access, given_access)
+    access = (
+        enum_by_name(component, "access", Access, given_access)
+        if not isinstance(given_access, Access)
+        else given_access
+    )
 
     # If child has higher access than parent, increase parent access.
     if access is not None:
@@ -56,18 +62,25 @@ def link_access_param(
         Property,
         EnumItem,
     ],
-    parents: Iterable[Union[
-        Manifest,
-        Dataset,
-        Namespace,
-        Model,
-        Property,
-    ]] = (),
+    parents: Iterable[
+        Union[
+            Manifest,
+            Dataset,
+            Namespace,
+            Model,
+            Property,
+        ]
+    ] = (),
+    *,
+    use_given: bool = True,
 ) -> None:
     if component.access is None:
         for parent in parents:
-            if parent.access and parent.given.access:
-                component.access = parent.access
+            candidate = parent.given.access if use_given else parent.access
+            if candidate:
+                if isinstance(candidate, str):
+                    candidate = get_enum_by_name(Access, candidate)
+                component.access = candidate
                 break
         else:
             component.access = Access.protected

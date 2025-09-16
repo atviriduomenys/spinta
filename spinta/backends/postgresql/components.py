@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 from typing import Union
 
 import contextlib
@@ -8,82 +8,88 @@ import uuid
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
-from spinta.backends.postgresql.helpers import get_column_name
-from spinta.types.datatype import Ref
+from spinta import commands
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
-from spinta.backends.constants import TableType
-from spinta.backends.components import Backend, BackendFeatures
+from spinta.backends.constants import TableType, BackendFeatures
+from spinta.backends.components import Backend
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.exceptions import MultipleRowsFound, NotFoundError
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailable
 
 
 class PostgreSQL(Backend):
     metadata = {
-        'name': 'postgresql',
-        'properties': {
-            'dsn': {'type': 'string', 'required': True},
+        "name": "postgresql",
+        "properties": {
+            "dsn": {"type": "string", "required": True},
         },
     }
 
-    features = {
-        BackendFeatures.FILE_BLOCKS,
-        BackendFeatures.WRITE,
-    }
+    features = {BackendFeatures.FILE_BLOCKS, BackendFeatures.WRITE, BackendFeatures.EXPAND, BackendFeatures.PAGINATION}
 
     engine: Engine = None
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
 
+    query_builder_type = "postgresql"
+    result_builder_type = "postgresql"
+
     @contextlib.contextmanager
     def transaction(self, write=False):
-        with self.engine.begin() as connection:
-            if write:
-                table = self.tables['_txn']
-                result = connection.execute(
-                    table.insert().values(
-                        # FIXME: commands.gen_object_id should be used here
-                        _id=str(uuid.uuid4()),
-                        datetime=utcnow(),
-                        client_type='',
-                        client_id='',
-                        errors=0,
+        try:
+            with self.engine.begin() as connection:
+                if write:
+                    table = self.tables["_txn"]
+                    result = connection.execute(
+                        table.insert().values(
+                            # FIXME: commands.gen_object_id should be used here
+                            _id=str(uuid.uuid4()),
+                            datetime=utcnow(),
+                            client_type="",
+                            client_id="",
+                            errors=0,
+                        )
                     )
-                )
-                transaction_id = result.inserted_primary_key[0]
-                yield WriteTransaction(connection, transaction_id)
-            else:
-                yield ReadTransaction(connection)
+                    transaction_id = result.inserted_primary_key[0]
+                    yield WriteTransaction(connection, transaction_id)
+                else:
+                    yield ReadTransaction(connection)
+        except sa.exc.OperationalError:
+            self.available = False
+            raise BackendUnavailable(self)
 
     @contextlib.contextmanager
     def begin(self):
-        with self.engine.begin() as conn:
-            yield conn
+        try:
+            with self.engine.begin() as conn:
+                yield conn
+        except sa.exc.OperationalError:
+            self.available = False
+            raise BackendUnavailable(self)
 
     def get(self, connection, columns, condition, default=NA):
         scalar = isinstance(columns, sa.Column)
         columns = columns if isinstance(columns, list) else [columns]
 
-        result = connection.execute(
-            sa.select(columns).where(condition)
-        )
+        result = connection.execute(sa.select(columns).where(condition))
         result = list(itertools.islice(result, 2))
 
-        if len(result) == 1:
+        number_of_rows = len(result)
+
+        if number_of_rows == 1:
             if scalar:
                 return result[0][columns[0]]
             else:
                 return result[0]
 
-        elif len(result) == 0:
+        elif number_of_rows == 0:
             if default is NA:
                 raise NotFoundError()
             else:
                 return default
         else:
-            raise MultipleRowsFound()
+            raise MultipleRowsFound(str(condition.left.table), number_of_rows=number_of_rows)
 
     def add_table(
         self,
@@ -108,23 +114,26 @@ class PostgreSQL(Backend):
         else:
             return self.tables.get(name)
 
-    def get_column(self, table: sa.Table, prop: Property, *, select=False) -> sa.Column:
-        if prop.list is not None:
+    def get_column(
+        self, table: sa.Table, prop: Property, *, select=False, override_table: bool = True, **kwargs
+    ) -> Union[sa.Column, List[sa.Column]]:
+        if prop.list is not None and override_table:
             table = self.get_table(prop.list, TableType.LIST)
-        column = get_column_name(prop)
-        if isinstance(prop.dtype, Ref):
-            # TODO: Move this into a command.
-            column += '._id'
-        if column not in table.c:
-            raise PropertyNotFound(prop.dtype)
-        return table.c[column]
+        column = commands.get_column(self, prop, table=table, **kwargs)
+        return column
+
+    def get_refprop_columns(
+        self, table: sa.Table, prop: Property, model: Model, *, select=False, override_table: bool = True, **kwargs
+    ) -> Union[sa.Column, List[sa.Column]]:
+        columns = commands.get_column(self, prop, model, table=table, **kwargs)
+        return columns
 
     def query_nodes(self):
         return []
 
     def bootstrapped(self):
         meta = sa.MetaData(self.engine)
-        table = sa.Table('_schema', meta)
+        table = sa.Table("_schema", meta)
         insp = sa.inspect(self.engine)
         if insp.has_table(table.name):
             with self.engine.begin() as conn:
@@ -142,7 +151,6 @@ class ReadTransaction:
 
 
 class WriteTransaction(ReadTransaction):
-
     def __init__(self, connection, id_: str):
         super().__init__(connection)
         self.id = id_

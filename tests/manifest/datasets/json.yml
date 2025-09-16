@@ -3,5 +3,5 @@ type: dataset
 name: datasets/json
 resources:
   data:
-    type: json
+    type: dask/json
     external: http://example.com/data.json

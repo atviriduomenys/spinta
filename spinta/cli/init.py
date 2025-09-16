@@ -2,10 +2,13 @@ from typing import Optional
 
 from typer import Argument
 
+from spinta.components import Context
 from spinta.manifests.tabular.helpers import write_tabular_manifest
+from typer import Context as TyperContext
 
 
 def init(
+    ctx: TyperContext,
     manifest: Optional[str] = Argument(None, help="path to a manifest"),
 ):
     """Initialize a new manifest table
@@ -14,5 +17,5 @@ def init(
     Depending of file extensions, a CSV of a XLSX format manifest will be
     created.
     """
-    write_tabular_manifest(manifest)
-
+    context: Context = ctx.obj
+    write_tabular_manifest(context, manifest)

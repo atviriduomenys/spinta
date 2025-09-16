@@ -14,12 +14,16 @@ from spinta.exceptions import RemoteClientScopesNotGiven
 
 @dataclasses.dataclass
 class RemoteClientCredentials:
-    section: str        # client section in credentials.cfg
-    client: str         # client username
-    secret: str         # client secret
-    server: str         # server URL
-    remote: str         # remote name given in credentials.cfg section
-    scopes: List[str]   # list of client scopes
+    section: str  # client section in credentials.cfg
+    client: str  # client username
+    secret: str  # client secret
+    server: str  # server URL
+    remote: str  # remote name given in credentials.cfg section
+    scopes: List[str]  # allowed scopes given in credentials.cfg section
+    resource_server: Optional[str] = None  # host of a server where resources are stored if separate from auth server
+    client_id: Optional[str] = None  # identification of client, could be same as client (username)
+    organization: Optional[str] = None  # name of the clients organization
+    organization_type: Optional[str] = None  # type of the clients organization
 
 
 def _parse_client_handle(
@@ -27,25 +31,25 @@ def _parse_client_handle(
 ) -> RemoteClientCredentials:
     # XXX: Probably this should be dropped, because push should be only
     #      possible to another Spinta or compatible server.
-    if handle.startswith('spinta+'):
-        handle = handle[len('spinta+'):]
+    if handle.startswith("spinta+"):
+        handle = handle[len("spinta+") :]
 
-    if handle.startswith(('https://', 'http://')):
+    if handle.startswith(("https://", "http://")):
         url = handle
     else:
-        url = 'https://' + handle
+        url = "https://" + handle
 
     purl = urllib.parse.urlparse(url)
     section = purl.hostname
-    server = f'{purl.scheme}://{purl.hostname}'
-    remote = purl.hostname.replace('.', '_').replace('-', '_')
+    server = f"{purl.scheme}://{purl.hostname}"
+    remote = purl.hostname.replace(".", "_").replace("-", "_")
     if purl.port:
-        section += f':{purl.port}'
-        server += f':{purl.port}'
+        section += f":{purl.port}"
+        server += f":{purl.port}"
         if purl.port != 80 and purl.port != 443:
-            remote += f'_{purl.port}'
+            remote += f"_{purl.port}"
     if purl.username:
-        section = f'{purl.username}@{purl.hostname}'
+        section = f"{purl.username}@{purl.hostname}"
     return RemoteClientCredentials(
         section=section,
         client=purl.username,
@@ -58,12 +62,12 @@ def _parse_client_handle(
 
 def get_client_credentials(
     credsfile: Optional[pathlib.Path],  # path to credentials.cfg
-    name: str,                  # section name from credentials.cfg or a server
-                                # URL
+    name: str,  # section name from credentials.cfg or a server
+    # URL
     *,
-    check: bool = True,         # check if credentials.cfg exists, section
-                                # exists if client username, password and
-                                # scopes are given
+    check: bool = True,  # check if credentials.cfg exists, section
+    # exists if client username, password and
+    # scopes are given
 ) -> RemoteClientCredentials:
     creds = _parse_client_handle(name)
 
@@ -73,10 +77,18 @@ def get_client_credentials(
             config.read(credsfile)
 
             if config.has_section(creds.section):
-                creds.server = config.get(creds.section, 'server', fallback=creds.server)
-                creds.client = creds.client or config.get(creds.section, 'client', fallback=None)
-                creds.secret = creds.secret or config.get(creds.section, 'secret', fallback=None)
-                creds.scopes = config.get(creds.section, 'scopes', fallback=[])
+                creds.server = config.get(creds.section, "server", fallback=creds.server)
+                creds.client = creds.client or config.get(creds.section, "client", fallback=None)
+                creds.secret = creds.secret or config.get(creds.section, "secret", fallback=None)
+                creds.scopes = config.get(creds.section, "scopes", fallback=[])
+                creds.client_id = creds.client_id or config.get(creds.section, "client_id", fallback=creds.client)
+                creds.resource_server = creds.resource_server or config.get(
+                    creds.section, "resource_server", fallback=creds.server
+                )
+                creds.organization = creds.organization or config.get(creds.section, "organization", fallback=None)
+                creds.organization_type = creds.organization_type or config.get(
+                    creds.section, "organization_type", fallback=None
+                )
 
             elif check:
                 raise RemoteClientCredentialsNotFound(
@@ -122,7 +134,7 @@ def add_client_credentials(
     creds = get_client_credentials(credsfile, server, check=False)
 
     scopes = scopes or creds.scopes
-    scopes = '\n' + '\n'.join(f'  {s}' for s in scopes)
+    scopes = "\n" + "\n".join(f"  {s}" for s in scopes)
 
     section = section or creds.section
 
@@ -130,22 +142,25 @@ def add_client_credentials(
     if credsfile.exists():
         config.read(credsfile)
     config[section] = {
-        'server': creds.server,
-        'client': client or creds.client or '',
-        'secret': secret or creds.secret or '',
-        'scopes': scopes,
-
+        "server": creds.server,
+        "client": client or creds.client or "",
+        "secret": secret or creds.secret or "",
+        "scopes": scopes,
     }
 
-    with credsfile.open('w') as f:
+    with credsfile.open("w") as f:
         config.write(f)
 
 
 def get_access_token(creds: RemoteClientCredentials) -> str:
     auth = (creds.client, creds.secret)
-    resp = requests.post(f'{creds.server}/auth/token', auth=auth, data={
-        'grant_type': 'client_credentials',
-        'scope': creds.scopes,
-    })
+    resp = requests.post(
+        f"{creds.server}/auth/token",
+        auth=auth,
+        data={
+            "grant_type": "client_credentials",
+            "scope": creds.scopes,
+        },
+    )
     resp.raise_for_status()
-    return resp.json()['access_token']
+    return resp.json()["access_token"]

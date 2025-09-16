@@ -3,18 +3,24 @@ import contextlib
 import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
+from spinta import commands
+from spinta.backends.constants import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
 from spinta.datasets.components import ExternalBackend
-from spinta.exceptions import NoExternalName
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import BackendUnavailable
 
 
 class Sql(ExternalBackend):
-    type: str = 'sql'
+    type: str = "sql"
     engine: Engine = None
     schema: sa.MetaData = None
     dbschema: str = None  # Database schema name
+
+    features = {BackendFeatures.PAGINATION}
+
+    query_builder_type = "sql"
+    result_builder_type = "sql"
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -22,14 +28,18 @@ class Sql(ExternalBackend):
 
     @contextlib.contextmanager
     def begin(self):
-        with self.engine.begin() as conn:
-            yield conn
+        try:
+            with self.engine.begin() as conn:
+                yield conn
+        except sa.exc.OperationalError:
+            self.available = False
+            raise BackendUnavailable(self)
 
     def get_table(self, model: Model, name: str = None) -> sa.Table:
         name = name or model.external.name
 
         if self.dbschema:
-            key = f'{self.dbschema}.{name}'
+            key = f"{self.dbschema}.{name}"
         else:
             key = name
 
@@ -38,19 +48,6 @@ class Sql(ExternalBackend):
 
         return self.schema.tables[key]
 
-    def get_column(
-        self,
-        table: sa.Table,
-        prop: Property,
-        *,
-        select=False,
-    ) -> sa.Column:
-        if prop.external is None or not prop.external.name:
-            raise NoExternalName(prop)
-        if prop.external.name not in table.c:
-            raise PropertyNotFound(
-                prop.model,
-                property=prop.name,
-                external=prop.external.name,
-            )
-        return table.c[prop.external.name]
+    def get_column(self, table: sa.Table, prop: Property, *, select=False, **kwargs) -> sa.Column:
+        column = commands.get_column(self, prop, table=table, **kwargs)
+        return column

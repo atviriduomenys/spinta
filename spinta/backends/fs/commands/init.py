@@ -7,12 +7,12 @@ from spinta.backends.fs.components import FileSystem
 
 
 @commands.prepare.register(Context, FileSystem, Manifest)
-def prepare(context: Context, backend: FileSystem, manifest: Manifest):
+def prepare(context: Context, backend: FileSystem, manifest: Manifest, **kwargs):
     pass
 
 
 @commands.prepare.register(Context, FileSystem, File)
-def prepare(context: Context, backend: FileSystem, dtype: File):
+def prepare(context: Context, backend: FileSystem, dtype: File, **kwargs):
     pass
 
 
@@ -24,6 +24,6 @@ def prepare_for_write(
     value: Attachment,
 ):
     return {
-        '_id': value.filename,
-        '_content_type': value.content_type,
+        "_id": value.filename,
+        "_content_type": value.content_type,
     }

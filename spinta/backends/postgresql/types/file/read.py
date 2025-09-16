@@ -4,11 +4,10 @@ from typing import overload
 from spinta.typing import FileObjectData
 from spinta import commands
 from spinta.components import Context, Property
-from spinta.backends.components import BackendFeatures
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.types.datatype import File
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
-from spinta.backends.constants import TableType
+from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
@@ -24,19 +23,19 @@ def getone(
     id_: str,
 ) -> FileObjectData:
     table = backend.get_table(prop.model)
-    connection = context.get('transaction').connection
+    connection = context.get("transaction").connection
     selectlist = [
         table.c._id,
         table.c._revision,
-        table.c[prop.place + '._id'],
-        table.c[prop.place + '._content_type'],
-        table.c[prop.place + '._size'],
+        table.c[prop.place + "._id"],
+        table.c[prop.place + "._content_type"],
+        table.c[prop.place + "._size"],
     ]
 
     if BackendFeatures.FILE_BLOCKS in prop.dtype.backend.features:
         selectlist += [
-            table.c[prop.place + '._bsize'],
-            table.c[prop.place + '._blocks'],
+            table.c[prop.place + "._bsize"],
+            table.c[prop.place + "._blocks"],
         ]
 
     try:
@@ -45,9 +44,9 @@ def getone(
         raise ItemDoesNotExist(dtype, id=id_)
 
     result = {
-        '_type': prop.model_type(),
-        '_id': data[table.c._id],
-        '_revision': data[table.c._revision],
+        "_type": prop.model_type(),
+        "_id": data[table.c._id],
+        "_revision": data[table.c._revision],
     }
 
     data = flat_dicts_to_nested(data)
@@ -64,24 +63,23 @@ def getfile(
     *,
     data: FileObjectData,
 ) -> Optional[bytes]:
-    if not data['_blocks']:
+    if not data["_blocks"]:
         return None
 
-    if len(data['_blocks']) > 1:
+    if len(data["_blocks"]) > 1:
         # TODO: Use propper UserError exception.
         raise Exception(
-            "File content is to large to retrun it inline. Try accessing "
-            "this file directly using subresources API."
+            "File content is to large to retrun it inline. Try accessing this file directly using subresources API."
         )
 
-    connection = context.get('transaction').connection
+    connection = context.get("transaction").connection
     table = backend.get_table(prop, TableType.FILE)
     with DatabaseFile(
         connection,
         table,
-        data['_size'],
-        data['_blocks'],
-        data['_bsize'],
-        mode='r',
+        data["_size"],
+        data["_blocks"],
+        data["_bsize"],
+        mode="r",
     ) as f:
         return f.read()

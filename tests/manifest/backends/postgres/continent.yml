@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/continent
+name: backends/postgres/Continent
 title: Continent
 properties:
   title:

@@ -14,11 +14,10 @@ from typing import TypedDict
 from typing import Union
 
 from spinta.components import Component
-from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Store
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Mode
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.prefix.components import UriPrefix
 
@@ -34,6 +33,10 @@ class MetaDataContainer(TypedDict):
     model: Dict[str, Model]
 
 
+def get_manifest_object_names():
+    return MetaDataContainer.__annotations__.keys()
+
+
 class ManifestGiven:
     access: str = None
 
@@ -45,15 +48,11 @@ class Manifest(Component):
     backend: Backend = None
     parent: Component = None
     store: Store = None
-    objects: MetaDataContainer = None
+    _objects: MetaDataContainer = None
     path: str = None
     access: Access = Access.protected
     prefixes: Dict[str, UriPrefix]
     enums: Enums
-
-    # {<endpoint>: <model.name>} mapping. There can be multiple model types,
-    # but name and endpoint for all of them should match.
-    endpoints: Dict[str, str] = None
 
     # Backends defined in the manifest.
     backends: Dict[str, Backend] = None
@@ -66,6 +65,8 @@ class Manifest(Component):
 
     given: ManifestGiven
 
+    dynamic: bool = False
+
     @staticmethod
     def detect_from_path(path: str) -> bool:
         return False
@@ -74,10 +75,7 @@ class Manifest(Component):
         self.given = ManifestGiven()
 
     def __repr__(self):
-        return (
-            f'<{type(self).__module__}.{type(self).__name__}'
-            f'(name={self.name!r})>'
-        )
+        return f"<{type(self).__module__}.{type(self).__name__}(name={self.name!r})>"
 
     def __eq__(self, other: Union[Manifest, str]):
         if isinstance(other, str):
@@ -86,33 +84,14 @@ class Manifest(Component):
             # This uses pytest_assertrepr_compare hook and compare_manifest to
             # eventually compare manifests in ascii table form.
             from spinta.testing.manifest import compare_manifest
+
             left, right = compare_manifest(self, other)
             return left == right
         else:
             super().__eq__(other)
 
-    def add_model_endpoint(self, model):
-        endpoint = model.endpoint
-        if endpoint:
-            if endpoint not in self.endpoints:
-                self.endpoints[endpoint] = model.name
-            elif self.endpoints[endpoint] != model.name:
-                raise Exception(
-                    f"Same endpoint, but different model name, "
-                    f"endpoint={endpoint!r}, model.name={model.name!r}."
-                )
-
-    @property
-    def models(self) -> Dict[str, Model]:
-        return self.objects['model']
-
-    @property
-    def datasets(self) -> Dict[str, Dataset]:
-        return self.objects['dataset']
-
-    @property
-    def namespaces(self) -> Dict[str, Namespace]:
-        return self.objects['ns']
+    def get_objects(self) -> dict:
+        return self._objects
 
 
 NodeSchema = Optional[Dict[str, Any]]
@@ -121,7 +100,8 @@ ManifestSchema = Tuple[Any, NodeSchema]
 
 @dataclasses.dataclass
 class ManifestPath:
-    type: str = 'tabular'
+    type: str = "tabular"
     name: str = None
     path: str = None
     file: IO = None
+    prepare: str = None

@@ -1,6 +1,6 @@
 from itertools import islice
 from itertools import chain
-from typing import Iterable
+from typing import Iterable, Any
 from typing import Iterator
 from typing import List
 from typing import TypeVar
@@ -80,7 +80,7 @@ def last(it, default=None):
     return res
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def flatten(it: Iterable[Union[T, List[T]]]) -> Iterator[T]:
@@ -89,3 +89,30 @@ def flatten(it: Iterable[Union[T, List[T]]]) -> Iterator[T]:
             yield from x
         else:
             yield x
+
+
+# Based on https://stackoverflow.com/a/54500174
+# This is one of the fastest ways to get first value
+def first_dict_value(it: dict, default=None):
+    res = default
+    for res in it:
+        return it[res]
+    return res
+
+
+# Based on https://stackoverflow.com/a/54500174
+# This is one of the fastest ways to get first key
+def first_dict_key(it: dict, default=None):
+    res = default
+    for res in it:
+        return res
+    return res
+
+
+def ensure_list(value: Any) -> List[Any]:
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, list):
+        return value
+    else:
+        return [value]

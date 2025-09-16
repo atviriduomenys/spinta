@@ -1,7 +1,7 @@
 Manifest
 ########
 
-Manifest is a directory containing YAML files. Those YAML files describes your
+Manifest is a directory containing CSV files. Those CSV files describes your
 data model.
 
 .. toctree::

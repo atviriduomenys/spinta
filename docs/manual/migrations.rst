@@ -31,7 +31,7 @@ document is usually used to change model schema. Once first document is updated
 in-place, you need to freeze those changes, no create a new schema version.
 
 Migrations always use freezed schema versions. So if you have a modified first
-YAML fiel document, then changes will not be used in migrations untill they are
+YAML file document, then changes will not be used in migrations until they are
 not freezed.
 
 
@@ -57,7 +57,7 @@ visible. To make this model available for use you need to freeze it:
 
   spinta freeze
 
-`freeze` command will freeze all drafts and creates new schema version. You can
+`freeze` command will freeze all drafts and creates new schema version. You can also
 freeze only one model:
 
 .. code-block:: sh

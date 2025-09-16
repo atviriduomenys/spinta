@@ -49,9 +49,12 @@ def load(
         )
 
         target = into or manifest
-        if '_schema' not in target.models:
+        if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
             commands.load(context, store.internal, into=target)
 
         for source in manifest.sync:
             commands.load(context, source, into=into or manifest, freezed=freezed)
+
+
+

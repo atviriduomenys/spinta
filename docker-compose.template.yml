@@ -1,0 +1,28 @@
+# Should be ran on server before deployments
+# docker network create spinta
+# docker compose -f docker-compose.nginx.yml up -d
+
+services:
+  spinta-${BRANCH}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - ./entrypoint.sh
+    environment:
+      - AUTHLIB_INSECURE_TRANSPORT=1
+      - DB_HOST=database
+      - DB_PORT=5432
+    env_file:
+      template.env
+    networks:
+       spinta:
+          aliases:
+             - spinta-${BRANCH}
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+networks:
+  spinta:
+    external: true

@@ -1,5 +1,5 @@
 type: model
-name: _schema/version
+name: _schema/Version
 id: 516ad993-c2da-460b-a631-45d2b59c6e2b
 version: 65588519-f8cc-4c24-9da8-8377823804b9
 properties:
@@ -32,7 +32,7 @@ changes:
     path: ''
     value:
       type: model
-      name: _schema/version
+      name: _schema/Version
       id: 516ad993-c2da-460b-a631-45d2b59c6e2b
       version: 65588519-f8cc-4c24-9da8-8377823804b9
       properties:
@@ -60,7 +60,7 @@ migrate:
   - type: schema
     upgrade: |-
       create_table(
-          '_schema/version',
+          '_schema/Version',
           column('_id', pk()),
           column('_revision', string()),
           column('type', string()),
@@ -74,4 +74,4 @@ migrate:
           column('migrate', json()),
           column('changes', json()),
       )
-    downgrade: drop_table('_schema/version')
+    downgrade: drop_table('_schema/Version')

@@ -21,15 +21,14 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load=False,
 ):
-    assert freezed, (
-        "TabularManifest does not have unfreezed version of manifest."
-    )
+    assert freezed, "TabularManifest does not have unfreezed version of manifest."
 
     if load_internal:
         target = into or manifest
-        if '_schema' not in target.models:
-            store = context.get('store')
+        if not commands.has_model(context, target, "_schema"):
+            store = context.get("store")
             commands.load(context, store.internal, into=target)
 
     file = None
@@ -44,7 +43,7 @@ def load(
 
     if into:
         log.info(
-            'Loading freezed manifest %r into %r from %s.',
+            "Loading freezed manifest %r into %r from %s.",
             manifest.name,
             into.name,
             manifest.path,
@@ -58,7 +57,7 @@ def load(
         load_manifest_nodes(context, into, schemas, source=manifest)
     else:
         log.info(
-            'Loading freezed manifest %r from %s.',
+            "Loading freezed manifest %r from %s.",
             manifest.name,
             manifest.path,
         )
@@ -72,9 +71,11 @@ def load(
 
     for source in manifest.sync:
         commands.load(
-            context, source,
+            context,
+            source,
             into=into or manifest,
             freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
+            full_load=full_load,
         )

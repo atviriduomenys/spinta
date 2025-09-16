@@ -16,12 +16,15 @@ from typer import Option
 from typer import Typer
 from typer import echo
 
+from spinta import commands
+from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import iter_model_rows
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Node
@@ -44,8 +47,8 @@ def _get_new_metadata_row_id():
 
 
 PREFIXES = {
-    'person': 'https://www.w3.org/ns/person#',
-    'pii': 'https://data.gov.lt/pii/',
+    "person": "https://www.w3.org/ns/person#",
+    "pii": "https://data.gov.lt/pii/",
 }
 
 
@@ -55,7 +58,7 @@ def _ensure_prefix(node: Node, uri: str) -> None:
     else:
         raise RuntimeError("Don't know how to get manifest from {node!r}.")
 
-    prefix, _ = uri.split(':', 1)
+    prefix, _ = uri.split(":", 1)
     if prefix not in manifest.prefixes:
         prefix_ = UriPrefix()
         prefix_.id = _get_new_metadata_row_id()
@@ -65,19 +68,19 @@ def _ensure_prefix(node: Node, uri: str) -> None:
 
 
 class PiiMatch(TypedDict):
-    num: int    # Number of rows matches
+    num: int  # Number of rows matches
     total: int  # Total number of rows checked
 
 
 PiiMatches = Dict[
-    str,            # model.name
+    str,  # model.name
     Dict[
-        str,        # property.place
+        str,  # property.place
         Dict[
-            str,    # PII URI in `prefix:suffix` form.
+            str,  # PII URI in `prefix:suffix` form.
             PiiMatch,
         ],
-    ]
+    ],
 ]
 
 
@@ -96,23 +99,23 @@ def _add_pii_match(
 
     if pii_ not in matches[model.name][prop.place]:
         matches[model.name][prop.place][pii_] = {
-            'num': 0,
-            'total': 0,
+            "num": 0,
+            "total": 0,
         }
 
-    matches[model.name][prop.place][pii_]['total'] += 1
+    matches[model.name][prop.place][pii_]["total"] += 1
 
     if matched:
-        matches[model.name][prop.place][pii_]['num'] += 1
+        matches[model.name][prop.place][pii_]["num"] += 1
 
 
-email_re = re.compile(r'(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)')
+email_re = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
 
 
 def _detect_email(value: Any) -> bool:
     if not isinstance(value, str):
         return False
-    if '@' not in value:
+    if "@" not in value:
         return False
     return email_re.match(value) is not None
 
@@ -120,7 +123,7 @@ def _detect_email(value: Any) -> bool:
 def _detect_phone(value: Any) -> bool:
     if isinstance(value, str):
         try:
-            phone = phonenumbers.parse(value, 'LT')
+            phone = phonenumbers.parse(value, "LT")
         except NumberParseException:
             return False
         else:
@@ -132,13 +135,13 @@ def _detect_nin_lt(value: Any):
     return is_nin_lt(str(value))
 
 
-def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
+def _detect_pii(context: Context, manifest: Manifest, rows: Iterable[ModelRow]) -> None:
     """Detects PII and modifies given manifest in place"""
 
     detectors = [
-        (_detect_nin_lt, 'pii:id'),
-        (_detect_email, 'pii:email'),
-        (_detect_phone, 'pii:phone'),
+        (_detect_nin_lt, "pii:id"),
+        (_detect_email, "pii:email"),
+        (_detect_phone, "pii:phone"),
     ]
 
     # Detect PII properties.
@@ -159,11 +162,11 @@ def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
 
     # Update manifest.
     for model_name, props in result.items():
-        model = manifest.models[model_name]
+        model = commands.get_model(context, manifest, model_name)
         for prop_place, matches in props.items():
             prop = model.flatprops[prop_place]
             for uri, match in matches.items():
-                percent = match['num'] / match['total'] * 100
+                percent = match["num"] / match["total"] * 100
                 if percent > 50:
                     _ensure_prefix(prop, uri)
                     prop.uri = uri
@@ -173,12 +176,8 @@ def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
 def detect(
     ctx: TyperContext,
     manifest: Optional[pathlib.Path] = Argument(None, help="Path to manifest."),
-    output: Optional[str] = Option(None, '-o', '--output', help=(
-        "Path to manifest with detected PII."
-    )),
-    auth: Optional[str] = Option(None, '-a', '--auth', help=(
-        "Authorize as a client"
-    )),
+    output: Optional[str] = Option(None, "-o", "--output", help=("Path to manifest with detected PII.")),
+    auth: Optional[str] = Option(None, "-a", "--auth", help=("Authorize as a client")),
     stop_on_error: bool = Option(False, help="Stop on first error"),
     limit: Optional[int] = Option(1000, help="Limit number of rows to check"),
 ):
@@ -189,69 +188,71 @@ def detect(
     checks a uri value is set.
     """
     context: Context = ctx.obj
-
+    manifest = convert_str_to_manifest_path(str(manifest))
     if manifest:
         config = {
-            'backends.cli': {
-                'type': 'memory',
+            "backends.cli": {
+                "type": "memory",
             },
-            'keymaps.default': {
-                'type': 'sqlalchemy',
-                'dsn': 'sqlite:///{data_dir}/keymap.db',
+            "keymaps.default": {
+                "type": "sqlalchemy",
+                "dsn": "sqlite:///{data_dir}/keymap.db",
             },
-            'manifests.cli': {
-                'type': 'tabular',
-                'path': str(manifest),
-                'backend': 'cli',
-                'keymap': 'default',
-                'mode': 'external',
+            "manifests.cli": {
+                "type": manifest.type,
+                "path": manifest.path,
+                "backend": "cli",
+                "keymap": "default",
+                "mode": "external",
             },
-            'manifest': 'cli',
+            "manifest": "cli",
         }
 
         # Add given manifest file to configuration
-        rc: RawConfig = context.get('rc')
-        context: Context = context.fork('detect')
-        context.set('rc', rc.fork(config))
+        rc: RawConfig = context.get("rc")
+        context: Context = context.fork("detect")
+        context.set("rc", rc.fork(config))
 
     # Load manifest
-    store = prepare_manifest(context, verbose=False)
+    store = prepare_manifest(context, verbose=False, full_load=True)
     manifest = store.manifest
     with context:
         require_auth(context, auth)
-        context.attach('transaction', manifest.backend.transaction)
+        context.attach("transaction", validate_and_return_transaction, context, manifest.backend)
         backends = set()
         for backend in store.backends.values():
             backends.add(backend.name)
-            context.attach(f'transaction.{backend.name}', backend.begin)
+            context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
         for backend in manifest.backends.values():
             backends.add(backend.name)
-            context.attach(f'transaction.{backend.name}', backend.begin)
-        for dataset in manifest.datasets.values():
+            context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
+        for dataset in commands.get_datasets(context, manifest).values():
             for resource in dataset.resources.values():
                 if resource.backend and resource.backend.name not in backends:
                     backends.add(resource.backend.name)
-                    context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
+                    context.attach(
+                        f"transaction.{resource.backend.name}", validate_and_return_begin, context, resource.backend
+                    )
         for keymap in store.keymaps.values():
-            context.attach(f'keymap.{keymap.name}', lambda: keymap)
+            context.attach(f"keymap.{keymap.name}", lambda: keymap)
 
-        from spinta.types.namespace import traverse_ns_models
-
-        ns = manifest.objects['ns']['']
-        models = traverse_ns_models(context, ns, Action.SEARCH)
+        ns = commands.get_namespace(context, manifest, "")
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
         counts = count_rows(context, models, limit=limit)
 
         rows = iter_model_rows(
-            context, models, counts,
+            context,
+            models,
+            counts,
             stop_on_error=stop_on_error,
             limit=limit,
         )
         total = sum(counts.values())
-        rows = tqdm.tqdm(rows, 'PII DETECT', ascii=True, total=total)
-        _detect_pii(manifest, rows)
+        rows = tqdm.tqdm(rows, "PII DETECT", ascii=True, total=total)
+        _detect_pii(context, manifest, rows)
         if output:
-            write_tabular_manifest(output, manifest)
+            write_tabular_manifest(context, output, manifest)
         else:
-            echo(render_tabular_manifest(manifest))
+            echo(render_tabular_manifest(context, manifest))

@@ -1,13 +1,14 @@
 import re
 
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Time
 from spinta.types.datatype import Date
 from spinta.types.datatype import DateTime
 from spinta.types.geometry.components import Geometry
 from spinta.types.datatype import Integer
 from spinta.types.datatype import Number
 
-_time_unit_re = re.compile(r'^\d*[YMQWDHTSLUN]$')
+_time_unit_re = re.compile(r"^\d*[YMQWDHTSLUN]$")
+_split_time_unit_pattern = re.compile(r"^(\d+)([YMQWDHTSLUN])$")
 
 
 def is_time_unit(unit: str) -> bool:
@@ -17,7 +18,7 @@ def is_time_unit(unit: str) -> bool:
 # Initial regular expressions were borrowed from
 # https://stackoverflow.com/a/3573731/475477
 
-_prefix = '''
+_prefix = """
 ( Y     # 10^24  (yotta)
 | Z     # 10^21  (zetta)
 | E     # 10^18  (exa)
@@ -38,9 +39,9 @@ _prefix = '''
 | a     # 10^-18 (atto)
 | z     # 10^-21 (zepto)
 | y     # 10^-24 (yocto)
-)'''
+)"""
 
-_unit = '''
+_unit = """
 # SI Base Units
 ( m     # metre
 | g     # gram
@@ -142,13 +143,13 @@ _unit = '''
 # Special units
 | U     # unit
 | %     # percent
-)'''
-_power = r'([⁺⁻]?[¹²³⁴⁵⁶⁷⁸⁹][⁰¹²³⁴⁵⁶⁷⁸⁹]*|\^[+-]?[1-9]\d*)'
-_unit_and_prefix = '((' + _prefix + '?' + _unit + ')' + _power + '?|1)'
-_multiplied = _unit_and_prefix + '(?:[⋅·*]' + _unit_and_prefix + ')*'
-_with_denominator = _multiplied + '(?:/' + _multiplied + ')?'
-_expr = r'\d*' + _power + '?' + _with_denominator
-_si_unit_re = re.compile('^' + _expr + r'(?:\ ' + _expr + ')*$', flags=re.VERBOSE)
+)"""
+_power = r"([⁺⁻]?[¹²³⁴⁵⁶⁷⁸⁹][⁰¹²³⁴⁵⁶⁷⁸⁹]*|\^[+-]?[1-9]\d*)"
+_unit_and_prefix = "((" + _prefix + "?" + _unit + ")" + _power + "?|1)"
+_multiplied = _unit_and_prefix + "(?:[⋅·*]" + _unit_and_prefix + ")*"
+_with_denominator = _multiplied + "(?:/" + _multiplied + ")?"
+_expr = r"\d*" + _power + "?" + _with_denominator
+_si_unit_re = re.compile("^" + _expr + r"(?:\ " + _expr + ")*$", flags=re.VERBOSE)
 
 
 def is_si_unit(unit: str) -> bool:
@@ -156,8 +157,15 @@ def is_si_unit(unit: str) -> bool:
 
 
 def is_unit(dtype: DataType, unit: str) -> bool:
-    if isinstance(dtype, (Date, DateTime)):
+    if isinstance(dtype, (Date, DateTime, Time)):
         return is_time_unit(unit)
     if isinstance(dtype, (Integer, Number, Geometry)):
         return is_si_unit(unit)
     return False
+
+
+def split_time_unit(unit: str):
+    match = _split_time_unit_pattern.match(unit)
+    if match:
+        return match.groups()
+    return None

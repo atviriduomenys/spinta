@@ -1,13 +1,37 @@
 .. default-role:: literal
 
-Spinta is a framework to describe, extract, transform and publish data (DETP Framework). It
-supports a great deal of data schemes and formats.
+Spinta is a command line tool and REST JSON API service for publishing and
+mapping data between different physical data models, JSON API and semantic data
+models. It supports a great deal of data schemes and formats.
 
 .. image:: https://gitlab.com/atviriduomenys/spinta/badges/master/pipeline.svg
    :target: https://gitlab.com/atviriduomenys/spinta/commits/master
 
 .. image:: https://gitlab.com/atviriduomenys/spinta/badges/master/coverage.svg
    :target: https://gitlab.com/atviriduomenys/spinta/commits/master
+
+::
+
+    Physical data        Different       Real time         REST JSON
+       sources            formats      transformation         API
+                    
+                          +-----+
+                     +--> | SQL | --------->|
+       +------+      |    +-----+           |
+       | file | ---->|                      |
+       +------+      |    +-----+           |
+                     +--> | CSV | --------->|
+      +--------+     |    +-----+           |         +---------------+
+      | DB API | --->|                      | ------->| REST JSON API |
+      +--------+     |    +------+          |         +---------------+
+                     |    | JSON | -------->|
+     +----------+    |    +------+          |
+     | REST API | -->|                      |
+     +----------+    |    +-----+           |
+                     +--> | XML | --------->|
+                          +-----+
+
+
 
 
 Purpose
@@ -93,7 +117,7 @@ command:
 
     $ spinta run -r sql sqlite:///sqlite.db
 
-Then you can generate metadata table (I call it *manifest*) like this:
+Then you can generate metadata table (*manifest*) like this:
 
 .. code-block:: sh
 

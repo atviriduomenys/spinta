@@ -14,3 +14,6 @@ project.
    setup
    tests
    functions
+   manifests
+   git-flow
+   issues

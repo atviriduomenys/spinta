@@ -1,14 +1,16 @@
 from typing import Any
 from typing import Union
 
+from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Bind, asttoexpr
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.naming.components import NameFormatter
+from spinta.spyna import parse
 from spinta.types.datatype import Ref
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.naming import to_model_name
@@ -34,20 +36,20 @@ def _re_format_expr(env: NameFormatter, expr: Any) -> Any:
         if expr.name not in env.model.properties:
             raise PropertyNotFound(env.model, property=expr.name)
         prop = env.model.properties[expr.name]
-        return Expr('bind', _format_property_place(prop))
+        return Expr("bind", _format_property_place(prop))
 
     if isinstance(expr, ForeignProperty):
         fpr: ForeignProperty = expr
         expr = Expr(
-            'getattr',
-            Expr('bind', _format_property_place(fpr.left.prop)),
-            Expr('bind', _format_property_place(fpr.right.prop)),
+            "getattr",
+            Expr("bind", _format_property_place(fpr.left.prop)),
+            Expr("bind", _format_property_place(fpr.right.prop)),
         )
         for fpr in reversed(fpr.chain[:-1]):
             expr = Expr(
-                'getattr',
+                "getattr",
                 expr,
-                Expr('bind', _format_property_place(fpr.left.prop)),
+                Expr("bind", _format_property_place(fpr.left.prop)),
             )
         return expr
 
@@ -73,6 +75,10 @@ def _format_expr(
 def _format_property_expr(context: Context, prop: Property) -> None:
     if prop.external and prop.external.prepare:
         prop.external.prepare = _format_expr(context, prop, prop.external.prepare)
+    if prop.given.prepare:
+        for item in prop.given.prepare:
+            if not item["appended"]:
+                item["prepare"] = _format_expr(context, prop, asttoexpr(parse(item["prepare"])))
 
 
 def _format_model_expr(context: Context, model: Model) -> None:
@@ -83,9 +89,9 @@ def _format_model_expr(context: Context, model: Model) -> None:
 
 
 def _format_model_name(name: str) -> str:
-    if '/' in name:
-        ns, name = name.rsplit('/', 1)
-        return '/'.join([ns.lower(), to_model_name(name)])
+    if "/" in name:
+        ns, name = name.rsplit("/", 1)
+        return "/".join([ns.lower(), to_model_name(name)])
     else:
         return to_model_name(name)
 
@@ -95,38 +101,36 @@ def _format_property_name(prop: Property) -> str:
     return to_property_name(prop.name, is_ref)
 
 
+def _format_property_given_name(prop: Property) -> str:
+    is_ref = isinstance(prop.dtype, Ref)
+    return to_property_name(prop.given.name, is_ref)
+
+
 def _format_property_place(prop: Property) -> str:
     is_ref = isinstance(prop.dtype, Ref)
-    place = prop.place.split('.')
-    return '.'.join(
-        [to_property_name(n) for n in place[:-1]] +
-        [to_property_name(n, is_ref) for n in place[-1:]]
-    )
+    place = prop.place.split(".")
+    return ".".join([to_property_name(n) for n in place[:-1]] + [to_property_name(n, is_ref) for n in place[-1:]])
 
 
 def _format_property(prop: Property) -> Property:
-    if prop.name.startswith('_'):
+    if prop.name.startswith("_"):
         return prop
     else:
         prop.name = _format_property_name(prop)
         prop.place = _format_property_place(prop)
+        prop.given.name = _format_property_given_name(prop)
         return prop
 
 
 def _format_model(model: Model) -> Model:
     model.name = _format_model_name(model.name)
-    model.properties = {
-        prop.name: prop
-        for prop in map(_format_property, model.properties.values())
-    }
+    model.properties = {prop.name: prop for prop in map(_format_property, model.properties.values())}
     return model
 
 
 def reformat_names(context: Context, manifest: Manifest):
-    for model in manifest.models.values():
+    models = commands.get_models(context, manifest)
+    for model in models.values():
         _format_model_expr(context, model)
 
-    manifest.objects['model'] = {
-        model.name: model
-        for model in map(_format_model, manifest.models.values())
-    }
+    commands.set_models(context, manifest, {model.name: model for model in map(_format_model, models.values())})

@@ -1,51 +1,51 @@
-import cgi
-import typing
-from typing import Any
-from typing import AsyncIterator, Union, Optional
-from typing import overload
-
 import itertools
 import json
 import pathlib
+import typing
+from email.message import Message
+from typing import Any
+from typing import AsyncIterator, Union, Optional
 from typing import Dict
 from typing import Iterator
+from typing import overload
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
-
-from starlette.datastructures import URL, Headers
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta import spyna
 from spinta import commands
 from spinta import exceptions
+from spinta import spyna
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
-from spinta.auth import check_scope
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
-from spinta.backends.components import Backend, BackendFeatures
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
+from spinta.auth import check_scope, Scopes
+from spinta.backends.components import Backend
+from spinta.backends.constants import BackendFeatures
+from spinta.backends.mongo.components import Mongo
+from spinta.backends.mongo.helpers import inserting
+from spinta.components import Context, Node, UrlParams, DataItem, Namespace, Model, Property, DataStream, DataSubItem
+from spinta.core.enums import action_from_op, Action
+from spinta.core.ufuncs import asttoexpr
+from spinta.exceptions import RequiredField
+from spinta.formats.components import Format
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref
+from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef, ExternalRef
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
-from spinta.utils.errors import report_error
-from spinta.utils.streams import splitlines
-from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
-from spinta.types.namespace import traverse_ns_models
-from spinta.core.ufuncs import asttoexpr
-from spinta.formats.components import Format
+from spinta.utils.errors import report_error
+from spinta.utils.nestedstruct import flatten_value
+from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.streams import splitlines
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
 
 
 STREAMING_CONTENT_TYPES = [
-    'application/x-jsonlines',
-    'application/x-ndjson',
+    "application/x-jsonlines",
+    "application/x-ndjson",
 ]
 
 
@@ -60,7 +60,6 @@ async def push(
     action: Action,
     params: UrlParams,
 ) -> Response:
-
     # A hotfix after changes push signature from push(Context, Request,
     # Property, ...) to push(Context, Request, DataType, ...). This change was
     # needed to enable request handling per property datatype. Particularly File
@@ -71,18 +70,8 @@ async def push(
         scope = scope.prop
 
     stop_on_error = not params.fault_tolerant
-    if is_streaming_request(request):
-        stream = _read_request_stream(
-            context, request, scope, action, stop_on_error,
-        )
-    else:
-        stream = _read_request_body(
-            context, request, scope, action, params, stop_on_error,
-        )
-    dstream = push_stream(context, stream,
-                          stop_on_error=stop_on_error,
-                          url=request.url,
-                          headers=request.headers)
+    stream = data_item_stream(context, request, scope, action, params, stop_on_error)
+    dstream = push_stream(context, stream, stop_on_error=stop_on_error, params=params)
 
     dstream = log_async_response(context, dstream)
 
@@ -103,8 +92,7 @@ async def push(
             dstream,
         )
     headers = prepare_headers(context, scope, response, action, is_batch=batch)
-    return render(context, request, scope, params, response,
-                  action=action, status_code=status_code, headers=headers)
+    return render(context, request, scope, params, response, action=action, status_code=status_code, headers=headers)
 
 
 @overload
@@ -126,7 +114,10 @@ async def push(  # noqa
             type(backend),
         ]
         return await command(
-            context, request, scope, backend,
+            context,
+            request,
+            scope,
+            backend,
             action=action,
             params=params,
         )
@@ -134,14 +125,37 @@ async def push(  # noqa
         raise NotImplementedError
 
 
-async def push_stream(
+def data_item_stream(
     context: Context,
-    stream: AsyncIterator[DataItem],
-    stop_on_error: bool = True,
-    url: URL = URL(),
-    headers: Headers = Headers(),
-) -> AsyncIterator[DataItem]:
+    request: Request,
+    scope: (Namespace, Model, Property),
+    action: Action,
+    params: UrlParams,
+    stop_on_error: bool,
+):
+    if is_streaming_request(request):
+        stream = _read_request_stream(
+            context,
+            request,
+            scope,
+            action,
+            stop_on_error,
+        )
+    else:
+        stream = _read_request_body(
+            context,
+            request,
+            scope,
+            action,
+            params,
+            stop_on_error,
+        )
+    return stream
 
+
+async def push_stream(
+    context: Context, stream: AsyncIterator[DataItem], stop_on_error: bool = True, params: UrlParams = None
+) -> AsyncIterator[DataItem]:
     cmds = {
         Action.INSERT: commands.insert,
         Action.UPSERT: commands.upsert,
@@ -168,19 +182,29 @@ async def push_stream(
         dstream = read_existing_data(context, dstream)
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
-        dstream = prepare_data_for_write(context, dstream)
+        dstream = prepare_data_for_write(context, dstream, params)
         if prop:
             dstream = cmds[action](
-                context, prop, prop.dtype, prop.dtype.backend or model.backend, dstream=dstream,
+                context,
+                prop,
+                prop.dtype,
+                prop.dtype.backend or model.backend,
+                dstream=dstream,
                 stop_on_error=stop_on_error,
             )
         else:
             dstream = cmds[action](
-                context, model, model.backend, dstream=dstream,
+                context,
+                model,
+                model.backend,
+                dstream=dstream,
                 stop_on_error=stop_on_error,
             )
         dstream = commands.create_changelog_entry(
-            context, model, model.backend, dstream=dstream,
+            context,
+            model,
+            model.backend,
+            dstream=dstream,
         )
         async for data in dstream:
             yield data
@@ -196,14 +220,11 @@ async def write(
     fmt: Format,
     changed=False,
 ):
-    stream = (
-        dataitem_from_payload(context, scope, x)
-        for x in payload
-    )
+    stream = (dataitem_from_payload(context, scope, x) for x in payload)
     stream = push_stream(context, aiter(stream))
     async for data in stream:
         if changed is False or data.patch:
-            yield _get_simple_response(context, data, fmt)
+            yield commands.prepare_data_for_response(context, fmt, data)
 
 
 def _stream_group_key(data: DataItem):
@@ -211,24 +232,33 @@ def _stream_group_key(data: DataItem):
 
 
 def is_streaming_request(request: Request):
-    content_type = request.headers.get('content-type')
+    content_type = request.headers.get("content-type")
     if content_type:
-        content_type = cgi.parse_header(content_type)[0]
+        message = Message()
+        message["Content-Type"] = content_type
+        content_type = message.get_content_type()
     return content_type in STREAMING_CONTENT_TYPES
+
+
+def get_filename(request: Request) -> Union[str, None]:
+    if "Content-Disposition" in request.headers:
+        message = Message()
+        message["Content-Disposition"] = request.headers["Content-Disposition"]
+        return message.get_filename()
 
 
 async def is_batch(request: Request, node: Node):
     if is_streaming_request(request):
         return True
 
-    ct = request.headers.get('content-type')
-    if ct == 'application/json':
+    ct = request.headers.get("content-type")
+    if ct == "application/json":
         try:
             payload = await request.json()
         except json.decoder.JSONDecodeError as e:
             raise exceptions.JSONError(node, error=str(e))
         else:
-            return '_data' in payload
+            return "_data" in payload
 
     return False
 
@@ -241,7 +271,6 @@ async def _read_request_body(
     params: UrlParams,
     stop_on_error: bool = True,
 ) -> AsyncIterator[DataItem]:
-
     if isinstance(scope, (Property)):
         model = scope.model
         prop = scope
@@ -263,12 +292,12 @@ async def _read_request_body(
         yield DataItem(model, prop, propref, backend, action, payload)
         return
 
-    ct = request.headers.get('content-type')
-    if ct != 'application/json':
+    ct = request.headers.get("content-type")
+    if ct != "application/json":
         raise exceptions.UnknownContentType(
             scope,
             content_type=ct,
-            supported_content_types=['application/json'],
+            supported_content_types=["application/json"],
         )
 
     try:
@@ -276,17 +305,17 @@ async def _read_request_body(
     except json.decoder.JSONDecodeError as e:
         raise exceptions.JSONError(scope, error=str(e))
 
-    if '_data' in payload:
+    if "_data" in payload:
         _log_write(context, model, prop, action, None, {})
-        for data in payload['_data']:
+        for data in payload["_data"]:
             # TODO: Handler propref in batch case.
             yield dataitem_from_payload(context, scope, data, stop_on_error)
     else:
         # TODO: payload `_type` should be validated to match with `scope` or
         #       `node` given in URL.
 
-        if '_op' in payload:
-            action = _action_from_op(scope, payload, stop_on_error)
+        if "_op" in payload:
+            action = action_from_op(scope, payload, stop_on_error)
             if isinstance(action, exceptions.UserError):
                 yield DataItem(
                     model,
@@ -312,44 +341,45 @@ def _log_write(
     id_: Optional[str],
     payload: Dict[str, Any],
 ) -> None:
-    transaction: WriteTransaction = context.get('transaction')
-    accesslog: AccessLog = context.get('accesslog')
+    transaction: WriteTransaction = context.get("transaction")
+    accesslog: AccessLog = context.get("accesslog")
 
     # TODO: Log _where part, because it is quite important information and must
     #       be available in logs.
     message = {
-        'action': action.value,
-        'id_': id_,
-        'rev': payload.get('_revision'),
-        'txn': transaction.id,
+        "action": action.value,
+        "id_": id_,
+        "rev": payload.get("_revision"),
+        "txn": transaction.id,
     }
 
     if prop:
-        message['prop'] = prop.place
+        message["prop"] = prop.place
 
     if isinstance(model, Namespace):
-        message['ns'] = model.name
+        message["ns"] = model.name
     else:
-        message['model'] = model.model_type()
+        message["model"] = model.model_type()
 
     accesslog.request(**message)
 
 
 def _add_where(params: UrlParams, payload: dict):
-    if '_where' in payload:
+    if "_where" in payload:
         if isinstance(payload, str):
             return {
                 **payload,
-                '_where': spyna.parse(payload['_where']),
+                "_where": spyna.parse(payload["_where"]),
             }
         else:
             return payload
     elif params.pk:
         return {
             **payload,
-            '_where': {
-                'name': 'eq', 'args': [
-                    {'name': 'bind', 'args': ['_id']},
+            "_where": {
+                "name": "eq",
+                "args": [
+                    {"name": "bind", "args": ["_id"]},
                     params.pk,
                 ],
             },
@@ -365,7 +395,7 @@ async def _read_request_stream(
     action: Action,
     stop_on_error: bool = True,
 ) -> AsyncIterator[DataItem]:
-    transaction = context.get('transaction')
+    transaction = context.get("transaction")
     _log_write(context, scope, None, action, None, {})
     objects = 0
     async for line in splitlines(request.stream()):
@@ -386,7 +416,7 @@ def dataitem_from_payload(
     payload: dict,
     stop_on_error: bool = True,
 ) -> DataItem:
-    transaction = context.get('transaction')
+    transaction = context.get("transaction")
 
     # TODO: We need a proper data validation functions, something like that:
     #
@@ -408,13 +438,13 @@ def dataitem_from_payload(
         report_error(error, stop_on_error=stop_on_error)
         return DataItem(error=error)
 
-    if '_type' in payload:
-        model = payload['_type']
+    if "_type" in payload:
+        model = payload["_type"]
 
-        if '.' in model:
-            model, prop = model.split('.', 1)
-            if prop.endswith(':ref'):
-                prop = prop[:-len(':ref')]
+        if "." in model:
+            model, prop = model.split(".", 1)
+            if prop.endswith(":ref"):
+                prop = prop[: -len(":ref")]
                 propref = True
             else:
                 propref = False
@@ -434,7 +464,7 @@ def dataitem_from_payload(
         propref = False
 
     else:
-        error = exceptions.MissingRequiredProperty(scope, prop='_type')
+        error = exceptions.MissingRequiredProperty(scope, prop="_type")
         return DataItem(payload=payload, error=error)
 
     if model and prop:
@@ -455,38 +485,21 @@ def dataitem_from_payload(
         report_error(error, stop_on_error=stop_on_error)
         return DataItem(model, prop, propref, backend, payload=payload, error=error)
 
-    if '_op' not in payload:
-        error = exceptions.MissingRequiredProperty(scope, prop='_op')
+    if "_op" not in payload:
+        error = exceptions.MissingRequiredProperty(scope, prop="_op")
         report_error(error, stop_on_error=stop_on_error)
         return DataItem(payload=payload, error=error)
 
-    action = _action_from_op(scope, payload, stop_on_error)
+    action = action_from_op(scope, payload, stop_on_error)
     if isinstance(action, exceptions.UserError):
         error = action
         report_error(error, stop_on_error=stop_on_error)
         return DataItem(model, prop, propref, backend, payload=payload, error=error)
 
-    if '_where' in payload:
-        payload['_where'] = spyna.parse(payload['_where'])
+    if "_where" in payload:
+        payload["_where"] = spyna.parse(payload["_where"])
 
-    return DataItem(model, prop, propref, backend, action, payload)
-
-
-def _action_from_op(
-    scope: Node,
-    payload: dict,
-    stop_on_error: bool = True,
-) -> Union[Action, exceptions.UserError]:
-    action = payload.get('_op')
-    if not Action.has_value(action):
-        error = exceptions.UnknownAction(
-            scope,
-            action=action,
-            supported_actions=Action.values(),
-        )
-        report_error(error, stop_on_error=stop_on_error)
-        return error
-    return Action.by_value(action)
+    return DataItem(model, prop, propref, backend, action, payload=payload)
 
 
 async def prepare_data(
@@ -527,15 +540,17 @@ async def read_existing_data(
             if data.prop:
                 # FIXME: Below is a temporary hack, because subresources does
                 #        not support getall searches.
-                rows = [commands.getone(
-                    context,
-                    data.prop,
-                    data.prop.dtype,
-                    data.backend,
-                    id_=data.given['_where']['args'][1],
-                )]
+                rows = [
+                    commands.getone(
+                        context,
+                        data.prop,
+                        data.prop.dtype,
+                        data.backend,
+                        id_=data.given["_where"]["args"][1],
+                    )
+                ]
             else:
-                query = data.given['_where']
+                query = data.given["_where"]
                 query = asttoexpr(query)
                 rows = commands.getall(
                     context,
@@ -551,14 +566,15 @@ async def read_existing_data(
         # When updating by id only, there must be exactly one existing record.
         if data.action == Action.UPSERT or _has_id_in_where(data.given):
             rows = list(itertools.islice(rows, 2))
-            if len(rows) == 1:
+            number_of_rows = len(rows)
+            if number_of_rows == 1:
                 data.saved = rows[0]
-                data.saved['_type'] = data.model.model_type()
-            elif len(rows) > 1:
-                data.error = exceptions.MultipleRowsFound(data.model, _id=rows[0]['_id'])
+                data.saved["_type"] = data.model.model_type()
+            elif number_of_rows > 1:
+                data.error = exceptions.MultipleRowsFound(data.model, _id=rows[0]["_id"], number_of_rows=number_of_rows)
                 report_error(data.error, data.given, stop_on_error=stop_on_error)
             elif data.action != Action.UPSERT:
-                data.error = exceptions.ItemDoesNotExist(data.model, id=data.given['_where']['args'][1])
+                data.error = exceptions.ItemDoesNotExist(data.model, id=data.given["_where"]["args"][1])
                 report_error(data.error, data.given, stop_on_error=stop_on_error)
             yield data
             continue
@@ -567,7 +583,7 @@ async def read_existing_data(
         for row in rows:
             data = data.copy()
             data.saved = row
-            data.saved['_type'] = data.model.model_type()
+            data.saved["_type"] = data.model.model_type()
             yield data
 
 
@@ -595,9 +611,9 @@ def _cast_row_to_python(
 
 def _has_id_in_where(given: dict):
     return (
-        '_where' in given and
-        given['_where']['name'] == 'eq' and
-        given['_where']['args'][0] == {'name': 'bind', 'args': ['_id']}
+        "_where" in given
+        and given["_where"]["name"] == "eq"
+        and given["_where"]["args"][0] == {"name": "bind", "args": ["_id"]}
     )
 
 
@@ -615,11 +631,11 @@ async def validate_data(
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
         if data.error is None:
-            if '_id' in data.given and data.prop is None:
-                check_scope(context, 'set_meta_fields')
+            if "_id" in data.given and data.prop is None:
+                check_scope(context, Scopes.SET_META_FIELDS)
             if data.action == Action.INSERT:
-                if '_revision' in data.given:
-                    raise exceptions.ManagedProperty(data.model, property='_revision')
+                if "_revision" in data.given:
+                    raise exceptions.ManagedProperty(data.model, property="_revision")
             if data.prop:
                 commands.complex_data_check(
                     context,
@@ -639,6 +655,19 @@ async def validate_data(
         yield data
 
 
+def _prepare_text_properties(data_patch, data_payload):
+    lang_list = list(set([lang.split("@")[1] for lang in list(data_payload.keys()) if "@" in lang]))
+    text_key_for_patch = [key for key in data_patch if key == data_patch[key]]
+    if text_key_for_patch:
+        for key in text_key_for_patch:
+            temp = {}
+            for lang in lang_list:
+                if str(key + "@" + lang) in list(data_payload.keys()):
+                    temp[lang] = data_payload[str(key + "@" + lang)]
+            data_patch[key] = temp
+        return data_patch
+
+
 async def prepare_patch(
     context: Context,
     dstream: AsyncIterator[DataItem],
@@ -656,22 +685,17 @@ async def prepare_patch(
         if data.patch is NA:
             data.patch = {}
 
-        if '_id' in data.given:
-            if take('_id', data.saved) != data.given['_id']:
-                data.patch['_id'] = data.given['_id']
-        elif (
-            data.action == Action.INSERT or
-            data.action == Action.UPSERT and
-            take('_id', data.given, data.saved) is NA
-        ):
-            data.patch['_id'] = commands.gen_object_id(
-                context, data.model.backend, data.model
-            )
+        if "_id" in data.given:
+            if take("_id", data.saved) != data.given["_id"]:
+                data.patch["_id"] = data.given["_id"]
+        elif data.action == Action.INSERT or data.action == Action.UPSERT and take("_id", data.given, data.saved) is NA:
+            data.patch["_id"] = commands.gen_object_id(context, data.model.backend, data.model)
 
         if data.action == Action.DELETE or data.patch:
-            data.patch['_revision'] = commands.gen_object_id(
-                context, data.model.backend, data.model
-            )
+            data.patch["_revision"] = commands.gen_object_id(context, data.model.backend, data.model)
+
+        # if [key for key in list(data.given.keys()) if '@' in key]:
+        #     data.patch = _prepare_text_properties(data.patch, data.payload)
 
         yield data
 
@@ -689,13 +713,12 @@ def build_data_patch_for_write(
     if insert_action:
         props = take(model.properties).values()
     elif update_action:
-        props = (
-            prop
-            for prop in model.properties.values()
-            if not (prop.name.startswith('_') or prop.hidden)
-        )
+        props = (prop for prop in model.properties.values() if not (prop.name.startswith("_") or prop.hidden))
     else:
-        props = (model.properties[k] for k in given)
+        if [key for key in list(given.keys()) if "@" in key]:
+            props = (model.properties[k.split("@")[0]] for k in given)
+        else:
+            props = (model.properties[k] for k in given)
 
     patch = {}
     for prop in props:
@@ -736,6 +759,19 @@ def build_data_patch_for_write(
         return {}
 
 
+@commands.build_data_patch_for_write.register(Context, BackRef)
+def build_data_patch_for_write(
+    context: Context,
+    dtype: BackRef,
+    *,
+    given: Optional[dict],
+    saved: Optional[dict],
+    insert_action: bool = False,
+    update_action: bool = False,
+) -> Union[dict, NotAvailable]:
+    return NA
+
+
 @commands.build_data_patch_for_write.register(Context, Object)
 def build_data_patch_for_write(
     context: Context,
@@ -749,11 +785,7 @@ def build_data_patch_for_write(
     if insert_action:
         props = take(dtype.properties).values()
     elif update_action:
-        props = (
-            prop
-            for prop in dtype.properties.values()
-            if not (prop.name.startswith('_') or prop.hidden)
-        )
+        props = (prop for prop in dtype.properties.values() if not (prop.name.startswith("_") or prop.hidden))
     else:
         props = (dtype.properties[k] for k in given)
 
@@ -838,65 +870,33 @@ def build_data_patch_for_write(
         return NA
 
 
-async def prepare_data_for_write(
+@commands.build_data_patch_for_write.register(Context, Inherit)
+def build_data_patch_for_write(
     context: Context,
-    dstream: AsyncIterator[DataItem],
+    dtype: Inherit,
+    *,
+    given: Optional[object],
+    saved: Optional[object],
+    insert_action: bool = False,
+    update_action: bool = False,
+) -> Union[dict, NotAvailable]:
+    # Needs to be implemented when it's possible to modify Inherit type
+    return NA
+
+
+async def prepare_data_for_write(
+    context: Context, dstream: AsyncIterator[DataItem], params: UrlParams
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
         if data.prop:
             data.patch = commands.prepare_for_write(
-                context,
-                data.prop,
-                data.backend,
-                data.patch,
-                action=data.action,
+                context, data.prop, data.backend, data.patch, action=data.action, params=params
             )
         else:
             data.patch = commands.prepare_for_write(
-                context,
-                data.model,
-                data.model.backend,
-                data.patch,
-                action=data.action,
+                context, data.model, data.model.backend, data.patch, action=data.action, params=params
             )
         yield data
-
-
-def prepare_response(
-    context: Context,
-    data: DataItem,
-) -> (DataItem, dict):
-    if data.action == Action.UPDATE:
-        # Minor optimisation: if we querying subresource, then build
-        # response only for the subresource tree, do not walk through
-        # whole model property tree.
-        if data.prop:
-            dtype = data.prop.dtype
-            patch = data.patch.get(data.prop.name, {})
-            saved = data.saved.get(data.prop.name, {})
-        else:
-            dtype = data.model
-            patch = take(data.patch)
-            saved = take(data.saved)
-
-        resp = build_full_response(
-            context,
-            dtype,
-            patch=patch,
-            saved=saved,
-        )
-
-        # When querying subresources, response still must be enclosed with
-        # the subresource key.
-        if data.prop:
-            resp = {
-                data.prop.name: resp,
-            }
-    elif data.patch:
-        resp = data.patch
-    else:
-        resp = {}
-    return resp
 
 
 @commands.build_full_response.register()
@@ -909,7 +909,7 @@ def build_full_response(
 ):
     full_patch = {}
     for prop in dtype.properties.values():
-        if prop.name.startswith('_'):
+        if prop.name.startswith("_"):
             continue
         value = build_full_response(
             context,
@@ -941,6 +941,29 @@ def build_full_response(  # noqa
 @commands.build_full_response.register()  # noqa
 def build_full_response(  # noqa
     context: Context,
+    dtype: BackRef,
+    *,
+    patch: Optional[object],
+    saved: Optional[object],
+):
+    return NA
+
+
+@commands.build_full_response.register()  # noqa
+def build_full_response(  # noqa
+    context: Context,
+    dtype: Inherit,
+    *,
+    patch: Optional[object],
+    saved: Optional[object],
+):
+    # Needs to be implemented when it's possible to modify Inherit type
+    return NA
+
+
+@commands.build_full_response.register()  # noqa
+def build_full_response(  # noqa
+    context: Context,
     dtype: File,
     *,
     patch: Optional[dict],
@@ -948,21 +971,21 @@ def build_full_response(  # noqa
 ):
     if patch is not NA:
         return {
-            '_id': patch.get(
-                '_id',
-                saved.get('_id') if saved else None,
+            "_id": patch.get(
+                "_id",
+                saved.get("_id") if saved else None,
             ),
-            '_content_type': patch.get(
-                '_content_type',
-                saved.get('_content_type') if saved else None,
+            "_content_type": patch.get(
+                "_content_type",
+                saved.get("_content_type") if saved else None,
             ),
         }
     elif saved is not NA:
         return saved
     else:
         return {
-            '_id': None,
-            '_content_type': None,
+            "_id": None,
+            "_content_type": None,
         }
 
 
@@ -997,6 +1020,18 @@ def before_write(
     data: DataSubItem,
 ) -> dict:
     patch = {}
+    # If patch is None, then just set every child to None
+    if data.patch is None:
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+        return patch
+
     for prop in dtype.properties.values():
         value = commands.before_write(
             context,
@@ -1016,7 +1051,7 @@ def after_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    for key in (data.patch or ()):
+    for key in data.patch or ():
         prop = dtype.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
 
@@ -1031,31 +1066,31 @@ def before_write(
 ) -> dict:
     if data.root.action == Action.DELETE:
         patch = {
-            '_id': None,
-            '_content_type': None,
-            '_size': None,
+            "_id": None,
+            "_content_type": None,
+            "_size": None,
         }
     else:
-        patch = take(['_id', '_content_type', '_size'], data.patch)
+        patch = take(["_id", "_content_type", "_size"], data.patch)
 
     if BackendFeatures.FILE_BLOCKS in dtype.backend.features:
         if data.root.action == Action.DELETE:
-            patch.update({
-                '_blocks': [],
-                '_bsize': None,
-            })
+            patch.update(
+                {
+                    "_blocks": [],
+                    "_bsize": None,
+                }
+            )
         else:
-            patch.update(take(['_blocks', '_bsize'], data.patch))
+            patch.update(take(["_blocks", "_bsize"], data.patch))
 
-    if isinstance(patch.get('_id'), pathlib.Path):
+    if isinstance(patch.get("_id"), pathlib.Path):
         # On FileSystem backend '_id' is a Path.
         # XXX: It would be nice to decouple this bey visiting each file property
         #      separaterly.
-        patch['_id'] = str(patch['_id'])
+        patch["_id"] = str(patch["_id"])
 
-    return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
-    }
+    return {f"{dtype.prop.place}.{k}": v for k, v in patch.items()}
 
 
 @commands.before_write.register(Context, Ref, Backend)
@@ -1066,10 +1101,109 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = take(['_id'], data.patch)
-    return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
-    }
+    # If patch is None, it means that parent was set to null, meaning all children should also be set to null
+    if data.patch is None:
+        patch = {}
+        if not dtype.inherited:
+            patch[f"{dtype.prop.place}._id"] = None
+
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+
+        return patch
+
+    patch = flatten_value(data.patch, dtype.prop)
+    return {f"{dtype.prop.place}.{k}": v for k, v in patch.items() if k}
+
+
+@commands.before_write.register(Context, ExternalRef, Backend)
+def before_write(
+    context: Context,
+    dtype: ExternalRef,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    # If patch is None, it means that parent was set to null, meaning all children should also be set to null
+    if data.patch is None:
+        patch = {}
+        if not dtype.inherited:
+            if dtype.explicit or not dtype.model.external.unknown_primary_key:
+                for ref_prop in dtype.refprops:
+                    patch[f"{dtype.prop.place}.{ref_prop.name}"] = None
+            else:
+                patch[f"{dtype.prop.place}._id"] = None
+
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+
+        return patch
+
+    patch = flatten_value(data.patch, dtype.prop)
+    return {f"{dtype.prop.place}.{k}": v for k, v in patch.items() if k}
+
+
+@commands.before_write.register(Context, ExternalRef, Mongo)
+def before_write(
+    context: Context,
+    dtype: ExternalRef,
+    backend: Mongo,
+    *,
+    data: DataSubItem,
+) -> dict:
+    patch = take(["_id"], data.patch) or None
+    if inserting(data):
+        return {dtype.prop.name: patch}
+    else:
+        return {dtype.prop.place: patch}
+
+
+@commands.before_write.register(Context, Denorm, Backend)
+def before_write(
+    context: Context,
+    dtype: Denorm,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    # If patch is None, it means that all children should be set to null
+    if data.patch is None:
+        patch = commands.before_write(context, dtype.rel_prop.dtype, backend, data=data)
+        return {
+            key.replace(dtype.rel_prop.place, dtype.prop.place): value
+            for key, value in patch.items()
+            if key != dtype.rel_prop.place
+        }
+
+    patch = flatten_value(data.patch, dtype.prop)
+    key = dtype.prop.place.split(".", maxsplit=1)[-1]
+    if patch.get(key):
+        return {dtype.prop.place: patch.get(key)}
+    else:
+        return {}
+
+
+@commands.before_write.register(Context, Denorm, Mongo)
+def before_write(
+    context: Context,
+    dtype: Denorm,
+    backend: Mongo,
+    *,
+    data: DataSubItem,
+) -> dict:
+    return take(all, {dtype.prop.place: data.patch})
 
 
 async def _summary_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
@@ -1083,10 +1217,10 @@ async def _summary_response(context: Context, results: AsyncIterator[DataItem]) 
     else:
         status_code = 200
 
-    transaction = context.get('transaction')
+    transaction = context.get("transaction")
     return status_code, {
-        '_transaction': transaction.id,
-        '_status': 'error' if errors > 0 else 'ok',
+        "_transaction": transaction.id,
+        "_status": "error" if errors > 0 else "ok",
     }
 
 
@@ -1099,18 +1233,18 @@ async def _batch_response(
     batch = []
     async for data in results:
         errors += data.error is not None
-        batch.append(_get_simple_response(context, data, fmt))
+        batch.append(commands.prepare_data_for_response(context, fmt, data))
 
     if errors > 0:
         status_code = 400
     else:
         status_code = 200
 
-    transaction = context.get('transaction')
+    transaction = context.get("transaction")
     return status_code, {
-        '_transaction': transaction.id,
-        '_status': 'error' if errors > 0 else 'ok',
-        '_data': batch,
+        "_transaction": transaction.id,
+        "_status": "error" if errors > 0 else "ok",
+        "_data": batch,
     }
 
 
@@ -1130,76 +1264,7 @@ async def simple_response(
         status_code = 204
     else:
         status_code = 200
-    return status_code, _get_simple_response(context, data, fmt)
-
-
-# XXX: This should be refactored into
-#      prepare_data_for_response[Model, Format, DataItem].
-def _get_simple_response(
-    context: Context,
-    data: DataItem,
-    fmt: Format,
-) -> Dict[str, Any]:
-    resp = prepare_response(context, data)
-    resp = {k: v for k, v in resp.items() if not k.startswith('_')}
-    if data.prop or data.model:
-        resp['_type'] = (data.prop or data.model).model_type()
-    if data.patch and '_id' in data.patch and data.prop is None:
-        resp['_id'] = data.patch['_id']
-    elif (
-        data.patch and
-        data.prop and
-        data.patch[data.prop.name] and
-        '_id' in data.patch[data.prop.name]
-    ):
-        resp['_id'] = data.patch[data.prop.name]['_id']
-    elif (
-        data.saved and
-        data.prop and
-        data.saved[data.prop.name] and
-        '_id' in data.saved[data.prop.name]
-    ):
-        resp['_id'] = data.saved[data.prop.name]['_id']
-    elif data.saved:
-        resp['_id'] = data.saved['_id']
-    if data.patch and '_revision' in data.patch:
-        resp['_revision'] = data.patch['_revision']
-    elif data.saved:
-        resp['_revision'] = data.saved['_revision']
-    if data.action and (data.model or data.prop):
-        if data.prop:
-            resp = commands.prepare_data_for_response(
-                context,
-                data.prop.dtype,
-                fmt,
-                resp,
-                action=data.action,
-            )
-        else:
-            select_tree = get_select_tree(context, data.action, None)
-            prop_names = get_select_prop_names(
-                context,
-                data.model,
-                data.model.properties,
-                data.action,
-                select_tree,
-            )
-            resp = commands.prepare_data_for_response(
-                context,
-                data.model,
-                fmt,
-                resp,
-                action=data.action,
-                select=select_tree,
-                prop_names=prop_names,
-            )
-    if data.error is not None:
-        return {
-            **resp,
-            '_errors': [exceptions.error_response(data.error)],
-        }
-    else:
-        return resp
+    return status_code, commands.prepare_data_for_response(context, fmt, data)
 
 
 @commands.upsert.register()
@@ -1217,7 +1282,10 @@ async def upsert(
         else:
             cmd = commands.insert
         dstream = cmd(
-            context, model, model.backend, dstream=dstream,
+            context,
+            model,
+            model.backend,
+            dstream=dstream,
             stop_on_error=stop_on_error,
         )
         async for data in dstream:
@@ -1234,7 +1302,10 @@ async def patch(
     stop_on_error: bool = True,
 ):
     dstream = commands.update(
-        context, model, model.backend, dstream=dstream,
+        context,
+        model,
+        model.backend,
+        dstream=dstream,
         stop_on_error=stop_on_error,
     )
     async for data in dstream:
@@ -1253,7 +1324,7 @@ async def wipe(
 ):
     commands.authorize(context, Action.WIPE, model)
     commands.wipe(context, model, backend)
-    response = {'wiped': True}
+    response = {"wiped": True}
     return render(context, request, model, params, response, status_code=200)
 
 
@@ -1267,22 +1338,102 @@ async def wipe(  # noqa
     action: Action,
     params: UrlParams,
 ):
-    for model in traverse_ns_models(context, ns, action, internal=True):
+    for model in commands.traverse_ns_models(context, ns, ns.manifest, action, internal=True):
         commands.authorize(context, Action.WIPE, model)
     commands.wipe(context, ns, backend)
-    response = {'wiped': True}
+    response = {"wiped": True}
     return render(context, request, ns, params, response, status_code=200)
 
 
-def prepare_headers(
-    context: Context,
-    node: Node,
-    resp: dict,
-    action: Action,
-    is_batch: Optional[bool] = False
-):
+def prepare_headers(context: Context, node: Node, resp: dict, action: Action, is_batch: Optional[bool] = False):
     headers = {}
     if action == Action.INSERT and not is_batch:
-        server_url = context.get('config').server_url
-        headers['location'] = f'{server_url}{node.endpoint}/{resp["_id"]}'
+        server_url = context.get("config").server_url
+        headers["location"] = f"{server_url}{node.name}/{resp['_id']}"
     return headers
+
+
+@commands.move.register(Context, Request, Model, Backend)
+async def move(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Backend,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    stop_on_error = not params.fault_tolerant
+    stream = data_item_stream(context, request, model, action, params, stop_on_error)
+    dstream = move_stream(context, model, stream, stop_on_error, params)
+    dstream = log_async_response(context, dstream)
+
+    batch = False
+    if await is_batch(request, model):
+        batch = True
+        status_code, response = await _batch_response(
+            context,
+            params.fmt,
+            dstream,
+        )
+    else:
+        status_code, response = await simple_response(
+            context,
+            params.fmt,
+            dstream,
+        )
+
+    headers = prepare_headers(context, model, response, action, is_batch=batch)
+    return render(context, request, model, params, response, action=action, status_code=status_code, headers=headers)
+
+
+async def move_stream(
+    context: Context,
+    model: Model,
+    stream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
+    params: UrlParams = None,
+) -> AsyncIterator[DataItem]:
+    commands.authorize(context, Action.MOVE, model)
+    dstream = prepare_data(context, stream, stop_on_error)
+    dstream = read_existing_data(context, dstream, stop_on_error)
+    dstream = validate_move(context, dstream)
+    dstream = validate_data(context, dstream)
+    dstream = prepare_patch(context, dstream)
+    dstream = prepare_data_for_write(context, dstream, params)
+    dstream = commands.move(
+        context,
+        model,
+        model.backend,
+        dstream=dstream,
+        stop_on_error=stop_on_error,
+    )
+    dstream = commands.create_redirect_entry(context, model, model.backend, dstream=dstream)
+    dstream = commands.create_changelog_entry(
+        context,
+        model,
+        model.backend,
+        dstream=dstream,
+    )
+    async for data in dstream:
+        yield data
+
+
+async def validate_move(
+    context: Context,
+    dstream: AsyncIterator[DataItem],
+):
+    async for data in dstream:
+        redirect_id = data.given.get("_id")
+        if redirect_id is None:
+            raise RequiredField(data.model, action=data.action.value, field="_id")
+
+        # Check if redirect value exists
+        commands.getone(
+            context,
+            data.model,
+            data.backend,
+            id_=str(redirect_id),
+        )
+
+        yield data

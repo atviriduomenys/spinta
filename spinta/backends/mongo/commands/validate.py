@@ -1,5 +1,6 @@
 from spinta import commands
-from spinta.components import Context, Action, DataItem, Property
+from spinta.components import Context, DataItem, Property
+from spinta.core.enums import Action
 from spinta.types.datatype import DataType
 from spinta.exceptions import UniqueConstraint
 from spinta.backends.mongo.components import Mongo
@@ -21,8 +22,8 @@ def check_unique_constraint(
     #      could try to read existing record if `_id` or any other unique
     #      field is given. Also this would fix case, when multiple
     #      properties are given as unique constraint.
-    if prop.name == '_id':
-        name = '__id'
+    if prop.name == "_id":
+        name = "__id"
     else:
         name = prop.name
     # TODO: Add support for nested properties.
@@ -30,13 +31,14 @@ def check_unique_constraint(
     #        In case of an update, exclude currently saved value from
     #        uniqueness check.
     if data.action in (Action.UPDATE, Action.PATCH):
-        if name == '__id' and value == data.saved['_id']:
+        if name == "__id" and value == data.saved["_id"]:
             return
 
-        result = table.find_one({
-            '$and': [{name: value},
-                     {'__id': {'$ne': data.saved['_id']}}],
-        })
+        result = table.find_one(
+            {
+                "$and": [{name: value}, {"__id": {"$ne": data.saved["_id"]}}],
+            }
+        )
     else:
         result = table.find_one({name: value})
     if result is not None:

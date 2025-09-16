@@ -11,13 +11,7 @@ from spinta.backends.helpers import get_table_name
 
 
 @commands.getall.register(Context, Model, Memory)
-def getall(
-    context: Context,
-    model: Model,
-    db: Memory,
-    *,
-    query: Expr = None,
-) -> Iterator[ObjectData]:
+def getall(context: Context, model: Model, db: Memory, *, query: Expr = None, **kwargs) -> Iterator[ObjectData]:
     table = get_table_name(model)
     return db.data[table].values()
 

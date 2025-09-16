@@ -1,8 +1,8 @@
 from typing import Generic
 from typing import TypeVar, AsyncIterator, List, Callable, Optional, Tuple, Awaitable, Iterable
 
-T = TypeVar('T')    # iterator item type
-K = TypeVar('K')    # type of a group by item
+T = TypeVar("T")  # iterator item type
+K = TypeVar("K")  # type of a group by item
 
 
 class agroupby(Generic[T, K]):
@@ -32,7 +32,7 @@ class agroupby(Generic[T, K]):
     async def __anext__(self) -> Awaitable[Tuple[K, AsyncIterator[T]]]:
         self.id = object()
         while self.currkey == self.tgtkey:
-            self.currvalue = await self.it.__anext__()    # Exit on AsyncStopIteration
+            self.currvalue = await self.it.__anext__()  # Exit on AsyncStopIteration
             self.currkey = self.keyfunc(self.currvalue)
         self.tgtkey = self.currkey
         return self.currkey, self._grouper(self.tgtkey, self.id)
@@ -68,3 +68,23 @@ async def aslice(it: AsyncIterator[T], *args: int) -> AsyncIterator[T]:
 async def adrain(it: AsyncIterator[T]) -> None:
     async for _ in it:
         pass
+
+
+async def aenumerate(it: AsyncIterator[T]) -> (int, AsyncIterator[T]):
+    i = 0
+    async for x in it:
+        yield i, x
+        i += 1
+
+
+async def anext(it: AsyncIterator[T]) -> T:
+    async for x in it:
+        return x
+
+
+async def achain(iterables: list, it: AsyncIterator[T]) -> AsyncIterator[T]:
+    for x in iterables:
+        yield x
+
+    async for x in it:
+        yield x

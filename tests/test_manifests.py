@@ -2,64 +2,67 @@ from spinta import commands
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
-from spinta.components import Model
-from spinta.manifests.components import Manifest
+from spinta.components import Model, Context
+from spinta.manifests.components import Manifest, get_manifest_object_names
 
 
-def show(c: Manifest):
+def show(context: Context, c: Manifest):
     if isinstance(c, Manifest):
         res = {
-            'type': c.type,
-            'nodes': {},
+            "type": c.type,
+            "nodes": {},
         }
-        for group, nodes in c.objects.items():
-            if nodes:
-                res['nodes'][group] = {
-                    name: show(node)
-                    for name, node in nodes.items()
-                }
+        for group in get_manifest_object_names():
+            res["nodes"][group] = {
+                name: show(context, node) for name, node in commands.get_nodes(context, c, group).items()
+            }
+            if not res["nodes"][group]:
+                res["nodes"].pop(group)
         return res
     if isinstance(c, Model):
         return {
-            'backend': c.backend.name,
+            "backend": c.backend.name,
         }
 
 
-def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
-    rc = rc.fork({
-        'manifest': 'default',
-        'manifests': {
-            'default': {
-                'type': 'backend',
-                'sync': 'yaml',
+def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, request):
+    rc = rc.fork(
+        {
+            "manifest": "default",
+            "manifests": {
+                "default": {
+                    "type": "backend",
+                    "sync": "yaml",
+                },
+                "yaml": {
+                    "type": "yaml",
+                    "path": str(tmp_path),
+                },
             },
-            'yaml': {
-                'type': 'yaml',
-                'path': str(tmpdir),
-            }
-        },
-        'backends': ['default'],
-    })
+            "backends": ["default"],
+        }
+    )
 
-    create_manifest_files(tmpdir, {
-        'country.yml': {
-            'type': 'model',
-            'name': 'country',
-            'properties': {
-                'name': {'type': 'string'},
+    create_manifest_files(
+        tmp_path,
+        {
+            "country.yml": {
+                "type": "model",
+                "name": "Country",
+                "properties": {
+                    "name": {"type": "string"},
+                },
             },
         },
-    })
-
-    cli.invoke(rc, ['freeze'])
-    cli.invoke(rc, ['migrate'])
+    )
+    cli.invoke(rc, ["freeze"])
 
     context = create_test_context(rc)
 
-    config = context.get('config')
+    config = context.get("config")
     commands.load(context, config)
 
-    store = context.get('store')
+    store = context.get("store")
     commands.load(context, store)
     commands.load(context, store.manifest)
     commands.link(context, store.manifest)
@@ -67,28 +70,28 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmpdir, request)
 
     request.addfinalizer(context.wipe_all)
 
-    assert show(store.manifest) == {
-        'type': 'backend',
-        'nodes': {
-            'ns': {
-                '': None,
-                '_schema': None,
+    assert show(context, store.manifest) == {
+        "type": "backend",
+        "nodes": {
+            "ns": {
+                "": None,
+                "_schema": None,
             },
-            'model': {
-                '_ns': {
-                    'backend': 'default',
+            "model": {
+                "_ns": {
+                    "backend": "default",
                 },
-                '_schema': {
-                    'backend': 'default',
+                "_schema": {
+                    "backend": "default",
                 },
-                '_schema/version': {
-                    'backend': 'default',
+                "_schema/Version": {
+                    "backend": "default",
                 },
-                '_txn': {
-                    'backend': 'default',
+                "_txn": {
+                    "backend": "default",
                 },
-                'country': {
-                    'backend': 'default',
+                "Country": {
+                    "backend": "default",
                 },
             },
         },

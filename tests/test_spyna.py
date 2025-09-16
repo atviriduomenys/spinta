@@ -37,6 +37,10 @@ def test_contains():
     check("contains(foo, 'bar')")
 
 
+def test_contains_lithuanian_letters():
+    check("contains(foo, 'ąČ')")
+
+
 def test_startswith():
     check("foo.startswith('bar')")
 
@@ -70,19 +74,19 @@ def test_sort_nested():
 
 
 def test_and():
-    check('a=1&b=2&c=3')
+    check("a=1&b=2&c=3")
 
 
 def test_and_and_or():
-    check('a=1&b=2|c=3')
+    check("a=1&b=2|c=3")
 
 
 def test_or_and_and():
-    check('a=1|b=2&c=3')
+    check("a=1|b=2&c=3")
 
 
 def test_or_and_and_and_group():
-    check('(a=1|b=2)&c=3')
+    check("(a=1|b=2)&c=3")
 
 
 def test_empty_string():
@@ -162,15 +166,27 @@ def test_false():
 
 
 def test_false_expr():
-    ast = parse('false')
+    ast = parse("false")
     assert ast is False
 
 
 def test_true_expr():
-    ast = parse('true')
+    ast = parse("true")
     assert ast is True
 
 
 def test_null_expr():
-    ast = parse('null')
+    ast = parse("null")
     assert ast is None
+
+
+def test_escale_quotes_one():
+    check("swap('TEST', '\"TEST\" \\'TEST\\'')")
+
+
+def test_escale_quotes_both():
+    check("swap('\\'TEST\\' \"TEST\"', '\"TEST\" \\'TEST\\'')")
+
+
+def test_normal_text():
+    check("'TEST'")

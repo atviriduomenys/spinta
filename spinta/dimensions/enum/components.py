@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Dict
 
-from spinta.components import Model
-from spinta.components import Node
-from spinta.core.enums import Access
+from spinta.components import Model, ExtraMetaData
+from spinta.core.enums import Access, Status, Visibility
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.dimensions.lang.components import LangData
@@ -19,7 +18,7 @@ class EnumValueGiven:
     access: str = None
 
 
-class EnumItem(Node):
+class EnumItem(ExtraMetaData):
     source: str
     prepare: Expr
     access: Access = None
@@ -27,20 +26,34 @@ class EnumItem(Node):
     description: str
     given: EnumValueGiven
     lang: LangData
+    level: str
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
 
     schema = {
-        'name': {'type': 'string'},
-        'source': {'type': 'string'},
-        'prepare': {'type': 'spyna', 'default': NA},
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'model.access',
-            'default': 'protected',
+        "name": {"type": "string"},
+        "source": {"type": "string"},
+        "prepare": {"type": "spyna", "default": NA},
+        "access": {
+            "type": "string",
+            "choices": Access,
+            "inherit": "model.access",
+            "default": "protected",
         },
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
-        'lang': {'type': 'object'},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "lang": {"type": "object"},
+        "level": {"type": "string"},
+        "status": {
+            "type": "string",
+            "choices": Status,
+            "default": "develop",
+        },
+        "visibility": {"type": "string", "choices": Visibility, "default": "private"},
+        "eli": {"type": "string"},
+        "count": {"type": "integer"},
     }
 
     def __init__(self):

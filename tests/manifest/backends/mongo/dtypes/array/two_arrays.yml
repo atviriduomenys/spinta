@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/dtypes/array/two_arrays
+name: backends/mongo/dtypes/array/Two_arrays
 backend: mongo
 version:
   id: 1
