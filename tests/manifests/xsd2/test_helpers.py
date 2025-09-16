@@ -1528,7 +1528,7 @@ def test_process_attribute_with_both_ref_and_type_raises(xsd_reader):
     xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="string"))}
     state = State()
 
-    with pytest.raises(RuntimeError, match=r"attribute can't have both `ref` and `type`"):
+    with pytest.raises(RuntimeError, match=r"attribute  with ref 'tns:foo' can't have both `ref` and `type`"):
         xsd_reader.process_attribute(node, state)
 
 

@@ -839,7 +839,7 @@ class XSDReader:
 
         if ref := node.attrib.get("ref"):
             if attribute_type:
-                raise RuntimeError(f"attribute {node.attrib.get('name')} can't have both `ref` and `type`")
+                raise RuntimeError(f"attribute  with ref '{ref}' can't have both `ref` and `type`")
             if prop.xsd_name:
                 raise RuntimeError(f"attribute {node.attrib.get('name')} can't have both `ref` and `name`")
 
@@ -856,10 +856,10 @@ class XSDReader:
             if QName(child).localname == "simpleType":
                 if prop.type:
                     raise RuntimeError(
-                        f"attribute can't have both `type` defined and `simpleType` child element: {prop.xsd_name}"
+                        f"attribute '{prop.xsd_name}' can't have both `type` defined and `simpleType` child element: "
                     )
                 if ref:
-                    raise RuntimeError(f"attribute can't have both `ref` and `type`: {prop.xsd_name}")
+                    raise RuntimeError(f"attribute with ref '{ref}' can't have both `ref` and `type`")
                 prop.type = self.process_simple_type(child, state)
             elif QName(child).localname == "annotation":
                 prop.description = self.process_annotation(child, state)
