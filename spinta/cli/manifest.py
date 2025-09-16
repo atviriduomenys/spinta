@@ -70,6 +70,8 @@ def copy(
         rename_duplicates=rename_duplicates,
         manifests=manifests
     )
+    manager = context.get("error_manager")
+    manager.handler.post_process()
 
 
 def copy_manifest(
