@@ -32,9 +32,80 @@ existing client in `$SPINTA_CONFIG_PATH/clients/`.
 
 All unauthorized clients will be given default client permissions.
 
+UDTS format Scopes
+==================
 
-Scopes
-======
+Each client can be given list of scopes. Scopes names uses following pattern::
+
+    {$SPINTA_SCOPE_PREFIX}{ns}/{Model}/@{property}/:{action}
+
+`$SPINTA_SCOPE_PREFIX` can be set via configuration, default scope prefix is
+`uapi:/`. `ns`, `Model` and `property` are all optional, only `action` is
+required.
+
+
+.. _available-actions-udts:
+
+Following actions are available:
+
+:getone:
+  Client can get single object by id.
+
+:getall:
+  Client can get list of all objects, but can't use any search parameters.
+
+:search:
+  Client can get a list of all objects and use search parameters to filter objects.
+
+:changes:
+  Client can query whole model or single object changelog.
+
+:create:
+  Client can create new objects.
+
+:update:
+  Client can update existing objects by fully overwriting them.
+
+:patch:
+  Clients can update some properties of an existing objects by providing a patch.
+
+:delete:
+  Clients can do a soft delete, deleted objects will still be stored in
+  changelog.
+
+:wipe:
+  Clients can do a hard delete, objects will be deleted permanently, without
+  any trace in changelog. This is usually used in test environments and should
+  not be used in production environments.
+
+
+For example you can give read access to all data by giving client
+these scopes::
+
+    uapi:/:getone
+    uapi:/:getall
+    uapi:/:search
+
+Or you can give read access to all models in a namespace::
+
+    uapi:/geo/:getone
+    uapi:/geo/:getall
+    uapi:/geo/:search
+
+Or you can give explicit read access to a model::
+
+    uapi:/geo/Country/:getone
+    uapi:/geo/Country/:getall
+    uapi:/geo/Country/:search
+
+Or to a property::
+
+    uapi:/geo/Country/@code/:getone
+    uapi:/geo/Country/@code/:getall
+    uapi:/geo/Country/@code/:search
+
+Old format scopes (Deprecated and will be removed)
+==================================================
 
 Each client can be given list of scopes. Scopes names uses following pattern::
 
@@ -146,11 +217,11 @@ Here `country` model and `code` property have `access` set to `private`.
 
 :private:
   Explicit model or property scope is required to access data. For example if
-  client has `spinta_geo_getall` scope, `/geo/country` model data still can't
-  be accessed, because model requires explicit `spinta_geo_country_getall`
+  client has `uapi:/geo/:getall` scope, `/geo/country` model data still can't
+  be accessed, because model requires explicit `uapi:/geo/Country/:getall`
   scope. Same applies to properties. The only way to access `code` property is
   via subresource call `/geo/country/ID/code` and with explicit
-  `spinta_geo_country_code_getall` scope.
+  `uapi:/geo/Country/@code/:getall` scope.
 
   Private data can't be accessed directly, but can be used in filters or
   sorting.
@@ -195,10 +266,10 @@ Here is an example `credentials.cfg` file:
     client = client
     secret = secret
     scopes =
-      spinta_getall
-      spinta_getone
-      spinta_search
-      spinta_changes
+      uapi:/:getall
+      uapi:/:getone
+      uapi:/:search
+      uapi:/:changes
 
 `credentials.cfg` is an `INI file`_. Each section of this file represents a
 client credentials. Section is a name written between `[` and `]` symbols.
