@@ -76,10 +76,10 @@ def internal_authorized(
     if not isinstance(action, (list, tuple)):
         action = [action]
     scopes = [
-        internal_scope_formatter(context, scope, act, udts)
+        internal_scope_formatter(context, scope, act, is_udts)
         for act in action
         for scope in scopes
-        for udts in [False, True]
+        for is_udts in [False, True]
     ]
     # Check if client has at least one of required scopes.
     if throw:
@@ -92,11 +92,11 @@ def internal_scope_formatter(
     context: Context,
     name: str,
     action: Action,
-    udts: bool = False,
+    is_udts: bool = False,
 ) -> str:
     config = context.get("config")
 
-    if udts:
+    if is_udts:
         template = "{prefix}{name}/:{action}" if name else "{prefix}:{action}"
     else:
         template = "{prefix}{name}_{action}" if name else "{prefix}{action}"
@@ -106,10 +106,10 @@ def internal_scope_formatter(
         name,
         maxlen=config.scope_max_length,
         params={
-            "prefix": config.scope_prefix_udts if udts else config.scope_prefix,
-            "action": "create" if action.value == "insert" and udts else action.value,
+            "prefix": config.scope_prefix_udts if is_udts else config.scope_prefix,
+            "action": "create" if action.value == "insert" and is_udts else action.value,
         },
-        udts=udts,
+        is_udts=is_udts,
     )
 
 
