@@ -8,6 +8,7 @@ from spinta.core.config import RawConfig
 from spinta.core.config import configure_rc
 
 from spinta.core.config import read_config
+from spinta.handlers import CLIErrorHandler, ErrorManager
 from spinta.utils.imports import importstr
 
 
@@ -34,6 +35,10 @@ def create_context(
 
     Config = rc.get("components", "core", "config", cast=importstr, required=True)
     context.set("config", Config())
+
+    handler = CLIErrorHandler()
+    manager = ErrorManager(handler)
+    context.set("error_manager", manager)
 
     Store = rc.get("components", "core", "store", cast=importstr, required=True)
     context.set("store", Store())

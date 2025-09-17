@@ -4,7 +4,6 @@ from typing import Optional
 from typer import Argument
 from typer import Context as TyperContext
 from typer import Option
-from typer import echo
 
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
@@ -34,4 +33,5 @@ def check(
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
     prepare_manifest(context, ensure_config_dir=True, full_load=True)
-    echo("OK")
+    manager = context.get("error_manager")
+    manager.handler.post_process("check")

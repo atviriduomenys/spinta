@@ -172,7 +172,7 @@ def test_check_level(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     datasets/gov/example2    |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |        
                              |        |         |             |         |        |              
-      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | 9
       |   |   |   | code     | string |         | kodas       |         | public |
       |   |   |   | name     | string |         | pavadinimas |         | open   |
     """),
@@ -186,10 +186,83 @@ def test_check_level(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
         fail=False,
     )
+    assert result.exit_code == 0
+    assert "Invalid value." in result.stdout
+    assert "component: spinta.dimensions.enum.components.EnumItem" in result.stdout
+    assert "component: spinta.components.Model" in result.stdout
+    assert "model: datasets/gov/example2/Country" in result.stdout
+    assert "param: level" in result.stdout
+    assert "given: 9" in result.stdout
+    assert "Total errors: 2" in result.stdout
+    assert "manifest.csv" in result.stdout
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is InvalidValue
-    assert result.exception.context.get("given") == 9
+
+def test_check_level_multiple_manifests(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access | level
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | 
+      |   |   |   | code     | string |         | kodas       |         | public | 1
+      |   |   |   | name     | string |         | pavadinimas |         | open   | 2
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | 3
+                             | enum   |         | l           | 'left'  | open   | 9
+                             |        |         | r           | 'right' | open   |
+    datasets/gov/example2    |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |        
+                             |        |         |             |         |        |              
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public |
+      |   |   |   | name     | string |         | pavadinimas |         | open   |
+    """),
+    )
+
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest2.csv",
+        striptable("""
+        d | r | b | m | property | type   | ref     | source      | prepare | access | level
+        datasets/gov/example3    |        |         |             |         |        |
+          | data                 | sql    |         |             |         |        |
+                                 |        |         |             |         |        |
+          |   |   | Salis        |        | code    | salis       |         |        | 
+          |   |   |   | code     | string |         | kodas       |         | public | 1
+          |   |   |   | name     | string |         | pavadinimas |         | open   | 2
+          |   |   |   | driving  | string |         | vairavimas  |         | open   | 3
+                                 | enum   |         | l           | 'left'  | open   | 9
+                                 |        |         | r           | 'right' | open   |
+        datasets/gov/example4    |        |         |             |         |        |
+          | data                 | sql    |         |             |         |        |        
+                                 |        |         |             |         |        |              
+          |   |   | Salis        |        | code    | salis       |         |        | 9
+          |   |   |   | code     | string |         | kodas       |         | public |
+          |   |   |   | name     | string |         | pavadinimas |         | open   |
+        """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+            tmp_path / "manifest2.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code == 0
+    assert "Invalid value." in result.stdout
+    assert "component: spinta.dimensions.enum.components.EnumItem" in result.stdout
+    assert "component: spinta.components.Model" in result.stdout
+    assert "model: datasets/gov/example4/Salis" in result.stdout
+    assert "param: level" in result.stdout
+    assert "given: 9" in result.stdout
+    assert "Total errors: 3" in result.stdout
+    assert "manifest.csv" in result.stdout
+    assert "manifest2.csv" in result.stdout
 
 
 def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
