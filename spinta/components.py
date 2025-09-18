@@ -373,11 +373,7 @@ class Node(Component):
     
     @property
     def basename(self):
-        if "/:" in self.name:
-            name, params = self.name.split("/:")
-            if name:
-                return name.split("/")[-1] + "/:" + params
-        return self.name.split("/")[-1]
+        return self.name and self.name.split('/')[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -495,7 +491,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
-    url_params: str = None
+    params: str = None
 
 
 class PageBy:
@@ -768,15 +764,20 @@ class FunctionalModel(Model):
     A functional variant of a model, e.g. 'City/:getone' or 'City/:getall'.
     Possible functions:
     '/:part` - a partial model that cannot be accessed directly, but only as a part of a parent model';
+    '/:getone` - a model that only describes the `getone` action;
+    '/:getall' - a model that only describes the `getall` action;
+    '?' - indicates pre-defined filters for which this model is applicable;
     
     """
 
     parent_model: Model | None = None
-    params: UrlParams  # `City/:part` would be `params.part`
+    params: UrlParams
+    given: ModelGiven
 
     schema = {
-        'url_params': {'type': 'object'},
-        'given_url_params': {'type': 'string'},
+        'parent_model': {'type': 'object'},
+        'params': {'type': 'object'},
+        'given': {'type': 'object'},
     }
 
 
