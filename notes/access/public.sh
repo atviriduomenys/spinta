@@ -32,10 +32,10 @@ poetry run spinta genkeys
 
 # Add default client
 poetry run spinta client add -n default --add-secret --scope - <<EOF
-spinta_getone
-spinta_getall
-spinta_search
-spinta_changes
+uapi:/:getone
+uapi:/:getall
+uapi:/:search
+uapi:/:changes
 EOF
 #| var/instances/access/public/config/clients/id/25/f1/517c-6a4b-4b06-a085-dae6948dc36e.yml
 tree $BASEDIR/config/clients
@@ -45,10 +45,10 @@ cat $BASEDIR/config/clients/id/25/f1/517c-6a4b-4b06-a085-dae6948dc36e.yml
 #| client_secret: GgJyXChyCddxf_L3PJlt3gdeo8y0mHjp
 #| client_secret_hash: pbkdf2$sha256$180930$4lNWdwRCFA02HWHh9v0x_g$cBmQ8gO6FwZzcC-qMA9mQo0oYi-NDliSHz-lQShEEwQ
 #| scopes:
-#|   - spinta_getone
-#|   - spinta_getall
-#|   - spinta_search
-#|   - spinta_changes
+#|   - uapi:/:getone
+#|   - uapi:/:getall
+#|   - uapi:/:search
+#|   - uapi:/:changes
 cat $BASEDIR/config/clients/helpers/keymap.yml
 #| default: 25f1517c-6a4b-4b06-a085-dae6948dc36e
 mv $BASEDIR/config/clients/id/25/f1/517c-6a4b-4b06-a085-dae6948dc36e.yml $BASEDIR/config/clients/default.yml
@@ -58,16 +58,15 @@ cat $BASEDIR/config/clients/default.yml
 # Add client
 poetry run spinta client add -n test -s secret --add-secret --scope - <<EOF
 spinta_set_meta_fields
-spinta_getone
-spinta_getall
-spinta_search
-spinta_changes
-spinta_insert
-spinta_upsert
-spinta_update
-spinta_patch
-spinta_delete
-spinta_wipe
+uapi:/:getone
+uapi:/:getall
+uapi:/:search
+uapi:/:changes
+uapi:/:create
+uapi:/:update
+uapi:/:patch
+uapi:/:delete
+uapi:/:wipe
 spinta_auth_clients
 EOF
 #| var/instances/access/public/config/clients/id/0b/f0/3b54-eba0-4045-aade-d798d3015aba.yml
@@ -91,10 +90,10 @@ client_id: default
 client_secret: secret
 client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
 scopes:
-  - spinta_getone
-  - spinta_getall
-  - spinta_search
-  - spinta_changes
+  - uapi:/:getone
+  - uapi:/:getall
+  - uapi:/:search
+  - uapi:/:changes
 EOF
 
 cat $BASEDIR/config/clients/test.yml
@@ -104,17 +103,16 @@ client_secret: secret
 client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
 scopes:
   - spinta_set_meta_fields
-  - spinta_getone
-  - spinta_getall
-  - spinta_search
-  - spinta_changes
-  - spinta_insert
-  - spinta_upsert
-  - spinta_update
-  - spinta_patch
-  - spinta_delete
-  - spinta_wipe
-  - spinta_auth_clients
+  - uapi:/:getone
+  - uapi:/:getall
+  - uapi:/:search
+  - uapi:/:changes
+  - uapi:/:create
+  - uapi:/:update
+  - uapi:/:patch
+  - uapi:/:delete
+  - uapi:/:wipe
+  - uapi:/:auth_clients
 EOF
 
 # notes/spinta/server.sh    Run migrations
@@ -125,16 +123,15 @@ CLIENT=test
 SECRET=secret
 SCOPES=(
     spinta_set_meta_fields
-    spinta_getone
-    spinta_getall
-    spinta_search
-    spinta_changes
-    spinta_insert
-    spinta_upsert
-    spinta_update
-    spinta_patch
-    spinta_delete
-    spinta_wipe
+    uapi:/:getone
+    uapi:/:getall
+    uapi:/:search
+    uapi:/:changes
+    uapi:/:create
+    uapi:/:update
+    uapi:/:patch
+    uapi:/:delete
+    uapi:/:wipe
     spinta_auth_clients
 )
 http -a $CLIENT:$SECRET -f $SERVER/auth/token grant_type=client_credentials scope="$SCOPES"
@@ -168,16 +165,15 @@ cat $BASEDIR/config/clients/test.yml
 #| client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
 #| scopes:
 #|   - spinta_set_meta_fields
-#|   - spinta_getone
-#|   - spinta_getall
-#|   - spinta_search
-#|   - spinta_changes
-#|   - spinta_insert
-#|   - spinta_upsert
-#|   - spinta_update
-#|   - spinta_patch
-#|   - spinta_delete
-#|   - spinta_wipe
+#|   - uapi:/:getone
+#|   - uapi:/:getall
+#|   - uapi:/:search
+#|   - uapi:/:changes
+#|   - uapi:/:create
+#|   - uapi:/:update
+#|   - uapi:/:patch
+#|   - uapi:/:delete
+#|   - uapi:/:wipe
 #|   - spinta_auth_clients
 cat $BASEDIR/config/clients/helpers/keymap.yml
 # test: 80b73a02-33e5-46a6-af73-abd5ce4f283d
@@ -187,16 +183,15 @@ cat $BASEDIR/config/clients/id/80/b7/3a02-33e5-46a6-af73-abd5ce4f283d.yml
 #| client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
 #| scopes:
 #|   - spinta_set_meta_fields
-#|   - spinta_getone
-#|   - spinta_getall
-#|   - spinta_search
-#|   - spinta_changes
-#|   - spinta_insert
-#|   - spinta_upsert
-#|   - spinta_update
-#|   - spinta_patch
-#|   - spinta_delete
-#|   - spinta_wipe
+#|   - uapi:/:getone
+#|   - uapi:/:getall
+#|   - uapi:/:search
+#|   - uapi:/:changes
+#|   - uapi:/:create
+#|   - uapi:/:update
+#|   - uapi:/:patch
+#|   - uapi:/:delete
+#|   - uapi:/:wipe
 #|   - spinta_auth_clients
 
 http -a test:$SECRET -f $SERVER/auth/token grant_type=client_credentials scope="$SCOPES"
@@ -246,18 +241,17 @@ http GET "$SERVER/auth/clients/80b73a02-33e5-46a6-af73-abd5ce4f283d" $AUTH
 #|     "client_id": "80b73a02-33e5-46a6-af73-abd5ce4f283d",
 #|     "client_name": "test",
 #|     "scopes": [
-#|         "spinta_update",
-#|         "spinta_changes",
-#|         "spinta_wipe",
+#|         "uapi:/:update",
+#|         "uapi:/:changes",
+#|         "uapi:/:wipe",
 #|         "spinta_auth_clients",
-#|         "spinta_getone",
+#|         "uapi:/:getone",
 #|         "spinta_set_meta_fields",
-#|         "spinta_patch",
-#|         "spinta_insert",
-#|         "spinta_upsert",
-#|         "spinta_search",
-#|         "spinta_delete",
-#|         "spinta_getall"
+#|         "uapi:/:patch",
+#|         "uapi:/:create",
+#|         "uapi:/:search",
+#|         "uapi:/:delete",
+#|         "uapi:/:getall"
 #|     ]
 #| }
 
@@ -265,9 +259,9 @@ http GET "$SERVER/auth/clients/80b73a02-33e5-46a6-af73-abd5ce4f283d" $AUTH
 http POST "$SERVER/auth/clients" <<'EOF'
 {
     "scopes": [
-        "spinta_getall",
-        "spinta_getone",
-        "spinta_search"
+        "uapi:/:getall",
+        "uapi:/:getone",
+        "uapi:/:search"
     ]
 }
 EOF
@@ -277,9 +271,9 @@ http POST "$SERVER/auth/clients" $AUTH <<'EOF'
 {
     "secret": "verysecret",
     "scopes": [
-        "spinta_getall",
-        "spinta_getone",
-        "spinta_search"
+        "uapi:/:getall",
+        "uapi:/:getone",
+        "uapi:/:search"
     ]
 }
 EOF
@@ -287,9 +281,9 @@ EOF
 #|     "client_id": "ce39382b-edcb-4c3c-af12-70506e724086",
 #|     "client_name": "ce39382b-edcb-4c3c-af12-70506e724086",
 #|     "scopes": [
-#|         "spinta_getall",
-#|         "spinta_getone",
-#|         "spinta_search"
+#|         "uapi:/:getall",
+#|         "uapi:/:getone",
+#|         "uapi:/:search"
 #|     ]
 #| }
 
@@ -314,11 +308,11 @@ cat $BASEDIR/config/clients/id/ce/39/382b-edcb-4c3c-af12-70506e724086.yml
 #| client_name: ce39382b-edcb-4c3c-af12-70506e724086
 #| client_secret_hash: pbkdf2$sha256$950424$FadCqxvtoEDNypZ1EWu5_A$NDx-WpH4g08qYq-wNgvVPFPPeOSUmbmeStjndA22sg4
 #| scopes:
-#|   - spinta_getall
-#|   - spinta_getone
-#|   - spinta_search
+#|   - uapi:/:getall
+#|   - uapi:/:getone
+#|   - uapi:/:search
 
-http -a ce39382b-edcb-4c3c-af12-70506e724086:verysecret -f $SERVER/auth/token grant_type=client_credentials scope="spinta_getall"
+http -a ce39382b-edcb-4c3c-af12-70506e724086:verysecret -f $SERVER/auth/token grant_type=client_credentials scope="uapi:/:getall"
 #| HTTP/1.1 200 OK
 #| 
 #| {
@@ -329,12 +323,12 @@ http -a ce39382b-edcb-4c3c-af12-70506e724086:verysecret -f $SERVER/auth/token gr
 #| HwY71ALtL0tc_0key_pGokBm_qhW2tDFTOr22Is5n0yG5s2cRHZRoFNz0NRR97olENKfvh3xTLkGGf-tNL6ad705WsMnJqzEL_vBjgFdpM1e_Nk8_dZgPxf
 #| y2DN7zuIWGvvQqKF3uFKetcN2UHxhzsoIIq-pCX9XLjA",
 #|     "expires_in": 864000,
-#|     "scope": "spinta_getall",
+#|     "scope": "uapi:/:getall",
 #|     "token_type": "Bearer"
 #| }
 
 
-poetry run spinta client add -n new --scope spinta_getall
+poetry run spinta client add -n new --scope uapi:/:getall
 #| var/instances/access/public/config/clients/id/2e/a8/e9e8-92db-4820-a51a-bdbae49e31cb.yml
 tree $BASEDIR/config/clients
 #| var/instances/access/public/config/clients
@@ -352,14 +346,14 @@ http GET "$SERVER/auth/clients/2ea8e9e8-92db-4820-a51a-bdbae49e31cb" $AUTH
 #|     "client_id": "2ea8e9e8-92db-4820-a51a-bdbae49e31cb",
 #|     "client_name": "new",
 #|     "scopes": [
-#|         "spinta_getall"
+#|         "uapi:/:getall"
 #|     ]
 #| }
 http PATCH "$SERVER/auth/clients/2ea8e9e8-92db-4820-a51a-bdbae49e31cb" $AUTH <<EOF
 {
     "scopes": [
-        "spinta_getall",
-        "spinta_search"
+        "uapi:/:getall",
+        "uapi:/:search"
     ]
 }
 EOF
@@ -367,8 +361,8 @@ EOF
 #|     "client_id": "2ea8e9e8-92db-4820-a51a-bdbae49e31cb",
 #|     "client_name": "new",
 #|     "scopes": [
-#|         "spinta_getall",
-#|         "spinta_search"
+#|         "uapi:/:getall",
+#|         "uapi:/:search"
 #|     ]
 #| }
 http GET "$SERVER/auth/clients/2ea8e9e8-92db-4820-a51a-bdbae49e31cb" $AUTH
@@ -376,8 +370,8 @@ http GET "$SERVER/auth/clients/2ea8e9e8-92db-4820-a51a-bdbae49e31cb" $AUTH
 #|     "client_id": "2ea8e9e8-92db-4820-a51a-bdbae49e31cb",
 #|     "client_name": "new",
 #|     "scopes": [
-#|         "spinta_search",
-#|         "spinta_getall"
+#|         "uapi:/:search",
+#|         "uapi:/:getall"
 #|     ]
 #| }
 http DELETE "$SERVER/auth/clients/2ea8e9e8-92db-4820-a51a-bdbae49e31cb" $AUTH
@@ -393,9 +387,9 @@ EOF
 #|     "client_id": "ce39382b-edcb-4c3c-af12-70506e724086",
 #|     "client_name": "old",
 #|     "scopes": [
-#|         "spinta_search",
-#|         "spinta_getone",
-#|         "spinta_getall"
+#|         "uapi:/:search",
+#|         "uapi:/:getone",
+#|         "uapi:/:getall"
 #|     ]
 #| }
 http get "$SERVER/auth/clients/ce39382b-edcb-4c3c-af12-70506e724086" $AUTH
@@ -403,9 +397,9 @@ http get "$SERVER/auth/clients/ce39382b-edcb-4c3c-af12-70506e724086" $AUTH
 #|     "client_id": "ce39382b-edcb-4c3c-af12-70506e724086",
 #|     "client_name": "old",
 #|     "scopes": [
-#|         "spinta_search",
-#|         "spinta_getone",
-#|         "spinta_getall"
+#|         "uapi:/:search",
+#|         "uapi:/:getone",
+#|         "uapi:/:getall"
 #|     ]
 #| }
 
@@ -427,7 +421,7 @@ TOKEN=$(
         -a old:verysecret \
         -f $SERVER/auth/token \
         grant_type=client_credentials \
-        scope="spinta_search spinta_getone spinta_getall" \
+        scope="uapi:/:search uapi:/:getone uapi:/:getall" \
     | jq -r .access_token
 )
 AUTH="Authorization: Bearer $TOKEN"
@@ -448,7 +442,7 @@ http DELETE "$SERVER/$DATASET/Person/27489d9c-0f05-463a-bcdb-d4b54f1fca27" $AUTH
 #|     "errors": [
 #|         {
 #|             "code": "InsufficientScopeError",
-#|             "message": "insufficient_scope: Missing one of scopes: spinta_access_delete, spinta_access_public_delete, spinta_access_public_person_delete, spinta_delete"
+#|             "message": "insufficient_scope: Missing one of scopes: uapi:/access/:delete, uapi:/access/public/:delete, uapi:/access/public/person/:delete, uapi:/:delete"
 #|         }
 #|     ]
 #| }
@@ -474,9 +468,9 @@ http POST "$SERVER/auth/clients" $AUTH <<'EOF'
 {
     "secret": "verysecret",
     "scopes": [
-        "spinta_getall",
-        "spinta_getone",
-        "spinta_search"
+        "uapi:/:getall",
+        "uapi:/:getone",
+        "uapi:/:search"
     ]
 }
 EOF
@@ -503,7 +497,7 @@ TOKEN=$(
         -a default:secret \
         -f $SERVER/auth/token \
         grant_type=client_credentials \
-        scope="spinta_getall" \
+        scope="uapi:/:getall" \
     | jq -r .access_token
 )
 AUTH="Authorization: Bearer $TOKEN"
@@ -533,7 +527,7 @@ http POST "$SERVER/auth/clients" $AUTH <<'EOF'
     "client_name": "example",
     "secret": "sample",
     "scopes": [
-        "spinta_datasets_example_getall"
+        "uapi:/datasets/example/:getall"
     ]
 }
 EOF
@@ -543,7 +537,7 @@ TOKEN=$(
         -a example:sample \
         -f $SERVER/auth/token \
         grant_type=client_credentials \
-        scope="spinta_datasets_example_getall" \
+        scope="uapi:/datasets/example/:getall" \
     | jq -r .access_token
 )
 AUTH="Authorization: Bearer $TOKEN"
@@ -556,8 +550,8 @@ http GET "$SERVER/$DATASET/Person?format(ascii)" $AUTH
 #|     "errors": [
 #|         {
 #|             "code": "InsufficientScopeError",
-#|             "message": "insufficient_scope: Missing one of scopes: spinta_access_getall, spinta_access_public_getall, s
-#| pinta_access_public_person_getall, spinta_getall"
+#|             "message": "insufficient_scope: Missing one of scopes: uapi:/access/:getall, uapi:/access/public/:getall,
+# uapi:/access/public/person/:getall, uapi:/:getall"
 #|         }
 #|     ]
 #| }
