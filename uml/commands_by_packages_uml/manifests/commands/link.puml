@@ -1,0 +1,15 @@
+@startuml
+package link <<Rectangle>> {
+
+    object link {
+        +context: Context
+        +manifest: Manifest
+        +node: MetaData
+    }
+}
+
+link *-- Context
+link *-- Manifest
+link *-- MetaData
+
+@enduml
