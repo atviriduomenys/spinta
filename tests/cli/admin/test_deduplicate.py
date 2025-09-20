@@ -178,15 +178,15 @@ def test_admin_deduplicate_requires_destructive(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getone",
-            "uapi:/:delete",
-            "uapi:/:wipe",
-            "uapi:/:search",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:getall",
-            "uapi:/:changes",
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
         ]
     )
 
@@ -354,15 +354,15 @@ def test_admin_deduplicate_simple(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getone",
-            "uapi:/:delete",
-            "uapi:/:wipe",
-            "uapi:/:search",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:getall",
-            "uapi:/:changes",
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
         ]
     )
 
@@ -550,15 +550,15 @@ def test_admin_deduplicate_referenced(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getone",
-            "uapi:/:delete",
-            "uapi:/:wipe",
-            "uapi:/:search",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:getall",
-            "uapi:/:changes",
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
         ]
     )
 

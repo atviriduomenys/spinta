@@ -58,13 +58,13 @@ def test_move_delete_missing_revision(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:wipe",
-            "uapi:/:changes",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:patch",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_wipe",
+            "spinta_changes",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_patch",
         ]
     )
     lt_id = "af697924-00ef-4dda-b212-0666f74b5365"
@@ -283,13 +283,13 @@ def test_move_delete_missing_id(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:wipe",
-            "uapi:/:changes",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:patch",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_wipe",
+            "spinta_changes",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_patch",
         ]
     )
     lt_id = "af697924-00ef-4dda-b212-0666f74b5365"
@@ -503,13 +503,13 @@ def test_move_delete_invalid_id(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:wipe",
-            "uapi:/:changes",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:patch",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_wipe",
+            "spinta_changes",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_patch",
         ]
     )
     lt_id = "af697924-00ef-4dda-b212-0666f74b5365"
@@ -721,7 +721,7 @@ def test_move_delete_simple(
 
     app = create_test_client(context)
     app.authorize(
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:changes", "uapi:/:set_meta_fields", "uapi:/:move"]
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_changes", "spinta_set_meta_fields", "spinta_move"]
     )
     lt_id = "af697924-00ef-4dda-b212-0666f74b5365"
     new_lt_id = "ef697924-00ef-4dda-b212-0666f74b5365"
@@ -817,13 +817,13 @@ def test_move_delete_referenced(
     app = create_test_client(context)
     app.authorize(
         [
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:wipe",
-            "uapi:/:changes",
-            "uapi:/:set_meta_fields",
-            "uapi:/:move",
-            "uapi:/:patch",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_wipe",
+            "spinta_changes",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_patch",
         ]
     )
     lt_id = "af697924-00ef-4dda-b212-0666f74b5365"

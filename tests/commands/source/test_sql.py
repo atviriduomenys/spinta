@@ -44,7 +44,7 @@ def test_sql(rc, cli, sql, app):
     assert len(pull(cli, rc, "sql")) == 3
     assert len(pull(cli, rc, "sql")) == 0
 
-    app.authorize(["uapi:/:getall", "uapi:/:search"])
+    app.authorize(["spinta_getall", "spinta_search"])
 
     assert app.getdata("/country") == []
     assert app.getdata("/country/:dataset/sql?select(code,title)&sort(+code)") == [

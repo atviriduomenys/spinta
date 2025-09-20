@@ -23,7 +23,7 @@ def test_detect_upgrade_clients_only_yml(
     os.makedirs(clients_path, exist_ok=True)
 
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
     )
 
     with pytest.raises(ClientsMigrationRequired):
@@ -41,7 +41,7 @@ def test_detect_upgrade_clients_no_keymap(
     os.makedirs(clients_path, exist_ok=True)
 
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
     )
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
@@ -72,7 +72,7 @@ def test_detect_upgrade_clients_no_id(
     os.makedirs(clients_path, exist_ok=True)
 
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
     )
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
@@ -103,7 +103,7 @@ def test_detect_upgrade_clients_empty_keymap(
     os.makedirs(clients_path, exist_ok=True)
 
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
     )
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
@@ -134,7 +134,7 @@ def test_detect_upgrade_clients_empty_id(
     os.makedirs(clients_path, exist_ok=True)
 
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
     )
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
