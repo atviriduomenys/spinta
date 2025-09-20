@@ -28,7 +28,7 @@ def test_upgrade_clients_detect_upgrade(context, rc, cli: SpintaCliRunner, tmp_p
 
     # Create already existing file, to imitate old structure
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     items = os.listdir(clients_path)
     assert items == ["TEST.yml"]
@@ -61,7 +61,7 @@ def test_upgrade_clients_detect_upgrade(context, rc, cli: SpintaCliRunner, tmp_p
         "client_id": test_id,
         "client_name": "TEST",
         "client_secret_hash": "secret",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
     }
 
 
@@ -72,11 +72,11 @@ def test_upgrade_clients_detect_upgrade_multiple(context, rc, cli: SpintaCliRunn
 
     # Create already existing file, to imitate old structure
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
 
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     items = os.listdir(clients_path)
     assert Counter(items) == Counter(["TEST.yml", "NEW.yml"])
@@ -110,7 +110,7 @@ def test_upgrade_clients_detect_upgrade_multiple(context, rc, cli: SpintaCliRunn
         "client_id": test_id,
         "client_name": "TEST",
         "client_secret_hash": "secret",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
     }
 
     new_id = keymap["NEW"]
@@ -125,7 +125,7 @@ def test_upgrade_clients_detect_upgrade_multiple(context, rc, cli: SpintaCliRunn
         "client_id": new_id,
         "client_name": "NEW",
         "client_secret_hash": "secret",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
     }
 
 
@@ -141,7 +141,7 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(
 
     # Create already existing file, to imitate old structure
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     items = os.listdir(clients_path)
     assert Counter(items) == Counter(["TEST.yml", "helpers", "id"])
@@ -180,7 +180,7 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(
         "client_id": test_id,
         "client_name": "TEST",
         "client_secret_hash": "secret",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
     }
 
 
@@ -194,7 +194,7 @@ def test_upgrade_clients_skip_upgrade(context, rc, cli: SpintaCliRunner, tmp_pat
 
     # Create and migrate files
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -208,7 +208,7 @@ def test_upgrade_clients_skip_upgrade(context, rc, cli: SpintaCliRunner, tmp_pat
 
     # Add new client
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
@@ -259,7 +259,7 @@ def test_upgrade_clients_invalid_client_missing_id(context, rc, cli: SpintaCliRu
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create already existing file, to imitate old structure
-    create_old_client_file(clients_path, {"client_secret_hash": "secret", "scopes": ["spinta_getall"]}, "TEST")
+    create_old_client_file(clients_path, {"client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}, "TEST")
     items = os.listdir(clients_path)
     assert items == ["TEST.yml"]
 
@@ -291,7 +291,7 @@ def test_upgrade_clients_invalid_client_missing_secret(context, rc, cli: SpintaC
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create already existing file, to imitate old structure
-    create_old_client_file(clients_path, {"client_id": "TEST", "scopes": ["spinta_getall"]}, "TEST")
+    create_old_client_file(clients_path, {"client_id": "TEST", "scopes": ["uapi:/:getall"]}, "TEST")
     items = os.listdir(clients_path)
     assert items == ["TEST.yml"]
 
@@ -366,14 +366,14 @@ def test_upgrade_clients_force_upgrade(context, rc, cli: SpintaCliRunner, tmp_pa
 
     # Create and migrate files
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
 
     # Add new client
     create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
@@ -409,7 +409,7 @@ def test_upgrade_clients_force_upgrade(context, rc, cli: SpintaCliRunner, tmp_pa
         "client_id": new_id,
         "client_name": "NEW",
         "client_secret_hash": "secret",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
     }
 
 
@@ -423,7 +423,7 @@ def test_upgrade_clients_force_upgrade_destructive(context, rc, cli: SpintaCliRu
 
     # Create and migrate files
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -440,7 +440,7 @@ def test_upgrade_clients_force_upgrade_destructive(context, rc, cli: SpintaCliRu
     # Update client scopes
     create_old_client_file(
         clients_path,
-        {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall", "spinta_update"]},
+        {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall", "uapi:/:update"]},
     )
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
@@ -470,5 +470,5 @@ def test_upgrade_clients_force_upgrade_destructive(context, rc, cli: SpintaCliRu
         "client_id": test_id,
         "client_name": "TEST",
         "client_secret_hash": "secret",
-        "scopes": ["spinta_getall", "spinta_update"],
+        "scopes": ["uapi:/:getall", "uapi:/:update"],
     }

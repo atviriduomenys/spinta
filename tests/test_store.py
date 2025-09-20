@@ -56,7 +56,7 @@ def test_schema_loader(model, app):
         "title": "My Org",
     }
 
-    app.authorize(["spinta_getone"])
+    app.authorize(["uapi:/:getone"])
 
     resp = app.get(f"/{model_org}/{org['_id']}")
     data = resp.json()
@@ -127,7 +127,7 @@ def test_root(context, rc: RawConfig, tmp_path: Path):
             "root": "datasets/gov/vpt",
         },
     )
-    app.authorize(["spinta_getall"])
+    app.authorize(["uapi:/:getall"])
     assert listdata(app.get("/"), "name") == [
         "datasets/gov/vpt/new/:ns",
         "datasets/gov/vpt/old/:ns",
@@ -222,7 +222,7 @@ def test_resource_backends(
         },
     )
 
-    app.authorize(["spinta_getall"])
+    app.authorize(["uapi:/:getall"])
 
     assert listdata(app.get("/datasets/gov/vpt/old/Country")) == [
         (1, "Lithuania"),

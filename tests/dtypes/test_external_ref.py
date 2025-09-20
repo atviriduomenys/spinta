@@ -216,7 +216,7 @@ def test_external_ref_unassign(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"])
 
     city_model = "datasets/external/ref/m/City"
     country_model = "datasets/external/ref/m/Country"
@@ -261,7 +261,7 @@ def test_external_ref_unassign_invalid(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"])
 
     city_model = "datasets/external/ref/m/City"
     country_model = "datasets/external/ref/m/Country"
@@ -305,7 +305,7 @@ def test_external_ref_unassign_invalid_no_pk(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"])
 
     city_model = "datasets/external/ref/n/City"
     country_model = "datasets/external/ref/n/Country"

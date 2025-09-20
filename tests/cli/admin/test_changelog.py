@@ -201,15 +201,15 @@ def test_admin_changelog_old_deleted_entries(
     app = create_test_client(context)
     app.authorize(
         [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
-            "spinta_changes",
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
+            "uapi:/:changes",
         ]
     )
     c_0 = str(uuid.uuid4())

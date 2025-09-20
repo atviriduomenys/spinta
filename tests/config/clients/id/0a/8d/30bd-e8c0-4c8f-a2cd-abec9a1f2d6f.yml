@@ -8,3 +8,9 @@ scopes:
   - spinta_search
   - spinta_changes
   - spinta_check
+  - uapi:/:getone
+  - uapi:/:getall
+  - uapi:/:search
+  - uapi:/:changes
+  - uapi:/:check
+

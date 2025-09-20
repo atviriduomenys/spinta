@@ -45,13 +45,13 @@ def _set_auth_token_with_client_file(context: Context, clients_path: pathlib.Pat
         name=str(client_id),
         client_id=str(client_id),
         secret="secret",
-        scopes=["spinta_getall"],
+        scopes=["uapi:/:getall"],
         backends=client_backends,
         add_secret=True,
     )
 
     pkey = auth.load_key(context, auth.KeyType.private)
-    token = auth.create_access_token(context, pkey, str(client_id), scopes={"spinta_getall"})
+    token = auth.create_access_token(context, pkey, str(client_id), scopes={"uapi:/:getall"})
     token = auth.Token(token, BearerTokenValidator(context))
     context.set("auth.token", token)
 

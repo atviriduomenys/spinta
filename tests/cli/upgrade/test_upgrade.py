@@ -28,7 +28,7 @@ def test_upgrade_check_only(context, rc, cli: SpintaCliRunner, tmp_path: pathlib
 
     # Create already existing file, to imitate old structure
     create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": ["uapi:/:getall"]}
     )
     items = os.listdir(clients_path)
     assert items == ["TEST.yml"]

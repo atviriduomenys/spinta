@@ -47,7 +47,7 @@ def test_getall(
     )
     _prep_context(context)
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lithuania_id = "d3482081-1c30-43a4-ae6f-faf6a40c954a"
     vilnius_id = "3aed7394-18da-4c17-ac29-d501d5dd0ed7"
     app.post("/example/Country", json={"_id": lithuania_id, "name": "Lithuania"})
@@ -87,7 +87,7 @@ def test_getall_pagination_disabled(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -124,7 +124,7 @@ def test_getall_pagination_enabled(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -162,7 +162,7 @@ def test_getall_pagination_disabled_in_config(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -200,7 +200,7 @@ def test_getall_pagination_disabled_in_config_enabled_in_request(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -237,7 +237,7 @@ def test_get_date(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/date/test", ["insert", "getall", "search"])
+    app.authmodel("example/date/test", ["create", "getall", "search"])
     app.post("/example/date/test/Test", json={"date": "2020-01-01"})
     response = app.get("/example/date/test/Test")
     json_response = response.json()
@@ -268,7 +268,7 @@ def test_get_datetime(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/datetime/test", ["insert", "getall", "search"])
+    app.authmodel("example/datetime/test", ["create", "getall", "search"])
     app.post("/example/datetime/test/Test", json={"date": "2020-01-01T10:00:10"})
     response = app.get("/example/datetime/test/Test")
     json_response = response.json()
@@ -299,7 +299,7 @@ def test_get_time(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/time/test", ["insert", "getall", "search"])
+    app.authmodel("example/time/test", ["create", "getall", "search"])
     app.post("/example/time/test/Test", json={"date": "10:00:10"})
     response = app.get("/example/time/test/Test")
     json_response = response.json()
@@ -331,7 +331,7 @@ def test_get_paginate_with_none_simple(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/page/null/simple", ["insert", "getall", "search"])
+    app.authmodel("example/page/null/simple", ["create", "getall", "search"])
     app.post("/example/page/null/simple/Test", json={"id": 0, "name": "Test0"})
     app.post("/example/page/null/simple/Test", json={"id": None, "name": "Test1"})
     app.post("/example/page/null/simple/Test", json={"id": 1, "name": "Test2"})
@@ -405,7 +405,7 @@ def test_get_paginate_invalid_type(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/page/invalid", ["insert", "getall", "search"])
+    app.authmodel("example/page/invalid", ["create", "getall", "search"])
     app.post("/example/page/invalid/Test", json={"id": 0, "name": "Test0"})
     app.post("/example/page/invalid/Test", json={"id": 0, "name": "Test1"})
     app.post("/example/page/invalid/Test", json={"id": 0, "name": None})
@@ -455,7 +455,7 @@ def test_get_paginate_with_none_multi_key(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/page/null/multi", ["insert", "getall", "search"])
+    app.authmodel("example/page/null/multi", ["create", "getall", "search"])
     app.post("/example/page/null/multi/Test", json={"id": 0, "name": "Test0"})
     app.post("/example/page/null/multi/Test", json={"id": 0, "name": "Test1"})
     app.post("/example/page/null/multi/Test", json={"id": 0, "name": None})
@@ -566,7 +566,7 @@ def test_join_with_base(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
     VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
     TST = "2074d66e-0dfd-4233-b1ec-199abc994d0e"
@@ -704,7 +704,7 @@ def test_invalid_inherit_check(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
 
     resp = app.post(
@@ -770,7 +770,7 @@ def test_checksum_result(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
     lv_id = str(uuid.uuid4())
 
@@ -868,7 +868,7 @@ def test_checksum_geometry(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
     lv_id = str(uuid.uuid4())
 
@@ -921,7 +921,7 @@ def test_geometry_manifest_flip_select(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -975,7 +975,7 @@ def test_geometry_manifest_flip(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1029,7 +1029,7 @@ def test_geometry_select_flip(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1087,7 +1087,7 @@ def test_geometry_combined_flip(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1145,7 +1145,7 @@ def test_geometry_manifest_flip_invalid_bbox(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1190,7 +1190,7 @@ def test_geometry_point(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1231,7 +1231,7 @@ def test_filter_lithuanian_letters(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
 
     app.post(
         "/datasets/filters/chars/City",
@@ -1310,7 +1310,7 @@ def test_swap_ufunc(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
 
     for _id, name in enumerate(("nan", "test", "", None)):
         resp = app.post("/datasets/geometry/point/Country", json={"id": _id, "name": name})
@@ -1354,7 +1354,7 @@ def test_replace_source_with_prepare(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
 
     for _id in range(1, 5):
         resp = app.post("/datasets/geometry/point/Country", json={"id": _id, "name": str(_id)})
@@ -1403,7 +1403,7 @@ def test_null_under_prepare(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"])
 
     resp = app.post("/datasets/geometry/point/Country", json={"id": 1, "name": None})
     assert resp.status_code == 201, resp.text
@@ -1444,7 +1444,7 @@ def test_getone_redirect(
 
     app = create_test_client(context)
     app.authorize(
-        ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"]
+        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"]
     )
     lt_id = str(uuid.uuid4())
     new_lt_id = str(uuid.uuid4())
@@ -1553,14 +1553,14 @@ def test_getone_potential_redirect_loop(
     app = create_test_client(context)
     app.authorize(
         [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
         ]
     )
     lt_id = str(uuid.uuid4())
@@ -1660,7 +1660,7 @@ def test_getone_invalid_value_missing_redirect(
 
     app = create_test_client(context)
     app.authorize(
-        ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"]
+        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"]
     )
     lt_id = str(uuid.uuid4())
 
