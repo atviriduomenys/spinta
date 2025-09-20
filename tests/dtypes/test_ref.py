@@ -38,7 +38,7 @@ def test_ref_change_assignment(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"])
 
     city_model = "datasets/ref/City"
     country_model = "datasets/ref/Country"
@@ -84,7 +84,7 @@ def test_ref_unassign(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"])
 
     city_model = "datasets/ref/City"
     country_model = "datasets/ref/Country"
@@ -129,7 +129,7 @@ def test_ref_unassign_incorrect(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"])
 
     city_model = "datasets/ref/City"
     country_model = "datasets/ref/Country"

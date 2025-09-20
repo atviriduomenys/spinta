@@ -6,3 +6,7 @@ scopes:
   - spinta_getall
   - spinta_search
   - spinta_changes
+  - uapi:/:getone
+  - uapi:/:getall
+  - uapi:/:search
+  - uapi:/:changes
