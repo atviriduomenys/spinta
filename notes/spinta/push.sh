@@ -7,18 +7,17 @@ client = test
 secret = secret
 server = http://localhost:8000
 scopes =
-  spinta_set_meta_fields
-  spinta_auth_clients
-  spinta_getone
-  spinta_getall
-  spinta_search
-  spinta_changes
-  spinta_insert
-  spinta_upsert
-  spinta_update
-  spinta_patch
-  spinta_delete
-  spinta_wipe
+  uapi:/:set_meta_fields
+  uapi:/:auth_clients
+  uapi:/:getone
+  uapi:/:getall
+  uapi:/:search
+  uapi:/:changes
+  uapi:/:create
+  uapi:/:update
+  uapi:/:patch
+  uapi:/:delete
+  uapi:/:wipe
 EOF
 
 
