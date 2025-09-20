@@ -104,7 +104,7 @@ def test_schema_invalid_manifest_type(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
     resp = app.post("/api/schema/error/type/Country/:schema")
     assert error(resp, status=400) == "NotSupportedManifestType"
 
@@ -130,7 +130,7 @@ def test_schema_invalid_path_model_and_ns(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
     resp = app.post("/api/schema/error/path/Country/:schema")
     assert error(resp, status=400) == "InvalidSchemaUrlPath"
 
@@ -159,7 +159,7 @@ def test_schema_invalid_dataset_name(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     resp = app.post("/api/schema/error/1/:schema")
     assert error(resp, status=400) == "InvalidName"
@@ -186,7 +186,7 @@ def test_schema_invalid_content_type(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     resp = app.post("/api/schema/error/content/:schema")
     assert error(resp, status=400) == "ModifySchemaRequiresFile"
@@ -216,7 +216,7 @@ def test_schema_invalid_file_size(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     # push 150MB file
     resp = app.post(
@@ -246,7 +246,7 @@ def test_schema_empty_file(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     csv_manifest = convert_ascii_manifest_to_csv("""
     id | d | r | b | m | property | type
@@ -277,7 +277,7 @@ def test_schema_dataset_missmatch(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     csv_manifest = convert_ascii_manifest_to_csv("""
     d | r | b | m | property      | type    | ref
@@ -312,7 +312,7 @@ def test_schema_more_than_one_dataset(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     csv_manifest = convert_ascii_manifest_to_csv("""
     d | r | b | m | property      | type    | ref
@@ -351,7 +351,7 @@ def test_schema_requires_ids(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write"])
+    app.authorize(["spinta_schema_write"])
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id | d | r | b | m | property      | type    | ref
@@ -389,7 +389,7 @@ def test_schema_create_new_dataset(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall"])
+    app.authorize(["spinta_schema_write", "spinta_getall"])
 
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -533,7 +533,7 @@ def test_schema_create_new_dataset_when_not_empty(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall"])
+    app.authorize(["spinta_schema_write", "spinta_getall"])
 
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -861,7 +861,7 @@ def test_schema_add_new_model(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall"])
+    app.authorize(["spinta_schema_write", "spinta_getall"])
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -1196,7 +1196,7 @@ def test_schema_remove_model(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall"])
+    app.authorize(["spinta_schema_write", "spinta_getall"])
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -1516,7 +1516,7 @@ def test_schema_update_model(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"])
+    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert"])
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -1781,7 +1781,7 @@ def test_schema_update_model_multiple_times(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"])
+    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert"])
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -2149,7 +2149,7 @@ def test_schema_advanced(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create", "uapi:/:set_meta_fields"])
+    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert", "spinta_set_meta_fields"])
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                         | d | r | base  | m | property      | type     | ref

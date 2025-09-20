@@ -1615,7 +1615,7 @@ def test_push_sync_state_insert(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"])
+    remote.app.authorize(["spinta_set_meta_fields", "spinta_patch", "spinta_update"])
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -1761,7 +1761,7 @@ def test_push_sync_state_delete(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"])
+    remote.app.authorize(["spinta_set_meta_fields", "spinta_patch", "spinta_update"])
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe", "delete"])
 
     result = cli.invoke(
@@ -1887,7 +1887,7 @@ def test_push_sync_state_update(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"])
+    remote.app.authorize(["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"])
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2021,7 +2021,7 @@ def test_push_sync_state_update_revision(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"])
+    remote.app.authorize(["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"])
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2169,7 +2169,7 @@ def test_push_sync_state_combined(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"])
+    remote.app.authorize(["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"])
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2311,7 +2311,7 @@ def test_push_sync_state_migrate_page_values(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"])
+    remote.app.authorize(["spinta_set_meta_fields", "spinta_patch", "spinta_update"])
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2448,13 +2448,13 @@ def test_push_sync_state_skip_no_auth(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
 
@@ -2670,13 +2670,13 @@ def test_push_page_multiple_keys(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
 
@@ -2843,13 +2843,13 @@ def test_push_with_geometry(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
 
@@ -3158,13 +3158,13 @@ def test_push_with_geometry_flip_both(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
 
@@ -3247,13 +3247,13 @@ def test_push_with_geometry_flip_source(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
 
@@ -3337,13 +3337,13 @@ def test_push_with_geometry_flip_invalid_bounding_box(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
 
@@ -3421,13 +3421,13 @@ def test_push_with_array_intermediate_table(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
     result = cli.invoke(
@@ -3512,13 +3512,13 @@ def test_push_with_array_split(
     assert remote.url == "https://example.com/"
     remote.app.authorize(
         [
-            "uapi:/:set_meta_fields",
-            "uapi:/:patch",
-            "uapi:/:update",
-            "uapi:/:create",
-            "uapi:/:getall",
-            "uapi:/:search",
-            "uapi:/:wipe",
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
         ]
     )
     result = cli.invoke(

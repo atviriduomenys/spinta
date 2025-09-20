@@ -31,22 +31,22 @@ def test_get_access_token(responses: RequestsMock, tmp_path: Path, url: str):
     client = spinta
     secret = verysecret
     scopes =
-        uapi:/:getall
-        uapi:/:getone
+        spinta_getall
+        spinta_getone
     
     [example.com]
     client = spinta
     secret = verysecret
     scopes =
-        uapi:/:getall
-        uapi:/:getone
+        spinta_getall
+        spinta_getone
         
     [spinta@example.com]
     client = spinta
     secret = verysecret
     scopes =
-        uapi:/:getall
-        uapi:/:getone
+        spinta_getall
+        spinta_getone
     """)
     )
     responses.add(
@@ -76,8 +76,8 @@ def test_get_access_token_no_section(tmp_path: Path):
     client = spinta
     secret = verysecret
     scopes =
-        uapi:/:getall
-        uapi:/:getone
+        spinta_getall
+        spinta_getone
     """)
     )
     with pytest.raises(RemoteClientCredentialsNotFound):
@@ -126,8 +126,8 @@ def test_add_client_credentials_kwargs(tmp_path: Path):
         client="spinta",
         secret="verysecret",
         scopes=[
-            "uapi:/:getall",
-            "uapi:/:getone",
+            "spinta_getall",
+            "spinta_getone",
         ],
     )
 
@@ -138,7 +138,7 @@ def test_add_client_credentials_kwargs(tmp_path: Path):
         "server": "https://example.com",
         "client": "spinta",
         "secret": "verysecret",
-        "scopes": "\nuapi:/:getall\nuapi:/:getone",
+        "scopes": "\nspinta_getall\nspinta_getone",
     }
 
 

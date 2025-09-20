@@ -22,7 +22,7 @@ def _excluding(
 
 
 def test_wipe_all(app):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
     # Create some data in different models
     resp = app.post(
@@ -61,7 +61,7 @@ def test_wipe_all(app):
     "backends/postgres/Report",
 )
 def test_wipe_model(model, app):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
     # Create some data in different models
     resp = app.post(
@@ -109,7 +109,7 @@ def test_wipe_model(model, app):
     "backends/postgres/Report",
 )
 def test_wipe_row(model: str, app: TestClient):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
     # Create some data in different models
     resp = app.post(
@@ -164,13 +164,13 @@ def test_wipe_row(model: str, app: TestClient):
     "backends/postgres/Report",
 )
 def test_wipe_check_scope(model, app):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:delete"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
     resp = app.delete(f"/{model}/:wipe")
     assert resp.status_code == 403
 
 
 def test_wipe_check_ns_scope(app):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:delete"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
     resp = app.delete("/:wipe")
     assert resp.status_code == 403
 
@@ -180,14 +180,14 @@ def test_wipe_check_ns_scope(app):
     "backends/postgres/Report",
 )
 def test_wipe_in_batch(model, app):
-    app.authorize(["uapi:/:wipe"])
+    app.authorize(["spinta_wipe"])
     resp = app.post("/", json={"_data": [{"_op": "wipe", "_type": model}]})
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["UnknownAction"]
 
 
 def test_wipe_all_access(app: TestClient):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:delete"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
 
     # Create some data in different models.
     resp = app.post(
@@ -230,7 +230,7 @@ def test_wipe_all_access(app: TestClient):
     "backends/postgres/Report",
 )
 def test_wipe_model_access(model, app):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:delete"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
 
     # Create some data in different models
     resp = app.post(
@@ -273,7 +273,7 @@ def test_wipe_model_access(model, app):
     "backends/postgres/Report",
 )
 def test_wipe_row_access(model, app):
-    app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:delete"])
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_delete"])
 
     # Create some data in different models
     resp = app.post(
@@ -337,7 +337,7 @@ def test_wipe_with_long_names(
     )
     with context:
         app = create_test_client(context)
-        app.authorize(["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"])
+        app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe"])
 
         # Create some data
         resp = app.post(

@@ -1177,7 +1177,7 @@ def test_get_accesslog_default_user(
         load_key(context, KeyType.private),
         default_client_id,
         int(datetime.timedelta(days=10).total_seconds()),
-        {"uapi:/:getall", "uapi:/:search"},
+        {"spinta_getall", "spinta_search"},
     )
 
     model = "backends/postgres/dtypes/test/Entity"
@@ -1240,7 +1240,7 @@ def test_get_accesslog_not_default_user(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(["uapi:/:getall", "uapi:/:create", "uapi:/:search"], creds=("test-insert", "secret"))
+    app.authorize(["spinta_insert", "spinta_getall", "spinta_search"], creds=("test-insert", "secret"))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()
@@ -1260,7 +1260,7 @@ def test_get_accesslog_not_default_user(
             "format": "json",
             "method": "POST",
             "rctype": "application/x-www-form-urlencoded",
-            "scope": "uapi:/:create uapi:/:getall uapi:/:search",
+            "scope": "spinta_getall spinta_insert spinta_search",
             "time": accesslog[-5]["time"],
             "token": token,
             "type": "auth",
@@ -1339,7 +1339,7 @@ def test_get_accesslog_scope_log_false(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(["uapi:/:create"], creds=("test-insert", "secret"))
+    app.authorize(["spinta_insert"], creds=("test-insert", "secret"))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()
