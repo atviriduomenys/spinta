@@ -54,10 +54,10 @@ def _ensure_config_dir(
             str(uuid.uuid4()),
             secret=None,
             scopes=[
-                "spinta_getall",
-                "spinta_getone",
-                "spinta_search",
-                "spinta_changes",
+                "uapi:/:getall",
+                "uapi:/:getone",
+                "uapi:/:search",
+                "uapi:/:changes",
             ],
         )
 

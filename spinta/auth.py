@@ -262,7 +262,7 @@ class Token(rfc6749.TokenMixin):
 
     def check_scope(self, scope: SCOPE_TYPE):
         token_scopes = set(scope_to_list(self._token.get('scope', '')))
-        if any(scope for scope in token_scopes if scope.startswith("spinta_")):
+        if any(token_scope for token_scope in token_scopes if token_scope.startswith("spinta_")):
             log.warning(
                 "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
             )
@@ -274,7 +274,7 @@ class Token(rfc6749.TokenMixin):
             if isinstance(scope, str):
                 operator = "AND"
                 scope = [scope]
-            missing_scopes = ", ".join(sorted([single_scope for single_scope in scope if not single_scope.startswith("spinta_")]))
+            missing_scopes = ", ".join(sorted([single_scope for single_scope in scope]))
 
             # FIXME: this should be wrapped into UserError.
             if operator == "AND":
@@ -543,7 +543,7 @@ def check_scope(context: Context, scope: Union[Scopes, str]):
     if isinstance(scope, Scopes):
         scope = scope.value
 
-    token.check_scope(f"{config.scope_prefix}{scope}")
+    token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"], operator="OR")
 
 
 def get_scope_name(
@@ -654,6 +654,7 @@ def authorized(
     scopes = [
         scope_formatter(context, scope, act, is_udts) for act in action for scope in scopes for is_udts in [False, True]
     ]
+    print(scopes)
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)
