@@ -150,15 +150,16 @@ http POST "$SERVER/$DATASET/ds2/City" $AUTH id:=1 name=Vilnius
 CLIENT=wipe
 cat ~/.config/spinta/clients/$CLIENT.yml
 poetry run spinta client add -n $CLIENT -s secret --add-secret --scope - <<EOF
-uapi:/:getone
-uapi:/:getall
-uapi:/:search
-uapi:/:changes
-uapi:/:create
-uapi:/:update
-uapi:/:patch
-uapi:/:delete
-uapi:/${DATASET}/ds1/:wipe
+spinta_getone
+spinta_getall
+spinta_search
+spinta_changes
+spinta_insert
+spinta_upsert
+spinta_update
+spinta_patch
+spinta_delete
+spinta_${DATASET}_ds1_wipe
 EOF
 
 kill $PID
@@ -167,15 +168,16 @@ PID=$!
 tail -50 $BASEDIR/spinta.log
 
 SCOPES=(
-  uapi:/:getone
-  uapi:/:getall
-  uapi:/:search
-  uapi:/:changes
-  uapi:/:create
-  uapi:/:update
-  uapi:/:patch
-  uapi:/:delete
-  uapi:/${DATASET}/ds1/:wipe
+    spinta_getone
+    spinta_getall
+    spinta_search
+    spinta_changes
+    spinta_insert
+    spinta_upsert
+    spinta_update
+    spinta_patch
+    spinta_delete
+    spinta_${DATASET}_ds1_wipe
 )
 TOKEN=$(
     http \
@@ -215,7 +217,7 @@ http DELETE "$SERVER/:wipe" $AUTH
 #|     "errors": [
 #|         {
 #|             "code": "InsufficientScopeError",
-#|             "message": "insufficient_scope: Missing one of scopes: uapi:/:wipe"
+#|             "message": "insufficient_scope: Missing one of scopes: spinta_wipe"
 #|         }
 #|     ]
 #| }
@@ -227,7 +229,7 @@ http DELETE "$SERVER/$DATASET/:wipe" $AUTH
 #|     "errors": [
 #|         {
 #|             "code": "InsufficientScopeError",
-#|             "message": "insufficient_scope: Missing one of scopes: uapi:/:wipe, uapi:/wipe/:wipe"
+#|             "message": "insufficient_scope: Missing one of scopes: spinta_wipe, spinta_wipe_wipe"
 #|         }
 #|     ]
 #| }
@@ -239,7 +241,7 @@ http DELETE "$SERVER/$DATASET/ds2/:wipe" $AUTH
 #|     "errors": [
 #|         {
 #|             "code": "InsufficientScopeError",
-#|             "message": "insufficient_scope: Missing one of scopes: uapi:/:wipe, uapi:/wipe/ds2/:wipe, uapi:/wipe/:wipe"
+#|             "message": "insufficient_scope: Missing one of scopes: spinta_wipe, spinta_wipe_ds2_wipe, spinta_wipe_wipe"
 #|         }
 #|     ]
 #| }

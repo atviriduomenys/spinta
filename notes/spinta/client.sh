@@ -4,15 +4,16 @@ CLIENT=test
 SECRET=secret
 SCOPES=(
     spinta_set_meta_fields
-    uapi:/:getone
-    uapi:/:getall
-    uapi:/:search
-    uapi:/:changes
-    uapi:/:create
-    uapi:/:update
-    uapi:/:patch
-    uapi:/:delete
-    uapi:/:wipe
+    spinta_getone
+    spinta_getall
+    spinta_search
+    spinta_changes
+    spinta_insert
+    spinta_upsert
+    spinta_update
+    spinta_patch
+    spinta_delete
+    spinta_wipe
 )
 
 TOKEN=$(

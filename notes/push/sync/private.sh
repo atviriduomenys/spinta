@@ -65,7 +65,7 @@ http GET "$SERVER/$DATASET/external/Country?format(ascii)" $AUTH
 #|     "errors": [
 #|         {
 #|             "code": "InsufficientScopeError",
-#|             "message": "insufficient_scope: Missing one of scopes: uapi:/push/sync/private/external/Country/:getall"
+#|             "message": "insufficient_scope: Missing one of scopes: spinta_push_sync_private_external_country_getall"
 #|         }
 #|     ]
 #| }
@@ -85,14 +85,14 @@ tail -50 $BASEDIR/spinta.log
 #|     raise InsufficientScopeError(description=f"Missing one of scopes: {missing_scopes}")
 #| authlib.oauth2.rfc6750.errors.InsufficientScopeError: insufficient_scope:
 #| Missing one of scopes:
-#| - uapi:/push/sync/private/external/Country/:getall
+#| - spinta_push_sync_private_external_country_getall
 # TODO: there should be list of scopes:
-#       - uapi:/push/sync/private/external/Country/:getall
-#       - uapi:/push/sync/private/external/:getall
-#       - uapi:/push/sync/private/:getall
-#       - uapi:/push/sync/:getall
-#       - uapi:/push/:getall
-#       - uapi:/:getall
+#       - spinta_push_sync_private_external_country_getall
+#       - spinta_push_sync_private_external_getall
+#       - spinta_push_sync_private_getall
+#       - spinta_push_sync_getall
+#       - spinta_push_getall
+#       - spinta_getall
 #       But only one scope is considered.
 #| INFO:     127.0.0.1:44610 - "GET /push/sync/private/external/Country?format(ascii) HTTP/1.1" 403 Forbidden
 
