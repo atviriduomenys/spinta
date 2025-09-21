@@ -189,12 +189,20 @@ def test_external_ref_with_explicit_key(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
+    ]
+)
 def test_external_ref_unassign(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -216,7 +224,7 @@ def test_external_ref_unassign(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(scope)
 
     city_model = "datasets/external/ref/m/City"
     country_model = "datasets/external/ref/m/Country"
@@ -234,12 +242,20 @@ def test_external_ref_unassign(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
+    ]
+)
 def test_external_ref_unassign_invalid(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -261,7 +277,7 @@ def test_external_ref_unassign_invalid(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(scope)
 
     city_model = "datasets/external/ref/m/City"
     country_model = "datasets/external/ref/m/Country"
@@ -278,12 +294,20 @@ def test_external_ref_unassign_invalid(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
+    ]
+)
 def test_external_ref_unassign_invalid_no_pk(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -305,7 +329,7 @@ def test_external_ref_unassign_invalid_no_pk(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(scope)
 
     city_model = "datasets/external/ref/n/City"
     country_model = "datasets/external/ref/n/Country"

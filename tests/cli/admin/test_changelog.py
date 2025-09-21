@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-
+import pytest
 import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
 
@@ -172,6 +172,33 @@ def test_admin_changelog_requires_deduplicate(
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
+        ],
+        [
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
+            "uapi:/:changes",
+        ]
+    ]
+)
 def test_admin_changelog_old_deleted_entries(
     context: Context,
     tmp_path: Path,
@@ -179,6 +206,7 @@ def test_admin_changelog_old_deleted_entries(
     postgresql: str,
     request: FixtureRequest,
     cli: SpintaCliRunner,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -199,19 +227,7 @@ def test_admin_changelog_old_deleted_entries(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
-            "spinta_changes",
-        ]
-    )
+    app.authorize(scope)
     c_0 = str(uuid.uuid4())
     c_1 = str(uuid.uuid4())
     c_2 = str(uuid.uuid4())

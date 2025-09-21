@@ -1152,9 +1152,16 @@ def test_ns_read_csv(model, app, context, tmp_path):
     ]
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        {"spinta_getall", "spinta_search"},
+        {"uapi:/:getall", "uapi:/:search"}
+    ]
+)
 @pytest.mark.manifests("internal_sql", "csv")
 def test_get_accesslog_default_user(
-    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest
+    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest, scope: set,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1177,7 +1184,7 @@ def test_get_accesslog_default_user(
         load_key(context, KeyType.private),
         default_client_id,
         int(datetime.timedelta(days=10).total_seconds()),
-        {"spinta_getall", "spinta_search"},
+        scope,
     )
 
     model = "backends/postgres/dtypes/test/Entity"
@@ -1219,8 +1226,15 @@ def test_get_accesslog_default_user(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_getall", "spinta_insert", "spinta_search"],
+        ["uapi:/:getall", "uapi:/:create", "uapi:/:search"]
+    ]
+)
 def test_get_accesslog_not_default_user(
-    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest
+    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest, scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1240,7 +1254,8 @@ def test_get_accesslog_not_default_user(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_search"], creds=("test-insert", "secret"))
+    app.authorize(scope, creds=("test-insert", "secret"))
+    expected_scope = " ".join(sorted(scope))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()
@@ -1260,7 +1275,7 @@ def test_get_accesslog_not_default_user(
             "format": "json",
             "method": "POST",
             "rctype": "application/x-www-form-urlencoded",
-            "scope": "spinta_getall spinta_insert spinta_search",
+            "scope": expected_scope,
             "time": accesslog[-5]["time"],
             "token": token,
             "type": "auth",
@@ -1315,8 +1330,15 @@ def test_get_accesslog_not_default_user(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert"],
+        ["uapi:/:create"]
+    ]
+)
 def test_get_accesslog_scope_log_false(
-    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest
+    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest, scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1339,7 +1361,7 @@ def test_get_accesslog_scope_log_false(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(["spinta_insert"], creds=("test-insert", "secret"))
+    app.authorize(scope, creds=("test-insert", "secret"))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()

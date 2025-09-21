@@ -11,12 +11,20 @@ import pytest
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
+    ]
+)
 def test_ref_change_assignment(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -38,7 +46,7 @@ def test_ref_change_assignment(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(scope)
 
     city_model = "datasets/ref/City"
     country_model = "datasets/ref/Country"
@@ -57,12 +65,20 @@ def test_ref_change_assignment(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
+    ]
+)
 def test_ref_unassign(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -84,7 +100,7 @@ def test_ref_unassign(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(scope)
 
     city_model = "datasets/ref/City"
     country_model = "datasets/ref/Country"
@@ -102,12 +118,20 @@ def test_ref_unassign(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
+    ]
+)
 def test_ref_unassign_incorrect(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -129,7 +153,7 @@ def test_ref_unassign_incorrect(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"])
+    app.authorize(scope)
 
     city_model = "datasets/ref/City"
     country_model = "datasets/ref/Country"

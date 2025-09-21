@@ -18,7 +18,14 @@ def sql(rc):
 
 
 @pytest.mark.skip("datasets")
-def test_sql(rc, cli, sql, app):
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_getall", "spinta_search"],
+        ["uapi:/:getall", "uapi:/:search"]
+    ]
+)
+def test_sql(rc, cli, sql, app, scope: list):
     dsn = rc.get("backends", "default", "dsn", required=True)
     rc = rc.fork({"datasets.default.sql.db": dsn})
 
@@ -44,7 +51,7 @@ def test_sql(rc, cli, sql, app):
     assert len(pull(cli, rc, "sql")) == 3
     assert len(pull(cli, rc, "sql")) == 0
 
-    app.authorize(["spinta_getall", "spinta_search"])
+    app.authorize(scope)
 
     assert app.getdata("/country") == []
     assert app.getdata("/country/:dataset/sql?select(code,title)&sort(+code)") == [
