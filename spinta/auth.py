@@ -275,7 +275,7 @@ class Token(rfc6749.TokenMixin):
             if isinstance(scope, str):
                 operator = "AND"
                 scope = [scope]
-            missing_scopes = ", ".join(sorted([single_scope for single_scope in scope]))
+            missing_scopes = ", ".join(sorted([single_scope for single_scope in scope if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX)]))
 
             # FIXME: this should be wrapped into UserError.
             if operator == "AND":
