@@ -1061,7 +1061,6 @@ ScopeFormatterFuncUDTS = Callable[
 ]
 
 
-
 class Config:
     """Spinta configuration
 
