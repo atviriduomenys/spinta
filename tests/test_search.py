@@ -73,7 +73,7 @@ test_data = [
 
 
 def _push_test_data(app, model, data=None):
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(["uapi:/:set_meta_fields"])
     app.authmodel(model, ["insert"])
     resp = app.post(
         "/",
@@ -1160,7 +1160,8 @@ def test_search_not_null(model, app):
 
 
 @pytest.mark.parametrize("backend", ["default", "mongo"])
-def test_extra_fields(context, postgresql, mongo, backend, rc, tmp_path, request):
+@pytest.mark.parametrize("scopes", [["spinta_set_meta_fields"], ["uapi:/:set_meta_fields"]])
+def test_extra_fields(context, postgresql, mongo, backend, rc, tmp_path, request, scopes: list,):
     rc = rc.fork(
         {
             "backends": [backend],
@@ -1186,7 +1187,7 @@ def test_extra_fields(context, postgresql, mongo, backend, rc, tmp_path, request
     context = create_test_context(rc)
     request.addfinalizer(context.wipe_all)
     app = create_test_client(context)
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(scopes)
     app.authmodel("Extrafields", ["insert"])
     resp = app.post(
         "/Extrafields",
@@ -1293,7 +1294,8 @@ def test_missing_fields(context, postgresql, mongo, backend, rc, tmp_path):
     assert take(data) == {"code": "lt"}
 
 
-def test_base_select(rc, postgresql, request):
+@pytest.mark.parametrize("scopes", [["spinta_set_meta_fields"], ["uapi:/:set_meta_fields"]])
+def test_base_select(rc, postgresql, request, scopes: list):
     context = bootstrap_manifest(
         rc,
         """
@@ -1316,7 +1318,7 @@ def test_base_select(rc, postgresql, request):
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(scopes)
     app.authmodel("datasets/gov/example/base/Location", ["insert", "delete"])
     app.authmodel("datasets/gov/example/base/City", ["insert", "delete", "getall", "search"])
 

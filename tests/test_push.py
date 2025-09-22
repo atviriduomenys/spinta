@@ -107,8 +107,9 @@ def sha1(s):
 
 
 @pytest.mark.skip("datasets")
-def test_push_different_models(app):
-    app.authorize(["spinta_set_meta_fields"])
+@pytest.mark.parametrize("scopes", [["spinta_set_meta_fields"], ["uapi:/:set_meta_fields"]])
+def test_push_different_models(app, scopes: list,):
+    app.authorize(scopes)
     app.authmodel("country/:dataset/csv/:resource/countries", ["insert"])
     app.authmodel("backends/postgres/report/:dataset/test", ["insert"])
     data = [

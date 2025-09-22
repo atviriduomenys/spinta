@@ -16,7 +16,8 @@ from spinta.testing.tabular import create_tabular_manifest
     "backends/mongo/{}",
     "backends/postgres/{}",
 )
-def test_schema_loader(model, app):
+@pytest.mark.parametrize("scopes", [["spinta_getone"], ["uapi:/:getone"]])
+def test_schema_loader(model, app, scopes: list):
     model_org = model.format("Org")
     model_country = model.format("Country")
 
@@ -56,7 +57,7 @@ def test_schema_loader(model, app):
         "title": "My Org",
     }
 
-    app.authorize(["spinta_getone"])
+    app.authorize(scopes)
 
     resp = app.get(f"/{model_org}/{org['_id']}")
     data = resp.json()
@@ -102,8 +103,8 @@ def test_nested(model, app):
     assert data["_revision"] == revision
     assert data["notes"] == [{"note": "foo", "note_type": None, "create_date": None}]
 
-
-def test_root(context, rc: RawConfig, tmp_path: Path):
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
+def test_root(context, rc: RawConfig, tmp_path: Path, scopes: list):
     rc = configure(
         context,
         rc,
@@ -127,18 +128,19 @@ def test_root(context, rc: RawConfig, tmp_path: Path):
             "root": "datasets/gov/vpt",
         },
     )
-    app.authorize(["spinta_getall"])
+    app.authorize(scopes)
     assert listdata(app.get("/"), "name") == [
         "datasets/gov/vpt/new/:ns",
         "datasets/gov/vpt/old/:ns",
     ]
 
-
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_resource_backends(
     context,
     rc: RawConfig,
     tmp_path: Path,
     sqlite: Sqlite,
+    scopes: list,
 ):
     # Prepare source data.
     sqlite.init(
@@ -222,7 +224,7 @@ def test_resource_backends(
         },
     )
 
-    app.authorize(["spinta_getall"])
+    app.authorize(scopes)
 
     assert listdata(app.get("/datasets/gov/vpt/old/Country")) == [
         (1, "Lithuania"),
