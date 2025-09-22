@@ -657,7 +657,6 @@ def authorized(
     scopes = [
         scope_formatter(context, scope, act, is_udts) for act in action for scope in scopes for is_udts in [False, True]
     ]
-    print(scopes)
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)
