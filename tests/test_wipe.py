@@ -22,13 +22,12 @@ def _excluding(
 
 
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_wipe"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_wipe"], ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]]
 )
-def test_wipe_all(app, scope: list,):
+def test_wipe_all(
+    app,
+    scope: list,
+):
     app.authorize(scope)
 
     # Create some data in different models
@@ -68,11 +67,7 @@ def test_wipe_all(app, scope: list,):
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_wipe"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_wipe"], ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]]
 )
 def test_wipe_model(model, app, scope):
     app.authorize(scope)
@@ -123,13 +118,13 @@ def test_wipe_model(model, app, scope):
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_wipe"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_wipe"], ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]]
 )
-def test_wipe_row(model: str, app: TestClient, scope: list,):
+def test_wipe_row(
+    model: str,
+    app: TestClient,
+    scope: list,
+):
     app.authorize(scope)
 
     # Create some data in different models
@@ -185,26 +180,25 @@ def test_wipe_row(model: str, app: TestClient, scope: list,):
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_delete"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_delete"], ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]]
 )
-def test_wipe_check_scope(model, app, scope: list,):
+def test_wipe_check_scope(
+    model,
+    app,
+    scope: list,
+):
     app.authorize(scope)
     resp = app.delete(f"/{model}/:wipe")
     assert resp.status_code == 403
 
 
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_delete"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_delete"], ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]]
 )
-def test_wipe_check_ns_scope(app, scope: list,):
+def test_wipe_check_ns_scope(
+    app,
+    scope: list,
+):
     app.authorize(scope)
     resp = app.delete("/:wipe")
     assert resp.status_code == 403
@@ -214,14 +208,12 @@ def test_wipe_check_ns_scope(app, scope: list,):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_wipe"],
-        ["uapi:/:wipe"]
-    ]
-)
-def test_wipe_in_batch(model, app, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_wipe"], ["uapi:/:wipe"]])
+def test_wipe_in_batch(
+    model,
+    app,
+    scope: list,
+):
     app.authorize(scope)
     resp = app.post("/", json={"_data": [{"_op": "wipe", "_type": model}]})
     assert resp.status_code == 400
@@ -229,13 +221,12 @@ def test_wipe_in_batch(model, app, scope: list,):
 
 
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_delete"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_delete"], ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]]
 )
-def test_wipe_all_access(app: TestClient, scope: list,):
+def test_wipe_all_access(
+    app: TestClient,
+    scope: list,
+):
     app.authorize(scope)
 
     # Create some data in different models.
@@ -279,13 +270,13 @@ def test_wipe_all_access(app: TestClient, scope: list,):
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_delete"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_delete"], ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]]
 )
-def test_wipe_model_access(model, app, scope: list,):
+def test_wipe_model_access(
+    model,
+    app,
+    scope: list,
+):
     app.authorize(scope)
 
     # Create some data in different models
@@ -329,13 +320,13 @@ def test_wipe_model_access(model, app, scope: list,):
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_delete"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_delete"], ["uapi:/:create", "uapi:/:getall", "uapi:/:delete"]]
 )
-def test_wipe_row_access(model, app, scope: list,):
+def test_wipe_row_access(
+    model,
+    app,
+    scope: list,
+):
     app.authorize(scope)
 
     # Create some data in different models
@@ -378,11 +369,7 @@ def test_wipe_row_access(model, app, scope: list,):
 
 @pytest.mark.manifests("internal_sql", "csv")
 @pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_insert", "spinta_getall", "spinta_wipe"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]
-    ]
+    "scope", [["spinta_insert", "spinta_getall", "spinta_wipe"], ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe"]]
 )
 def test_wipe_with_long_names(
     manifest_type: str,

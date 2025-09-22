@@ -15,13 +15,7 @@ from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, 
 from tests.test_api import ensure_temp_context_and_app
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_detect_upgrade_clients_only_yml(
     tmp_path: pathlib.Path,
     rc: RawConfig,
@@ -30,35 +24,20 @@ def test_detect_upgrade_clients_only_yml(
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope})
 
     with pytest.raises(ClientsMigrationRequired):
         ensure_temp_context_and_app(rc, tmp_path)
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_detect_upgrade_clients_no_keymap(
-    tmp_path: pathlib.Path,
-    cli: SpintaCliRunner,
-    rc: RawConfig,
-    scope: list
-):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_detect_upgrade_clients_no_keymap(tmp_path: pathlib.Path, cli: SpintaCliRunner, rc: RawConfig, scope: list):
     rc = rc.fork({"config_path": tmp_path})
 
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope})
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
@@ -77,13 +56,7 @@ def test_detect_upgrade_clients_no_keymap(
         ensure_temp_context_and_app(rc, tmp_path)
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_detect_upgrade_clients_no_id(
     tmp_path: pathlib.Path,
     cli: SpintaCliRunner,
@@ -95,9 +68,7 @@ def test_detect_upgrade_clients_no_id(
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope})
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
@@ -116,13 +87,7 @@ def test_detect_upgrade_clients_no_id(
         ensure_temp_context_and_app(rc, tmp_path)
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_detect_upgrade_clients_empty_keymap(
     tmp_path: pathlib.Path,
     cli: SpintaCliRunner,
@@ -134,9 +99,7 @@ def test_detect_upgrade_clients_empty_keymap(
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope})
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
@@ -155,13 +118,7 @@ def test_detect_upgrade_clients_empty_keymap(
         ensure_temp_context_and_app(rc, tmp_path)
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_detect_upgrade_clients_empty_id(
     tmp_path: pathlib.Path,
     cli: SpintaCliRunner,
@@ -173,9 +130,7 @@ def test_detect_upgrade_clients_empty_id(
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope})
 
     cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 

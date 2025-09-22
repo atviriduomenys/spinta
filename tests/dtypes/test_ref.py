@@ -15,8 +15,8 @@ import pytest
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"],
+    ],
 )
 def test_ref_change_assignment(
     manifest_type: str,
@@ -69,8 +69,8 @@ def test_ref_change_assignment(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"],
+    ],
 )
 def test_ref_unassign(
     manifest_type: str,
@@ -122,8 +122,8 @@ def test_ref_unassign(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"],
+    ],
 )
 def test_ref_unassign_incorrect(
     manifest_type: str,

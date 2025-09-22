@@ -48,8 +48,8 @@ def _redirect_table_data(context: Context, model: str):
             "uapi:/:set_meta_fields",
             "uapi:/:move",
             "uapi:/:patch",
-        ]
-    ]
+        ],
+    ],
 )
 def test_move_delete_missing_revision(
     manifest_type: str,
@@ -287,8 +287,8 @@ def test_move_delete_missing_revision(
             "uapi:/:set_meta_fields",
             "uapi:/:move",
             "uapi:/:patch",
-        ]
-    ]
+        ],
+    ],
 )
 def test_move_delete_missing_id(
     manifest_type: str,
@@ -521,8 +521,8 @@ def test_move_delete_missing_id(
             "uapi:/:set_meta_fields",
             "uapi:/:move",
             "uapi:/:patch",
-        ]
-    ]
+        ],
+    ],
 )
 def test_move_delete_invalid_id(
     manifest_type: str,
@@ -736,13 +736,14 @@ def test_move_delete_invalid_id(
         },
     ]
 
+
 @pytest.mark.manifests("internal_sql", "csv")
 @pytest.mark.parametrize(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_changes", "spinta_set_meta_fields", "spinta_move"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:changes", "uapi:/:set_meta_fields", "uapi:/:move"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:changes", "uapi:/:set_meta_fields", "uapi:/:move"],
+    ],
 )
 def test_move_delete_simple(
     manifest_type: str,
@@ -854,8 +855,8 @@ def test_move_delete_simple(
             "uapi:/:set_meta_fields",
             "uapi:/:move",
             "uapi:/:patch",
-        ]
-    ]
+        ],
+    ],
 )
 def test_move_delete_referenced(
     manifest_type: str,

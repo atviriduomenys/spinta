@@ -128,14 +128,15 @@ def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
         "backends": {},
     }
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        {"spinta_getall", "spinta_getone"},
-        {"uapi:/:getall", "uapi:/:getone"}
-    ]
-)
-def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_path, scope: set,):
+
+@pytest.mark.parametrize("scope", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope(
+    rc,
+    context: Context,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scope: set,
+):
     scopes_in_string_format = " ".join(scope)
     cli.invoke(
         rc,
@@ -156,14 +157,13 @@ def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_p
     assert client.scopes == scope
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        {"spinta_getall", "spinta_getone"},
-        {"uapi:/:getall", "uapi:/:getone"}
-    ]
-)
-def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path, scope: set,):
+@pytest.mark.parametrize("scope", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope_via_stdin(
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scope: set,
+):
     stdin = "\n".join(sorted(scope)) + "\n"
     cli.invoke(
         rc,
@@ -381,13 +381,7 @@ def test_invalid_access_token(app):
     assert get_error_codes(resp.json()) == ["InvalidToken"]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_report_getall"],
-        ["uapi:/Report/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_report_getall"], ["uapi:/Report/:getall"]])
 def test_token_validation_key_config(backends, rc, tmp_path, request, scope: list):
     confdir = pathlib.Path(__file__).parent
     prvkey = json.loads((confdir / "config/keys/private.json").read_text())
@@ -523,10 +517,16 @@ def test_invalid_scope(context, app):
             "uapi:/:getone",
             "uapi:/:getall",
             "uapi:/:search",
-        ]
-    ]
+        ],
+    ],
 )
-def test_invalid_client_file_data_type_list(tmp_path, context, cli, rc, scope: list,):
+def test_invalid_client_file_data_type_list(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scope: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
@@ -551,10 +551,16 @@ def test_invalid_client_file_data_type_list(tmp_path, context, cli, rc, scope: l
             "uapi:/:getone",
             "uapi:/:getall",
             "uapi:/:search",
-        ]
-    ]
+        ],
+    ],
 )
-def test_invalid_client_file_data_type_str(tmp_path, context, cli, rc, scope: list,):
+def test_invalid_client_file_data_type_str(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scope: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):

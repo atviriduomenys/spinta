@@ -22,22 +22,20 @@ from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path
 from spinta.utils.types import is_str_uuid
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_upgrade_clients_detect_upgrade(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_upgrade_clients_detect_upgrade(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
+):
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create already existing file, to imitate old structure
-    create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope})
     items = os.listdir(clients_path)
     assert items == ["TEST.yml"]
 
@@ -78,21 +76,19 @@ def test_upgrade_clients_detect_upgrade(context, rc, cli: SpintaCliRunner, tmp_p
     [
         (["spinta_getall"], ["spinta_getall", "spinta_update"]),
         (["uapi:/:getall"], ["uapi:/:getall", "uapi:/:update"]),
-    ]
+    ],
 )
-def test_upgrade_clients_detect_upgrade_multiple(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list, bigger_scope: list):
+def test_upgrade_clients_detect_upgrade_multiple(
+    context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list, bigger_scope: list
+):
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create already existing file, to imitate old structure
-    create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope})
 
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": bigger_scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": bigger_scope})
     items = os.listdir(clients_path)
     assert Counter(items) == Counter(["TEST.yml", "NEW.yml"])
 
@@ -144,15 +140,13 @@ def test_upgrade_clients_detect_upgrade_multiple(context, rc, cli: SpintaCliRunn
     }
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_upgrade_clients_detect_upgrade_folders_already_exist(
-    context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
 ):
     clients_path = get_clients_path(tmp_path)
 
@@ -162,9 +156,7 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create already existing file, to imitate old structure
-    create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope})
     items = os.listdir(clients_path)
     assert Counter(items) == Counter(["TEST.yml", "helpers", "id"])
 
@@ -206,14 +198,14 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(
     }
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_upgrade_clients_skip_upgrade(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_upgrade_clients_skip_upgrade(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
+):
     clients_path = get_clients_path(tmp_path)
 
     # Create emtpy folders and keymap.yml (imitate running empty project with _ensure_config_dir)
@@ -222,9 +214,7 @@ def test_upgrade_clients_skip_upgrade(context, rc, cli: SpintaCliRunner, tmp_pat
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create and migrate files
-    create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope})
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message("TEST.yml", CLIENT_STATUS_SUCCESS) in result.stdout
@@ -236,9 +226,7 @@ def test_upgrade_clients_skip_upgrade(context, rc, cli: SpintaCliRunner, tmp_pat
     assert "Created keymap" not in result.stdout
 
     # Add new client
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": scope})
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
     assert "Created keymap" not in result.stdout
@@ -282,14 +270,14 @@ def test_upgrade_clients_invalid_client(context, rc, cli: SpintaCliRunner, tmp_p
     assert items == []
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_upgrade_clients_invalid_client_missing_id(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_upgrade_clients_invalid_client_missing_id(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
+):
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
@@ -321,14 +309,14 @@ def test_upgrade_clients_invalid_client_missing_id(context, rc, cli: SpintaCliRu
     assert items == []
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_upgrade_clients_invalid_client_missing_secret(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_upgrade_clients_invalid_client_missing_secret(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
+):
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
@@ -404,9 +392,11 @@ def test_upgrade_clients_invalid_client_missing_scopes(context, rc, cli: SpintaC
     [
         (["spinta_getall"], ["spinta_getall", "spinta_update"]),
         (["uapi:/:getall"], ["uapi:/:getall", "uapi:/:update"]),
-    ]
+    ],
 )
-def test_upgrade_clients_force_upgrade(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list, bigger_scope: list):
+def test_upgrade_clients_force_upgrade(
+    context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list, bigger_scope: list
+):
     clients_path = get_clients_path(tmp_path)
 
     # Create emtpy folders and keymap.yml (imitate running empty project with _ensure_config_dir)
@@ -415,16 +405,12 @@ def test_upgrade_clients_force_upgrade(context, rc, cli: SpintaCliRunner, tmp_pa
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create and migrate files
-    create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope})
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
 
     # Add new client
-    create_old_client_file(
-        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": bigger_scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": bigger_scope})
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
 
@@ -463,14 +449,14 @@ def test_upgrade_clients_force_upgrade(context, rc, cli: SpintaCliRunner, tmp_pa
     }
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall", "spinta_update"],
-        ["uapi:/:getall", "uapi:/:update"]
-    ]
-)
-def test_upgrade_clients_force_upgrade_destructive(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall", "spinta_update"], ["uapi:/:getall", "uapi:/:update"]])
+def test_upgrade_clients_force_upgrade_destructive(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
+):
     clients_path = get_clients_path(tmp_path)
 
     # Create emtpy folders and keymap.yml (imitate running empty project with _ensure_config_dir)

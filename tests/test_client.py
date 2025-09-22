@@ -22,7 +22,12 @@ from spinta.exceptions import RemoteClientCredentialsNotFound
         ("https://example.com", "uapi:/:getall uapi:/:getone"),
     ],
 )
-def test_get_access_token(responses: RequestsMock, tmp_path: Path, url: str, scope: str,):
+def test_get_access_token(
+    responses: RequestsMock,
+    tmp_path: Path,
+    url: str,
+    scope: str,
+):
     credsfile = Path(tmp_path / "credentials.cfg")
     credsfile.write_text(
         dedent(f"""
@@ -62,13 +67,7 @@ def test_get_access_token_no_credsfile(tmp_path: Path):
         get_access_token(creds)
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        "spinta_getall spinta_getone",
-        "uapi:/:getall uapi:/:getone"
-    ]
-)
+@pytest.mark.parametrize("scope", ["spinta_getall spinta_getone", "uapi:/:getall uapi:/:getone"])
 def test_get_access_token_no_section(tmp_path: Path, scope: str):
     credsfile = Path(tmp_path / "credentials.cfg")
     credsfile.write_text(
@@ -116,23 +115,11 @@ def test_add_client_credentials(tmp_path: Path):
     }
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall spinta_getone"],
-        ["uapi:/:getall uapi:/:getone"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall spinta_getone"], ["uapi:/:getall uapi:/:getone"]])
 def test_add_client_credentials_kwargs(tmp_path: Path, scope: list):
     credsfile = Path(tmp_path / "credentials.cfg")
 
-    add_client_credentials(
-        credsfile,
-        "https://example.com",
-        client="spinta",
-        secret="verysecret",
-        scopes=scope
-    )
+    add_client_credentials(credsfile, "https://example.com", client="spinta", secret="verysecret", scopes=scope)
     creds = configparser.ConfigParser()
     creds.read(credsfile)
 

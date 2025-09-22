@@ -59,14 +59,12 @@ def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
 
 
 @pytest.mark.models("datasets/backends/postgres/dataset")
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_getall(model: str, app: TestClient, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_getall(
+    model: str,
+    app: TestClient,
+    scope: list,
+):
     eu, lt = _create_data(app, model)
     app.authorize(scope)
 
@@ -86,14 +84,12 @@ def sha1(s):
 
 
 @pytest.mark.models("datasets/backends/postgres/dataset")
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_getall_ns(model, app, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_getall_ns(
+    model,
+    app,
+    scope: list,
+):
     _create_data(app, model)
     app.authorize(scope)
 
@@ -108,13 +104,7 @@ def test_getall_ns(model, app, scope: list,):
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_ns_titles(
     manifest_type: str,
     tmp_path: Path,
@@ -154,13 +144,7 @@ def test_ns_titles(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
 def test_ns_titles_bare_models(
     manifest_type: str,
     tmp_path: Path,

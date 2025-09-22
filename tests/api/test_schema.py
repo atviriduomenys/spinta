@@ -82,13 +82,7 @@ def test_schema_invalid_auth_scope(
     assert error(resp, status=403) == "InsufficientScopeError"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_manifest_type(
     tmp_path: Path,
     rc: RawConfig,
@@ -117,13 +111,7 @@ def test_schema_invalid_manifest_type(
     assert error(resp, status=400) == "NotSupportedManifestType"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_path_model_and_ns(
     tmp_path: Path,
     rc: RawConfig,
@@ -154,13 +142,7 @@ def test_schema_invalid_path_model_and_ns(
     assert error(resp, status=400) == "InvalidSchemaUrlPath"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_dataset_name(
     tmp_path: Path,
     rc: RawConfig,
@@ -189,13 +171,7 @@ def test_schema_invalid_dataset_name(
     assert error(resp, status=400) == "InvalidName"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_content_type(
     tmp_path: Path,
     rc: RawConfig,
@@ -227,13 +203,7 @@ def test_schema_invalid_content_type(
     assert error(resp, status=415) == "UnknownContentType"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_file_size(
     tmp_path: Path,
     rc: RawConfig,
@@ -265,13 +235,7 @@ def test_schema_invalid_file_size(
     assert error(resp, status=400) == "FileSizeTooLarge"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_empty_file(
     tmp_path: Path,
     rc: RawConfig,
@@ -304,13 +268,7 @@ def test_schema_empty_file(
     assert error(resp, status=400) == "ModifyOneDatasetSchema"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_dataset_missmatch(
     tmp_path: Path,
     rc: RawConfig,
@@ -347,13 +305,7 @@ def test_schema_dataset_missmatch(
     assert error(resp, status=400) == "DatasetNameMissmatch"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_more_than_one_dataset(
     tmp_path: Path,
     rc: RawConfig,
@@ -394,13 +346,7 @@ def test_schema_more_than_one_dataset(
     assert error(resp, status=400) == "ModifyOneDatasetSchema"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write"],
-        ["uapi:/:schema_write"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_requires_ids(
     tmp_path: Path,
     rc: RawConfig,
@@ -437,13 +383,7 @@ def test_schema_requires_ids(
     assert error(resp, status=400) == "DatasetSchemaRequiresIds"
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write", "spinta_getall"],
-        ["uapi:/:schema_write", "uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_create_new_dataset(
     tmp_path: Path,
     rc: RawConfig,
@@ -585,13 +525,7 @@ def test_schema_create_new_dataset(
         assert data.json()["_data"] == [{"description": "", "name": "api/schema/insert/Country", "title": ""}]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write", "spinta_getall"],
-        ["uapi:/:schema_write", "uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_create_new_dataset_when_not_empty(
     tmp_path: Path,
     rc: RawConfig,
@@ -912,13 +846,7 @@ def test_schema_create_new_dataset_when_not_empty(
         ]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write", "spinta_getall"],
-        ["uapi:/:schema_write", "uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_add_new_model(
     tmp_path: Path,
     rc: RawConfig,
@@ -1247,13 +1175,7 @@ def test_schema_add_new_model(
         ]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_schema_write", "spinta_getall"],
-        ["uapi:/:schema_write", "uapi:/:getall"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_remove_model(
     tmp_path: Path,
     rc: RawConfig,
@@ -1590,8 +1512,8 @@ def test_schema_remove_model(
     "scope",
     [
         ["spinta_schema_write", "spinta_getall", "spinta_insert"],
-        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"]
-    ]
+        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"],
+    ],
 )
 def test_schema_update_model(
     tmp_path: Path,
@@ -1853,8 +1775,8 @@ def test_schema_update_model(
     "scope",
     [
         ["spinta_schema_write", "spinta_getall", "spinta_insert"],
-        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"]
-    ]
+        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"],
+    ],
 )
 def test_schema_update_model_multiple_times(
     tmp_path: Path,
@@ -2215,8 +2137,8 @@ def test_schema_update_model_multiple_times(
     "scope",
     [
         ["spinta_schema_write", "spinta_getall", "spinta_insert", "spinta_set_meta_fields"],
-        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_schema_advanced(
     tmp_path: Path,

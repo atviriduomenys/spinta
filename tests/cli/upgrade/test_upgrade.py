@@ -21,22 +21,20 @@ def test_upgrade_invalid_script_name(context, rc, cli: SpintaCliRunner):
         raise result.exception
 
 
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall"],
-        ["uapi:/:getall"]
-    ]
-)
-def test_upgrade_check_only(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, scope: list,):
+@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+def test_upgrade_check_only(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    scope: list,
+):
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
     rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
 
     # Create already existing file, to imitate old structure
-    create_old_client_file(
-        clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope}
-    )
+    create_old_client_file(clients_path, {"client_id": "TEST", "client_secret_hash": "secret", "scopes": scope})
     items = os.listdir(clients_path)
     assert items == ["TEST.yml"]
 

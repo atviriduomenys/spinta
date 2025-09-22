@@ -1596,11 +1596,19 @@ def test_push_with_errors_rollback(
     "scope",
     [
         ["spinta_set_meta_fields", "spinta_patch", "spinta_update"],
-        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"]
-    ]
+        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"],
+    ],
 )
 def test_push_sync_state_insert(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -1749,11 +1757,19 @@ def test_push_sync_state_insert(
     "scope",
     [
         ["spinta_set_meta_fields", "spinta_patch", "spinta_update"],
-        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"]
-    ]
+        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"],
+    ],
 )
 def test_push_sync_state_delete(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -1882,11 +1898,19 @@ def test_push_sync_state_delete(
     "scope",
     [
         ["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"],
-        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"]
-    ]
+        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"],
+    ],
 )
 def test_push_sync_state_update(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2023,11 +2047,19 @@ def test_push_sync_state_update(
     "scope",
     [
         ["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"],
-        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"]
-    ]
+        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"],
+    ],
 )
 def test_push_sync_state_update_revision(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2178,11 +2210,19 @@ def test_push_sync_state_update_revision(
     "scope",
     [
         ["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"],
-        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"]
-    ]
+        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"],
+    ],
 )
 def test_push_sync_state_combined(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2327,11 +2367,19 @@ def test_push_sync_state_combined(
     "scope",
     [
         ["spinta_set_meta_fields", "spinta_patch", "spinta_update"],
-        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"]
-    ]
+        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"],
+    ],
 )
 def test_push_sync_state_migrate_page_values(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2481,11 +2529,19 @@ def test_push_sync_state_migrate_page_values(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_sync_state_skip_no_auth(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2715,11 +2771,19 @@ def test_push_sync_state_skip_no_auth(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_page_multiple_keys(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, multi_type_geodb, request, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    multi_type_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2889,11 +2953,19 @@ def test_push_page_multiple_keys(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_with_geometry(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3218,11 +3290,19 @@ def test_push_connect_and_read_timeout(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_with_geometry_flip_both(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3304,11 +3384,19 @@ def test_push_with_geometry_flip_both(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_with_geometry_flip_source(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3407,11 +3495,19 @@ def test_push_with_geometry_flip_source(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_with_geometry_flip_invalid_bounding_box(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3507,11 +3603,19 @@ def test_push_with_geometry_flip_invalid_bounding_box(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_with_array_intermediate_table(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, array_geodb, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    array_geodb,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -3614,11 +3718,19 @@ def test_push_with_array_intermediate_table(
             "uapi:/:getall",
             "uapi:/:search",
             "uapi:/:wipe",
-        ]
-    ]
+        ],
+    ],
 )
 def test_push_with_array_split(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, array_geodb, scope: list,
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    array_geodb,
+    scope: list,
 ):
     create_tabular_manifest(
         context,

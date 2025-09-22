@@ -18,13 +18,7 @@ def sql(rc):
 
 
 @pytest.mark.skip("datasets")
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["spinta_getall", "spinta_search"],
-        ["uapi:/:getall", "uapi:/:search"]
-    ]
-)
+@pytest.mark.parametrize("scope", [["spinta_getall", "spinta_search"], ["uapi:/:getall", "uapi:/:search"]])
 def test_sql(rc, cli, sql, app, scope: list):
     dsn = rc.get("backends", "default", "dsn", required=True)
     rc = rc.fork({"datasets.default.sql.db": dsn})

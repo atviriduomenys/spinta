@@ -193,8 +193,8 @@ def test_external_ref_with_explicit_key(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"],
+    ],
 )
 def test_external_ref_unassign(
     manifest_type: str,
@@ -246,8 +246,8 @@ def test_external_ref_unassign(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"],
+    ],
 )
 def test_external_ref_unassign_invalid(
     manifest_type: str,
@@ -298,8 +298,8 @@ def test_external_ref_unassign_invalid(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_changes", "spinta_patch"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:changes", "uapi:/:patch"],
+    ],
 )
 def test_external_ref_unassign_invalid_no_pk(
     manifest_type: str,

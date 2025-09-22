@@ -19,13 +19,14 @@ from spinta.testing.utils import get_error_codes
 def _prep_context(context: Context):
     context.set("auth.token", AdminToken())
 
+
 @pytest.mark.manifests("internal_sql", "csv")
 @pytest.mark.parametrize(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 @pytest.mark.manifests("internal_sql", "csv")
 def test_getall(
@@ -521,8 +522,8 @@ def test_get_paginate_with_none_multi_key(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_join_with_base(
     manifest_type: str,
@@ -684,8 +685,8 @@ def test_join_with_base(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_invalid_inherit_check(
     manifest_type: str,
@@ -764,8 +765,8 @@ def test_invalid_inherit_check(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_checksum_result(
     manifest_type: str,
@@ -879,8 +880,8 @@ def test_checksum_result(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_checksum_geometry(
     manifest_type: str,
@@ -939,8 +940,8 @@ def test_checksum_geometry(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_geometry_manifest_flip_select(
     manifest_type: str,
@@ -1001,8 +1002,8 @@ def test_geometry_manifest_flip_select(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_geometry_manifest_flip(
     manifest_type: str,
@@ -1063,8 +1064,8 @@ def test_geometry_manifest_flip(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_geometry_select_flip(
     manifest_type: str,
@@ -1129,8 +1130,8 @@ def test_geometry_select_flip(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_geometry_combined_flip(
     manifest_type: str,
@@ -1195,8 +1196,8 @@ def test_geometry_combined_flip(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_geometry_manifest_flip_invalid_bbox(
     manifest_type: str,
@@ -1247,8 +1248,8 @@ def test_geometry_manifest_flip_invalid_bbox(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_geometry_point(
     manifest_type: str,
@@ -1299,8 +1300,8 @@ def test_geometry_point(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_filter_lithuanian_letters(
     manifest_type: str,
@@ -1379,8 +1380,8 @@ def test_filter_lithuanian_letters(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_swap_ufunc(
     manifest_type: str,
@@ -1435,8 +1436,8 @@ def test_swap_ufunc(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_replace_source_with_prepare(
     manifest_type: str,
@@ -1494,8 +1495,8 @@ def test_replace_source_with_prepare(
     "scope",
     [
         ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
-        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"]
-    ]
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
 )
 def test_null_under_prepare(
     manifest_type: str,
@@ -1543,9 +1544,8 @@ def test_null_under_prepare(
     "scope",
     [
         ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"],
-        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"]
-
-    ]
+        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"],
+    ],
 )
 def test_getone_redirect(
     manifest_type: str,
@@ -1639,8 +1639,8 @@ def test_getone_redirect(
             "uapi:/:set_meta_fields",
             "uapi:/:move",
             "uapi:/:getall",
-        ]
-    ]
+        ],
+    ],
 )
 def test_getone_potential_redirect_loop(
     manifest_type: str,
@@ -1781,8 +1781,8 @@ def test_getone_potential_redirect_loop(
     "scope",
     [
         ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"],
-        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"]
-    ]
+        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"],
+    ],
 )
 def test_getone_invalid_value_missing_redirect(
     manifest_type: str,

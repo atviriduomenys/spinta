@@ -173,8 +173,8 @@ def test_admin_deduplicate_missing_constraint(
             "uapi:/:move",
             "uapi:/:getall",
             "uapi:/:changes",
-        ]
-    ]
+        ],
+    ],
 )
 def test_admin_deduplicate_requires_destructive(
     context: Context,
@@ -356,8 +356,8 @@ def test_admin_deduplicate_requires_destructive(
             "uapi:/:move",
             "uapi:/:getall",
             "uapi:/:changes",
-        ]
-    ]
+        ],
+    ],
 )
 def test_admin_deduplicate_simple(
     context: Context,
@@ -568,8 +568,8 @@ def test_admin_deduplicate_simple(
             "uapi:/:move",
             "uapi:/:getall",
             "uapi:/:changes",
-        ]
-    ]
+        ],
+    ],
 )
 def test_admin_deduplicate_referenced(
     context: Context,

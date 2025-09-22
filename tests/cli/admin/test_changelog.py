@@ -196,8 +196,8 @@ def test_admin_changelog_requires_deduplicate(
             "uapi:/:move",
             "uapi:/:getall",
             "uapi:/:changes",
-        ]
-    ]
+        ],
+    ],
 )
 def test_admin_changelog_old_deleted_entries(
     context: Context,
