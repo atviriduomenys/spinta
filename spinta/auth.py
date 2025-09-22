@@ -544,7 +544,7 @@ def check_scope(context: Context, scope: Union[Scopes, str]):
     if isinstance(scope, Scopes):
         scope = scope.value
 
-    token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"], operator="OR")
+    token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"])
 
 
 def get_scope_name(
