@@ -232,9 +232,13 @@ class Attribute(External):
     name: str  # property.source
     prepare: Expr = NA  # property.prepare
 
+    # Type object, that overwrites default types
+    custom_type: Any = None
+
     schema = {
         "prop": {"parent": True},
         "name": {"default": None},
         "prepare": {"type": "spyna", "default": NA},
         "type": {"type": "string"},
+        "custom_type": {"type": "object", "default": None},
     }
