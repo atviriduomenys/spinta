@@ -68,6 +68,7 @@ def load(context: Context, config: Config) -> Config:
     config.server_url = rc.get("server_url")
     config.scope_prefix = rc.get("scope_prefix")
     config.scope_formatter = rc.get("scope_formatter", cast=importstr)
+    config.scope_prefix_udts = rc.get("scope_prefix_udts")
     config.scope_max_length = rc.get("scope_max_length", cast=int)
     config.scope_log = rc.get("scope_log", default=False, cast=asbool)
     config.default_auth_client = rc.get("default_auth_client")

@@ -28,6 +28,7 @@ from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants, OAuth2Payload, scope_to_list, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from authlib.oauth2.rfc6749.util import scope_to_list
 from cachetools import cached, LRUCache
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
@@ -72,6 +73,7 @@ CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
 DEFAULT_CREDENTIALS_SECTION = "default"
+DEPRECATED_SCOPE_PREFIX = "spinta_"
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
 SCOPE_TYPE = Union[tuple, list, set, str, None]
@@ -260,6 +262,12 @@ class Token(rfc6749.TokenMixin):
         return not self._validator.scope_insufficient(self.get_scope(), required_scopes)
 
     def check_scope(self, scope: SCOPE_TYPE):
+        token_scopes = set(scope_to_list(self._token.get("scope", "")))
+        if any(token_scope for token_scope in token_scopes if token_scope.startswith(DEPRECATED_SCOPE_PREFIX)):
+            log.warning(
+                "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
+            )
+
         if not self.valid_scope(scope):
             client_id = self._token["aud"]
 
@@ -267,8 +275,9 @@ class Token(rfc6749.TokenMixin):
             if isinstance(scope, str):
                 operator = "AND"
                 scope = [scope]
-
-            missing_scopes = ", ".join(sorted(scope))
+            missing_scopes = ", ".join(
+                sorted([single_scope for single_scope in scope if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX)])
+            )
 
             # FIXME: this should be wrapped into UserError.
             if operator == "AND":
@@ -537,13 +546,14 @@ def check_scope(context: Context, scope: Union[Scopes, str]):
     if isinstance(scope, Scopes):
         scope = scope.value
 
-    token.check_scope(f"{config.scope_prefix}{scope}")
+    token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"])
 
 
 def get_scope_name(
     context: Context,
     node: Union[Namespace, Model, Property],
     action: Action,
+    is_udts: bool = False,
 ) -> str:
     config = context.get("config")
 
@@ -552,18 +562,24 @@ def get_scope_name(
     elif isinstance(node, Model):
         name = node.model_type()
     elif isinstance(node, Property):
-        name = node.model.model_type() + "_" + node.place
+        name = node.model.model_type() + "/@" + node.place if is_udts else node.model.model_type() + "_" + node.place
     else:
         raise Exception(f"Unknown node type {node}.")
 
+    if is_udts:
+        template = "{prefix}{name}/:{action}" if name else "{prefix}:{action}"
+    else:
+        template = "{prefix}{name}_{action}" if name else "{prefix}{action}"
+
     return name_to_scope(
-        "{prefix}{name}_{action}" if name else "{prefix}{action}",
+        template,
         name,
         maxlen=config.scope_max_length,
         params={
-            "prefix": config.scope_prefix,
-            "action": action.value,
+            "prefix": config.scope_prefix_udts if is_udts else config.scope_prefix,
+            "action": "create" if action.value == "insert" and is_udts else action.value,
         },
+        is_udts=is_udts,
     )
 
 
@@ -600,7 +616,6 @@ def authorized(
 ):
     config: Config = context.get("config")
     token = context.get("auth.token")
-
     # Unauthorized clients can only access open nodes.
     unauthorized = token.get_client_id() == get_default_auth_client_id(context)
     open_node = node.access >= Access.open
@@ -639,8 +654,9 @@ def authorized(
     scope_formatter = scope_formatter or config.scope_formatter
     if not isinstance(action, (list, tuple)):
         action = [action]
-    scopes = [scope_formatter(context, scope, act) for act in action for scope in scopes]
-
+    scopes = [
+        scope_formatter(context, scope, act, is_udts) for act in action for scope in scopes for is_udts in [False, True]
+    ]
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)

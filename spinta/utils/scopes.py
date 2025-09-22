@@ -18,6 +18,7 @@ def name_to_scope(
     *,
     maxlen: int = None,
     params: Dict[str, Any] = None,
+    is_udts: bool = False,
 ) -> str:
     """Return scope by given template possibly shortened on name part."""
     scope = template.format(name=name, **params)
@@ -25,4 +26,4 @@ def name_to_scope(
         surplus = len(scope) - maxlen
         name = name[: len(name) - surplus - 8] + hashlib.sha1(name.encode()).hexdigest()[:8]
         scope = template.format(name=name, **params)
-    return _sanitize(scope)
+    return _sanitize(scope) if not is_udts else scope
