@@ -59,14 +59,14 @@ def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
 
 
 @pytest.mark.models("datasets/backends/postgres/dataset")
-@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_getall(
     model: str,
     app: TestClient,
-    scope: list,
+    scopes: list,
 ):
     eu, lt = _create_data(app, model)
-    app.authorize(scope)
+    app.authorize(scopes)
 
     resp = app.get("/datasets/backends/postgres/dataset/:all")
     assert listdata(resp, full=True) == [
@@ -84,14 +84,14 @@ def sha1(s):
 
 
 @pytest.mark.models("datasets/backends/postgres/dataset")
-@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_getall_ns(
     model,
     app,
-    scope: list,
+    scopes: list,
 ):
     _create_data(app, model)
-    app.authorize(scope)
+    app.authorize(scopes)
 
     resp = app.get("/datasets/backends/postgres/dataset/:ns/:all")
     assert listdata(resp, "name") == [
@@ -104,12 +104,12 @@ def test_getall_ns(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_ns_titles(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
-    scope: list,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -129,7 +129,7 @@ def test_ns_titles(
         manifest_type=manifest_type,
         full_load=True,
     )
-    app = create_test_client(context, scope=scope)
+    app = create_test_client(context, scopes=scopes)
     assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]
@@ -144,12 +144,12 @@ def test_ns_titles(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-@pytest.mark.parametrize("scope", [["spinta_getall"], ["uapi:/:getall"]])
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_ns_titles_bare_models(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
-    scope: list,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -169,7 +169,7 @@ def test_ns_titles_bare_models(
         manifest_type=manifest_type,
         full_load=True,
     )
-    app = create_test_client(context, scope=scope)
+    app = create_test_client(context, scope=scopes)
     assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]
