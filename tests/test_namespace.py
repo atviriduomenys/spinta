@@ -129,7 +129,7 @@ def test_ns_titles(
         manifest_type=manifest_type,
         full_load=True,
     )
-    app = create_test_client(context, scopes=scopes)
+    app = create_test_client(context, scope=scopes)
     assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]
