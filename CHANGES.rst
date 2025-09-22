@@ -9,9 +9,11 @@ Improvements:
 - `spinta copy` for XSD supports globally defined attributes, referenced in other places.(`#605`_)
 - Updated `authlib` minimal version to 1.0.0 (`#675`_).
 - `private` and `public` keys now include `kid` field (`#675`_).
+- Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
 
   .. _#605: https://github.com/atviriduomenys/spinta/issues/605
   .. _#675: https://github.com/atviriduomenys/spinta/issues/675
+  .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
 
 Other:
 - Removed dependency `mypy`
@@ -48,7 +50,6 @@ New Features:
 - Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
 - Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
 - Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
-- Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
   .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
@@ -58,7 +59,6 @@ New Features:
   .. _#1382: https://github.com/atviriduomenys/spinta/issues/1382
   .. _#1389: https://github.com/atviriduomenys/spinta/issues/1389
   .. _#1415: https://github.com/atviriduomenys/spinta/issues/1415
-  .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
 
 Improvements:
 
