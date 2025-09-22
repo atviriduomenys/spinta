@@ -103,6 +103,7 @@ def test_nested(model, app):
     assert data["_revision"] == revision
     assert data["notes"] == [{"note": "foo", "note_type": None, "create_date": None}]
 
+
 @pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_root(context, rc: RawConfig, tmp_path: Path, scopes: list):
     rc = configure(
@@ -133,6 +134,7 @@ def test_root(context, rc: RawConfig, tmp_path: Path, scopes: list):
         "datasets/gov/vpt/new/:ns",
         "datasets/gov/vpt/old/:ns",
     ]
+
 
 @pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_resource_backends(

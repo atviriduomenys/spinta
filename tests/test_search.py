@@ -1161,7 +1161,16 @@ def test_search_not_null(model, app):
 
 @pytest.mark.parametrize("backend", ["default", "mongo"])
 @pytest.mark.parametrize("scopes", [["spinta_set_meta_fields"], ["uapi:/:set_meta_fields"]])
-def test_extra_fields(context, postgresql, mongo, backend, rc, tmp_path, request, scopes: list,):
+def test_extra_fields(
+    context,
+    postgresql,
+    mongo,
+    backend,
+    rc,
+    tmp_path,
+    request,
+    scopes: list,
+):
     rc = rc.fork(
         {
             "backends": [backend],
