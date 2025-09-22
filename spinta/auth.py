@@ -262,7 +262,7 @@ class Token(rfc6749.TokenMixin):
         return not self._validator.scope_insufficient(self.get_scope(), required_scopes)
 
     def check_scope(self, scope: SCOPE_TYPE):
-        token_scopes = set(scope_to_list(self._token.get('scope', '')))
+        token_scopes = set(scope_to_list(self._token.get("scope", "")))
         if any(token_scope for token_scope in token_scopes if token_scope.startswith(DEPRECATED_SCOPE_PREFIX)):
             log.warning(
                 "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
@@ -275,7 +275,9 @@ class Token(rfc6749.TokenMixin):
             if isinstance(scope, str):
                 operator = "AND"
                 scope = [scope]
-            missing_scopes = ", ".join(sorted([single_scope for single_scope in scope if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX)]))
+            missing_scopes = ", ".join(
+                sorted([single_scope for single_scope in scope if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX)])
+            )
 
             # FIXME: this should be wrapped into UserError.
             if operator == "AND":

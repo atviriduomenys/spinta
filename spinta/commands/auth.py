@@ -19,5 +19,6 @@ def get_model_scopes(context: Context, model: str, actions: List[str]):
             },
             is_udts=is_udts,
         )
-        for action in actions for is_udts in [False, True]
+        for action in actions
+        for is_udts in [False, True]
     ]
