@@ -35,7 +35,7 @@ All unauthorized clients will be given default client permissions.
 UDTS format Scopes
 ==================
 
-Each client can be given list of scopes. Scopes names uses following pattern::
+Each client can be given a list of scopes. Scope names use the following pattern:
 
     {$SPINTA_SCOPE_PREFIX}{ns}/{Model}/@{property}/:{action}
 

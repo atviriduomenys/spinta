@@ -73,6 +73,7 @@ CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
 DEFAULT_CREDENTIALS_SECTION = "default"
+DEPRECATED_SCOPE_PREFIX = "spinta_"
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
 SCOPE_TYPE = Union[tuple, list, set, str, None]
@@ -262,7 +263,7 @@ class Token(rfc6749.TokenMixin):
 
     def check_scope(self, scope: SCOPE_TYPE):
         token_scopes = set(scope_to_list(self._token.get('scope', '')))
-        if any(token_scope for token_scope in token_scopes if token_scope.startswith("spinta_")):
+        if any(token_scope for token_scope in token_scopes if token_scope.startswith(DEPRECATED_SCOPE_PREFIX)):
             log.warning(
                 "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
             )
