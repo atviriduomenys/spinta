@@ -203,7 +203,6 @@ def test_this_dataset_model_property(context):
         "    model: datasets/backends/postgres/dataset/Report\n"
         "    entity: reports\n"
         "    property: status\n"
-        "    attribute: None\n"
         "    resource.backend: datasets/backends/postgres/dataset/sql\n"
     )
 
