@@ -1,10 +1,10 @@
 from typing import List
 from typing import Optional
 
-from typer import echo
 from typer import Argument
 from typer import Context as TyperContext
 from typer import Option
+from typer import echo
 
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
