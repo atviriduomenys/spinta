@@ -25,7 +25,7 @@ def test_handle_error_multiple_files():
 
 def test_post_process_ok_check(capsys):
     handler = CLIErrorHandler()
-    handler.post_process("check")
+    handler.post_process()
     captured = capsys.readouterr()
     output = captured.out
     assert "OK" in output
