@@ -1,4 +1,3 @@
-import io
 import json
 import pathlib
 import shutil
@@ -129,7 +128,15 @@ def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
     }
 
 
-def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_path):
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope(
+    rc,
+    context: Context,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scopes: set,
+):
+    scopes_in_string_format = " ".join(scopes)
     cli.invoke(
         rc,
         [
@@ -140,20 +147,23 @@ def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_p
             "--name",
             "test",
             "--scope",
-            "spinta_getall spinta_getone",
+            scopes_in_string_format,
         ],
     )
 
     client = query_client(get_clients_path(tmp_path), "test", is_name=True)
     assert client.name == "test"
-    assert client.scopes == {
-        "spinta_getall",
-        "spinta_getone",
-    }
+    assert client.scopes == scopes
 
 
-def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
-    stdin = io.BytesIO(b"spinta_getall\nspinta_getone\n")
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope_via_stdin(
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scopes: set,
+):
+    stdin = "\n".join(sorted(scopes)) + "\n"
     cli.invoke(
         rc,
         [
@@ -171,10 +181,7 @@ def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
 
     client = query_client(get_clients_path(tmp_path), "test", is_name=True)
     assert client.name == "test"
-    assert client.scopes == {
-        "spinta_getall",
-        "spinta_getone",
-    }
+    assert client.scopes == scopes
 
 
 def test_empty_scope(context, app):
@@ -211,7 +218,7 @@ def test_invalid_client(app):
         auth=(client_id, client_secret),
         data={
             "grant_type": "client_credentials",
-            "scope": "",
+            "scopes": "",
         },
     )
     assert resp.status_code == 400, resp.text
@@ -220,7 +227,7 @@ def test_invalid_client(app):
 
 
 @pytest.mark.parametrize(
-    "client, scope, node, action, authorized",
+    "client, scopes, node, action, authorized",
     [
         ("default-client", "spinta_getone", "backends/mongo/Subitem", "getone", False),
         ("test-client", "spinta_getone", "backends/mongo/Subitem", "getone", True),
@@ -344,10 +351,10 @@ def test_invalid_client(app):
         ("test-client", "uapi:/:create", "backends/mongo/Subitem", "insert", True),
     ],
 )
-def test_authorized(context, client, scope, node, action, authorized):
+def test_authorized(context, client, scopes, node, action, authorized):
     if client == "default-client":
         client = context.get("config").default_auth_client
-    scopes = [scope]
+    scopes = [scopes]
     pkey = auth.load_key(context, auth.KeyType.private)
     token = auth.create_access_token(context, pkey, client, scopes=scopes)
     token = auth.Token(token, auth.BearerTokenValidator(context))
@@ -373,7 +380,8 @@ def test_invalid_access_token(app):
     assert get_error_codes(resp.json()) == ["InvalidToken"]
 
 
-def test_token_validation_key_config(backends, rc, tmp_path, request):
+@pytest.mark.parametrize("scopes", [["spinta_report_getall"], ["uapi:/Report/:getall"]])
+def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: list):
     confdir = pathlib.Path(__file__).parent
     prvkey = json.loads((confdir / "config/keys/private.json").read_text())
     pubkey = json.loads((confdir / "config/keys/public.json").read_text())
@@ -391,7 +399,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
 
     prvkey = JsonWebKey.import_key(prvkey)
     client = "RANDOMID"
-    scopes = ["spinta_report_getall"]
+    scopes = scopes
     token = auth.create_access_token(context, prvkey, client, scopes=scopes)
 
     client = create_test_client(context)
@@ -399,8 +407,10 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
     assert resp.status_code == 200
 
 
-@pytest.fixture()
+@pytest.fixture(params=[["spinta_getall"], ["uapi:/:getall"]])
 def basic_auth(backends, rc, tmp_path, request):
+    scopes = request.param
+
     confdir = pathlib.Path(__file__).parent / "config"
     shutil.copytree(str(confdir / "keys"), str(tmp_path / "keys"))
 
@@ -412,7 +422,7 @@ def basic_auth(backends, rc, tmp_path, request):
         name="default",
         client_id=str(new_id),
         secret="secret",
-        scopes=["spinta_getall"],
+        scopes=scopes,
         add_secret=True,
     )
 
@@ -494,35 +504,69 @@ def test_invalid_scope(context, app):
     assert get_error_codes(resp.json()) == ["InvalidScopes"]
 
 
-def test_invalid_client_file_data_type_list(tmp_path, context, cli, rc):
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [
+            "spinta_getone",
+            "spinta_getall",
+            "spinta_search",
+        ],
+        [
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+        ],
+    ],
+)
+def test_invalid_client_file_data_type_list(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scopes: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
         if not str(child).endswith("keymap.yml"):
             client_file = child
     yaml = ruamel.yaml.YAML(typ="safe")
-    scopes = [
-        "spinta_getone",
-        "spinta_getall",
-        "spinta_search",
-    ]
+    scopes = scopes
     yaml.dump(scopes, client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'list'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)
 
 
-def test_invalid_client_file_data_type_str(tmp_path, context, cli, rc):
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [
+            "spinta_getone",
+            "spinta_getall",
+            "spinta_search",
+        ],
+        [
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+        ],
+    ],
+)
+def test_invalid_client_file_data_type_str(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scopes: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
         if not str(child).endswith("keymap.yml"):
             client_file = child
     yaml = ruamel.yaml.YAML(typ="safe")
-    scopes = [
-        "spinta_getone",
-        "spinta_getall",
-        "spinta_search",
-    ]
+    scopes = scopes
     yaml.dump(str(scopes), client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'str'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)

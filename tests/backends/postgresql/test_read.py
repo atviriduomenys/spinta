@@ -21,12 +21,21 @@ def _prep_context(context: Context):
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
+@pytest.mark.manifests("internal_sql", "csv")
 def test_getall(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -47,7 +56,7 @@ def test_getall(
     )
     _prep_context(context)
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lithuania_id = "d3482081-1c30-43a4-ae6f-faf6a40c954a"
     vilnius_id = "3aed7394-18da-4c17-ac29-d501d5dd0ed7"
     app.post("/example/Country", json={"_id": lithuania_id, "name": "Lithuania"})
@@ -87,7 +96,7 @@ def test_getall_pagination_disabled(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -124,7 +133,7 @@ def test_getall_pagination_enabled(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -162,7 +171,7 @@ def test_getall_pagination_disabled_in_config(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -200,7 +209,7 @@ def test_getall_pagination_disabled_in_config_enabled_in_request(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/getall/test", ["insert", "getall", "search"])
+    app.authmodel("example/getall/test", ["create", "getall", "search"])
     app.post("/example/getall/test/Test", json={"value": 0})
     app.post("/example/getall/test/Test", json={"value": 3})
     resp_2 = app.post("/example/getall/test/Test", json={"value": 410}).json()
@@ -237,7 +246,7 @@ def test_get_date(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/date/test", ["insert", "getall", "search"])
+    app.authmodel("example/date/test", ["create", "getall", "search"])
     app.post("/example/date/test/Test", json={"date": "2020-01-01"})
     response = app.get("/example/date/test/Test")
     json_response = response.json()
@@ -268,7 +277,7 @@ def test_get_datetime(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/datetime/test", ["insert", "getall", "search"])
+    app.authmodel("example/datetime/test", ["create", "getall", "search"])
     app.post("/example/datetime/test/Test", json={"date": "2020-01-01T10:00:10"})
     response = app.get("/example/datetime/test/Test")
     json_response = response.json()
@@ -299,7 +308,7 @@ def test_get_time(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/time/test", ["insert", "getall", "search"])
+    app.authmodel("example/time/test", ["create", "getall", "search"])
     app.post("/example/time/test/Test", json={"date": "10:00:10"})
     response = app.get("/example/time/test/Test")
     json_response = response.json()
@@ -331,7 +340,7 @@ def test_get_paginate_with_none_simple(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/page/null/simple", ["insert", "getall", "search"])
+    app.authmodel("example/page/null/simple", ["create", "getall", "search"])
     app.post("/example/page/null/simple/Test", json={"id": 0, "name": "Test0"})
     app.post("/example/page/null/simple/Test", json={"id": None, "name": "Test1"})
     app.post("/example/page/null/simple/Test", json={"id": 1, "name": "Test2"})
@@ -405,7 +414,7 @@ def test_get_paginate_invalid_type(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/page/invalid", ["insert", "getall", "search"])
+    app.authmodel("example/page/invalid", ["create", "getall", "search"])
     app.post("/example/page/invalid/Test", json={"id": 0, "name": "Test0"})
     app.post("/example/page/invalid/Test", json={"id": 0, "name": "Test1"})
     app.post("/example/page/invalid/Test", json={"id": 0, "name": None})
@@ -455,7 +464,7 @@ def test_get_paginate_with_none_multi_key(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authmodel("example/page/null/multi", ["insert", "getall", "search"])
+    app.authmodel("example/page/null/multi", ["create", "getall", "search"])
     app.post("/example/page/null/multi/Test", json={"id": 0, "name": "Test0"})
     app.post("/example/page/null/multi/Test", json={"id": 0, "name": "Test1"})
     app.post("/example/page/null/multi/Test", json={"id": 0, "name": None})
@@ -509,12 +518,20 @@ def test_get_paginate_with_none_multi_key(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_join_with_base(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -566,7 +583,7 @@ def test_join_with_base(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
     VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
     TST = "2074d66e-0dfd-4233-b1ec-199abc994d0e"
@@ -664,12 +681,20 @@ def test_join_with_base(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_invalid_inherit_check(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -704,7 +729,7 @@ def test_invalid_inherit_check(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
 
     resp = app.post(
@@ -736,12 +761,20 @@ def test_invalid_inherit_check(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_checksum_result(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -770,7 +803,7 @@ def test_checksum_result(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
     lv_id = str(uuid.uuid4())
 
@@ -843,12 +876,20 @@ def test_checksum_result(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_checksum_geometry(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -868,7 +909,7 @@ def test_checksum_geometry(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
     lv_id = str(uuid.uuid4())
 
@@ -895,12 +936,20 @@ def test_checksum_geometry(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_geometry_manifest_flip_select(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -921,7 +970,7 @@ def test_geometry_manifest_flip_select(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -949,12 +998,20 @@ def test_geometry_manifest_flip_select(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_geometry_manifest_flip(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -975,7 +1032,7 @@ def test_geometry_manifest_flip(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1003,12 +1060,20 @@ def test_geometry_manifest_flip(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_geometry_select_flip(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1029,7 +1094,7 @@ def test_geometry_select_flip(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1061,12 +1126,20 @@ def test_geometry_select_flip(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_geometry_combined_flip(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1087,7 +1160,7 @@ def test_geometry_combined_flip(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1119,12 +1192,20 @@ def test_geometry_combined_flip(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_geometry_manifest_flip_invalid_bbox(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1145,7 +1226,7 @@ def test_geometry_manifest_flip_invalid_bbox(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1163,12 +1244,20 @@ def test_geometry_manifest_flip_invalid_bbox(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_geometry_point(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1190,7 +1279,7 @@ def test_geometry_point(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     resp = app.post(
@@ -1207,12 +1296,20 @@ def test_geometry_point(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_filter_lithuanian_letters(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1231,7 +1328,7 @@ def test_filter_lithuanian_letters(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
 
     app.post(
         "/datasets/filters/chars/City",
@@ -1279,12 +1376,20 @@ def test_filter_lithuanian_letters(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_swap_ufunc(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1310,7 +1415,7 @@ def test_swap_ufunc(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
 
     for _id, name in enumerate(("nan", "test", "", None)):
         resp = app.post("/datasets/geometry/point/Country", json={"id": _id, "name": name})
@@ -1327,12 +1432,20 @@ def test_swap_ufunc(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_replace_source_with_prepare(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1354,7 +1467,7 @@ def test_replace_source_with_prepare(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
 
     for _id in range(1, 5):
         resp = app.post("/datasets/geometry/point/Country", json={"id": _id, "name": str(_id)})
@@ -1378,12 +1491,20 @@ def test_replace_source_with_prepare(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_null_under_prepare(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1403,7 +1524,7 @@ def test_null_under_prepare(
     )
 
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"])
+    app.authorize(scope)
 
     resp = app.post("/datasets/geometry/point/Country", json={"id": 1, "name": None})
     assert resp.status_code == 201, resp.text
@@ -1419,12 +1540,20 @@ def test_null_under_prepare(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"],
+        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"],
+    ],
+)
 def test_getone_redirect(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1443,9 +1572,7 @@ def test_getone_redirect(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"]
-    )
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
     new_lt_id = str(uuid.uuid4())
     assert lt_id != new_lt_id
@@ -1490,12 +1617,38 @@ def test_getone_redirect(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+        ],
+        [
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
+        ],
+    ],
+)
 def test_getone_potential_redirect_loop(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     """
     Redirect loop potential case:
@@ -1551,18 +1704,7 @@ def test_getone_potential_redirect_loop(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
-        ]
-    )
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
     new_lt_id = str(uuid.uuid4())
     assert lt_id != new_lt_id
@@ -1635,12 +1777,20 @@ def test_getone_potential_redirect_loop(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"],
+        ["uapi:/:create", "uapi:/:getone", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields", "uapi:/:move"],
+    ],
+)
 def test_getone_invalid_value_missing_redirect(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1659,9 +1809,7 @@ def test_getone_invalid_value_missing_redirect(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        ["spinta_insert", "spinta_getone", "spinta_wipe", "spinta_search", "spinta_set_meta_fields", "spinta_move"]
-    )
+    app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
     country_redirect = get_pg_table_name("datasets/redirect/Country", TableType.REDIRECT)
