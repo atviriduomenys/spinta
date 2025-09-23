@@ -1,6 +1,7 @@
 from typing import List
 from typing import Optional
 
+from typer import echo
 from typer import Argument
 from typer import Context as TyperContext
 from typer import Option
@@ -34,4 +35,9 @@ def check(
     context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
     prepare_manifest(context, ensure_config_dir=True, full_load=True)
     manager = context.get("error_manager")
-    manager.handler.post_process("check")
+    handler = manager.handler
+
+    if handler.get_counts():
+        handler.post_process()
+    else:
+        echo("OK")

@@ -68,34 +68,32 @@ def copy(
         columns=columns,
         order_by=order_by,
         rename_duplicates=rename_duplicates,
-        manifests=manifests
+        manifests=manifests,
     )
-    manager = context.get("error_manager")
-    manager.handler.post_process()
 
 
 def copy_manifest(
     context: Context,
     source: bool = True,
-    access: str = 'private',
+    access: str = "private",
     format_names: bool = False,
     output: Optional[str] = None,
     columns: Optional[str] = None,
     order_by: Optional[str] = None,
     rename_duplicates: bool = False,
     manifests: List[str] = None,
-    output_type: Optional[str] = None
+    output_type: Optional[str] = None,
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     access = get_enum_by_name(Access, access)
-    cols = normalizes_columns(columns.split(',')) if columns else None
+    cols = normalizes_columns(columns.split(",")) if columns else None
     internal = False
     verbose = True
     if not output:
         verbose = False
     else:
         if output_type:
-            if output_type == 'internal_sql':
+            if output_type == "internal_sql":
                 internal = True
         else:
             internal = InternalSQLManifest.detect_from_path(output)
@@ -125,16 +123,23 @@ def copy_manifest(
             rename_duplicates=rename_duplicates,
             verbose=verbose,
         )
-
     if output:
-        if output_type == 'mermaid':
+        if output_type == "mermaid":
             write_mermaid_manifest(context, output, rows)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:
             write_tabular_manifest(context, output, rows)
     else:
-        echo(render_tabular_manifest_rows(rows, cols))
+        manager = context.get("error_manager")
+        handler = manager.handler
+
+        table = render_tabular_manifest_rows(rows, cols)
+
+        if handler.get_counts():
+            handler.post_process()
+        else:
+            echo(table)
 
 
 def _read_and_return_manifest(
@@ -192,5 +197,3 @@ def _read_and_return_rows(
         access=access,
         order_by=order_by,
     )
-
-
