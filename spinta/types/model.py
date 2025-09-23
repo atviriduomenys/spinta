@@ -328,6 +328,9 @@ def configure(context: Context, prop: Property):
                     "custom_type": instance,
                 }
             else:
+                if not isinstance(prop.external, dict):
+                    prop.external = {"name": prop.external}
+
                 prop.external["custom_type"] = instance
 
 

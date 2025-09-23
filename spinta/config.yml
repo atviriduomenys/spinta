@@ -149,7 +149,7 @@ models:
           keys:
             type: string
           values:
-            type: object
+            type: any
 
 manifest:
   type: ref
