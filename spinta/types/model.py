@@ -388,7 +388,10 @@ def load(
     prop.dtype.type = "type"
     prop.dtype.prop = prop
     load_node(context, prop.dtype, data)
-    if prop.external:
+    # Generate external if defined in prop or model (legacy support).
+    # Older features lack NA checks, so both are handled here for now.
+    # Eventually might need to remove prop.model.external check and fix NA checks.
+    if prop.external or prop.model.external:
         prop.external = _load_property_external(context, manifest, prop, prop.external)
     else:
         prop.external = NA
