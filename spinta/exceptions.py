@@ -1133,3 +1133,29 @@ class InvalidCredentialsConfigurationException(UserError):
         Credentials.cfg is missing required configuration credentials.
         Missing: {missing_credentials}.
     """
+
+
+class InvalidCustomPropertyTypeConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+    """
+
+
+class InvalidCustomPropertyTypeWithArgsConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+        
+        Using args: {args}.
+    """
+
+
+class UnknownConfigurationParameters(UserError):
+    template = """
+        {config_type} {config_object!r} configuration contains unknown parameters: {unknown_params}.
+    """
+
+
+class MissingConfigurationParameter(UserError):
+    template = """
+        {config_type} {config_object!r} configuration is missing parameter: {missing_params!r}.
+    """

@@ -117,7 +117,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
 
     if dtype.name not in types:
         raise Exception(f"Unknown type {dtype.name!r} for property {prop.place!r}.")
-    column_type = types[dtype.name]
+    column_type = dtype.prop.external and dtype.prop.external.custom_type or types[dtype.name]
     nullable = not dtype.required
     return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)
 

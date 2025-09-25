@@ -1,3 +1,5 @@
+from sqlalchemy.types import String, BigInteger
+
 from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
@@ -145,3 +147,71 @@ def test_prepare_model_ref_unique_constraint(rc: RawConfig):
         for constraint in table.constraints
         if type(constraint).__name__ == "UniqueConstraint"
     )
+
+
+def test_prepare_model_custom_property_type(rc: RawConfig):
+    rc = rc.fork(
+        {
+            "models": {
+                "example/Continent": {
+                    "properties": {
+                        "id": {
+                            "type": "sqlalchemy.types.BigInteger",
+                        },
+                    },
+                },
+            },
+        }
+    )
+
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+    d | r | b | m | property   | type    | ref       | level | access
+    example                    |         |           |       |
+      |   |   | Continent      |         | id        | 4     |
+      |   |   |   | id         | integer |           | 3     | open
+      |   |   |   | name       | string  |           | 3     | open
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/Continent")
+    backend = model.backend
+    commands.prepare(context, backend, model)
+    table = backend.get_table(model)
+    assert isinstance(table.c["id"].type, BigInteger)
+
+
+def test_prepare_model_custom_property_type_with_params(rc: RawConfig):
+    rc = rc.fork(
+        {
+            "models": {
+                "example/Continent": {
+                    "properties": {
+                        "name": {
+                            "type": {
+                                "name": "sqlalchemy.types.String",
+                                "length": 10,
+                            },
+                        },
+                    },
+                },
+            },
+        }
+    )
+
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+    d | r | b | m | property   | type    | ref       | level | access
+    example                    |         |           |       |
+      |   |   | Continent      |         | id        | 4     |
+      |   |   |   | id         | integer |           | 3     | open
+      |   |   |   | name       | string  |           | 3     | open
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/Continent")
+    backend = model.backend
+    commands.prepare(context, backend, model)
+    table = backend.get_table(model)
+    assert isinstance(table.c["name"].type, String)
+    assert table.c["name"].type.length == 10
