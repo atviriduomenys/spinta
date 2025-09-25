@@ -1,5 +1,5 @@
 # susikurti venv ir suinstaliuoti spinta
-
+pip install spinta==0.1.85
 
 # Reset EXTERNAL (source) database
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_external'

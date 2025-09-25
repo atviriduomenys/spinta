@@ -1,35 +1,38 @@
 env: production
+data_path: $BASEDIR
 default_auth_client: default
 
 keymaps:
   default:
     type: sqlalchemy
-    dsn: sqlite:////path/to/keymap.db
+    dsn: sqlite:///$BASEDIR/keymap.db
 
 backends:
   default:
     type: postgresql
-    dsn: postgresql://user:pass@host:5432/spinta
+    dsn: postgresql://user:pass@host:54321/spinta
 
   saugykla_test:
     type: postgresql
-    dsn: postgresql://user:pass@host:5432/spinta2
+    dsn: postgresql://user:pass@host:54321/spinta2
 
 
 manifest: default
 manifests:
   default:
     type: csv
-    path: /path/to/manifest.csv
+    path: $BASEDIR/manifest.csv
+    access: open
     backend: default
     keymap: default
-    mode: external
+    mode: internal
+    sync: test
   saugykla_test:
     type: csv
-    path: /path/to/manifest.csv
-    backend: default
+    path: $BASEDIR/manifest_test.csv
+    backend: saugykla_test
     keymap: default
-    mode: external
+    mode: internal
 
 accesslog:
   type: file
