@@ -117,7 +117,7 @@ def load(
             model.ns.parents(),
         ),
     )
-    load_level(model, model.level)
+    load_level(context, model, model.level)
     load_status(model, model.status)
     load_visibility(model, model.visibility)
 
@@ -191,7 +191,7 @@ def load(
 
 @load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
-    load_level(base, data["level"])
+    load_level(context, base, data["level"])
 
 
 @overload
@@ -361,7 +361,7 @@ def load(
     prop.comments = load_comments(prop, prop.comments)
     if prop.prepare_given:
         prop.given.prepare = prop.prepare_given
-    load_level(prop, prop.level)
+    load_level(context, prop, prop.level)
 
     # todo properties should inherit those from model OR have a default. They shouldn't be empty
     #  Now they are empty in cases when model gets a default value, for example in inspect - tests/apie/test_inspect.py

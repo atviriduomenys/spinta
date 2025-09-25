@@ -11,13 +11,15 @@ from spinta.exceptions import (
     InvalidCustomPropertyTypeConfiguration,
 )
 from spinta.testing.manifest import load_manifest_and_context, load_manifest
+from spinta.testing.context import create_test_context
 from spinta.types.model import load_level
 
 
 @pytest.mark.parametrize("level", [Level.open, 3, "3"])
-def test_load_level(level):
+def test_load_level(level, rc):
+    context = create_test_context(rc)
     node = Mock()
-    load_level(node, level)
+    load_level(context, node, level)
     assert node.level is Level.open
 
 
