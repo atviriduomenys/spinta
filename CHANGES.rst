@@ -11,11 +11,13 @@ Improvements:
 - `private` and `public` keys now include `kid` field (`#675`_).
 - Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
 - Introduced a new error handling framework with CLI integration, including error reporting and post-processing in `spinta copy` and `spinta check` (`#1462`_)
+- Calling getall with soap backend will always return list of object, even if SOAP response has one element (`#1486`_)
 
   .. _#605: https://github.com/atviriduomenys/spinta/issues/605
   .. _#675: https://github.com/atviriduomenys/spinta/issues/675
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
+  .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
 
 Other:
 - Removed dependency `mypy`
