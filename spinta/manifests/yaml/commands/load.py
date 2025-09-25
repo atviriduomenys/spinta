@@ -79,6 +79,7 @@ def load(
     full_load: bool = False,
 ):
     assert freezed, "InlineManifest does not have unfreezed version of manifest."
+    manager = context.get("error_manager")
 
     if load_internal:
         target = into or manifest
@@ -105,6 +106,7 @@ def load(
         load_manifest_nodes(context, manifest, schemas)
 
     for source in manifest.sync:
+        manager.current_file = source.path
         commands.load(
             context,
             source,

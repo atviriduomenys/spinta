@@ -9,7 +9,7 @@ from spinta.utils.enums import enum_by_name, enum_by_value
 from spinta.utils.errors import report_error
 
 if TYPE_CHECKING:
-    from spinta.components import Component
+    from spinta.components import Component, Context
 
 
 class Access(enum.IntEnum):
@@ -138,7 +138,7 @@ class Mode(enum.Enum):
     external = "external"
 
 
-def load_level(component: Component, given_level: Level | int | str) -> None:
+def load_level(context: Context, component: Component, given_level: Level | int | str) -> None:
     if given_level:
         if isinstance(given_level, Level):
             level = given_level
@@ -147,7 +147,7 @@ def load_level(component: Component, given_level: Level | int | str) -> None:
                 given_level = int(given_level)
             if not isinstance(given_level, int):
                 raise InvalidLevel(component, level=given_level)
-            level = enum_by_value(component, "level", Level, given_level)
+            level = enum_by_value(context, component, "level", Level, given_level)
     else:
         level = None
     component.level = level
