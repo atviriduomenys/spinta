@@ -78,10 +78,12 @@ from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST, parse
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
+from spinta.urlparams import _prepare_urlparams_from_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
 from spinta.types.text.components import Text
+from spinta.utils.url import parse_url_path
 
 log = logging.getLogger(__name__)
 
@@ -449,7 +451,9 @@ class ModelReader(TabularReader):
         )
 
         # Check for partial model syntax
-        _read_functional_model(self, name)
+        if "/:" in name or "?" in name:
+            self.is_functional = True
+            name, params = _read_functional_model(self, name)
 
         if self.state.rename_duplicates:
             dup = 1
@@ -521,43 +525,14 @@ class ModelReader(TabularReader):
         self.state.model = None
 
 
-def _read_functional_model(model, name) -> None:
-    given_url_params = None
+def _read_functional_model(model, name) -> tuple[str, UrlParams]:
 
-    if "/:" in name or "?" in name:
-        model.is_functional = True
-        if "/:" in name:
-            given_url_params = name.rsplit("/:", 1)[1]
-        elif "?" in name:
-            given_url_params = "?" + name.split("?", 1)[1]
-    
-    if given_url_params:
-        model.data['given_url_params'] = given_url_params
-        model.url_params = UrlParams()
+        params = UrlParams()
+        params.parsetree = parse_url_path(name)
+        _prepare_urlparams_from_path(params)
+        name = model.params.path_parts.join("/")
 
-        if '?' in given_url_params:
-            action_part, query = given_url_params.split('?', 1)
-            action = action_part.strip(':') if action_part else None
-            
-            if action:
-                model.url_params.action = Action.by_value(action)
-            
-            parsed = parse(query)
-            if parsed:
-                if parsed['name'] == 'select':
-                    # For select(id,name)
-                    model.url_params.select = [
-                        arg['args'][0] for arg in parsed['args'] 
-                        if arg['name'] == 'bind'
-                    ]
-                else:
-                    # For filters like continent.code="eu"
-                    model.url_params.query = [parsed]
-                
-        elif given_url_params.startswith(':'):
-            # Action-only params like /:getall
-            action = given_url_params.strip(':')
-            model.url_params.action = Action.by_value(action)
+        return name, params
 
 
 def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:

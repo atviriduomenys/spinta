@@ -47,7 +47,17 @@ RULES = {
     },
     'move': {
         'maxargs': 0
+    },
+    'getall': {
+        'maxargs': 0
+    },
+    'getone': {
+        'maxargs': 1
+    },
+    'part': {
+        'maxargs': 0
     }
+
 }
 
 
