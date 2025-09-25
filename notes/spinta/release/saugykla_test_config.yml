@@ -1,0 +1,36 @@
+env: production
+default_auth_client: default
+
+keymaps:
+  default:
+    type: sqlalchemy
+    dsn: sqlite:////path/to/keymap.db
+
+backends:
+  default:
+    type: postgresql
+    dsn: postgresql://user:pass@host:5432/spinta
+
+  saugykla_test:
+    type: postgresql
+    dsn: postgresql://user:pass@host:5432/spinta2
+
+
+manifest: default
+manifests:
+  default:
+    type: csv
+    path: /path/to/manifest.csv
+    backend: default
+    keymap: default
+    mode: external
+  saugykla_test:
+    type: csv
+    path: /path/to/manifest.csv
+    backend: default
+    keymap: default
+    mode: external
+
+accesslog:
+  type: file
+  file: /path/to/accesslog.json
