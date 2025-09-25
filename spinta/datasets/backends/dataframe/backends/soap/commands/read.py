@@ -18,6 +18,9 @@ from spinta.ufuncs.querybuilder.components import QueryParams
 def _get_data_soap(url: str, backend: Soap, soap_request: dict) -> list[dict]:
     response_data = serialize_object(backend.soap_operation(**soap_request), target_cls=dict)
 
+    if response_data and not isinstance(response_data, list):
+        response_data = [response_data]
+
     return response_data or []
 
 
