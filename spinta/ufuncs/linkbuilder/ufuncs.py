@@ -2,7 +2,7 @@ import logging
 
 from spinta.core.ufuncs import ufunc, Bind
 from spinta.datasets.backends.wsdl.components import WsdlBackend
-from spinta.exceptions import InvalidSource, SoapServiceError, InvalidValue
+from spinta.exceptions import InvalidSource, InvalidValue
 from spinta.ufuncs.linkbuilder.components import LinkBuilder
 
 log = logging.getLogger(__name__)
@@ -25,12 +25,9 @@ def wsdl(env: LinkBuilder, parent_resource_bind: Bind) -> None:
 @ufunc.resolver(LinkBuilder, WsdlBackend)
 def wsdl(env: LinkBuilder, parent_resource_backend: WsdlBackend) -> None:
     soap_source = env.resource.backend.config.get("dsn")
-
-    with parent_resource_backend.begin():
-        client = parent_resource_backend.client
-
+    backend = env.resource.backend
     try:
-        service_name, port_name, _, operation_name = soap_source.split(".")
+        backend.service, backend.port, _, backend.operation = soap_source.split(".")
     except ValueError:
         error_msg = (
             f'Model source "{soap_source}" format is invalid. '
@@ -38,14 +35,4 @@ def wsdl(env: LinkBuilder, parent_resource_backend: WsdlBackend) -> None:
         )
         raise InvalidSource(env.resource, error=error_msg)
 
-    try:
-        soap_service = client.bind(service_name, port_name)
-    except ValueError:
-        raise SoapServiceError(f"SOAP service {service_name} with port {port_name} not found")
-
-    try:
-        soap_operation = soap_service[operation_name]
-    except AttributeError:
-        raise SoapServiceError(f"SOAP operation {operation_name} in service {service_name} does not exist")
-
-    env.resource.backend.soap_operation = soap_operation
+    backend.wsdl_backend = parent_resource_backend
