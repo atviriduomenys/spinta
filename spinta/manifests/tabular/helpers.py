@@ -454,7 +454,8 @@ class ModelReader(TabularReader):
         if "/:" in name or "?" in name:
             self.is_functional = True
             name, params = _read_functional_model(self, name)
-
+        # todo params should be added to data as I understand
+        # todo functional model is not being created for some reason, and it finds duplicate models.
         if self.state.rename_duplicates:
             dup = 1
             _name = name
@@ -530,7 +531,7 @@ def _read_functional_model(model, name) -> tuple[str, UrlParams]:
         params = UrlParams()
         params.parsetree = parse_url_path(name)
         _prepare_urlparams_from_path(params)
-        name = model.params.path_parts.join("/")
+        name = "/".join(params.path_parts)
 
         return name, params
 
