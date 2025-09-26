@@ -354,15 +354,14 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     yield from get_dataset_schemas(data, dataset_prefix)
 
 
-def create_openapi_manifest(manifest: ManifestPath, 
-                            template_path: str = DEFAULT_OPENAPI_TEMPLATE_PATH) -> dict:
+def create_openapi_manifest(manifest: ManifestPath, template_path: str = DEFAULT_OPENAPI_TEMPLATE_PATH) -> dict:
     """
     Create OpenAPI manifest from template and manifest data
-    
+
     Args:
         manifest: ManifestPath
         template_path: Path to the OpenAPI template JSON file
-        
+
     Returns:
         dict: Complete OpenAPI specification
     """
