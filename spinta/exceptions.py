@@ -249,6 +249,10 @@ class InvalidPropertyType(UserError):
     template = "Invalid property type, expected {expected}, got {type}."
 
 
+class InvalidBase64String(UserError):
+    template = 'Value of property "{property}" cannot be decoded because "{value}" is not valid base64 string.'
+
+
 class UndefinedPropertyType(UserError):
     template = 'Parameter "type" must be defined for property "{property}", because it is not defined in base model or there is no base model.'
 
