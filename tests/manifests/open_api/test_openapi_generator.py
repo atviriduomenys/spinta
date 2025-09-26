@@ -1,5 +1,4 @@
 import io
-from pathlib import Path
 
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.tabular.helpers import striptable
