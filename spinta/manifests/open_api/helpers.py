@@ -21,6 +21,7 @@ SCHEMA_REF_KEY = "$ref"
 DEFAULT_PROPERTY_DATATYPE = "string"
 OPENAPI = "openapi"
 SWAGGER = "swagger"
+DEFAULT_OPENAPI_TEMPLATE_PATH = "uapi_openapi_template.json"
 
 
 def replace_url_parameters(endpoint: str) -> str:
@@ -353,7 +354,8 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     yield from get_dataset_schemas(data, dataset_prefix)
 
 
-def create_openapi_manifest(manifest: ManifestPath, template_path: str = "uapi.json") -> dict:
+def create_openapi_manifest(manifest: ManifestPath, 
+                            template_path: str = DEFAULT_OPENAPI_TEMPLATE_PATH) -> dict:
     """
     Create OpenAPI manifest from template and manifest data
     

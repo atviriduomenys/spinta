@@ -372,7 +372,7 @@ class SchemaGenerator:
 class TemplateBasedOpenAPIGenerator:
     """Generate OpenAPI specs using a template and manifest data"""
     
-    def __init__(self, template_path: str = "uapi.json"):
+    def __init__(self, template_path: str):
         self.template_path = self._resolve_template_path(template_path)
         self.template = self._load_template()
         
