@@ -16,7 +16,7 @@ def create_manifest_path_from_string(manifest: str) -> ManifestPath:
 MANIFEST = """
     id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
 ,datasets/demo/system_data,,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
+,,test,,,,memory,,,,,,,,,,,,,,
 ,,,,Organization,,,,,,,,,2,,,,,,Reporting Organizations,
 ,,,,,org_name,string,,,,,,,2,,,open,,,Organization name,
 ,,,,,annual_revenue,number,,,,,,,3,,,open,,,Annual revenue amount,
