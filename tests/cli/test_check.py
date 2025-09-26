@@ -441,3 +441,24 @@ test_dataset                    |         |                                  |  
             tmp_path / "manifest.csv",
         ],
     )
+
+
+def test_check_wsdl_unreachable(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+d | r | b | m | property        | type    | ref                              | prepare            | source
+test_dataset                    |         |                                  |                    |
+  | wsdl_resource               | wsdl    |                                  |                    | foo.bar
+  | soap_resource               | soap    |                                  | wsdl(wsdl_resource)| service.port.type.operation
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
