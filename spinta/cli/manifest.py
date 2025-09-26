@@ -152,6 +152,7 @@ def _read_and_return_manifest(
     order_by: ManifestColumn = None,
     rename_duplicates: bool = False,
     verbose: bool = True,
+    check_config=True,
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
     store = load_manifest(
@@ -159,7 +160,8 @@ def _read_and_return_manifest(
         rename_duplicates=rename_duplicates,
         load_internal=False,
         verbose=verbose,
-        full_load=True
+        full_load=True,
+        check_config=check_config,
     )
 
     if format_names:
