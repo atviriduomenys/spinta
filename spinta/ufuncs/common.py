@@ -1,3 +1,4 @@
+import base64
 import math
 from typing import Any, Tuple, overload
 
@@ -60,3 +61,8 @@ def negative(env: Env, arg: int) -> int:
 @ufunc.resolver(Env)
 def noop(env) -> NoOp:
     return NoOp()
+
+
+@ufunc.resolver(Env, str)
+def base64_decode(env: Env, base64_string: str) -> Any:
+    return base64.b64decode(base64_string, validate=True).decode("utf-8")

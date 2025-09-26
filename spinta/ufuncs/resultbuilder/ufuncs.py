@@ -1,4 +1,7 @@
+import binascii
+
 from spinta.core.ufuncs import ufunc, Expr
+from spinta.exceptions import InvalidBase64String
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
@@ -56,3 +59,11 @@ def flip(env: ResultBuilder, dtype: Geometry, value: str):
 def swap(env: ResultBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return env.call("swap", *args, *kwargs)
+
+
+@ufunc.resolver(ResultBuilder, Expr)
+def base64_decode(env: ResultBuilder, expr: Expr) -> str:
+    try:
+        return env.call("base64_decode", env.this)
+    except (binascii.Error, ValueError):
+        raise InvalidBase64String(env.prop.model, property=env.prop.external.name, value=env.this)

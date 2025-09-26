@@ -457,3 +457,8 @@ def compare(env, op, field, value):
 def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def base64_decode(env: DaskDataFrameQueryBuilder, expr: Expr):
+    return expr  # Expression will be resolved later
