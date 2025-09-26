@@ -9,6 +9,7 @@ from spinta.commands import getall, get_model
 from spinta.components import Store
 from spinta.core.enums import Mode
 from spinta.core.config import RawConfig
+from spinta.exceptions import InvalidBase64String
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
@@ -71,7 +72,8 @@ def test_csv_tabular_seperator(rc: RawConfig, fs: AbstractFileSystem):
     ]
 
 
-def test_xsd_base64(rc: RawConfig, tmp_path: Path):
+def test_xsd_with_base64_returns_binary_base64_encoded_in_response(rc: RawConfig, tmp_path: Path):
+    """base64 decoding happens for internal use, but value is once again encoded for response"""
     xml = """<CITY>
     <NAME>Kaunas</NAME>
     <COUNTRY>Lietuva</COUNTRY>
@@ -84,18 +86,16 @@ def test_xsd_base64(rc: RawConfig, tmp_path: Path):
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property | type     | ref  | source              | prepare          | access
-    example                  |          |      |                     |                  |
-      | res1                 | dask/xml |      | {tmp_path}/cities.xml |                  |
-      |   |   | City         |          |      | /CITY               |                  |
-      |   |   |   | name     | string   |      | NAME                |                  | open
-      |   |   |   | country  | string   |      | COUNTRY             |                  | open
-      |   |   |   | file     | binary   |      | FILE                | base64()         | open
-    """,
+        d | r | b | m | property | type     | source                | prepare         | access
+        example                  |          |                       |                 |
+          | res1                 | dask/xml | {tmp_path}/cities.xml |                 |
+          |   |   | City         |          | /CITY                 |                 |
+          |   |   |   | name     | string   | NAME                  |                 | open
+          |   |   |   | country  | string   | COUNTRY               |                 | open
+          |   |   |   | file     | binary   | FILE                  | base64()        | open
+        """,
         mode=Mode.external,
     )
-    #
-    #       /example/City?select(name, country, base64(file))
     context.loaded = True
     app = create_test_client(context)
     app.authmodel("example/City", ["getall"])
@@ -110,7 +110,8 @@ def test_xsd_base64(rc: RawConfig, tmp_path: Path):
     ]
 
 
-def test_base64_getall(rc: RawConfig, tmp_path: Path):
+def test_xds_getall_decodes_base64_for_internal_use(rc: RawConfig, tmp_path: Path):
+    """base64 decoding happens for internal use"""
     xml = """<CITY>
     <NAME>Kaunas</NAME>
     <COUNTRY>Lietuva</COUNTRY>
@@ -122,18 +123,16 @@ def test_base64_getall(rc: RawConfig, tmp_path: Path):
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property | type     | ref  | source              | prepare          | access
-    example                  |          |      |                     |                  |
-      | res1                 | dask/xml |      | {tmp_path}/cities.xml |                  |
-      |   |   | City         |          |      | /CITY               |                  |
-      |   |   |   | name     | string   |      | NAME                |                  | open
-      |   |   |   | country  | string   |      | COUNTRY             |                  | open
-      |   |   |   | file     | binary   |      | FILE                | base64()         | open
-    """,
+        d | r | b | m | property | type     | source                | prepare          | access
+        example                  |          |                       |                  |
+          | res1                 | dask/xml | {tmp_path}/cities.xml |                  |
+          |   |   | City         |          | /CITY                 |                  |
+          |   |   |   | name     | string   | NAME                  |                  | open
+          |   |   |   | country  | string   | COUNTRY               |                  | open
+          |   |   |   | file     | binary   | FILE                  | base64()         | open
+        """,
         mode=Mode.external,
     )
-    #
-    #       /example/City?select(name, country, base64(file))
 
     with context:
         store: Store = context.get("store")
@@ -154,6 +153,44 @@ def test_base64_getall(rc: RawConfig, tmp_path: Path):
                 "name": "Kaunas",
             }
         ]
+
+
+@pytest.mark.parametrize("invalid_base64_string", ["lalald", "ąčę"])
+def test_xsd_getall_raise_error_if_base64_is_invalid(rc: RawConfig, tmp_path: Path, invalid_base64_string: str):
+    xml = f"""<CITY><NAME>Kaunas</NAME><COUNTRY>Lietuva</COUNTRY><FILE>{invalid_base64_string}</FILE></CITY>"""
+
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type     | source                | prepare         | access
+        example                  |          |                       |                 |
+          | res1                 | dask/xml | {tmp_path}/cities.xml |                 |
+          |   |   | City         |          | /CITY                 |                 |
+          |   |   |   | name     | string   | NAME                  |                 | open
+          |   |   |   | country  | string   | COUNTRY               |                 | open
+          |   |   |   | file     | binary   | FILE                  | base64()        | open
+        """,
+        mode=Mode.external,
+    )
+
+    with context:
+        store: Store = context.get("store")
+        for keymap in store.keymaps.values():
+            context.attach(f"keymap.{keymap.name}", lambda: keymap)
+
+        context.set("auth.token", AdminToken())
+
+        model = get_model(context, manifest, "example/City")
+
+        with pytest.raises(InvalidBase64String) as e:
+            list(getall(context, model, model.backend))
+
+        assert e.value.message == (
+            f'Value of property "file" cannot be decoded because "{invalid_base64_string}" is not valid base64 string.'
+        )
 
 
 def test_csv_and_operation(rc: RawConfig, fs: AbstractFileSystem):
