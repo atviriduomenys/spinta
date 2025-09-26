@@ -1,0 +1,2692 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Universal application programming interface",
+    "contact": {
+      "name": "VSSA",
+      "url": "https://vssa.lrv.lt/",
+      "email": "info@vssa.lt"
+    },
+    "license": {
+      "name": "CC-BY 4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    "summary": "Universal API specification, provided as OpenAPI JSON file for Lithuanian\ngovernment institutions as a template for implementing API's for data\nexchange in a standardized and interoperable manner.\n",
+    "description": "Test"
+  },
+  "servers": [
+    {
+      "url": "get.data.gov.lt",
+      "description": "Data access server"
+    },
+    {
+      "url": "put.data.gov.lt",
+      "description": "Data update server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "objects",
+      "description": "Operations with multiple Objects"
+    },
+    {
+      "name": "object",
+      "description": "Operations with single Object"
+    },
+    {
+      "name": "resource",
+      "description": "Operations with Object subresource"
+    },
+    {
+      "name": "change",
+      "description": "Change tracking operations"
+    },
+    {
+      "name": "utility",
+      "description": "Utility operations performed on the API itself"
+    }
+  ],
+  "externalDocs": {
+    "url": "https://ivpk.github.io/uapi"
+  },
+  "paths": {
+    "/version": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        }
+      ],
+      "get": {
+        "tags": [
+          "utility"
+        ],
+        "security": [
+          {}
+        ],
+        "summary": "Get API version",
+        "description": "Get the version of the API that is being called\n",
+        "operationId": "apiVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/version"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      }
+    },
+    "/health": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        }
+      ],
+      "get": {
+        "tags": [
+          "utility"
+        ],
+        "security": [
+          {}
+        ],
+        "summary": "Perform the API health check",
+        "description": "Performs API helth check with a check of the underlying system health\n",
+        "operationId": "apiHealth",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/health"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      }
+    },
+    "/{model_name}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        },
+        {
+          "$ref": "#/components/parameters/Cache-Control"
+        },
+        {
+          "$ref": "#/components/parameters/If-None-Match"
+        },
+        {
+          "$ref": "#/components/parameters/Accept-Language"
+        }
+      ],
+      "head": {
+        "tags": [
+          "objects"
+        ],
+        "security": [
+          {}
+        ],
+        "summary": "Return only headers for the API.",
+        "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
+        "operationId": "modelHead",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "objects"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Get multiple objects.",
+        "description": "Return list of objects for a given model.\n",
+        "operationId": "getAll",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/Last-Modified"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/objects"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "$ref": "#/components/schemas/objects-csv"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/Last-Modified"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "objects"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Create a single new object or create, update or delete multiple objects in a single request.",
+        "description": "## Operation where one or multiple new objects are created.\n\nWhen multiple object are created _data is an array of new objects each listing \n* _op as operation to be performed\n* _type as a namespace of modelname where it is to be performed\n* the new object itself in a form of {\"_type\" : \"_value\"} format. Example {\"Continent\" : \"Europe\"}\n\nOr\n\nA single object is created. New object details should be provided in a form of {\"_type\" : \"_value\"} format. Example {\"Continent\" : \"Europe\"}\n",
+        "operationId": "insertAll",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/multiInsert"
+                  },
+                  {
+                    "$ref": "#/components/schemas/insert"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/objects"
+                    },
+                    {
+                      "$ref": "#/components/schemas/object"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/error409"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      }
+    },
+    "/{model_name}/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        },
+        {
+          "$ref": "#/components/parameters/If-None-Match"
+        },
+        {
+          "$ref": "#/components/parameters/Accept-Language"
+        }
+      ],
+      "head": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {}
+        ],
+        "summary": "Return only headers for the API.",
+        "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
+        "operationId": "headOne",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Get a single object by given {id}.",
+        "description": "Retrieve a single specific object based on it's unique object identifier {id}\n",
+        "operationId": "getOne",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/Last-Modified"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/object"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "$ref": "#/components/schemas/objects-csv"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/Last-Modified"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Upsert an object by {id}. This operation can only be performed on fields that can be indexed.",
+        "description": "This performs an `Upsert` action. First it checks if there is an existing object based on `{id}`, if there is, it performs `Patch` action, if there isn't it performs `Update`\n",
+        "operationId": "upsertOne",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/upsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Update a single object by {id}.",
+        "description": "Overwrite whole object. Property values, that are not given in request\nbody, will be reset to defaul values.\n\nThis triggers `_rev` to be updated. And before update, existing `_rev`\nwill be compared with given in request body, to prevent concurent\noverwrites.\n",
+        "operationId": "updateOne",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/update"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Patch a single object.",
+        "description": "Partial object update, only property values given in request body will\nbe update, other properties will not be touched.\n\nThis triggers `_rev` to be updated. And before update, existing `_rev`\nwill be compared with given in request body, to prevent concurent\noverwrites.\n",
+        "operationId": "patchOne",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Delete a single object by {id}",
+        "description": "Delete object. This is a soft delete operation, object should not be\ndeleted, but marked for deletion. Soft delete is needed for changes API\nto know, when something was deleted.\n\nAfter some agreed time period, objects marked as deleted can be deleted\npermanently.\n\nBefore delete, existing `_rev` will be compared with given in request\nbody, to prevent concurent overwrites.\n",
+        "operationId": "deleteOne",
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      }
+    },
+    "/{model_name}/{id}/:wipe": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "object"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Hard delete a single object by {id}",
+        "description": "## To be used by exception only\n```wipe``` operation is used by exception only, if there were errors in data upload scripts, data was currupted due to errors etc. It is best to test data upload in test environment.\n\nData upload practice of deleting all published data and reuploading it is not recommended, since that destroys all if the data change history and it may change data IDs. Data should be uploaded once and then updated whith what has changed.\n",
+        "operationId": "wipeOne",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "wiped": {
+                      "type": "boolean",
+                      "examples": [
+                        true
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      }
+    },
+    "/{model_name}/{id}/{field}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        },
+        {
+          "$ref": "#/components/parameters/If-None-Match"
+        },
+        {
+          "$ref": "#/components/parameters/Accept-Language"
+        },
+        {
+          "$ref": "#/components/parameters/property"
+        }
+      ],
+      "head": {
+        "tags": [
+          "resource"
+        ],
+        "security": [
+          {}
+        ],
+        "summary": "Return only headers for the API.",
+        "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
+        "operationId": "headProperty",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "resource"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "For a given specific object by {id}, retrieve a {property} from it's structure (subresource).",
+        "description": "Retrieve a specific property from an object structure.\n\nBy default when retrieving object you recive all data items from it's structure, using this service you retrieve a specific property from it's structure.\n\nIf provided {property} is a file instead of getting the data, file is provided instead as binary bit stream.\n",
+        "operationId": "getProperty",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/Last-Modified"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/absent"
+                    },
+                    {
+                      "$ref": "#/components/schemas/boolean"
+                    },
+                    {
+                      "$ref": "#/components/schemas/integer"
+                    },
+                    {
+                      "$ref": "#/components/schemas/number"
+                    },
+                    {
+                      "$ref": "#/components/schemas/binary"
+                    },
+                    {
+                      "$ref": "#/components/schemas/string"
+                    },
+                    {
+                      "$ref": "#/components/schemas/text"
+                    },
+                    {
+                      "$ref": "#/components/schemas/datetime"
+                    },
+                    {
+                      "$ref": "#/components/schemas/date"
+                    },
+                    {
+                      "$ref": "#/components/schemas/time"
+                    },
+                    {
+                      "$ref": "#/components/schemas/temporal"
+                    },
+                    {
+                      "$ref": "#/components/schemas/geometry"
+                    },
+                    {
+                      "$ref": "#/components/schemas/geometry"
+                    },
+                    {
+                      "$ref": "#/components/schemas/money"
+                    },
+                    {
+                      "$ref": "#/components/schemas/file"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ref"
+                    },
+                    {
+                      "$ref": "#/components/schemas/backref"
+                    },
+                    {
+                      "$ref": "#/components/schemas/array"
+                    },
+                    {
+                      "$ref": "#/components/schemas/url"
+                    },
+                    {
+                      "$ref": "#/components/schemas/uri"
+                    },
+                    {
+                      "$ref": "#/components/schemas/object"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Last-Modified": {
+                "$ref": "#/components/headers/Last-Modified"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Vary": {
+                "$ref": "#/components/headers/Vary"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "resource"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Upsert an object property by object {id} and {property}. This operation can only be performed on fields that can be indexed.",
+        "description": "This performs an `Upsert` action. First it checks if there is an existing object based on `{id}` and if there is {property}, if there is, it performs `Patch` action, if there isn't it performs `Update`\n",
+        "operationId": "upsertProperty",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/upsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/error409"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "resource"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Update a single object property by {id} and {property}.",
+        "description": "Overwrite object property value.\n\nThis triggers `_rev` to be updated. And before update, existing `_rev`\nwill be compared with given in request body, to prevent concurent\noverwrites.\n",
+        "operationId": "updateProperty",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/update"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/error409"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "resource"
+        ],
+        "security": [
+          {
+            "UAPI_auth": [
+              "uapi:/"
+            ]
+          }
+        ],
+        "summary": "Delete a single object property by {id} and {property}",
+        "description": "Delete object property. This is a soft delete operation, object property should not be\ndeleted, but marked for deletion. Soft delete is needed for changes API\nto know, when something was deleted.\n\nAfter some agreed time period, objects and properties marked as deleted can be deleted\npermanently.\n\nBefore delete, existing `_rev` will be compared with given in request\nbody, to prevent concurent overwrites.\n",
+        "operationId": "deleteProperty",
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "traceresponse": {
+                "$ref": "#/components/headers/traceresponse"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        }
+      }
+    },
+    "/{model_name}/:changes/{cid}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/cid"
+        },
+        {
+          "$ref": "#/components/parameters/traceparent"
+        },
+        {
+          "$ref": "#/components/parameters/tracestate"
+        },
+        {
+          "$ref": "#/components/parameters/If-None-Match"
+        },
+        {
+          "$ref": "#/components/parameters/Accept-Language"
+        }
+      ],
+      "get": {
+        "tags": [
+          "change"
+        ],
+        "security": [
+          {}
+        ],
+        "summary": "Get all object changes since given {cid} (change id).",
+        "description": "Get latest changes to a table.\n\nIf {cid} is not given, return changes, since very first available\nchange.\n\nIf {cid} is gven, return only changes, since given change id, including\nchange id itself.\n\nThis API can return changes, that were returned previously, client\nshould be responsible for checking if a change was received previously\nor not.\n\nLast change id is included in the request, in order for clients to check\nif last change id matches change received by client. If last change\ndoes not match, then client should do a full synce, because if last\nchange id does not match, that means, that a data migration or some\nother alterations to data were made, which requires to do a full sync.\n",
+        "operationId": "getChanges",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/changes"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/error404"
+          },
+          "500": {
+            "$ref": "#/components/responses/error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/error503"
+          }
+        },
+        "externalDocs": {
+          "url": "https://atviriduomenys.readthedocs.io/api/index.html#changes"
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "UAPI_auth": {
+        "description": "Client Credentials flow\nProvides access based on client credentials. Used to manage data for your Organisation. Access is granted to perform actions based on scope selected and access levels assigned to the client credentials.\n\nAuthorization Code flow\nProvides general access to the data. Data access is managed by client rights and the authorization code. In addition to that, if there are active Smart Contracts associated with the client.\n\n**Scope elements**\nThe core structure of the scope is `uapi:/{group}/{form}/{org}/{catalog}/{dataset}/{model}/@{scope}/:{action}`\n\nThis is a full path that can be used to narrow down the scope of access. It is constructed from these elements:\n  - `uapi:/` - core API element. Grants all access if used on its own.\n  - `uapi:/:{action}` - provides `{action}` access on all elements.\n  - `uapi:/@{scope}` - provides all access on elements based on `{scope}` filter.\n  - `uapi:/@{scope}/:{action}` - provides `{action}` acces s on elements based on `{scope}` filter.\n  - `uapi:/{group}/{form}/{org}/{catalog}/{dataset}` - provides all access for a specific `{dataset}`\n\nList of available `{action}`:\n  - `getone` - ability to get one object data, based on provided identifier.\n  - `getall` - ability to get a list of all objects.\n  - `search` - ability to get data based on URL query.\n  - `changes` - ability to get change history of a single object or multiple objects.\n  - `insert` - ability to create new objects.\n  - `update` - ability to update existing objects.\n  - `delete` - galimybė trinti objektus, paliekant įrašą keitimų istorijoje.\n  - `wipe` - galimybė neatstatomai trinti objektus, nepaliekant įrašo keitimų istorijoje.\n\nCombined actions:\n  - `read` - combines getone, getall, search, changes.\n  - `write` - combines insert, update, delete.\n  - `upsert` - combines insert and update.\n  - `rw` - combines read and write.\n\nThe scope definition is dynamic and is dependent on the specific resource and UAPI implementation. Additional usage specific scope can be defined added to the flows below.\n\nThe mandatory part is the use of OAuth as the authentication and authorization method and the use of either Client Credentials or Autorization Code flows, or both.\n",
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://auth.gov.lt/auth/token",
+            "scopes": {
+              "uapi:/": "All access"
+            }
+          },
+          "authorizationCode": {
+            "authorizationUrl": "https://api.gov.lt/oauth",
+            "tokenUrl": "https://auth.gov.lt/auth/token",
+            "scopes": {
+              "uapi:/": "All access"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "traceparent": {
+        "name": "traceparent",
+        "in": "header",
+        "description": "The `traceparent` request header represents the incoming request in a tracing system in a common format, understood by all vendors. For more context check [***trace-context***](https://w3c.github.io/trace-context/) documentation.\n",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[0-9]{2}-[a-f0-9]{32}-[a-f0-9]{16}-[0-9]{2}",
+          "description": "Consists of `version` `trace-id` `parent-id` `trace-flags` separated by `-`. \n\n`trace-id` recommended to be in UUIDv4\n",
+          "examples": [
+            "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"
+          ]
+        }
+      },
+      "tracestate": {
+        "name": "tracestate",
+        "in": "header",
+        "required": true,
+        "description": "The main purpose of the `tracestate` HTTP header is to provide additional vendor-specific trace identification information across different distributed tracing systems and is a companion header for the `traceparent` field. It also conveys information about the request’s position in multiple distributed tracing graphs.\nFor more context check [***trace-context***](https://w3c.github.io/trace-context/) documentation.\n",
+        "schema": {
+          "type": "string",
+          "description": "Consists of a `list` of `list-members` separated by commas (`,`)\n",
+          "examples": [
+            "rojo=00f067aa0ba902b7,congo=t61rcWkgMzE"
+          ]
+        }
+      },
+      "group": {
+        "name": "group",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "standards",
+            "datasets"
+          ]
+        },
+        "description": "Group of data, currently two groups are available:\n\n- `standards` - for data compatible with a standard.\n- `datasets` - for a non-standard data.\n\nThere is another group called `services`, which is not considered as\ndata API. Service API is different from data API, more flexible.\n"
+      },
+      "form": {
+        "name": "form",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "gov",
+            "com"
+          ]
+        },
+        "description": "Organization, type, can be:\n\n- `gov` - government organization,\n- `com` - private organization.\n"
+      },
+      "org": {
+        "name": "org",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]+$",
+          "examples": [
+            "RC"
+          ]
+        },
+        "description": "Abbreviation or a short code name of an organization.\n\nShould be a single work all lower case string, must start with a non\nnumber symbol.\n"
+      },
+      "catalog": {
+        "name": "catalog",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "examples": [
+            "adresu_registras"
+          ]
+        },
+        "description": "A catalog or a standard abbreviation or short code name. A data catalog is a curated collection of metadata about datasets.\n\nAll lower case, words separated with `_` symbol.\n"
+      },
+      "dataset": {
+        "name": "dataset",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/dataset"
+        },
+        "description": "A dataset or a standard abbreviation or short code name.\n\nAll lower case, words separated with `_` symbol.\n"
+      },
+      "version": {
+        "name": "version",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/datasetVersion"
+        },
+        "description": "Version determines a specific dataset version to be used when accessing data. This version definitions and metadata can be found in the catalog.\n\nIf version parameter is not provided, latest version is defaulted.\n"
+      },
+      "model": {
+        "name": "model",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/model"
+        },
+        "description": "A short model code name.\n\nEach word startds with upper case letter, first letter can't be a\nnumber.\n"
+      },
+      "Cache-Control": {
+        "name": "Cache-Control",
+        "in": "header",
+        "required": false,
+        "description": "`Cache-Control` header should be used if service supports caching. It allows the user to provide directives from their side. `no-cache` can be used to request revalidation of data with the origin server before reuse. `no-store` can be used to request to not store the data in caches.\n\nMultiple directives can be used separated by `, `. If they are conflicting, most restrictive directive should be honored.\n",
+        "schema": {
+          "type": "string",
+          "examples": [
+            "no-cache"
+          ]
+        }
+      },
+      "If-None-Match": {
+        "name": "If-None-Match",
+        "in": "header",
+        "required": false,
+        "description": "Using `If-None-Match` client can provide a revision number of an object to server to check if modification to the object has occured, if not, server will return `304 - Not Modified`.\n",
+        "schema": {
+          "type": "string",
+          "examples": [
+            "16dabe62-61e9-4549-a6bd-07cecfbc3508"
+          ]
+        }
+      },
+      "Accept-Language": {
+        "name": "Accept-Language",
+        "in": "header",
+        "required": false,
+        "description": "`Accept-Language` header is used to indicate the language preference of the user. It's a list of values with quality factors (e.g., `\"de, en\"`).\n",
+        "schema": {
+          "type": "string",
+          "examples": [
+            "lt"
+          ]
+        }
+      },
+      "query": {
+        "name": "query",
+        "in": "query",
+        "required": false,
+        "description": "Object filter. This filter and the pattern used to form a querie conforms to [***URI syntax standard***](https://datatracker.ietf.org/doc/html/rfc3986).\n\nOther implementations of this specification can use more complex queries depending on filtering rules. They should comply to [***AST***](https://en.wikipedia.org/wiki/Abstract_syntax_tree) formatting and logic.\n\nQuery example: \n\n  ```?code=42&country.name=Lithuania&country.continent.name=Europe&_sort=-code,country.name&_limit=10&_select=name,country.name,country.continent.name```\n\n  ```?_select=_id,_rev&code._gt=42,country._id=26ae559c-e650-4e0d-90da-5c0907dcb9fd,&_or=1&code=1&code=2,&_count=```\n",
+        "schema": {
+          "type": "object",
+          "patternProperties": {
+            "^_?[a-z](_?[a-z0-9]+)*(\\\\._?[a-z](_?[a-z0-9]+)*)*$": {
+              "description": "Filter objects where given property is equal to given value.\n\nGiven property names, must be defined in data model.\n\nMore detailed definitions of these properties are available in [**DSA**](https://atviriduomenys.readthedocs.io/dsa/dimensijos.html#savybe)\n\nThe main operations are flexible, but have to conform to a strict syntax.\n\nSome reserved property names can be used for filtering:\n\n- `_type`\n- `_id`\n\nFilters can by done by joining multiple tables if `.` operator is\nused, which means, that two tables if needed must be joined in\norder to perform a filter.\n\nAlso after `.` there can be one of following filter operators:\n\n- `_gt` - greather than\n- `_ge` - greather than or equal\n- `_lt` - less than\n- `_le` - less than than or equal\n- `_sw` - starts with\n- `_ew` - ends with\n- `_co` - contains\n\nFor example to filter code to have agreater value than 42 a query containing `&code._gt=42` can be used.\n"
+            }
+          },
+          "properties": {
+            "_select": {
+              "type": "string",
+              "examples": [
+                "name,country.name,country.continent.name"
+              ],
+              "description": "Comma separated list of properties to include in the result.\n\nSpecial value `*` can be used, to include all properties. This\ncan also be used on nested objects, for example `country.*` will\ninclude all properties from `country` object.\n\n`-` can be used to exclude a property from result, this will\nexclude properties that were included previously.\n\n`+` can be used to include additional properties to the result,\nif a property in select list is not prefixed with `+`, then only\ngiven property will be shown in result, but with `+` a property\nwill be added to the result leaving what would by added by\ndefault.\n\nBy default, all properties of a model will be included.\n\nWhen properties are specified in `a.b` form, `.` should join two\ntables and return properties from two tables if needed. This\nrequirement only applies if data are stored on the same data\nsource. An attempt to join data from multiple data sources,\nshould return an error.\n"
+            },
+            "_limit": {
+              "type": "integer",
+              "examples": [
+                10
+              ],
+              "description": "Limit result to given number of objects.\n\nIf `_sort` is not given, then sorty by `_id`.\n"
+            },
+            "_sort": {
+              "type": "string",
+              "examples": [
+                "-code,country.name"
+              ],
+              "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction:\n\n- `+` - ascending sort (1, 2, 3), this is used by default if sort direction is not given.\n- `-` - descending sort (3, 2, 1).\n"
+            },
+            "_count": {
+              "type": "string",
+              "description": "Return number of objects matching a given filter. If filter is\nnot given, return number of all objects.\n\nResult should be given in following form:\n\n```json\n{\n  \"_data\": [\n    {\"_count\": 42}\n  ]\n}\n```\n"
+            },
+            "_page": {
+              "type": "string",
+              "description": "If _limit is set and results in multiple pages of results to be available, _page value is returned as part of the response, linking to the next page after the current set. This value can be used directly for example `&page=\"WyIxOTAzNmM0ZS1mZmIyLTQyMTAtYjIyMi01YTJkZDQ2MWU5MzQiXQ==\"`. Or through a next page request `&page.next`.\n\nRecommeded format `base64` - `base64(json([v1, v2, ...]))`\n"
+            }
+          }
+        }
+      },
+      "id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/id"
+        },
+        "description": "Public global object identifier.\n\nIdentifiers should be UUID v4.\n\nOnce object is assigned a global identifier, it should never change.\nInternally local identifiers, should be associated with public\nidentifiers.\n"
+      },
+      "property": {
+        "name": "property",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "examples": [
+            "cities"
+          ]
+        },
+        "description": "Subresource of an object.\n\nAll lower case, words separated with `_` symbol.\n"
+      },
+      "cid": {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Change id.\n\nUsed for incremental changes API, to get next changes after given\nchange id.\n\nMinimum requiremed is to at least add a separate column with a\ntimestamp of last change mede to a table. And this timestamp, can be\nused as change id.\n"
+      },
+      "service": {
+        "name": "service",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/model"
+        },
+        "description": "A short service code name.\n\nEach word starts with upper case letter, first letter can't be a\nnumber.\n"
+      }
+    },
+    "headers": {
+      "traceresponse": {
+        "description": "The `traceresponse` HTTP response header field identifies a completed request in a tracing system. For more context check [***trace-context***](https://w3c.github.io/trace-context/) documentation.\n",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "[0-9]{2}-[a-f0-9]{32}-[a-f0-9]{16}-[0-9]{2}",
+          "description": "Consists of four fields - `version` `trace-id` `child-id` `trace-flags` separated by `-`.\n\n`trace-id` recommended to be in UUIDv4\n",
+          "examples": [
+            "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"
+          ]
+        }
+      },
+      "Cache-Control": {
+        "description": "`Cache-Control` header that returns the caching information of the service. Caching is optional functionality.\n\nIf implemented should return values that depend on the type of the cache and rules that are set for the data. For example if data should only be stored in private cache (e.g. local caches in browsers) it should return `private`. If there are set parameters on data age as an example it should return `max-age`.\n\nDepending on data usage rules and data sharing agreements that are in place, it should reinforce terms that are relevant to the data in question. Use `no-cache` if data needs to be revalidate before each use with the origin server or `no-store` if data should not be stored in any caches.\n\nMultiple directives can be used separated by `, `. If they are conflicting, most restrictive directive should be honored.\n",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "examples": [
+            "no-store"
+          ]
+        }
+      },
+      "Last-Modified": {
+        "description": "`Last-Modified` header that returns the `timestamp` of the last data modification. This is part of caching and is optional functionality.\n",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "timestamp",
+          "examples": [
+            "Tue, 22 Feb 2022 20:20:20 GMT"
+          ]
+        }
+      },
+      "ETag": {
+        "description": "`ETag` header is an entity tag that uniquely represents the requested resource. It is a revision number for this item.\n",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "examples": [
+            "16dabe62-61e9-4549-a6bd-07cecfbc3508"
+          ]
+        }
+      },
+      "Vary": {
+        "description": "`Vary` is a header used to indicate which headers are used when selecting a representation of a resource in a content negotiation and determines how to match future request headers to decide whether a cached response can be used rather than requesting a fresh one from the origin server. To allow multilanguage content support `Accept-Language` tag is used.\n",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "examples": [
+            "Accept-Language"
+          ]
+        }
+      }
+    },
+    "schemas": {
+      "version": {
+        "type": "object",
+        "properties": {
+          "api": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "examples": [
+                  "0.0.1"
+                ]
+              }
+            }
+          },
+          "implementation": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "examples": [
+                  "Spinta"
+                ]
+              },
+              "version": {
+                "type": "string",
+                "examples": [
+                  0.1
+                ]
+              }
+            }
+          },
+          "build": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "examples": [
+                  "0.0.1"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "UniqueConstraint": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "UniqueConstraint"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Given value already exists."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "NoItemRevision": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "NoItemRevision"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "_revision must be given on rewrite operation."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "InvalidOperandValue": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "InvalidOperandValue"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Invalid operand value for {operator!r} operator."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "UnhandledException": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "UnhandledException"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Unhandled exception {exception}: {error}."
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "exception": {
+                "type": "string",
+                "description": "error.__class__.__name__"
+              }
+            }
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "MultipleRowsFound": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "MultipleRowsFound"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Multiple rows were found."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "ServiceNotAvailable": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Service Not Available"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Service is currently not available."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "dependency": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "examples": [
+              "Spinta"
+            ]
+          },
+          "healthy": {
+            "type": "boolean"
+          }
+        }
+      },
+      "health": {
+        "type": "object",
+        "properties": {
+          "healthy": {
+            "type": "boolean"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/dependency"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "dataset": {
+        "type": "string",
+        "pattern": "^[a-z](_?[a-z0-9]+)*$",
+        "examples": [
+          "gov"
+        ]
+      },
+      "datasetVersion": {
+        "type": "integer",
+        "pattern": "^[0-9]+$",
+        "examples": [
+          1
+        ]
+      },
+      "model": {
+        "type": "string",
+        "pattern": "^[A-Z]([A-Z]?[a-z0-9]+)*$",
+        "examples": [
+          "City"
+        ]
+      },
+      "absent": {
+        "description": "For objects that have been deleted during change, `type` value is changed to `absent`",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "absent"
+            ]
+          }
+        }
+      },
+      "boolean": {
+        "description": "Logical value of true or false, depending on maturity level this value can be expressed in a non standard true/false values if maturity level is lower than 3",
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Maturity level < 3",
+            "examples": [
+              true,
+              1,
+              "taip"
+            ]
+          },
+          {
+            "type": "boolean",
+            "description": "Maturity level >= 3"
+          }
+        ]
+      },
+      "integer": {
+        "description": "A value of a whole number",
+        "type": "integer",
+        "minimum": -2147483648,
+        "maximum": 2147483647
+      },
+      "number": {
+        "description": "A value of a real number, based on Floating-Point Arithmetic (IEEE 754), with a decimal point marked with `.`. Whole number can be up to 6 characters in lengh.",
+        "type": "number"
+      },
+      "binary": {
+        "description": "Binary string of data. A single set should not exceed 1G",
+        "type": "string",
+        "pattern": "^[0-1]+$"
+      },
+      "string": {
+        "description": "Non natural language strings of characters. Should be provided based on UTF-8 encoding and should not exceed 1G",
+        "type": "string"
+      },
+      "text": {
+        "description": "Natural language text.",
+        "type": "string"
+      },
+      "datetime": {
+        "description": "Date and time provided in a standard format based on [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html)\n\nMinimum value: `0001-01-01T00:00:00`\nMaximum value: `999-12-31T23:59:59.999999`\n\nBased on maturity level data can be:\n- maturity level 1 - provided in diffent formats or free text\n- maturity level 2 - not according to standard but all in the same format. Or different parts of data are avalable in different fields (eg. year in one field and a month in another)\n- maturity level >=3 - data provided according to `ISO 8601` standard\n",
+        "type": "string"
+      },
+      "date": {
+        "description": "Date provided in a standard format based on [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html)\n\nMinimum value: `0001-01-01`\nMaximum value: `999-12-31`\n\nIf the resoliution of data is lower than a day or a month 01 can be used instead.\n\nBased on maturity level data can be:\n- maturity level 1 - provided in diffent formats or free text\n- maturity level 2 - not according to standard but all in the same format. Or different parts of data are avalable in different fields (eg. year in one field and a month in another)\n- maturity level >=3 - data provided according to `ISO 8601` standard\n",
+        "type": "string"
+      },
+      "time": {
+        "description": "Time provided in a standard format based on [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html)\n\nMinimum value: `00:00:00`\nMaximum value: `23:59:59.999999`\n\nIf the resoliution of data is lower than a second 00 can be used instead.\n\nBased on maturity level data can be:\n- maturity level 1 - provided in diffent formats or free text\n- maturity level 2 - not according to standard but all in the same format. Or different parts of data are avalable in different fields (eg. year in one field and a month in another)\n- maturity level >=3 - data provided according to `ISO 8601` standard\n",
+        "type": "string"
+      },
+      "temporal": {
+        "description": "Temporal definition in time. Same format as `datetime`",
+        "type": "string"
+      },
+      "geometry": {
+        "description": "Geometry data. Data provided in [WKT](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) format, using [EPSG](https://epsg.org/home.html) database parameters, for different projections.\nIt can be presented as:\n  - geometry(form, crs) - providing form and coordinate system\n  - geometry(crs) - providing coordinate system only\n  - geometry(form) - providing form only\n  - geometry - no arguments.\n\nDepending on maturity level:\n  - Level 1 - Coordinate system is not defined and data is provided in different coordinate systems. Mixed axes, for example some data is provided as `x, y`, other as `y, x`. Mixed measurements, for example some data is in meters, other in degrees. Adress is provided without coordinates.\n  - Level 2 - Coordinate system is not defined, but all data is provided according to a single coordinate system.\n  - Level 3 - Data accuracy in meters element `property.ref` is not provided.\n",
+        "type": "object",
+        "properties": {
+          "form": {
+            "description": "Geometry form can have these types - `point`, `linestring`, `polygon`, `multipoint`, `multilinestring`, `multipolygon`. Each of these types can have `z` (height), `m` (selected measurement like time, distance, width, etc.) or `zm` (height and a selected measurement) designations after the type.",
+            "type": "string",
+            "enum": [
+              "point",
+              "point z",
+              "point m",
+              "point zm",
+              "linestring",
+              "linestring z",
+              "linestring m",
+              "linestring zm",
+              "polygon",
+              "polygon z",
+              "polygon m",
+              "polygon zm",
+              "multipoint",
+              "multipoint z",
+              "multipoint m",
+              "multipoint zm",
+              "multilinestring",
+              "multilinestring z",
+              "multilinestring m",
+              "multilinestring zm",
+              "multipolygon",
+              "multipolygon z",
+              "multipolygon m",
+              "multipolygon zm"
+            ]
+          },
+          "crs": {
+            "description": "A [SRID](https://en.wikipedia.org/wiki/Spatial_reference_system#Identifier) number, which is and identification number of a coordinate system in [EPSG](https://epsg.org/home.html) database. If the number is not provided, it is assumed that data corresponds to `4326` ( [WGS84](https://epsg.io/4326) )",
+            "type": "integer"
+          }
+        }
+      },
+      "money": {
+        "description": "The amount of a certain currency. Currency code is provided in `property.ref` in accordance to [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).",
+        "type": "number"
+      },
+      "file": {
+        "type": "object",
+        "properties": {
+          "_name": {
+            "description": "File name",
+            "type": "string"
+          },
+          "_content_type": {
+            "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the file.",
+            "type": "string"
+          },
+          "_size": {
+            "description": "File size in bytes.",
+            "type": "integer"
+          }
+        }
+      },
+      "ref": {
+        "description": "Reference to an entry in another table",
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "Maturity >= 4",
+            "properties": {
+              "_type": {
+                "type": "string"
+              },
+              "_id": {
+                "type": "string",
+                "format": "uuidv4"
+              },
+              "^[a-z](_?[a-z0-9]+)*$": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/absent"
+                  },
+                  {
+                    "$ref": "#/components/schemas/boolean"
+                  },
+                  {
+                    "$ref": "#/components/schemas/integer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/binary"
+                  },
+                  {
+                    "$ref": "#/components/schemas/string"
+                  },
+                  {
+                    "$ref": "#/components/schemas/text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/datetime"
+                  },
+                  {
+                    "$ref": "#/components/schemas/date"
+                  },
+                  {
+                    "$ref": "#/components/schemas/time"
+                  },
+                  {
+                    "$ref": "#/components/schemas/temporal"
+                  },
+                  {
+                    "$ref": "#/components/schemas/geometry"
+                  },
+                  {
+                    "$ref": "#/components/schemas/geometry"
+                  },
+                  {
+                    "$ref": "#/components/schemas/money"
+                  },
+                  {
+                    "$ref": "#/components/schemas/file"
+                  },
+                  {
+                    "$ref": "#/components/schemas/file"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ref"
+                  },
+                  {
+                    "$ref": "#/components/schemas/backref"
+                  },
+                  {
+                    "$ref": "#/components/schemas/array"
+                  },
+                  {
+                    "$ref": "#/components/schemas/url"
+                  },
+                  {
+                    "$ref": "#/components/schemas/uri"
+                  },
+                  {
+                    "$ref": "#/components/schemas/object"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Maturity < 4",
+            "properties": {
+              "_type": {
+                "type": "string"
+              },
+              "^[a-z](_?[a-z0-9]+)*$": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/absent"
+                  },
+                  {
+                    "$ref": "#/components/schemas/boolean"
+                  },
+                  {
+                    "$ref": "#/components/schemas/integer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/number"
+                  },
+                  {
+                    "$ref": "#/components/schemas/binary"
+                  },
+                  {
+                    "$ref": "#/components/schemas/string"
+                  },
+                  {
+                    "$ref": "#/components/schemas/text"
+                  },
+                  {
+                    "$ref": "#/components/schemas/datetime"
+                  },
+                  {
+                    "$ref": "#/components/schemas/date"
+                  },
+                  {
+                    "$ref": "#/components/schemas/time"
+                  },
+                  {
+                    "$ref": "#/components/schemas/temporal"
+                  },
+                  {
+                    "$ref": "#/components/schemas/geometry"
+                  },
+                  {
+                    "$ref": "#/components/schemas/geometry"
+                  },
+                  {
+                    "$ref": "#/components/schemas/money"
+                  },
+                  {
+                    "$ref": "#/components/schemas/file"
+                  },
+                  {
+                    "$ref": "#/components/schemas/file"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ref"
+                  },
+                  {
+                    "$ref": "#/components/schemas/backref"
+                  },
+                  {
+                    "$ref": "#/components/schemas/array"
+                  },
+                  {
+                    "$ref": "#/components/schemas/url"
+                  },
+                  {
+                    "$ref": "#/components/schemas/uri"
+                  },
+                  {
+                    "$ref": "#/components/schemas/object"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "backref": {
+        "description": "Backwards link showing that another model has a link to this one. This item does not hold any data",
+        "type": "string"
+      },
+      "array": {
+        "description": "Array of data. It is recommended to avoid this type and instead use `backref`",
+        "type": "array"
+      },
+      "url": {
+        "description": "Uniform Resource Locator. Used to provide links to external sources.",
+        "type": "string"
+      },
+      "uri": {
+        "description": "Uniform Resource Identifier. Used to provide an identifier of an external resource, in an RDF data model it is subject indentifier.",
+        "type": "string"
+      },
+      "object": {
+        "type": "object",
+        "properties": {
+          "@context": {
+            "$ref": "#/components/schemas/_context"
+          },
+          "_type": {
+            "$ref": "#/components/schemas/_type"
+          },
+          "_id": {
+            "description": "Unique object ID in UUID format\n",
+            "type": "string",
+            "format": "uuidv4",
+            "examples": [
+              "abdd1245-bbf9-4085-9366-f11c0f737c1d"
+            ]
+          },
+          "_revision": {
+            "description": "Revision number of the object. This number helps with ensuring data consistency during changes. Every time object is changed, it's revision number has to change.\n",
+            "type": "string",
+            "examples": [
+              "16dabe62-61e9-4549-a6bd-07cecfbc3508"
+            ]
+          },
+          "_txn": {
+            "description": "`_txn` is transaction number. Multiple objects can be changed during a single transaction. All objects changed during a single transaction receive same `txn`.\n",
+            "type": "string",
+            "examples": [
+              "792a5029-63c9-4c07-995c-cbc063aaac2c"
+            ]
+          },
+          "_created": {
+            "description": "Date and time when the object was created provided in a standard format based on [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html)\n\nMinimum value: `0001-01-01T00:00:00`\nMaximum value: `999-12-31T23:59:59.999999`\n",
+            "type": "string"
+          },
+          "_updated": {
+            "description": "Date and time when the object was updated provided in a standard format based on [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html)\n\nMinimum value: `0001-01-01T00:00:00`\nMaximum value: `999-12-31T23:59:59.999999`\n",
+            "type": "string"
+          }
+        },
+        "patternProperties": {
+          "^[a-z](_?[a-z0-9]+)*$": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/absent"
+              },
+              {
+                "$ref": "#/components/schemas/boolean"
+              },
+              {
+                "$ref": "#/components/schemas/integer"
+              },
+              {
+                "$ref": "#/components/schemas/number"
+              },
+              {
+                "$ref": "#/components/schemas/binary"
+              },
+              {
+                "$ref": "#/components/schemas/string"
+              },
+              {
+                "$ref": "#/components/schemas/text"
+              },
+              {
+                "$ref": "#/components/schemas/datetime"
+              },
+              {
+                "$ref": "#/components/schemas/date"
+              },
+              {
+                "$ref": "#/components/schemas/time"
+              },
+              {
+                "$ref": "#/components/schemas/temporal"
+              },
+              {
+                "$ref": "#/components/schemas/geometry"
+              },
+              {
+                "$ref": "#/components/schemas/geometry"
+              },
+              {
+                "$ref": "#/components/schemas/money"
+              },
+              {
+                "$ref": "#/components/schemas/file"
+              },
+              {
+                "$ref": "#/components/schemas/file"
+              },
+              {
+                "$ref": "#/components/schemas/ref"
+              },
+              {
+                "$ref": "#/components/schemas/backref"
+              },
+              {
+                "$ref": "#/components/schemas/array"
+              },
+              {
+                "$ref": "#/components/schemas/url"
+              },
+              {
+                "$ref": "#/components/schemas/uri"
+              },
+              {
+                "$ref": "#/components/schemas/object"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "Object represents a single row in a table.\n\nSome properties can reference other objects, using composition as\nspecified in `components/schemas/ref`, optionally dublicating\nproperties from a referenced model or extending referenced model with\nnew properties.\n"
+      },
+      "_context": {
+        "description": "[JSON-LD Context](https://www.w3.org/TR/json-ld/#the-context) information provided by a URL constructed according to this pattern:\n  \n    `https://data.gov.lt/{group}/{form}/{org}/{catalog}/{dataset}/{version}/{model}.jsonld`\n\nReturned object will consist of context information based on the below schema:\n\n  `{`\n\n      \"@base\": \"https://data.gov.lt/datasets/example/City/\"\n      \"_id\": \"@id\"\n      \"dcterms\": \"http://purl.org/dc/terms/\"\n      \"name\": \"dcterms:name\"\n  `}`\n",
+        "type": "string",
+        "examples": [
+          "https://data.gov.lt/datasets/example/42/City.jsonld"
+        ]
+      },
+      "_type": {
+        "description": "Name of the namespace or model\n",
+        "type": "string",
+        "examples": [
+          "datasets/gov/dc/geo/Continent"
+        ]
+      },
+      "objects": {
+        "type": "object",
+        "properties": {
+          "_type": {
+            "type": "string",
+            "examples": [
+              "datasets/gov/dc/geo/Continent"
+            ]
+          },
+          "_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/object"
+            }
+          }
+        }
+      },
+      "object-csv": {
+        "type": "string",
+        "description": "A string of object values separated by `,`",
+        "examples": [
+          "datasets/gov/dc/geo/Continent,abdd1245-bbf9-4085-9366-f11c0f737c1d,16dabe62-61e9-4549-a6bd-07cecfbc3508,792a5029-63c9-4c07-995c-cbc063aaac2c,Continent,Europe,"
+        ]
+      },
+      "objects-csv": {
+        "type": "object",
+        "properties": {
+          "_header": {
+            "type": "string",
+            "description": "A string of header values of the object separated by ','",
+            "examples": [
+              "_type,_id,_revision,_txn,_objectType,_value"
+            ]
+          },
+          "_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/object-csv"
+            }
+          }
+        }
+      },
+      "AuthorizedClientsOnly": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "AuthorizedClientsOnly"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "This resource can only be accessed by an authorized client."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "InvalidToken": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "InvalidToken"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Invalid token"
+          },
+          "headers": {
+            "type": "string",
+            "description": "{'WWW-Authenticate': 'Bearer error'='invalid_token'}"
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "Forbidden": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Forbidden"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Access is forbidden"
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "ItemDoesNotExist": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "ItemDoesNotExist"
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Resource {id!r} not found."
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "_op": {
+        "type": "string",
+        "enum": [
+          "insert",
+          "patch"
+        ]
+      },
+      "insert": {
+        "type": "object",
+        "properties": {
+          "_type": {
+            "type": "string",
+            "examples": [
+              "Continet"
+            ]
+          },
+          "_value": {
+            "type": "string",
+            "examples": [
+              "Europe"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "multiInsert": {
+        "type": "object",
+        "properties": {
+          "_data": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/_op"
+                },
+                {
+                  "$ref": "#/components/schemas/_type"
+                },
+                {
+                  "$ref": "#/components/schemas/insert"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "property": {
+        "type": "string",
+        "pattern": "^[a-z](_?[a-z0-9]+)*$",
+        "examples": [
+          "name"
+        ]
+      },
+      "ConflictingValue": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "ConflictingValue"
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "component": {
+                "type": "string"
+              },
+              "dataset": {
+                "$ref": "#/components/schemas/dataset"
+              },
+              "entity": {
+                "type": "string"
+              },
+              "manifest": {
+                "type": "string"
+              },
+              "model": {
+                "$ref": "#/components/schemas/model"
+              },
+              "property": {
+                "$ref": "#/components/schemas/property"
+              },
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "system"
+          },
+          "template": {
+            "type": "string",
+            "description": "Conflicting Value"
+          },
+          "message": {
+            "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.\n",
+            "type": "string"
+          },
+          "additionalProperties": true
+        }
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        "examples": [
+          "abdd1245-bbf9-4085-9366-f11c0f737c1d"
+        ]
+      },
+      "update": {
+        "type": "object",
+        "properties": {
+          "_rev": {
+            "type": "string",
+            "format": "uuidv4",
+            "examples": [
+              "792a5029-63c9-4c07-995c-cbc063aaac2c"
+            ]
+          },
+          "_type": {
+            "type": "string",
+            "examples": [
+              "Continet"
+            ]
+          },
+          "_value": {
+            "type": "string",
+            "examples": [
+              "Europe"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "upsert": {
+        "type": "object",
+        "properties": {
+          "_op": {
+            "type": "string",
+            "enum": [
+              "upsert"
+            ]
+          },
+          "_type": {
+            "type": "string",
+            "examples": [
+              "Continet"
+            ]
+          },
+          "_value": {
+            "type": "string",
+            "examples": [
+              "Europe"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "change": {
+        "type": "object",
+        "properties": {
+          "_cid": {
+            "type": "integer",
+            "examples": [
+              11
+            ]
+          },
+          "_id": {
+            "type": "string",
+            "format": "uuidv4",
+            "examples": [
+              "abdd1245-bbf9-4085-9366-f11c0f737c1d"
+            ]
+          },
+          "_rev": {
+            "type": "string",
+            "format": "uuidv4",
+            "examples": [
+              "16dabe62-61e9-4549-a6bd-07cecfbc3508"
+            ]
+          },
+          "_txn": {
+            "type": "string",
+            "examples": [
+              "792a5029-63c9-4c07-995c-cbc063aaac2c"
+            ]
+          },
+          "_created": {
+            "type": "string",
+            "format": "datetime",
+            "examples": [
+              "2021-07-30T14:03:14.645198"
+            ]
+          },
+          "_op": {
+            "type": "string",
+            "enum": [
+              "insert",
+              "patch",
+              "delete"
+            ]
+          },
+          "_objectType": {
+            "type": "string",
+            "examples": [
+              "Continent"
+            ]
+          },
+          "_value": {
+            "type": "string",
+            "examples": [
+              "Europe"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "changes": {
+        "type": "object",
+        "properties": {
+          "_type": {
+            "$ref": "#/components/schemas/_type"
+          },
+          "_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/change"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "error400": {
+        "description": "Bad Request",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/UniqueConstraint"
+                },
+                {
+                  "$ref": "#/components/schemas/NoItemRevision"
+                },
+                {
+                  "$ref": "#/components/schemas/InvalidOperandValue"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "error500": {
+        "description": "Internal Server Error",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/UnhandledException"
+                },
+                {
+                  "$ref": "#/components/schemas/MultipleRowsFound"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "error503": {
+        "description": "Service Uavailable",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ServiceNotAvailable"
+            }
+          }
+        }
+      },
+      "error401": {
+        "description": "Bad Request",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AuthorizedClientsOnly"
+                },
+                {
+                  "$ref": "#/components/schemas/InvalidToken"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "error403": {
+        "description": "Forbidden",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Forbidden"
+            }
+          }
+        }
+      },
+      "error404": {
+        "description": "Not Found",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ItemDoesNotExist"
+            }
+          }
+        }
+      },
+      "error409": {
+        "description": "Bad Request",
+        "headers": {
+          "traceresponse": {
+            "$ref": "#/components/headers/traceresponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ConflictingValue"
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-tagGroups": [
+    {
+      "name": "Actions",
+      "tags": [
+        "objects",
+        "object",
+        "resource",
+        "change"
+      ]
+    },
+    {
+      "name": "Services",
+      "tags": [
+        "services"
+      ]
+    },
+    {
+      "name": "Utility",
+      "tags": [
+        "utility"
+      ]
+    }
+  ]
+}
