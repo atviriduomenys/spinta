@@ -447,7 +447,9 @@ class ModelReader(TabularReader):
         # Check for partial model syntax
         if "/:" in name or "?" in name:
             self.is_functional = True
-            name, params = _read_functional_model(self, name)
+            main_model_name, params = _read_functional_model(name)
+        else:
+            main_model_name = params = None
         # todo params should be added to data as I understand
         # todo functional model is not being created for some reason, and it finds duplicate models.
         if self.state.rename_duplicates:
@@ -458,9 +460,8 @@ class ModelReader(TabularReader):
                 dup += 1
             name = _name
         elif self.is_functional:
-            if name in self.state.functional_models:
-                self.error(f"Functional model {name!r} with the same name is already defined.")
-        elif name in self.state.models:
+            pass
+        elif not self.is_functional and (name in self.state.models):
             self.error(f"Model {name!r} with the same name is already defined.")
 
         self.name = name
@@ -499,6 +500,8 @@ class ModelReader(TabularReader):
             "eli": row.get(ELI),
             "count": row.get(COUNT),
             "origin": row.get(ORIGIN),
+            "params": params,
+            "main_model_name": main_model_name,
         }
         if resource and not dataset:
             self.data["backend"] = resource.name
@@ -517,13 +520,18 @@ class ModelReader(TabularReader):
 
     def enter(self) -> None:
         self.state.model = self
-        self.state.models.add(self.name)
+
+        if self.is_functional:
+            self.state.functional_models.append(self)
+        else:
+            self.state.models.add(self.name)
+
 
     def leave(self) -> None:
         self.state.model = None
 
 
-def _read_functional_model(model, name) -> tuple[str, UrlParams]:
+def _read_functional_model(name: str) -> tuple[str, UrlParams]:
 
         params = UrlParams()
         params.parsetree = parse_url_path(name)
@@ -1679,6 +1687,7 @@ class State:
     backends: Dict[str, Dict[str, str]] = None
 
     models: Set[str]
+    functional_models: list[str]
 
     manifest: ManifestReader = None
     dataset: DatasetReader = None
@@ -1692,6 +1701,7 @@ class State:
     def __init__(self):
         self.stack = []
         self.models = set()
+        self.functional_models = []
 
     def release(self, reader: TabularReader = None) -> Iterator[ParsedRow]:
         for parent in list(reversed(self.stack)):

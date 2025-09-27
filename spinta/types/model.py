@@ -173,10 +173,6 @@ def load(
     *,
     source: Manifest = None,
 ) -> FunctionalModel:
-    parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
-    parent_model.given.params = data.get('given_url_params')
-    
-    model.parent_model = parent_model
 
     return model
 

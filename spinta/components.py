@@ -657,6 +657,8 @@ class Model(MetaData):
     eli: str | None = None
     count: int | None = None
     origin: str | None = None
+    params: UrlParams | None = None
+    main_model_name: str |None = None
 
     required_keymap_properties = None
 
@@ -693,6 +695,7 @@ class Model(MetaData):
         "eli": {"type": "string"},
         "count": {"type": "integer"},
         "origin": {"type": "string"},
+        "main_model_name": {"type": "string"},
     }
 
     def __init__(self):
@@ -742,16 +745,6 @@ class FunctionalModel(Model):
     '?' - indicates pre-defined filters for which this model is applicable;
 
     """
-
-    parent_model: Model | None = None
-    params: UrlParams
-    given: ModelGiven
-
-    schema = {
-        'parent_model': {'type': 'object'},
-        'params': {'type': 'object'},
-        'given': {'type': 'object'},
-    }
 
 
 class PropertyGiven:
