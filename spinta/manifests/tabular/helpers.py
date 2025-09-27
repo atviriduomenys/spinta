@@ -32,7 +32,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Action, Context, Base, PrepareGiven, UrlParams
+from spinta.components import Context, Base, PrepareGiven, UrlParams
 from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -76,7 +76,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
-from spinta.spyna import SpynaAST, parse
+from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
 from spinta.urlparams import _prepare_urlparams_from_path
 from spinta.utils.data import take
@@ -1727,7 +1727,6 @@ class State:
     backends: Dict[str, Dict[str, str]] = None
 
     models: Set[str]
-    functional_models: Set[str]
 
     manifest: ManifestReader = None
     dataset: DatasetReader = None
