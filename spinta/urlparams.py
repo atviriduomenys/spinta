@@ -220,6 +220,12 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.action = Action.WIPE
         elif name == "check":
             params.action = Action.CHECK
+        elif name == 'part':
+            params.function = 'part'
+        elif name == 'getone':
+            params.action = Action.GETONE
+        elif name == 'getall':
+            params.action = Action.GETALL
         elif name == "page":
             params.page = ParamsPage()
             is_sort_attr = False

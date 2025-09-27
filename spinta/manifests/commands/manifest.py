@@ -22,6 +22,12 @@ NODE_FUNCTION_MAPPER = {
         set=commands.set_model,
         get_all=commands.get_models
     ),
+    'functional_model': _FunctionTypes(
+        has=commands.has_functional_model,
+        get=commands.get_functional_model,
+        set=commands.set_functional_model,
+        get_all=commands.get_functional_models
+    ),
     'ns': _FunctionTypes(
         has=commands.has_namespace,
         get=commands.get_namespace,
@@ -95,6 +101,33 @@ def set_model(context: Context, manifest: Manifest, model_name: str, model: Mode
 @commands.set_models.register(Context, Manifest, dict)
 def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
     manifest.get_objects()['model'] = models
+
+
+@commands.has_functional_model.register(Context, Manifest, str)
+def has_functional_model(context: Context, manifest: Manifest, model: str, **kwargs):
+    return model in manifest.get_objects()['functional_model']
+
+
+@commands.get_functional_model.register(Context, Manifest, str)
+def get_functional_model(context: Context, manifest: Manifest, model: str, **kwargs):
+    if has_model(context, manifest, model):
+        return manifest.get_objects()['functional_model'][model]
+    raise ModelNotFound(model=model)
+
+
+@commands.get_functional_models.register(Context, Manifest)
+def get_functional_models(context: Context, manifest: Manifest, **kwargs):
+    return manifest.get_objects()['functional_model']
+
+
+@commands.set_functional_model.register(Context, Manifest, str, Model)
+def set_functional_model(context: Context, manifest: Manifest, model_name: str, model: Model, **kwargs):
+    manifest.get_objects()['functional_model'][model_name] = model
+
+
+@commands.set_functional_models.register(Context, Manifest, dict)
+def set_functional_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
+    manifest.get_objects()['functional_model'] = models
 
 
 @commands.has_namespace.register(Context, Manifest, str)

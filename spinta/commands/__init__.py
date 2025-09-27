@@ -1182,6 +1182,31 @@ def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], *
 
 
 @command()
+def has_functional_model(context: Context, manifest: Manifest, model: str, **kwargs) -> bool:
+    """Check if manifest has specified model"""
+
+
+@command()
+def get_functional_model(context: Context, manifest: Manifest, model: str, **kwargs) -> Model:
+    """Return model from manifest"""
+
+
+@command()
+def get_functional_models(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Model]:
+    """Return all models from manifest"""
+
+
+@command()
+def set_functional_model(context: Context, manifest: Manifest, model_name: str, model: Model, **kwargs):
+    """Add model to manifest"""
+
+
+@command()
+def set_functional_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
+    """Sets all model to manifest"""
+
+
+@command()
 def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> bool:
     """Check if manifest has specified namespace"""
 
