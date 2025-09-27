@@ -463,6 +463,9 @@ class ModelReader(TabularReader):
                 _name = f'{name}_{dup}'
                 dup += 1
             name = _name
+        elif self.is_functional:
+            if name in self.state.functional_models:
+                self.error(f"Functional model {name!r} with the same name is already defined.")
         elif name in self.state.models:
             self.error(f"Model {name!r} with the same name is already defined.")
 
@@ -1724,6 +1727,7 @@ class State:
     backends: Dict[str, Dict[str, str]] = None
 
     models: Set[str]
+    functional_models: Set[str]
 
     manifest: ManifestReader = None
     dataset: DatasetReader = None
@@ -1998,36 +2002,20 @@ def load_ascii_tabular_manifest(
 
 
 def get_relative_model_name(dataset: [str, dict], name: str) -> str:
-    # First handle any url parameters
-    basename = name
-    url_params = None
-    if "/:" in name:
-        basename, url_params = name.rsplit("/:", 1)
-    elif "?" in name:
-        basename, url_params = name.split("?", 1)
-        
     if isinstance(dataset, str):
-        result = basename.replace(dataset, '')
-    elif basename.startswith('/'):
-        result = basename[1:]
-    elif '/' in basename:
-        result = basename
+        return name.replace(dataset, '')
+    elif name.startswith('/'):
+        return name[1:]
+    # removing /: to avoid confusion with functional models, for example City/:part
+    elif '/' in name.replace("/:", ""):
+        return name
     elif dataset is None:
-        result = basename
+        return name
     else:
-        result = '/'.join([
+        return '/'.join([
             dataset['name'],
-            basename,
+            name,
         ])
-        
-    # Add back any url parameters
-    if url_params:
-        if "?" in name:
-            result = f"{result}?{url_params}"
-        else:
-            result = f"{result}/:{url_params}"
-            
-    return result
 
 
 def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
