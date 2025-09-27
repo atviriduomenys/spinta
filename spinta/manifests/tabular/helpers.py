@@ -2004,7 +2004,7 @@ def load_ascii_tabular_manifest(
 def get_relative_model_name(dataset: [str, dict], name: str) -> str:
     if isinstance(dataset, str):
         return name.replace(dataset, '')
-    elif name.startswith('/'):
+    if name.startswith('/'):
         return name[1:]
     # removing /: to avoid confusion with functional models, for example City/:part
     elif '/' in name.replace("/:", ""):
