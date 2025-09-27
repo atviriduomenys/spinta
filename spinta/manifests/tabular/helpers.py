@@ -2007,15 +2007,15 @@ def get_relative_model_name(dataset: [str, dict], name: str) -> str:
     if name.startswith('/'):
         return name[1:]
     # removing /: to avoid confusion with functional models, for example City/:part
-    elif '/' in name.replace("/:", ""):
+    if '/' in name.replace("/:", ""):
         return name
-    elif dataset is None:
+    if dataset is None:
         return name
-    else:
-        return '/'.join([
-            dataset['name'],
-            name,
-        ])
+
+    return '/'.join([
+        dataset['name'],
+        name,
+    ])
 
 
 def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
