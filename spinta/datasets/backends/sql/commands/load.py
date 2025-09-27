@@ -9,8 +9,8 @@ from spinta.datasets.backends.sql.components import Sql
 
 @commands.load.register(Context, Sql, dict)
 def load(context: Context, backend: Sql, config: Dict[str, Any]):
-    dsn = config['dsn']
-    schema = config.get('schema')
+    dsn = config["dsn"]
+    schema = config.get("schema")
     if dsn:
         # There can be a situation, when backend type was given, but dsn was
         # not. In this case we still create backend instance, but leave it

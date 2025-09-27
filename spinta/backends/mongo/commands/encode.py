@@ -19,10 +19,6 @@ def prepare_for_write(
 
 @commands.cast_backend_to_python.register(Context, Date, Mongo, datetime.datetime)
 def cast_backend_to_python(
-    context: Context,
-    dtype: Date,
-    backend: Mongo,
-    value: datetime.datetime,
-    **kwargs
+    context: Context, dtype: Date, backend: Mongo, value: datetime.datetime, **kwargs
 ) -> datetime.date:
     return value.date()

@@ -7,17 +7,17 @@ from spinta import commands
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(levelname)s: %(message)s',
+    format="%(levelname)s: %(message)s",
 )
 
-context = create_context('asgi')
+context = create_context("asgi")
 
-rc = context.get('rc')
-config = context.get('config')
+rc = context.get("rc")
+config = context.get("config")
 commands.load(context, config)
 commands.check(context, config)
 
-store = context.get('store')
+store = context.get("store")
 commands.load(context, store)
 
 commands.load(context, store.manifest)

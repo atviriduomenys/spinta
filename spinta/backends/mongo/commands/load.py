@@ -10,7 +10,7 @@ from spinta.components import Context
 @commands.load.register(Context, Mongo, dict)
 def load(context: Context, backend: Mongo, config: Dict[str, Any]):
     # Load Mongo client using configuration.
-    backend.dsn = config['dsn']
-    backend.db_name = config['db']
+    backend.dsn = config["dsn"]
+    backend.db_name = config["db"]
     backend.client = pymongo.MongoClient(backend.dsn)
     backend.db = backend.client[backend.db_name]

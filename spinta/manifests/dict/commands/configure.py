@@ -7,8 +7,8 @@ from spinta.manifests.dict.components import DictManifest
 
 @commands.configure.register(Context, DictManifest)
 def configure(context: Context, manifest: DictManifest):
-    rc: RawConfig = context.get('rc')
-    path = rc.get('manifests', manifest.name, 'path')
+    rc: RawConfig = context.get("rc")
+    path = rc.get("manifests", manifest.name, "path")
     if path:
         check_manifest_path(manifest, path)
     else:

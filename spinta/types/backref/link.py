@@ -1,9 +1,14 @@
 from spinta import commands
 from spinta.components import Context, Model, Property
-from spinta.exceptions import ModelReferenceNotFound, MultipleBackRefReferencesFound, NoBackRefReferencesFound, \
-    NoReferencesFound, OneToManyBackRefNotSupported
+from spinta.exceptions import (
+    ModelReferenceNotFound,
+    MultipleBackRefReferencesFound,
+    NoBackRefReferencesFound,
+    NoReferencesFound,
+    OneToManyBackRefNotSupported,
+)
 from spinta.manifests.tabular.constants import DataTypeEnum
-from spinta.types.datatype import BackRef, Ref, Array, ArrayBackRef, Object, Denorm, DataType
+from spinta.types.datatype import BackRef, Ref, Array, Object, Denorm, DataType
 from spinta.types.helpers import set_dtype_backend
 
 
@@ -94,7 +99,7 @@ def link(context: Context, dtype: BackRef) -> None:
 
     if _is_parent_array_backref(dtype) or dtype.refprop.list is None:
         return
-    
+
     raise OneToManyBackRefNotSupported(dtype)
 
     # relationship needs to add unique

@@ -10,5 +10,3 @@ class Geometry(DataType):
 
 class Spatial(Geometry):
     pass
-
-

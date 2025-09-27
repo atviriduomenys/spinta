@@ -1,14 +1,17 @@
 from __future__ import annotations
 import io
 import json
+import math
 import pathlib
 from typing import Any, Dict, Iterator
 
-import dask
 import numpy as np
 import pandas as pd
 import requests
 import yaml
+
+import dask
+from dask.bag import from_sequence
 from dask.dataframe import DataFrame
 from lxml import etree
 
@@ -55,7 +58,7 @@ def _aggregate_values(data, target: Property):
         return data
 
     key_path = target.place
-    key_parts = key_path.split('.')
+    key_parts = key_path.split(".")
 
     # Drop first part, since if nested prop is part of the list will always be first value
     # ex: from DB we get {"notes": [{"note": 0}]}
@@ -111,13 +114,17 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
                         property=sel.prop.name,
                         external=sel.prop.external.name,
                     )
-
         if enum_options := get_prop_enum(sel.prop):
             env = Env(context)(this=sel.prop)
             for enum_option in enum_options.values():
                 if isinstance(enum_option.prepare, Expr):
-                    val = env.call(enum_option.prepare.name, str(val), *enum_option.prepare.args)
-                    if val:
+                    # This is backward compatibility for older Dask versions, where empty fields returned as NaN.
+                    # If we do not want to support nan type this eventually should be moved to the dask reader part.
+                    if isinstance(val, float) and math.isnan(val):
+                        val = None
+                    processed = env.call(enum_option.prepare.name, val, *enum_option.prepare.args)
+                    if val != processed:
+                        val = processed
                         break
             if val is None:
                 pass
@@ -181,11 +188,8 @@ def _select_primary_key(model: Model, df: DataFrame):
         prop = pkeys[0]
         result = _select(prop, df)
     else:
-        result = [
-            _select(prop, df)
-            for prop in pkeys
-        ]
-    return Selected(prop=model.properties['_id'], prep=result)
+        result = [_select(prop, df) for prop in pkeys]
+    return Selected(prop=model.properties["_id"], prep=result)
 
 
 def _parse_xml_loop_model_properties(value, added_root_elements: list, model_props: dict, namespaces: dict):
@@ -198,12 +202,11 @@ def _parse_xml_loop_model_properties(value, added_root_elements: list, model_pro
         if v:
             v = v[0]
             if isinstance(v, etree._Element):
-
                 # Check if prop has pkeys (means its ref type)
                 # If pkeys exists iterate with xpath and get the values
                 pkeys = prop["pkeys"]
 
-                if pkeys and prop["source"].endswith(('.', '/')):
+                if pkeys and prop["source"].endswith((".", "/")):
                     ref_keys = []
                     for key in pkeys:
                         ref_item = v.xpath(key, namespaces=namespaces)
@@ -242,11 +245,11 @@ def _parse_xml_loop_model_properties(value, added_root_elements: list, model_pro
 
 def _parse_xml(data, source: str, model_props: Dict, namespaces={}):
     added_root_elements = []
-    iterparse = etree.iterparse(data, events=['start'], remove_blank_text=True)
+    iterparse = etree.iterparse(data, events=["start"], remove_blank_text=True)
     _, root = next(iterparse)
 
-    if not source.startswith(('/', '.')):
-        source = f'/{source}'
+    if not source.startswith(("/", ".")):
+        source = f"/{source}"
 
     values = root.xpath(source, namespaces=namespaces)
     for value in values:
@@ -266,14 +269,13 @@ def _parse_json(data, source: str, model_props: Dict):
             source_list = ["."] + source_list
     if blank_nodes:
         for prop in model_props.values():
-            if prop["root_source"][0] != '.':
-                prop["root_source"].insert(0, '.')
+            if prop["root_source"][0] != ".":
+                prop["root_source"].insert(0, ".")
 
     yield from _parse_json_with_params(data, source_list, model_props)
 
 
 def _parse_json_with_params(data, source: list, model_props: dict):
-
     def get_prop_value(items, pkeys: list, prop_source: list):
         new_value = items
 
@@ -312,7 +314,7 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                     return new_value
 
     def traverse_json(items, current_value: Dict, current_path: int = 0, in_model: bool = False):
-        last_path = source[:current_path + 1]
+        last_path = source[: current_path + 1]
         c_path = source[current_path]
         if c_path.endswith("[]"):
             c_path = c_path[:-2]
@@ -347,20 +349,20 @@ def _parse_json_with_params(data, source: list, model_props: dict):
 
 
 def _get_data_xml(url: str, source: str, model_props: dict, namespaces: dict):
-    if url.startswith(('http', 'https')):
+    if url.startswith(("http", "https")):
         f = requests.get(url, timeout=30)
         yield from _parse_xml(io.BytesIO(f.content), source, model_props, namespaces)
     else:
-        with pathlib.Path(url).open('rb') as f:
+        with pathlib.Path(url).open("rb") as f:
             yield from _parse_xml(f, source, model_props, namespaces)
 
 
 def _get_data_json(url: str, source: str, model_props: dict):
-    if url.startswith(('http', 'https')):
+    if url.startswith(("http", "https")):
         f = requests.get(url, timeout=30)
         yield from _parse_json(f.text, source, model_props)
     else:
-        with pathlib.Path(url).open(encoding='utf-8-sig') as f:
+        with pathlib.Path(url).open(encoding="utf-8-sig") as f:
             yield from _parse_json(f.read(), source, model_props)
 
 
@@ -368,9 +370,9 @@ def _get_prop_full_source(source: str, prop_source: str):
     if prop_source.startswith(".."):
         split = prop_source[1:].count(".")
         split_source = source.split(".")
-        value = f'{".".join(split_source[:len(split_source) - split])}'
-        if value == '':
-            return '.'
+        value = f"{'.'.join(split_source[: len(split_source) - split])}"
+        if value == "":
+            return "."
         return value
     else:
         return source
@@ -402,14 +404,9 @@ def getall(
     query: Expr = None,
     resolved_params: ResolvedParams = None,
     extra_properties: dict[str, Property] = None,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
-    bases = parametrize_bases(
-        context,
-        model,
-        model.external.resource,
-        resolved_params
-    )
+    bases = parametrize_bases(context, model, model.external.resource, resolved_params)
 
     builder = backend.query_builder_class(context)
     builder.update(model=model)
@@ -420,15 +417,16 @@ def getall(
             props[prop.external.name] = {
                 "source": prop.external.name,
                 "root_source": root_source.split(".") if root_source != "." else ["."],
-                "pkeys": _get_pkeys_if_ref(prop)
+                "pkeys": _get_pkeys_if_ref(prop),
             }
 
     meta = get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases).map(
-        _get_data_json,
-        source=model.external.name,
-        model_props=props
-    ).flatten().to_dataframe(meta=meta)
+    df = (
+        from_sequence(bases)
+        .map(_get_data_json, source=model.external.name, model_props=props)
+        .flatten()
+        .to_dataframe(meta=meta)
+    )
     yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
@@ -441,31 +439,28 @@ def getall(
     query: Expr = None,
     resolved_params: ResolvedParams = None,
     extra_properties: dict[str, Property] = None,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
-    bases = parametrize_bases(
-        context,
-        model,
-        model.external.resource,
-        resolved_params
-    )
+    bases = parametrize_bases(context, model, model.external.resource, resolved_params)
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
-            props[prop.name] = {
-                "source": prop.external.name,
-                "pkeys": _get_pkeys_if_ref(prop)
-            }
+            props[prop.name] = {"source": prop.external.name, "pkeys": _get_pkeys_if_ref(prop)}
 
     meta = get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases).map(
-        _get_data_xml,
-        namespaces=_gather_namespaces_from_model(context, model),
-        source=model.external.name,
-        model_props=props
-    ).flatten().to_dataframe(meta=meta)
+    df = (
+        from_sequence(bases)
+        .map(
+            _get_data_xml,
+            namespaces=_gather_namespaces_from_model(context, model),
+            source=model.external.name,
+            model_props=props,
+        )
+        .flatten()
+        .to_dataframe(meta=meta)
+    )
     yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
@@ -486,22 +481,17 @@ def getall(
     query: Expr = None,
     resolved_params: ResolvedParams = None,
     extra_properties: dict[str, Property] = None,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
     resource_builder = TabularResource(context)
     resource_builder.resolve(model.external.resource.prepare)
-    bases = parametrize_bases(
-        context,
-        model,
-        model.external.resource,
-        resolved_params,
-        model.external.name
-    )
+    bases = parametrize_bases(context, model, model.external.resource, resolved_params, model.external.name)
 
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
     yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
+
 
 @commands.getall.register(Context, Model, MemoryDaskBackend)
 def getall(
@@ -529,18 +519,10 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
 
-    yield from dask_get_all(
-        context, query, dask_df, backend, model, builder, extra_properties
-    )
+    yield from dask_get_all(context, query, dask_df, backend, model, builder, extra_properties)
 
 
-def parametrize_bases(
-    context: Context,
-    model: Model,
-    resource: Resource,
-    resolved_params: dict,
-    *args
-):
+def parametrize_bases(context: Context, model: Model, resource: Resource, resolved_params: dict, *args):
     base = resource.external
     if len(resource.source_params) > 0:
         if not resolved_params:
@@ -567,7 +549,7 @@ def dask_get_all(
     params: dict | None = None,
 ):
     params = params or {}
-    keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
+    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
 
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
@@ -580,7 +562,7 @@ def dask_get_all(
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {
-            '_type': model.model_type(),
+            "_type": model.model_type(),
         }
         for key, sel in env.selected.items():
             val = _get_row_value(context, row, sel, env.params)

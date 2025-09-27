@@ -8,7 +8,6 @@ from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.manifests.components import Manifest
-from spinta.utils.schema import NA
 
 
 def _recursive_iter_params(
@@ -46,7 +45,9 @@ def _recursive_iter_params(
         yield values
 
 
-def iterparams(context: Context, model: Model, manifest: Manifest, params: List[Param] = []) -> Iterator[ResolvedParams]:
+def iterparams(
+    context: Context, model: Model, manifest: Manifest, params: List[Param] = []
+) -> Iterator[ResolvedParams]:
     values = {}
 
     if params:
@@ -68,4 +69,3 @@ def _recurse(env: ParamBuilder, param: Param, source: Model, expr: Expr, values:
                     env.params[env.target_param] = value
                     if isinstance(expr, Expr):
                         yield from _recurse(env, param, source, expr, env.resolve(expr))
-

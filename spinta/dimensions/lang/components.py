@@ -8,6 +8,6 @@ class Lang(TypedDict):
 
 
 LangData = Dict[
-    str,   # two letter locale code
+    str,  # two letter locale code
     Lang,
 ]

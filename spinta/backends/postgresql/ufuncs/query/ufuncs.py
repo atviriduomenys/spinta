@@ -11,8 +11,14 @@ from sqlalchemy.dialects.postgresql import UUID
 from spinta import exceptions, commands
 from spinta.auth import authorized
 from spinta.backends.constants import TableType, BackendFeatures
-from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse, \
-    Negative, Positive
+from spinta.backends.postgresql.ufuncs.query.components import (
+    PgQueryBuilder,
+    InheritForeignProperty,
+    Lower,
+    Recurse,
+    Negative,
+    Positive,
+)
 from spinta.components import Property, Page
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Negative as Negative_
@@ -37,10 +43,8 @@ from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
-from spinta.ufuncs.querybuilder.components import ReservedProperty, \
-    NestedProperty, ResultProperty, Flip
-from spinta.ufuncs.querybuilder.helpers import get_column_with_extra, get_language_column, \
-    expanded
+from spinta.ufuncs.querybuilder.components import ReservedProperty, NestedProperty, ResultProperty, Flip
+from spinta.ufuncs.querybuilder.helpers import get_column_with_extra, get_language_column, expanded
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 
@@ -71,13 +75,13 @@ def select(env, expr):
     env.selected = {}
     if args:
         for key, arg in args:
-            selected = env.call('select', arg)
+            selected = env.call("select", arg)
             if selected is not None:
                 env.selected[key] = selected
     else:
-        env.call('select', Star())
+        env.call("select", Star())
 
-    if not (len(args) == 1 and args[0][0] == '_page'):
+    if not (len(args) == 1 and args[0][0] == "_page"):
         assert env.selected, args
 
 
@@ -92,19 +96,19 @@ def select(env, arg: Star) -> None:
         # Check if prop is expanded or not
         if not expanded(env, prop):
             continue
-        env.selected[prop.place] = env.call('select', prop)
+        env.selected[prop.place] = env.call("select", prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)
 def select(env, arg):
-    if arg.name == '_type':
-        return Selected(None, env.model.properties['_type'])
-    if arg.name == '_page':
+    if arg.name == "_type":
+        return Selected(None, env.model.properties["_type"])
+    if arg.name == "_page":
         return None
     prop = _get_property_for_select(env, arg.name)
     if not expanded(env, prop):
         return Selected(None, prop, prep=[])
-    return env.call('select', prop)
+    return env.call("select", prop)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType)
@@ -114,9 +118,7 @@ def select(
     dtype: DataType,
 ) -> Selected:
     table = env.get_joined_table_from_ref(fpr)
-    column = env.backend.get_column(table, dtype.prop, select=True).label(
-        fpr.left.prop.place + '.' + dtype.prop.name
-    )
+    column = env.backend.get_column(table, dtype.prop, select=True).label(fpr.left.prop.place + "." + dtype.prop.name)
     return Selected(
         item=env.add_column(column),
         prop=dtype.prop,
@@ -134,17 +136,17 @@ def select(
     uri = dtype.model.uri_prop
     prep = {}
     if not dtype.inherited:
-        name = '_id'
+        name = "_id"
         if env.query_params.prioritize_uri and uri is not None:
             column = table.c[uri.place]
-            name = '_uri'
-            column = column.label(dtype.prop.place + '._uri')
+            name = "_uri"
+            column = column.label(dtype.prop.place + "._uri")
         else:
-            column = table.c[dtype.prop.place + '._id']
+            column = table.c[dtype.prop.place + "._id"]
         column = env.add_column(column)
         prep[name] = Selected(column, dtype.prop)
     for prop in dtype.properties.values():
-        sel = env.call('select', fpr.push(prop))
+        sel = env.call("select", fpr.push(prop))
         prep[prop.name] = sel
     return Selected(prop=dtype.prop, prep=prep)
 
@@ -158,7 +160,7 @@ def select(
     # FIXME
     # Currently there are issues with resolving joins with Foreign properties
     # so we just skip it, this can cause issues with nested joins
-    return env.call('select', dtype)
+    return env.call("select", dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Property)
@@ -189,7 +191,7 @@ def select(env: PgQueryBuilder, dtype: DataType):
 
 @ufunc.resolver(PgQueryBuilder, String)
 def select(env, dtype):
-    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    env.call("validate_dtype_for_select", dtype, _gather_selected_properties(env))
     if dtype.prop.list is None:
         column = env.backend.get_column(env.table, dtype.prop)
     else:
@@ -199,46 +201,40 @@ def select(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, Text)
 def select(env, dtype):
-    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    env.call("validate_dtype_for_select", dtype, _gather_selected_properties(env))
     if dtype.prop.list:
         column = env.backend.get_column(env.table, dtype.prop.list)
         return Selected(env.add_column(column), dtype.prop)
 
     if env.query_params.push:
-        result = {
-            key: env.call('select', prop)
-            for key, prop in dtype.langs.items()
-        }
+        result = {key: env.call("select", prop) for key, prop in dtype.langs.items()}
         return Selected(prop=dtype.prop, prep=result)
 
     if env.query_params.lang:
         for lang in env.query_params.lang:
             if isinstance(lang, Star):
-                result = {
-                    key: env.call('select', prop)
-                    for key, prop in dtype.langs.items()
-                }
+                result = {key: env.call("select", prop) for key, prop in dtype.langs.items()}
                 return Selected(prop=dtype.prop, prep=result)
             break
 
-        result = {
-            key: env.call('select', prop)
-            for key, prop in dtype.langs.items() if key in env.query_params.lang
-        }
+        result = {key: env.call("select", prop) for key, prop in dtype.langs.items() if key in env.query_params.lang}
         return Selected(prop=dtype.prop, prep=result)
 
-    default_langs = env.context.get('config').languages
+    default_langs = env.context.get("config").languages
     lang_prop = determine_language_property_for_text(dtype, env.query_params.lang_priority, default_langs)
-    return Selected(prop=dtype.prop, prep={
-        lang_prop.name: env.call('select', lang_prop),
-    })
+    return Selected(
+        prop=dtype.prop,
+        prep={
+            lang_prop.name: env.call("select", lang_prop),
+        },
+    )
 
 
 @ufunc.resolver(PgQueryBuilder, Object)
 def select(env, dtype):
     prep = {}
     for prop in take(dtype.properties).values():
-        sel = env.call('select', prop)
+        sel = env.call("select", prop)
         if sel is not None:
             prep[prop.name] = sel
     return Selected(prop=dtype.prop, prep=prep)
@@ -247,32 +243,32 @@ def select(env, dtype):
 @ufunc.resolver(PgQueryBuilder, File)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
-    name_id = dtype.prop.place + '._id'
-    name_content_type = dtype.prop.place + '._content_type'
-    name_size = dtype.prop.place + '._size'
+    name_id = dtype.prop.place + "._id"
+    name_content_type = dtype.prop.place + "._content_type"
+    name_size = dtype.prop.place + "._size"
     prep = {
-        '_id': Selected(env.add_column(table.c[name_id])),
-        '_content_type': Selected(env.add_column(table.c[name_content_type])),
-        '_size': Selected(env.add_column(table.c[name_size]))
+        "_id": Selected(env.add_column(table.c[name_id])),
+        "_content_type": Selected(env.add_column(table.c[name_content_type])),
+        "_size": Selected(env.add_column(table.c[name_size])),
     }
     same_backend = dtype.backend.name == dtype.prop.model.backend.name
     if same_backend or BackendFeatures.FILE_BLOCKS in dtype.backend.features:
-        name_bsize = dtype.prop.place + '._bsize'
-        name_blocks = dtype.prop.place + '._blocks'
-        prep['_bsize'] = Selected(env.add_column(table.c[name_bsize]))
-        prep['_blocks'] = Selected(env.add_column(table.c[name_blocks]))
+        name_bsize = dtype.prop.place + "._bsize"
+        name_blocks = dtype.prop.place + "._blocks"
+        prep["_bsize"] = Selected(env.add_column(table.c[name_bsize]))
+        prep["_blocks"] = Selected(env.add_column(table.c[name_blocks]))
     return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(PgQueryBuilder, File, str)
 def select(env, dtype, leaf):
     table = env.backend.get_table(env.model)
-    if leaf == '_content':
+    if leaf == "_content":
         # Currently _content is handled in prepare_dtype_for_response
         # we need to make sure that whole File is loaded when _content is selected
-        env.selected[dtype.prop.place] = env.call('select', dtype.prop)
+        env.selected[dtype.prop.place] = env.call("select", dtype.prop)
     else:
-        column = table.c[dtype.prop.place + '.' + leaf]
+        column = table.c[dtype.prop.place + "." + leaf]
         return Selected(env.add_column(column), dtype.prop)
 
 
@@ -281,20 +277,20 @@ def select(env, dtype: Ref):
     uri = dtype.model.uri_prop
     prep = {}
     if not dtype.inherited:
-        name = '_id'
+        name = "_id"
         if env.query_params.prioritize_uri and uri is not None:
-            fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
+            fpr = ForeignProperty(None, dtype, dtype.model.properties["_id"].dtype)
             table = env.get_joined_table(fpr)
             column = table.c[uri.place]
-            name = '_uri'
-            column = column.label(dtype.prop.place + '._uri')
+            name = "_uri"
+            column = column.label(dtype.prop.place + "._uri")
         else:
             table = env.backend.get_table(env.model)
-            column = table.c[dtype.prop.place + '._id']
+            column = table.c[dtype.prop.place + "._id"]
         column = env.add_column(column)
         prep[name] = Selected(column, dtype.prop)
     for prop in dtype.properties.values():
-        sel = env.call('select', prop)
+        sel = env.call("select", prop)
         prep[prop.name] = sel
     return Selected(prop=dtype.prop, prep=prep)
 
@@ -307,13 +303,13 @@ def select(env, dtype: ExternalRef):
         if dtype.model.given.pkeys or dtype.explicit:
             props = dtype.refprops
         else:
-            props = [dtype.model.properties['_id']]
+            props = [dtype.model.properties["_id"]]
         for prop in props:
             name = f"{dtype.prop.place}.{prop.place}"
             column = table.c[name]
             prep[prop.name] = Selected(env.add_column(column), prop)
     for prop in dtype.properties.values():
-        sel = env.call('select', prop)
+        sel = env.call("select", prop)
         prep[prop.name] = sel
     return Selected(prop=dtype.prop, prep=prep)
 
@@ -321,11 +317,7 @@ def select(env, dtype: ExternalRef):
 @ufunc.resolver(PgQueryBuilder, Ref, str)
 def select(env, dtype: Ref, prop: str):
     table = env.backend.get_table(env.model)
-    return Selected(
-        env.add_column(
-            table.c[dtype.prop.place + '.' + prop]
-        )
-    )
+    return Selected(env.add_column(table.c[dtype.prop.place + "." + prop]))
 
 
 @ufunc.resolver(PgQueryBuilder, BackRef)
@@ -350,15 +342,15 @@ def _select_backref(env, dtype, is_array=False):
     return_columns = {}
 
     if commands.identifiable(refprop):
-        id_ = fpr.right.prop.model.properties['_id']
+        id_ = fpr.right.prop.model.properties["_id"]
         column_name = id_.name
-        label = f'{dtype.prop.name}.{column_name}'
+        label = f"{dtype.prop.name}.{column_name}"
         required_columns.append((column_name, label))
         return_columns[label] = id_
     else:
         for prop in dtype.refprop.dtype.refprops:
             column_name = prop.name
-            label = f'{dtype.prop.name}.{column_name}'
+            label = f"{dtype.prop.name}.{column_name}"
             required_columns.append((column_name, label))
             return_columns[label] = prop
 
@@ -386,8 +378,8 @@ def select(
 ) -> Selected:
     table = env.get_joined_table(fpr)
     fixed_name = dtype.prop.place
-    if fixed_name.startswith(f'{fpr.left.prop.place}.'):
-        fixed_name = fixed_name.replace(f'{fpr.left.prop.place}.', '', 1)
+    if fixed_name.startswith(f"{fpr.left.prop.place}."):
+        fixed_name = fixed_name.replace(f"{fpr.left.prop.place}.", "", 1)
     column = table.c[fixed_name]
     column = column.label(fpr.place)
     return Selected(env.add_column(column), dtype.prop)
@@ -399,7 +391,7 @@ def select(
     fpr: ForeignProperty,
     dtype: Denorm,
 ) -> Selected:
-    return env.call('select', fpr.swap(dtype.rel_prop))
+    return env.call("select", fpr.swap(dtype.rel_prop))
 
 
 @ufunc.resolver(PgQueryBuilder, Inherit)
@@ -419,18 +411,19 @@ def select(env, dtype):
 
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
-def _denorm_to_foreign_property(
-    env: PgQueryBuilder,
-    dtype: Denorm
-):
+def _denorm_to_foreign_property(env: PgQueryBuilder, dtype: Denorm):
     ref = dtype.prop.parent
     if isinstance(ref, Property) and isinstance(ref.dtype, (Ref, BackRef)):
         fpr = None
         if ref.dtype.inherited:
             root_ref_parent = ref.parent
 
-            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, (Ref, BackRef)):
-                fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties['_id'].dtype)
+            while (
+                root_ref_parent
+                and isinstance(root_ref_parent, Property)
+                and isinstance(root_ref_parent.dtype, (Ref, BackRef))
+            ):
+                fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties["_id"].dtype)
 
                 if not root_ref_parent.dtype.inherited:
                     break
@@ -441,8 +434,8 @@ def _denorm_to_foreign_property(
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
 def select(env, dtype):
-    fpr = env.call('_denorm_to_foreign_property', dtype)
-    result = env.call('select', fpr)
+    fpr = env.call("_denorm_to_foreign_property", dtype)
+    result = env.call("select", fpr)
     return result
 
 
@@ -450,7 +443,7 @@ def select(env, dtype):
 def select(env, page):
     return_selected = []
     for item in page.by.values():
-        selected = env.call('select', item.prop)
+        selected = env.call("select", item.prop)
         if selected.item is not None:
             return_selected.append(env.columns[selected.item])
     return return_selected
@@ -507,7 +500,7 @@ def offset(env, n):
     env.offset = n
 
 
-@ufunc.resolver(PgQueryBuilder, Expr, name='and')
+@ufunc.resolver(PgQueryBuilder, Expr, name="and")
 def and_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
@@ -517,14 +510,14 @@ def and_(env, expr):
         return args[0]
 
 
-@ufunc.resolver(PgQueryBuilder, Expr, name='or')
+@ufunc.resolver(PgQueryBuilder, Expr, name="or")
 def or_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
-    return env.call('or', args)
+    return env.call("or", args)
 
 
-@ufunc.resolver(PgQueryBuilder, list, name='or')
+@ufunc.resolver(PgQueryBuilder, list, name="or")
 def or_(env, args):
     if len(args) > 1:
         return sa.or_(*args)
@@ -535,33 +528,33 @@ def or_(env, args):
 @ufunc.resolver(PgQueryBuilder)
 def count(env):
     env.aggregate = True
-    return sa.func.count().label('count()')
+    return sa.func.count().label("count()")
 
 
 COMPARE = [
-    'eq',
-    'ne',
-    'lt',
-    'le',
-    'gt',
-    'ge',
-    'startswith',
-    'contains',
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "gt",
+    "ge",
+    "startswith",
+    "contains",
 ]
 
 COMPARE_EQUATIONS = [
-    'eq',
-    'ne',
-    'lt',
-    'le',
-    'gt',
-    'ge',
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "gt",
+    "ge",
 ]
 
 COMPARE_STRING = [
-    'eq',
-    'startswith',
-    'contains',
+    "eq",
+    "startswith",
+    "contains",
 ]
 
 
@@ -574,7 +567,7 @@ def compare(env: PgQueryBuilder, op: str, attr: GetAttr, value: Any):
 @ufunc.resolver(PgQueryBuilder, ReservedProperty, object, names=COMPARE)
 def compare(env, op: str, reserved: ReservedProperty, value: Any):
     table = env.backend.get_table(reserved.dtype.prop.model)
-    column = table.c[reserved.dtype.prop.place + '.' + reserved.param]
+    column = table.c[reserved.dtype.prop.place + "." + reserved.param]
 
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, reserved.dtype.prop, cond)
@@ -621,7 +614,7 @@ def compare(env, op, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE)
 def compare(env, op, dtype, value):
-    if op in ('startswith', 'contains'):
+    if op in ("startswith", "contains"):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
     cond = _sa_compare(op, column, value)
@@ -699,21 +692,21 @@ def compare(
 @ufunc.resolver(PgQueryBuilder, UUID_dtype, str)
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare('eq', column, value)
+    cond = _sa_compare("eq", column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare('eq', column, value)
+    cond = _sa_compare("eq", column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
 
 @ufunc.resolver(PgQueryBuilder, Text, (str, Bind, type(None)))
 def eq(env, dtype, value):
     column = get_language_column(env, dtype.prop)
-    cond = _sa_compare('eq', column, value)
+    cond = _sa_compare("eq", column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
 
@@ -726,7 +719,7 @@ def eq(
 ):
     table = env.get_joined_table(fpr)
     column = env.backend.get_column(table, fpr.right.prop)
-    cond = _sa_compare('eq', column, value)
+    cond = _sa_compare("eq", column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
 
@@ -739,18 +732,18 @@ def eq(
 ):
     table = env.backend.get_table(fpr.left.model)
     column = env.backend.get_column(table, fpr.left.prop)
-    cond = _sa_compare('eq', column, value)
+    cond = _sa_compare("eq", column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
 
 def _ensure_non_empty(op, s):
-    if s == '':
+    if s == "":
         raise EmptyStringSearch(op=op)
 
 
 @ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE_STRING)
 def compare(env: PgQueryBuilder, op: str, dtype: UUID, value: str):
-    if op in ('startswith', 'contains'):
+    if op in ("startswith", "contains"):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
     return _sa_compare(op, column, value)
@@ -764,7 +757,7 @@ def compare(
     dtype: String,
     value: str,
 ):
-    if op in ('startswith', 'contains'):
+    if op in ("startswith", "contains"):
         _ensure_non_empty(op, value)
     table = env.get_joined_table(fpr)
     column = table.c[fpr.right.prop.place]
@@ -774,7 +767,7 @@ def compare(
 
 @ufunc.resolver(PgQueryBuilder, PrimaryKey, str, names=COMPARE_STRING)
 def compare(env, op, dtype, value):
-    if op in ('startswith', 'contains'):
+    if op in ("startswith", "contains"):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
     return _sa_compare(op, column, value)
@@ -831,12 +824,12 @@ def lower(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, Recurse)
 def lower(env, recurse):
-    return Recurse([env.call('lower', arg) for arg in recurse.args])
+    return Recurse([env.call("lower", arg) for arg in recurse.args])
 
 
 @ufunc.resolver(PgQueryBuilder, Lower, str, names=COMPARE_STRING)
 def compare(env, op, fn, value):
-    if op in ('startswith', 'contains'):
+    if op in ("startswith", "contains"):
         _ensure_non_empty(op, value)
     column = get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
@@ -845,7 +838,7 @@ def compare(env, op, fn, value):
 
 
 def _sa_compare(op, column, value):
-    if value is None and op not in ['eq', 'ne']:
+    if value is None and op not in ["eq", "ne"]:
         raise NoneValueComparison(op=op)
 
     # Convert JSONB value from -> to ->> with astext
@@ -854,27 +847,27 @@ def _sa_compare(op, column, value):
             column = column.element
         column = column.astext
 
-    if op == 'eq':
+    if op == "eq":
         return column == value
 
-    if op == 'lt':
+    if op == "lt":
         return column < value
 
-    if op == 'le':
+    if op == "le":
         return column <= value
 
-    if op == 'gt':
+    if op == "gt":
         return column > value
 
-    if op == 'ge':
+    if op == "ge":
         return column >= value
 
-    if op == 'contains':
+    if op == "contains":
         if isinstance(column.type, UUID):
             column = column.cast(sa.String)
         return column.contains(value)
 
-    if op == 'startswith':
+    if op == "startswith":
         if isinstance(column.type, UUID):
             column = column.cast(sa.String)
         return column.startswith(value)
@@ -891,9 +884,9 @@ def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
         sa.select(
             [list_table.c._rid],
             distinct=list_table.c._rid,
-        ).
-        where(cond).
-        alias()
+        )
+        .where(cond)
+        .alias()
     )
     env.from_ = env.from_.outerjoin(
         subqry,
@@ -1052,9 +1045,9 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
         sa.select(
             [list_table.c._rid],
             distinct=list_table.c._rid,
-        ).
-        where(column != None).  # noqa
-        alias()
+        )
+        .where(column.is_not(None))
+        .alias()
     )
     env.from_ = env.from_.outerjoin(
         subqry1,
@@ -1066,9 +1059,9 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
         sa.select(
             [list_table.c._rid],
             distinct=list_table.c._rid,
-        ).
-        where(column == value).
-        alias()
+        )
+        .where(column == value)
+        .alias()
     )
     env.from_ = env.from_.outerjoin(
         subqry2,
@@ -1078,14 +1071,14 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
     # If field exists and given value does not, then field is not equal to
     # value.
     return sa.and_(
-        subqry1.c._rid != None,  # noqa
-        subqry2.c._rid == None,
+        subqry1.c._rid.is_not(None),
+        subqry2.c._rid.is_(None),
     )
 
 
 FUNCS = [
-    'lower',
-    'upper',
+    "lower",
+    "upper",
 ]
 
 
@@ -1116,62 +1109,54 @@ def recurse(env, field):
 
 @ufunc.resolver(PgQueryBuilder, Recurse, object, names=COMPARE)
 def recurse(env, op, recurse, value):
-    return env.call('or', [
-        env.call(op, arg, value)
-        for arg in recurse.args
-    ])
+    return env.call("or", [env.call(op, arg, value) for arg in recurse.args])
 
 
-@ufunc.resolver(PgQueryBuilder, Expr, name='any')
+@ufunc.resolver(PgQueryBuilder, Expr, name="any")
 def any_(env, expr):
     args, kwargs = expr.resolve(env)
     op, field, *args = args
     if isinstance(op, Bind):
         op = op.name
-    return env.call('or', [
-        env.call(op, field, arg)
-        for arg in args
-    ])
+    return env.call("or", [env.call(op, field, arg) for arg in args])
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
 def sort(env, expr):
     args, kwargs = expr.resolve(env)
-    env.sort = [
-        env.call('sort', arg) for arg in args
-    ]
+    env.sort = [env.call("sort", arg) for arg in args]
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)
 def sort(env, field):
     prop = env.resolve_property(field)
-    return env.call('asc', prop.dtype)
+    return env.call("asc", prop.dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType)
 def sort(env, dtype):
-    return env.call('asc', dtype)
+    return env.call("asc", dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Negative_)
 def sort(env, field):
     prop = env.resolve_property(field)
-    return env.call('desc', prop.dtype)
+    return env.call("desc", prop.dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def sort(env: PgQueryBuilder, fpr: ForeignProperty):
-    return env.call('asc', fpr, fpr.right)
+    return env.call("asc", fpr, fpr.right)
 
 
 @ufunc.resolver(PgQueryBuilder, Positive)
 def sort(env, sign):
-    return env.call('asc', sign.arg)
+    return env.call("asc", sign.arg)
 
 
 @ufunc.resolver(PgQueryBuilder, Negative)
 def sort(env, sign):
-    return env.call('desc', sign.arg)
+    return env.call("desc", sign.arg)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType)
@@ -1182,12 +1167,12 @@ def asc(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, NestedProperty)
 def asc(env: PgQueryBuilder, nested: NestedProperty):
-    return env.call('asc', nested.right)
+    return env.call("asc", nested.right)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def asc(env: PgQueryBuilder, fpr: ForeignProperty):
-    return env.call('asc', fpr, fpr.right)
+    return env.call("asc", fpr, fpr.right)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType)
@@ -1205,12 +1190,12 @@ def desc(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, NestedProperty)
 def desc(env: PgQueryBuilder, nested: NestedProperty):
-    return env.call('desc', nested.right)
+    return env.call("desc", nested.right)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def desc(env: PgQueryBuilder, fpr: ForeignProperty):
-    return env.call('desc', fpr, fpr.right)
+    return env.call("desc", fpr, fpr.right)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType)
@@ -1220,7 +1205,7 @@ def desc(env: PgQueryBuilder, fpr: ForeignProperty, dtype: DataType):
     return column.desc()
 
 
-@ufunc.resolver(PgQueryBuilder, Array, names=['asc', 'desc'])
+@ufunc.resolver(PgQueryBuilder, Array, names=["asc", "desc"])
 def sort(env, name, dtype: Array):
     return env.call(name, dtype.items.dtype)
 
@@ -1233,12 +1218,10 @@ def _get_sort_column(env: PgQueryBuilder, prop: Property):
 
     main_table = env.table
     list_table = env.backend.get_table(prop.list, TableType.LIST)
-    subqry = (
-        sa.select(
-            [list_table.c._rid, column.label('value')],
-            distinct=list_table.c._rid,
-        ).alias()
-    )
+    subqry = sa.select(
+        [list_table.c._rid, column.label("value")],
+        distinct=list_table.c._rid,
+    ).alias()
     env.from_ = env.from_.outerjoin(
         subqry,
         main_table.c._id == subqry.c._rid,
@@ -1297,12 +1280,10 @@ def checksum(env: PgQueryBuilder, expr: Expr):
         if env.selected is not None and prop.place in env.selected:
             selected = env.selected[prop.place]
         else:
-            selected = env.call('select', prop)
+            selected = env.call("select", prop)
         if isinstance(selected, Selected):
             args.append(selected)
-    return ResultProperty(
-        Expr('checksum', *args)
-    )
+    return ResultProperty(Expr("checksum", *args))
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
@@ -1313,7 +1294,7 @@ def file(env: PgQueryBuilder, expr: Expr) -> Expr:
 @ufunc.resolver(PgQueryBuilder, Bind, Bind)
 def point(env: PgQueryBuilder, x: Bind, y: Bind) -> Expr:
     return Expr(
-        'point',
-        env.call('select', x),
-        env.call('select', y),
+        "point",
+        env.call("select", x),
+        env.call("select", y),
     )

@@ -1,3 +1,4 @@
+import math
 from typing import Any, Tuple, overload
 
 from spinta.core.ufuncs import Env, Expr, ufunc, NoOp
@@ -6,11 +7,24 @@ from spinta.core.ufuncs import Env, Expr, ufunc, NoOp
 @overload
 @ufunc.resolver(Env, object, object)
 def swap(env: Env, old: Any, new: Any) -> Any:
-    return env.call('swap', env.this, old, new)
+    return env.call("swap", env.this, old, new)
+
 
 @overload
 @ufunc.resolver(Env, object, object, object)
 def swap(env: Env, this: Any, old: Any, new: Any) -> Any:
+    if this == old:
+        return new
+    else:
+        return this
+
+
+@overload
+@ufunc.resolver(Env, float, float, object)
+def swap(env: Env, this: float, old: float, new: Any) -> Any:
+    if math.isnan(this) and math.isnan(old):
+        return new
+
     if this == old:
         return new
     else:

@@ -1,6 +1,4 @@
-import os
 import pathlib
-import sys
 from urllib.parse import urlparse
 from urllib.parse import parse_qsl
 from urllib.parse import urljoin
@@ -32,10 +30,10 @@ def download_xsd_files(
         response = session.get(url)
         with file_path.open("w") as file:
             file.write(response.text)
-        print(f'{file_name} <- {url}')
+        print(f"{file_name} <- {url}")
 
 
-def extract_xsd_files(xpath: str, urls: str):
+def extract_xsd_files(session: requests.Session, xpath: str, urls: str):
     for url in urls:
         response = session.get(url)
         document_list = html.fromstring(response.text)
@@ -46,38 +44,66 @@ def extract_xsd_files(xpath: str, urls: str):
 def download_rc_broker_xsd_files(
     base_dir: str,
     *,
-    base_url: str = 'https://ws.registrucentras.lt',
+    base_url: str = "https://ws.registrucentras.lt",
 ):
     session = requests.Session()
 
     download_xsd_files(
-        session, base_dir, 'out_{t}.xsd',
-        add_url_base(base_url, extract_xsd_files(session, "//*[contains(@href, 'out')]", [
-            urljoin(base_url, '/broker/info.php'),
-        ]))
+        session,
+        base_dir,
+        "out_{t}.xsd",
+        add_url_base(
+            base_url,
+            extract_xsd_files(
+                session,
+                "//*[contains(@href, 'out')]",
+                [
+                    urljoin(base_url, "/broker/info.php"),
+                ],
+            ),
+        ),
     )
 
     download_xsd_files(
-        session, base_dir, 'rc_jar_klasif_{kla_kodas}.xsd',
-        add_url_base(base_url, extract_xsd_files(session, "//*[contains(@href, 'kla_kodas')]", [
-            urljoin(base_url, "/broker/xsd.klasif.php?kla_grupe=JAR")
-        ]))
+        session,
+        base_dir,
+        "rc_jar_klasif_{kla_kodas}.xsd",
+        add_url_base(
+            base_url,
+            extract_xsd_files(
+                session,
+                "//*[contains(@href, 'kla_kodas')]",
+                [urljoin(base_url, "/broker/xsd.klasif.php?kla_grupe=JAR")],
+            ),
+        ),
     )
 
     download_xsd_files(
-        session, base_dir, 'rc_jar_klasif_{kla_kodas}.xsd',
-        add_url_base(base_url, extract_xsd_files(session, "//*[contains(@href, 'kla_kodas')]", [
-            urljoin(base_url, "/broker/xsd.klasif.php?kla_grupe=NTR")
-        ]))
+        session,
+        base_dir,
+        "rc_jar_klasif_{kla_kodas}.xsd",
+        add_url_base(
+            base_url,
+            extract_xsd_files(
+                session,
+                "//*[contains(@href, 'kla_kodas')]",
+                [urljoin(base_url, "/broker/xsd.klasif.php?kla_grupe=NTR")],
+            ),
+        ),
     )
 
     download_xsd_files(
-        session, base_dir, '{f}',
-        add_url_base(base_url, [
-            "/broker/xsd.jadis.php?f=jadis-israsas.xsd",
-            "/broker/xsd.jadis.php?f=jadis-sarasas.xsd",
-            "/broker/xsd.jadis.php?f=jadis-dalyvio-israsas.xsd",
-        ])
+        session,
+        base_dir,
+        "{f}",
+        add_url_base(
+            base_url,
+            [
+                "/broker/xsd.jadis.php?f=jadis-israsas.xsd",
+                "/broker/xsd.jadis.php?f=jadis-sarasas.xsd",
+                "/broker/xsd.jadis.php?f=jadis-dalyvio-israsas.xsd",
+            ],
+        ),
     )
 
 
@@ -94,22 +120,22 @@ def extract_xpaths_from_xsd(path: pathlib.Path):
         return []
 
     root = tree.getroot()
-    namespaces = {'xsd': 'http://www.w3.org/2001/XMLSchema'}
-    
+    namespaces = {"xsd": "http://www.w3.org/2001/XMLSchema"}
+
     # Finding all element and attribute nodes in the XSD file
-    elements = root.xpath('.//xsd:element', namespaces=namespaces)
-    attributes = root.xpath('.//xsd:attribute', namespaces=namespaces)
-    
+    elements = root.xpath(".//xsd:element", namespaces=namespaces)
+    attributes = root.xpath(".//xsd:attribute", namespaces=namespaces)
+
     # Generate XPath for each element and attribute
     xpaths = []
-    
+
     for element in elements:
-        name = element.get('name') or element.get('ref') # or etree.tostring(element).decode()
-        xpaths.append('/' + name)
-    
+        name = element.get("name") or element.get("ref")  # or etree.tostring(element).decode()
+        xpaths.append("/" + name)
+
     for attribute in attributes:
-        xpaths.append('@' + attribute.get('name'))
-    
+        xpaths.append("@" + attribute.get("name"))
+
     return xpaths
 
 

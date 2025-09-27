@@ -19,4 +19,3 @@ def init(
     """
     context: Context = ctx.obj
     write_tabular_manifest(context, manifest)
-

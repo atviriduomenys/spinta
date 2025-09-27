@@ -41,25 +41,20 @@ def create_manifest_from_inspect(
     # Reset Context, to not have any outside influence from given
     if context is None:
         rc = RawConfig()
-        rc.read([Path('spinta', 'spinta.config:CONFIG')])
+        rc.read([Path("spinta", "spinta.config:CONFIG")])
         context = create_context(name="inspect", rc=rc)
 
-    has_manifest_priority = priority == 'manifest'
+    has_manifest_priority = priority == "manifest"
     if resources:
         resources = parse_resource_args(*resources, formula)
 
-    context = configure_context(
-        context,
-        [manifest] if manifest else None,
-        mode=Mode.external,
-        backend=backend
-    )
+    context = configure_context(context, [manifest] if manifest else None, mode=Mode.external, backend=backend)
     with context:
         require_auth(context, auth)
         store = load_manifest(context, ensure_config_dir=True, full_load=True)
         old = store.manifest
         manifest = Manifest()
-        init_manifest(context, manifest, 'inspect')
+        init_manifest(context, manifest, "inspect")
         commands.merge(context, manifest, manifest, old, has_manifest_priority)
 
         if not resources:
@@ -67,8 +62,8 @@ def create_manifest_from_inspect(
             for ds in commands.get_datasets(context, old).values():
                 for resource in ds.resources.values():
                     external = resource.external
-                    if external == '' and resource.backend:
-                        external = resource.backend.config['dsn']
+                    if external == "" and resource.backend:
+                        external = resource.backend.config["dsn"]
                     if not any(res.external == external for res in resources):
                         if only_url and not ("http://" in external or "https://" in external):
                             raise InvalidResourceSource(source=external)
@@ -93,7 +88,14 @@ def create_manifest_from_inspect(
     return context, manifest
 
 
-def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple, has_manifest_priority: bool, dataset: str = None):
+def _merge(
+    context: Context,
+    manifest: Manifest,
+    old: Manifest,
+    resource: ResourceTuple,
+    has_manifest_priority: bool,
+    dataset: str = None,
+):
     manifest_ = commands.backend_to_manifest_type(context, resource.type)
     path = ManifestPath(type=manifest_.type, path=resource.external, prepare=resource.prepare)
     context = configure_context(context, [path], mode=Mode.external, dataset=dataset)
@@ -102,11 +104,7 @@ def _merge(context: Context, manifest: Manifest, old: Manifest, resource: Resour
     commands.merge(context, manifest, old, new, has_manifest_priority)
 
 
-def _filter_models_for_dataset(
-    context: Context,
-    manifest: Manifest,
-    dataset: Dataset
-) -> List[Model]:
+def _filter_models_for_dataset(context: Context, manifest: Manifest, dataset: Dataset) -> List[Model]:
     models = []
     for model in commands.get_models(context, manifest).values():
         if model.external:
@@ -115,13 +113,7 @@ def _filter_models_for_dataset(
     return models
 
 
-def _merge_model_properties(
-    context: Context,
-    manifest: Manifest,
-    old: Model,
-    new: Model,
-    has_manifest_priority: bool
-):
+def _merge_model_properties(context: Context, manifest: Manifest, old: Model, new: Model, has_manifest_priority: bool):
     properties = zipitems(
         old.properties.values(),
         new.properties.values(),
@@ -144,12 +136,7 @@ def _merge_model_properties(
             commands.merge(context, manifest, o, n, has_manifest_priority)
 
 
-def _merge_prefixes(
-    context: Context,
-    manifest: Manifest,
-    old: Dataset,
-    new: Dataset
-):
+def _merge_prefixes(context: Context, manifest: Manifest, old: Dataset, new: Dataset):
     prefixes = zipitems(
         old.prefixes.values(),
         new.prefixes.values(),
@@ -160,12 +147,7 @@ def _merge_prefixes(
             commands.merge(context, manifest, o, n)
 
 
-def _merge_resources(
-    context: Context,
-    manifest: Manifest,
-    old: Dataset,
-    new: Dataset
-):
+def _merge_resources(context: Context, manifest: Manifest, old: Dataset, new: Dataset):
     old_resources = [] if old == NA else old.resources.values()
     new_resources = [] if new == NA else new.resources.values()
     resources = zipitems(
@@ -183,7 +165,7 @@ def _merge_resources(
             commands.merge(context, manifest, o, n)
 
 
-TItem = TypeVar('TItem')
+TItem = TypeVar("TItem")
 
 
 def zipitems(
@@ -191,16 +173,14 @@ def zipitems(
     b: TItem,
     key: Callable[[TItem], Hashable],
 ) -> Iterator[List[Tuple[TItem, TItem]]]:
-
     res: Dict[
         Hashable,  # key
         List[
             List[
-                Any,   # a
-                Any,   # b
+                Any,  # a
+                Any,  # b
             ]
-        ]
-        ,
+        ],
     ] = {}
 
     # Map first values
@@ -319,10 +299,10 @@ def _resource_source_key(resource: Resource) -> str:
     else:
         if manifest.backends:
             if resource.backend.name in manifest.backends:
-                result = manifest.backends[resource.backend.name].config['dsn']
+                result = manifest.backends[resource.backend.name].config["dsn"]
         elif manifest.store.backends:
             if resource.backend.name in manifest.store.backends:
-                result = manifest.store.backends[resource.backend.name].config['dsn']
+                result = manifest.store.backends[resource.backend.name].config["dsn"]
     if "@" in result:
         result = result.split("@")[1]
     return result
@@ -340,16 +320,13 @@ def _model_key(model: Model) -> PriorityKey:
 
 def _model_source_key(model: Model) -> str:
     if model.external and model.external.name:
-        return f'{_resource_source_key(model.external.resource)}/{model.external.name}'
+        return f"{_resource_source_key(model.external.resource)}/{model.external.name}"
     else:
         return model.name
 
 
 def _backend_dsn(backend: ExternalBackend) -> str:
-    dsn = backend.config['dsn']
+    dsn = backend.config["dsn"]
     if "@" in dsn:
         dsn = dsn.split("@")[1]
     return dsn
-
-
-

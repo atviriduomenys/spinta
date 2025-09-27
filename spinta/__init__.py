@@ -1,7 +1,6 @@
 import importlib.metadata
-import logging
-from .logging_config import setup_logging
 
+from .logging_config import setup_logging
 
 __version__ = importlib.metadata.version(__name__)
 

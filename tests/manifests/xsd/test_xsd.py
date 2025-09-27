@@ -51,7 +51,7 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | gyv_id          | integer required |     | GYV_ID/text()                     |         |       |        |     |       |
     |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -107,7 +107,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -151,7 +151,7 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -205,7 +205,7 @@ id | d | r | b | m | property            | type            | ref              | 
    |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -266,7 +266,7 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -324,7 +324,7 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -357,7 +357,7 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | pavadinimas          | string          |         | @pavadinimas       |         |       |        |     |       |
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -397,7 +397,7 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | search_parameters | string   |     | searchParameters/text() |         |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -450,7 +450,7 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | ct_e200ats_duom_sukurti | string   |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
     |   |   |   |   | ct_paciento_spi         | string   |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -496,7 +496,7 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | iltu_code     | string   |     | iltu_code/text()    |         |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -531,7 +531,7 @@ def test_xsd_complex_ontent(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | title1      | string   |     | title1/text()      |         |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -598,7 +598,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | response_message       | string          |         | responseMessage/text()     |         |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -644,7 +644,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | who_may_consitute | string required |     | responseData/who_may_consitute/text() |         |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -713,7 +713,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
 
   """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -784,7 +784,7 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
 
   """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -886,7 +886,7 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
 
   """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -978,7 +978,7 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
 
   """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -1005,7 +1005,7 @@ id | d | r | b | m | property   | type             | ref | source            | p
 """
     # todo actually, those properties should be required. Fixed in the new version
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)

@@ -10,21 +10,20 @@ from spinta.core.ufuncs import Env, Expr, Bind, ufunc
 
 
 TYPES = {
-    'array': ARRAY,
-    'string': sa.Text,
-    'integer': sa.Integer,
-    'number': sa.Float,
-    'boolean': sa.Boolean,
-    'binary': sa.LargeBinary,
-    'date': sa.Date,
-    'datetime': sa.DateTime,
-    'json': JSONB,
-    'uuid': UUID,
+    "array": ARRAY,
+    "string": sa.Text,
+    "integer": sa.Integer,
+    "number": sa.Float,
+    "boolean": sa.Boolean,
+    "binary": sa.LargeBinary,
+    "date": sa.Date,
+    "datetime": sa.DateTime,
+    "json": JSONB,
+    "uuid": UUID,
 }
 
 
 class Alembic(Env):
-
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownMethod(expr=str(expr(*args, **kwargs)), name=expr.name)
 
@@ -86,12 +85,12 @@ def create_table(env, expr):
 
 @ufunc.resolver(Alembic, str)
 def drop_table(env, table):
-    return Expr('drop_table', table)
+    return Expr("drop_table", table)
 
 
 @ufunc.resolver(Alembic, Bind)
 def drop_table(env, table):
-    return Expr('drop_table', table.name)
+    return Expr("drop_table", table.name)
 
 
 @ufunc.executor(Alembic, Expr)

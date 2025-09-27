@@ -20,19 +20,19 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
-    full_load=False
+    full_load=False,
 ):
     if freezed:
         if into:
             log.info(
-                'Loading freezed manifest %r into %r from %s.',
+                "Loading freezed manifest %r into %r from %s.",
                 manifest.name,
                 into.name,
                 manifest.path,
             )
         else:
             log.info(
-                'Loading freezed manifest %r from %s.',
+                "Loading freezed manifest %r from %s.",
                 manifest.name,
                 manifest.path,
             )
@@ -40,14 +40,14 @@ def load(
     else:
         if into:
             log.info(
-                'Loading manifest %r into %r from %s.',
+                "Loading manifest %r into %r from %s.",
                 manifest.name,
                 into.name,
                 manifest.path,
             )
         else:
             log.info(
-                'Loading manifest %r from %s.',
+                "Loading manifest %r from %s.",
                 manifest.name,
                 manifest.path,
             )

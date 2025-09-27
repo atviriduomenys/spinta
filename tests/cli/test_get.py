@@ -58,7 +58,7 @@ def yaml_content_without_field():
 
 
 def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
-    manifest = striptable('''
+    manifest = striptable("""
      d | r | b | m  | property         | type         | ref     | source     | access
      datasets/gov/example              |              |         |            |
        | data                          | dask/memory  |         |            |
@@ -71,19 +71,16 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
        |   |   |    | _id              | string       |         | _id        |
        |   |   |    | name             | string       |         | name       |
        |   |   |    | country          | ref          | Country | ..         |
-    ''')
+    """)
 
     temp_yaml_file = tmp_path / "test_config.yaml"
     temp_manifest_file = tmp_path / "manifest.csv"
 
     with temp_yaml_file.open("w") as file:
         file.write(yaml_content())
-    content = temp_yaml_file.read_text(encoding="utf-8")
     create_tabular_manifest(context, temp_manifest_file, manifest)
 
-    result = cli.invoke(
-        rc, ["getall", temp_manifest_file, temp_yaml_file, "datasets/gov/example/City"]
-    )
+    result = cli.invoke(rc, ["getall", temp_manifest_file, temp_yaml_file, "datasets/gov/example/City"])
     assert (
         striptable(result.stdout)
         == """{"_data": [{"_type": "datasets/gov/example/City", "_id": "0AF24A60-00A2-4EAB-AEFF-BBA86204BC98", "name": "Vilnius", "country": {"_id": "4689C28B-1C44-4184-8715-16021EE87EAD"}}]}"""
@@ -91,7 +88,7 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
 
 
 def test_getall_wrong_ref_id(context, rc, cli: SpintaCliRunner, tmp_path):
-    manifest = striptable('''
+    manifest = striptable("""
      d | r | b | m  | property         | type         | ref     | source     | access
      datasets/gov/example              |              |         |            |
        | data                          | dask/memory  |         |            |
@@ -104,7 +101,7 @@ def test_getall_wrong_ref_id(context, rc, cli: SpintaCliRunner, tmp_path):
        |   |   |    | _id              | string       |         | _id        |
        |   |   |    | name             | string       |         | name       |
        |   |   |    | country          | ref          | Country | ..         |
-    ''')
+    """)
     temp_yaml_file = tmp_path / "test_config.yaml"
     temp_manifest_file = tmp_path / "manifest.csv"
 
@@ -122,7 +119,7 @@ def test_getall_wrong_ref_id(context, rc, cli: SpintaCliRunner, tmp_path):
 
 
 def test_getall_field_not_available(context, rc, cli: SpintaCliRunner, tmp_path):
-    manifest = striptable('''
+    manifest = striptable("""
      d | r | b | m  | property         | type         | ref     | source     | access
      datasets/gov/example              |              |         |            |
        | data                          | dask/memory  |         |            |
@@ -135,7 +132,7 @@ def test_getall_field_not_available(context, rc, cli: SpintaCliRunner, tmp_path)
        |   |   |    | _id              | string       |         | _id        |
        |   |   |    | name             | string       |         | name       |
        |   |   |    | country          | ref          | Country | ..         |
-    ''')
+    """)
     temp_yaml_file = tmp_path / "test_config.yaml"
     temp_manifest_file = tmp_path / "manifest.csv"
 

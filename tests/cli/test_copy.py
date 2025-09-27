@@ -9,7 +9,10 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare | access
     datasets/gov/example     |        |         |             |         |
       | data                 | sql    |         |             |         |
@@ -28,18 +31,26 @@ def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | Capital      |        | name    | miestas     |         |
       |   |   |   | name     | string |         | pavadinimas |         |
       |   |   |   | country  | ref    | Country | salis       |         |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source | prepare | access
     datasets/gov/example     |        |         |        |         |
                              |        |         |        |         |
@@ -52,11 +63,15 @@ def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | City         |        |         |        |         |
       |   |   |   | name     | string |         |        |         | open
       |   |   |   | country  | ref    | Country |        |         | open
-    '''
+    """
+    )
 
 
 def test_copy_enum_0(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type    | ref     | source      | prepare | access
     datasets/gov/example     |         |         |             |         |
       | data                 | sql     |         |             |         |
@@ -66,18 +81,26 @@ def test_copy_enum_0(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | driving  | integer |         | vairavimas  |         | open
                              | enum    |         | l           | 0       | open
                              |         |         | r           | 1       | open
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-  ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref     | source | prepare | access
     datasets/gov/example     |         |         |        |         |
                              |         |         |        |         |
@@ -86,11 +109,15 @@ def test_copy_enum_0(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | driving  | integer |         |        |         | open
                              | enum    |         |        | 0       | open
                              |         |         |        | 1       | open
-    '''
+    """
+    )
 
 
 def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type    | ref       | source      | prepare | access
     datasets/gov/example     |         |           |             |         |
                              | enum    | direction | l           | 0       |
@@ -100,18 +127,26 @@ def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | Country      |         | name      | salis       |         |
       |   |   |   | name     | string  |           | pavadinimas |         | open
       |   |   |   | driving  | integer | direction | vairavimas  |         | open
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref       | source | prepare | access
     datasets/gov/example     |         |           |        |         |
                              | enum    | direction |        | 0       |
@@ -120,11 +155,15 @@ def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | Country      |         |           |        |         |
       |   |   |   | name     | string  |           |        |         | open
       |   |   |   | driving  | integer | direction |        |         | open
-    '''
+    """
+    )
 
 
 def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
       | data                 | sql    |         |             |           |
@@ -143,17 +182,25 @@ def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
       |   |   | Capital      |        | name    | miestas     |           |
       |   |   |   | name     | string |         | pavadinimas |           |
       |   |   |   | country  | ref    | Country | salis       |           |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--access', 'open',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
     datasets/gov/example     |        |         |             |           |       |
       | data                 | sql    |         |             |           |       |
@@ -166,11 +213,15 @@ def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
       |   |   | City         |        | name    | miestas     |           |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
       |   |   |   | country  | ref    | Country | salis       |           |       | open
-    '''
+    """
+    )
 
 
 def test_copy_and_format_names(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property    | type    | ref                        | source      | prepare                  | level  | access     | title
     datasets/gov/example        |         |                            |             |                          |        |            | Example dataset
       | data                    | sql     |                            |             |                          |        |            |
@@ -186,17 +237,24 @@ def test_copy_and_format_names(context: Context, rc, cli, tmp_path):
       |   |   |   | countryName | string  |                            | Šalis       |                          | 4      |            |
       |   |   |   | countryCode | string  |                            | Kodas       |                          | 4      |            |
       |   |   |   | country     | ref     | COUNTRY[countryCode, name] |             | countryCode, countryName | 4      |            |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--format-names',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--format-names",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property     | type    | ref                         | source      | prepare                    | level  | access    | title
     datasets/gov/example         |         |                             |             |                            |        |           | Example dataset
       | data                     | sql     |                             |             |                            |        |           |
@@ -212,11 +270,15 @@ def test_copy_and_format_names(context: Context, rc, cli, tmp_path):
       |   |   |   | country_name | string  |                             | Šalis       |                            | 4      |           |
       |   |   |   | country_code | string  |                             | Kodas       |                            | 4      |           |
       |   |   |   | country      | ref     | Country[country_code, name] |             | country_code, country_name | 4      |           |
-    '''
+    """
+    )
 
 
 def test_copy_and_format_names_for_ref(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property     | type   | ref       | prepare
     datasets/gov/example         |        |           |
       | data                     | sql    |           |
@@ -231,17 +293,24 @@ def test_copy_and_format_names_for_ref(context: Context, rc, cli, tmp_path):
       |   |   | CITY             |        |           | country_id.continent_id.name_id='eu'
       |   |   |   | name_id      | string |           |
       |   |   |   | country_id   | ref    | COUNTRY   |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--format-names',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--format-names",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property     | type   | ref       | prepare
     datasets/gov/example         |        |           |
       | data                     | sql    |           |
@@ -256,59 +325,78 @@ def test_copy_and_format_names_for_ref(context: Context, rc, cli, tmp_path):
       |   |   | City             |        |           | country.continent.name_id='eu'
       |   |   |   | name_id      | string |           |
       |   |   |   | country      | ref    | Country   |
-    '''
+    """
+    )
 
 
 def test_copy_and_format_names_with_formulas(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | prepare
     datasets/gov/example     |        |
       | data                 | sql    |
                              |        |
       |   |   | City         |        | NAME!=['a', 'b']\\|NAME='c'
       |   |   |   | NAME     | string |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--format-names',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-  ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--format-names",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | prepare
     datasets/gov/example     |        |
       | data                 | sql    |
                              |        |
       |   |   | City         |        | name!=['a', 'b']\\|name='c'
       |   |   |   | name     | string |
-    '''
+    """
+    )
 
 
 def test_copy_to_stdout(context: Context, rc, cli, tmp_path):
-    manifest = striptable('''
+    manifest = striptable("""
     d | r | b | m | property | type
     datasets/gov/example     |
       | data                 | sql
                              |
       |   |   | City         |
       |   |   |   | name     | string
-    ''')
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', manifest)
+    """)
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
 
-    result = cli.invoke(rc, [
-        'copy',
-        '-c', 'd,r,b,m,p,type',
-        tmp_path / 'manifest.csv',
-    ])
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "-c",
+            "d,r,b,m,p,type",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
     assert result.stdout.strip() == manifest
 
 
 def test_copy_order_by_access(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property   | type    | ref        | source | prepare  | access
     datasets/gov/example       |         |            |        |          |
       | data                   | sql     |            |        |          |
@@ -330,17 +418,25 @@ def test_copy_order_by_access(context: Context, rc, cli, tmp_path):
       |   |   |   | name       | string  |            |        |          | open
       |   |   |   | country    | ref     | Country    |        |          | public
       |   |   |   | population | string  |            |        |          | open
-    '''))
+    """),
+    )
 
-    result = cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        '--order-by', 'access',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            "--order-by",
+            "access",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property   | type    | ref        | source | prepare  | access
     datasets/gov/example       |         |            |        |          |
       | data                   | sql     |            |        |          |
@@ -362,11 +458,15 @@ def test_copy_order_by_access(context: Context, rc, cli, tmp_path):
       |   |   | Continent      |         |            |        |          |
       |   |   |   | name       | string  |            |        |          | private
       |   |   |   | population | string  |            |        |          | private
-    '''
+    """
+    )
 
 
 def test_copy_rename_duplicates(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property   | type
     datasets/gov/example       |
       | data                   | sql
@@ -379,17 +479,24 @@ def test_copy_rename_duplicates(context: Context, rc, cli, tmp_path):
                                |
       |   |   | City           |
       |   |   |   | name       | string
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--rename-duplicates',
-        tmp_path / 'manifest.csv',
-        '-o', tmp_path / 'result.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--rename-duplicates",
+            tmp_path / "manifest.csv",
+            "-o",
+            tmp_path / "result.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property   | type
     datasets/gov/example       |
       | data                   | sql
@@ -402,11 +509,15 @@ def test_copy_rename_duplicates(context: Context, rc, cli, tmp_path):
                                |
       |   |   | City_2         |
       |   |   |   | name       | string
-    '''
+    """
+    )
 
 
 def test_enum_ref(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        """
     d | r | b | m | property | type    | ref     | source      | prepare | access | title
                              | enum    | sex     |             | 1       |        | Male
                              |         |         |             | 2       |        | Female
@@ -423,14 +534,23 @@ def test_enum_ref(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_pat
       |   |   |   | id       | integer |         | ID          |         | open   |
       |   |   |   | sex      | integer | sex     | SEX         |         | open   |
       |   |   |   | name     | string  |         | NAME        |         | open   |
-    ''')
+    """,
+    )
 
-    cli.invoke(rc, [
-        'copy', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            tmp_path / "manifest.csv",
+            "-o",
+            tmp_path / "result.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref     | source      | prepare | access | title
                              | enum    | sex     |             | 1       |        | Male
                              |         |         |             | 2       |        | Female
@@ -447,11 +567,15 @@ def test_enum_ref(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_pat
       |   |   |   | id       | integer |         | ID          |         | open   |
       |   |   |   | sex      | integer | sex     | SEX         |         | open   |
       |   |   |   | name     | string  |         | NAME        |         | open   |
-    '''
+    """
+    )
 
 
 def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare | access | status
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -466,16 +590,23 @@ def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | City         |        | name    | miestas     |         |        | completed
       |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
       |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source      | prepare | access | status
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -490,11 +621,15 @@ def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | City         |        | name    | miestas     |         |        | completed
       |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
       |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
-    '''
+    """
+    )
 
 
 def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare | access | visibility
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -509,16 +644,23 @@ def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | City         |        | name    | miestas     |         |        |
       |   |   |   | name     | string |         | pavadinimas |         | open   | private
       |   |   |   | country  | ref    | Country | salis       |         | open   | private
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source      | prepare | access | visibility
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -533,11 +675,15 @@ def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | City         |        | name    | miestas     |         |        |
       |   |   |   | name     | string |         | pavadinimas |         | open   | private
       |   |   |   | country  | ref    | Country | salis       |         | open   | private
-    '''
+    """
+    )
 
 
 def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare | access | eli
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -548,16 +694,23 @@ def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | driving  | string |         | vairavimas  |         | open   | https://example.com/law/3
                              | enum   |         | l           | 'left'  | open   | https://example.com/law/4
                              |        |         | r           | 'right' | open   | https://example.com/law/5
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source      | prepare | access | eli
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -568,11 +721,15 @@ def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | driving  | string |         | vairavimas  |         | open   | https://example.com/law/3
                              | enum   |         | l           | 'left'  | open   | https://example.com/law/4
                              |        |         | r           | 'right' | open   | https://example.com/law/5
-    '''
+    """
+    )
 
 
 def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
     datasets/gov/example     |        |         |             |         |        | 4
       | data                 | sql    |         |             |         |        |
@@ -583,16 +740,23 @@ def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | driving  | string |         | vairavimas  |         | open   | 7
                              | enum   |         | l           | 'left'  | open   | 8
                              |        |         | r           | 'right' | open   | 9
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
     datasets/gov/example     |        |         |             |         |        | 4
       | data                 | sql    |         |             |         |        |
@@ -603,11 +767,15 @@ def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | driving  | string |         | vairavimas  |         | open   | 7
                              | enum   |         | l           | 'left'  | open   | 8
                              |        |         | r           | 'right' | open   | 9
-    '''
+    """
+    )
 
 
 def test_copy_origin(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type   | ref     | source      | prepare | access | origin
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -624,16 +792,23 @@ def test_copy_origin(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | Country      |        | code    | salis       |         |        | datasets/gov/example/Country
       |   |   |   | code     | string |         | kodas       |         | public | code
       |   |   |   | name     | string |         | pavadinimas |         | open   | name
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type   | ref     | source      | prepare | access | origin
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
@@ -650,11 +825,15 @@ def test_copy_origin(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | Country      |        | code    | salis       |         |        | datasets/gov/example/Country
       |   |   |   | code     | string |         | kodas       |         | public | code
       |   |   |   | name     | string |         | pavadinimas |         | open   | name
-    '''
+    """
+    )
 
 
 def test_copy_source_type_resource(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   | sqlite
@@ -669,16 +848,23 @@ def test_copy_source_type_resource(context: Context, rc, cli, tmp_path):
       |   |   | City         |         | name    | miestas     |
       |   |   |   | name     | string  |         | pavadinimas |
       |   |   |   | country  | ref     | Country | salis       |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   | sqlite
@@ -693,11 +879,15 @@ def test_copy_source_type_resource(context: Context, rc, cli, tmp_path):
       |   |   | City         |         | name    | miestas     |
       |   |   |   | name     | string  |         | pavadinimas |
       |   |   |   | country  | ref     | Country | salis       |
-    '''
+    """
+    )
 
 
 def test_copy_source_type_model(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         |             |
@@ -712,16 +902,23 @@ def test_copy_source_type_model(context: Context, rc, cli, tmp_path):
       |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas |
       |   |   |   | country  | ref     | Country | salis       |
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         |             |
@@ -736,11 +933,15 @@ def test_copy_source_type_model(context: Context, rc, cli, tmp_path):
       |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas |
       |   |   |   | country  | ref     | Country | salis       |
-    '''
+    """
+    )
 
 
 def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type    | ref     | source      | source.type  
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   |
@@ -755,16 +956,23 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
       |   |   | City         |         | name    | miestas     |
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | country  | ref     | Country | salis       | test
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   |
@@ -779,11 +987,15 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
       |   |   | City         |         | name    | miestas     |
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | country  | ref     | Country | salis       | test
-    '''
+    """
+    )
 
 
 def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   | sqlite
@@ -798,16 +1010,23 @@ def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp
       |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | country  | ref     | Country | salis       | integer
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    assert manifest == '''
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
     d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   | sqlite
@@ -822,11 +1041,12 @@ def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp
       |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | country  | ref     | Country | salis       | integer
-    '''
+    """
+    )
 
 
 def test_enum_function_noop_copy(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    primary_manifest = '''
+    primary_manifest = """
     d | r | b | m | property | type    | ref | source       | prepare
     dataset1                 |         |     |              |
       | resource1            | sql     |     |              |
@@ -838,12 +1058,18 @@ def test_enum_function_noop_copy(context: Context, rc: RawConfig, cli: SpintaCli
                              |         |     | ee           |
                              |         |     | lv           |
                              |         |     |              | noop()
-    '''
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', primary_manifest)
+    """
+    create_tabular_manifest(context, tmp_path / "manifest.csv", primary_manifest)
 
-    cli.invoke(rc, [
-        'copy', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv',
-    ])
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            tmp_path / "manifest.csv",
+            "-o",
+            tmp_path / "result.csv",
+        ],
+    )
+    manifest = load_manifest(rc, tmp_path / "result.csv")
 
     assert manifest == primary_manifest

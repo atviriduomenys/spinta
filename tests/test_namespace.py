@@ -16,43 +16,61 @@ from spinta.utils.data import take
 
 
 def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
-    continent = ns + '/Continent'
-    country = ns + '/Country'
-    capital = ns + '/Capital'
+    continent = ns + "/Continent"
+    country = ns + "/Country"
+    capital = ns + "/Capital"
 
-    app.authmodel(continent, ['insert'])
-    app.authmodel(country, ['insert'])
-    app.authmodel(capital, ['insert'])
+    app.authmodel(continent, ["insert"])
+    app.authmodel(country, ["insert"])
+    app.authmodel(capital, ["insert"])
 
-    eu = take('_id', pushdata(app, continent, {
-        'title': 'Europe',
-    }))
-    lt = take('_id', pushdata(app, country, {
-        'code': 'lt',
-        'title': 'Lithuania',
-        'continent': {'_id': eu},
-    }))
-    pushdata(app, capital, {
-        'title': 'Vilnius',
-        'country': {'_id': lt},
-    })
+    eu = take(
+        "_id",
+        pushdata(
+            app,
+            continent,
+            {
+                "title": "Europe",
+            },
+        ),
+    )
+    lt = take(
+        "_id",
+        pushdata(
+            app,
+            country,
+            {
+                "code": "lt",
+                "title": "Lithuania",
+                "continent": {"_id": eu},
+            },
+        ),
+    )
+    pushdata(
+        app,
+        capital,
+        {
+            "title": "Vilnius",
+            "country": {"_id": lt},
+        },
+    )
 
     return eu, lt
 
 
-@pytest.mark.models('datasets/backends/postgres/dataset')
+@pytest.mark.models("datasets/backends/postgres/dataset")
 def test_getall(model: str, app: TestClient):
     eu, lt = _create_data(app, model)
-    app.authorize(['spinta_getall'])
+    app.authorize(["spinta_getall"])
 
-    resp = app.get('/datasets/backends/postgres/dataset/:all')
+    resp = app.get("/datasets/backends/postgres/dataset/:all")
     assert listdata(resp, full=True) == [
-        {'code': 'lt', 'continent._id': eu, 'title': 'Lithuania'},
-        {'country._id': lt, 'title': 'Vilnius'},
-        {'title': 'Europe'},
+        {"code": "lt", "continent._id": eu, "title": "Lithuania"},
+        {"country._id": lt, "title": "Vilnius"},
+        {"title": "Europe"},
     ]
 
-    resp = app.get('/datasets/csv/:all')
+    resp = app.get("/datasets/csv/:all")
     assert listdata(resp) == []
 
 
@@ -60,29 +78,30 @@ def sha1(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
-@pytest.mark.models('datasets/backends/postgres/dataset')
+@pytest.mark.models("datasets/backends/postgres/dataset")
 def test_getall_ns(model, app):
     _create_data(app, model)
-    app.authorize(['spinta_getall'])
+    app.authorize(["spinta_getall"])
 
-    resp = app.get('/datasets/backends/postgres/dataset/:ns/:all')
-    assert listdata(resp, 'name') == [
-        'datasets/backends/postgres/dataset/Capital',
-        'datasets/backends/postgres/dataset/Continent',
-        'datasets/backends/postgres/dataset/Country',
-        'datasets/backends/postgres/dataset/Org',
-        'datasets/backends/postgres/dataset/Report',
+    resp = app.get("/datasets/backends/postgres/dataset/:ns/:all")
+    assert listdata(resp, "name") == [
+        "datasets/backends/postgres/dataset/Capital",
+        "datasets/backends/postgres/dataset/Continent",
+        "datasets/backends/postgres/dataset/Country",
+        "datasets/backends/postgres/dataset/Org",
+        "datasets/backends/postgres/dataset/Report",
     ]
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_ns_titles(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
 ):
     context = bootstrap_manifest(
-        rc, '''
+        rc,
+        """
     d | r | b | m | property | type   | ref | title               | description
     datasets                 | ns     |     | All datasets        | All external datasets.
     datasets/gov             | ns     |     | Government datasets | All external government datasets.
@@ -93,33 +112,34 @@ def test_ns_titles(
       |   |   |   | name     | string |     | Country name        | Name of a country.
       |   |   | City         |        |     | Cities              | All cities.
       |   |   |   | name     | string |     | City name           | Name of a city.
-    ''',
+    """,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
-        full_load=True
+        full_load=True,
     )
-    app = create_test_client(context, scope=['spinta_getall'])
-    assert listdata(app.get('/:ns'), 'title', 'description') == [
+    app = create_test_client(context, scope=["spinta_getall"])
+    assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]
-    assert listdata(app.get('/:ns/:all'), 'name', 'title', 'description') == [
-        ('datasets/:ns', "All datasets", "All external datasets."),
-        ('datasets/gov/:ns', "Government datasets", "All external government datasets."),
-        ('datasets/gov/vpt/:ns', "", ""),
-        ('datasets/gov/vpt/new/:ns', "New data", "Data from a new database."),
-        ('datasets/gov/vpt/new/City', "Cities", "All cities."),
-        ('datasets/gov/vpt/new/Country', "Countries", "All countries."),
+    assert listdata(app.get("/:ns/:all"), "name", "title", "description") == [
+        ("datasets/:ns", "All datasets", "All external datasets."),
+        ("datasets/gov/:ns", "Government datasets", "All external government datasets."),
+        ("datasets/gov/vpt/:ns", "", ""),
+        ("datasets/gov/vpt/new/:ns", "New data", "Data from a new database."),
+        ("datasets/gov/vpt/new/City", "Cities", "All cities."),
+        ("datasets/gov/vpt/new/Country", "Countries", "All countries."),
     ]
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_ns_titles_bare_models(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
 ):
     context = bootstrap_manifest(
-        rc, '''
+        rc,
+        """
     d | r | b | m | property                 | type   | ref | title               | description
     datasets                                 | ns     |     | All datasets        | All external datasets.
     datasets/gov                             | ns     |     | Government datasets | All external government datasets.
@@ -130,32 +150,34 @@ def test_ns_titles_bare_models(
       |   |   |   | name                     | string |     | Country name        | Name of a country.
       |   |   | datasets/gov/vpt/new/City    |        |     | Cities              | All cities.
       |   |   |   | name                     | string |     | City name           | Name of a city.
-    ''',
+    """,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
-        full_load=True
+        full_load=True,
     )
-    app = create_test_client(context, scope=['spinta_getall'])
-    assert listdata(app.get('/:ns'), 'title', 'description') == [
+    app = create_test_client(context, scope=["spinta_getall"])
+    assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]
-    assert listdata(app.get('/:ns/:all'), 'name', 'title', 'description') == [
-        ('datasets/:ns', "All datasets", "All external datasets."),
-        ('datasets/gov/:ns', "Government datasets", "All external government datasets."),
-        ('datasets/gov/vpt/:ns', "", ""),
-        ('datasets/gov/vpt/new/:ns', "New data", "Data from a new database."),
-        ('datasets/gov/vpt/new/City', "Cities", "All cities."),
-        ('datasets/gov/vpt/new/Country', "Countries", "All countries."),
+    assert listdata(app.get("/:ns/:all"), "name", "title", "description") == [
+        ("datasets/:ns", "All datasets", "All external datasets."),
+        ("datasets/gov/:ns", "Government datasets", "All external government datasets."),
+        ("datasets/gov/vpt/:ns", "", ""),
+        ("datasets/gov/vpt/new/:ns", "New data", "Data from a new database."),
+        ("datasets/gov/vpt/new/City", "Cities", "All cities."),
+        ("datasets/gov/vpt/new/Country", "Countries", "All countries."),
     ]
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_sort_models_by_refs(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
 ):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property  | type   | ref       | access
     datasets/gov/example      |        |           |
       |   |                   |        |           |
@@ -170,24 +192,29 @@ def test_sort_models_by_refs(
       |   |   | City          |        |           |
       |   |   |   | name      | string |           | open
       |   |   |   | country   | ref    | Country   | open
-    ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
 
     models = sort_models_by_refs(commands.get_models(context, manifest).values())
     names = [model.name for model in models]
     assert names == [
-        'datasets/gov/example/City',
-        'datasets/gov/example/Country',
-        'datasets/gov/example/Continent',
+        "datasets/gov/example/City",
+        "datasets/gov/example/Country",
+        "datasets/gov/example/Continent",
     ]
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_sort_models_by_ref_with_base(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
 ):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property | type    | ref     | access
     datasets/basetest        |         |         |
       |   |   | Place        |         | id      |
@@ -204,13 +231,15 @@ def test_sort_models_by_ref_with_base(
       |   |   |   | id       | integer |         | open
       |   |   |   | name     |         |         | open
       |   |   |   | country  | ref     | Country | open
-    ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
 
     models = sort_models_by_refs(commands.get_models(context, manifest).values())
     names = [model.name for model in models]
     assert names == [
-        'datasets/basetest/City',
-        'datasets/basetest/Country',
-        'datasets/basetest/Place',
+        "datasets/basetest/City",
+        "datasets/basetest/Country",
+        "datasets/basetest/Place",
     ]
-

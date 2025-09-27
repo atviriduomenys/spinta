@@ -11,17 +11,17 @@ from spinta.exceptions import UnknownBind
 @ufunc.resolver(PrepareFileResource, Expr)
 def file(env: PrepareFileResource, expr: Expr) -> File:
     args, kwargs = expr.resolve(env)
-    return env.call('file', *args, **kwargs)
+    return env.call("file", *args, **kwargs)
 
 
 @ufunc.resolver(PrepareFileResource, Bind)
 def file(env: PrepareFileResource, path: Bind, **kwargs) -> File:
-    if path.name == 'self':
-        return env.call('file', env.path, **kwargs)
+    if path.name == "self":
+        return env.call("file", env.path, **kwargs)
     else:
         raise UnknownBind(name=path.name)
 
 
 @ufunc.resolver(PrepareFileResource, Path)
-def file(env: PrepareFileResource, path: Path, *, encoding='utf-8') -> File:
+def file(env: PrepareFileResource, path: Path, *, encoding="utf-8") -> File:
     return File(path, encoding=encoding)

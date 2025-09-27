@@ -19,9 +19,6 @@ def checksum(env: PgResultBuilder, expr: Expr):
                 model = arg.prop.model
 
             values[arg.prop.place] = commands.cast_backend_to_python(
-                env.context,
-                arg.prop,
-                model.backend,
-                get_row_value(env.context, env, env.data, arg)
+                env.context, arg.prop, model.backend, get_row_value(env.context, env, env.data, arg)
             )
     return get_data_checksum(values, model)

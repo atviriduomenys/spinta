@@ -11,7 +11,7 @@ class SqlDump(ExternalBackend):
     stdin. Otherwise stream is None and path should be defined.
     """
 
-    type: str = 'sqldump'
+    type: str = "sqldump"
     path: Path = None
     stream: TextIO = None
 
@@ -22,4 +22,3 @@ class SqlDump(ExternalBackend):
     @contextlib.contextmanager
     def begin(self):
         raise NotImplementedError
-

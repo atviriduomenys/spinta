@@ -1,4 +1,4 @@
 CONFIG = {
-    'ignore': [],
-    'debug': True,
+    "ignore": [],
+    "debug": True,
 }

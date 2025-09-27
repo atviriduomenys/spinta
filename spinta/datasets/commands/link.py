@@ -1,13 +1,9 @@
-from typing import List
-
 from spinta import commands
 from spinta.components import Context
 from spinta.core.access import link_access_param
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
 from spinta.dimensions.param.helpers import link_params
 from spinta.exceptions import MissingReference
-from spinta.types.datatype import Partial, Ref
-from spinta.components import Property
 from spinta.ufuncs.linkbuilder.components import LinkBuilder
 
 
@@ -35,7 +31,7 @@ def link(context: Context, entity: Entity):
         if not commands.has_dataset(context, manifest, entity.dataset):
             raise MissingReference(
                 entity,
-                param='dataset',
+                param="dataset",
                 ref=entity.dataset,
             )
         # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
@@ -47,7 +43,7 @@ def link(context: Context, entity: Entity):
             if entity.resource not in resources:
                 raise MissingReference(
                     entity,
-                    param='resource',
+                    param="resource",
                     ref=entity.resource,
                 )
             # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44

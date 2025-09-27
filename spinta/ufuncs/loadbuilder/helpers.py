@@ -22,4 +22,5 @@ def page_contains_unsupported_keys(page: Page):
 
 def get_allowed_page_property_types():
     from spinta.types.datatype import Integer, Number, String, Date, Time, DateTime, PrimaryKey, UUID
+
     return Integer, Number, String, Date, DateTime, Time, PrimaryKey, UUID

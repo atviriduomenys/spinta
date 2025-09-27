@@ -26,14 +26,14 @@ if TYPE_CHECKING:
 
 class DataType(Component):
     schema = {
-        'type': {'type': 'string', 'attr': 'name'},
-        'type_args': {'type': 'array'},
-        'unique': {'type': 'bool', 'default': False},
-        'nullable': {'type': 'bool', 'default': False},
-        'required': {'type': 'bool', 'default': False},
-        'default': {'default': None},
-        'prepare': {'type': 'spyna', 'default': None},
-        'choices': {}
+        "type": {"type": "string", "attr": "name"},
+        "type_args": {"type": "array"},
+        "unique": {"type": "bool", "default": False},
+        "nullable": {"type": "bool", "default": False},
+        "required": {"type": "bool", "default": False},
+        "default": {"default": None},
+        "prepare": {"type": "spyna", "default": None},
+        "choices": {},
     }
 
     type: str
@@ -52,13 +52,13 @@ class DataType(Component):
     inherited: bool = False
 
     def __repr__(self):
-        return f'<{self.prop.name}:{self.name}>'
+        return f"<{self.prop.name}:{self.name}>"
 
     def load(self, value: Any):
         return value
 
     def get_bind_expr(self):
-        return Expr('bind', self.prop.name)
+        return Expr("bind", self.prop.name)
 
     def __copy__(self):
         cls = self.__class__
@@ -72,12 +72,11 @@ class PrimaryKey(DataType):
 
 
 class Date(DataType):
-
     def load(self, value: Any):
         if value is None or value is NA or isinstance(value, (date, datetime)):
             return value
 
-        if value == '':
+        if value == "":
             return None
 
         try:
@@ -87,12 +86,11 @@ class Date(DataType):
 
 
 class Time(DataType):
-
     def load(self, value: Any):
         if value is None or value is NA or isinstance(value, time):
             return value
 
-        if value == '':
+        if value == "":
             return None
 
         try:
@@ -102,7 +100,6 @@ class Time(DataType):
 
 
 class DateTime(DataType):
-
     def load(self, value: Any):
         if value is None or value is NA:
             return value
@@ -118,7 +115,7 @@ class DateTime(DataType):
 
 class String(DataType):
     schema = {
-        'enum': {'type': 'array'},
+        "enum": {"type": "array"},
     }
 
     def load(self, value: Any):
@@ -149,7 +146,6 @@ class Binary(DataType):
 
 
 class Integer(DataType):
-
     def load(self, value: Any):
         if value is None or value is NA:
             return value
@@ -187,15 +183,15 @@ class Ref(DataType):
     properties: Dict[str, Property] = {}
 
     schema = {
-        'model': {
-            'type': 'string',
+        "model": {
+            "type": "string",
         },
-        'refprops': {
-            'type': 'array',
-            'items': {'type': 'string'},
+        "refprops": {
+            "type": "array",
+            "items": {"type": "string"},
         },
-        'enum': {'type': 'array'},
-        'properties': {'type': 'object'},
+        "enum": {"type": "array"},
+        "properties": {"type": "object"},
     }
 
 
@@ -206,27 +202,27 @@ class BackRef(DataType):
     properties: Dict[str, Property] = {}
 
     schema = {
-        'model': {'type': 'string'},
-        'refprop': {'type': 'string'},
-        'properties': {'type': 'object'},
+        "model": {"type": "string"},
+        "refprop": {"type": "string"},
+        "properties": {"type": "object"},
     }
 
 
 class Generic(DataType):
     schema = {
-        'model': {'type': 'string'},
-        'enum': {'type': 'array'},
+        "model": {"type": "string"},
+        "enum": {"type": "array"},
     }
 
 
 class Array(DataType):
     schema = {
-        'model': {'type': 'string'},
-        'refprops': {
-            'type': 'array',
-            'items': {'type': 'string'},
+        "model": {"type": "string"},
+        "refprops": {
+            "type": "array",
+            "items": {"type": "string"},
         },
-        'items': {},
+        "items": {},
     }
 
     # Exposed intermediate table model
@@ -260,7 +256,7 @@ class Array(DataType):
 
 class ArrayBackRef(DataType):
     schema = {
-        'items': {},
+        "items": {},
     }
 
     items: Property = None
@@ -281,14 +277,14 @@ class ArrayBackRef(DataType):
 
 class Partial(DataType):
     schema = {
-        'properties': {'type': 'object'},
+        "properties": {"type": "object"},
     }
     properties: Dict[str, Property] = None
 
 
 class Object(DataType):
     schema = {
-        'properties': {'type': 'object'},
+        "properties": {"type": "object"},
     }
 
     properties: Dict[str, Property] = None
@@ -306,10 +302,10 @@ class Object(DataType):
 
 class File(DataType):
     schema = {
-        '_id': {'type': 'string'},
-        '_content_type': {'type': 'string'},
-        '_content': {'type': 'binary'},
-        'backend': {'type': 'string', 'default': None},
+        "_id": {"type": "string"},
+        "_content_type": {"type": "string"},
+        "_content": {"type": "binary"},
+        "backend": {"type": "string", "default": None},
         # TODO: add file hash, maybe 'sha1sum'
         # TODO: Maybe add all properties in schema as File.properties and maybe
         #       File should extend Object?
@@ -417,8 +413,8 @@ def load(context: Context, dtype: URI, data: dict, manifest: Manifest) -> URI:
 @load.register(Context, PrimaryKey, dict, Manifest)
 def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
     dtype.unique = True
-    if dtype.prop.name != '_id':
-        raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
+    if dtype.prop.name != "_id":
+        raise exceptions.InvalidManagedPropertyName(dtype, name="_id")
     _add_leaf_props(dtype.prop)
     return dtype
 
@@ -549,10 +545,7 @@ def _load_array_to_list(context: Context, dtype: Array | ArrayBackRef, value: ob
     value = dtype.load(value)
     if value is None or value is NA:
         return value
-    return [
-        commands.load(context, dtype.items.dtype, item)
-        for item in value
-    ]
+    return [commands.load(context, dtype.items.dtype, item) for item in value]
 
 
 @load.register(Context, Object, object)
@@ -601,9 +594,9 @@ def load(context: Context, dtype: RQL, value: str) -> dict:
 
 
 @commands.get_error_context.register(DataType)
-def get_error_context(dtype: DataType, *, prefix='this'):
-    context = commands.get_error_context(dtype.prop, prefix=f'{prefix}.prop')
-    context['type'] = 'this.name'
+def get_error_context(dtype: DataType, *, prefix="this"):
+    context = commands.get_error_context(dtype.prop, prefix=f"{prefix}.prop")
+    context["type"] = "this.name"
     return context
 
 

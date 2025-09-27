@@ -37,21 +37,21 @@ def load(
     *,
     source: Manifest = None,
 ):
-    config = context.get('config')
+    config = context.get("config")
 
-    ns = load_namespace_from_name(context, manifest, data['name'], drop=False)
+    ns = load_namespace_from_name(context, manifest, data["name"], drop=False)
     if ns.generated:
-        ns.title = data.get('title', '')
-        ns.description = data.get('description', '')
-    if 'prefixes' in data:
-        prefixes = load_prefixes(context, manifest, dataset, data.pop('prefixes'))
+        ns.title = data.get("title", "")
+        ns.description = data.get("description", "")
+    if "prefixes" in data:
+        prefixes = load_prefixes(context, manifest, dataset, data.pop("prefixes"))
         dataset.prefixes.update(prefixes)
-    if 'enums' in data:
+    if "enums" in data:
         parents = list(ns.parents())
-        ns.enums = load_enums(context, parents, data.pop('enums'))
+        ns.enums = load_enums(context, parents, data.pop("enums"))
 
     load_node(context, dataset, data, parent=manifest)
-    load_access_param(dataset, data.get('access'), (manifest,))
+    load_access_param(dataset, data.get("access"), (manifest,))
 
     dataset.ns = ns
 
@@ -59,9 +59,11 @@ def load(
     dataset.given.name = data.get("given_name", None)
     # Load resources
     dataset.resources = {}
-    for name, params in (data.get('resources') or {}).items():
-        resource = get_node(context, config, manifest, dataset.eid, data, parent=dataset, group='datasets', ctype='resource')
-        resource.type = params.get('type')
+    for name, params in (data.get("resources") or {}).items():
+        resource = get_node(
+            context, config, manifest, dataset.eid, data, parent=dataset, group="datasets", ctype="resource"
+        )
+        resource.type = params.get("type")
         resource.name = name
         resource.dataset = dataset
         dataset.resources[name] = commands.load(
@@ -85,7 +87,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
             # be given as string or parse tree.
             formula = spyna.parse(formula)
         resource.prepare = asttoexpr(formula)
-    load_access_param(resource, data.get('access'), (resource.dataset,))
+    load_access_param(resource, data.get("access"), (resource.dataset,))
     resource.lang = load_lang_data(context, resource.lang)
     resource.comments = load_comments(resource, resource.comments)
     resource.backend = load_resource_backend(
@@ -113,10 +115,7 @@ def _check_unknown_keys(
     # XXX: Similar to spinta.types.helpers.check_no_extra_keys.
     unknown = set(keys) - set(data)
     if unknown:
-        raise MultipleErrors(
-            PropertyNotFound(model, property=name)
-            for name in sorted(unknown)
-        )
+        raise MultipleErrors(PropertyNotFound(model, property=name) for name in sorted(unknown))
 
 
 @overload
@@ -125,12 +124,12 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
     pkeys: List[str] = entity.pkeys or []
     if pkeys:
-        _check_unknown_keys(entity.model, pkeys, entity.model.properties)
-        entity.pkeys = [entity.model.properties[k] for k in pkeys]
+        _check_unknown_keys(entity.model, pkeys, entity.model.flatprops)
+        entity.pkeys = [entity.model.flatprops[k] for k in pkeys]
     else:
         entity.unknown_primary_key = True
         entity.pkeys = sorted(
-            take(entity.model.properties).values(),
+            take(entity.model.flatprops).values(),
             key=lambda p: p.place,
         )
 

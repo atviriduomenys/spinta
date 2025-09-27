@@ -4,36 +4,44 @@ from spinta.testing.manifest import load_manifest_and_context
 
 
 def test_resolve_property_basic(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property | type    | ref | source | prepare | access | level
     example                  |         |     |        |         |        |
       |   |   | City         |         | id  |        |         | open   |
       |   |   |   | id       | integer |     |        |         |        |
       |   |   |   | name     | string  |     |        |         |        |
-    ''')
-    model = commands.get_model(context, manifest, 'example/City')
-    target_prop = model.flatprops['name']
-    prop = commands.resolve_property(model, 'name')
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/City")
+    target_prop = model.flatprops["name"]
+    prop = commands.resolve_property(model, "name")
     assert prop == target_prop
 
 
 def test_resolve_property_object_basic(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property | type    | ref | source | prepare | access | level
     example                  |         |     |        |         |        |
       |   |   | City         |         | id  |        |         | open   |
       |   |   |   | id       | integer |     |        |         |        |
       |   |   |   | obj      | object  |     |        |         |        |
       |   |   |   | obj.name | string  |     |        |         |        |
-    ''')
-    model = commands.get_model(context, manifest, 'example/City')
-    target_prop = model.flatprops['obj.name']
-    prop = commands.resolve_property(model, 'obj.name')
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/City")
+    target_prop = model.flatprops["obj.name"]
+    prop = commands.resolve_property(model, "obj.name")
     assert prop == target_prop
 
 
 def test_resolve_property_ref_overwrite_basic(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property     | type    | ref     | source | prepare | access | level
     example                      |         |         |        |         |        |
       |   |   | Country          |         | id      |        |         | open   |
@@ -44,15 +52,18 @@ def test_resolve_property_ref_overwrite_basic(rc: RawConfig):
       |   |   |   | id           | integer |         |        |         |        |
       |   |   |   | country      | ref     | Country |        |         |        |
       |   |   |   | country.name | string  |         |        |         |        |
-    ''')
-    model = commands.get_model(context, manifest, 'example/City')
-    target_prop = model.flatprops['country.name']
-    prop = commands.resolve_property(model, 'country.name')
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/City")
+    target_prop = model.flatprops["country.name"]
+    prop = commands.resolve_property(model, "country.name")
     assert prop == target_prop
 
 
 def test_resolve_property_ref_denorm_basic(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property     | type    | ref     | source | prepare | access | level
     example                      |         |         |        |         |        |
       |   |   | Country          |         | id      |        |         | open   |
@@ -63,15 +74,18 @@ def test_resolve_property_ref_denorm_basic(rc: RawConfig):
       |   |   |   | id           | integer |         |        |         |        |
       |   |   |   | country      | ref     | Country |        |         |        |
       |   |   |   | country.name |         |         |        |         |        |
-    ''')
-    model = commands.get_model(context, manifest, 'example/City')
-    target_prop = model.flatprops['country.name']
-    prop = commands.resolve_property(model, 'country.name')
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/City")
+    target_prop = model.flatprops["country.name"]
+    prop = commands.resolve_property(model, "country.name")
     assert prop == target_prop
 
 
 def test_resolve_property_ref_denorm_from_ref(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property     | type    | ref     | source | prepare | access | level
     example                      |         |         |        |         |        |
       |   |   | Country          |         | id      |        |         | open   |
@@ -81,16 +95,19 @@ def test_resolve_property_ref_denorm_from_ref(rc: RawConfig):
       |   |   | City             |         | id      |        |         | open   |
       |   |   |   | id           | integer |         |        |         |        |
       |   |   |   | country      | ref     | Country |        |         |        |
-    ''')
-    country_model = commands.get_model(context, manifest, 'example/Country')
-    city_model = commands.get_model(context, manifest, 'example/City')
-    target_prop = country_model.flatprops['name']
-    prop = commands.resolve_property(city_model, 'country.name')
+    """,
+    )
+    country_model = commands.get_model(context, manifest, "example/Country")
+    city_model = commands.get_model(context, manifest, "example/City")
+    target_prop = country_model.flatprops["name"]
+    prop = commands.resolve_property(city_model, "country.name")
     assert prop == target_prop
 
 
 def test_resolve_property_nested_ref_denorm(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property            | type    | ref     | source | prepare | access | level
     example                             |         |         |        |         |        |
       |   |   | Planet                  |         | id      |        |         | open   |
@@ -110,44 +127,47 @@ def test_resolve_property_nested_ref_denorm(rc: RawConfig):
       |   |   |   | country.name        |         |         |        |         |        |
       |   |   |   | country.planet      | ref     | Planet  |        |         |        |
       |   |   |   | country.planet.name | string  |         |        |         |        |
-    ''')
-    planet_model = commands.get_model(context, manifest, 'example/Planet')
-    country_model = commands.get_model(context, manifest, 'example/Country')
-    city_model = commands.get_model(context, manifest, 'example/City')
+    """,
+    )
+    planet_model = commands.get_model(context, manifest, "example/Planet")
+    country_model = commands.get_model(context, manifest, "example/Country")
+    city_model = commands.get_model(context, manifest, "example/City")
 
     # Assert country.name
     # Should be from City
-    target_prop = city_model.flatprops['country.name']
-    prop = commands.resolve_property(city_model, 'country.name')
+    target_prop = city_model.flatprops["country.name"]
+    prop = commands.resolve_property(city_model, "country.name")
     assert prop == target_prop
 
     # Assert country.id
     # Should be from Country
-    target_prop = country_model.flatprops['id']
-    prop = commands.resolve_property(city_model, 'country.id')
+    target_prop = country_model.flatprops["id"]
+    prop = commands.resolve_property(city_model, "country.id")
     assert prop == target_prop
 
     # Assert country.planet.id
     # Should be from Planet
-    target_prop = planet_model.flatprops['id']
-    prop = commands.resolve_property(city_model, 'country.planet.id')
+    target_prop = planet_model.flatprops["id"]
+    prop = commands.resolve_property(city_model, "country.planet.id")
     assert prop == target_prop
 
     # Assert country.planet.name
     # Should be from City
-    target_prop = city_model.flatprops['country.planet.name']
-    prop = commands.resolve_property(city_model, 'country.planet.name')
+    target_prop = city_model.flatprops["country.planet.name"]
+    prop = commands.resolve_property(city_model, "country.planet.name")
     assert prop == target_prop
 
     # Assert country.planet.new
     # Should be from Country
-    target_prop = country_model.flatprops['planet.new']
-    prop = commands.resolve_property(city_model, 'country.planet.new')
+    target_prop = country_model.flatprops["planet.new"]
+    prop = commands.resolve_property(city_model, "country.planet.new")
     assert prop == target_prop
 
 
 def test_resolve_property_base_basic(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property | type    | ref | source | prepare | access | level
     example                  |         |     |        |         |        |
       |   |   | Node         |         | id  |        |         | open   |
@@ -157,25 +177,28 @@ def test_resolve_property_base_basic(rc: RawConfig):
       |   | Node             |         |     |        |         |        |
       |   |   | City         |         | id  |        |         | open   |
       |   |   |   | id       | integer |     |        |         |        |
-    ''')
-    node_model = commands.get_model(context, manifest, 'example/Node')
-    city_model = commands.get_model(context, manifest, 'example/City')
+    """,
+    )
+    node_model = commands.get_model(context, manifest, "example/Node")
+    city_model = commands.get_model(context, manifest, "example/City")
 
     # Assert id
     # Should come from City, since it declared it
-    target_prop = city_model.flatprops['id']
-    prop = commands.resolve_property(city_model, 'id')
+    target_prop = city_model.flatprops["id"]
+    prop = commands.resolve_property(city_model, "id")
     assert prop == target_prop
 
     # Assert name
     # Should come from Node, since City does not have it, but its base does
-    target_prop = node_model.flatprops['name']
-    prop = commands.resolve_property(city_model, 'name')
+    target_prop = node_model.flatprops["name"]
+    prop = commands.resolve_property(city_model, "name")
     assert prop == target_prop
 
 
 def test_resolve_property_base_ref_overwrite(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | b | m | property     | type    | ref     | source | prepare | access | level
     example                      |         |         |        |         |        |
       |   |   | Country          |         | id      |        |         | open   |
@@ -195,25 +218,26 @@ def test_resolve_property_base_ref_overwrite(rc: RawConfig):
       |   |   |   | id           | integer |         |        |         |        |
       |   |   |   | country      | ref     | Country |        |         |        |
       |   |   |   | country.name | string  |         |        |         |        |
-    ''')
-    node_model = commands.get_model(context, manifest, 'example/Node')
-    city_model = commands.get_model(context, manifest, 'example/City')
-    country_model = commands.get_model(context, manifest, 'example/Country')
+    """,
+    )
+    node_model = commands.get_model(context, manifest, "example/Node")
+    city_model = commands.get_model(context, manifest, "example/City")
+    country_model = commands.get_model(context, manifest, "example/Country")
 
     # Assert country.id
     # Should come from Node, since it declared it as Denorm
-    target_prop = node_model.flatprops['country.id']
-    prop = commands.resolve_property(city_model, 'country.id')
+    target_prop = node_model.flatprops["country.id"]
+    prop = commands.resolve_property(city_model, "country.id")
     assert prop == target_prop
 
     # Assert country.name
     # Should come from City, since it overwrote it
-    target_prop = city_model.flatprops['country.name']
-    prop = commands.resolve_property(city_model, 'country.name')
+    target_prop = city_model.flatprops["country.name"]
+    prop = commands.resolve_property(city_model, "country.name")
     assert prop == target_prop
 
     # Assert country.uuid
     # Should come from Country, since noone declared or overwrote it, but it still exists
-    target_prop = country_model.flatprops['uuid']
-    prop = commands.resolve_property(city_model, 'country.uuid')
+    target_prop = country_model.flatprops["uuid"]
+    prop = commands.resolve_property(city_model, "country.uuid")
     assert prop == target_prop

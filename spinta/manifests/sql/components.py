@@ -6,7 +6,7 @@ import sqlalchemy as sa
 
 
 class SqlManifest(Manifest):
-    type = 'sql'
+    type = "sql"
     path: Optional[str] = None
     prepare: Optional[Expr] = None
 
@@ -19,6 +19,6 @@ class SqlManifest(Manifest):
             url.get_dialect()
             engine = sa.create_engine(url)
             inspector = sa.inspect(engine)
-            return not inspector.has_table('_manifest')
+            return not inspector.has_table("_manifest")
         except sa.exc.SQLAlchemyError:
             return False

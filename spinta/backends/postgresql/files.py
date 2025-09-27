@@ -10,7 +10,6 @@ DEFAULT_BLOCK_SIZE = 8 << 20  # 8MB
 
 
 class DatabaseFile(io.RawIOBase):
-
     def __init__(
         self,
         conn,
@@ -19,7 +18,7 @@ class DatabaseFile(io.RawIOBase):
         blocks: Optional[List[str]] = None,
         bsize: int = DEFAULT_BLOCK_SIZE,
         *,
-        mode: str = 'r',
+        mode: str = "r",
     ):
         self.size = size
         self.blocks = [] if blocks is None else blocks[:]
@@ -33,20 +32,20 @@ class DatabaseFile(io.RawIOBase):
         self._block = None  # Currenly loaded block.
         self._block_id = None  # Currently loaded block id.
 
-        if self.mode not in ('r', 'w', 'a'):
+        if self.mode not in ("r", "w", "a"):
             raise Exception(f"Unsupported file mode {self.mode!r}.")
 
-        if self.mode == 'a':
+        if self.mode == "a":
             self._pos = self.size
 
     def seekable(self):
         return True
 
     def readable(self):
-        return self.mode == 'r'
+        return self.mode == "r"
 
     def writable(self):
-        return self.mode in ('w', 'a')
+        return self.mode in ("w", "a")
 
     def tell(self):
         return self._pos
@@ -74,7 +73,6 @@ class DatabaseFile(io.RawIOBase):
         self._checkClosed()
 
     def read(self, size=-1):
-
         if size is None or size < 0 or self._pos + size > self.size:
             size = self.size - self._pos
 
@@ -91,7 +89,7 @@ class DatabaseFile(io.RawIOBase):
         reminder = self.bsize - pos
         if reminder >= size:
             self._pos += size
-            return self._block[pos:pos + size]
+            return self._block[pos : pos + size]
 
         # Read full blocks.
         buffer = self._block[pos:]
@@ -119,7 +117,7 @@ class DatabaseFile(io.RawIOBase):
         reminder = self.bsize - pos
 
         if reminder >= size:
-            self._block = self._block[:pos] + b + self._block[pos + size:]
+            self._block = self._block[:pos] + b + self._block[pos + size :]
             self._write_block()
             self._pos += size
             if self._pos > self.size:
@@ -133,14 +131,14 @@ class DatabaseFile(io.RawIOBase):
         blocks, reminder = divmod(size - reminder, self.bsize)
 
         for i in range(blocks):
-            self._block = b[pos:pos + self.bsize]
+            self._block = b[pos : pos + self.bsize]
             self._write_block()
             self._pos += self.bsize
             pos += self.bsize
 
         if reminder:
             self._read_block()
-            self._block = b[pos:] + self._block[len(b[pos:]):]
+            self._block = b[pos:] + self._block[len(b[pos:]) :]
             self._write_block()
             self._pos += reminder
 
@@ -154,7 +152,7 @@ class DatabaseFile(io.RawIOBase):
         block_count = len(self.blocks)
 
         if block_ix >= block_count:
-            self._block = b''
+            self._block = b""
             self._block_id = None
             return
 
@@ -163,19 +161,13 @@ class DatabaseFile(io.RawIOBase):
             return
 
         # Load block from database.
-        query = (
-            sa.select([self._table.c._block]).
-            where(self._table.c._id == self.blocks[block_ix])
-        )
+        query = sa.select([self._table.c._block]).where(self._table.c._id == self.blocks[block_ix])
 
         self._block = self._conn.execute(query).scalar()
         self._block_id = self.blocks[block_ix]
 
         if self._block is None:
-            raise Exception(
-                f"Tried to access block {self._block_id} on "
-                f"{self._table.name!r}, but it does not exist."
-            )
+            raise Exception(f"Tried to access block {self._block_id} on {self._table.name!r}, but it does not exist.")
 
         block_size = len(self._block)
         last_block = block_ix == block_count - 1
@@ -190,10 +182,7 @@ class DatabaseFile(io.RawIOBase):
         block_count = len(self.blocks)
 
         if block_ix >= block_count + 1:
-            raise Exception(
-                f"Tried to write block {block_ix}, but number of available "
-                f"blocks is {block_count}."
-            )
+            raise Exception(f"Tried to write block {block_ix}, but number of available blocks is {block_count}.")
 
         if len(self._block) > self.bsize:
             block_size = len(self._block)
@@ -219,9 +208,7 @@ class DatabaseFile(io.RawIOBase):
 
     def _check_position(self, pos):
         if pos < 0:
-            raise Exception(
-                f"Attempt to seek to a negative position ({self._pos})."
-            )
+            raise Exception(f"Attempt to seek to a negative position ({self._pos}).")
 
         if pos > self.size:
             raise Exception(

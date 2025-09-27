@@ -107,9 +107,7 @@ class Saved(NamedTuple):
 
 PUSH_NOW = PushRow(
     model=None,
-    data={
-        '_type': None
-    },
+    data={"_type": None},
     push=True,
     send=False,
 )

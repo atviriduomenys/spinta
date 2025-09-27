@@ -7,9 +7,9 @@ from spinta.core.ufuncs import Bind, Expr
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.components import Param
-from spinta.dimensions.param.components import ParamBuilder, ParamLoader, ResolvedResourceParam
+from spinta.dimensions.param.components import ParamBuilder, ParamLoader
 from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NotAvailable
 
 
 @ufunc.resolver(Env, Bind)
@@ -25,13 +25,15 @@ def read(env: ParamBuilder, model: Model) -> Any:
 @ufunc.resolver(ParamBuilder, str)
 def read(env: ParamBuilder, obj: str):
     new_name = obj
-    if '/' not in obj:
+    if "/" not in obj:
         model_ = env.this
         if isinstance(model_, Model) and model_.external and model_.external.dataset:
-            new_name = '/'.join([
-                model_.external.dataset.name,
-                obj,
-            ])
+            new_name = "/".join(
+                [
+                    model_.external.dataset.name,
+                    obj,
+                ]
+            )
     model = None
     if commands.has_model(env.context, env.manifest, new_name):
         model = commands.get_model(env.context, env.manifest, new_name)
@@ -48,7 +50,9 @@ def read(env: ParamBuilder, obj: str):
 def read(env: ParamBuilder) -> Any:
     if isinstance(env.this, Model):
         return env.call("read", env.this)
-    raise InvalidParamSource(param=env.target_param, source=env.this, given_type=type(env.this), expected_types=[type(Model)])
+    raise InvalidParamSource(
+        param=env.target_param, source=env.this, given_type=type(env.this), expected_types=[type(Model)]
+    )
 
 
 @ufunc.resolver(ParamBuilder, Iterator, Bind, name="getattr")
@@ -68,26 +72,6 @@ def getattr_(env: ParamBuilder, data: dict, bind: Bind):
 @ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
 def getattr_(env: ParamBuilder, _: NotAvailable):
     return env.this
-
-
-@ufunc.resolver(ParamBuilder, Expr, name="input")
-def input_(env: ParamBuilder, expr: Expr) -> ResolvedResourceParam:
-    args, kwargs = expr.resolve(env)
-    prep_value = args[0] if args else NA
-
-    resolved_dict = env.call("input", env.this, prep_value)
-
-    return ResolvedResourceParam(**{"target": env.target_param, **resolved_dict})
-
-
-@ufunc.resolver(ParamBuilder, str, str, name="input")
-def input_(env: ParamBuilder, param_source: str, prep_value: str) -> dict:
-    return {"source": param_source, "value": prep_value}
-
-
-@ufunc.resolver(ParamBuilder, str, NotAvailable, name="input")
-def input_(env: ParamBuilder, param_source: str, _: NotAvailable) -> dict:
-    return {"source": param_source, "value": None}
 
 
 # {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}
@@ -120,11 +104,13 @@ def resolve_param(env: ParamLoader, parameter: Param):
         requires_model = env.call("contains_read", formula)
         if isinstance(source, str) and requires_model:
             new_name = source
-            if env.dataset and '/' not in source:
-                new_name = '/'.join([
-                    env.dataset.name,
-                    source,
-                ])
+            if env.dataset and "/" not in source:
+                new_name = "/".join(
+                    [
+                        env.dataset.name,
+                        source,
+                    ]
+                )
             if commands.has_model(env.context, env.manifest, new_name):
                 model = commands.get_model(env.context, env.manifest, new_name)
                 parameter.sources[i] = model

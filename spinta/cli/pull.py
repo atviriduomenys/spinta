@@ -37,14 +37,17 @@ def _pull_models(context: Context, models: List[Model]):
 def pull(
     ctx: TyperContext,
     dataset: str,
-    model: Optional[List[str]] = Option(None, '-m', '--model', help=(
-        "Pull only specified models."
-    )),
+    model: Optional[List[str]] = Option(None, "-m", "--model", help=("Pull only specified models.")),
     push: bool = Option(False, help="Write pulled data to database"),
-    export: str = Option(None, '-e', '--export', help=(
-        "Export pulled data to a file or stdout. For stdout use "
-        "'stdout:<fmt>', where <fmt> can be 'csv' or other supported format."
-    )),
+    export: str = Option(
+        None,
+        "-e",
+        "--export",
+        help=(
+            "Export pulled data to a file or stdout. For stdout use "
+            "'stdout:<fmt>', where <fmt> can be 'csv' or other supported format."
+        ),
+    ),
 ):
     """Pull data from an external data source."""
     context = ctx.obj
@@ -53,17 +56,13 @@ def pull(
     if commands.has_namespace(context, manifest, dataset):
         dataset = commands.get_dataset(context, manifest, dataset)
     else:
-        cli_error(
-            str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset))
-        )
+        cli_error(str(exceptions.NodeNotFound(manifest, type="dataset", name=dataset)))
 
     if model:
         models = []
         for model in model:
             if not commands.has_model(context, manifest, model):
-                cli_error(
-                    str(exceptions.NodeNotFound(manifest, type='model', name=model))
-                )
+                cli_error(str(exceptions.NodeNotFound(manifest, type="model", name=model)))
             models.append(commands.get_model(context, manifest, model))
     else:
         models = _get_dataset_models(context, manifest, dataset)
@@ -71,43 +70,37 @@ def pull(
     try:
         with context:
             require_auth(context)
-            backend = store.backends['default']
-            context.attach('transaction', validate_and_return_transaction, context, backend, write=push)
+            backend = store.backends["default"]
+            context.attach("transaction", validate_and_return_transaction, context, backend, write=push)
 
             path = None
             exporter = None
 
             stream = _pull_models(context, models)
             if push:
-                root = commands.get_namespace(context, manifest, '')
+                root = commands.get_namespace(context, manifest, "")
                 stream = write(context, root, stream, changed=True)
 
             if export is None and push is False:
-                export = 'stdout'
+                export = "stdout"
 
             if export:
-                if export == 'stdout':
-                    fmt = 'ascii'
-                elif export.startswith('stdout:'):
-                    fmt = export.split(':', 1)[1]
+                if export == "stdout":
+                    fmt = "ascii"
+                elif export.startswith("stdout:"):
+                    fmt = export.split(":", 1)[1]
                 else:
                     path = pathlib.Path(export)
-                    fmt = export.suffix.strip('.')
+                    fmt = export.suffix.strip(".")
 
-                config = context.get('config')
+                config = context.get("config")
 
                 if fmt not in config.exporters:
-                    cli_error(
-                        f"unknown export file type {fmt!r}"
-                    )
+                    cli_error(f"unknown export file type {fmt!r}")
 
                 exporter = config.exporters[fmt]
 
-            asyncio.get_event_loop().run_until_complete(
-                process_stream(dataset.name, stream, exporter, path)
-            )
+            asyncio.get_event_loop().run_until_complete(process_stream(dataset.name, stream, exporter, path))
 
     except exceptions.BaseError as e:
-        cli_error(
-            str(e)
-        )
+        cli_error(str(e))

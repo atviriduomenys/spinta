@@ -46,7 +46,7 @@ def create_test_client(
         rc = rc_or_context
         if config:
             rc = rc.fork(config)
-        context = create_test_context(rc, request, name='pytest/client')
+        context = create_test_context(rc, request, name="pytest/client")
     else:
         if config is not None:
             raise NotImplementedError()
@@ -60,7 +60,7 @@ def create_test_client(
     client = TestClient(
         context,
         app,
-        base_url='https://testserver',
+        base_url="https://testserver",
         raise_server_exceptions=raise_server_exceptions,
     )
     if scope:
@@ -73,15 +73,14 @@ def create_remote_server(
     tmp_path: pathlib.Path,
     responses: RequestsMock,
     *,
-    url: str = 'https://example.com/',
-    client: str = 'client',
-    secret: str = 'secret',
+    url: str = "https://example.com/",
+    client: str = "client",
+    secret: str = "secret",
     scopes: List[str] = None,
     credsfile: Union[bool, pathlib.Path] = None,
 ) -> RemoteServer:
-
     def remote(request: PreparedRequest):
-        path = request.url[len(url.rstrip('/')):]
+        path = request.url[len(url.rstrip("/")) :]
         resp = app.request(
             request.method,
             path,
@@ -90,11 +89,13 @@ def create_remote_server(
         )
         return resp.status_code, resp.headers, resp.content
 
-    confdir = create_config_path(tmp_path / 'config')
-    rc = rc.fork({
-        'config_path': confdir,
-        'default_auth_client': None,
-    })
+    confdir = create_config_path(tmp_path / "config")
+    rc = rc.fork(
+        {
+            "config_path": confdir,
+            "default_auth_client": None,
+        }
+    )
     context = create_test_context(rc)
     app = create_test_client(context)
 
@@ -107,14 +108,15 @@ def create_remote_server(
             scopes=scopes,
             add_secret=True,
         )
-        secret = client['client_secret']
-        client = client['client_name']
+        secret = client["client_secret"]
+        client = client["client_name"]
 
     if credsfile:
         if credsfile is True:
-            credsfile = tmp_path / 'credentials.cfg'
+            credsfile = tmp_path / "credentials.cfg"
         add_client_credentials(
-            credsfile, url,
+            credsfile,
+            url,
             client=client,
             secret=secret,
             scopes=scopes,
@@ -122,10 +124,10 @@ def create_remote_server(
 
     responses._registry.add(
         CustomCallbackResponse(
-            url=re.compile(re.escape(url) + r'.*'),
+            url=re.compile(re.escape(url) + r".*"),
             method=POST,
             callback=remote,
-            content_type='application/json',
+            content_type="application/json",
             match_querystring=FalseBool(),
             match=(),
         )
@@ -178,38 +180,43 @@ class TestClient(starlette.testclient.TestClient):
 
         if creds:
             # Request access token using /auth/token endpoint.
-            resp = self.request('POST', '/auth/token', auth=creds, data={
-                'grant_type': 'client_credentials',
-                'scope': ' '.join(self._scopes),
-            })
+            resp = self.request(
+                "POST",
+                "/auth/token",
+                auth=creds,
+                data={
+                    "grant_type": "client_credentials",
+                    "scope": " ".join(self._scopes),
+                },
+            )
             assert resp.status_code == 200, resp.text
-            token = resp.json()['access_token']
+            token = resp.json()["access_token"]
         else:
             # Create access token using private key.
             context = self.context
             private_key = auth.load_key(context, auth.KeyType.private)
-            client = 'test-client'
+            client = "test-client"
             expires_in = int(datetime.timedelta(days=10).total_seconds())
             token = auth.create_access_token(context, private_key, client, expires_in, scopes=self._scopes)
 
-        self.headers.update({
-            'Authorization': f'Bearer {token}'
-        })
+        self.headers.update({"Authorization": f"Bearer {token}"})
 
     def unauthorize(self):
         self._scopes = []
-        if 'Authorization' in self.headers:
-            del self.headers['Authorization']
+        if "Authorization" in self.headers:
+            del self.headers["Authorization"]
 
     def getdata(self, *args, **kwargs):
         resp = self.get(*args, **kwargs)
-        assert resp.status_code == 200, f'status_code: {resp.status_code}, response: {resp.text}'
+        assert resp.status_code == 200, f"status_code: {resp.status_code}, response: {resp.text}"
         resp = resp.json()
-        assert '_data' in resp, pprint.pformat(resp)
-        return resp['_data']
+        assert "_data" in resp, pprint.pformat(resp)
+        return resp["_data"]
 
 
-def get_html_tree(resp: requests.Response) -> Union[
+def get_html_tree(
+    resp: requests.Response,
+) -> Union[
     _Element,
     lxml.html.HtmlMixin,
 ]:
@@ -217,92 +224,80 @@ def get_html_tree(resp: requests.Response) -> Union[
 
 
 def configure_remote_server(
-    cli,
-    local_rc: RawConfig,
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    responses,
-    remove_source: bool = True
+    cli, local_rc: RawConfig, rc: RawConfig, tmp_path: pathlib.Path, responses, remove_source: bool = True
 ):
     invoke_props = [
-        'copy',
-        '--access', 'open',
-        '-o', tmp_path / 'remote.csv',
-        tmp_path / 'manifest.csv',
+        "copy",
+        "--access",
+        "open",
+        "-o",
+        tmp_path / "remote.csv",
+        tmp_path / "manifest.csv",
     ]
     if remove_source:
-        invoke_props.append('--no-source')
+        invoke_props.append("--no-source")
     cli.invoke(local_rc, invoke_props)
 
     # Create remote server with PostgreSQL backend
-    remote_rc = rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'remote.csv'),
-                'backend': 'default',
-                'mode': local_rc.get('manifests', 'default', 'mode')
+    remote_rc = rc.fork(
+        {
+            "manifests": {
+                "default": {
+                    "type": "tabular",
+                    "path": str(tmp_path / "remote.csv"),
+                    "backend": "default",
+                    "mode": local_rc.get("manifests", "default", "mode"),
+                },
             },
-        },
-        'backends': ['default'],
-    })
+            "backends": ["default"],
+        }
+    )
     return create_remote_server(
         remote_rc,
         tmp_path,
         responses,
         scopes=[
-            'spinta_set_meta_fields',
-            'spinta_getone',
-            'spinta_getall',
-            'spinta_search',
-            'spinta_insert',
-            'spinta_patch',
-            'spinta_delete',
-            'spinta_changes'
+            "uapi:/:set_meta_fields",
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:create",
+            "uapi:/:patch",
+            "uapi:/:delete",
+            "uapi:/:changes",
         ],
         credsfile=True,
     )
 
 
 def create_rc(
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    db: Sqlite,
-    mode: str = 'internal',
-    backend: str = 'sql'
+    rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite, mode: str = "internal", backend: str = "sql"
 ) -> RawConfig:
-    return rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'manifest.csv'),
-                'backend': backend,
-                'keymap': 'default',
-                'mode': mode
+    return rc.fork(
+        {
+            "manifests": {
+                "default": {
+                    "type": "tabular",
+                    "path": str(tmp_path / "manifest.csv"),
+                    "backend": backend,
+                    "keymap": "default",
+                    "mode": mode,
+                },
             },
-        },
-        'backends': {
-            'sql': {
-                'type': 'sql',
-                'dsn': db.dsn,
+            "backends": {
+                "sql": {
+                    "type": "sql",
+                    "dsn": db.dsn,
+                },
+                "sqlite": {"type": "sql/sqlite", "dsn": db.dsn},
             },
-            'sqlite': {
-                'type': 'sql/sqlite',
-                'dsn': db.dsn
-            }
-        },
-        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
-        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
-    })
+            # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
+            "default_auth_client": "3388ea36-4a4f-4821-900a-b574c8829d52",
+        }
+    )
 
 
-def create_client(
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    geodb: Sqlite,
-    mode: str = 'internal',
-    backend: str = 'sql'
-):
+def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite, mode: str = "internal", backend: str = "sql"):
     rc = create_rc(rc, tmp_path, geodb, mode=mode, backend=backend)
     context = create_test_context(rc)
     return create_test_client(context)
@@ -342,7 +337,6 @@ def get_yaml_data(path: pathlib.Path) -> dict:
 
 def create_old_client_file(client_path: pathlib.Path, data: dict, file_name: str = None):
     if file_name is None:
-        file_name = data.get('client_id', str(uuid4()))
+        file_name = data.get("client_id", str(uuid4()))
 
-    yml.dump(data, client_path / f'{file_name}.yml')
-
+    yml.dump(data, client_path / f"{file_name}.yml")

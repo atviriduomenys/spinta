@@ -2,10 +2,7 @@ from typing import Dict, Union
 from spinta.components import UrlParams, Property, Model
 
 
-def extract_params_sort_values(
-    model: Model,
-    params: UrlParams
-) -> Union[type(None), Dict[str, Property]]:
+def extract_params_sort_values(model: Model, params: UrlParams) -> Union[type(None), Dict[str, Property]]:
     """
     A hack to iterate through sort expression without using resolvers
 
@@ -20,15 +17,15 @@ def extract_params_sort_values(
     result = {}
     for sort_ast in params.sort:
         negative = False
-        if sort_ast['name'] == 'negative':
+        if sort_ast["name"] == "negative":
             negative = True
-            sort_ast = sort_ast['args'][0]
-        elif sort_ast['name'] == 'positive':
-            sort_ast = sort_ast['args'][0]
-        for sort in sort_ast['args']:
+            sort_ast = sort_ast["args"][0]
+        elif sort_ast["name"] == "positive":
+            sort_ast = sort_ast["args"][0]
+        for sort in sort_ast["args"]:
             if isinstance(sort, str):
                 if sort in model.properties.keys():
-                    by = sort if not negative else f'-{sort}'
+                    by = sort if not negative else f"-{sort}"
                     prop = model.properties[sort]
                     result[by] = prop
             else:

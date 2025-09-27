@@ -36,15 +36,20 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
     name = get_pg_name(get_table_name(prop, TableType.LIST))
     main_table_name = get_pg_name(get_table_name(prop.model))
     table = sa.Table(
-        name, backend.schema,
+        name,
+        backend.schema,
         # TODO: List tables eventually will have _id in order to uniquelly
         #       identify list item.
         # sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column('_txn', pkey_type, index=True),
-        sa.Column('_rid', pkey_type, sa.ForeignKey(
-            f'{main_table_name}._id', ondelete='CASCADE',
-        )),
-
+        sa.Column("_txn", pkey_type, index=True),
+        sa.Column(
+            "_rid",
+            pkey_type,
+            sa.ForeignKey(
+                f"{main_table_name}._id",
+                ondelete="CASCADE",
+            ),
+        ),
         *columns,
     )
     backend.add_table(table, prop, TableType.LIST)

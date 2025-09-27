@@ -20,7 +20,7 @@ class TestPrepareWsdl:
         dataset = commands.get_dataset(context, manifest, "example")
         backend = dataset.resources["soap_resource"].backend
 
-        assert type(getattr(backend, "soap_operation", None)) == OperationProxy
+        assert isinstance(getattr(backend, "soap_operation", None), OperationProxy)
 
     def test_raise_error_if_wsdl_argument_is_same_resource(self, rc: RawConfig) -> None:
         table = """
@@ -48,21 +48,13 @@ class TestPrepareWsdl:
         with pytest.raises(InvalidValue) as e:
             load_manifest_and_context(rc, table, mode=Mode.external)
 
-        assert str(e.value.context["message"]) == (
-            "wsdl() argument incorrect_resource must be wsdl type resource."
-        )
+        assert str(e.value.context["message"]) == ("wsdl() argument incorrect_resource must be wsdl type resource.")
 
     @pytest.mark.parametrize(
         "invalid_source",
-        [
-            "foo",
-            "foo.bar",
-            "foo.bar.baz"
-        ],
+        ["foo", "foo.bar", "foo.bar.baz"],
     )
-    def test_raise_error_if_soap_resource_format_is_invalid(
-        self, rc: RawConfig, invalid_source: str
-    ) -> None:
+    def test_raise_error_if_soap_resource_format_is_invalid(self, rc: RawConfig, invalid_source: str) -> None:
         table = f"""
         d | r | b | m | property | type   | source                                     | prepare
         example                  |        |                                            |
@@ -84,7 +76,7 @@ class TestPrepareWsdl:
             ("invalid_service", "invalid_port", "CityOperation"),
             ("invalid_service", "CityPort", "CityOperation"),
             ("CityService", "invalid_port", "CityOperation"),
-        ]
+        ],
     )
     def test_raise_error_if_service_not_found(
         self,

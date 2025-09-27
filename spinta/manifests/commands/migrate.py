@@ -12,6 +12,5 @@ def migrate(context: Context, manifest: Manifest, migration_config: MigrationCon
         require_auth(context)
         backend = manifest.backend
         if backend:
-            context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
+            context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
             commands.migrate(context, manifest, backend, migration_config)
-

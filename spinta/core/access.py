@@ -27,15 +27,21 @@ def load_access_param(
         EnumItem,
     ],
     given_access: Union[str, Access],
-    parents: Iterable[Union[
-        Manifest,
-        Dataset,
-        Namespace,
-        Model,
-        Property,
-    ]] = (),
+    parents: Iterable[
+        Union[
+            Manifest,
+            Dataset,
+            Namespace,
+            Model,
+            Property,
+        ]
+    ] = (),
 ) -> None:
-    access = enum_by_name(component, 'access', Access, given_access) if not isinstance(given_access, Access) else given_access
+    access = (
+        enum_by_name(component, "access", Access, given_access)
+        if not isinstance(given_access, Access)
+        else given_access
+    )
 
     # If child has higher access than parent, increase parent access.
     if access is not None:
@@ -56,13 +62,15 @@ def link_access_param(
         Property,
         EnumItem,
     ],
-    parents: Iterable[Union[
-        Manifest,
-        Dataset,
-        Namespace,
-        Model,
-        Property,
-    ]] = (),
+    parents: Iterable[
+        Union[
+            Manifest,
+            Dataset,
+            Namespace,
+            Model,
+            Property,
+        ]
+    ] = (),
     *,
     use_given: bool = True,
 ) -> None:

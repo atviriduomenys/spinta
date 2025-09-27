@@ -15,7 +15,6 @@ class SoapQueryBuilder(QueryBuilder):
         self,
         backend: Soap,
         model: Model,
-        resource_params: dict,
         query_params: QueryParams,
     ) -> SoapQueryBuilder:
         builder = self(
@@ -23,7 +22,7 @@ class SoapQueryBuilder(QueryBuilder):
             model=model,
         )
         builder.update(soap_request_body={}, property_values={})
-        builder.update(params=resource_params)
+        builder.update(params={param.name: param for param in model.external.resource.params})
         builder.init_query_params(query_params)
 
         return builder

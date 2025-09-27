@@ -22,13 +22,9 @@ def test_detect_upgrade_clients_only_yml(
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(clients_path, {
-        "client_id": "NEW",
-        "client_secret_hash": "secret",
-        "scopes": [
-            "spinta_getall"
-        ]
-    })
+    create_old_client_file(
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+    )
 
     with pytest.raises(ClientsMigrationRequired):
         ensure_temp_context_and_app(rc, tmp_path)
@@ -39,27 +35,16 @@ def test_detect_upgrade_clients_no_keymap(
     cli: SpintaCliRunner,
     rc: RawConfig,
 ):
-    rc = rc.fork(
-        {
-            'config_path': tmp_path
-        }
-    )
+    rc = rc.fork({"config_path": tmp_path})
 
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(clients_path, {
-        "client_id": "NEW",
-        "client_secret_hash": "secret",
-        "scopes": [
-            "spinta_getall"
-        ]
-    })
+    create_old_client_file(
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+    )
 
-    cli.invoke(rc, [
-        'upgrade',
-        '-r', Script.CLIENTS.value
-    ])
+    cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
     keymap_path = get_keymap_path(clients_path)
     assert keymap_path.exists()
@@ -81,27 +66,16 @@ def test_detect_upgrade_clients_no_id(
     cli: SpintaCliRunner,
     rc: RawConfig,
 ):
-    rc = rc.fork(
-        {
-            'config_path': tmp_path
-        }
-    )
+    rc = rc.fork({"config_path": tmp_path})
 
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(clients_path, {
-        "client_id": "NEW",
-        "client_secret_hash": "secret",
-        "scopes": [
-            "spinta_getall"
-        ]
-    })
+    create_old_client_file(
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+    )
 
-    cli.invoke(rc, [
-        'upgrade',
-        '-r', Script.CLIENTS.value
-    ])
+    cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
     keymap_path = get_keymap_path(clients_path)
     assert keymap_path.exists()
@@ -123,27 +97,16 @@ def test_detect_upgrade_clients_empty_keymap(
     cli: SpintaCliRunner,
     rc: RawConfig,
 ):
-    rc = rc.fork(
-        {
-            'config_path': tmp_path
-        }
-    )
+    rc = rc.fork({"config_path": tmp_path})
 
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(clients_path, {
-        "client_id": "NEW",
-        "client_secret_hash": "secret",
-        "scopes": [
-            "spinta_getall"
-        ]
-    })
+    create_old_client_file(
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+    )
 
-    cli.invoke(rc, [
-        'upgrade',
-        '-r', Script.CLIENTS.value
-    ])
+    cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
     keymap_path = get_keymap_path(clients_path)
     assert keymap_path.exists()
@@ -165,27 +128,16 @@ def test_detect_upgrade_clients_empty_id(
     cli: SpintaCliRunner,
     rc: RawConfig,
 ):
-    rc = rc.fork(
-        {
-            'config_path': tmp_path
-        }
-    )
+    rc = rc.fork({"config_path": tmp_path})
 
     clients_path = get_clients_path(tmp_path)
     os.makedirs(clients_path, exist_ok=True)
 
-    create_old_client_file(clients_path, {
-        "client_id": "NEW",
-        "client_secret_hash": "secret",
-        "scopes": [
-            "spinta_getall"
-        ]
-    })
+    create_old_client_file(
+        clients_path, {"client_id": "NEW", "client_secret_hash": "secret", "scopes": ["spinta_getall"]}
+    )
 
-    cli.invoke(rc, [
-        'upgrade',
-        '-r', Script.CLIENTS.value
-    ])
+    cli.invoke(rc, ["upgrade", Script.CLIENTS.value])
 
     keymap_path = get_keymap_path(clients_path)
     assert keymap_path.exists()
@@ -214,7 +166,7 @@ def test_detect_upgrade_clients_keymap_missing(
     os.remove(keymap_path)
     assert not keymap_path.exists()
 
-    resp = app.get('/:ns')
+    resp = app.get("/:ns")
     assert resp.status_code == 500
     assert get_error_codes(resp.json()) == ["ClientsKeymapNotFound"]
 
@@ -230,7 +182,7 @@ def test_detect_upgrade_clients_id_missing(
     shutil.rmtree(id_path)
     assert not id_path.exists()
 
-    resp = app.get('/:ns')
+    resp = app.get("/:ns")
     assert resp.status_code == 500
     assert get_error_codes(resp.json()) == ["ClientsIdFolderNotFound"]
 
@@ -241,5 +193,5 @@ def test_detect_upgrade_empty_skip(
 ):
     context, app = ensure_temp_context_and_app(rc, tmp_path)
 
-    resp = app.get('/:ns')
+    resp = app.get("/:ns")
     assert resp.status_code == 200

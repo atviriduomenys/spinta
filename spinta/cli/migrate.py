@@ -20,9 +20,7 @@ from spinta.manifests.commands.manifest import has_dataset
 
 def bootstrap(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=(
-        "Manifest files to load"
-    )),
+    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
 ):
     """Initialize backends
 
@@ -54,24 +52,29 @@ def sync(ctx: TyperContext):
 
 def migrate(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=(
-        "Manifest files to load"
-    )),
-    plan: bool = Option(False, '-p', '--plan', help=(
-        "If added, prints SQL code instead of executing it"
-    ), is_flag=True),
-    rename: str = Option(None, '-r', '--rename', help=(
-        "JSON file, that maps manifest node renaming (models, properties)"
-    )),
-    autocommit: bool = Option(False, '-a', '--autocommit', help=(
-        "If added, migrate will do atomic transactions, meaning it will automatically commit after each action (use it at your own risk)"
-    )),
-    datasets: Optional[List[str]] = Option(None, '-d', '--datasets', help=(
-        "List of datasets to migrate"
-    )),
-    raise_potential_error: bool = Option(False, '--raise', help=(
-        "Raises an spinta error if potential issues are found (mainly backend specific issues, like casting types between incompatible columns)"
-    ))
+    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    plan: bool = Option(
+        False, "-p", "--plan", help=("If added, prints SQL code instead of executing it"), is_flag=True
+    ),
+    rename: str = Option(
+        None, "-r", "--rename", help=("JSON file, that maps manifest node renaming (models, properties)")
+    ),
+    autocommit: bool = Option(
+        False,
+        "-a",
+        "--autocommit",
+        help=(
+            "If added, migrate will do atomic transactions, meaning it will automatically commit after each action (use it at your own risk)"
+        ),
+    ),
+    datasets: Optional[List[str]] = Option(None, "-d", "--datasets", help=("List of datasets to migrate")),
+    raise_potential_error: bool = Option(
+        False,
+        "--raise",
+        help=(
+            "Raises an spinta error if potential issues are found (mainly backend specific issues, like casting types between incompatible columns)"
+        ),
+    ),
 ):
     """Migrate schema change to backends"""
     manifests = convert_str_to_manifest_path(manifests)
@@ -85,11 +88,7 @@ def migrate(
             cli_error(f"Invalid dataset(s) provided: {', '.join(invalid_datasets)}")
 
     migration_config = MigrationConfig(
-        plan=plan,
-        autocommit=autocommit,
-        rename_src=rename,
-        datasets=datasets,
-        raise_error=raise_potential_error
+        plan=plan, autocommit=autocommit, rename_src=rename, datasets=datasets, raise_error=raise_potential_error
     )
     commands.migrate(context, manifest, migration_config)
 
@@ -108,6 +107,3 @@ def freeze(ctx: TyperContext):
         require_auth(context)
         commands.freeze(context, store.manifest)
     click.echo("Done.")
-
-
-

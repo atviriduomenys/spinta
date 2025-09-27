@@ -1,28 +1,39 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    cmake \
-    make \
-    libboost-all-dev \
-    libsnappy-dev \
-    libgflags-dev \
-    libgoogle-glog-dev
-
-RUN pip install -U pip wheel setuptools
-RUN pip install -U poetry
+ENV PIP_NO_CACHE_DIR=1
 
 COPY . /app/
-
-RUN poetry config virtualenvs.create false
-RUN poetry install --no-interaction --all-extras
+RUN useradd -m -s /bin/bash spinta
 
 RUN chmod +x /app/entrypoint.sh
+RUN chown -R spinta:spinta /app
+
+WORKDIR /app
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        g++ \
+        cmake \
+        make \
+        git \
+        libboost-all-dev \
+        libsnappy-dev \
+        libgflags-dev \
+        libgoogle-glog-dev && \
+    pip install --upgrade pip wheel setuptools && \
+    pip install --upgrade poetry && \
+    su - spinta -c "cd /app; poetry install --no-interaction --all-extras --no-cache" && \
+    apt-get purge -y \
+        gcc \
+        g++ \
+        cmake && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+USER spinta
+WORKDIR /app
 
 EXPOSE 8000

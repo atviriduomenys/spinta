@@ -30,8 +30,8 @@ def encoding(env: SqlResource, bind: str, **kwargs):
 
 @ufunc.resolver(SqlResource, Bind)
 def connect(env: SqlResource, bind: Bind, **kwargs) -> Engine:
-    if bind.name == 'self':
-        return env.call('connect', env.dsn, **kwargs)
+    if bind.name == "self":
+        return env.call("connect", env.dsn, **kwargs)
     else:
         raise UnknownBind(name=bind.name)
 

@@ -33,7 +33,7 @@ def link(context: Context, dtype: Partial):
             prop.dtype.properties = props
             prop.dtype.inherited = True
             prop.given.explicit = False
-            prop.given.name = ''
+            prop.given.name = ""
             prop.dtype.prop = prop
             for partial_prop in props.values():
                 commands.link(context, partial_prop)
@@ -43,7 +43,6 @@ def link(context: Context, dtype: Partial):
         raise ParentNodeNotFound(
             dtype,
             model_name=prop.model.name,
-            property_names=','.join([f'{prop.name}.{i}' for i in dtype.properties.keys()]),
+            property_names=",".join([f"{prop.name}.{i}" for i in dtype.properties.keys()]),
             missing_property_name=prop.name,
         )
-

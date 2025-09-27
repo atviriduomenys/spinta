@@ -10,22 +10,27 @@ from spinta import commands
 from spinta.auth import check_scope, Scopes
 from spinta.components import Context, UrlParams
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
-from spinta.exceptions import UnexpectedFormKeys, InvalidFormKeyCombination, RequiredFormKeyWithCondition, \
-    MissingFormKeys, InvalidInputData
+from spinta.exceptions import (
+    UnexpectedFormKeys,
+    InvalidFormKeyCombination,
+    RequiredFormKeyWithCondition,
+    MissingFormKeys,
+    InvalidInputData,
+)
 from spinta.manifests.components import ManifestPath, Manifest
 
 
 def _validate_form_data(form: FormData):
     # Check form key boundary
     allowed_values = [
-        'dataset',
-        'manifest.type',
-        'manifest.file',
-        'manifest.source',
-        'resource.type',
-        'resource.file',
-        'resource.source',
-        'resource.prepare'
+        "dataset",
+        "manifest.type",
+        "manifest.file",
+        "manifest.source",
+        "resource.type",
+        "resource.file",
+        "resource.source",
+        "resource.prepare",
     ]
 
     if not set(form.keys()).issubset(allowed_values):
@@ -61,7 +66,7 @@ class InspectRequestForm:
             resource_type=self.form.get("resource.type", None),
             resource_file=self.form.get("resource.file", None),
             resource_source=self.form.get("resource.source", None),
-            resource_prepare=self.form.get("resource.prepare", None)
+            resource_prepare=self.form.get("resource.prepare", None),
         )
 
     def clean_up(self):
@@ -90,7 +95,7 @@ class InspectRequestForm:
         resource_file: UploadFile = None,
         resource_source: str = None,
         resource_type: str = None,
-        resource_prepare: str = None
+        resource_prepare: str = None,
     ):
         if manifest_file and manifest_source:
             raise InvalidFormKeyCombination(keys=["manifest.file", "manifest.source"])
@@ -109,8 +114,7 @@ class InspectRequestForm:
         self.manifest_type = manifest_type
         if not self.manifest_type and self.manifest_path:
             raise RequiredFormKeyWithCondition(
-                key='manifest.type',
-                condition="'manifest.source' or 'manifest.file' keys are given"
+                key="manifest.type", condition="'manifest.source' or 'manifest.file' keys are given"
             )
 
         if resource_file and resource_source:
@@ -133,22 +137,15 @@ class InspectRequestForm:
         self.resource_type = resource_type
         if self.resource_path and not self.resource_type:
             raise RequiredFormKeyWithCondition(
-                key="resource.type",
-                condition="'resource.source' or 'resource.file' keys are given"
+                key="resource.type", condition="'resource.source' or 'resource.file' keys are given"
             )
         if self.resource_path and not self.dataset:
             raise RequiredFormKeyWithCondition(
-                key="dataset",
-                condition="'resource.source' or 'resource.file' keys are given"
+                key="dataset", condition="'resource.source' or 'resource.file' keys are given"
             )
 
         if not self.manifest_path and not self.resource_path:
-            raise MissingFormKeys(keys=[
-                'resource.source',
-                'resource.file',
-                'manifest.source',
-                'manifest.file'
-            ])
+            raise MissingFormKeys(keys=["resource.source", "resource.file", "manifest.source", "manifest.file"])
 
 
 async def inspect_api(context: Context, request: Request, params: UrlParams):
@@ -166,17 +163,12 @@ async def inspect_api(context: Context, request: Request, params: UrlParams):
             manifest=inspect_data.get_manifest(),
             resources=inspect_data.get_resource(),
             formula=inspect_data.resource_prepare,
-            only_url=True
+            only_url=True,
         )
         inspect_data.clean_up()
         clean_up_source_for_return(context, manifest)
 
-        return commands.render(
-            context,
-            manifest,
-            fmt,
-            action=params.action,
-            params=params)
+        return commands.render(context, manifest, fmt, action=params.action, params=params)
     except Exception as e:
         inspect_data.clean_up()
         raise e

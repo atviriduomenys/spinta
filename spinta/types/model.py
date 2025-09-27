@@ -84,20 +84,24 @@ def load(
         model.keymap = manifest.keymap
 
     _load_namespace_from_model(context, manifest, model)
-    load_access_param(model, data.get('access'), itertools.chain(
-        [model.ns],
-        model.ns.parents(),
-    ))
-    load_level(model, model.level)
+    load_access_param(
+        model,
+        data.get("access"),
+        itertools.chain(
+            [model.ns],
+            model.ns.parents(),
+        ),
+    )
+    load_level(context, model, model.level)
     load_status(model, model.status)
     load_visibility(model, model.visibility)
 
-    load_model_properties(context, model, Property, data.get('properties'))
+    load_model_properties(context, model, Property, data.get("properties"))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
-    model.properties['_id'].access = model.access
+    model.properties["_id"].access = model.access
 
-    config = context.get('config')
+    config = context.get("config")
 
     if model.base:
         base: dict = model.base
@@ -107,8 +111,8 @@ def load(
             manifest,
             model.eid,
             base,
-            group='nodes',
-            ctype='base',
+            group="nodes",
+            ctype="base",
             parent=model,
         )
         load_node(context, model.base, base)
@@ -136,14 +140,14 @@ def load(
             manifest,
             model.eid,
             external,
-            group='datasets',
-            ctype='entity',
+            group="datasets",
+            ctype="entity",
             parent=model,
         )
         model.external.model = model
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
-        model.given.pkeys = external.get('pk', [])
+        model.given.pkeys = external.get("pk", [])
     else:
         model.external = None
         model.given.pkeys = []
@@ -154,7 +158,7 @@ def load(
 
     model.params = load_params(context, manifest, model.params)
 
-    if not model.name.startswith('_') and not model.basename[0].isupper():
+    if not model.name.startswith("_") and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
 
     return model
@@ -179,7 +183,7 @@ def load(
 
 @load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
-    load_level(base, data['level'])
+    load_level(context, base, data["level"])
 
 
 @overload
@@ -198,12 +202,7 @@ def link(context: Context, model: Model):
             model.backend = model.manifest.backends[model.backend]
         else:
             model.backend = model.manifest.store.backends[model.backend]
-    elif (
-        model.mode == Mode.external and
-        model.external and
-        model.external.resource and
-        model.external.resource.backend
-    ):
+    elif model.mode == Mode.external and model.external and model.external.resource and model.external.resource.backend:
         model.backend = model.external.resource.backend
     elif model.mode == Mode.external:
         model.backend = NoBackend()
@@ -211,16 +210,22 @@ def link(context: Context, model: Model):
         model.backend = model.manifest.backend
 
     if model.external and model.external.dataset:
-        link_access_param(model, itertools.chain(
-            [model.external.dataset],
-            [model.ns],
-            model.ns.parents(),
-        ))
+        link_access_param(
+            model,
+            itertools.chain(
+                [model.external.dataset],
+                [model.ns],
+                model.ns.parents(),
+            ),
+        )
     else:
-        link_access_param(model, itertools.chain(
-            [model.ns],
-            model.ns.parents(),
-        ))
+        link_access_param(
+            model,
+            itertools.chain(
+                [model.ns],
+                model.ns.parents(),
+            ),
+        )
 
     # Link base
     if model.base:
@@ -247,19 +252,19 @@ def _link_model_page(model: Model):
             _disable_page_in_model(model)
             return
 
-        if '_id' in model.page.keys:
-            model.page.keys.pop('_id')
-        if '-_id' in model.page.keys:
-            model.page.keys.pop('-_id')
+        if "_id" in model.page.keys:
+            model.page.keys.pop("_id")
+        if "-_id" in model.page.keys:
+            model.page.keys.pop("-_id")
     else:
         # Force '_id' to be page key if other keys failed the checks
         if not model.page.enabled and page_contains_unsupported_keys(model.page):
-            model.page.keys = {'_id': model.properties['_id']}
+            model.page.keys = {"_id": model.properties["_id"]}
             model.page.enabled = True
 
         # Add _id to internal, if it's not added
-        if '_id' not in model.page.keys and '-_id' not in model.page.keys:
-            model.page.keys['_id'] = model.properties["_id"]
+        if "_id" not in model.page.keys and "-_id" not in model.page.keys:
+            model.page.keys["_id"] = model.properties["_id"]
 
     if len(model.page.keys) == 0:
         _disable_page_in_model(model)
@@ -269,10 +274,7 @@ def _link_model_page(model: Model):
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
     base.parent = commands.get_model(context, base.model.manifest, base.parent)
-    base.pk = [
-        base.parent.properties[pk]
-        for pk in base.pk
-    ] if base.pk else []
+    base.pk = [base.parent.properties[pk] for pk in base.pk] if base.pk else []
     if commands.identifiable(base):
         if base.pk and base.pk != base.parent.external.pkeys:
             base.parent.add_keymap_property_combination(base.pk)
@@ -285,22 +287,24 @@ def load(
     data: PropertyRow,
     manifest: Manifest,
 ) -> Property:
-    config = context.get('config')
-    prop.type = 'property'
+    config = context.get("config")
+    prop.type = "property"
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
-    parents = list(itertools.chain(
-        [prop.model, prop.model.ns],
-        prop.model.ns.parents(),
-    ))
+    parents = list(
+        itertools.chain(
+            [prop.model, prop.model.ns],
+            prop.model.ns.parents(),
+        )
+    )
     load_access_param(prop, prop.access, parents)
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
     if prop.prepare_given:
         prop.given.prepare = prop.prepare_given
-    load_level(prop, prop.level)
+    load_level(context, prop, prop.level)
 
     # todo properties should inherit those from model OR have a default. They shouldn't be empty
     #  Now they are empty in cases when model gets a default value, for example in inspect - tests/apie/test_inspect.py
@@ -311,20 +315,20 @@ def load(
     load_status(prop, prop.status)
     load_visibility(prop, prop.visibility)
 
-    if data['type'] is None:
-        raise UnknownPropertyType(prop, type=data['type'])
-    if data['type'] == 'ref' and not commands.identifiable(prop):
-        data['type'] = '_external_ref'
+    if data["type"] is None:
+        raise UnknownPropertyType(prop, type=data["type"])
+    if data["type"] == "ref" and not commands.identifiable(prop):
+        data["type"] = "_external_ref"
     prop.dtype = get_node(
         context,
         config,
         manifest,
         prop.model.eid,
         data,
-        group='types',
+        group="types",
         parent=prop,
     )
-    prop.dtype.type = 'type'
+    prop.dtype.type = "type"
     prop.dtype.prop = prop
     load_node(context, prop.dtype, data)
     if prop.model.external:
@@ -360,10 +364,10 @@ def _link_prop_enum(
 ) -> Optional[EnumValue]:
     if prop.given.enum:
         enums: List[Enums] = (
-            [prop.enums] +
-            [prop.model.ns.enums] +
-            [ns.enums for ns in prop.model.ns.parents()] +
-            [prop.model.manifest.enums]
+            [prop.enums]
+            + [prop.model.ns.enums]
+            + [ns.enums for ns in prop.model.ns.parents()]
+            + [prop.model.manifest.enums]
         )
         for enums_ in enums:
             if enums_ and prop.given.enum in enums_:
@@ -371,7 +375,7 @@ def _link_prop_enum(
         if not is_unit(prop.dtype, prop.given.enum):
             raise UndefinedEnum(prop, name=prop.given.enum)
     elif prop.enums:
-        return prop.enums.get('')
+        return prop.enums.get("")
 
 
 @overload
@@ -388,19 +392,23 @@ def link(context: Context, prop: Property):
     model = prop.model
 
     if prop.model.external and prop.model.external.dataset:
-        parents = list(itertools.chain(
-            [model],
-            [model.external.dataset],
-            [model.ns],
-            model.ns.parents(),
-        ))
+        parents = list(
+            itertools.chain(
+                [model],
+                [model.external.dataset],
+                [model.ns],
+                model.ns.parents(),
+            )
+        )
     else:
-        parents = list(itertools.chain(
-            [model],
-            [model.ns],
-            model.ns.parents(),
-        ))
-    link_access_param(prop, parents, use_given=not prop.name.startswith('_'))
+        parents = list(
+            itertools.chain(
+                [model],
+                [model.ns],
+                model.ns.parents(),
+            )
+        )
+    link_access_param(prop, parents, use_given=not prop.name.startswith("_"))
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
 
@@ -412,17 +420,17 @@ def _load_property_external(
     data: Any,  # external data
 ) -> Attribute:
     if not isinstance(data, dict):
-        return _load_property_external(context, manifest, prop, {'name': data})
+        return _load_property_external(context, manifest, prop, {"name": data})
 
-    config = context.get('config')
+    config = context.get("config")
     external: Attribute = get_node(
         context,
         config,
         manifest,
         prop.model.eid,
         data,
-        group='datasets',
-        ctype='attribute',
+        group="datasets",
+        ctype="attribute",
         parent=prop,
     )
     load_node(context, external, data, parent=prop)
@@ -441,8 +449,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
     unknown_props = set(data.keys()) - set(non_hidden_keys)
     if unknown_props:
         raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(model, property=prop)
-            for prop in sorted(unknown_props)
+            exceptions.FieldNotInResource(model, property=prop) for prop in sorted(unknown_props)
         )
 
     result = {}
@@ -464,24 +471,16 @@ def load(context: Context, prop: Property, value: object) -> object:
 
 def _prepare_prop_data(name: str, data: dict):
     return {
-        **{
-            k: v
-            for k, v in data.items()
-            if k.startswith('_') and k not in ('_id', '_content_type')
-        },
-        name: {
-            k: v
-            for k, v in data.items()
-            if not k.startswith('_') or k in ('_id', '_content_type')
-        }
+        **{k: v for k, v in data.items() if k.startswith("_") and k not in ("_id", "_content_type")},
+        name: {k: v for k, v in data.items() if not k.startswith("_") or k in ("_id", "_content_type")},
     }
 
 
 @check.register(Context, Model)
 def check(context: Context, model: Model):
     check_model_name(context, model)
-    if '_id' not in model.properties:
-        raise exceptions.MissingRequiredProperty(model, prop='_id')
+    if "_id" not in model.properties:
+        raise exceptions.MissingRequiredProperty(model, prop="_id")
 
     for prop in model.properties.values():
         commands.check(context, prop)
@@ -515,31 +514,31 @@ def authorize(context: Context, action: Action, prop: Property):
 
 @overload
 @commands.get_error_context.register(Model)
-def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
-    context = commands.get_error_context(model.manifest, prefix=f'{prefix}.manifest')
-    context['schema'] = f'{prefix}.get_eid_for_error_context()'
-    context['model'] = f'{prefix}.name'
-    context['dataset'] = f'{prefix}.external.dataset.name'
-    context['resource'] = f'{prefix}.external.resource.name'
-    context['resource.backend'] = f'{prefix}.external.resource.backend.name'
-    context['entity'] = f'{prefix}.external.name'
+def get_error_context(model: Model, *, prefix="this") -> Dict[str, str]:
+    context = commands.get_error_context(model.manifest, prefix=f"{prefix}.manifest")
+    context["schema"] = f"{prefix}.get_eid_for_error_context()"
+    context["model"] = f"{prefix}.name"
+    context["dataset"] = f"{prefix}.external.dataset.name"
+    context["resource"] = f"{prefix}.external.resource.name"
+    context["resource.backend"] = f"{prefix}.external.resource.backend.name"
+    context["entity"] = f"{prefix}.external.name"
     return context
 
 
 @overload
 @commands.get_error_context.register(Property)
-def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
-    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
-    context['property'] = f'{prefix}.place'
-    context['attribute'] = f'{prefix}.external.name'
+def get_error_context(prop: Property, *, prefix="this") -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f"{prefix}.model")
+    context["property"] = f"{prefix}.place"
+    context["attribute"] = f"{prefix}.external.name"
     return context
 
 
 @overload
 @commands.get_error_context.register(Page)
-def get_error_context(prop: Page, *, prefix='this') -> Dict[str, str]:
-    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
-    context['page'] = f'{prefix}.get_repr_for_error()'
+def get_error_context(prop: Page, *, prefix="this") -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f"{prefix}.model")
+    context["page"] = f"{prefix}.get_repr_for_error()"
     return context
 
 
@@ -564,7 +563,7 @@ def create_page(page_info: PageInfo) -> Page:
         model=page_info.model,
         size=page_info.size,
         enabled=page_info.enabled,
-        by={key: PageBy(prop) for key, prop in page_info.keys.items()}
+        by={key: PageBy(prop) for key, prop in page_info.keys.items()},
     )
 
 
@@ -573,10 +572,7 @@ def create_page(page_info: PageInfo, params: UrlParams) -> Page:
     params_page = params.page
 
     enabled = pagination_enabled(page_info.model, params)
-    sort_values = extract_params_sort_values(
-        page_info.model,
-        params
-    )
+    sort_values = extract_params_sort_values(page_info.model, params)
     if sort_values is None:
         enabled = False
 
@@ -592,17 +588,14 @@ def create_page(page_info: PageInfo, params: UrlParams) -> Page:
             new_order[key] = PageBy(value)
 
         for key, value in page_by.items():
-            reversed_key = key[1:] if key.startswith("-") else f'-{key}'
+            reversed_key = key[1:] if key.startswith("-") else f"-{key}"
             if key not in new_order and reversed_key not in new_order:
                 new_order[key] = value
 
         page_by = new_order
 
     page = Page(
-        model=page_info.model,
-        size=params_page and params_page.size or page_info.size,
-        enabled=enabled,
-        by=page_by
+        model=page_info.model, size=params_page and params_page.size or page_info.size, enabled=enabled, by=page_by
     )
 
     if enabled and params_page and params_page.values:
@@ -654,12 +647,12 @@ def resolve_property(model: Model, prop: str) -> Property | None:
         if resolved_base is not None:
             return resolved_base
 
-    if '.' in prop:
-        split = prop.split('.')
+    if "." in prop:
+        split = prop.split(".")
         resolved_prop = None
         for i in range(len(split) - 1, 0, -1):
-            parent_prop = '.'.join(split[:i])
-            child_prop = '.'.join(split[i:])
+            parent_prop = ".".join(split[:i])
+            child_prop = ".".join(split[i:])
             parent_resolved_prop = commands.resolve_property(model, parent_prop)
             if parent_resolved_prop is not None:
                 resolved_prop = commands.resolve_property(parent_resolved_prop, child_prop)

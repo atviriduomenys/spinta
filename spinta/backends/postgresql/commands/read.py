@@ -24,14 +24,14 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    connection = context.get('transaction').connection
+    connection = context.get("transaction").connection
     table = backend.get_table(model)
     try:
         result = backend.get(connection, table, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(model, id=id_)
     data = flat_dicts_to_nested(dict(result))
-    data['_type'] = model.model_type()
+    data["_type"] = model.model_type()
     return commands.cast_backend_to_python(context, model, backend, data)
 
 
@@ -45,10 +45,10 @@ def getall(
     default_expand: bool = True,
     params: QueryParams = None,
     extra_properties: dict[str, Property] = None,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
-    connection = context.get('transaction').connection
+    connection = context.get("transaction").connection
 
     if default_expand:
         if params is None:
@@ -77,9 +77,9 @@ def getall(
             res[key] = get_row_value(context, result_builder_getter, row, sel, False)
 
         if is_page_enabled:
-            res['_page'] = get_page_values(env, row)
+            res["_page"] = get_page_values(env, row)
 
-        res['_type'] = model.model_type()
+        res["_type"] = model.model_type()
 
         res = flat_dicts_to_nested(res, list_keys=list_keys)
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)

@@ -73,15 +73,9 @@ class MermaidProperty:
     cardinality: bool | None = None
     multiplicity: str | None = None
 
-    ACCESS_MAPPING = {
-        Access.open: '+',
-        Access.public: '#',
-        Access.protected: '~',
-        Access.private: '-'
-    }
+    ACCESS_MAPPING = {Access.open: "+", Access.public: "#", Access.protected: "~", Access.private: "-"}
 
     def __str__(self):
-
         property_string = self.name
 
         if self.access is not None:
@@ -98,14 +92,14 @@ class MermaidProperty:
 
 
 class RelationshipDirection(enum.Enum):
-    FORWARD = 'forward'
-    BACKWARD = 'backward'
+    FORWARD = "forward"
+    BACKWARD = "backward"
 
 
 class RelationshipType(enum.Enum):
-    ASSOCIATION = 'association'
-    DEPENDENCY = 'dependency'
-    INHERITANCE = 'inheritance'
+    ASSOCIATION = "association"
+    DEPENDENCY = "dependency"
+    INHERITANCE = "inheritance"
 
 
 @dataclass
@@ -119,21 +113,20 @@ class MermaidRelationship:
     label: str = ""
 
     def __str__(self):
-
         if self.direction == RelationshipDirection.FORWARD:
             if self.type == RelationshipType.ASSOCIATION:
-                arrow = '-->'
+                arrow = "-->"
             if self.type == RelationshipType.DEPENDENCY:
-                arrow = '..>'
+                arrow = "..>"
             if self.type == RelationshipType.INHERITANCE:
-                arrow = '--|>'
+                arrow = "--|>"
         else:
             if self.type == RelationshipType.ASSOCIATION:
-                arrow = '<--'
+                arrow = "<--"
             if self.type == RelationshipType.DEPENDENCY:
-                arrow = '<..'
+                arrow = "<.."
             if self.type == RelationshipType.INHERITANCE:
-                arrow = '<|--'
+                arrow = "<|--"
 
         if self.cardinality or self.multiplicity:
             cardinality_multiplicity = f' "[{int(self.cardinality)}..{self.multiplicity}]"'
@@ -148,7 +141,6 @@ class MermaidRelationship:
 
 
 def write_mermaid_manifest(context: Context, output: str, manifest: InlineManifest):
-
     mermaids = []
 
     for dataset_name, dataset in manifest.get_objects()["dataset"].items():
@@ -160,9 +152,10 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
             if model_dataset_name == dataset_name:
                 mermaid_class = MermaidClass(name=model.basename)
                 for model_property in model.get_given_properties().values():
-
                     if model_property.enum:
-                        enum_class = MermaidClass(name=f"{model.basename}{to_model_name(model_property.name)}", is_enum=True)
+                        enum_class = MermaidClass(
+                            name=f"{model.basename}{to_model_name(model_property.name)}", is_enum=True
+                        )
                         for enum_property in model_property.enum:
                             enum_property = MermaidProperty(name=enum_property.strip('"'))
                             enum_class.add_property(enum_property)
@@ -174,14 +167,12 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                 cardinality=True,
                                 multiplicity="1",
                                 type=RelationshipType.DEPENDENCY,
-                                label=model_property.name
-                            ))
-                        
-                    elif (
-                        isinstance(model_property.dtype, Ref)
-                        or isinstance(model_property.dtype, BackRef)
-                    ):
-                        multiplicity = '1'
+                                label=model_property.name,
+                            )
+                        )
+
+                    elif isinstance(model_property.dtype, Ref) or isinstance(model_property.dtype, BackRef):
+                        multiplicity = "1"
                         mermaid.add_relationship(
                             MermaidRelationship(
                                 node1=mermaid_class.name,
@@ -189,7 +180,7 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                 cardinality=model_property.dtype.required,
                                 multiplicity=multiplicity,
                                 type=RelationshipType.ASSOCIATION,
-                                label=model_property.name
+                                label=model_property.name,
                             )
                         )
 
@@ -197,11 +188,10 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                     elif isinstance(model_property.dtype, Inherit):
                         continue
 
-                    elif (
-                        isinstance(model_property.dtype, PartialArray)
-                        or isinstance(model_property.dtype, ArrayBackRef)
+                    elif isinstance(model_property.dtype, PartialArray) or isinstance(
+                        model_property.dtype, ArrayBackRef
                     ):
-                        multiplicity = '*'
+                        multiplicity = "*"
 
                         if hasattr(model_property.dtype, "items"):
                             if hasattr(model_property.dtype.items.dtype, "model"):
@@ -212,7 +202,7 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                         cardinality=model_property.dtype.items.dtype.required,
                                         multiplicity=multiplicity,
                                         type=RelationshipType.ASSOCIATION,
-                                        label=model_property.name
+                                        label=model_property.name,
                                     )
                                 )
                             else:
@@ -225,7 +215,6 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                 )
                                 mermaid_class.add_property(mermaid_property)
                         else:
-
                             mermaid_property = MermaidProperty(
                                 name=model_property.name,
                                 access=model_property.access,
@@ -236,8 +225,7 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                             mermaid_class.add_property(mermaid_property)
 
                     else:
-
-                        multiplicity = '1'
+                        multiplicity = "1"
 
                         mermaid_property = MermaidProperty(
                             name=model_property.name,
@@ -260,14 +248,12 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                             node1=mermaid_class.name,
                             node2=model.base.basename,
                             type=RelationshipType.INHERITANCE,
-                            label=label
+                            label=label,
                         )
                     )
 
         mermaids.append(mermaid)
 
-    with open(output, 'w') as file:
-
+    with open(output, "w") as file:
         for mermaid in mermaids:
-
             file.write(str(mermaid))

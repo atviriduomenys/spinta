@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2.dev3"
+version = "0.2.dev5"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -36,7 +36,9 @@ spinta = "spinta.cli.main:app"
 [tool.poetry.dependencies]
 python = "^3.9"
 aiofiles = "*"
-authlib = "~0.11"
+# https://github.com/atviriduomenys/spinta/issues/675
+# 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
+authlib = ">=1.0.0"
 jinja2 = "*"
 jsonpatch = "*"
 lark-parser = "*"
@@ -53,6 +55,7 @@ setuptools = "*"
 setuptools-scm = "*"
 # https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
 starlette = ">=0.40"
+pydantic = "*"
 toposort = "*"
 tqdm = "*"
 ujson = "*"
@@ -78,7 +81,8 @@ psycopg2-binary = "*"
 # sqlalchemy = "~1.4"
 sqlalchemy = "~1.4"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/472
-sqlalchemy-utils = "*"
+# https://github.com/kvesteri/sqlalchemy-utils/issues/791
+sqlalchemy-utils = "<=0.41.2"
 
 # Mongo backend dependendencies
 # https://github.com/atviriduomenys/spinta/issues/806
@@ -103,9 +107,10 @@ fsspec = "*"
 dask = { version = "*", extras = ["dataframe"] }
 psutil = "*"
 tabulate = "*"
-pyproj = "*"
+pyproj = [{version = ">=3.7.0", python = ">=3.13"}, {version = "3.6.1", python = "<3.13"}]
 xmltodict = "*"
-sqlean-py = "*"
+# Error when trying to install >=3.50
+sqlean-py = "<=3.49.1"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
@@ -128,6 +133,8 @@ responses = "*"
 snoop = "*"
 python-dotenv = "*"
 docutils = "*"
+requests-mock = "^1.11.0"
+ruff = "^0.12.10"
 
 # Starlette
 httpx = "*"
@@ -142,6 +149,7 @@ cssselect = "*"
 objprint = "*"
 sphinx-rtd-theme = "*"
 sqlalchemy-stubs = "*"
+types-requests = "^2.32.4.20250809"
 
 
 [build-system]
@@ -154,3 +162,15 @@ disallow_any_unimported = true
 show_error_codes = true
 check_untyped_defs = true
 plugins = "sqlmypy"
+
+
+[tool.ruff]
+line-length = 120
+
+
+[tool.ruff.format]
+quote-style = "double"
+
+
+[tool.ruff.lint]
+ignore = ["F811"]

@@ -13,7 +13,7 @@ from typing import Tuple
 from typing import TypedDict
 from typing import Union
 
-from spinta.components import Component, Context
+from spinta.components import Component
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Store
@@ -75,10 +75,7 @@ class Manifest(Component):
         self.given = ManifestGiven()
 
     def __repr__(self):
-        return (
-            f'<{type(self).__module__}.{type(self).__name__}'
-            f'(name={self.name!r})>'
-        )
+        return f"<{type(self).__module__}.{type(self).__name__}(name={self.name!r})>"
 
     def __eq__(self, other: Union[Manifest, str]):
         if isinstance(other, str):
@@ -87,6 +84,7 @@ class Manifest(Component):
             # This uses pytest_assertrepr_compare hook and compare_manifest to
             # eventually compare manifests in ascii table form.
             from spinta.testing.manifest import compare_manifest
+
             left, right = compare_manifest(self, other)
             return left == right
         else:
@@ -102,7 +100,7 @@ ManifestSchema = Tuple[Any, NodeSchema]
 
 @dataclasses.dataclass
 class ManifestPath:
-    type: str = 'tabular'
+    type: str = "tabular"
     name: str = None
     path: str = None
     file: IO = None

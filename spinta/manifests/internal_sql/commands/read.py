@@ -26,7 +26,7 @@ def traverse_ns_models(
     internal: bool = False,
     source_check: bool = False,
     loaded: bool = False,
-    **kwargs
+    **kwargs,
 ):
     models = get_model_name_list(context, manifest, loaded, namespace=ns.name, recursive=True)
     for model_name in models:
@@ -44,20 +44,12 @@ def getall(
     manifest: InternalSQLManifest,
     *,
     action: Action,
-    params: UrlParams
+    params: UrlParams,
 ):
     if params.all and params.ns:
         # for model in traverse_ns_models(context, ns, action, internal=True):
         #     commands.authorize(context, action, model)
-        return _get_internal_ns_content(
-            context,
-            request,
-            ns,
-            manifest,
-            params,
-            action,
-            recursive=True
-        )
+        return _get_internal_ns_content(context, request, ns, manifest, params, action, recursive=True)
     elif params.all:
         prepare_data_for_response_kwargs = {}
         for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
@@ -71,33 +63,26 @@ def getall(
                 select_tree,
             )
             prepare_data_for_response_kwargs[model.model_type()] = {
-                'select': select_tree,
-                'prop_names': prop_names,
+                "select": select_tree,
+                "prop_names": prop_names,
             }
         expr = urlparams_to_expr(params)
         rows = commands.getall(context, ns, action=action, query=expr)
         rows = (
             commands.prepare_data_for_response(
                 context,
-                commands.get_model(context, manifest, row['_type']),
+                commands.get_model(context, manifest, row["_type"]),
                 params.fmt,
                 row,
                 action=action,
-                **prepare_data_for_response_kwargs[row['_type']],
+                **prepare_data_for_response_kwargs[row["_type"]],
             )
             for row in rows
         )
         rows = log_response(context, rows)
         return render(context, request, ns, params, rows, action=action)
     else:
-        return _get_internal_ns_content(
-            context,
-            request,
-            ns,
-            manifest,
-            params,
-            action
-        )
+        return _get_internal_ns_content(context, request, ns, manifest, params, action)
 
 
 def _get_internal_ns_content(
@@ -111,11 +96,13 @@ def _get_internal_ns_content(
     recursive: bool = False,
 ) -> Response:
     parents = [parent.name for parent in ns.parents()]
-    partial_data = get_namespace_partial_data(context, manifest, ns.name, parents=parents, recursive=recursive, action=action)
+    partial_data = get_namespace_partial_data(
+        context, manifest, ns.name, parents=parents, recursive=recursive, action=action
+    )
 
-    data = sorted(partial_data, key=lambda x: (x['_type'] != 'ns', x['name']))
-    model = commands.get_model(context, ns.manifest, '_ns')
-    select = params.select or ['name', 'title', 'description']
+    data = sorted(partial_data, key=lambda x: (x["_type"] != "ns", x["name"]))
+    model = commands.get_model(context, ns.manifest, "_ns")
+    select = params.select or ["name", "title", "description"]
     select_tree = get_select_tree(context, action, select)
     prop_names = get_select_prop_names(
         context,

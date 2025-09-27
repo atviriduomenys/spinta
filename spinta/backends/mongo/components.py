@@ -16,10 +16,10 @@ class Mongo(Backend):
     # Backend also must have a `transaction` method which must return read or
     # write transaction object containing an active `connection` to database.
     metadata = {
-        'name': 'mongo',
-        'properties': {
-            'dsn': {'type': 'string', 'required': True},
-            'db': {'type': 'string', 'required': True},
+        "name": "mongo",
+        "properties": {
+            "dsn": {"type": "string", "required": True},
+            "db": {"type": "string", "required": True},
         },
     }
 
@@ -27,7 +27,7 @@ class Mongo(Backend):
         BackendFeatures.WRITE,
     }
 
-    query_builder_type = 'mongo'
+    query_builder_type = "mongo"
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -61,13 +61,11 @@ class Mongo(Backend):
 
 
 class ReadTransaction:
-
     def __init__(self, connection):
         self.connection = connection
 
 
 class WriteTransaction(ReadTransaction):
-
     def __init__(self, connection, id):
         super().__init__(connection)
         self.id = id

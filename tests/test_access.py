@@ -7,44 +7,50 @@ from spinta.testing.utils import error
 import pytest
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_empty_manifest(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
 ):
-    rc = rc.fork({
-        'default_auth_client': 'default',
-    })
+    rc = rc.fork(
+        {
+            "default_auth_client": "default",
+        }
+    )
     context = bootstrap_manifest(
-        rc, '''
+        rc,
+        """
     d | r | b | m | property | type   | access
-    ''',
+    """,
         backend=postgresql,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
-        full_load=True
+        full_load=True,
     )
 
     app = create_test_client(context)
-    resp = app.get('/')
-    assert error(resp) == 'AuthorizedClientsOnly'
+    resp = app.get("/")
+    assert error(resp) == "AuthorizedClientsOnly"
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_manifest_without_open_properties(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
 ):
-    rc = rc.fork({
-        'default_auth_client': 'default',
-    })
+    rc = rc.fork(
+        {
+            "default_auth_client": "default",
+        }
+    )
 
     context = bootstrap_manifest(
-        rc, '''
+        rc,
+        """
     d | r | b | m | property | type   | access
     datasets/gov/vpt/new     |        |
       | resource             |        |
@@ -52,31 +58,34 @@ def test_manifest_without_open_properties(
       |   |   |   | name     | string |
       |   |   | City         |        |
       |   |   |   | name     | string |
-    ''',
+    """,
         backend=postgresql,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
-        full_load=True
+        full_load=True,
     )
 
     app = create_test_client(context)
-    resp = app.get('/')
-    assert error(resp) == 'AuthorizedClientsOnly'
+    resp = app.get("/")
+    assert error(resp) == "AuthorizedClientsOnly"
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_manifest_with_open_properties(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
 ):
-    rc = rc.fork({
-        'default_auth_client': 'default',
-    })
+    rc = rc.fork(
+        {
+            "default_auth_client": "default",
+        }
+    )
 
     context = bootstrap_manifest(
-        rc, '''
+        rc,
+        """
     d | r | b | m | property | type   | access
     datasets/gov/vpt/new     |        |
       | resource             |        |
@@ -84,21 +93,21 @@ def test_manifest_with_open_properties(
       |   |   |   | name     | string |
       |   |   | City         |        |
       |   |   |   | name     | string | open
-    ''',
+    """,
         backend=postgresql,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
-        full_load=True
+        full_load=True,
     )
 
     app = create_test_client(context)
-    resp = app.get('/')
+    resp = app.get("/")
     assert resp.json() == {
-        '_data': [
+        "_data": [
             {
-                'name': 'datasets/:ns',
-                'title': '',
-                'description': '',
+                "name": "datasets/:ns",
+                "title": "",
+                "description": "",
             },
         ]
     }

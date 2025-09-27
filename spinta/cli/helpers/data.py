@@ -31,19 +31,15 @@ ModelRow = Tuple[Model, Dict[str, Any]]
 log = logging.getLogger(__name__)
 
 
-def _get_row_count(
-    context: components.Context,
-    model: components.Model,
-    page_data: Any
-) -> int:
-    query = Expr('select', Expr('count'))
+def _get_row_count(context: components.Context, model: components.Model, page_data: Any) -> int:
+    query = Expr("select", Expr("count"))
     if pagination_enabled(model):
         copied = commands.create_page(model.page, page_data)
         copied.filter_only = True
         query = add_page_expr(query, copied)
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
-        return data['count()']
+        return data["count()"]
 
 
 def count_rows(
@@ -54,13 +50,13 @@ def count_rows(
     initial_page_data: dict = None,
     stop_on_error: bool = False,
     error_counter: ErrorCounter = None,
-    no_progress_bar: bool = False
+    no_progress_bar: bool = False,
 ) -> Dict[str, int]:
     counts = {}
     if initial_page_data is None:
         initial_page_data = {}
 
-    models = models if no_progress_bar else tqdm.tqdm(models, 'Count rows', ascii=True, leave=False)
+    models = models if no_progress_bar else tqdm.tqdm(models, "Count rows", ascii=True, leave=False)
     for model in models:
         try:
             count = _get_row_count(context, model, initial_page_data.get(model.model_type(), None))
@@ -87,13 +83,13 @@ def read_model_data(
     stop_on_error: bool = False,
     params: QueryParams = None,
     page: Page = None,
-    query: Expr = None
+    query: Expr = None,
 ) -> Iterable[Dict[str, Any]]:
     if limit is not None:
         if query is None:
-            query = Expr('limit', limit)
+            query = Expr("limit", limit)
         else:
-            query = merge_formulas(query, Expr('limit', limit))
+            query = merge_formulas(query, Expr("limit", limit))
 
     if page is None:
         stream = commands.getall(context, model, model.backend, query=query, params=params)
@@ -120,7 +116,7 @@ def filter_allowed_props_for_model(model: Model) -> (list, bool):
     allowed_props = list(model.properties.keys())
     if model.base:
         for name, prop in model.base.parent.properties.items():
-            if not name.startswith('_'):
+            if not name.startswith("_"):
                 if name in allowed_props and isinstance(model.properties[name].dtype, Inherit):
                     allowed_props.remove(name)
         return allowed_props, True
@@ -166,9 +162,9 @@ async def process_stream(
         chunks = exporter(stream)
         if path is None:
             for chunk in chunks:
-                print(chunk, end='')
+                print(chunk, end="")
         else:
-            with path.open('wb') as f:
+            with path.open("wb") as f:
                 for chunk in chunks:
                     f.write(chunk)
     else:

@@ -29,7 +29,7 @@ def get_node(
     data: dict = None,
     *,
     # Component group from config.components.
-    group: str = 'nodes',
+    group: str = "nodes",
     # If None component name will be taken from data['type'].
     ctype: str = None,
     # If parent is None, then parent is assumed to be manifest.
@@ -44,15 +44,15 @@ def get_node(
             error=f"Expected dict got {type(data).__name__}.",
         )
     if ctype is None:
-        if 'type' not in data:
+        if "type" not in data:
             raise exceptions.InvalidManifestFile(
                 parent or manifest,
                 manifest=manifest.name,
                 eid=eid,
-                error=f"Required parameter 'type' is not defined.",
+                error="Required parameter 'type' is not defined.",
             )
 
-        ctype = data['type']
+        ctype = data["type"]
 
     if parent is None:
         # If parent is given, that means we are loading a node whose parent is
@@ -66,15 +66,15 @@ def get_node(
             )
 
         if check:
-            if 'name' not in data:
+            if "name" not in data:
                 raise exceptions.MissingRequiredProperty(
                     manifest,
-                    schema=data['path'],
-                    prop='name',
+                    schema=data["path"],
+                    prop="name",
                 )
 
-            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
-                name = data['name']
+            if commands.has_node(context, manifest, ctype, data["name"], loaded=True):
+                name = data["name"]
                 other_node = commands.get_node(context, manifest, ctype, name)
 
                 # if this namespace generated, and other - declared: pass,
@@ -90,24 +90,18 @@ def get_node(
                         manifest=manifest.name,
                         eid=eid,
                         error=(
-                            f"{ctype!r} with name {name!r} already defined in "
-                            f"{other_node} (eid: {other_node.eid})."
+                            f"{ctype!r} with name {name!r} already defined in {other_node} (eid: {other_node.eid})."
                         ),
                     )
 
     if ctype not in config.components[group]:
         from spinta.components import Property
-        if group == 'types' and isinstance(parent, Property):
+
+        if group == "types" and isinstance(parent, Property):
             if ctype:
-                error = (
-                    f"Unknown {ctype!r} type of {parent.place!r} property "
-                    f"in {parent.model.name!r} model."
-                )
+                error = f"Unknown {ctype!r} type of {parent.place!r} property in {parent.model.name!r} model."
             else:
-                error = (
-                    f"Type is not given for {parent.place!r} property "
-                    f"in {parent.model.name!r} model."
-                )
+                error = f"Type is not given for {parent.place!r} property in {parent.model.name!r} model."
         else:
             error = f"Unknown component {ctype!r} in {group!r}."
         raise exceptions.InvalidManifestFile(
@@ -115,7 +109,7 @@ def get_node(
             manifest=manifest.name,
             eid=eid,
             error=error,
-            )
+        )
 
     Node_ = config.components[group][ctype]
 
@@ -130,8 +124,7 @@ def load_node(
     *,
     mixed: Literal[True] = False,
     parent: Node = None,
-) -> Tuple[Node, dict]:
-    ...
+) -> Tuple[Node, dict]: ...
 
 
 @overload
@@ -142,8 +135,7 @@ def load_node(
     *,
     mixed: Literal[False] = False,
     parent: Node = None,
-) -> Node:
-    ...
+) -> Node: ...
 
 
 ARRAY_TYPES = [DataTypeEnum.ARRAY.value, DataTypeEnum._PARTIAL_ARRAY.value, DataTypeEnum._ARRAY_BACKREF.value]
@@ -156,10 +148,7 @@ def load_node(
     *,
     mixed: bool = False,
     parent: Union[Node, Manifest] = None,
-) -> Union[
-    Node,
-    Tuple[Node, Dict[str, Any]]
-]:
+) -> Union[Node, Tuple[Node, Dict[str, Any]]]:
     remainder = {}
     node_schema = resolve_schema(node, Component)
     for name in set(node_schema) | set(data):
@@ -175,28 +164,28 @@ def load_node(
                 raise exceptions.UnknownParameter(node, param=name)
 
         schema = node_schema[name]
-        if schema.get('parent'):
-            attr = schema.get('attr', name)
+        if schema.get("parent"):
+            attr = schema.get("attr", name)
             assert parent is not None, node
             setattr(node, attr, parent)
             continue
         value = data.get(name, NA)
-        if schema.get('inherit', False) and value is NA:
+        if schema.get("inherit", False) and value is NA:
             if node.parent and hasattr(node.parent, name):
                 value = getattr(node.parent, name)
             else:
                 value = None
-        if schema.get('required', False) and (value is NA or value is None):
+        if schema.get("required", False) and (value is NA or value is None):
             raise exceptions.MissingRequiredProperty(node, prop=name)
         if value is NA:
-            if 'factory' in schema:
-                value = schema['factory']()
+            if "factory" in schema:
+                value = schema["factory"]()
             else:
-                value = schema.get('default')
-        elif schema.get('type') in ARRAY_TYPES:
-            if not isinstance(value, list) and schema.get('force'):
+                value = schema.get("default")
+        elif schema.get("type") in ARRAY_TYPES:
+            if not isinstance(value, list) and schema.get("force"):
                 value = [value]
-        attr = schema.get('attr', name)
+        attr = schema.get("attr", name)
         setattr(node, attr, value)
     if mixed:
         return node, remainder
@@ -214,18 +203,18 @@ def load_model_properties(
 
     # Add build-in properties.
     data = {
-        '_op': {'type': 'string'},
-        '_type': {'type': 'string'},
-        '_id': {'type': 'pk', 'unique': True},
-        '_revision': {'type': 'string'},
-        '_txn': {'type': 'string'},
-        '_cid': {'type': 'integer'},
-        '_created': {'type': 'datetime'},
-        '_where': {'type': 'rql'},
-        '_base': {'type': 'inherit'},
-        '_page': {'type': 'page'},
-        '_uri': {'type': 'uri'},
-        '_same_as': {'type': 'uuid'},
+        "_op": {"type": "string"},
+        "_type": {"type": "string"},
+        "_id": {"type": "pk", "unique": True},
+        "_revision": {"type": "string"},
+        "_txn": {"type": "string"},
+        "_cid": {"type": "integer"},
+        "_created": {"type": "datetime"},
+        "_where": {"type": "rql"},
+        "_base": {"type": "inherit"},
+        "_page": {"type": "page"},
+        "_uri": {"type": "uri"},
+        "_same_as": {"type": "uuid"},
         **data,
     }
 
@@ -243,7 +232,6 @@ def load_model_properties(
         model.flatprops[name] = prop
 
 
-@commands.identifiable.register()
+@commands.identifiable.register(Node)
 def identifiable(node: Node):
     return False
-

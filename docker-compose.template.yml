@@ -19,6 +19,10 @@ services:
        spinta:
           aliases:
              - spinta-${BRANCH}
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
 networks:
   spinta:
     external: true

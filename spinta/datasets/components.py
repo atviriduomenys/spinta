@@ -48,41 +48,40 @@ class Dataset(MetaData):
     prefixes: Dict[str, UriPrefix]
 
     schema = {
-        'type': {'type': 'string', 'required': True},
-        'name': {'type': 'string', 'required': True},
-        'path': {'type': 'string'},
-        'version': {
-            'type': 'object',
-            'items': {
-                'number': {'type': 'integer', 'required': True},
-                'date': {'type': 'date', 'required': True},
+        "type": {"type": "string", "required": True},
+        "name": {"type": "string", "required": True},
+        "path": {"type": "string"},
+        "version": {
+            "type": "object",
+            "items": {
+                "number": {"type": "integer", "required": True},
+                "date": {"type": "date", "required": True},
             },
         },
-
-        'manifest': {'parent': True},
-        'owner': {'type': 'ref', 'ref': 'manifest.nodes.owner'},
-        'level': {'type': 'integer', 'choices': Level},
-        'access': {'type': 'string', 'choices': Access},
-        'website': {'type': 'url'},
-        'projects': {
-            'type': 'array',
-            'factory': list,
-            'items': {
-                'type': 'ref',
-                'ref': 'manifest.nodes.project',
+        "manifest": {"parent": True},
+        "owner": {"type": "ref", "ref": "manifest.nodes.owner"},
+        "level": {"type": "integer", "choices": Level},
+        "access": {"type": "string", "choices": Access},
+        "website": {"type": "url"},
+        "projects": {
+            "type": "array",
+            "factory": list,
+            "items": {
+                "type": "ref",
+                "ref": "manifest.nodes.project",
             },
         },
-        'resources': {
-            'type': 'object',
-            'values': {
-                'type': 'comp',
-                'group': 'external',
-                'ctype': 'resource',
-            }
+        "resources": {
+            "type": "object",
+            "values": {
+                "type": "comp",
+                "group": "external",
+                "ctype": "resource",
+            },
         },
-        'source': {'type': 'string'},
-        'given_name': {'type': 'string', 'default': None},
-        'count': {'type': 'integer', 'default': None},
+        "source": {"type": "string"},
+        "given_name": {"type": "string", "default": None},
+        "count": {"type": "integer", "default": None},
     }
 
     def __init__(self):
@@ -123,39 +122,36 @@ class Resource(External):
     source_type: str
 
     schema = {
-        'type': {'type': 'string'},
-        'dataset': {'parent': True},
-        'prepare': {'type': 'spyna', 'default': NA},
-
+        "type": {"type": "string"},
+        "dataset": {"parent": True},
+        "prepare": {"type": "spyna", "default": NA},
         # Backend name specified in `ref` column, points to previously defined
         # backend or to a configured stored backend.
-        'backend': {
-            'type': 'ref',
-            'ref': 'context.store.backends',
+        "backend": {
+            "type": "ref",
+            "ref": "context.store.backends",
         },
-
         # If `backend` is not given via `ref` column, then in `source` column,
         # explicit backend dsn can be given. Only one `ref` or `source` can be
         # given.
-
-        'external': {'type': 'string'},
-        'params': {'type': 'object'},
-        'level': {
-            'type': 'integer',
-            'choices': Level,
-            'inherit': 'dataset.level',
+        "external": {"type": "string"},
+        "params": {"type": "object"},
+        "level": {
+            "type": "integer",
+            "choices": Level,
+            "inherit": "dataset.level",
         },
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'dataset.access',
+        "access": {
+            "type": "string",
+            "choices": Access,
+            "inherit": "dataset.access",
         },
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
-        'comments': {},
-        'lang': {'type': 'object'},
-        'given_name': {'type': 'string', 'default': None},
-        'source_type': {'type': "string"}
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "comments": {},
+        "lang": {"type": "object"},
+        "given_name": {"type": "string", "default": None},
+        "source_type": {"type": "string"},
     }
 
     def __init__(self):
@@ -172,18 +168,19 @@ class Param(ExtraMetaData):
     sources: List[Any]
     formulas: List[Expr]
     dependencies: set
+    soap_body: dict[str, Any]  # Used to store result of input() function
 
     # Given values
     source: List[Any]
     prepare: List[Any]
 
     schema = {
-        'type': {'type': 'string'},
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
-        'name': {'type': 'string'},
-        'source': {'type': 'list'},
-        'prepare': {'type': 'list'}
+        "type": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "name": {"type": "string"},
+        "source": {"type": "list"},
+        "prepare": {"type": "list"},
     }
 
     def __init__(self):
@@ -196,48 +193,48 @@ class Entity(External):
     #      thing and should be refactored into a `RawEntity` with `str` types
     #      which then is converted into `Entity` with `Dataset` and `Resource`
     #      types.
-    dataset: Dataset                # dataset
-    resource: Optional[Resource]    # resource
-    model: Model                    # model
-    pkeys: List[Property]           # model.ref
+    dataset: Dataset  # dataset
+    resource: Optional[Resource]  # resource
+    model: Model  # model
+    pkeys: List[Property]  # model.ref
     # This is set to True if primary key is not given. Anf if primary key is not
     # given, then `pkeys` will be set to all properties.
     unknown_primary_key: bool = False
-    name: str                       # model.source
-    prepare: Expr                   # model.prepare
+    name: str  # model.source
+    prepare: Expr  # model.prepare
     params: List[Param]
 
     schema = {
-        'model': {'parent': True},
-        'dataset': {'type': 'ref', 'ref': 'context.nodes.dataset'},
-        'resource': {'type': 'ref', 'ref': 'dataset.resources'},
-        'name': {'type': 'string', 'default': None},
-        'prepare': {'type': 'spyna', 'default': NA},
-        'params': {
-            'type': 'array',
-            'items': {'type': 'object'},
+        "model": {"parent": True},
+        "dataset": {"type": "ref", "ref": "context.nodes.dataset"},
+        "resource": {"type": "ref", "ref": "dataset.resources"},
+        "name": {"type": "string", "default": None},
+        "prepare": {"type": "spyna", "default": NA},
+        "params": {
+            "type": "array",
+            "items": {"type": "object"},
         },
-        'pk': {
-            'type': 'array',
-            'force': True,
-            'attr': 'pkeys',
-            'items': {
-                'type': 'ref',
-                'ref': 'model.properties',
+        "pk": {
+            "type": "array",
+            "force": True,
+            "attr": "pkeys",
+            "items": {
+                "type": "ref",
+                "ref": "model.properties",
             },
         },
-        'type': {'type': 'string'},
+        "type": {"type": "string"},
     }
 
 
 class Attribute(External):
-    prop: Property          # property
-    name: str               # property.source
-    prepare: Expr = NA    # property.prepare
+    prop: Property  # property
+    name: str  # property.source
+    prepare: Expr = NA  # property.prepare
 
     schema = {
-        'prop': {'parent': True},
-        'name': {'default': None},
-        'prepare': {'type': 'spyna', 'default': NA},
-        'type': {'type': 'string'},
+        "prop": {"parent": True},
+        "name": {"default": None},
+        "prepare": {"type": "spyna", "default": NA},
+        "type": {"type": "string"},
     }

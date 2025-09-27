@@ -8,9 +8,8 @@ log = logging.getLogger(__name__)
 
 
 class UnknownValue:
-
     def __str__(self):
-        return '[UNKNOWN]'
+        return "[UNKNOWN]"
 
     __repr__ = __str__
 
@@ -24,25 +23,26 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
     # argument of Node or Type type.
     if this:
         from spinta import commands
+
         schema = {
             **commands.get_error_context(this),
             **schema,
         }
-        kwargs = {**kwargs, 'this': this}
+        kwargs = {**kwargs, "this": this}
 
     added = set()
     context = {}
     if this:
-        context['component'] = type(this).__module__ + '.' + type(this).__name__
+        context["component"] = type(this).__module__ + "." + type(this).__name__
     for k, path in schema.items():
         path = path or k
-        name, *names = path.split('.')
+        name, *names = path.split(".")
         if name not in kwargs:
             continue
         added.add(name)
         value = kwargs
         for name in [name] + names:
-            if name.endswith('()'):
+            if name.endswith("()"):
                 name = name[:-2]
                 func = True
             else:
@@ -67,17 +67,17 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
 
     # Return sorted context.
     names = [
-        'component',
-        'manifest',
-        'schema',
-        'backend',
-        'dataset',
-        'resource',
-        'model',
-        'entity',
-        'property',
-        'attribute',
-        'type',
+        "component",
+        "manifest",
+        "schema",
+        "backend",
+        "dataset",
+        "resource",
+        "model",
+        "entity",
+        "property",
+        "attribute",
+        "type",
     ]
     names += [x for x in schema if x not in names]
     names += [x for x in kwargs if x not in names]
@@ -108,18 +108,16 @@ class BaseError(Exception):
             this = None
             log.error("Only one positional argument is allowed, but %d was given.", len(args), stack_info=True)
 
-        self.type = this.type if this and hasattr(this, 'type') else 'system'
+        self.type = this.type if this and hasattr(this, "type") else "system"
 
         self.context = resolve_context_vars(self.context, this, kwargs)
 
     def __str__(self):
         return (
-            self.message + '\n' +
-            ('  Context:\n' if self.context else '') +
-            ''.join(
-                f'    {k}: {v}\n'
-                for k, v in self.context.items()
-            )
+            self.message
+            + "\n"
+            + ("  Context:\n" if self.context else "")
+            + "".join(f"    {k}: {v}\n" for k, v in self.context.items())
         )
 
     @property
@@ -133,11 +131,11 @@ class BaseError(Exception):
 
 def error_response(error: BaseError):
     return {
-        'type': error.type,
-        'code': type(error).__name__,
-        'template': error.template,
-        'context': error.context,
-        'message': error.message,
+        "type": error.type,
+        "code": type(error).__name__,
+        "template": error.template,
+        "context": error.context,
+        "message": error.message,
     }
 
 
@@ -145,7 +143,7 @@ def _render_template(error: BaseError):
     if error.type in error.context:
         context = {
             **error.context,
-            'this': f'<{error.type} name={error.context[error.type]!r}>',
+            "this": f"<{error.type} name={error.context[error.type]!r}>",
         }
     else:
         context = error.context
@@ -153,7 +151,7 @@ def _render_template(error: BaseError):
         return error.template.format(**context)
     except KeyError:
         context = context.copy()
-        template_vars_re = re.compile(r'\{(\w+)')
+        template_vars_re = re.compile(r"\{(\w+)")
         for match in template_vars_re.finditer(error.template):
             name = match.group(1)
             if name not in context:
@@ -162,17 +160,18 @@ def _render_template(error: BaseError):
 
 
 class MultipleErrors(Exception):
-
     def __init__(self, errors: Iterable[BaseError]):
         self.errors = list(errors)
         super().__init__(
-            'Multiple errors:\n' + ''.join([
-                f' - {error.message}\n' +
-                '     Context:\n' + ''.join(
-                    f'       {k}: {v}\n' for k, v in error.context.items()
-                )
-                for error in self.errors
-            ])
+            "Multiple errors:\n"
+            + "".join(
+                [
+                    f" - {error.message}\n"
+                    + "     Context:\n"
+                    + "".join(f"       {k}: {v}\n" for k, v in error.context.items())
+                    for error in self.errors
+                ]
+            )
         )
 
 
@@ -188,8 +187,8 @@ class ConflictingValue(UserError):
     status_code = 409
     template = "Conflicting value."
     context = {
-        'given': None,
-        'expected': None,
+        "given": None,
+        "expected": None,
     }
 
 
@@ -263,21 +262,19 @@ class UndefinedEnum(UserError):
 
 
 class EmptyStringSearch(UserError):
-    template = \
-        "Empty string can't be used with `{op}`. " \
-        "Use `exact` parameter."
+    template = "Empty string can't be used with `{op}`. Use `exact` parameter."
 
 
 class InvalidToken(UserError):
     status_code = 401
     template = "Invalid token"
-    headers = {'WWW-Authenticate': 'Bearer error="invalid_token"'}
+    headers = {"WWW-Authenticate": 'Bearer error="invalid_token"'}
 
 
 class BasicAuthRequired(UserError):
     status_code = 401
     template = "Unauthorized"
-    headers = {'WWW-Authenticate': 'Basic realm="Authentication required."'}
+    headers = {"WWW-Authenticate": 'Basic realm="Authentication required."'}
 
 
 class AuthorizedClientsOnly(UserError):
@@ -331,7 +328,7 @@ class InvalidManifestFile(BaseError):
 
 
 class CoordinatesOutOfRange(UserError):
-    template = 'Given coordinates: {given!r} ar not within the `EPSG: {srid!r}` available bounds: {bounds} (west, south, east, north).'
+    template = "Given coordinates: {given!r} ar not within the `EPSG: {srid!r}` available bounds: {bounds} (west, south, east, north)."
 
 
 class ManifestFileDoesNotExist(BaseError):
@@ -340,18 +337,16 @@ class ManifestFileDoesNotExist(BaseError):
 
 class UnknownProjectOwner(BaseError):
     template = "Unknown owner {owner}."
-    context = {
-        'owner': 'this.owner'
-    }
+    context = {"owner": "this.owner"}
 
 
 class UnknownProjectDataset(BaseError):
     template = "Unknown project dataset."
     context = {
-        'manifest': 'project.parent.name',
-        'dataset': 'project.dataset',
-        'project': 'project.name',
-        'filename': 'project.path',
+        "manifest": "project.parent.name",
+        "dataset": "project.dataset",
+        "project": "project.name",
+        "filename": "project.path",
     }
 
 
@@ -378,14 +373,14 @@ class MultipleModelsInDependencies(BaseError):
 class InvalidSource(BaseError):
     template = "Invalid source. {error}"
     context = {
-        'source': 'source.type',
+        "source": "source.type",
     }
 
 
 class UnknownParameter(BaseError):
     template = "Unknown parameter {parameter!r}."
     context = {
-        'parameter': 'param',
+        "parameter": "param",
     }
 
 
@@ -398,7 +393,7 @@ class InvalidRefValue(UserError):
 
 
 class InvalidLevel(UserError):
-    template = "Invalid level value \"{level}\"."
+    template = 'Invalid level value "{level}".'
 
 
 class InvalidParameterValue(BaseError):
@@ -406,15 +401,13 @@ class InvalidParameterValue(BaseError):
 
 
 class TooManyParameters(BaseError):
-    template = (
-        "Too many parameters, you can only give up to {max_params} parameters."
-    )
+    template = "Too many parameters, you can only give up to {max_params} parameters."
 
 
 class FieldNotInResource(UserError):
     template = "Unknown property {property!r}."
     context = {
-        'property': 'prop',
+        "property": "prop",
     }
 
 
@@ -438,7 +431,7 @@ class UnknownRequestParameter(UserError):
 class OutOfScope(UserError):
     template = "{this} is out of given scope {scope!r}."
     context = {
-        'scope': 'scope.name',
+        "scope": "scope.name",
     }
 
 
@@ -446,7 +439,7 @@ class UnhandledException(BaseError):
     status_code = 500
     template = "Unhandled exception {exception}: {error}."
     context = {
-        'exception': 'error.__class__.__name__',
+        "exception": "error.__class__.__name__",
     }
 
 
@@ -519,10 +512,7 @@ class NoBackendConfigured(UserError):
 
 
 class UnexpectedFormulaResult(UserError):
-    template = (
-        "Unexpected formula {formula} result. "
-        "Expected {expected}, instead got a {received}."
-    )
+    template = "Unexpected formula {formula} result. Expected {expected}, instead got a {received}."
 
 
 class FormulaError(UserError):
@@ -538,24 +528,15 @@ class RequiredConfigParam(UserError):
 
 
 class IncompatibleForeignProperties(UserError):
-    template = (
-        "Can't join {this} and {right}, these two properties does not have "
-        "direct connection with one another."
-    )
+    template = "Can't join {this} and {right}, these two properties does not have direct connection with one another."
 
 
 class KeymapNotSet(UserError):
-    template = (
-        "Keymap is required for {this}, but is not configured. Please make "
-        "sure a key map is configured."
-    )
+    template = "Keymap is required for {this}, but is not configured. Please make sure a key map is configured."
 
 
 class NoRefPropertyForDenormProperty(UserError):
-    template = (
-        "Property {ref!r} with type 'ref' or 'object' must be defined "
-        "before defining property {prop!r}."
-    )
+    template = "Property {ref!r} with type 'ref' or 'object' must be defined before defining property {prop!r}."
 
 
 class ReferencedPropertyNotFound(PropertyNotFound):
@@ -575,17 +556,11 @@ class RemoteClientCredentialsNotFound(RemoteClientError):
 
 
 class RemoteClientCredentialsNotGiven(RemoteClientError):
-    template = (
-        "Make sure client name and secret is given in {credentials} file, "
-        "[{section}] section."
-    )
+    template = "Make sure client name and secret is given in {credentials} file, [{section}] section."
 
 
 class RemoteClientScopesNotGiven(RemoteClientError):
-    template = (
-        "Make sure at least one scope is given for [{section}] in "
-        "{credentials} file."
-    )
+    template = "Make sure at least one scope is given for [{section}] in {credentials} file."
 
 
 class DupicateProperty(UserError):
@@ -625,15 +600,6 @@ class InsufficientPermission(UserError):
     template = "You need to have {scope!r} in order to access this API endpoint."
 
 
-class InsufficientPermissionForUpdate(UserError):
-    status_code = 403
-    template = "You do not have a permission to update '{field}' field."
-
-
-class UnknownPropertyInRequest(UserError):
-    template = "Property '{property}' is not part of allowed properties: '{properties}'"
-
-
 class ClientWithNameAlreadyExists(UserError):
     template = "Client with name '{client_name}' already exists."
 
@@ -642,8 +608,8 @@ class ClientAlreadyExists(UserError):
     template = "Client '{client_id}' already exists."
 
 
-class EmptyPassword(UserError):
-    template = "Client password cannot be empty."
+class ClientValidationError(UserError):
+    template = "Errors occurred while validating client request."
 
 
 class UnknownRequestQuery(UserError):
@@ -699,15 +665,15 @@ class InvalidPageKey(UserError):
 
 
 class InfiniteLoopWithPagination(UserError):
-    template = '''
+    template = """
     Pagination values has cause infinite loop while fetching data.
     Page of size: {page_size}, first value is the same as previous page's last value, which is:
     {page_values}
-    '''
+    """
 
 
 class TooShortPageSize(UserError):
-    template = '''
+    template = """
     Page of size: {page_size} is too small, some duplicate values do not fit in a single page.
     Which can cause either loss of data, or cause infinite loop while paginating.
     Affected row: {page_values}
@@ -717,19 +683,18 @@ class TooShortPageSize(UserError):
     
     When migrating from older versions to newer versions of spinta you might get this error if push state
     database is out of sync, add '--sync' tag to 'push' command to synchronize it.
-    '''
+    """
 
 
 class TooShortPageSizeKeyRepetition(TooShortPageSize):
-
     def __init__(self, *args, **kwargs):
         super(TooShortPageSize, self).__init__(*args, **kwargs)
-        self.template = f'''
+        self.template = f"""
         {self.template}
         Error has been triggered because:
         New page's key has been encountered multiple times in the previous page and it is the same for the future value.
         This will cause the same data to be fetched multiple times.
-        '''
+        """
 
 
 class DuplicateRowWhilePaginating(BaseError):
@@ -745,10 +710,10 @@ class BackendNotGiven(UserError):
 
 
 class GivenValueCountMissmatch(BaseError):
-    template = '''
+    template = """
     While assigning ref values {given_count} were given, but {expected_count} were expected.
     This can happen, when there are no primary keys set on ref's model, invalid ref key assignment or the keys can be nullable.
-    '''
+    """
 
 
 class PartialTypeNotFound(BaseError):
@@ -816,7 +781,7 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 
 class InvalidName(UserError):
-    template = 'Invalid {name!r} {type} code name.'
+    template = "Invalid {name!r} {type} code name."
 
 
 class NoneValueComparison(UserError):
@@ -824,15 +789,15 @@ class NoneValueComparison(UserError):
 
 
 class InvalidDenormProperty(UserError):
-    template = 'Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}.'
+    template = "Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}."
 
 
 class RefPropTypeMissmatch(UserError):
-    template = 'Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}.'
+    template = "Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}."
 
 
 class InheritPropertyValueMissmatch(UserError):
-    template = 'Expected {expected!r} value, but got {given!r}.'
+    template = "Expected {expected!r} value, but got {given!r}."
 
 
 class OutOfMemoryMigrate(UserError):
@@ -891,45 +856,45 @@ class InvalidParamSource(UserError):
 
 
 class MigrateScalarToRefTooManyKeys(UserError):
-    template = '''
+    template = """
     Migration between scalar types and Ref type is only supported when targeted Ref's model contains
     only 1 primary key (except Ref level 3 to scalar), but were given: {primary_keys}
-    '''
+    """
 
 
 class MigrateScalarToRefTypeMissmatch(UserError):
-    template = '''
+    template = """
     Migration between scalar types and Ref requires, that mapped columns match their types.
     {details}
-    '''
+    """
 
 
 class KeyMapGivenKeyMissmatch(UserError):
-    template = '''
+    template = """
     The encoding for the {name!r} keymap already includes the key {found_key!r}, associated with the value {value!r}. 
     You attempted to assign the new primary key {given_key!r}, which conflicts with the existing key. 
     Make sure that all keymap values are unique.
-    '''
+    """
 
 
 class MultiplePrimaryKeyCandidatesFound(UserError):
-    template = '''
+    template = """
     While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
     found multiple possible matches. This can occur when non-primary keys are not unique and there are duplicate values.
-    '''
+    """
 
 
 class NoPrimaryKeyCandidatesFound(UserError):
-    template = '''
+    template = """
     While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
     no possible matches were found. This can occur when trying to assign values that do not exist in foreign table.
-    '''
+    """
 
 
 class ClientsMigrationRequired(UpgradeError):
-    template = '''
+    template = """
     Clients folder structure is out of date. Please migrate it using:
-    'spinta upgrade', or 'spinta upgrade -r clients' commands.
+    'spinta upgrade', or 'spinta upgrade clients' commands.
     
     Old structure used to be:
     ../clients/???.yml
@@ -939,58 +904,66 @@ class ClientsMigrationRequired(UpgradeError):
     ../clients/id/??/??/???.yml
     
     Where `keymap.yml` stores `client_name` and `client_id` mapping.
-    '''
+    """
 
 
 class ClientsKeymapNotFound(UpgradeError):
-    template = '''
+    template = """
     Cannot find `../clients/helpers/keymap.yml` file.
     
     Make sure it exists.
-    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
-    '''
+    Consider running `spinta upgrade` or `spinta upgrade clients` commands 
+    """
 
 
 class ClientsIdFolderNotFound(UpgradeError):
-    template = '''
+    template = """
     Cannot find `../clients/id` folder.
 
     Make sure it exists.
-    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
-    '''
+    Consider running `spinta upgrade` or `spinta upgrade clients` commands 
+    """
 
 
 class InvalidClientsKeymapStructure(UpgradeError):
-    template = '''
+    template = """
     Could not load Clients `keymap.yml`.
     Structure is invalid.
 
-    Fix it or consider running `spinta upgrade -f -r clients` command.
-    '''
+    Fix it or consider running `spinta upgrade clients -f` command.
+    """
 
 
-class UpgradeScriptNotFound(UserError):
-    template = '''
-    Upgrade script {script!r} not found.
+class ScriptNotFound(UserError):
+    template = """
+    {script_type!r} script {script!r} not found.
     Available scripts: {available_scripts}.
-    '''
+    """
 
 
 class InvalidScopes(UserError):
     template = "Request contains invalid, unknown or malformed scopes: {scopes}."
 
 
+class InvalidClientBackend(UserError):
+    template = """Backend "{backend_name}" does not exist in configured client's backends."""
+
+
+class InvalidClientBackendCredentials(UserError):
+    template = """Credential "{key}" does not exist in client's backend "{backend_name}"."""
+
+
 class DirectRefValueUnassignment(UserError):
-    template = '''
+    template = """
     Cannot directly set ref's _id value to None.
     You have to set ref to None, which will also remove all additional stored values related to that ref (child properties).
-    '''
+    """
 
 
 class BackendUnavailable(BaseError):
-    template = '''
+    template = """
     Unable to access {name!r} backend, please try again later.
-    '''
+    """
 
 
 class InvalidClientFileFormat(UserError):
@@ -1002,98 +975,98 @@ class MissingRefModel(UserError):
 
 
 class UnableToMapIntermediateTable(UserError):
-    template = 'Unable to map intermediate table ({model}) to `Array` property.'
+    template = "Unable to map intermediate table ({model}) to `Array` property."
 
 
 class InvalidIntermediateTableMappingRefCount(UserError):
-    template = 'Intermediate table can only be mapped with 2 properties (left and right), but were given {ref_count}.'
+    template = "Intermediate table can only be mapped with 2 properties (left and right), but were given {ref_count}."
 
 
 class SameModelIntermediateTableMapping(UserError):
-    template = '''
+    template = """
     Intermediate table is referencing same model, need to explicitly give the mapping order.
     Set it as intermediate table's model primary key, or by explicitly setting reference properties.
     First is left property (source), second is right property (targeted value).
-    '''
+    """
 
 
 class IntermediateTableMappingInvalidType(UserError):
-    template = '''
+    template = """
     Intermediate table requires `Ref` type columns for it's mapping.
     {property_name!r} property is of type {property_type!r}.
-    '''
+    """
 
 
 class IntermediateTableValueTypeMissmatch(UserError):
-    template = '''
+    template = """
     Array item type needs to match intermediate table's right property type.
     Given array type: {array_type!r}, intermediate table's type: {intermediate_type!r}.
-    '''
+    """
 
 
 class IntermediateTableRefModelMissmatch(UserError):
-    template = '''
+    template = """
     Intermediate table's left property `Ref` model needs to be the same as array's model.
     Array's model: {array_model!r}, intermediate table's left property `Ref` model: {left_model!r}.
-    '''
+    """
 
 
 class IntermediateTableRefPropertyModelMissmatch(UserError):
-    template = '''
+    template = """
     Array's `Ref` property model does not match intermediate table's right `Ref` property model.
     Array's `Ref` model: {array_ref_model!r}, intermediate table's right property `Ref` model: {right_model!r}.
-    '''
+    """
 
 
 class IntermediateTableMissingMappingProperty(UserError):
-    template = '''
+    template = """
     Intermediate table's {side} property cannot be None.
-    '''
+    """
 
 
 class UnableToFindPrimaryKeysNoUniqueConstraints(UserError):
-    template = '''
+    template = """
     Unable to find primary keys for table: {table_name!r}.
     It does not contain any `UniqueConstraints` (primary keys are part of `UniqueConstraint`).
-    '''
+    """
 
 
 class UnableToFindPrimaryKeysMultipleUniqueConstraints(UserError):
-    template = '''
+    template = """
     Unable to find primary keys for table: {table_name!r}.
     Multiple `UniqueConstrains` were found (that do not match new model's primary keys):
     {unique_constraints}
-    '''
+    """
 
 
 class ParentNodeNotFound(UserError):
-    template = '''
+    template = """
     Nested properties are defined in '{model_name}' model, without a property that references the parent model.
     Nested properties: '{property_names}'.
     Missing property name: '{missing_property_name}'.
-    '''
+    """
 
 
 class PropertyNotPartOfRefProps(UserError):
-    template = '''
+    template = """
     {prop!r} is not part of refprops ({refprops})
-    '''
+    """
 
 
 class KeymapValueNotFound(UserError):
-    template = '''
+    template = """
     KeyMap ({keymap!r}) was unable to get primary key for {model_name!r} model using given values ({values!r}).
     To fix this run `keymap sync` command so that old keys are updated and new ones are added.
     
     This error can occur when trying to get primary keys for internal model, while system is running in external mode and
     keymap does not contain these specific values.
-    '''
+    """
 
 
 class UnableToCastColumnTypes(UserError):
-    template = '''
+    template = """
     Unable to cast {column!r} column of type {old_type!r} to type {new_type!r}.
-    '''
+    """
 
 
 class WsdlClientError(Exception):
@@ -1109,31 +1082,58 @@ class SoapRequestBodyParseError(Exception):
 
 
 class RequiredField(UserError):
-    template = '''
+    template = """
     {action!r} requires {field!r} to be given.
-    '''
+    """
 
 
 class RedirectFeatureMissing(UpgradeError):
-    template = '''
+    template = """
     Missing redirect implementation. Consider running:
-    `spinta upgrade -r redirect` command.
-    '''
+    `spinta upgrade redirect` command.
+    """
 
 
 class KeymapMigrationRequired(UpgradeError):
-    template = '''
+    template = """
     Keymap ({keymap!r}) is missing {migration!r} migration.
     Run this command to execute migrations:
     `spinta upgrade`.
-    '''
+    """
 
 
 class KeymapDuplicateMapping(UserError):
-    template = '''
+    template = """
     Keymap's ({keymap!r}) {key!r} key contains {key_count} duplicate value combinations.
     This affects {affected_count} keymap entries.
     
-    Make sure that synchronizing data is valid and is up to date. If it is try to rerun keymap synchronization. In case
-    it does not help you might need to fully reset this key's keymap data and rerun synchronization.
-    '''
+    Make sure that synchronizing data is valid and is up to date. If it is, try rerunning keymap synchronization. If the
+    issue persists, you may need to reset this key's keymap data and rerun synchronization again.
+    If nothing helps contact data provider.
+    
+    To suppress this error, you can set `duplicate_warn_only: true` parameter in keymap configuration.
+    Note: Disabling this error is strongly discouraged. This suppression option may be removed in future versions. Only
+    use this feature if you are aware of possible issues."
+    """
+
+
+class UnexpectedAPIResponse(BaseError):
+    template = """
+        Unexpected status code received while calling the api for operation `{operation}`. 
+        Expected '{expected_status_code}', Got: '{response_status_code}.
+        Due to: {response_data}
+    """
+
+
+class UnexpectedAPIResponseData(BaseError):
+    template = """
+        Unexpected response data received while calling the api for operation `{operation}`.
+        {context}.
+    """
+
+
+class InvalidCredentialsConfigurationException(UserError):
+    template = """
+        Credentials.cfg is missing required configuration credentials.
+        Missing: {missing_credentials}.
+    """

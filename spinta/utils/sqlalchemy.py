@@ -11,10 +11,11 @@ from sqlalchemy.dialects.sqlite import base
 # Where we get dbapi from
 # In the future, if there are errors related with sqlean and pysqlite, we can fully create our own dialect
 
+
 # You use `sqlite+spinta:///...` uri to access it explicitly
 # Also because we set default to spinta you can also use `sqlite:///...`
 class SQLiteDialect_spinta(SQLiteDialect_pysqlite):
-    driver = 'spinta'
+    driver = "spinta"
     supports_statement_cache = True
 
     def __init__(self, **kwargs):
@@ -29,11 +30,7 @@ class SQLiteDialect_spinta(SQLiteDialect_pysqlite):
         return sqlite
 
 
-registry.register(
-    "sqlite.spinta",
-    __name__,
-    "SQLiteDialect_spinta"
-)
+registry.register("sqlite.spinta", __name__, "SQLiteDialect_spinta")
 
 # This changes default sqlite dialect from pysqlite to spinta
 base.dialect = SQLiteDialect_spinta
@@ -47,10 +44,5 @@ class Convention(enum.Enum):
     PK = "pk"
 
 
-def get_metadata_naming_convention(
-        naming_convention: dict[Convention, Any]
-) -> immutabledict:
-    return immutabledict({
-        key.value: value
-        for key, value in naming_convention.items()
-    })
+def get_metadata_naming_convention(naming_convention: dict[Convention, Any]) -> immutabledict:
+    return immutabledict({key.value: value for key, value in naming_convention.items()})

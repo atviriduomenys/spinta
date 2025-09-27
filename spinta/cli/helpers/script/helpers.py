@@ -4,40 +4,12 @@ from collections import defaultdict, deque
 
 from typer import echo
 
-from spinta.cli.helpers.upgrade.components import UpgradeComponent, ScriptStatus
-from spinta.components import Context
-from spinta.components import Store
+from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.upgrade.components import UpgradeScript
+from spinta.components import Context, Store
 
 
-def script_check_status_message(
-    script_name: str,
-    status: ScriptStatus
-) -> str:
-    return f"Script '{script_name}' upgrade check. Status: {status.value}"
-
-
-def script_destructive_warning(
-    script_name: str,
-    message: str
-) -> str:
-    return f"WARNING (DESTRUCTIVE MODE). Script '{script_name}' will {message}."
-
-
-def ensure_store_is_loaded(
-    context: Context,
-    verbose: bool = False
-) -> Store:
-    from spinta.cli.helpers.store import prepare_manifest
-
-    if store := context.get('store'):
-        if store.manifest:
-            return store
-
-    store = prepare_manifest(context, verbose=verbose, full_load=True)
-    return store
-
-
-def sort_scripts_by_required(scripts: dict[str, UpgradeComponent]) -> dict:
+def sort_scripts_by_required(scripts: dict[str, UpgradeScript]) -> dict:
     graph = defaultdict(list)
     requirement_count = defaultdict(int)
 
@@ -54,7 +26,6 @@ def sort_scripts_by_required(scripts: dict[str, UpgradeComponent]) -> dict:
 
         for req in required:
             if req not in data:
-                echo(f'Warning: "{req}" requirement for "{node}" script was not found', err=True)
                 continue
             graph[req].append(node)
             requirement_count[node] += 1
@@ -73,8 +44,27 @@ def sort_scripts_by_required(scripts: dict[str, UpgradeComponent]) -> dict:
 
     if len(result) != len(data):
         unresolved = set(data) - set(result)
-        echo(f'Warning: Dependency cycle detected or unresolved dependencies in: {unresolved}', err=True)
+        echo(f"Warning: Dependency cycle detected or unresolved dependencies in: {unresolved}", err=True)
         # Extend results, potentially might cause errors, because of cycles
         result.extend(unresolved)
 
     return {res: data[res] for res in result}
+
+
+def script_check_status_message(script_name: str, status: ScriptStatus) -> str:
+    return f"Script {script_name!r} check. Status: {status.value}"
+
+
+def script_destructive_warning(script_name: str, message: str) -> str:
+    return f"WARNING (DESTRUCTIVE MODE). Script {script_name!r} will {message}."
+
+
+def ensure_store_is_loaded(context: Context, verbose: bool = False) -> Store:
+    from spinta.cli.helpers.store import prepare_manifest
+
+    if store := context.get("store"):
+        if store.manifest:
+            return store
+
+    store = prepare_manifest(context, verbose=verbose, full_load=True)
+    return store

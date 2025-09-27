@@ -13,13 +13,13 @@ from spinta.backends.helpers import load_query_builder_class, load_result_builde
 from spinta.components import Context, Config
 from spinta.utils.schema import NA
 
-yaml = YAML(typ='safe')
+yaml = YAML(typ="safe")
 
 
 def create_manifest_files(tmp_path, manifest):
     for file, data in manifest.items():
         if data is None:
-            data = Path('tests/manifest') / file
+            data = Path("tests/manifest") / file
             data = next(yaml.load_all(data.read_text()))
         path = tmp_path / file
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -35,17 +35,17 @@ def update_manifest_files(tmp_path, manifest):
         versions = list(yaml.load_all(path.read_text()))
         patch = jsonpatch.JsonPatch(patch)
         versions[0] = patch.apply(versions[0])
-        with path.open('w') as f:
+        with path.open("w") as f:
             yaml.dump_all(versions, f)
 
 
 def read_manifest_files(tmp_path):
     path = tmp_path
-    yaml = YAML(typ='safe')
+    yaml = YAML(typ="safe")
     manifests = {}
-    for fp in path.glob('**/*.yml'):
+    for fp in path.glob("**/*.yml"):
         data = list(yaml.load_all(fp.read_text()))
-        manifest_file = str(fp)[len(str(tmp_path)) + 1:]
+        manifest_file = str(fp)[len(str(tmp_path)) + 1 :]
         manifests[manifest_file] = data
     return manifests
 
@@ -55,29 +55,29 @@ def readable_manifest_files(manifest):
     for filename, versions in manifest.items():
         manifest[filename] = [versions[0]]
         version = versions[0]
-        name = version['name']
+        name = version["name"]
 
         # Fill ids dict
         for i, version in enumerate(versions):
-            if 'id' in version:
-                ids[version['id']] = f'{name}:{i}'
+            if "id" in version:
+                ids[version["id"]] = f"{name}:{i}"
 
         # Read only last version.
         for i, version in enumerate(versions[-1:], len(versions) - 1):
-            del version['date']
-            del version['changes']
-            for action in version['migrate']:
-                action['upgrade'] = action['upgrade'].splitlines()
-                action['downgrade'] = action['downgrade'].splitlines()
+            del version["date"]
+            del version["changes"]
+            for action in version["migrate"]:
+                action["upgrade"] = action["upgrade"].splitlines()
+                action["downgrade"] = action["downgrade"].splitlines()
             manifest[filename] += [version]
 
     # Replaces UUIDs to human version numbers
     for filename, versions in manifest.items():
         for version in versions:
-            if 'id' in version:
-                version['id'] = ids.get(version['id'], '(UNKNOWN)')
-            if 'version' in version and isinstance(version['version'], str):
-                version['version'] = ids.get(version['version'], '(UNKNOWN)')
+            if "id" in version:
+                version["id"] = ids.get(version["id"], "(UNKNOWN)")
+            if "version" in version and isinstance(version["version"], str):
+                version["version"] = ids.get(version["version"], "(UNKNOWN)")
 
     return manifest
 
@@ -94,14 +94,14 @@ def error(resp, *keys, status: int = None):
 
 
 def _get_errors_data(resp, status: int = None):
-    if resp.headers['content-type'].startswith('text/html'):
+    if resp.headers["content-type"].startswith("text/html"):
         data = resp.context
     else:
         data = resp.json()
     status = status or resp.status_code
     assert resp.status_code == status, data
-    assert 'errors' in data, data
-    return data['errors']
+    assert "errors" in data, data
+    return data["errors"]
 
 
 def _extract_error(err: dict, keys: Iterable[str]):
@@ -109,18 +109,18 @@ def _extract_error(err: dict, keys: Iterable[str]):
     if keys:
         for k in keys:
             if isinstance(k, list):
-                ctx = err.get('context', {})
-                res['context'] = {k: ctx.get(k, NA) for k in k}
+                ctx = err.get("context", {})
+                res["context"] = {k: ctx.get(k, NA) for k in k}
             else:
                 res[k] = err.get(k, NA)
     else:
-        return err.get('code', NA)
+        return err.get("code", NA)
     return res
 
 
 def get_error_codes(response):
-    assert 'errors' in response, response
-    return [err['code'] for err in response['errors']]
+    assert "errors" in response, response
+    return [err["code"] for err in response["errors"]]
 
 
 def get_error_context(response, error_code, ctx_keys: List[str] = None):
@@ -138,9 +138,9 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
         assert False
 
 
-def create_empty_backend(context: Context, backend_type: str, name: str = '') -> Backend:
-    config: Config = context.get('config')
-    Backend_ = config.components['backends'][backend_type]
+def create_empty_backend(context: Context, backend_type: str, name: str = "") -> Backend:
+    config: Config = context.get("config")
+    Backend_ = config.components["backends"][backend_type]
     backend = Backend_()
     backend.name = name
     load_query_builder_class(config, backend)
@@ -149,8 +149,7 @@ def create_empty_backend(context: Context, backend_type: str, name: str = '') ->
 
 
 class RowIds:
-
-    def __init__(self, ids, id_key='_id', search_resp_key='_data'):
+    def __init__(self, ids, id_key="_id", search_resp_key="_data"):
         self.id_key = id_key
         self.search_resp_key = search_resp_key
         self.ids = {k: v for v, k in enumerate(self._cast(ids))}

@@ -1,5 +1,4 @@
 import collections
-import re
 import uuid
 from typing import Any
 from typing import Dict
@@ -30,11 +29,10 @@ from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.types.datatype import Ref, Array
-
-namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
+from spinta.utils.naming import is_valid_namespace_name
 
 RESERVED_NAMES = {
-    '_schema',
+    "_schema",
 }
 
 
@@ -51,22 +49,21 @@ def load_namespace_from_name(
     # Drop last element from path which is usually a model name.
     drop: bool = True,
 ) -> Namespace:
-
     ns: Optional[Namespace] = None
     parts: List[str] = []
-    parts_ = [p for p in path.split('/') if p]
+    parts_ = [p for p in path.split("/") if p]
     if drop:
         parts_ = parts_[:-1]
-    for part in [''] + parts_:
+    for part in [""] + parts_:
         parts.append(part)
-        name = '/'.join(parts[1:])
+        name = "/".join(parts[1:])
         if not commands.has_namespace(context, manifest, name, loaded=True):
             ns = Namespace()
             data = {
-                'type': 'ns',
-                'name': name,
-                'title': '',
-                'description': '',
+                "type": "ns",
+                "name": name,
+                "title": "",
+                "description": "",
             }
             commands.load(context, ns, data, manifest)
             ns.generated = True
@@ -99,14 +96,14 @@ def load(
 
 @commands.link.register(Context, Namespace)
 def link(context: Context, ns: Namespace):
-    split = ns.name.split('/')
+    split = ns.name.split("/")
     if len(split) > 1:
-        parent_ns = commands.get_namespace(context, ns.manifest, '/'.join(split[:-1]))
+        parent_ns = commands.get_namespace(context, ns.manifest, "/".join(split[:-1]))
         if parent_ns:
             ns.parent = parent_ns
-    elif ns.name != '':
-        if commands.has_namespace(context, ns.manifest, ''):
-            ns.parent = commands.get_namespace(context, ns.manifest, '')
+    elif ns.name != "":
+        if commands.has_namespace(context, ns.manifest, ""):
+            ns.parent = commands.get_namespace(context, ns.manifest, "")
     else:
         ns.parent = ns.manifest
 
@@ -116,13 +113,13 @@ def link(context: Context, ns: Namespace):
 
 @commands.check.register(Context, Namespace)
 def check(context: Context, ns: Namespace):
-    config: Config = context.get('config')
+    config: Config = context.get("config")
 
     if config.check_names:
         name = ns.name
         if name and name not in RESERVED_NAMES:
-            if namespace_is_lowercase.match(name) is None:
-                raise InvalidName(ns, name=name, type='namespace')
+            if not is_valid_namespace_name(name):
+                raise InvalidName(ns, name=name, type="namespace")
 
 
 @commands.authorize.register(Context, Action, Namespace)
@@ -132,21 +129,15 @@ def authorize(context: Context, action: Action, ns: Namespace):
 
 @commands.getall.register(Context, Namespace, Request)
 async def getall(
-    context: Context,
-    ns: Namespace,
-    request: Request,
-    *,
-    action: Action,
-    params: UrlParams,
-    **kwargs
+    context: Context, ns: Namespace, request: Request, *, action: Action, params: UrlParams, **kwargs
 ) -> Response:
-    config: Config = context.get('config')
+    config: Config = context.get("config")
     if config.root and ns.is_root():
         ns = commands.get_namespace(context, ns.manifest, config.root)
 
     commands.authorize(context, action, ns)
 
-    accesslog = context.get('accesslog')
+    accesslog = context.get("accesslog")
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
         #      is needed for loging.
@@ -165,7 +156,7 @@ def getall(
     action: Optional[Action] = None,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ):
     return _query_data(context, ns, action, dataset_, resource, **kwargs)
 
@@ -203,36 +194,22 @@ def _model_matches_params(
     resource: Optional[str] = None,
     internal: bool = False,
 ):
-
-    if not internal and model.name.startswith('_'):
+    if not internal and model.name.startswith("_"):
         return False
 
     if not authorized(context, model, action):
         return False
 
-    if (
-        dataset_ is None and
-        resource is None
-    ):
+    if dataset_ is None and resource is None:
         return True
 
     if model.external is None:
         return False
 
-    if (
-        dataset_ is not None and (
-            model.external.dataset is None or
-            model.external.dataset.name != dataset_
-        )
-    ):
+    if dataset_ is not None and (model.external.dataset is None or model.external.dataset.name != dataset_):
         return False
 
-    if (
-        resource is not None and (
-            model.external.resource is None or
-            model.external.resource.name != resource
-        )
-    ):
+    if resource is not None and (model.external.resource is None or model.external.resource.name != resource):
         return False
 
     return True
@@ -280,7 +257,7 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
     graph = collections.defaultdict(set)
     for name, model in models.items():
         if model.base is None:
-            graph[''].add(name)
+            graph[""].add(name)
         if model.base:
             base_model = model.base
             while base_model:
@@ -294,7 +271,7 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
             if ref in models:
                 graph[ref].add(name)
     graph = toposort(graph)
-    seen = {''}
+    seen = {""}
     for group in graph:
         for name in sorted(group):
             if name in seen:
@@ -307,13 +284,13 @@ def sort_models_by_base(models: Iterable[Model]) -> Iterator[Model]:
     models = {model.model_type(): model for model in models}
     graph = collections.defaultdict(set)
     for name, model in models.items():
-        graph[''].add(name)
+        graph[""].add(name)
         for base in iter_model_base(model):
             ref = base.model_type()
             if ref in models:
                 graph[ref].add(name)
     graph = toposort(graph)
-    seen = {''}
+    seen = {""}
     for group in graph:
         for name in sorted(group):
             if name in seen:
@@ -363,4 +340,3 @@ def iter_model_refs(model: Model) -> Iterator[Ref]:
             prop = prop.dtype.items
         if isinstance(prop.dtype, Ref):
             yield prop.dtype
-
