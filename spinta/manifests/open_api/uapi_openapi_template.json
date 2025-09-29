@@ -881,9 +881,6 @@
                       "$ref": "#/components/schemas/geometry"
                     },
                     {
-                      "$ref": "#/components/schemas/geometry"
-                    },
-                    {
                       "$ref": "#/components/schemas/money"
                     },
                     {
@@ -1187,7 +1184,7 @@
   "components": {
     "securitySchemes": {
       "UAPI_auth": {
-        "description": "Client Credentials flow\nProvides access based on client credentials. Used to manage data for your Organisation. Access is granted to perform actions based on scope selected and access levels assigned to the client credentials.\n\nAuthorization Code flow\nProvides general access to the data. Data access is managed by client rights and the authorization code. In addition to that, if there are active Smart Contracts associated with the client.\n\n**Scope elements**\nThe core structure of the scope is `uapi:/{group}/{form}/{org}/{catalog}/{dataset}/{model}/@{scope}/:{action}`\n\nThis is a full path that can be used to narrow down the scope of access. It is constructed from these elements:\n  - `uapi:/` - core API element. Grants all access if used on its own.\n  - `uapi:/:{action}` - provides `{action}` access on all elements.\n  - `uapi:/@{scope}` - provides all access on elements based on `{scope}` filter.\n  - `uapi:/@{scope}/:{action}` - provides `{action}` acces s on elements based on `{scope}` filter.\n  - `uapi:/{group}/{form}/{org}/{catalog}/{dataset}` - provides all access for a specific `{dataset}`\n\nList of available `{action}`:\n  - `getone` - ability to get one object data, based on provided identifier.\n  - `getall` - ability to get a list of all objects.\n  - `search` - ability to get data based on URL query.\n  - `changes` - ability to get change history of a single object or multiple objects.\n  - `insert` - ability to create new objects.\n  - `update` - ability to update existing objects.\n  - `delete` - galimybė trinti objektus, paliekant įrašą keitimų istorijoje.\n  - `wipe` - galimybė neatstatomai trinti objektus, nepaliekant įrašo keitimų istorijoje.\n\nCombined actions:\n  - `read` - combines getone, getall, search, changes.\n  - `write` - combines insert, update, delete.\n  - `upsert` - combines insert and update.\n  - `rw` - combines read and write.\n\nThe scope definition is dynamic and is dependent on the specific resource and UAPI implementation. Additional usage specific scope can be defined added to the flows below.\n\nThe mandatory part is the use of OAuth as the authentication and authorization method and the use of either Client Credentials or Autorization Code flows, or both.\n",
+        "description": "Client Credentials flow\nProvides access based on client credentials. Used to manage data for your Organisation. Access is granted to perform actions based on scope selected and access levels assigned to the client credentials.\n\nAuthorization Code flow\nProvides general access to the data. Data access is managed by client rights and the authorization code. In addition to that, if there are active Smart Contracts associated with the client.\n\n**Scope elements**\nThe core structure of the scope is `uapi:/{group}/{form}/{org}/{catalog}/{dataset}/{model}/@{scope}/:{action}`\n\nThis is a full path that can be used to narrow down the scope of access. It is constructed from these elements:\n  - `uapi:/` - core API element. Grants all access if used on its own.\n  - `uapi:/:{action}` - provides `{action}` access on all elements.\n  - `uapi:/@{scope}` - provides all access on elements based on `{scope}` filter.\n  - `uapi:/@{scope}/:{action}` - provides `{action}` acces s on elements based on `{scope}` filter.\n  - `uapi:/{group}/{form}/{org}/{catalog}/{dataset}` - provides all access for a specific `{dataset}`\n\nList of available `{action}`:\n  - `getone` - ability to get one object data, based on provided identifier.\n  - `getall` - ability to get a list of all objects.\n  - `search` - ability to get data based on URL query.\n  - `changes` - ability to get change history of a single object or multiple objects.\n  - `insert` - ability to create new objects.\n  - `update` - ability to update existing objects.\n  - `delete` - ability to delete objects while keeping a record in the change history.\n  - ability to irreversibly delete objects without keeping a record in the change history.\n\nCombined actions:\n  - `read` - combines getone, getall, search, changes.\n  - `write` - combines insert, update, delete.\n  - `upsert` - combines insert and update.\n  - `rw` - combines read and write.\n\nThe scope definition is dynamic and is dependent on the specific resource and UAPI implementation. Additional usage specific scope can be defined added to the flows below.\n\nThe mandatory part is the use of OAuth as the authentication and authorization method and the use of either Client Credentials or Autorization Code flows, or both.\n",
         "type": "oauth2",
         "flows": {
           "clientCredentials": {
@@ -1910,13 +1907,7 @@
                     "$ref": "#/components/schemas/geometry"
                   },
                   {
-                    "$ref": "#/components/schemas/geometry"
-                  },
-                  {
                     "$ref": "#/components/schemas/money"
-                  },
-                  {
-                    "$ref": "#/components/schemas/file"
                   },
                   {
                     "$ref": "#/components/schemas/file"
@@ -1989,13 +1980,7 @@
                     "$ref": "#/components/schemas/geometry"
                   },
                   {
-                    "$ref": "#/components/schemas/geometry"
-                  },
-                  {
                     "$ref": "#/components/schemas/money"
-                  },
-                  {
-                    "$ref": "#/components/schemas/file"
                   },
                   {
                     "$ref": "#/components/schemas/file"
@@ -2120,13 +2105,7 @@
                 "$ref": "#/components/schemas/geometry"
               },
               {
-                "$ref": "#/components/schemas/geometry"
-              },
-              {
                 "$ref": "#/components/schemas/money"
-              },
-              {
-                "$ref": "#/components/schemas/file"
               },
               {
                 "$ref": "#/components/schemas/file"
