@@ -2373,7 +2373,7 @@ def _property_to_tabular(
     access: Access = Access.private,
     order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
-    if prop.name.startswith("_"):
+    if prop.name.startswith("_") and not prop.explicitly_given:
         return
 
     if prop.access is not None and prop.access < access:
