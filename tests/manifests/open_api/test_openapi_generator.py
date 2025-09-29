@@ -1,58 +1,66 @@
-import io
+import pytest
 
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.tabular.helpers import striptable
 from spinta.manifests.open_api.helpers import create_openapi_manifest
 from spinta.manifests.open_api.openapi_generator import SUPPORTED_HTTP_METHODS
+from spinta.testing.context import create_test_context
+from spinta.testing.tabular import create_tabular_manifest
 
 
-def create_manifest_path_from_string(manifest: str) -> ManifestPath:
-    processed_manifest = striptable(manifest)
-    manifest_io = io.StringIO(processed_manifest)
-
-    return ManifestPath(type="tabular", name="test_manifest", path=None, file=manifest_io, prepare=None)
-
-
-MANIFEST = """
-    id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,datasets/demo/system_data,,,,,,,,,,,,,,,,,,,
-,,test,,,,memory,,,,,,,,,,,,,,
-,,,,Organization,,,,,,,,,2,,,,,,Reporting Organizations,
-,,,,,org_name,string,,,,,,,2,,,open,,,Organization name,
-,,,,,annual_revenue,number,,,,,,,3,,,open,,,Annual revenue amount,
-,,,,,coordinates,"geometry(point, 3346)",,,,,,,2,,,open,,,Organization coordinates,
-,,,,,established_date,date,D,,,,,,4,,,open,,,Organization establishment date,
-,,,,,,,,,,,,,,,,,,,,
-,,,,ProcessingUnit,,,,,,,,,2,,,,,,Processing unit data with treatment methods and capacities,
-,,,,,unit_name,string,,,,,,,3,,,open,,,Processing unit name,
-,,,,,unit_type,string,,,,,,,4,,,open,,,Processing unit type,
-,,,,,,enum,,,,'FAC',,,,,,,,,Processing Facility,
-,,,,,,,,,,'TRT',,,,,,,,,Treatment Plant,
-,,,,,,,,,,'OUT',,,,,,,,,Outlet Point,
-,,,,,,,,,,'OTH',,,,,,,,,Other Equipment,
-,,,,,efficiency_rate,number,,,,,,,3,,,open,,,Processing efficiency rate percentage,
-,,,,,capacity,integer,,,,,,,3,,,open,,,"Processing capacity, units per day",
-    """
+MANIFEST = striptable("""
+id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
+   | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
+   |   | test                         | memory                |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
+   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
+   |   |   |   | Organization         |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Reporting Organizations                                    |
+   |   |   |   |   | org_name         | string                |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization name                                          |
+   |   |   |   |   | annual_revenue   | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Annual revenue amount                                      |
+   |   |   |   |   | coordinates      | geometry(point, 3346) |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization coordinates                                   |
+   |   |   |   |   | established_date | date                  | D   |        |             |         |        |       | 4     |        |            | open   |     |     | Organization establishment date                            |
+   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
+   |   |   |   | ProcessingUnit       |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Processing unit data with treatment methods and capacities |
+   |   |   |   |   | unit_name        | string                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing unit name                                       |
+   |   |   |   |   | unit_type        | string                |     |        |             |         |        |       | 4     |        |            | open   |     |     | Processing unit type                                       |
+   |                                  | enum                  |     |        |             | 'FAC'   |        |       |       |        |            |        |     |     | Processing Facility                                        |
+   |                                  |                       |     |        |             | 'TRT'   |        |       |       |        |            |        |     |     | Treatment Plant                                            |
+   |                                  |                       |     |        |             | 'OUT'   |        |       |       |        |            |        |     |     | Outlet Point                                               |
+   |                                  |                       |     |        |             | 'OTH'   |        |       |       |        |            |        |     |     | Other Equipment                                            |
+   |   |   |   |   | efficiency_rate  | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing efficiency rate percentage                      |
+   |   |   |   |   | capacity         | integer               |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing capacity, units per day                         |
+""")
 
 
-def test_basic_structure():
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+@pytest.fixture
+def open_manifest_path(tmp_path, rc):
+    path = f"{tmp_path}/manifest.csv"
+    context = create_test_context(rc)
+    create_tabular_manifest(
+        context,
+        path,
+        MANIFEST,
+    )
+    file_handle = open(path, "r")
+    yield ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
+    file_handle.close()
+
+
+def test_basic_structure(open_manifest_path):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
     assert set(open_api_spec.keys()) == set(
         ["openapi", "info", "servers", "tags", "externalDocs", "paths", "components", "x-tagGroups"]
     )
 
 
-def test_components_schemas():
+def test_components_schemas(open_manifest_path):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_schemas = ["", "Collection", "Changes", "Change"]
     all_model_schemas = [f"{model}{schema}" for model in expected_models for schema in expected_schemas]
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
     assert set(all_model_schemas).issubset(set(open_api_spec["components"]["schemas"].keys()))
 
 
-def test_components_paths():
+def test_components_paths(open_manifest_path):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_path_types = ["", "/{id}", "/:changes/{cid}"]
 
@@ -60,10 +68,7 @@ def test_components_paths():
     all_model_paths = [
         f"/{dataset_name}/{model}{path_type}" for model in expected_models for path_type in expected_path_types
     ]
-
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
-
+    open_api_spec = create_openapi_manifest(open_manifest_path)
     actual_paths = set(open_api_spec["paths"].keys())
     expected_paths = set(all_model_paths)
 
@@ -73,7 +78,7 @@ def test_components_paths():
     assert "/health" in actual_paths
 
 
-def test_model_path_contents():
+def test_model_path_contents(open_manifest_path):
     dataset_name = "datasets/demo/system_data"
 
     model_properties = {
@@ -81,8 +86,7 @@ def test_model_path_contents():
         "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
     }
 
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
 
@@ -189,9 +193,8 @@ def _test_property_path_content(paths, dataset_name, model_name, property_name):
     )
 
 
-def test_only_head_and_get_operations():
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+def test_only_head_and_get_operations(open_manifest_path):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
     allowed_methods = [method.lower() for method in SUPPORTED_HTTP_METHODS]
@@ -210,7 +213,7 @@ def test_only_head_and_get_operations():
         )
 
 
-def test_components_paths_with_properties():
+def test_components_paths_with_properties(open_manifest_path):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_path_types = ["", "/{id}", "/:changes/{cid}"]
 
@@ -230,8 +233,7 @@ def test_components_paths_with_properties():
             property_path = f"/{dataset_name}/{model}/{{id}}/{property_name}"
             all_expected_paths.append(property_path)
 
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
 
     actual_paths = set(open_api_spec["paths"].keys())
     expected_paths = set(all_expected_paths)
@@ -240,14 +242,13 @@ def test_components_paths_with_properties():
     assert not missing_paths, f"Missing paths: {missing_paths}"
 
 
-def test_model_schema_content():
+def test_model_schema_content(open_manifest_path):
     model_properties = {
         "Organization": ["org_name", "annual_revenue", "coordinates", "established_date"],
         "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
     }
 
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
 
     schemas = open_api_spec["components"]["schemas"]
 
@@ -349,9 +350,8 @@ def _test_change_schema(schemas, model_name, expected_properties):
         assert prop_name in properties, f"Missing model property {prop_name} in {change_schema_name}"
 
 
-def test_organization_schema_details():
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+def test_organization_schema_details(open_manifest_path):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
 
     org_schema = schemas["Organization"]
@@ -373,9 +373,8 @@ def test_organization_schema_details():
     assert "established_date" in change_properties
 
 
-def test_processing_unit_schema_details():
-    manifest_path = create_manifest_path_from_string(MANIFEST)
-    open_api_spec = create_openapi_manifest(manifest_path)
+def test_processing_unit_schema_details(open_manifest_path):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
 
     pu_schema = schemas["ProcessingUnit"]
