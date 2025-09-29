@@ -45,14 +45,14 @@ def open_manifest_path(tmp_path, rc):
     file_handle.close()
 
 
-def test_basic_structure(open_manifest_path):
+def test_basic_structure(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
     assert set(open_api_spec.keys()) == set(
         ["openapi", "info", "servers", "tags", "externalDocs", "paths", "components", "x-tagGroups"]
     )
 
 
-def test_components_schemas(open_manifest_path):
+def test_components_schemas(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_schemas = ["", "Collection", "Changes", "Change"]
     all_model_schemas = [f"{model}{schema}" for model in expected_models for schema in expected_schemas]
@@ -60,7 +60,7 @@ def test_components_schemas(open_manifest_path):
     assert set(all_model_schemas).issubset(set(open_api_spec["components"]["schemas"].keys()))
 
 
-def test_components_paths(open_manifest_path):
+def test_components_paths(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_path_types = ["", "/{id}", "/:changes/{cid}"]
 
@@ -78,7 +78,7 @@ def test_components_paths(open_manifest_path):
     assert "/health" in actual_paths
 
 
-def test_model_path_contents(open_manifest_path):
+def test_model_path_contents(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
 
     model_properties = {
@@ -98,13 +98,13 @@ def test_model_path_contents(open_manifest_path):
             _test_property_path_content(paths, dataset_name, model_name, prop_name)
 
 
-def _validate_operation_id_contains(operation_id, path, *required_terms):
+def _validate_operation_id_contains(operation_id: str, path: str, *required_terms):
     """Validate that operation ID contains all required terms."""
     for term in required_terms:
         assert term in operation_id, f"OperationId '{operation_id}' should contain '{term}' for {path}"
 
 
-def _validate_operation_structure(operation, path, operation_type="GET"):
+def _validate_operation_structure(operation: dict, path: str, operation_type="GET"):
     """Validate basic operation structure and return the operation data."""
     assert operation_type.lower() in operation, f"Missing {operation_type} operation in {path}"
 
@@ -116,7 +116,7 @@ def _validate_operation_structure(operation, path, operation_type="GET"):
     return op_data
 
 
-def _validate_response_schema(responses, path, expected_ref):
+def _validate_response_schema(responses: dict, path: str, expected_ref: str):
     assert "200" in responses, f"Missing 200 response in GET {path}"
 
     response_200 = responses["200"]
@@ -134,7 +134,7 @@ def _validate_response_schema(responses, path, expected_ref):
     assert schema["$ref"] == expected_ref, f"Schema ref should be '{expected_ref}', got '{schema['$ref']}' for {path}"
 
 
-def _test_api_path(paths, path, expected_ref, model_name, *additional_terms):
+def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *additional_terms):
     assert path in paths, f"Missing path: {path}"
 
     operations = paths[path]
@@ -144,25 +144,25 @@ def _test_api_path(paths, path, expected_ref, model_name, *additional_terms):
     _validate_response_schema(op_data["responses"], path, expected_ref)
 
 
-def _test_collection_path_content(paths, dataset_name, model_name):
+def _test_collection_path_content(paths: dict, dataset_name: str, model_name: str):
     path = f"/{dataset_name}/{model_name}"
     expected_ref = f"#/components/schemas/{model_name}Collection"
     _test_api_path(paths, path, expected_ref, model_name)
 
 
-def _test_changes_path_content(paths, dataset_name, model_name):
+def _test_changes_path_content(paths: dict, dataset_name: str, model_name: str):
     path = f"/{dataset_name}/{model_name}/:changes/{{cid}}"
     expected_ref = f"#/components/schemas/{model_name}Changes"
     _test_api_path(paths, path, expected_ref, model_name)
 
 
-def _test_single_item_path_content(paths, dataset_name, model_name):
+def _test_single_item_path_content(paths: dict, dataset_name: str, model_name: str):
     path = f"/{dataset_name}/{model_name}/{{id}}"
     expected_ref = f"#/components/schemas/{model_name}"
     _test_api_path(paths, path, expected_ref, model_name)
 
 
-def _test_property_path_content(paths, dataset_name, model_name, property_name):
+def _test_property_path_content(paths: dict, dataset_name: str, model_name: str, property_name: str):
     path = f"/{dataset_name}/{model_name}/{{id}}/{property_name}"
 
     assert path in paths, f"Missing property path: {path}"
@@ -193,7 +193,7 @@ def _test_property_path_content(paths, dataset_name, model_name, property_name):
     )
 
 
-def test_only_head_and_get_operations(open_manifest_path):
+def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
@@ -213,7 +213,7 @@ def test_only_head_and_get_operations(open_manifest_path):
         )
 
 
-def test_components_paths_with_properties(open_manifest_path):
+def test_components_paths_with_properties(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_path_types = ["", "/{id}", "/:changes/{cid}"]
 
@@ -242,7 +242,7 @@ def test_components_paths_with_properties(open_manifest_path):
     assert not missing_paths, f"Missing paths: {missing_paths}"
 
 
-def test_model_schema_content(open_manifest_path):
+def test_model_schema_content(open_manifest_path: ManifestPath):
     model_properties = {
         "Organization": ["org_name", "annual_revenue", "coordinates", "established_date"],
         "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
@@ -259,7 +259,7 @@ def test_model_schema_content(open_manifest_path):
         _test_change_schema(schemas, model_name, properties)
 
 
-def _test_base_model_schema(schemas, model_name, expected_properties):
+def _test_base_model_schema(schemas: dict, model_name: str, expected_properties):
     schema = schemas[model_name]
 
     assert schema["type"] == "object"
@@ -289,7 +289,7 @@ def _test_base_model_schema(schemas, model_name, expected_properties):
         assert prop_name in example, f"Missing property {prop_name} in {model_name}"
 
 
-def _test_collection_schema(schemas, model_name):
+def _test_collection_schema(schemas: dict, model_name: str):
     collection_schema_name = f"{model_name}Collection"
     schema = schemas[collection_schema_name]
 
@@ -306,7 +306,7 @@ def _test_collection_schema(schemas, model_name):
     assert data_property["items"]["$ref"] == f"#/components/schemas/{model_name}"
 
 
-def _test_changes_schema(schemas, model_name):
+def _test_changes_schema(schemas: dict, model_name: str):
     changes_schema_name = f"{model_name}Changes"
     schema = schemas[changes_schema_name]
 
@@ -323,7 +323,7 @@ def _test_changes_schema(schemas, model_name):
     assert data_property["items"]["$ref"] == f"#/components/schemas/{model_name}Change"
 
 
-def _test_change_schema(schemas, model_name, expected_properties):
+def _test_change_schema(schemas: dict, model_name: str, expected_properties):
     change_schema_name = f"{model_name}Change"
     schema = schemas[change_schema_name]
 
@@ -350,7 +350,7 @@ def _test_change_schema(schemas, model_name, expected_properties):
         assert prop_name in properties, f"Missing model property {prop_name} in {change_schema_name}"
 
 
-def test_organization_schema_details(open_manifest_path):
+def test_organization_schema_details(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
 
@@ -373,7 +373,7 @@ def test_organization_schema_details(open_manifest_path):
     assert "established_date" in change_properties
 
 
-def test_processing_unit_schema_details(open_manifest_path):
+def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
 
