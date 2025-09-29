@@ -276,3 +276,115 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 poetry build
 poetry publish
 xdg-open https://pypi.org/project/spinta/
+
+
+#testavimas ar veikia su dviem manifestais ir backendais:
+
+psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta2'
+
+psql -h localhost -p 54321 -U admin spinta2 <<EOF
+BEGIN TRANSACTION;
+  CREATE EXTENSION IF NOT EXISTS postgis;
+  CREATE EXTENSION IF NOT EXISTS postgis_topology;
+  CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+  CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder;
+COMMIT;
+EOF
+
+
+psql -h localhost -p 54321 -U admin spinta2 <<EOF
+CREATE TABLE formos1 (
+    id integer primary key,
+    kodas integer,
+    pavadinimas text,
+    pav_ilgas text,
+    name varchar(255),
+    tipas varchar(255),
+    type varchar(255)
+);
+INSERT INTO formos1
+    (id, kodas, pavadinimas, pav_ilgas, name, tipas, type)
+    VALUES
+    (1, 950, 'Biudžetinė įstaiga', 'Biudžetinė įstaiga', 'Budget Institution', 'Viešasis', 'Public');
+
+CREATE TABLE statusai1 (
+    kodas integer primary key,
+    pavadinimas text,
+    name varchar(255)
+);
+INSERT INTO statusai1
+    (kodas, pavadinimas, name)
+    VALUES
+    (0, 'Biudžetinė įstaiga', 'No legal proceedings');
+
+CREATE TABLE iregistruoti1 (
+    ja_kodas integer primary key,
+    ja_pavadinimas text,
+    pilnas_adresas text,
+    reg_data varchar(10),
+    stat_data varchar(10),
+    forma_id integer,
+    statusas_id integer,
+    adreso_kodas integer
+);
+INSERT INTO iregistruoti1
+    (ja_kodas, ja_pavadinimas, pilnas_adresas, reg_data, stat_data, forma_id, statusas_id, adreso_kodas)
+    VALUES
+    (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 1, 0, 190557457);
+EOF
+
+
+id | d | r | b | m | property           | type    | ref      | source                                               | source.type | prepare | origin | count | level | status  | visibility | access | uri | eli | title | description
+   | spinta2                            |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   | resource1                      | sql     |          | postgresql+psycopg2://admin:@localhost:54321/spinta2 |             |         |        |       |       |         |            |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | Formos1                |         | id       | formos1                                              |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | id                 | integer |          | id                                                   |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | kodas              | integer |          | kodas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | name               | string  |          | name                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pav_ilgas          | string  |          | pav_ilgas                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pavadinimas        | string  |          | pavadinimas                                          |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | tipas              | string  |          | tipas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | type               | string  |          | type                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | Iregistruoti1          |         | ja_kodas | iregistruoti1                                        |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | adreso_kodas       | integer |          | adreso_kodas                                         |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | forma_id           | integer |          | forma_id                                             |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | ja_kodas           | integer |          | ja_kodas                                             |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | ja_pavadinimas     | string  |          | ja_pavadinimas                                       |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pilnas_adresas     | string  |          | pilnas_adresas                                       |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | reg_data           | string  |          | reg_data                                             |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | stat_data          | string  |          | stat_data                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | statusas_id        | integer |          | statusas_id                                          |             |         |        |       |       | develop | private    |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | SpatialRefSys          |         | srid     | spatial_ref_sys                                      |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | auth_name          | string  |          | auth_name                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | auth_srid          | integer |          | auth_srid                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | proj4text          | string  |          | proj4text                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | srid               | integer |          | srid                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | srtext             | string  |          | srtext                                               |             |         |        |       |       | develop | private    |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | Statusai1              |         | kodas    | statusai1                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | kodas              | integer |          | kodas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | name               | string  |          | name                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pavadinimas        | string  |          | pavadinimas                                          |             |         |        |       |       | develop | private    |        |     |     |       |
+   | spinta2/views                      |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   | resource1                      | sql     |          | postgresql+psycopg2://admin:@localhost:54321/spinta2 |             |         |        |       |       |         |            |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | GeographyColumns       |         |          | geography_columns                                    |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | coord_dimension    | integer |          | coord_dimension                                      |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_geography_column | string  |          | f_geography_column                                   |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_table_catalog    | string  |          | f_table_catalog                                      |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_table_name       | string  |          | f_table_name                                         |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_table_schema     | string  |          | f_table_schema                                       |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | srid               | integer |          | srid                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | type               | string  |          | type                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | GeometryColumns        |         |          | geometry_columns                                     |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | coord_dimension    | integer |          | coord_dimension                                      |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_geometry_column  | string  |          | f_geometry_column                                    |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_table_catalog    | string  |          | f_table_catalog                                      |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_table_name       | string  |          | f_table_name                                         |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | f_table_schema     | string  |          | f_table_schema                                       |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | srid               | integer |          | srid                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | type               | string  |          | type                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
