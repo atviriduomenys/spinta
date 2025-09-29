@@ -10,8 +10,8 @@ from spinta.testing.manifest import load_manifest_and_context
 
 def test_soap_operation_if_source_is_from_dsa(rc: RawConfig) -> None:
     table = """
-    d | r | b | m | property | type   | source                                          | prepare
-    example                  |        |                                                 |
+    d | r | b | m | property   | type   | source                                          | prepare
+    example                    |        |                                                 |
         | wsdl_resource        | wsdl   | tests/datasets/backends/wsdl/data/wsdl.xml      |
         | soap_resource        | soap   | CityService.CityPort.CityPortType.CityOperation | wsdl(wsdl_resource)
     """
@@ -37,8 +37,8 @@ def test_raise_error_if_service_not_found(
     operation: str,
 ) -> None:
     table = f"""
-    d | r | b | m | property | type   | source                                     | prepare
-    example                  |        |                                            |
+    d | r | b | m | property   | type   | source                                     | prepare
+    example                    |        |                                            |
         | wsdl_resource        | wsdl   | tests/datasets/backends/wsdl/data/wsdl.xml |
         | soap_resource        | soap   | {service}.{port}.CityPortType.{operation}  | wsdl(wsdl_resource)
     """
@@ -52,8 +52,8 @@ def test_raise_error_if_service_not_found(
 
 def test_raise_error_if_operation_does_not_exist_in_service(rc: RawConfig) -> None:
     table = """
-    d | r | b | m | property | type   | source                                               | prepare
-    example                  |        |                                                      |
+    d | r | b | m | property   | type   | source                                               | prepare
+    example                    |        |                                                      |
         | wsdl_resource        | wsdl   | tests/datasets/backends/wsdl/data/wsdl.xml           |
         | soap_resource        | soap   | CityService.CityPort.CityPortType.invalid_operation  | wsdl(wsdl_resource)
     """

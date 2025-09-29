@@ -22,10 +22,7 @@ class Soap(DaskBackend):
 
     @property
     def soap_operation(self) -> OperationProxy:
-        if not self._soap_operation:
-            self._soap_operation = self._get_soap_operation()
-
-        return self._soap_operation
+        return self._soap_operation if self._soap_operation else self._get_soap_operation()
 
     def _get_soap_operation(self) -> OperationProxy:
         with self.wsdl_backend.begin():
