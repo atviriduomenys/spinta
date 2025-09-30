@@ -7,12 +7,14 @@ from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_table_name
+from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context, Property
 from spinta.types.datatype import Ref
 
 
 @commands.prepare.register(Context, PostgreSQL, Ref)
 def prepare(context: Context, backend: PostgreSQL, dtype: Ref, propagate: bool = True, **kwargs):
+    validate_type_assignment(context, backend, dtype)
     pkey_type = commands.get_primary_key_type(context, backend)
     columns = []
 
