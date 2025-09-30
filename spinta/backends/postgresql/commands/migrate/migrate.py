@@ -83,7 +83,12 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
             # Skip special table migrations, because this is done in DataType migration section
             if old_table_name and any(
                 value in old_table_name
-                for value in (TableType.CHANGELOG.value, TableType.FILE.value, TableType.REDIRECT.value)
+                for value in (
+                    TableType.CHANGELOG.value,
+                    TableType.FILE.value,
+                    TableType.LIST.value,
+                    TableType.REDIRECT.value,
+                )
             ):
                 continue
 

@@ -665,6 +665,10 @@ def handle_internal_ref_to_scalar_conversion(
     if isinstance(new_property.dtype, Ref):
         return False
 
+    # Skip ref -> complex type
+    if isinstance(new_property.dtype, Array):
+        return False
+
     # Check if columns are from ref 4 (can only have 1 column)
     if not (len(old_columns) == 1 and isinstance(old_columns[0], sa.Column)):
         return False
@@ -1439,3 +1443,10 @@ def recreate_all_reserved_table_names(
     old_table_name = get_pg_table_name(old_full_name, table_type)
     new_table_name = get_pg_table_name(model, table_type)
     return old_table_name, new_table_name
+
+
+def create_table_migration(handler: MigrationHandler, table: sa.Table):
+    handler.add_action(ma.CreateTableMigrationAction(table.name, [*table.columns, *table.constraints]))
+    print("CALLED CREATE TABLE MIGRATION")
+    print(table.constraints)
+    print(table.indexes)
