@@ -1,6 +1,159 @@
 Changes
 #######
 
+0.2dev6 (unreleased)
+====================
+
+Improvements:
+
+- `spinta copy` for XSD supports globally defined attributes, referenced in other places.(`#605`_)
+- Updated `authlib` minimal version to 1.0.0 (`#675`_).
+- `private` and `public` keys now include `kid` field (`#675`_).
+- Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
+- Introduced a new error handling framework with CLI integration, including error reporting and post-processing in `spinta copy` and `spinta check` (`#1462`_)
+
+  .. _#605: https://github.com/atviriduomenys/spinta/issues/605
+  .. _#675: https://github.com/atviriduomenys/spinta/issues/675
+  .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
+  .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
+
+Other:
+- Removed dependency `mypy`
+
+0.2dev5 (2025-09-03)
+====================
+
+- Added dependency `mypy`
+
+0.2dev4 (2025-08-28)
+====================
+
+New Features:
+
+- Added support for specifying SOAP request body in SOAP requests.(`#1274`_)
+- Allow `Client` POST and PATCH endpoints to save variable `backends` that can store
+  extra authentication data. Implement `.creds("key")` prepare function to read values
+  from saved `backends`. (`#1275`_)
+- Implement the skeleton of `spinta sync` command. (`#1378`_)
+- Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
+- Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415`_)
+- During synchronization, create a Data Service and not a Dataset as was done initially. (`#1415`_)
+- Adjust synchronization credentials retrieve, to include organization name & type. (`#1415`_)
+- Add `spinta inspect` logic to `spinta sync` & loop through all the datasets from inspection instead of using the first one only. (`#1415`_)
+- Refactor tests for synchronization to be more maintainable + assert what endpoints are called with and not only that they are called. (`#1415`_)
+- Build full dataset name following UDTS conventions. (`#1415`_)
+- Remove private source/resource values from DSA. (`#1415`_)
+- Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
+  specific scripts to be passed and cannot run all scripts by default (`#1340`_).
+- Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
+  (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
+  to ensure a single active local-global key pair (`#1340`_).
+- Change `spinta sync` hierarchy creation to: Data Service -> Dataset -> Distribution. (`#1415`_)
+- Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
+- Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
+- Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
+  .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
+  .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
+  .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
+  .. _#1260: https://github.com/atviriduomenys/spinta/issues/1260
+  .. _#1377: https://github.com/atviriduomenys/spinta/issues/1377
+  .. _#1381: https://github.com/atviriduomenys/spinta/issues/1381
+  .. _#1382: https://github.com/atviriduomenys/spinta/issues/1382
+  .. _#1389: https://github.com/atviriduomenys/spinta/issues/1389
+  .. _#1415: https://github.com/atviriduomenys/spinta/issues/1415
+
+Improvements:
+
+- `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
+- Added support for `ruff` linting and code formatting (`#434`_).
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+Bug fixes:
+
+- Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
+- Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
+- Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`#1358`_)
+- Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
+- Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
+  duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
+
+  .. _#981: https://github.com/atviriduomenys/spinta/issues/981
+  .. _#986: https://github.com/atviriduomenys/spinta/issues/986
+  .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
+  .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
+
+0.2dev3
+=======
+
+New Features:
+
+- Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
+- Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+- Added `soap` backend for basic SOAP data reading from WSDL (`#1273`_)
+- Added separate `wsdl` backend to read WSDL file and `wsdl(...)` function to link any `soap` type resource with
+  `wsdl` type resource for WSDL/SOAP data reading (`#279`_)
+
+  .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
+  .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+  .. _#1273: https://github.com/atviriduomenys/spinta/issues/1273
+  .. _#279: https://github.com/atviriduomenys/spinta/issues/279
+
+Bug fixes:
+
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+- Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
+
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
+
+0.2dev2
+=======
+
+Backwards incompatible:
+
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
+- Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
+  be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
+  optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
+  of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
+  For local development - `poetry install --all-extras` should be used to install all packages.
+
+  .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
+
+New Features:
+
+- Added OpenAPI Schema manifest (`#1211`_)
+- Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
+- Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
+- Added new CLI command `getall` which returns JSON representation of YAML data. (`#1229`_)
+
+  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
+  .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
+  .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+  .. _#1229: https://github.com/atviriduomenys/spinta/issues/1229
+
+Bug fixes:
+
+- Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+- Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
+
+  .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+
+0.2dev1
+=======
+
+Backwards incompatible:
+ - conversion of XSD schemas to DSA manifests in an improved way. (`#842`_)
+ - support for language tag for properties. (`#582`_)
+
+  .. _#842: https://github.com/atviriduomenys/spinta/issues/842
+  .. _#582: https://github.com/atviriduomenys/spinta/issues/582
+
 0.1.86 (unreleased)
 ===================
 
@@ -2383,7 +2536,7 @@ Backwards incompatible features:
 
   Here, `test` configuration environment fully overrides `backends` and removes
   `mongo` backend defined in default configuration scope.o
-  
+
   But `dev` environment overrides only `backends.default.type` and leaves
   everything else as is, `mongo` backend stays untouched.
 
@@ -2542,7 +2695,7 @@ Internal changes:
     - `decode` - convert values from external to internal form.
 
   - Data validation:
-    
+
     - `validate` - simple data validation.
     - `verify` - complex data validation involving access to stored data.
 
@@ -2671,7 +2824,7 @@ Internal changes:
 
 - In `PostgreSQL` backends, references to `_txn` model is no longer used, in
   order to remove interdependence between two separate manifests.
-  
+
   Also, `_txn` might be saved on another backend.
 
 - `RawConfig` now can take default values from `spinta/config.yml`.
