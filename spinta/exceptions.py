@@ -1159,3 +1159,9 @@ class MissingConfigurationParameter(UserError):
     template = """
         {config_type} {config_object!r} configuration is missing parameter: {missing_params!r}.
     """
+
+
+class UnsupportedDataTypeConfiguration(UserError):
+    template = """
+        DataType {data_type!r} currently does not support custom type assignment in configuration.
+    """

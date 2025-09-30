@@ -12,6 +12,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
 from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name
 from spinta.backends.postgresql.helpers.redirect import get_redirect_table
+from spinta.backends.postgresql.helpers.type import get_column_type
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
@@ -117,7 +118,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
 
     if dtype.name not in types:
         raise Exception(f"Unknown type {dtype.name!r} for property {prop.place!r}.")
-    column_type = dtype.prop.external and dtype.prop.external.custom_type or types[dtype.name]
+    column_type = get_column_type(dtype, types[dtype.name])
     nullable = not dtype.required
     return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)
 

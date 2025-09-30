@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
 
 from spinta import commands
+from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.backends.constants import TableType, BackendFeatures
@@ -14,6 +15,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 
 @commands.prepare.register(Context, PostgreSQL, File)
 def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
+    validate_type_assignment(context, backend, dtype)
     prop = dtype.prop
     model = prop.model
 
