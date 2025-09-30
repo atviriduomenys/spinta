@@ -91,7 +91,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     resource.lang = load_lang_data(context, resource.lang)
     resource.comments = load_comments(resource, resource.comments)
     config = context.get("config")
-    if config.load_resource_backend:
+    if config.load_backends:
         resource.backend = load_resource_backend(
             context,
             resource,

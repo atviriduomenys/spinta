@@ -375,7 +375,7 @@ class TemplateBasedOpenAPIGenerator:
         context = create_context()
         manifests = [manifest]
         context = configure_context(context, manifests)
-        rows = _read_and_return_manifest(context, manifests, check_config=False, load_resource_backend=False)
+        rows = _read_and_return_manifest(context, manifests, check_config=False, load_backends=False)
 
         datasets = rows.get_objects()["dataset"].items()
         models = rows.get_objects()["model"]
