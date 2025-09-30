@@ -90,12 +90,14 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_access_param(resource, data.get("access"), (resource.dataset,))
     resource.lang = load_lang_data(context, resource.lang)
     resource.comments = load_comments(resource, resource.comments)
-    resource.backend = load_resource_backend(
-        context,
-        resource,
-        # First backend is loaded as string and later becomes Backend.
-        resource.backend,
-    )
+    config = context.get("config")
+    if config.load_resource_backend:
+        resource.backend = load_resource_backend(
+            context,
+            resource,
+            # First backend is loaded as string and later becomes Backend.
+            resource.backend,
+        )
     resource.given.name = data.get("given_name", None)
     # Models will be added on `link` command.
     resource.models = {}

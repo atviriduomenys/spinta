@@ -153,8 +153,9 @@ def _read_and_return_manifest(
     rename_duplicates: bool = False,
     verbose: bool = True,
     check_config=True,
+    load_resource_backend=True,
 ) -> Iterator[ManifestRow]:
-    context = configure_context(context, manifests)
+    context = configure_context(context, manifests, load_resource_backend=load_resource_backend)
     store = load_manifest(
         context,
         rename_duplicates=rename_duplicates,

@@ -574,6 +574,7 @@ def configure_rc(
     resources: List[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = "inline",
+    load_resource_backend=True,
 ) -> RawConfig:
     config: Dict[str, Any] = {}
 
@@ -658,6 +659,8 @@ def configure_rc(
 
         if check_names is not None:
             config["check.names"] = check_names
+
+    config["load_resource_backend"] = load_resource_backend
 
     if config:
         rc = rc.fork(config)
