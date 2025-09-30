@@ -51,9 +51,7 @@ jobs:
           poetry install --all-extras -vv
 
       - name: Test with pytest
-        raise Exception()
         env:
           SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost/spinta
-          SPINTA_BACKENDS__MONGO__TYPE: mongodb
           SPINTA_BACKENDS__MONGO__DSN: mongodb://localhost/
         run: make test-github
