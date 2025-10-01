@@ -11,6 +11,7 @@ from spinta.cli.manifest import _read_and_return_manifest
 
 
 SUPPORTED_HTTP_METHODS = {"GET", "HEAD"}
+PROPERTY_TYPES_IN_PATHS = {"file", "image"}
 
 
 @dataclass
@@ -159,8 +160,9 @@ class PathGenerator:
 
     def should_create_property_endpoint(self, model_property) -> bool:
         """Determine if a property should have its own endpoint"""
+        
         dtype_name = self.dtype_handler.get_dtype_name(model_property.dtype)
-        return dtype_name != "inherit"
+        return dtype_name in PROPERTY_TYPES_IN_PATHS
 
     def create_path_mappings(self, model, dataset_name: str) -> list[tuple[str, str, str, tuple | None]]:
         """Create path mappings for a model"""
