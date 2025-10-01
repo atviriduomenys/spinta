@@ -35,15 +35,17 @@ def load(context: Context, store: Store) -> Store:
     # Backends can also be loaded from manifests, see:
     # `spinta.manifests.helpers._load_manifest_backends`.
     store.backends = {}
-    for name in rc.keys("backends"):
-        data = rc.to_dict("backends", name)
-        store.backends[name] = load_backend(
-            context,
-            config,
-            name,
-            BackendOrigin.config,
-            data,
-        )
+    config = context.get("config")
+    if config.load_backends:
+        for name in rc.keys("backends"):
+            data = rc.to_dict("backends", name)
+            store.backends[name] = load_backend(
+                context,
+                config,
+                name,
+                BackendOrigin.config,
+                data,
+            )
 
     # Create default manifest instance
     manifest = rc.get("manifest", required=True)
