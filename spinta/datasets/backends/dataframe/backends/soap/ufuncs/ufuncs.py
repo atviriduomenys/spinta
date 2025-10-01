@@ -8,7 +8,12 @@ from spinta.core.enums import Action
 from spinta.core.ufuncs import ufunc, Expr, Bind, ShortExpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.components import Param
-from spinta.exceptions import InvalidClientBackendCredentials, InvalidClientBackend, UnknownMethod
+from spinta.exceptions import (
+    InvalidClientBackendCredentials,
+    InvalidClientBackend,
+    UnknownMethod,
+    MissingRequiredProperty,
+)
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
@@ -102,6 +107,9 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
         soap_body_value = env.soap_request_body.get(param_body_key)
         final_value = url_param_value or (soap_body_value if soap_body_value is not NA else None)
         env.soap_request_body[param_body_key] = final_value
+
+    if prop.dtype.required and not final_value:
+        raise MissingRequiredProperty(prop, prop=prop.name)
 
     env.property_values.update({param.name: final_value})
 
