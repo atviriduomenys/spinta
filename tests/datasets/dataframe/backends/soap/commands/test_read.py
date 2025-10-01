@@ -362,3 +362,45 @@ def test_soap_read_always_makes_list_even_if_reading_single_object(rc: RawConfig
     response = app.get("/example/City/")
 
     assert listdata(response, sort=False, full=True) == [{"id": 100}]
+
+
+def test_soap_read_dsa_with_base64_encoded_data(rc: RawConfig, responses: RequestsMock) -> None:
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>100</ns1:id>
+                        <ns1:name>Zm9vZm9v</ns1:name>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>101</ns1:id>
+                        <ns1:name>YmFyYmFy</ns1:name>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type    | source                                          | access | prepare
+        example                  | dataset |                                                 |        |
+          | wsdl_resource        | wsdl    | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap    | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   | City         |         | /                                               | open   |
+          |   |   |   | name     | string  | name                                            |        | base64()
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("/example/City/", ["getall", "search"])
+
+    response = app.get("/example/City/")
+
+    assert listdata(response, sort=False, full=True) == [{"name": "foofoo"}, {"name": "barbar"}]
