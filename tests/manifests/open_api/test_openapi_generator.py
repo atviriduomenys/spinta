@@ -30,8 +30,7 @@ id | d | r | b | m | property         | type                  | ref | source | s
    |   |   |   |   | efficiency_rate  | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing efficiency rate percentage                      |
    |   |   |   |   | capacity         | integer               |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing capacity, units per day                         |
    |   |   |   |   | technical_specs  | file                  |     |        |             |         |        |       | 3     |        |            | open   |     |     | Technical specifications document                          |
-    """
-)
+    """)
 
 
 @pytest.fixture
@@ -53,7 +52,7 @@ def test_basic_structure(open_manifest_path: ManifestPath):
     assert set(open_api_spec.keys()) == set(
         ["openapi", "info", "servers", "tags", "externalDocs", "paths", "components", "x-tagGroups"]
     )
-    
+
 
 def test_info(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
@@ -95,7 +94,7 @@ def test_model_path_contents(open_manifest_path: ManifestPath):
         "Organization": ["org_logo"],
         "ProcessingUnit": ["technical_specs"],
     }
-    
+
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
@@ -116,7 +115,7 @@ def _validate_operation_id_contains(operation_id: str, path: str, *required_term
 
 def _validate_operation_structure(operation: dict, model_name: str, path: str, operation_type="GET"):
     """Validate basic operation structure and return the operation data."""
-    
+
     assert operation_type.lower() in operation, f"Missing {operation_type} operation in {path}"
 
     op_data = operation[operation_type.lower()]
@@ -150,12 +149,12 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
 
     operations = paths[path]
     operation_methods = list(operations.keys())
-    
+
     for method in operation_methods:
         op_data = _validate_operation_structure(operations, model_name, path, method)
         _validate_operation_id_contains(op_data["operationId"], path, model_name, *additional_terms)
-        
-        if method.lower() == 'get':
+
+        if method.lower() == "get":
             _validate_get_response_schema(op_data["responses"], path, expected_ref)
 
 
@@ -237,7 +236,7 @@ def test_components_paths_with_properties(open_manifest_path: ManifestPath):
         "Organization": ["org_logo"],
         "ProcessingUnit": ["technical_specs"],
     }
-    
+
     disabled_model_properties = {
         "Organization": ["org_name", "annual_revenue", "coordinates", "established_date"],
         "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
@@ -254,7 +253,7 @@ def test_components_paths_with_properties(open_manifest_path: ManifestPath):
         for property_name in enabled_model_properties[model]:
             property_path = f"/{dataset_name}/{model}/{{id}}/{property_name}"
             all_expected_paths.append(property_path)
-            
+
         for property_name in disabled_model_properties[model]:
             property_path = f"/{dataset_name}/{model}/{{id}}/{property_name}"
             not_expected_paths.append(property_path)
@@ -267,10 +266,10 @@ def test_components_paths_with_properties(open_manifest_path: ManifestPath):
 
     missing_paths = expected_paths - actual_paths
     assert not missing_paths, f"Missing paths: {missing_paths}"
-    
+
     extraneous_paths = not_expected_paths & actual_paths
     assert not extraneous_paths, f"Extraneous paths: {extraneous_paths}"
-    
+
 
 def test_model_schema_content(open_manifest_path: ManifestPath):
     model_properties = {
