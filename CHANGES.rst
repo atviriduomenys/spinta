@@ -20,6 +20,12 @@ Improvements:
 Other:
 - Removed dependency `mypy`
 
+Bug fixes:
+
+- Fixed bugs in `spinta copy` and `spinta check` commands where properties starting with underscore symbol were omitted or caused errors. (`#963`_)
+
+  .. _#963: https://github.com/atviriduomenys/spinta/issues/963
+
 0.2dev5 (2025-09-03)
 ====================
 
