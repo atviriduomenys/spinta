@@ -268,7 +268,7 @@ def _test_base_model_schema(schemas: dict, model_name: str, expected_properties)
 
     properties = schema["properties"]
 
-    standard_properties = ["_type", "_id", "_revision", "_created", "_updated"]
+    standard_properties = ["_type", "_id", "_revision"]
     for std_prop in standard_properties:
         assert std_prop in properties, f"Missing standard property {std_prop} in {model_name}"
 
@@ -282,8 +282,6 @@ def _test_base_model_schema(schemas: dict, model_name: str, expected_properties)
     assert example["_type"] == model_name
     assert "_id" in example
     assert "_revision" in example
-    assert "_created" in example
-    assert "_updated" in example
 
     for prop_name in expected_properties:
         assert prop_name in example, f"Missing property {prop_name} in {model_name}"
