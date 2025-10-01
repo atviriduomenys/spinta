@@ -18,6 +18,7 @@ id | d | r | b | m | property         | type                  | ref | source | s
    |   |   |   |   | annual_revenue   | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Annual revenue amount                                      |
    |   |   |   |   | coordinates      | geometry(point, 3346) |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization coordinates                                   |
    |   |   |   |   | established_date | date                  | D   |        |             |         |        |       | 4     |        |            | open   |     |     | Organization establishment date                            |
+   |   |   |   |   | org_logo         | image                 |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization logo image                                    |
    |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
    |   |   |   | ProcessingUnit       |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Processing unit data with treatment methods and capacities |
    |   |   |   |   | unit_name        | string                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing unit name                                       |
@@ -28,7 +29,9 @@ id | d | r | b | m | property         | type                  | ref | source | s
    |                                  |                       |     |        |             | 'OTH'   |        |       |       |        |            |        |     |     | Other Equipment                                            |
    |   |   |   |   | efficiency_rate  | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing efficiency rate percentage                      |
    |   |   |   |   | capacity         | integer               |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing capacity, units per day                         |
-""")
+   |   |   |   |   | technical_specs  | file                  |     |        |             |         |        |       | 3     |        |            | open   |     |     | Technical specifications document                          |
+    """
+)
 
 
 @pytest.fixture
@@ -81,11 +84,12 @@ def test_components_paths(open_manifest_path: ManifestPath):
 def test_model_path_contents(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
 
+    # image and file
     model_properties = {
-        "Organization": ["org_name", "annual_revenue", "coordinates", "established_date"],
-        "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
+        "Organization": ["org_logo"],
+        "ProcessingUnit": ["technical_specs"],
     }
-
+    
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
@@ -217,30 +221,45 @@ def test_components_paths_with_properties(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
     expected_path_types = ["", "/{id}", "/:changes/{cid}"]
 
-    model_properties = {
+    # image and file
+    enabled_model_properties = {
+        "Organization": ["org_logo"],
+        "ProcessingUnit": ["technical_specs"],
+    }
+    
+    disabled_model_properties = {
         "Organization": ["org_name", "annual_revenue", "coordinates", "established_date"],
         "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
     }
 
     dataset_name = "datasets/demo/system_data"
     all_expected_paths = []
+    not_expected_paths = []
 
     for model in expected_models:
         for path_type in expected_path_types:
             all_expected_paths.append(f"/{dataset_name}/{model}{path_type}")
 
-        for property_name in model_properties[model]:
+        for property_name in enabled_model_properties[model]:
             property_path = f"/{dataset_name}/{model}/{{id}}/{property_name}"
             all_expected_paths.append(property_path)
+            
+        for property_name in disabled_model_properties[model]:
+            property_path = f"/{dataset_name}/{model}/{{id}}/{property_name}"
+            not_expected_paths.append(property_path)
 
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     actual_paths = set(open_api_spec["paths"].keys())
     expected_paths = set(all_expected_paths)
+    not_expected_paths = set(not_expected_paths)
 
     missing_paths = expected_paths - actual_paths
     assert not missing_paths, f"Missing paths: {missing_paths}"
-
+    
+    extraneous_paths = not_expected_paths & actual_paths
+    assert not extraneous_paths, f"Extraneous paths: {extraneous_paths}"
+    
 
 def test_model_schema_content(open_manifest_path: ManifestPath):
     model_properties = {
