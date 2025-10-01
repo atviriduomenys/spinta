@@ -15,7 +15,6 @@ PROPERTY_TYPES_IN_PATHS = {"file", "image"}
 SUPPORTED_MEDIA_TYPES = {"application/json"}
 
 
-
 @dataclass
 class TypeMapping:
     """Type mapping configuration for OpenAPI schemas"""
@@ -162,7 +161,7 @@ class PathGenerator:
 
     def should_create_property_endpoint(self, model_property) -> bool:
         """Determine if a property should have its own endpoint"""
-        
+
         dtype_name = self.dtype_handler.get_dtype_name(model_property.dtype)
         return dtype_name in PROPERTY_TYPES_IN_PATHS
 
@@ -200,27 +199,29 @@ class PathGenerator:
 
             updated_operation = copy.deepcopy(operation)
             updated_operation["tags"] = [model_name]
-            
+
             if "operationId" in updated_operation:
                 property_name = model_property[0] if model_property else ""
                 updated_operation["operationId"] = updated_operation["operationId"] + model_name + property_name
-            
+
             response_200 = updated_operation["responses"]["200"]
-    
+
             if "content" in response_200:
                 filtered_content = {
-                    media_type: content_schema 
+                    media_type: content_schema
                     for media_type, content_schema in response_200["content"].items()
                     if media_type in SUPPORTED_MEDIA_TYPES
                 }
-                response_200["content"] = filtered_content 
+                response_200["content"] = filtered_content
                 self._update_200_response_schema(response_200, model_name, path_type, model_property)
 
             updated_operations[method] = updated_operation
 
         return updated_operations
 
-    def _update_200_response_schema(self, response_200: dict, model_name: str, path_type: str, model_property: tuple | None):
+    def _update_200_response_schema(
+        self, response_200: dict, model_name: str, path_type: str, model_property: tuple | None
+    ):
         """Update 200 response schema reference in operation"""
 
         schema = response_200["content"]["application/json"]["schema"]
@@ -361,7 +362,7 @@ class TemplateBasedOpenAPIGenerator:
         spec = copy.deepcopy(self.template)
 
         datasets, models = self._extract_manifest_data(manifest)
-        
+
         self._override_info(spec, datasets)
         self._override_tags(spec, models)
         self._override_schemas_section(spec, models)
@@ -381,35 +382,25 @@ class TemplateBasedOpenAPIGenerator:
         models = rows.get_objects()["model"]
 
         return datasets, models
-        
+
     def _override_info(self, spec: dict[str, Any], datasets: dict):
         """Override info section with dataset information"""
-        
+
         _, dataset = next(iter(datasets))
         spec["info"]["summary"] = dataset.title
         spec["info"]["description"] = dataset.description
-    
+
     def _override_tags(self, spec: dict[str, Any], models: dict):
         """Override tags with model names"""
-        
+
         spec["tags"] = []
-        spec["tags"].append(
-            {
-                "name": "utility",
-                "description": "Utility operations performed on the API itself"
-            }
-        )
+        spec["tags"].append({"name": "utility", "description": "Utility operations performed on the API itself"})
         description = "Operations with"
-        
+
         for model in models.values():
             model_schema_name = model.basename
-            spec["tags"].append(
-                {
-                    "name": model_schema_name,
-                    "description": f"{description} {model_schema_name}"
-                }
-            )
-            
+            spec["tags"].append({"name": model_schema_name, "description": f"{description} {model_schema_name}"})
+
     def _override_schemas_section(self, spec: dict[str, Any], models: dict):
         """Override schemas section with model schemas"""
         existing_schemas = spec["components"]["schemas"]
