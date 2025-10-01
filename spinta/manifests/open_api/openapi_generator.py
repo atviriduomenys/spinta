@@ -12,6 +12,8 @@ from spinta.cli.manifest import _read_and_return_manifest
 
 SUPPORTED_HTTP_METHODS = {"GET", "HEAD"}
 PROPERTY_TYPES_IN_PATHS = {"file", "image"}
+SUPPORTED_MEDIA_TYPES = {"application/json"}
+
 
 
 @dataclass
@@ -197,31 +199,28 @@ class PathGenerator:
                 continue
 
             updated_operation = copy.deepcopy(operation)
-
+            
             if "operationId" in updated_operation:
                 property_name = model_property[0] if model_property else ""
                 updated_operation["operationId"] = updated_operation["operationId"] + model_name + property_name
-
-            self._update_response_schema(updated_operation, model_name, path_type, model_property)
+            
+            response_200 = updated_operation["responses"]["200"]
+    
+            if "content" in response_200:
+                filtered_content = {
+                    media_type: content_schema 
+                    for media_type, content_schema in response_200["content"].items()
+                    if media_type in SUPPORTED_MEDIA_TYPES
+                }
+                response_200["content"] = filtered_content 
+                self._update_200_response_schema(response_200, model_name, path_type, model_property)
 
             updated_operations[method] = updated_operation
 
         return updated_operations
 
-    def _update_response_schema(self, operation: dict, model_name: str, path_type: str, model_property: tuple | None):
-        """Update response schema reference in operation"""
-
-        if not ("responses" in operation and "200" in operation["responses"]):
-            return
-
-        response_200 = operation["responses"]["200"]
-        if not (
-            isinstance(response_200, dict)
-            and "content" in response_200
-            and "application/json" in response_200["content"]
-            and "schema" in response_200["content"]["application/json"]
-        ):
-            return
+    def _update_200_response_schema(self, response_200: dict, model_name: str, path_type: str, model_property: tuple | None):
+        """Update 200 response schema reference in operation"""
 
         schema = response_200["content"]["application/json"]["schema"]
 
