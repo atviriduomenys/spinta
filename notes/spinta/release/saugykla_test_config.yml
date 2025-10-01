@@ -26,10 +26,10 @@ manifests:
     backend: default
     keymap: default
     mode: internal
-    sync: test
-  saugykla_test:
+    sync: saugyklatest
+  saugyklatest:
     type: csv
-    path: $BASEDIR/manifest_test.csv
+    path: $BASEDIR/manifest2.csv
     backend: saugykla_test
     keymap: default
     mode: internal

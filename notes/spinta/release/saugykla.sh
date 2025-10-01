@@ -333,9 +333,9 @@ INSERT INTO iregistruoti1
     (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 1, 0, 190557457);
 EOF
 
-
+cat > "$BASEDIR"/sdsa.txt <<EOF
 id | d | r | b | m | property           | type    | ref      | source                                               | source.type | prepare | origin | count | level | status  | visibility | access | uri | eli | title | description
-   | spinta2                            |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   | datasets/gov/ivpk/test             |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
    |   | resource1                      | sql     |          | postgresql+psycopg2://admin:@localhost:54321/spinta2 |             |         |        |       |       |         |            |        |     |     |       |
    |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
    |   |   |   | Formos1                |         | id       | formos1                                              |             |         |        |       |       | develop | private    |        |     |     |       |
@@ -357,34 +357,39 @@ id | d | r | b | m | property           | type    | ref      | source           
    |   |   |   |   | stat_data          | string  |          | stat_data                                            |             |         |        |       |       | develop | private    |        |     |     |       |
    |   |   |   |   | statusas_id        | integer |          | statusas_id                                          |             |         |        |       |       | develop | private    |        |     |     |       |
    |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
-   |   |   |   | SpatialRefSys          |         | srid     | spatial_ref_sys                                      |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | auth_name          | string  |          | auth_name                                            |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | auth_srid          | integer |          | auth_srid                                            |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | proj4text          | string  |          | proj4text                                            |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | srid               | integer |          | srid                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | srtext             | string  |          | srtext                                               |             |         |        |       |       | develop | private    |        |     |     |       |
-   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
    |   |   |   | Statusai1              |         | kodas    | statusai1                                            |             |         |        |       |       | develop | private    |        |     |     |       |
    |   |   |   |   | kodas              | integer |          | kodas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
    |   |   |   |   | name               | string  |          | name                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
    |   |   |   |   | pavadinimas        | string  |          | pavadinimas                                          |             |         |        |       |       | develop | private    |        |     |     |       |
-   | spinta2/views                      |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
-   |   | resource1                      | sql     |          | postgresql+psycopg2://admin:@localhost:54321/spinta2 |             |         |        |       |       |         |            |        |     |     |       |
-   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
-   |   |   |   | GeographyColumns       |         |          | geography_columns                                    |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | coord_dimension    | integer |          | coord_dimension                                      |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_geography_column | string  |          | f_geography_column                                   |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_table_catalog    | string  |          | f_table_catalog                                      |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_table_name       | string  |          | f_table_name                                         |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_table_schema     | string  |          | f_table_schema                                       |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | srid               | integer |          | srid                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | type               | string  |          | type                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
-   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
-   |   |   |   | GeometryColumns        |         |          | geometry_columns                                     |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | coord_dimension    | integer |          | coord_dimension                                      |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_geometry_column  | string  |          | f_geometry_column                                    |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_table_catalog    | string  |          | f_table_catalog                                      |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_table_name       | string  |          | f_table_name                                         |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | f_table_schema     | string  |          | f_table_schema                                       |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | srid               | integer |          | srid                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
-   |   |   |   |   | type               | string  |          | type                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+EOF
+
+export SPINTA_CONFIG=$BASEDIR/test_config.yml
+
+
+# Setup INTERNAL server data
+SERVER=http://localhost:8000
+CLIENT=test
+SECRET=secret
+SCOPES="
+    spinta_set_meta_fields
+    spinta_getone
+    spinta_getall
+    spinta_search
+    spinta_changes
+    spinta_insert
+    spinta_upsert
+    spinta_update
+    spinta_patch
+    spinta_delete
+    spinta_wipe
+"
+TOKEN=$(
+    http \
+        -a $CLIENT:$SECRET \
+        -f $SERVER/auth/token \
+        grant_type=client_credentials \
+        scope="$SCOPES" \
+    | jq -r .access_token
+)
+AUTH="Authorization: Bearer $TOKEN"
+echo "$AUTH"
