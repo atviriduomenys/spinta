@@ -13,7 +13,7 @@
       "url": "https://creativecommons.org/licenses/by/4.0/"
     },
     "summary": "Universal API specification, provided as OpenAPI JSON file for Lithuanian\ngovernment institutions as a template for implementing API's for data\nexchange in a standardized and interoperable manner.\n",
-    "description": "Test"
+    "description": ""
   },
   "servers": [
     {

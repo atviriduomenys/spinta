@@ -10,7 +10,7 @@ from spinta.testing.tabular import create_tabular_manifest
 
 MANIFEST = striptable("""
 id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
-   | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
+   | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     | Test title                                                 | Test description
    |   | test                         | memory                |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
    |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
    |   |   |   | Organization         |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Reporting Organizations                                    |
@@ -53,6 +53,12 @@ def test_basic_structure(open_manifest_path: ManifestPath):
     assert set(open_api_spec.keys()) == set(
         ["openapi", "info", "servers", "tags", "externalDocs", "paths", "components", "x-tagGroups"]
     )
+    
+
+def test_info(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+    assert open_api_spec["info"]["summary"] == "Test title"
+    assert open_api_spec["info"]["description"] == "Test description"
 
 
 def test_components_schemas(open_manifest_path: ManifestPath):
