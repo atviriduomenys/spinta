@@ -365,6 +365,11 @@ EOF
 
 export SPINTA_CONFIG=$BASEDIR/test_config.yml
 
+# Run server in INTERNAL mode
+test -n "$PID" && kill "$PID"
+spinta run &>> "$BASEDIR"/spinta.log & PID=$!
+#wait a bit for it to load
+tail -50 "$BASEDIR"/spinta.log
 
 # Setup INTERNAL server data
 SERVER=http://localhost:8000
@@ -393,3 +398,6 @@ TOKEN=$(
 )
 AUTH="Authorization: Bearer $TOKEN"
 echo "$AUTH"
+
+
+užkomentavom naują manifestą, paleidom spinta bootstrap, tada atkomentavom ir paleidom spinta migrate
