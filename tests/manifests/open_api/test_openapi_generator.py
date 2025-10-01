@@ -108,19 +108,20 @@ def _validate_operation_id_contains(operation_id: str, path: str, *required_term
         assert term in operation_id, f"OperationId '{operation_id}' should contain '{term}' for {path}"
 
 
-def _validate_operation_structure(operation: dict, path: str, operation_type="GET"):
+def _validate_operation_structure(operation: dict, model_name: str, path: str, operation_type="GET"):
     """Validate basic operation structure and return the operation data."""
+    
     assert operation_type.lower() in operation, f"Missing {operation_type} operation in {path}"
 
     op_data = operation[operation_type.lower()]
-
     assert "operationId" in op_data, f"Missing operationId in {operation_type} {path}"
     assert "responses" in op_data, f"Missing responses in {operation_type} {path}"
+    assert op_data["tags"] == [model_name], f"Unexpected operation tags {operation['tags']}"
 
     return op_data
 
 
-def _validate_response_schema(responses: dict, path: str, expected_ref: str):
+def _validate_get_response_schema(responses: dict, path: str, expected_ref: str):
     assert "200" in responses, f"Missing 200 response in GET {path}"
 
     response_200 = responses["200"]
@@ -142,10 +143,14 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
     assert path in paths, f"Missing path: {path}"
 
     operations = paths[path]
-    op_data = _validate_operation_structure(operations, path)
-
-    _validate_operation_id_contains(op_data["operationId"], path, model_name, *additional_terms)
-    _validate_response_schema(op_data["responses"], path, expected_ref)
+    operation_methods = list(operations.keys())
+    
+    for method in operation_methods:
+        op_data = _validate_operation_structure(operations, model_name, path, method)
+        _validate_operation_id_contains(op_data["operationId"], path, model_name, *additional_terms)
+        
+        if method.lower() == 'get':
+            _validate_get_response_schema(op_data["responses"], path, expected_ref)
 
 
 def _test_collection_path_content(paths: dict, dataset_name: str, model_name: str):
@@ -172,7 +177,7 @@ def _test_property_path_content(paths: dict, dataset_name: str, model_name: str,
     assert path in paths, f"Missing property path: {path}"
 
     operations = paths[path]
-    op_data = _validate_operation_structure(operations, path)
+    op_data = _validate_operation_structure(operations, model_name, path)
 
     _validate_operation_id_contains(op_data["operationId"], path, model_name, property_name)
 

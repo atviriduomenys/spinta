@@ -199,6 +199,7 @@ class PathGenerator:
                 continue
 
             updated_operation = copy.deepcopy(operation)
+            updated_operation["tags"] = [model_name]
             
             if "operationId" in updated_operation:
                 property_name = model_property[0] if model_property else ""
