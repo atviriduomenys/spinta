@@ -67,8 +67,6 @@ class OpenAPISchemaRegistry:
             "_type": {"type": "string"},
             "_id": {"type": "string", "format": "uuidv4"},
             "_revision": {"type": "string"},
-            "_created": {"type": "string", "format": "date-time"},
-            "_updated": {"type": "string", "format": "date-time"},
         }
 
 
@@ -283,8 +281,6 @@ class SchemaGenerator:
             "_type": model.basename,
             "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
             "_revision": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
-            "_created": "2025-09-23T11:44:11.753Z",
-            "_updated": "2025-09-23T11:44:11.753Z",
         }
 
         for prop_name, model_property in model.get_given_properties().items():
