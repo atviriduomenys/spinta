@@ -441,3 +441,36 @@ test_dataset                    |         |                                  |  
             tmp_path / "manifest.csv",
         ],
     )
+
+
+def test_check_prop_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _created | string |         | sukurta     |         | open   | discont
+      |   |   |   | _populat | string |         | gyentojai   |         | open   | develop
+                             |        |         |             |         |        |
+      |   |   | City         |        | name    | miestas     |         |        | completed
+      |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
+      |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
+      |   |   |   | _created | string |         | sukurta     |         | open   | discont
+      |   |   |   | _updated | string |         | papildyta   |         | open   | discont
+      |   |   |   | _founded | string |         | ikurtas     |         | open   | develop
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )

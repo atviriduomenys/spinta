@@ -1073,3 +1073,61 @@ def test_enum_function_noop_copy(context: Context, rc: RawConfig, cli: SpintaCli
     manifest = load_manifest(rc, tmp_path / "result.csv")
 
     assert manifest == primary_manifest
+
+
+def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access
+    datasets/gov/example     |        |         |             |         |
+      | data                 | sql    |         |             |         |
+                             |        |         |             |         |
+      |   |   | Country      |        | code    | salis       |         |
+      |   |   |   | code     | string |         | kodas       |         | public
+      |   |   |   | name     | string |         | pavadinimas |         | open
+      |   |   |   | _updated | string |         | atnaujinta  |         | open
+      |   |   |   | _created | string |         | sukurta     |         | open
+      |   |   |   | driving  | string |         | vairavimas  |         | open
+                             |        |         |             |         |
+      |   |   | City         |        | name    | miestas     |         |
+      |   |   |   | _id      | uuid   |         | miesto_id   |         | open
+      |   |   |   | name     | string |         | pavadinimas |         | open
+      |   |   |   | country  | ref    | Country | salis       |         | open
+      |   |   |   | _founded | string |         | ikurtas     |         | public
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type   | ref     | source | prepare | access
+    datasets/gov/example     |        |         |        |         |
+                             |        |         |        |         |
+      |   |   | Country      |        |         |        |         |
+      |   |   |   | _created | string |         |        |         | open
+      |   |   |   | name     | string |         |        |         | open
+      |   |   |   | _updated | string |         |        |         | open
+      |   |   |   | driving  | string |         |        |         | open
+                             |        |         |        |         |
+      |   |   | City         |        |         |        |         |
+      |   |   |   | _id      | uuid   |         |        |         | open
+      |   |   |   | name     | string |         |        |         | open
+      |   |   |   | country  | ref    | Country |        |         | open
+    """
+    )
