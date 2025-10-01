@@ -15,7 +15,13 @@ from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
-from spinta.exceptions import PropertyNotFound, UnknownMethod, InvalidClientBackend, InvalidClientBackendCredentials
+from spinta.exceptions import (
+    PropertyNotFound,
+    UnknownMethod,
+    InvalidClientBackend,
+    InvalidClientBackendCredentials,
+    MissingRequiredProperty,
+)
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse, unparse
 from spinta.testing.manifest import prepare_manifest
@@ -286,6 +292,29 @@ class TestSoapRequestBody:
 
         assert soap_query_builder.soap_request_body == {"request_model/param1": None}
         assert soap_query_builder.property_values == {"parameter1": None}
+
+    def test_build_body_from_request_with_required_prop_without_default_and_no_url_param_given(
+        self, rc: RawConfig
+    ) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type             | ref        | source                                          | access | prepare
+            example                  | dataset          |            |                                                 |        |
+              | wsdl_resource        | wsdl             |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap             |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param            | parameter1 | request_model/param1                            | open   | input()
+              |   |   | City         |                  | id         | /                                               | open   |
+              |   |   |   | id       | integer          |            | id                                              |        |
+              |   |   |   | p1       | integer required |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+        with pytest.raises(MissingRequiredProperty, match="Property 'p1' is required."):
+            soap_query_builder.build()
 
     def test_build_body_from_params_without_property_defined(
         self, rc: RawConfig, tmp_path: pathlib.Path, mocker: MockerFixture
