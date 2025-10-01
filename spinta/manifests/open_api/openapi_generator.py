@@ -361,7 +361,7 @@ class TemplateBasedOpenAPIGenerator:
         spec = copy.deepcopy(self.template)
 
         datasets, models = self._extract_manifest_data(manifest)
-
+        self._override_tags(spec, models)
         self._override_schemas_section(spec, models)
         self._override_paths_section(spec, datasets, models)
 
@@ -379,7 +379,28 @@ class TemplateBasedOpenAPIGenerator:
         models = rows.get_objects()["model"]
 
         return datasets, models
-
+    
+    def _override_tags(self, spec: dict[str, Any], models: dict):
+        """Override tags with model names"""
+        
+        spec["tags"] = []
+        spec["tags"].append(
+            {
+                "name": "utility",
+                "description": "Utility operations performed on the API itself"
+            }
+        )
+        description = "Operations with"
+        
+        for model in models.values():
+            model_schema_name = model.basename
+            spec["tags"].append(
+                {
+                    "name": model_schema_name,
+                    "description": f"{description} {model_schema_name}"
+                }
+            )
+            
     def _override_schemas_section(self, spec: dict[str, Any], models: dict):
         """Override schemas section with model schemas"""
         existing_schemas = spec["components"]["schemas"]
