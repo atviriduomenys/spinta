@@ -2602,6 +2602,8 @@ def datasets_to_tabular(
                         access=access,
                         order_by=order_by,
                     )
+                    for resource in get_resources_without_models(dataset):
+                        yield from _resource_to_tabular(resource)
             elif dataset is not None and model.external.dataset is None:
                 dataset = None
                 resource = None
@@ -2961,3 +2963,11 @@ def _get_state_obj(reader: TabularReader) -> Optional[TabularReader]:
         return None
     else:
         return reader
+
+
+def get_resources_without_models(dataset: Dataset) -> list[Resource]:
+    resources = []
+    for resource in dataset.resources.values():
+        if not resource.models:
+            resources.append(resource)
+    return resources
