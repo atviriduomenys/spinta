@@ -344,7 +344,7 @@ def _extract_latest_change(context: Context, model: Model, target_id: str = None
             limit=1,
             offset=-1,
         )
-        row = next(rows, None)
+        row = next(iter(rows), None)
         return row
     except NotImplementedError:
         return None
