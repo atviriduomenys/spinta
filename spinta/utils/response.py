@@ -335,16 +335,19 @@ def _extract_latest_change(context: Context, model: Model, target_id: str = None
     if not model.backend:
         return None
 
-    rows = commands.changes(
-        context,
-        model,
-        model.backend,
-        id_=target_id,
-        limit=1,
-        offset=-1,
-    )
-    row = next(rows, None)
-    return row
+    try:
+        rows = commands.changes(
+            context,
+            model,
+            model.backend,
+            id_=target_id,
+            limit=1,
+            offset=-1,
+        )
+        row = next(rows, None)
+        return row
+    except NotImplementedError:
+        return None
 
 
 def _build_cache_control_header(context: Context) -> str:
@@ -375,6 +378,8 @@ def validate_cache_control_request(context: Context, request: Request) -> object
     if not cache_control:
         return None
 
+    print("CHECK CACHE", if_none_match, if_modified_since)
+    print(request.headers)
     if if_none_match:
         if if_none_match == cache_control["ETag"]:
             return Response(status_code=304, headers=cache_control)
