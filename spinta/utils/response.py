@@ -378,15 +378,12 @@ def validate_cache_control_request(context: Context, request: Request) -> object
     if not cache_control:
         return None
 
-    print("CHECK CACHE", if_none_match, if_modified_since)
-    print(request.headers)
     if if_none_match:
         if if_none_match == cache_control["ETag"]:
             return Response(status_code=304, headers=cache_control)
     elif if_modified_since:
         last_modified_dt = parsedate_to_datetime(cache_control["Last-Modified"])
         since_dt = parsedate_to_datetime(if_modified_since)
-
         if last_modified_dt <= since_dt:
             return Response(status_code=304, headers=cache_control)
     return None
