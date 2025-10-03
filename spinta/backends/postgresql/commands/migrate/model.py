@@ -11,7 +11,6 @@ from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     drop_all_indexes_and_constraints,
-    handle_new_file_type,
     get_prop_names,
     create_changelog_table,
     PostgresqlMigrationContext,
@@ -24,6 +23,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     contains_any_table,
     recreate_all_reserved_table_names,
 )
+from spinta.backends.postgresql.helpers.migrate.property import prepare_migration_columns
 from spinta.backends.postgresql.helpers.name import (
     name_changed,
     get_pg_column_name,
@@ -34,7 +34,6 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_foreign_key_name,
 )
 from spinta.components import Context, Model
-from spinta.types.datatype import File
 from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
 
@@ -146,17 +145,16 @@ def migrate(
         if prop.name.startswith("_") and prop.name not in ("_id", "_revision"):
             continue
 
-        if isinstance(prop.dtype, File):
-            columns += handle_new_file_type(context, backend, inspector, prop, pkey_type, handler)
+        cols = prepare_migration_columns(context, backend, prop.dtype, handler)
+        # if isinstance(prop.dtype, File):
+        #     columns += handle_new_file_type(context, backend, inspector, prop, pkey_type, handler)
+        # else:
+        if isinstance(cols, list):
+            for column in cols:
+                columns.append(column)
         else:
-            cols = commands.prepare(context, backend, prop)
-            if isinstance(cols, list):
-                for column in cols:
-                    columns.append(column)
-
-            else:
-                if isinstance(cols, sa.Column):
-                    columns.append(cols)
+            if isinstance(cols, sa.Column):
+                columns.append(cols)
 
     # Handle new model's unique constraints
     constraint = _get_new_model_unique_constraint(new_model=new)
@@ -187,7 +185,11 @@ def migrate(
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, sa.Table, NotAvailable)
 def migrate(
-    context: Context, backend: PostgreSQL, migration_ctx: PostgresqlMigrationContext, old: sa.Table, new: NotAvailable
+    context: Context,
+    backend: PostgreSQL,
+    migration_ctx: PostgresqlMigrationContext,
+    old: sa.Table,
+    new: NotAvailable,
 ):
     handler = migration_ctx.handler
     inspector = migration_ctx.inspector

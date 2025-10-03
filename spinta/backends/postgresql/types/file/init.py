@@ -30,13 +30,14 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
         # create table for storing file blocks and also add file metadata
         # columns.
         table_name = get_pg_name(get_table_name(prop, TableType.FILE))
-        table = sa.Table(
-            table_name,
-            model.backend.schema,
-            sa.Column("_id", pkey_type, primary_key=True),
-            sa.Column("_block", sa.LargeBinary),
-        )
-        model.backend.add_table(table, prop, TableType.FILE)
+        if table_name not in backend.schema.tables:
+            table = sa.Table(
+                table_name,
+                model.backend.schema,
+                sa.Column("_id", pkey_type, primary_key=True),
+                sa.Column("_block", sa.LargeBinary),
+            )
+            model.backend.add_table(table, prop, TableType.FILE)
 
     name = get_column_name(prop)
     nullable = not dtype.required
