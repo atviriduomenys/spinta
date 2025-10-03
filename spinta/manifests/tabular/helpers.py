@@ -2966,8 +2966,4 @@ def _get_state_obj(reader: TabularReader) -> Optional[TabularReader]:
 
 
 def get_resources_without_models(dataset: Dataset) -> list[Resource]:
-    resources = []
-    for resource in dataset.resources.values():
-        if not resource.models:
-            resources.append(resource)
-    return resources
+    return [resource for resource in dataset.resources.values() if not resource.models]
