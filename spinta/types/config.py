@@ -98,6 +98,8 @@ def load(context: Context, config: Config) -> Config:
         )
     config.upgrade_mode = rc.get("upgrade_mode", default=False)
 
+    config.cache_control_max_age = rc.get("cache_control_max_age", default=0)
+
     return config
 
 
