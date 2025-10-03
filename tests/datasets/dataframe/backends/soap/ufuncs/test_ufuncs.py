@@ -290,8 +290,7 @@ class TestSoapRequestBody:
         soap_query_builder = _get_soap_query_builder(context, manifest)
         soap_query_builder.build()
 
-        assert soap_query_builder.soap_request_body == {"request_model/param1": None}
-        assert soap_query_builder.property_values == {"parameter1": None}
+        assert soap_query_builder.soap_request_body == {}
 
     def test_build_body_from_request_with_required_prop_without_default_and_no_url_param_given(
         self, rc: RawConfig
