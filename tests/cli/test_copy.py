@@ -1080,15 +1080,15 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property | type   | ref     | source      | prepare | access
-    datasets/gov/example     |        |         |             |         |
-      | empty_resource       | sql    |         |             |         |
-      | data                 | sql    |         |             |         |
-                             |        |         |             |         |
-      |   |   | Country      |        | code    | salis       |         |
-      |   |   |   | code     | string |         | kodas       |         |
-      |   |   |   | name     | string |         | pavadinimas |         |
-      |   |   |   | driving  | string |         | vairavimas  |         | 
+    d | r | b | m | property | type   | ref     | source
+    datasets/gov/example     |        |         |
+      | empty_resource       | sql    |         |
+      | data                 | sql    |         |
+                             |        |         |
+      |   |   | Country      |        | code    | salis
+      |   |   |   | code     | string |         | kodas
+      |   |   |   | name     | string |         | pavadinimas
+      |   |   |   | driving  | string |         | vairavimas
     """),
     )
 
@@ -1106,14 +1106,14 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
     assert (
         manifest
         == """
-    d | r | b | m | property | type   | ref     | source           | prepare | access
-    datasets/gov/example     |        |         |                  |         |
-      | empty_resource       | sql    |         |                  |         |
-      | data                 | sql    |         |                  |         |
-                             |        |         |                  |         |
-      |   |   | Country      |        | code    | salis            |         |
-      |   |   |   | code     | string |         | kodas            |         |
-      |   |   |   | name     | string |         | pavadinimas      |         |
-      |   |   |   | driving  | string |         | vairavimas       |         | 
+    d | r | b | m | property | type   | ref     | source
+    datasets/gov/example     |        |         |
+      | empty_resource       | sql    |         |
+      | data                 | sql    |         |
+                             |        |         |
+      |   |   | Country      |        | code    | salis
+      |   |   |   | code     | string |         | kodas
+      |   |   |   | name     | string |         | pavadinimas
+      |   |   |   | driving  | string |         | vairavimas
     """
     )
