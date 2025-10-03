@@ -256,6 +256,7 @@ def set_model(context: Context, manifest: InternalSQLManifest, model_name: str, 
 def set_models(context: Context, manifest: InternalSQLManifest, models: Dict[str, Model], **kwargs):
     manifest.get_objects()['model'] = models
 
+# todo write those functions for functional models
 
 @commands.has_namespace.register(Context, InternalSQLManifest, str)
 def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, loaded: bool = False, **kwargs):

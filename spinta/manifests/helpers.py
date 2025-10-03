@@ -10,6 +10,7 @@ import jsonpatch
 
 from spinta import commands
 from spinta.backends.constants import BackendOrigin
+from spinta.components import Mode, FunctionalModel
 from spinta.backends.helpers import load_backend
 from spinta.components import Model
 from spinta.datasets.components import Dataset
@@ -189,6 +190,7 @@ def _load_manifest_node(
     data: dict,
 ) -> MetaData:
     node = get_node(context, config, manifest, eid, data)
+    
     node.eid = eid
     node.type = data["type"]
     node.parent = manifest

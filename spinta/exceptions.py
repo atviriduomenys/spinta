@@ -316,6 +316,10 @@ class ModelReferenceKeyNotFound(BaseError):
     template = "Model reference key {ref!r} not found in {model!r}."
 
 
+class ParentModelNotFound(BaseError):
+    template = "Parent model for partial model {model!r} not found."
+
+
 class SourceNotSet(UserError):
     status_code = 404
     template = (

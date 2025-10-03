@@ -18,7 +18,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import PageBy, Page, PageInfo, UrlParams, pagination_enabled
+from spinta.components import PageBy, Page, PageInfo, FunctionalModel, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Model
@@ -160,6 +160,19 @@ def load(
 
     if not model.name.startswith("_") and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
+
+    return model
+
+
+@load.register(Context, FunctionalModel, dict, Manifest)
+def load(
+    context: Context,
+    model: FunctionalModel,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+) -> FunctionalModel:
 
     return model
 
@@ -467,6 +480,12 @@ def check(context: Context, model: Model):
 
     for prop in model.properties.values():
         commands.check(context, prop)
+
+
+@check.register(Context, FunctionalModel)
+def check(context: Context, model: FunctionalModel):
+    if not model.parent_model:
+        raise exceptions.ParentModelNotFound(model)
 
 
 @check.register(Context, Property)

@@ -10,7 +10,7 @@ from typing import Literal
 from typing import Optional
 from typing import TypedDict
 
-from spinta.components import PrepareGiven
+from spinta.components import PrepareGiven, UrlParams
 from spinta.dimensions.lang.components import LangData
 from spinta.manifests.components import Manifest
 
@@ -217,6 +217,8 @@ class ModelRow(TypedDict, total=False):
     eli: str
     count: int
     origin: str
+    params: UrlParams
+    main_model_name: str
 
 
 class ModelExternalRow(TypedDict, total=False):
