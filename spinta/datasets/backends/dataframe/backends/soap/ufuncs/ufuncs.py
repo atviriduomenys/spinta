@@ -109,10 +109,10 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
         env.soap_request_body.pop(param_body_key, None)
     else:
         env.soap_request_body[param_body_key] = final_value
-        
+
     if prop.dtype.required and param_body_key not in env.soap_request_body:
         raise MissingRequiredProperty(prop, prop=prop.name)
-    
+
     env.property_values.update({param.name: final_value})
 
 
