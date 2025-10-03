@@ -29,11 +29,12 @@ Improvements:
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
   .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
   .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
-  .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
 
 Bug fixes:
 
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
+
+  .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
 
 Other:
 - Removed dependency `mypy`
