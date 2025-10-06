@@ -202,9 +202,9 @@ class PathGenerator:
         if "security" in method_config:
             operation["security"] = method_config["security"]
 
-        for field in ["summary", "description"]:
-            if field in method_config:
-                operation[field] = method_config[field]
+        for spec_field in ["summary", "description"]:
+            if spec_field in method_config:
+                operation[spec_field] = method_config[spec_field]
 
         if "operationId" in method_config:
             operation["operationId"] = self._build_operation_id(
