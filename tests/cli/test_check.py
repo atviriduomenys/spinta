@@ -490,7 +490,7 @@ def test_check_prop_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_p
     """),
     )
 
-    result = cli.invoke(
+    cli.invoke(
         rc,
         [
             "check",
