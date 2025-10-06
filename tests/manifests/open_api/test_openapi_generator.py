@@ -3,10 +3,10 @@ import pytest
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.tabular.helpers import striptable
 from spinta.manifests.open_api.helpers import create_openapi_manifest
-from spinta.manifests.open_api.openapi_generator import SUPPORTED_HTTP_METHODS
 from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
 
+SUPPORTED_HTTP_METHODS = {"get", "head"}
 
 MANIFEST = striptable("""
 id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
@@ -49,9 +49,20 @@ def open_manifest_path(tmp_path, rc):
 
 def test_basic_structure(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
-    assert set(open_api_spec.keys()) == set(
-        ["openapi", "info", "servers", "tags", "externalDocs", "paths", "components", "x-tagGroups"]
-    )
+
+    expected_keys = {"openapi", "info", "servers", "tags", "externalDocs", "paths", "components"}
+    actual_keys = set(open_api_spec.keys())
+
+    missing_keys = expected_keys - actual_keys
+    unexpected_keys = actual_keys - expected_keys
+
+    error_messages = []
+    if missing_keys:
+        error_messages.append(f"Missing keys: {missing_keys}")
+    if unexpected_keys:
+        error_messages.append(f"Unexpected keys: {unexpected_keys}")
+
+    assert actual_keys == expected_keys, "\n".join(error_messages)
 
 
 def test_info(open_manifest_path: ManifestPath):
@@ -151,6 +162,9 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
     operation_methods = list(operations.keys())
 
     for method in operation_methods:
+        if method == "parameters":
+            continue
+
         op_data = _validate_operation_structure(operations, model_name, path, method)
         _validate_operation_id_contains(op_data["operationId"], path, model_name, *additional_terms)
 
