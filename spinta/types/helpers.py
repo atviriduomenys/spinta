@@ -16,14 +16,14 @@ if TYPE_CHECKING:
     from spinta.types.datatype import DataType
 
 
+SPECIAL_PROPERTY_NAMES = {"_id", "_revision", "_created", "_updated", "_label"}
+
 RESERVED_PROPERTY_NAMES = {
+    *SPECIAL_PROPERTY_NAMES,
     "_op",
     "_type",
-    "_id",
-    "_revision",
     "_txn",
     "_cid",
-    "_created",
     "_where",
     "_base",
     "_uri",
@@ -70,6 +70,11 @@ def check_model_name(context: Context, model: Model):
 def check_property_name(context: Context, prop: Property):
     config: Config = context.get("config")
     if config.check_names:
-        name = prop.name
-        if name not in RESERVED_PROPERTY_NAMES and not is_valid_property_name(name):
-            raise InvalidName(prop, name=name, type="property")
+        if not prop.explicitly_given and prop.name.startswith("_") and prop.name in RESERVED_PROPERTY_NAMES:
+            return
+        # Check for explicitly given properties starting with underscore that are in SPECIAL_DSA_PROPERTIES
+        if prop.explicitly_given and prop.name.startswith("_") and prop.name in SPECIAL_PROPERTY_NAMES:
+            return
+        if is_valid_property_name(prop.name):
+            return
+        raise InvalidName(prop, name=prop.name, type="property")

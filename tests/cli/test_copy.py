@@ -1080,22 +1080,24 @@ def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunne
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property | type   | ref     | source      | prepare | access
-    datasets/gov/example     |        |         |             |         |
-      | data                 | sql    |         |             |         |
-                             |        |         |             |         |
-      |   |   | Country      |        | code    | salis       |         |
-      |   |   |   | code     | string |         | kodas       |         | public
-      |   |   |   | name     | string |         | pavadinimas |         | open
-      |   |   |   | _updated | string |         | atnaujinta  |         | open
-      |   |   |   | _created | string |         | sukurta     |         | open
-      |   |   |   | driving  | string |         | vairavimas  |         | open
-                             |        |         |             |         |
-      |   |   | City         |        | name    | miestas     |         |
-      |   |   |   | _id      | uuid   |         | miesto_id   |         | open
-      |   |   |   | name     | string |         | pavadinimas |         | open
-      |   |   |   | country  | ref    | Country | salis       |         | open
-      |   |   |   | _founded | string |         | ikurtas     |         | public
+    d | r | b | m | property  | type   | ref     | source      | prepare | access
+    datasets/gov/example      |        |         |             |         |
+      | data                  | sql    |         |             |         |
+                              |        |         |             |         |
+      |   |   | Country       |        | code    | salis       |         |
+      |   |   |   | code      | string |         | kodas       |         | public
+      |   |   |   | name      | string |         | pavadinimas |         | open
+      |   |   |   | _updated  | string |         | atnaujinta  |         | open
+      |   |   |   | _created  | string |         | sukurta     |         | open
+      |   |   |   | driving   | string |         | vairavimas  |         | open
+                              |        |         |             |         |
+      |   |   | City          |        | name    | miestas     |         |
+      |   |   |   | _id       | uuid   |         | miesto_id   |         | open
+      |   |   |   | name      | string |         | pavadinimas |         | open
+      |   |   |   | country   | ref    | Country | salis       |         | open
+      |   |   |   | _revision | string |         | versija     |         | open
+      |   |   |   | _label    | string |         | zymeklis    |         | open
+      |   |   |   | _txn      | string |         | tranzakcija |         | open
     """),
     )
 
@@ -1116,18 +1118,20 @@ def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunne
     assert (
         manifest
         == """
-    d | r | b | m | property | type   | ref     | source | prepare | access
-    datasets/gov/example     |        |         |        |         |
-                             |        |         |        |         |
-      |   |   | Country      |        |         |        |         |
-      |   |   |   | _created | string |         |        |         | open
-      |   |   |   | name     | string |         |        |         | open
-      |   |   |   | _updated | string |         |        |         | open
-      |   |   |   | driving  | string |         |        |         | open
-                             |        |         |        |         |
-      |   |   | City         |        |         |        |         |
-      |   |   |   | _id      | uuid   |         |        |         | open
-      |   |   |   | name     | string |         |        |         | open
-      |   |   |   | country  | ref    | Country |        |         | open
+    d | r | b | m | property  | type   | ref     | source | prepare | access
+    datasets/gov/example      |        |         |        |         |
+                              |        |         |        |         |
+      |   |   | Country       |        |         |        |         |
+      |   |   |   | _created  | string |         |        |         | open
+      |   |   |   | name      | string |         |        |         | open
+      |   |   |   | _updated  | string |         |        |         | open
+      |   |   |   | driving   | string |         |        |         | open
+                              |        |         |        |         |
+      |   |   | City          |        |         |        |         |
+      |   |   |   | _id       | uuid   |         |        |         | open
+      |   |   |   | _revision | string |         |        |         | open
+      |   |   |   | name      | string |         |        |         | open
+      |   |   |   | country   | ref    | Country |        |         | open
+      |   |   |   | _label    | string |         |        |         | open
     """
     )
