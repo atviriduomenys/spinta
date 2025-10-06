@@ -6,7 +6,8 @@ Changes
 
 New Features:
 
-- Added A template-based OpenAPI generator that creates REST API documentation from manifest. (`#1463`)
+- Added config based OpenAPI generator that creates REST API documentation from manifest. (`#1463`_)
+
 
   .. _#1463: https://github.com/atviriduomenys/spinta/issues/1463
 
