@@ -1,9 +1,8 @@
 #!/bin/bash
 CONFIG_FILE="config.yml"
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    export SPINTA_CONFIG=config.yml
-    cat > "$CONFIG_FILE" <<EOF
+export SPINTA_CONFIG=config.yml
+cat > "$CONFIG_FILE" <<EOF
 env: test
 data_path: $PWD/$BASEDIR
 default_auth_client: default
@@ -14,7 +13,7 @@ keymaps:
 backends:
   default:
     type: postgresql
-    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
+    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=5432}/spinta
 manifest: default
 manifests:
   default:
@@ -22,7 +21,7 @@ manifests:
     path: /app/manifest.csv
     backend: default
     keymap: default
-    mode: external
+    mode: internal
 accesslog:
   type: file
   file: stdout

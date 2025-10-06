@@ -19,10 +19,26 @@ services:
        spinta:
           aliases:
              - spinta-${BRANCH}
+
+    depends_on:
+      - spinta-${BRANCH}-database
+
     deploy:
       resources:
         limits:
           memory: 1024M
+
+  spinta-${BRANCH}-database:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=spinta
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+    volumes:
+      - ${BRANCH}-postgres:/var/lib/postgresql/data
+    networks:
+      - spinta
+
 networks:
   spinta:
     external: true
