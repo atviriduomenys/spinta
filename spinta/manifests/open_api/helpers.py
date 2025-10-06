@@ -12,7 +12,7 @@ from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_
 
 from spinta.exceptions import NotImplementedFeature
 from spinta.manifests.components import ManifestPath
-from spinta.manifests.open_api.openapi_generator import TemplateBasedOpenAPIGenerator
+from spinta.manifests.open_api.openapi_generator import OpenAPIGenerator
 
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
@@ -21,7 +21,6 @@ SCHEMA_REF_KEY = "$ref"
 DEFAULT_PROPERTY_DATATYPE = "string"
 OPENAPI = "openapi"
 SWAGGER = "swagger"
-DEFAULT_OPENAPI_TEMPLATE_PATH = "uapi_openapi_template.json"
 
 
 def replace_url_parameters(endpoint: str) -> str:
@@ -354,8 +353,8 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     yield from get_dataset_schemas(data, dataset_prefix)
 
 
-def create_openapi_manifest(manifest: ManifestPath, template_path: str = DEFAULT_OPENAPI_TEMPLATE_PATH) -> dict:
-    """Create OpenAPI manifest from template and manifest data"""
+def create_openapi_manifest(manifest: ManifestPath) -> dict:
+    """Create OpenAPI manifest from manifest data"""
 
-    generator = TemplateBasedOpenAPIGenerator(template_path)
+    generator = OpenAPIGenerator()
     return generator.generate_spec(manifest)
