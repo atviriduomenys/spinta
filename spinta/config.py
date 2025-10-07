@@ -259,6 +259,8 @@ CONFIG = {
     "max_file_size": 100,
     # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
     "max_error_count_on_insert": 100,
+    # Enables setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
+    "load_backends": True,
     "environments": {
         "dev": {
             "keymaps.default": {
