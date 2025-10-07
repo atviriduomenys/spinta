@@ -645,6 +645,11 @@ class InvalidResourceSource(UserError):
     template = "'{source}' is unacceptable resource source, it must be URL."
 
 
+class CannotReadResource(UserError):
+    status_code = 500
+    template = "Cannot read given resource. Neither source nor prepare function given"
+
+
 class UnknownManifestType(BaseError):
     template = "Can't find manifest component matching given type {type!r}."
 
