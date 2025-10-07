@@ -87,7 +87,7 @@ def getall(
     query: Expr = None,
     resolved_params: ResolvedParams = None,
     extra_properties: dict[str, Property] = None,
-    params: QueryParams,
+    params: QueryParams | None = None,
     **kwargs,
 ) -> Iterator[ObjectData]:
     bases = parametrize_bases(context, model, model.external.resource, resolved_params)
