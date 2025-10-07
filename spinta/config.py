@@ -259,8 +259,8 @@ CONFIG = {
     "max_file_size": 100,
     # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
     "max_error_count_on_insert": 100,
-    # Response Cache-Control max-age value in seconds.
-    "cache_control_max_age": 60,
+    # Response Cache-Control header.
+    "cache_control_header": "public, max-age=60, must-revalidate",
     "environments": {
         "dev": {
             "keymaps.default": {

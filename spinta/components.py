@@ -1096,8 +1096,8 @@ class Config:
     # can be ignored (like missing migrations while loading configs)
     upgrade_mode: bool = False
 
-    # Cache-Control header parameters
-    cache_control_max_age: int
+    # Cache-Control header
+    cache_control: str = ""
 
     def __init__(self):
         self.commands = _CommandsConfig()

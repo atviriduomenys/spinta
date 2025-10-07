@@ -350,12 +350,6 @@ def _extract_latest_change(context: Context, model: Model, target_id: str = None
         return None
 
 
-def _build_cache_control_header(context: Context) -> str:
-    config = context.get("config")
-    max_age = config.cache_control_max_age
-    return f"public, max-age={max_age}, must-revalidate"
-
-
 def cache_control_response_headers(context: Context, model: Model, target_id: str = None) -> dict:
     last_change = _extract_latest_change(context, model, target_id)
     if not last_change:
@@ -363,8 +357,10 @@ def cache_control_response_headers(context: Context, model: Model, target_id: st
 
     revision = last_change["_revision"]
     last_modified = format_datetime(last_change["_created"].replace(tzinfo=timezone.utc), usegmt=True)
+    config = context.get("config")
+
     cache_control = {
-        "Cache-Control": _build_cache_control_header(context),
+        "Cache-Control": config.cache_control,
         "Last-Modified": last_modified,
         "ETag": revision,
     }
