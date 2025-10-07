@@ -4,6 +4,13 @@ Changes
 0.2dev6 (unreleased)
 ====================
 
+New Features:
+
+- Added config based OpenAPI generator that creates REST API documentation from manifest. (`#1463`_)
+
+
+  .. _#1463: https://github.com/atviriduomenys/spinta/issues/1463
+
 Improvements:
 
 - `spinta copy` for XSD supports globally defined attributes, referenced in other places.(`#605`_)
@@ -25,6 +32,7 @@ Improvements:
 
 Other:
 - Removed dependency `mypy`
+
 
 0.2dev5 (2025-09-03)
 ====================
