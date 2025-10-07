@@ -261,6 +261,8 @@ CONFIG = {
     "max_error_count_on_insert": 100,
     # Enables setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
     "load_backends": True,
+    # Response Cache-Control header.
+    "cache_control_header": "public, max-age=60, must-revalidate",
     "environments": {
         "dev": {
             "keymaps.default": {

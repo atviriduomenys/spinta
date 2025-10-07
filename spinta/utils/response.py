@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import json
+from datetime import timezone
+from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
 from typing import cast, Optional, List, Dict, Any, Tuple
 
@@ -8,6 +12,7 @@ from urllib.error import HTTPError
 import requests
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
+from starlette.responses import Response
 
 from spinta import commands
 from spinta import exceptions
@@ -132,7 +137,9 @@ async def create_http_response(
 
     if request.method in ("GET", "HEAD"):
         context.attach("transaction", validate_and_return_transaction, context, manifest.backend)
-
+        context.bind("cache-control", cache_control_response_headers, context, params.model, params.pk)
+        if response := validate_cache_control_request(context, request):
+            return response
         if params.changes:
             _enforce_limit(context, params)
             return await commands.changes(
@@ -322,3 +329,57 @@ def get_request(
         return resp.status_code, None
 
     return resp.status_code, resp.json()
+
+
+def _extract_latest_change(context: Context, model: Model, target_id: str = None) -> dict | None:
+    if not model.backend:
+        return None
+
+    try:
+        rows = commands.changes(
+            context,
+            model,
+            model.backend,
+            id_=target_id,
+            limit=1,
+            offset=-1,
+        )
+        row = next(iter(rows), None)
+        return row
+    except NotImplementedError:
+        return None
+
+
+def cache_control_response_headers(context: Context, model: Model, target_id: str = None) -> dict:
+    last_change = _extract_latest_change(context, model, target_id)
+    if not last_change:
+        return {}
+
+    revision = last_change["_revision"]
+    last_modified = format_datetime(last_change["_created"].replace(tzinfo=timezone.utc), usegmt=True)
+    config = context.get("config")
+
+    cache_control = {
+        "Cache-Control": config.cache_control,
+        "Last-Modified": last_modified,
+        "ETag": revision,
+    }
+    return cache_control
+
+
+def validate_cache_control_request(context: Context, request: Request) -> object:
+    cache_control = context.get("cache-control")
+    if_none_match = request.headers.get("if-none-match")
+    if_modified_since = request.headers.get("if-modified-since")
+    if not cache_control:
+        return None
+
+    if if_none_match:
+        if if_none_match == cache_control["ETag"]:
+            return Response(status_code=304, headers=cache_control)
+    elif if_modified_since:
+        last_modified_dt = parsedate_to_datetime(cache_control["Last-Modified"])
+        since_dt = parsedate_to_datetime(if_modified_since)
+        if last_modified_dt <= since_dt:
+            return Response(status_code=304, headers=cache_control)
+    return None

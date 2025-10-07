@@ -99,6 +99,8 @@ def load(context: Context, config: Config) -> Config:
         )
     config.upgrade_mode = rc.get("upgrade_mode", default=False)
 
+    config.cache_control = rc.get("cache_control_header", default="")
+
     return config
 
 

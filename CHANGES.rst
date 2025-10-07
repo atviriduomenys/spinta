@@ -21,12 +21,14 @@ Improvements:
 - Calling getall with soap backend will always return list of object, even if SOAP response has one element (`#1486`_)
 - Introduce `base64()` prepare function that decodes base64 string (`#1486`_)
 - `base64()` prepare function that decodes base64 binary now does this outside dask dataframes. Also, raises `InvalidBase64String` for invalid base64 (`#1486`_)
+- Added `Cache-Control`, `ETag` and `Last-Modified` headers to most commonly used `GET` requests (`#1506`_).
 
   .. _#605: https://github.com/atviriduomenys/spinta/issues/605
   .. _#675: https://github.com/atviriduomenys/spinta/issues/675
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
   .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
+  .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
 
 Other:
 - Removed dependency `mypy`
