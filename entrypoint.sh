@@ -27,9 +27,6 @@ accesslog:
   file: stdout
 EOF
     echo "Created config.yml."
-else
-    echo "Found existing config.yml."
-fi
 
 git clone https://github.com/atviriduomenys/demo-saltiniai.git
 mkdir manifests
