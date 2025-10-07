@@ -1,6 +1,6 @@
 import io
 import pathlib
-from typing import Iterator
+from typing import Iterator, Any
 
 import requests
 from dask.bag import from_sequence
@@ -16,11 +16,16 @@ from spinta.datasets.backends.dataframe.commands.read import (
     dask_get_all,
     get_pkeys_if_ref,
 )
+from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
+from spinta.exceptions import CannotReadResource
 from spinta.typing import ObjectData
+from spinta.utils.schema import NA
 
 
-def _parse_xml_loop_model_properties(value, added_root_elements: list, model_props: dict, namespaces: dict):
+def _parse_xml_loop_model_properties(
+    value, added_root_elements: list, model_props: dict, namespaces: dict
+) -> dict[str, Any]:
     new_dict = {}
 
     # Go through each prop source with xpath of root path
@@ -71,8 +76,9 @@ def _parse_xml_loop_model_properties(value, added_root_elements: list, model_pro
     return new_dict
 
 
-def _parse_xml(data, source: str, model_props: dict, namespaces={}):
+def _parse_xml(data, source: str, model_props: dict, namespaces={}) -> Iterator[dict[str, Any]]:
     added_root_elements = []
+
     iterparse = etree.iterparse(data, events=["start"], remove_blank_text=True)
     _, root = next(iterparse)
 
@@ -85,13 +91,17 @@ def _parse_xml(data, source: str, model_props: dict, namespaces={}):
             yield _parse_xml_loop_model_properties(value, added_root_elements, model_props, namespaces)
 
 
-def _get_data_xml(url: str, source: str, model_props: dict, namespaces: dict):
-    if url.startswith(("http", "https")):
-        f = requests.get(url, timeout=30)
-        yield from _parse_xml(io.BytesIO(f.content), source, model_props, namespaces)
+def _get_data_xml(data_source: str, source: str, model_props: dict, namespaces: dict) -> Iterator[dict[str, Any]]:
+    if data_source.startswith(("http", "https")):
+        response = requests.get(data_source, timeout=30)
+        yield from _parse_xml(io.BytesIO(response.content), source, model_props, namespaces)
+
+    elif is_file_path(data_source):
+        with pathlib.Path(data_source).open("rb") as file:
+            yield from _parse_xml(file, source, model_props, namespaces)
+
     else:
-        with pathlib.Path(url).open("rb") as f:
-            yield from _parse_xml(f, source, model_props, namespaces)
+        yield from _parse_xml(io.BytesIO(data_source.encode("ascii")), source, model_props, namespaces)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model) -> dict:
@@ -113,17 +123,27 @@ def getall(
     extra_properties: dict[str, Property] = None,
     **kwargs,
 ) -> Iterator[ObjectData]:
-    bases = parametrize_bases(context, model, model.external.resource, resolved_params)
+    resource = model.external.resource
+
     builder = backend.query_builder_class(context)
-    builder.update(model=model)
+    builder.update(model=model, params={param.name: param for param in resource.params})
+
     props = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             props[prop.name] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
 
     meta = get_dask_dataframe_meta(model)
+
+    if resource.external:
+        data_source = parametrize_bases(context, model, model.external.resource, resolved_params)
+    elif resource.prepare is not NA:
+        data_source = builder.resolve(resource.prepare)
+    else:
+        raise CannotReadResource(resource)
+
     df = (
-        from_sequence(bases)
+        from_sequence(data_source)
         .map(
             _get_data_xml,
             namespaces=_gather_namespaces_from_model(context, model),

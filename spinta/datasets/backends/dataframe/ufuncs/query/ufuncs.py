@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Iterator
 
 from spinta.auth import authorized
 from spinta.components import Property
@@ -9,6 +9,8 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskDataFrameQueryBuilder,
     DaskSelected as Selected,
 )
+from spinta.datasets.components import Param
+from spinta.datasets.utils import iterparams
 from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
@@ -440,3 +442,14 @@ def compare(env, op, field, value):
 def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Param, name="eval")
+def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
+    resolved_values = (
+        param_values.get(param.name)
+        for param_values in iterparams(env.context, env.model, env.model.manifest, [param])
+        if param_values.get(param.name)
+    )
+
+    return resolved_values
