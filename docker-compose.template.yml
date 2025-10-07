@@ -1,4 +1,3 @@
-# Should be ran on server before deployments
 # docker network create spinta
 # docker compose -f docker-compose.nginx.yml up -d
 
@@ -7,22 +6,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command:
-      - ./entrypoint.sh
+    command: ["./entrypoint.sh"]
     environment:
-      - AUTHLIB_INSECURE_TRANSPORT=1
-      - DB_HOST=database
-      - DB_PORT=5432
+      AUTHLIB_INSECURE_TRANSPORT: "1"
+      # svarbu: DB_HOST — tai tavo per-branch DB serviso vardas
+      DB_HOST: spinta-${BRANCH}-database
+      DB_PORT: "5432"
     env_file:
-      template.env
+      - template.env
     networks:
-       spinta:
-          aliases:
-             - spinta-${BRANCH}
-
+      spinta:
+        aliases:
+          - spinta-${BRANCH}
     depends_on:
-      - spinta-${BRANCH}-database
-
+      spinta-${BRANCH}-database:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -31,14 +29,22 @@ services:
   spinta-${BRANCH}-database:
     image: postgres:16
     environment:
-      - POSTGRES_DB=spinta
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin123
+      POSTGRES_DB: spinta
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
     volumes:
-      - ${BRANCH}-postgres:/var/lib/postgresql/data
+      - ${BRANCH}-postgres:/var/lib/postgresql/data  # per-branch volume
     networks:
       - spinta
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d spinta"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  ${BRANCH}-postgres: {}   # aiškiai įvardintas per-branch volume
 
 networks:
   spinta:
-    external: true
+    external: true         # galima palikti bendrą tinklą, vardai vistiek unikalūs
