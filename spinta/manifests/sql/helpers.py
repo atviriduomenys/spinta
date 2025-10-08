@@ -13,6 +13,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects import oracle
 from sqlalchemy.dialects import mssql
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.sql.sqltypes import _Binary
 from sqlalchemy.types import TypeEngine
 
 from spinta import spyna
@@ -228,17 +229,15 @@ TYPES = [
     (sa.Numeric, "number"),
     (sa.Text, "string"),
     (sa.Time, "time"),
-    (sa.LargeBinary, "binary"),
+    # Using _Binary (private class) to catch all binary types including:
+    # sa.LargeBinary, mysql.BLOB, mysql.LONGBLOB, oracle.RAW, etc.
+    (_Binary, "binary"),
     (sa.String, "string"),
     (sa.VARCHAR, "string"),
     (sa.CHAR, "string"),
     (mysql.BIT, "string"),
     (mysql.VARBINARY, "string"),
     (mysql.VARCHAR, "string"),
-    (mysql.TINYBLOB, "binary"),
-    (mysql.BLOB, "binary"),
-    (mysql.MEDIUMBLOB, "binary"),
-    (mysql.LONGBLOB, "binary"),
     (postgresql.ARRAY, "array"),
     (postgresql.JSON, "object"),
     (postgresql.JSONB, "object"),
@@ -247,7 +246,6 @@ TYPES = [
     (postgresql.OID, "integer"),  # four-byte integer, https://www.postgresql.org/docs/current/datatype-oid.html
     (Geometry, "geometry"),
     (oracle.ROWID, "string"),
-    (oracle.RAW, "binary"),
     (mssql.MONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.SMALLMONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.UNIQUEIDENTIFIER, "string"),  # Example: 6F9619FF-8B86-D011-B42D-00C04FC964FF
