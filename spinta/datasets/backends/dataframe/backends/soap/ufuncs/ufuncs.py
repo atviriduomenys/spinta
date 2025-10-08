@@ -107,6 +107,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
 
     if final_value is NA:
         env.soap_request_body.pop(param_body_key, None)
+        final_value = None
     else:
         env.soap_request_body[param_body_key] = final_value
 
