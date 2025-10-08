@@ -104,6 +104,71 @@ def test_inspect(
     )
 
 
+def test_inspect_blob_types(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    """
+    Test binary/BLOB type inspection via CLI (issue #1484).
+
+    This functional test verifies the full inspect workflow generates
+    correct manifests with binary types. Unit tests in
+    tests/datasets/sql/test_inspect.py verify that MySQL-specific BLOB
+    types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) are correctly mapped.
+    """
+    # Setup database with binary columns and real binary data
+    sqlite.init(
+        {
+            "PROVIDERS": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("NAME", sa.Text),
+                sa.Column("LOGO", sa.LargeBinary),
+                sa.Column("ICON", sa.LargeBinary),
+                sa.Column("DOCUMENT", sa.LargeBinary),
+            ],
+        }
+    )
+
+    sqlite.write(
+        "PROVIDERS",
+        [
+            {
+                "ID": 1,
+                "NAME": "Test Provider",
+                "LOGO": b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR",
+                "ICON": b"\xff\xd8\xff",
+                "DOCUMENT": b"%PDF-1.4",
+            },
+        ],
+    )
+
+    # Run inspect via CLI
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Check what was detected
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    # Verify binary columns are correctly mapped
+    assert (
+        manifest
+        == """
+    d | r | b | m | property  | type    | ref | source    | prepare
+    db_sqlite                 |         |     |           |
+      | resource1             | sql     |     | sqlite    |
+                              |         |     |           |
+      |   |   | Providers     |         | id  | PROVIDERS |
+      |   |   |   | document  | binary  |     | DOCUMENT  |
+      |   |   |   | icon      | binary  |     | ICON      |
+      |   |   |   | id        | integer |     | ID        |
+      |   |   |   | logo      | binary  |     | LOGO      |
+      |   |   |   | name      | string  |     | NAME      |
+    """
+    )
+
+
 def test_inspect_from_manifest_table(
     rc_new: RawConfig,
     cli: SpintaCliRunner,
