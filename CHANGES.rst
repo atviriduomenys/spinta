@@ -28,13 +28,15 @@ Improvements:
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
   .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
-  .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
 
 Bug fixes:
 
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
+- Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
+- Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
+  .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
 
 Other:
 - Removed dependency `mypy`
