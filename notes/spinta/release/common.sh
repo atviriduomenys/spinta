@@ -146,7 +146,7 @@ git status
 git checkout get.data.gov.lt
 git pull
 
-# install the current spinta code
+# install the current spinta code or activate venv with it
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
