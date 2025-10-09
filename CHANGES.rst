@@ -178,7 +178,7 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
- (2025-10-09)
+0.1.86 (unreleased)
 ===================
 
 Backwards incompatible:
