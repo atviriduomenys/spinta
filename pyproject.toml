@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2.dev5"
+version = "0.2.dev6"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"

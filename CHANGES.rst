@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev6 (unreleased)
+0.2dev6 (2025-10-09)
 ====================
 
 New Features:
@@ -32,9 +32,12 @@ Improvements:
 
 Bug fixes:
 
+- Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check`.
+
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
+  .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
 
 Other:
 - Removed dependency `mypy`
@@ -72,6 +75,7 @@ New Features:
 - Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
 - Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
 - Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
+
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
   .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
@@ -174,7 +178,7 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.86 (unreleased)
+ (2025-10-09)
 ===================
 
 Backwards incompatible:
