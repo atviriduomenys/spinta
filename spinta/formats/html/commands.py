@@ -63,10 +63,8 @@ from spinta.utils.url import build_url_path
 
 
 def _get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
-    if action == Action.GETALL:
+    if action in [Action.GETALL, Action.SEARCH]:
         reserved = ["_id"]
-    elif action == action.SEARCH:
-        reserved = ["_id", "_base"]
     else:
         return get_model_reserved_props(action, include_page)
     if include_page:
