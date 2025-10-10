@@ -448,7 +448,7 @@ def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
 def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     resolved_values = (
         param_values.get(param.name)
-        for param_values in iterparams(env.context, env.model, env.model.manifest, [param])
+        for param_values in iterparams(env.context, env.model, env.model.manifest, [param], env.url_query_params)
         if param_values.get(param.name)
     )
 
