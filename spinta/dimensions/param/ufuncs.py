@@ -19,7 +19,7 @@ def param(env: Env, bind: Bind) -> Any:
 
 @ufunc.resolver(ParamBuilder, Model)
 def read(env: ParamBuilder, model: Model) -> Any:
-    return commands.getall(env.context, model, model.backend, resolved_params=env.params)
+    return commands.getall(env.context, model, model.backend, resolved_params=env.params, query=env.url_query_params)
 
 
 @ufunc.resolver(ParamBuilder, str)
