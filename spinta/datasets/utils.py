@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 from typing import Iterator
 from typing import List
@@ -16,11 +18,17 @@ def _recursive_iter_params(
     manifest: Manifest,
     params: List[Param],
     values: ResolvedParams,
+    url_query_params: Expr | None,
 ) -> Iterator[ResolvedParams]:
     if len(params) > 0:
         param = params[0]
         env = ParamBuilder(context)
-        env.update(params=values if values else {}, target_param=param.name, manifest=manifest)
+        env.update(
+            params=values if values else {},
+            target_param=param.name,
+            manifest=manifest,
+            url_query_params=url_query_params,
+        )
         for source, formula in zip(param.sources, param.formulas):
             env.update(this=source)
 
@@ -40,18 +48,19 @@ def _recursive_iter_params(
                     manifest,
                     params[1:],
                     new_value,
+                    url_query_params,
                 )
     else:
         yield values
 
 
 def iterparams(
-    context: Context, model: Model, manifest: Manifest, params: List[Param] = []
+    context: Context, model: Model, manifest: Manifest, params: List[Param] = [], url_query_params: Expr | None = None
 ) -> Iterator[ResolvedParams]:
     values = {}
 
     if params:
-        yield from _recursive_iter_params(context, model, manifest, params, values)
+        yield from _recursive_iter_params(context, model, manifest, params, values, url_query_params)
     else:
         yield {}
 
