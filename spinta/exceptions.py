@@ -331,6 +331,14 @@ class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 
 
+class ManifestFilePathNotGiven(BaseError):
+    template = "Manifest file path should be provided in `config.yml` file."
+
+
+class ManifestFileInvalidPath(BaseError):
+    template = "Cannot create manifest file at {manifest_path}."
+
+
 class UnknownProjectOwner(BaseError):
     template = "Unknown owner {owner}."
     context = {"owner": "this.owner"}
