@@ -42,20 +42,20 @@ class ManifestGiven:
 
 
 class Manifest(Component):
-    type: str = None
-    name: str = None
-    keymap: KeyMap = None
-    backend: Backend = None
-    parent: Component = None
-    store: Store = None
-    _objects: MetaDataContainer = None
-    path: str = None
+    type: Optional[str] = None
+    name: Optional[str] = None
+    keymap: Optional[KeyMap] = None
+    backend: Optional[Backend] = None
+    parent: Optional[Component] = None
+    store: Optional[Store] = None
+    _objects: Optional[MetaDataContainer] = None
+    path: Optional[str] = None
     access: Access = Access.protected
     prefixes: Dict[str, UriPrefix]
     enums: Enums
 
     # Backends defined in the manifest.
-    backends: Dict[str, Backend] = None
+    backends: Optional[Dict[str, Backend]] = None
 
     # List of other source manifests used to populate nodes into the main
     # manifest.
@@ -101,7 +101,7 @@ ManifestSchema = Tuple[Any, NodeSchema]
 @dataclasses.dataclass
 class ManifestPath:
     type: str = "tabular"
-    name: str = None
-    path: str = None
-    file: IO = None
-    prepare: str = None
+    name: Optional[str] = None
+    path: Optional[str] = None
+    file: Optional[IO] = None
+    prepare: Optional[str] = None
