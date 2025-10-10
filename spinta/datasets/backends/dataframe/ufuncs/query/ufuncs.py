@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import reduce
 from typing import Dict, Any, Tuple, List, Iterator
 
