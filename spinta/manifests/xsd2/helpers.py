@@ -105,6 +105,9 @@ NODE_TYPES = [
     "maxInclusive",
     "appinfo",
     "Relationship",  # custom RC element
+    "key",  # XSD identity constraint for primary keys
+    "selector",  # child of key - defines scope
+    "field",  # child of key - defines field(s)
 ]
 
 NODE_ATTRIBUTE_TYPES = ["minOccurs", "maxOccurs", "type", "use", "name", "ref", "base", "value"]
@@ -121,6 +124,15 @@ class XSDType:
 
     def __init__(self, name: str = ""):
         self.name = name
+
+
+@dataclass
+class XSDKey:
+    """Represents an xs:key constraint from XSD schema"""
+
+    name: str
+    selector_xpath: str
+    field_xpaths: List[str]
 
 
 """
@@ -237,6 +249,7 @@ class XSDModel:
     extends_model: XSDModel | None = None
     is_partial: bool = True
     features: str | None = None
+    ref: List[str] | None = None  # primary key fields from xs:key
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -271,6 +284,10 @@ class XSDModel:
             for prop_name, prop in self.properties.items():
                 properties.update(prop.get_data())
             model_data["properties"] = properties
+
+        if self.ref:
+            # Set primary keys in external dict (follows SQL manifest pattern)
+            model_data["external"]["pk"] = self.ref
 
         if self.uri is not None:
             model_data["uri"] = self.uri
@@ -324,6 +341,7 @@ class XSDReader:
     properties_xsd_type_to_set: set[str]
     namespaces: dict[str, str] | None = None
     global_attribute_properties: dict[str, list[XSDProperty]] = {}
+    keys: dict[str, list[XSDKey]]  # element_name -> list of xs:key constraints
 
     def __init__(self, path: str, dataset_name: str) -> None:
         self._path = path
@@ -335,6 +353,7 @@ class XSDReader:
         self.top_level_complex_type_models = {}
         self.separate_complex_type_root_elements = []
         self.properties_xsd_type_to_set = set()
+        self.keys = {}
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath('./*[local-name() = "simpleType"]')
@@ -450,6 +469,75 @@ class XSDReader:
                     logger.warning(f"Parent model '{model.extends_model}' not found for model '{model.name}'")
                     model.extends_model = None
 
+    def _post_process_keys(self) -> None:
+        """
+        Apply xs:key constraints to models by setting the ref column.
+
+        The ref column indicates which properties form the primary key.
+        For composite keys, multiple property names are stored in a list.
+        """
+        for element_name, keys in self.keys.items():
+            # Find the model(s) for this element
+            if element_name not in self.top_level_element_models:
+                logger.warning(f"xs:key defined for unknown element: {element_name}")
+                continue
+
+            for key in keys:
+                # Parse selector to find target model
+                # Selector xpath like "City" or "Cities/City"
+                selector_parts = key.selector_xpath.split("/")
+                # Remove namespace prefixes (e.g., "tns:City" -> "City")
+                selector_parts = [part.split(":")[-1] for part in selector_parts]
+
+                # Get the target element name from selector
+                target_element_name = selector_parts[-1]
+
+                # Find target model(s) by xsd_name
+                # First check top_level_element_models (for root elements)
+                if target_element_name in self.top_level_element_models:
+                    target_models = self.top_level_element_models[target_element_name]
+                else:
+                    # Search through all models for nested elements
+                    target_models = [m for m in self.models if m.xsd_name == target_element_name]
+
+                if not target_models:
+                    logger.warning(f"xs:key selector references unknown element: {target_element_name}")
+                    continue
+
+                # Apply key to target model(s)
+                for target_model in target_models:
+                    # Parse field xpaths to property names
+                    ref_properties = []
+                    for field_xpath in key.field_xpaths:
+                        # Remove namespace prefix
+                        field_xpath = field_xpath.split(":")[-1]
+
+                        # Handle attribute vs element
+                        if field_xpath.startswith("@"):
+                            # Attribute: @ID -> find property with source="@ID"
+                            attr_name = field_xpath[1:]
+                            source_to_find = f"@{attr_name}"
+                        else:
+                            # Element: Name -> find property with source="Name/text()"
+                            source_to_find = f"{field_xpath}/text()"
+
+                        # Find matching property
+                        prop_name = None
+                        for pname, prop in target_model.properties.items():
+                            if prop.source == source_to_find or prop.source == field_xpath:
+                                prop_name = pname
+                                break
+
+                        if prop_name:
+                            ref_properties.append(prop_name)
+                        else:
+                            logger.warning(f"xs:key field '{field_xpath}' not found in model {target_model.name}")
+
+                    # Set model's ref if we found all fields
+                    if ref_properties:
+                        target_model.ref = ref_properties
+                        logger.info(f"xs:key applied to model '{target_model.name}': ref={ref_properties}")
+
     def post_process_separate_complex_type_root_elements(self) -> None:
         processed_models = []
         deduplicator = Deduplicator()
@@ -522,6 +610,8 @@ class XSDReader:
         # post processing
 
         self._post_process_refs()
+
+        self._post_process_keys()
 
         self._add_refs_for_backrefs()
 
@@ -679,6 +769,13 @@ class XSDReader:
 
             elif QName(child).localname == "annotation":
                 description = self.process_annotation(child, state)
+
+            elif QName(child).localname == "key":
+                # Process xs:key constraint - store for post-processing
+                key = self.process_key(child, state)
+                if property_name not in self.keys:
+                    self.keys[property_name] = []
+                self.keys[property_name].append(key)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
@@ -893,6 +990,32 @@ class XSDReader:
                 raise RuntimeError(f"Unexpected element type inside simpleType element: {QName(child).localname}")
         property_type.description = description
         return property_type
+
+    def process_key(self, node: _Element, state: State) -> XSDKey:
+        """
+        Process xs:key element to extract primary key constraint.
+
+        XSD structure:
+            <xs:key name="KeyName">
+                <xs:selector xpath="path/to/elements"/>
+                <xs:field xpath="@attribute or element"/>
+            </xs:key>
+        """
+        key_name = node.attrib.get("name")
+
+        # Extract selector xpath
+        selector_nodes = node.xpath('./*[local-name() = "selector"]')
+        if not selector_nodes:
+            raise RuntimeError(f"xs:key '{key_name}' must have a selector element")
+        selector_xpath = selector_nodes[0].attrib.get("xpath")
+
+        # Extract field xpath(s) - can be multiple for composite keys
+        field_nodes = node.xpath('./*[local-name() = "field"]')
+        if not field_nodes:
+            raise RuntimeError(f"xs:key '{key_name}' must have at least one field element")
+        field_xpaths = [f.attrib.get("xpath") for f in field_nodes]
+
+        return XSDKey(name=key_name, selector_xpath=selector_xpath, field_xpaths=field_xpaths)
 
     def process_sequence(self, node: _Element, state: State) -> list[list[XSDProperty]]:
         """

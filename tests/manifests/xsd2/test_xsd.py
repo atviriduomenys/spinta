@@ -1139,3 +1139,100 @@ def test_xsd_global_attribute_ref_with_inline_simple_content(rc: RawConfig, tmp_
         f.write(xsd)
     manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
+
+
+def test_xsd_key_simple(rc: RawConfig, tmp_path: Path):
+    """Test xs:key with single field (simple primary key)"""
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="Country">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="code" type="xs:string"/>
+    </xs:complexType>
+    
+    <xs:key name="CityIDUnique">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type             | ref     | source    | prepare  | level | access | uri | title | description
+    | manifest                 |                  |         |           |          |       |        |     |       |
+    |   | resource1            | dask/xml         |         |           |          |       |        |     |       |
+    |                          |                  |         |           |          |       |        |     |       |
+    |   |   |   | City/:part   |                  | id      |           |          |       |        |     |       |
+    |   |   |   |   | country  | ref              | Country |           |          |       |        |     |       |
+    |   |   |   |   | id       | string required  |         | @ID       |          |       |        |     |       |
+    |   |   |   |   | name     | string           |         | @name     |          |       |        |     |       |
+    |                          |                  |         |           |          |       |        |     |       |
+    |   |   |   | Country      |                  |         | /Country  |          |       |        |     |       |
+    |   |   |   |   | city[]   | backref required | City    | City      | expand() |       |        |     |       |
+    |   |   |   |   | code     | string           |         | @code     |          |       |        |     |       |
+"""
+
+    path = tmp_path / "manifest.xsd"
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
+
+
+def test_xsd_key_composite(rc: RawConfig, tmp_path: Path):
+    """Test xs:key with multiple fields (composite primary key)"""
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="World">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="countryCode" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+    
+    <xs:key name="uniqueCityPerCountry">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@name"/>
+      <xs:field xpath="@countryCode"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property     | type             | ref                | source       | prepare  | level | access | uri | title | description
+    | manifest                     |                  |                    |              |          |       |        |     |       |
+    |   | resource1                | dask/xml         |                    |              |          |       |        |     |       |
+    |                              |                  |                    |              |          |       |        |     |       |
+    |   |   |   | City/:part       |                  | name, country_code |              |          |       |        |     |       |
+    |   |   |   |   | country_code | string required  |                    | @countryCode |          |       |        |     |       |
+    |   |   |   |   | id           | string required  |                    | @ID          |          |       |        |     |       |
+    |   |   |   |   | name         | string required  |                    | @name        |          |       |        |     |       |
+    |   |   |   |   | world        | ref              | World              |              |          |       |        |     |       |
+    |                              |                  |                    |              |          |       |        |     |       |
+    |   |   |   | World            |                  |                    | /World       |          |       |        |     |       |
+    |   |   |   |   | city[]       | backref required | City               | City         | expand() |       |        |     |       |
+"""
+
+    path = tmp_path / "manifest.xsd"
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
