@@ -92,7 +92,7 @@ def _parse_xml(data, source: str, model_props: dict, namespaces={}) -> Iterator[
 
 
 def _get_data_xml(data_source: str, source: str, model_props: dict, namespaces: dict) -> Iterator[dict[str, Any]]:
-    if data_source.startswith(("http", "https")):
+    if data_source.startswith("http"):
         response = requests.get(data_source, timeout=30)
         yield from _parse_xml(io.BytesIO(response.content), source, model_props, namespaces)
 
