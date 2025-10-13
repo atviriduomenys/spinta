@@ -14,8 +14,6 @@ from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr, Env
 from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
-from spinta.datasets.backends.dataframe.backends.csv.components import Csv
-from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource
@@ -198,27 +196,6 @@ def get_dask_dataframe_meta(model: Model):
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
     return dask_meta
-
-
-@commands.getall.register(Context, Model, Csv)
-def getall(
-    context: Context,
-    model: Model,
-    backend: Csv,
-    *,
-    query: Expr = None,
-    resolved_params: ResolvedParams = None,
-    extra_properties: dict[str, Property] = None,
-    **kwargs,
-) -> Iterator[ObjectData]:
-    resource_builder = TabularResource(context)
-    resource_builder.resolve(model.external.resource.prepare)
-    bases = parametrize_bases(context, model, model.external.resource, resolved_params, model.external.name)
-
-    builder = backend.query_builder_class(context)
-    builder.update(model=model)
-    df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
-    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getall.register(Context, Model, MemoryDaskBackend)
