@@ -1,4 +1,6 @@
 import json
+from typing import Optional
+
 import tqdm
 from click import echo
 
@@ -137,7 +139,7 @@ def adjust_bytes(backend: Backend, model: Model, totals: dict, count: int) -> di
     return result
 
 
-def _extract_column_byte_data(backend: PostgreSQL, prop: Property, data: dict) -> (str, int | None):
+def _extract_column_byte_data(backend: PostgreSQL, prop: Property, data: dict) -> (str, Optional[int]):
     table = backend.get_table(prop.model)
     column = backend.get_column(table, prop)
     data = data.get(column.name, None)
