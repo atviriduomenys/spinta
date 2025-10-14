@@ -50,6 +50,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
+from spinta.utils.config import get_limit_config_data
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
@@ -160,6 +161,9 @@ def load(
 
     if not model.name.startswith("_") and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
+
+    limits = get_limit_config_data(config)
+    model.limit = limits.get(model.model_type(), None)
 
     return model
 

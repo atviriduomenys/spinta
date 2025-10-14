@@ -19,14 +19,13 @@ from spinta import exceptions
 from spinta.api.schema import schema_api
 from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.formats.components import Format
 from spinta.components import Model
 from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Node
 from spinta.components import Store
 from spinta.components import UrlParams
-from spinta.exceptions import BaseError
+from spinta.exceptions import BaseError, ExceededMaximumLimit, LimitOrPageIsRequired
 from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
 from spinta.api.inspect import inspect_api
@@ -250,13 +249,33 @@ async def create_http_response(
 
 
 def _enforce_limit(context: Context, params: UrlParams):
-    fmt: Format = params.fmt
-    # XXX: I think this is not the best way to enforce limit, maybe simply
-    #      an error should be raised?
-    # XXX: Max resource count should be configurable.
-    if not fmt.streamable and (params.limit is None or params.limit > 100):
-        params.limit = params.limit_enforced_to + 1
-        params.limit_enforced = True
+    if params.limit_enforced_to is None:
+        return
+
+    model = params.model
+    if hasattr(model, "limit") and model.limit is not None and params.fmt.streamable:
+        if params.limit is None and params.page is None:
+            raise LimitOrPageIsRequired(
+                model,
+                model_name=model.name,
+                maximum_limit=params.limit_enforced_to,
+            )
+
+    if params.limit:
+        # No need to enforce limit if the limit is lower
+        if params.limit <= params.limit_enforced_to:
+            return
+
+        if params.limit > params.limit_enforced_to:
+            raise ExceededMaximumLimit(
+                model,
+                model_name=model.name,
+                maximum_limit=params.limit_enforced_to,
+                given_limit=params.limit,
+            )
+
+    params.limit = params.limit_enforced_to
+    params.limit_enforced = True
 
 
 def peek_and_stream(stream):

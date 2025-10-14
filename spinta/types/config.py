@@ -14,6 +14,7 @@ from spinta.commands import load, check
 from spinta.components import Context, Config
 from spinta import components
 from spinta.core.ufuncs import ufunc
+from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
 
@@ -100,6 +101,9 @@ def load(context: Context, config: Config) -> Config:
     config.upgrade_mode = rc.get("upgrade_mode", default=False)
 
     config.cache_control = rc.get("cache_control_header", default="")
+
+    config.default_limit_objects = rc.get("default_limit_objects", default=None)
+    config.default_limit_bytes = tobytes(rc.get("default_limit_bytes", default="1g"))
 
     return config
 

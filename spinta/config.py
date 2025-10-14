@@ -263,6 +263,10 @@ CONFIG = {
     "load_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
+    # Default limit of objects returned by getall, None - no limit
+    "default_limit_objects": None,
+    # Default approximate size of maximum JSON return that gets used to calculate limits of each model
+    "default_limit_bytes": "1g",
     "environments": {
         "dev": {
             "keymaps.default": {
