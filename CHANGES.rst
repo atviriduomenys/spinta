@@ -2,7 +2,16 @@ Changes
 #######
 
 0.2dev7 (unreleased)
-===================
+====================
+
+New Features:
+
+- Added `eval()` prepare function for resources. This function allows using the value of a prepare expression
+  as a data source instead of a source column. The `eval(param(..))` syntax can reference a property from
+  another resource, even if it belongs to a different backend. `dask/json` and `dask/xml` backends can now
+  use `eval()` to read data from properties of `dask/json`, `dask/xml`, or `soap` backends. (`#1487`_)
+
+.. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
 
 Bug fixes:
 

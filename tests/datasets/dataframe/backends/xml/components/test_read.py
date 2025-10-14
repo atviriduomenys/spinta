@@ -1,8 +1,9 @@
 import json
+from pathlib import Path
 
 from responses import RequestsMock, POST
 
-from spinta.core.config import RawConfig, Path
+from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
@@ -441,6 +442,60 @@ def test_xml_read_from_different_resource_property(rc: RawConfig, tmp_path: Path
     ]
 
 
+def test_xml_read_from_different_dataset_resource(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>1</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><name>Vilnius</name><founded>1387</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>2</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><name>Kaunas</name><founded>1408</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type     | ref        | source                                          | access | prepare
+        example                  | dataset  |            |                                                 |        |
+          | wsdl_resource        | wsdl     |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap     |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param    | parameter1 | request_model/param1                            |        | input('default_val')
+          |   |   |   |          | param    | parameter2 | request_model/param2                            |        | input('default_val')
+          |   |   | City         |          |            | /                                               | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | p1       | integer  |            |                                                 |        | param(parameter1)
+          |   |   |   | p2       | integer  |            |                                                 |        | param(parameter2)
+        example2                 | dataset  |            |                                                 |        |
+          | xml_resource         | dask/xml |            |                                                 |        | eval(param(nested_xml))
+          |   |   |   |          | param    | nested_xml | example/City                                    |        | read().name
+          |   |   | Name         |          |            | names/nameData                                  | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | since    | integer  |            | founded                                         |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example2/Name", ["getall"])
+    app.authmodel("example/City", ["getall"])
+
+    resp = app.get("example2/Name")
+    assert listdata(resp, sort=False) == [
+        ("Vilnius", 1387),
+        ("Kaunas", 1408),
+    ]
+
+
 def test_xml_read_from_different_resource_property_can_use_same_url_parameters_on_both_reads(
     rc: RawConfig, tmp_path: Path, responses: RequestsMock
 ):
@@ -589,3 +644,40 @@ def test_xml_read_from_different_resource_property_with_iterate_pages(rc: RawCon
         ("Vilnius", 1387),
         ("Kaunas", 1408),
     ]
+
+
+def test_xml_read_filters_results_if_url_query_parameter_is_property_without_prepare(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <names>
+            <nameData>
+                <name>Vilnius</name>
+                <founded>1387</founded>
+            </nameData>
+            <nameData>
+                <name>Kaunas</name>
+                <founded>1408</founded>
+            </nameData>
+        </names>
+    """
+    path = tmp_path / "names.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type     | source
+        example/xml          |          |
+          | resource         | dask/xml | {path}
+          |   |              |          |
+          |   | Names        |          | /names/nameData
+          |   |   | name     | string   | name
+          |   |   | founded  | integer  | founded
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Names", ["getall", "search"])
+
+    resp = app.get("/example/xml/Names?name='Vilnius'")
+    assert listdata(resp, sort=False) == [(1387, "Vilnius")]
