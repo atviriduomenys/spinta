@@ -15,4 +15,4 @@ class AdminScript(ScriptBase):
 class Script(enum.Enum):
     DEDUPLICATE = "deduplicate"
     CHANGELOG = "changelog"
-    MODEL_LIMIT = "model-limit"
+    MODEL_LIMIT = "model_limit"

@@ -1,7 +1,7 @@
 import re
 import urllib.parse
 from collections import OrderedDict
-from typing import List
+from typing import List, Optional
 from typing import Union
 
 from starlette.requests import Request
@@ -81,7 +81,7 @@ def parse_url_query(query):
         return [rql]
 
 
-def calculate_enforced_limit(context: Context, params: UrlParams) -> int | None:
+def calculate_enforced_limit(context: Context, params: UrlParams) -> Optional[int]:
     config = context.get("config")
 
     fmt = params.fmt
