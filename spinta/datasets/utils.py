@@ -24,7 +24,7 @@ def _recursive_iter_params(
         param = params[0]
         env = ParamBuilder(context)
         env.update(
-            params=values if values else {},
+            params=values or {},
             target_param=param.name,
             manifest=manifest,
             url_query_params=url_query_params,
