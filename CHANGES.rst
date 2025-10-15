@@ -4,12 +4,17 @@ Changes
 0.2dev7 (unreleased)
 ===================
 
+New Features:
+
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
+
 Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
 - Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#825: https://github.com/atviriduomenys/spinta/issues/825
 
 
 0.2dev6 (2025-10-09)
