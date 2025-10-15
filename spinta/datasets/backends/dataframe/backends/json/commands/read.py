@@ -19,7 +19,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import CannotReadResource
+from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
 from spinta.manifests.dict.helpers import is_blank_node, is_list_of_dicts
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
@@ -113,7 +113,11 @@ def _parse_json_with_params(data: list | dict, source: list, model_props: dict) 
 
 
 def _parse_json(data: str, source: str, model_props: dict) -> Iterator[dict[str, Any]]:
-    data = json.loads(data)
+    try:
+        data = json.loads(data)
+    except json.decoder.JSONDecodeError as e:
+        raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
+
     source_list = source.split(".")
     # Prepare source for blank nodes
     blank_nodes = is_blank_node(data)

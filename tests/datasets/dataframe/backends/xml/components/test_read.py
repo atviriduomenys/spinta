@@ -681,3 +681,29 @@ def test_xml_read_filters_results_if_url_query_parameter_is_property_without_pre
 
     resp = app.get("/example/xml/Names?name='Vilnius'")
     assert listdata(resp, sort=False) == [(1387, "Vilnius")]
+
+
+def test_xml_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: Path):
+    path = tmp_path / "names.xml"
+    path.write_text('[{"name": "Vilnius", "founded": 1387},{"name": "Kaunas", "founded": 1408}]')
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type     | source
+        example/xml          |          |
+          | resource         | dask/xml | {path}
+          |   |              |          |
+          |   | Names        |          | /names/nameData
+          |   |   | name     | string   | name
+          |   |   | founded  | integer  | founded
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Names", ["getall"])
+
+    response = app.get("/example/xml/Names")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]

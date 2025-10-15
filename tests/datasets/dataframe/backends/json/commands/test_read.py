@@ -979,3 +979,41 @@ def test_json_read_filters_results_if_url_query_parameter_is_property_without_pr
 
     response = app.get("example/Country?name='Lietuva'")
     assert listdata(response, sort=False) == [("Vilnius", "Lietuva")]
+
+
+def test_json_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <countries>
+            <country>
+                <name>Lietuva</name>
+                <capital>Vilnius</capital>
+            </country>
+            <country>
+                <name>Latvija</name>
+                <capital>Ryga</capital>
+            </country>
+        </countries>
+    """
+    path = tmp_path / "countries.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type      | source  | access
+        example              |           |         |
+          | json_resource    | dask/json | {path}  |
+          |   | Country      |           | .       | open
+          |   |   | name     | string    | name    |
+          |   |   | capital  | string    | capital |
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Country", ["getall"])
+
+    response = app.get("example/Country")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]
