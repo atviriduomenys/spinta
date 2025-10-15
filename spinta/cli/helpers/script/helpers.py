@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pathlib
+import sys
 from collections import defaultdict, deque
 
 from typer import echo
@@ -68,3 +70,30 @@ def ensure_store_is_loaded(context: Context, verbose: bool = False) -> Store:
 
     store = prepare_manifest(context, verbose=verbose, full_load=True)
     return store
+
+
+def parse_input_path(
+    context: Context,
+    input_path: pathlib.Path = None,
+    required: bool = True,
+    **kwargs,
+) -> list[str] | None:
+    if input_path is None:
+        # Reads stdin direct for data
+        if not sys.stdin.isatty():
+            data = sys.stdin.read()
+            data = data.splitlines()
+            return data
+
+        if not required:
+            return None
+
+        echo("Script requires model list file path (can also add it through `--input <file_path>` argument).", err=True)
+        input_path = input("Enter model list file path: ")
+
+    if not input_path.exists():
+        echo(f'File "{input_path}" does not exist.', err=True)
+        sys.exit(1)
+
+    with input_path.open("r") as f:
+        return f.read().splitlines()

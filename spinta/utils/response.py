@@ -253,7 +253,7 @@ def _enforce_limit(context: Context, params: UrlParams):
         return
 
     model = params.model
-    if hasattr(model, "limit") and model.limit is not None and params.fmt.streamable:
+    if hasattr(model, "limit") and params.limit_enforced_to is not None and params.fmt.streamable:
         if params.limit is None and params.page is None:
             raise LimitOrPageIsRequired(
                 model,

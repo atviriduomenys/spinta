@@ -1,4 +1,5 @@
 import json
+import pathlib
 from typing import Optional
 
 import tqdm
@@ -7,7 +8,7 @@ from click import echo
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
+from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, parse_input_path
 from spinta.components import Context, Model, Property
 from multipledispatch import dispatch
 
@@ -147,6 +148,9 @@ def _extract_column_byte_data(backend: PostgreSQL, prop: Property, data: dict) -
 
 
 def generate_limit_with_json_overhead(context: Context, model: Model, count: int, totals: dict):
+    if count == 0:
+        return None
+
     config = context.get("config")
     json_exporter = config.exporters["json"]
     result = json_exporter({})
@@ -164,7 +168,7 @@ def generate_limit_with_json_overhead(context: Context, model: Model, count: int
     comma_offset = count - 1
 
     adjusted_totals = adjust_bytes(model.backend, model, totals, count)
-    total = sum(adjusted_totals.values())
+    total = sum(value for value in adjusted_totals.values() if value is not None)
 
     json_response_size = empty_template_size + property_template_size * count + comma_offset + total
     json_response_avg = json_response_size / count
@@ -176,11 +180,21 @@ def generate_limit_with_json_overhead(context: Context, model: Model, count: int
     return result
 
 
-def generate_model_limits(context: Context, **kwargs):
+def generate_model_limits(
+    context: Context,
+    input_path: pathlib.Path = None,
+    **kwargs,
+):
     store = ensure_store_is_loaded(context)
     config = context.get("config")
 
-    models = [model for name, model in commands.get_models(context, store.manifest).items() if not name.startswith("_")]
+    whitelist = parse_input_path(context, input_path, required=False)
+    if whitelist:
+        models = [commands.get_model(context, store.manifest, model_name) for model_name in whitelist]
+    else:
+        models = commands.get_models(context, store.manifest).values()
+
+    models = [model for model in models if not model.name.startswith("_")]
     model_count = len(models)
     counter = tqdm.tqdm(desc="GENERATING MODEL LIMITS", ascii=True, total=model_count)
     yml = ruamel.yaml.YAML()
@@ -204,7 +218,3 @@ def generate_model_limits(context: Context, **kwargs):
 
     with limit_path.open("w") as file:
         yml.dump(data, file)
-
-
-def cli_requires_model_limits_migrations(context: Context, **kwargs):
-    return True
