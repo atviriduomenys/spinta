@@ -2032,12 +2032,11 @@ def test_auth_clients_update_name_full_check(rc: RawConfig, tmp_path: pathlib.Pa
 
 def test_get_format_limit(app):
     config = app.context.get("config")
-    limit = 5
-    config.exporters["html"].limit = limit
+    html_limit = config.exporters["html"].limit
 
     app.authmodel("datasets/json/Rinkimai", ["insert", "getall"])
     pks = []
-    for i in range(10):
+    for i in range(html_limit + 10):
         resp = app.post(
             "/datasets/json/Rinkimai",
             json={
@@ -2067,7 +2066,7 @@ def test_get_format_limit(app):
                 {"value": str(i)},
                 {"value": f"Rinkimai {i}"},
             ]
-            for i, pk in enumerate(pks[:limit])
+            for i, pk in enumerate(pks[:html_limit])
         ],
         "formats": [
             ("CSV", "/datasets/json/Rinkimai/:format/csv"),
@@ -2081,25 +2080,29 @@ def test_get_format_limit(app):
 
 def test_get_maximum_limit_error(app):
     config = app.context.get("config")
-    limit = 5
-    config.exporters["html"].limit = limit
+    html_limit = config.exporters["html"].limit
 
     app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
 
-    resp = app.get(f"/datasets/json/Rinkimai?limit({limit + 1})", headers={"accept": "text/html"})
+    resp = app.get(f"/datasets/json/Rinkimai?limit({html_limit + 1})", headers={"accept": "text/html"})
     assert resp.status_code == 400, resp.json()
     assert error(resp, "code", ["maximum_limit", "given_limit"]) == {
         "code": "ExceededMaximumLimit",
         "context": {
-            "maximum_limit": limit,
-            "given_limit": limit + 1,
+            "maximum_limit": html_limit,
+            "given_limit": html_limit + 1,
         },
     }
 
 
-def test_get_default_limit(app):
-    config = app.context.get("config")
+def test_get_default_limit(rc):
     limit = 5
+    rc = rc.fork({"default_limit_objects": 5})
+    context = create_test_context(rc)
+    app = create_test_client(context)
+
+    config = app.context.get("config")
+
     config.default_limit_objects = limit
 
     app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
@@ -2156,7 +2159,7 @@ def test_limit_by_model(
     limit_path = get_limit_path(config)
     limit = 20
     with limit_path.open("w") as file:
-        file.write(f"datasets/limit/cli/req/Country: {limit}")
+        file.write(f"datasets/limit/data/Country: {limit}")
 
     create_tabular_manifest(
         context,
@@ -2164,7 +2167,7 @@ def test_limit_by_model(
         striptable(
             """
         d | r | b | m | property      | type    | ref     | prepare | access | level
-        datasets/limit/cli/req        |         |         |         |        |
+        datasets/limit/data           |         |         |         |        |
           |   |   | Country           |         | id      |         |        |
           |   |   |   | id            | integer |         |         | open   |
           |   |   |   | name          | string  |         |         | open   |
@@ -2196,11 +2199,11 @@ def test_limit_by_model(
     )
 
     for i in range(100):
-        resp = app.post("/datasets/limit/cli/req/Country", json={"id": i, "name": f"Country {i}"})
+        resp = app.post("/datasets/limit/data/Country", json={"id": i, "name": f"Country {i}"})
         id_ = resp.json()["_id"]
-        app.post("/datasets/limit/cli/req/City", json={"id": i, "name": f"City {i}", "country": {"_id": id_}})
+        app.post("/datasets/limit/data/City", json={"id": i, "name": f"City {i}", "country": {"_id": id_}})
 
-    resp = app.get("/datasets/limit/cli/req/Country")
+    resp = app.get("/datasets/limit/data/Country")
     assert resp.status_code == 400
     assert error(resp, "code", ["maximum_limit"]) == {
         "code": "LimitOrPageIsRequired",
@@ -2209,10 +2212,10 @@ def test_limit_by_model(
         },
     }
 
-    resp = app.get("/datasets/limit/cli/req/Country?page()")
+    resp = app.get("/datasets/limit/data/Country?page()")
     assert resp.status_code == 200
     assert listdata(resp, sort="id") == [(i, f"Country {i}") for i in range(limit)]
 
-    resp = app.get("/datasets/limit/cli/req/City")
+    resp = app.get("/datasets/limit/data/City")
     assert resp.status_code == 200
     assert len(listdata(resp)) == 100

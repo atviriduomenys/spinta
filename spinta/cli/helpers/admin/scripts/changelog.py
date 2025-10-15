@@ -3,7 +3,7 @@ import dataclasses
 import datetime
 import pathlib
 from collections.abc import Generator
-from typing import List, Iterator, AsyncIterator
+from typing import List, Iterator, AsyncIterator, Optional
 
 import tqdm
 from multipledispatch import dispatch
@@ -311,7 +311,7 @@ async def _duplicate_mapping_to_dataitem(
         yield item
 
 
-def models_with_pkey(context: Context, whitelist: list[str] | None) -> Generator[Model]:
+def models_with_pkey(context: Context, whitelist: Optional[list[str]]) -> Generator[Model]:
     store = ensure_store_is_loaded(context)
 
     if whitelist is None:
