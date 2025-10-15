@@ -2102,7 +2102,7 @@ def test_get_default_limit(app):
     limit = 5
     config.default_limit_objects = limit
 
-    app.authmodel("datasets/json/Rinkimai", ["insert", "getall"])
+    app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
     pks = []
     for i in range(10):
         resp = app.post(
