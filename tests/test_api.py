@@ -2034,13 +2034,13 @@ def test_get_format_limit(app):
     config = app.context.get("config")
     html_limit = config.exporters["html"].limit
 
-    app.authmodel("datasets/json/Rinkimai", ["insert", "getall"])
+    app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
     pks = []
     for i in range(html_limit + 10):
         resp = app.post(
             "/datasets/json/Rinkimai",
             json={
-                "id": str(i),
+                "id": "0" * (i + 1),
                 "pavadinimas": f"Rinkimai {i}",
             },
         )
@@ -2063,7 +2063,7 @@ def test_get_format_limit(app):
         "data": [
             [
                 {"link": f"/datasets/json/Rinkimai/{pk}", "value": pk[:8]},
-                {"value": str(i)},
+                {"value": "0" * (i + 1)},
                 {"value": f"Rinkimai {i}"},
             ]
             for i, pk in enumerate(pks[:html_limit])
