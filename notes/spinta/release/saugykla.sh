@@ -4,6 +4,8 @@ pip install spinta==0.1.85
 # Reset EXTERNAL (source) database
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_external'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_external'
+
+
 psql -h localhost -p 54321 -U admin spinta_external <<EOF
 CREATE TABLE formos (
     id integer primary key,
@@ -89,6 +91,7 @@ accesslog:
   type: file
   file: $BASEDIR/accesslog.json
 EOF
+
 export SPINTA_CONFIG=$BASEDIR/config.yml
 
 # ateičiai - gerai būtų susikurti atskirą DB, kad neišderinti dabartinių duomenų test DB. Tada galima sukonfiguruoti atskirą backend ir pushinti į jį.
