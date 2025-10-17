@@ -84,7 +84,6 @@ from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
-from spinta.types.helpers import SPECIAL_PROPERTY_NAMES
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -2374,7 +2373,7 @@ def _property_to_tabular(
     access: Access = Access.private,
     order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
-    if prop.name.startswith("_") and not (prop.explicitly_given and prop.name in SPECIAL_PROPERTY_NAMES):
+    if prop.name.startswith("_") and not prop.explicitly_given:
         return
 
     if prop.access is not None and prop.access < access:

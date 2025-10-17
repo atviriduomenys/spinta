@@ -15,11 +15,10 @@ from spinta.utils.naming import is_valid_model_name, is_valid_property_name
 if TYPE_CHECKING:
     from spinta.types.datatype import DataType
 
-
-SPECIAL_PROPERTY_NAMES = {"_id", "_revision", "_created", "_updated", "_label"}
+ALLOWED_RESERVED_PROPERTY_NAMES = {"_id", "_created", "_updated", "_revision", "_label"}
 
 RESERVED_PROPERTY_NAMES = {
-    *SPECIAL_PROPERTY_NAMES,
+    *ALLOWED_RESERVED_PROPERTY_NAMES,
     "_op",
     "_type",
     "_txn",
@@ -69,12 +68,14 @@ def check_model_name(context: Context, model: Model):
 
 def check_property_name(context: Context, prop: Property):
     config: Config = context.get("config")
-    if config.check_names:
-        if not prop.explicitly_given and prop.name.startswith("_") and prop.name in RESERVED_PROPERTY_NAMES:
-            return
-        # Check for explicitly given properties starting with underscore that are in SPECIAL_DSA_PROPERTIES
-        if prop.explicitly_given and prop.name.startswith("_") and prop.name in SPECIAL_PROPERTY_NAMES:
-            return
-        if is_valid_property_name(prop.name):
+    if config.check_names or config.check_property_names:
+        if prop.name.startswith("_"):
+            if prop.explicitly_given:
+                if prop.name in ALLOWED_RESERVED_PROPERTY_NAMES:
+                    return
+            else:
+                if prop.name in RESERVED_PROPERTY_NAMES:
+                    return
+        elif is_valid_property_name(prop.name):
             return
         raise InvalidName(prop, name=prop.name, type="property")

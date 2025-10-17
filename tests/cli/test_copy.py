@@ -3,6 +3,7 @@ from pathlib import Path
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.exceptions import InvalidName
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
@@ -1119,6 +1120,58 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
     )
 
 
+def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access
+    datasets/gov/example      |        |         |             |         |
+      | data                  | sql    |         |             |         |
+                              |        |         |             |         |
+      |   |   | Country       |        | code    | salis       |         |
+      |   |   |   | _id       | uuid   |         | miesto_id   |         | open
+      |   |   |   | code      | string |         | kodas       |         | public
+      |   |   |   | name      | string |         | pavadinimas |         | open
+      |   |   |   | _updated  | string |         | atnaujinta  |         | open
+      |   |   |   | _created  | string |         | sukurta     |         | open
+      |   |   |   | _label    | string |         | zyme        |         | public
+      |   |   |   | _revision | string |         | versija     |         | public
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property  | type   | ref     | source | prepare | access
+    datasets/gov/example      |        |         |        |         |
+                              |        |         |        |         |
+      |   |   | Country       |        |         |        |         |
+      |   |   |   | _id       | uuid   |         |        |         | open
+      |   |   |   | _revision | string |         |        |         | public
+      |   |   |   | _created  | string |         |        |         | open
+      |   |   |   | code      | string |         |        |         | public
+      |   |   |   | name      | string |         |        |         | open
+      |   |   |   | _updated  | string |         |        |         | open
+      |   |   |   | _label    | string |         |        |         | public
+    """
+    )
+
+
 def test_copy_property_with_underscore_error(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(
         context,
@@ -1128,7 +1181,8 @@ def test_copy_property_with_underscore_error(context: Context, rc, cli: SpintaCl
     datasets/gov/example       |        |        |
       |   |   | Country        |        | salis  |
       |   |   |   | code       | string | kodas  | public
-      |   |   |   | _xxxxxxx   | string | kazkas | public
+      |   |   |   | _label     | string | zyme   | public
+      |   |   |   | _op        | string | op     | public
     """),
     )
     result = cli.invoke(
@@ -1145,67 +1199,5 @@ def test_copy_property_with_underscore_error(context: Context, rc, cli: SpintaCl
         fail=False,
     )
     assert result.exit_code != 0
-    # assert result.exc_info[0] is InvalidName
-    assert "_xxxxxxx" in str(result.exception)
-
-
-def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(
-        context,
-        tmp_path / "manifest.csv",
-        striptable("""
-    d | r | b | m | property  | type   | ref     | source      | prepare | access
-    datasets/gov/example      |        |         |             |         |
-      | data                  | sql    |         |             |         |
-                              |        |         |             |         |
-      |   |   | Country       |        | code    | salis       |         |
-      |   |   |   | code      | string |         | kodas       |         | public
-      |   |   |   | name      | string |         | pavadinimas |         | open
-      |   |   |   | _updated  | string |         | atnaujinta  |         | open
-      |   |   |   | _created  | string |         | sukurta     |         | open
-      |   |   |   | driving   | string |         | vairavimas  |         | open
-                              |        |         |             |         |
-      |   |   | City          |        | name    | miestas     |         |
-      |   |   |   | _id       | uuid   |         | miesto_id   |         | open
-      |   |   |   | name      | string |         | pavadinimas |         | open
-      |   |   |   | country   | ref    | Country | salis       |         | open
-      |   |   |   | _revision | string |         | versija     |         | open
-      |   |   |   | _label    | string |         | zymeklis    |         | open
-      |   |   |   | _txn      | string |         | tranzakcija |         | open
-    """),
-    )
-
-    cli.invoke(
-        rc,
-        [
-            "copy",
-            "--no-source",
-            "--access",
-            "open",
-            "-o",
-            tmp_path / "result.csv",
-            tmp_path / "manifest.csv",
-        ],
-    )
-
-    manifest = load_manifest(rc, tmp_path / "result.csv")
-    assert (
-        manifest
-        == """
-    d | r | b | m | property  | type   | ref     | source | prepare | access
-    datasets/gov/example      |        |         |        |         |
-                              |        |         |        |         |
-      |   |   | Country       |        |         |        |         |
-      |   |   |   | _created  | string |         |        |         | open
-      |   |   |   | name      | string |         |        |         | open
-      |   |   |   | _updated  | string |         |        |         | open
-      |   |   |   | driving   | string |         |        |         | open
-                              |        |         |        |         |
-      |   |   | City          |        |         |        |         |
-      |   |   |   | _id       | uuid   |         |        |         | open
-      |   |   |   | _revision | string |         |        |         | open
-      |   |   |   | name      | string |         |        |         | open
-      |   |   |   | country   | ref    | Country |        |         | open
-      |   |   |   | _label    | string |         |        |         | open
-    """
-    )
+    assert isinstance(result.exception, InvalidName)
+    assert "_op" in str(result.exception)
