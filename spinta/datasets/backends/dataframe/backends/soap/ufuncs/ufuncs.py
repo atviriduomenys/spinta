@@ -8,7 +8,12 @@ from spinta.core.enums import Action
 from spinta.core.ufuncs import ufunc, Expr, Bind, ShortExpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.components import Param
-from spinta.exceptions import InvalidClientBackendCredentials, InvalidClientBackend, UnknownMethod
+from spinta.exceptions import (
+    InvalidClientBackendCredentials,
+    InvalidClientBackend,
+    UnknownMethod,
+    MissingRequiredProperty,
+)
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
@@ -95,13 +100,19 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
 @ufunc.resolver(SoapQueryBuilder, Property, Param)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
     """Replace default param.soap_body values with url_param values"""
-    url_param_value = env.query_params.url_params.get(prop.place)
+    url_param_value = env.query_params.url_params.get(prop.place, NA)
+    param_body_key = next(iter(param.soap_body))
+    default_value = env.soap_request_body.get(param_body_key, NA)
+    final_value = url_param_value if url_param_value is not NA else default_value
 
-    final_value = None
-    for param_body_key in param.soap_body.keys():
-        soap_body_value = env.soap_request_body.get(param_body_key)
-        final_value = url_param_value or (soap_body_value if soap_body_value is not NA else None)
+    if final_value is NA:
+        env.soap_request_body.pop(param_body_key, None)
+        final_value = None
+    else:
         env.soap_request_body[param_body_key] = final_value
+
+    if prop.dtype.required and param_body_key not in env.soap_request_body:
+        raise MissingRequiredProperty(prop, prop=prop.name)
 
     env.property_values.update({param.name: final_value})
 

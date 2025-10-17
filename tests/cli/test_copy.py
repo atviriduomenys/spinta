@@ -1075,6 +1075,50 @@ def test_enum_function_noop_copy(context: Context, rc: RawConfig, cli: SpintaCli
     assert manifest == primary_manifest
 
 
+def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source
+    datasets/gov/example     |        |         |
+      | empty_resource       | sql    |         |
+      | data                 | sql    |         |
+                             |        |         |
+      |   |   | Country      |        | code    | salis
+      |   |   |   | code     | string |         | kodas
+      |   |   |   | name     | string |         | pavadinimas
+      |   |   |   | driving  | string |         | vairavimas
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type   | ref     | source
+    datasets/gov/example     |        |         |
+      | empty_resource       | sql    |         |
+      | data                 | sql    |         |
+                             |        |         |
+      |   |   | Country      |        | code    | salis
+      |   |   |   | code     | string |         | kodas
+      |   |   |   | name     | string |         | pavadinimas
+      |   |   |   | driving  | string |         | vairavimas
+    """
+    )
+
+
 def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(
         context,
