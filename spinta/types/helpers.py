@@ -76,6 +76,6 @@ def check_property_name(context: Context, prop: Property):
             else:
                 if prop.name in RESERVED_PROPERTY_NAMES:
                     return
-        elif is_valid_property_name(prop.name):
+        elif is_valid_property_name(prop.name) or prop.name == "C":
             return
         raise InvalidName(prop, name=prop.name, type="property")
