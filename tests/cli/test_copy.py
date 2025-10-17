@@ -1119,6 +1119,36 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
     )
 
 
+def test_copy_property_with_underscore_error(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property   | type   | source | access
+    datasets/gov/example       |        |        |
+      |   |   | Country        |        | salis  |
+      |   |   |   | code       | string | kodas  | public
+      |   |   |   | _xxxxxxx   | string | kazkas | public
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code != 0
+    # assert result.exc_info[0] is InvalidName
+    assert "_xxxxxxx" in str(result.exception)
+
+
 def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(
         context,
