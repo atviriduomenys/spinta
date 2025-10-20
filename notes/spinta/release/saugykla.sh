@@ -172,8 +172,8 @@ tail -50 "$BASEDIR"/spinta.log
 
 # Setup INTERNAL server data
 SERVER=https://put-test.data.gov.lt
-CLIENT=TestVSSA
-SECRET=Spinta0185!
+CLIENT=client
+SECRET=secret
 SCOPES="
     spinta_set_meta_fields
     spinta_getone
