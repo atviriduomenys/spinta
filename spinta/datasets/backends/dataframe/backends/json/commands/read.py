@@ -79,15 +79,15 @@ def _parse_json_with_params(data: list | dict, source: list, model_props: dict) 
         items: list | dict, current_value: dict, current_path: int = 0, in_model: bool = False
     ) -> Iterator[dict[str, Any]]:
         last_path = source[: current_path + 1]
-        c_path = source[current_path]
-        if c_path.endswith("[]"):
-            c_path = c_path[:-2]
+        current_source = source[current_path]
+        if current_source.endswith("[]"):
+            current_source = current_source[:-2]
         if isinstance(items, dict):
-            if in_model or c_path == ".":
+            if in_model or current_source == ".":
                 item = items
             else:
-                if c_path in items.keys():
-                    item = items[c_path]
+                if current_source in items.keys():
+                    item = items[current_source]
                 else:
                     return
             if isinstance(item, list) and is_list_of_dicts(item):
@@ -106,10 +106,10 @@ def _parse_json_with_params(data: list | dict, source: list, model_props: dict) 
             for item in items:
                 yield from traverse_json(item, current_value.copy(), current_path, in_model)
 
-    c_value = {}
+    current_value = {}
     for prop in model_props.values():
-        c_value[prop["source"]] = None
-    yield from traverse_json(data, current_value=c_value)
+        current_value[prop["source"]] = None
+    yield from traverse_json(data, current_value=current_value)
 
 
 def _parse_json(data: str, source: str, model_props: dict) -> Iterator[dict[str, Any]]:
