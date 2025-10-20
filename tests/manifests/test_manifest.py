@@ -2087,3 +2087,204 @@ def test_no_model_defined_error(manifest_type, tmp_path, rc):
               |   |   |   | id       | integer |     | open   |
         """,
         )
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_getall(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type    | ref       | source | prepare
+    datasets/gov/example     |         |           |        |
+      | resource1            | sql     | default   |        |
+                             |         |           |        |
+      |   |   | City         |         |           |        |
+      |   |   |   | id       | integer |           |        |
+      |   |   |   | name     | string  |           |        |
+                             |         |           |        |
+      |   |   | City/:getall |         |           | cities |        
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_getall_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property    | type    | ref       | source    | prepare
+    datasets/gov/example        |         |           |           |
+      | resource1               | sql     | default   |           |
+                                |         |           |           |
+      |   |   | Country/:getall |         |           |           |
+      |   |   |   | id          | integer |           |           |      
+      |   |   |   | name        | string  |           |           |      
+                                |         |           |           |      
+      |   |   | City            |         |           |           |
+      |   |   |   | id          | integer |           |           |
+      |   |   |   | name        | string  |           |           |
+      |   |   |   | country     | ref     | Country   |           |
+
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_getone(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type    | ref       | source | prepare
+    datasets/gov/example     |         |           |        |
+      | resource1            | sql     | default   |        |
+                             |         |           |        |
+      |   |   | City         |         |           |        |
+      |   |   |   | id       | integer |           |        |
+      |   |   |   | name     | string  |           |        |
+                             |         |           |        |
+      |   |   | City/:getone |         |           | city   | urlid()
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_getone_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property    | type    | ref       | source    | prepare
+    datasets/gov/example        |         |           |           |
+      | resource1               | sql     | default   |           |
+                                |         |           |           |
+      |   |   | Country/:getone |         |           |           |
+      |   |   |   | id          | integer |           |           |
+      |   |   |   | name        | string  |           |           |
+                                |         |           |           |      
+      |   |   | City            |         |           |           |
+      |   |   |   | id          | integer |           |           |
+      |   |   |   | name        | string  |           |           |
+      |   |   |   | country     | ref     | Country   |           |
+
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_filter(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property             | type    | ref       | source | prepare
+    datasets/gov/example                 |         |           |        |
+      | resource1                        | sql     | default   |        |
+                                         |         |           |        |
+      |   |   | Continent                |         |           |        |
+      |   |   |   | id                   | integer |           |        |
+      |   |   |   | code                 | string  |           |        |
+                                         |         |           |        |
+      |   |   | City                     |         |           |        |
+      |   |   |   | id                   | integer |           |        |
+      |   |   |   | name                 | string  |           |        |
+      |   |   |   | continent            | ref     | Continent |        |
+      |   |   |   | continent.code       | string  |           |        |
+                                         |         |           |        |
+      |   |   | City?continent.code="eu" |         |           | cities |        
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_filter_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property                | type    | ref       | source
+    datasets/gov/example                    |         |           |
+      | resource1                           | sql     | default   |
+                                            |         |           |
+      |   |   | Continent                   |         |           |
+      |   |   |   | id                      | integer |           |
+      |   |   |   | code                    | string  |           |
+                                            |         |           |
+      |   |   | Country?continent.code="eu" |         |           |
+      |   |   |   | id                      | integer |           |
+      |   |   |   | name                    | string  |           |
+      |   |   |   | continent               | ref     | Continent |
+      |   |   |   | continent.code          | string  |           |
+                                            |         |           |
+      |   |   | City                        |         |           | cities
+      |   |   |   | id          | integer |           |           |
+      |   |   |   | name        | string  |           |           |
+      |   |   |   | country     | ref     | Country   |           |        
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_filter_twice(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property                | type    | ref       | source    | prepare
+    datasets/gov/example                    |         |           |           |
+      | resource1                           | sql     | default   |           |
+                                            |         |           |           |
+      |   |   | Continent                   |         |           |           |
+      |   |   |   | id                      | integer |           |           |
+      |   |   |   | code                    | string  |           |           |
+                                            |         |           |           |
+      |   |   | Country?continent.code="eu" |         |           | Europe    |
+      |   |   |   | id                      | integer |           |           |
+      |   |   |   | name                    | string  |           |           |
+      |   |   |   | continent               | ref     | Continent |           |
+      |   |   |   | continent.code          | string  |           |           |
+                                            |         |           |           |
+      |   |   | Country?continent.code="au" |         |           | Australia |
+      |   |   |   | id                      | integer |           |           |
+      |   |   |   | name                    | string  |           |           |
+      |   |   |   | continent               | ref     | Continent |           |
+      |   |   |   | continent.code          | string  |           |           |   
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_select(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+  
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_select_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property            | type    | ref     | source    | prepare
+    datasets/gov/example                |         |         |           |
+      | resource1                       | sql     | default |           |
+                                        |         |         |           |
+      |   |   | Country                 |         |         |           |
+      |   |   |   | id                  | integer |         |           |
+      |   |   |   | name                | string  |         |           |
+      |   |   |   | population          | integer |         |           |
+                                        |         |         |           |
+      |   |   | Country?select(id,name) |         |         | countries |
+                                        |         |         |           |
+      |   |   | City                    |         |         | cities    |
+      |   |   |   | id                  | integer |         |           |
+      |   |   |   | name                | string  |         |           |
+      |   |   |   | country             | ref     | Country |           |             
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_partial_model_part(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source | prepare
+    datasets/gov/example       |         |         |        |
+      | resource1              | sql     | default |        |
+                               |         |         |        |
+      |   |   | City           |         |         |        |
+      |   |   |   | id         | integer |         |        |
+      |   |   |   | name       | string  |         |        |
+      |   |   |   | population | integer |         |        |
+                               |         |         |        |
+      |   |   | City/:part     |         | name    | cities |
+      |   |   |   | name       | string  |         |        |
+    ''', manifest_type)
+
+
+def test_partial_model_part_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property    | type    | ref       | source    | prepare
+    datasets/gov/example        |         |           |           |
+      | resource1               | sql     | default   |           |
+                                |         |           |           |
+      |   |   | Country/:part   |         |           |           |
+      |   |   |   | id          | integer |           |           |
+      |   |   |   | name        | string  |           |           |
+                                |         |           |           |      
+      |   |   | City            |         |           |           |
+      |   |   |   | id          | integer |           |           |
+      |   |   |   | name        | string  |           |           |
+      |   |   |   | country     | ref     | Country   |           |
+
+    ''', manifest_type)

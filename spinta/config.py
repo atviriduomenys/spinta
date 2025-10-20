@@ -120,6 +120,7 @@ CONFIG = {
         "nodes": {
             "ns": "spinta.components:Namespace",
             "model": "spinta.components:Model",
+            "functional_model": "spinta.components:FunctionalModel",
             "dataset": "spinta.datasets.components:Dataset",
             "base": "spinta.components:Base",
         },

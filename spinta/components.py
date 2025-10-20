@@ -482,6 +482,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
+    params: str = None
 
 
 class PageBy:
@@ -651,12 +652,13 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
-    features: str = None
     status: Status | None = None
     visibility: Visibility | None = None
     eli: str | None = None
     count: int | None = None
     origin: str | None = None
+    params: UrlParams | None = None
+    main_model_name: str |None = None
 
     required_keymap_properties = None
 
@@ -684,7 +686,6 @@ class Model(MetaData):
         "comments": {},
         "uri": {"type": "string"},
         "given_name": {"type": "string", "default": None},
-        "features": {},
         "status": {"type": "string", "choices": Status, "default": "develop"},
         "visibility": {
             "type": "string",
@@ -694,6 +695,7 @@ class Model(MetaData):
         "eli": {"type": "string"},
         "count": {"type": "integer"},
         "origin": {"type": "string"},
+        "main_model_name": {"type": "string"},
     }
 
     def __init__(self):
@@ -731,6 +733,18 @@ class Model(MetaData):
 
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith("_")}
+
+
+class FunctionalModel(Model):
+    """
+    A functional variant of a model, e.g. 'City/:getone' or 'City/:getall'.
+    Possible functions:
+    '/:part` - a partial model that cannot be accessed directly, but only as a part of a parent model';
+    '/:getone` - a model that only describes the `getone` action;
+    '/:getall' - a model that only describes the `getall` action;
+    '?' - indicates pre-defined filters for which this model is applicable;
+
+    """
 
 
 class PropertyGiven:

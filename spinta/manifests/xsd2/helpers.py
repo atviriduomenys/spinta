@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from email.mime import base
 import logging
 import os
 from copy import copy, deepcopy
@@ -10,8 +11,10 @@ from urllib.request import urlopen
 from lxml import etree, objectify
 from lxml.etree import _Element, QName
 
-from spinta.components import Context
+from spinta.backends.postgresql.commands.migrate import model
+from spinta.components import Context, UrlParams
 from spinta.core.ufuncs import Expr
+from spinta.manifests.tabular.helpers import _read_functional_model
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 
@@ -235,8 +238,11 @@ class XSDModel:
     xsd_node_type: str | None = None  # from complexType or from element
     models_by_ref: str | None = None
     extends_model: XSDModel | None = None
-    is_partial: bool = True
-    features: str | None = None
+
+    # https://ivpk.github.io/dsa/draft/modeliai/funkciniai.html
+    is_functional: bool = False
+
+    given_url_params: str | None = None
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -250,18 +256,18 @@ class XSDModel:
 
     def get_data(self):
         model_data: dict = {
-            "type": "model",
+            "type": "functional_model" if self.is_functional else "model",
             "external": {
-                "name": self.source,
-                "dataset": self.dataset_resource.dataset_name,
-                "resource": self.dataset_resource.resource_name,
+                    "name": self.source,
+                    "dataset": self.dataset_resource.dataset_name,
+                    "resource": self.dataset_resource.resource_name,
             },
+            "name": self.name,
         }
 
-        if self.is_partial:
-            model_data["features"] = "/:part"
-
-        model_data["name"] = self.name
+        if self.is_functional:
+            # at the moment, the only functional model that can be read from XSD is Partial model
+            model_data["given_url_params"] = "/:part"
 
         if self.description is not None:
             model_data["description"] = self.description.strip()
@@ -362,7 +368,7 @@ class XSDReader:
     def _create_resource_model(self) -> None:
         self.resource_model = XSDModel(dataset_resource=self.dataset_resource)
         self.resource_model.type = "model"
-        self.resource_model.is_partial = False
+        self.resource_model.is_functional = False
         self.resource_model.source = "/"
         self.resource_model.description = "Įvairūs duomenys"
         self.resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
@@ -460,7 +466,7 @@ class XSDReader:
                 if prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models:
                     model = deepcopy(model)
                     self.models.append(model)
-                model.is_partial = False
+                model.is_functional = False
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
                 model.set_name(deduplicator(to_model_name(prop.xsd_name)))
@@ -654,9 +660,9 @@ class XSDReader:
                             self.top_level_element_models[model.xsd_name] = [model]
                         model.is_root_model = True
                     if is_referenced or not is_root:
-                        model.is_partial = True
+                        model.is_functional = True
                     else:
-                        model.is_partial = False
+                        model.is_functional = False
                         model.is_entry_model = True
                         model.source = f"/{property_name}"
                     prop = XSDProperty(

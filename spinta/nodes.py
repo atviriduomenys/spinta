@@ -112,6 +112,7 @@ def get_node(
         )
 
     Node_ = config.components[group][ctype]
+
     return Node_()
 
 

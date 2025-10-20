@@ -32,7 +32,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Context, Base, PrepareGiven
+from spinta.components import Context, Base, PrepareGiven, UrlParams
 from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -84,10 +84,12 @@ from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
+from spinta.urlparams import _prepare_urlparams_from_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
 from spinta.types.text.components import Text
+from spinta.utils.url import parse_url_path
 
 log = logging.getLogger(__name__)
 
@@ -431,6 +433,7 @@ class BaseReader(TabularReader):
 class ModelReader(TabularReader):
     type: str = "model"
     data: ModelRow
+    is_functional = False
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
@@ -441,11 +444,14 @@ class ModelReader(TabularReader):
             row["model"],
         )
 
-        if "/:" in name:
-            name, features = name.rsplit("/:", 1)
+        # Check for partial model syntax
+        if "/:" in name or "?" in name:
+            self.is_functional = True
+            main_model_name, params = _read_functional_model(name)
         else:
-            features = None
-
+            main_model_name = params = None
+        # todo params should be added to data as I understand
+        # todo functional model is not being created for some reason, and it finds duplicate models.
         if self.state.rename_duplicates:
             dup = 1
             _name = name
@@ -453,13 +459,15 @@ class ModelReader(TabularReader):
                 _name = f"{name}_{dup}"
                 dup += 1
             name = _name
-        elif name in self.state.models:
+        elif self.is_functional:
+            pass
+        elif not self.is_functional and (name in self.state.models):
             self.error(f"Model {name!r} with the same name is already defined.")
 
         self.name = name
 
         self.data = {
-            "type": "model",
+            "type": "functional_model" if self.is_functional else "model",
             "id": row["id"],
             "name": name,
             "base": {
@@ -487,12 +495,13 @@ class ModelReader(TabularReader):
                 "prepare": _parse_spyna(self, row[PREPARE]),
             },
             "given_name": name,
-            "features": features,
             "status": row.get(STATUS),
             "visibility": row.get(VISIBILITY),
             "eli": row.get(ELI),
             "count": row.get(COUNT),
             "origin": row.get(ORIGIN),
+            "params": params,
+            "main_model_name": main_model_name,
         }
         if resource and not dataset:
             self.data["backend"] = resource.name
@@ -511,10 +520,25 @@ class ModelReader(TabularReader):
 
     def enter(self) -> None:
         self.state.model = self
-        self.state.models.add(self.name)
+
+        if self.is_functional:
+            self.state.functional_models.append(self)
+        else:
+            self.state.models.add(self.name)
+
 
     def leave(self) -> None:
         self.state.model = None
+
+
+def _read_functional_model(name: str) -> tuple[str, UrlParams]:
+
+        params = UrlParams()
+        params.parsetree = parse_url_path(name)
+        _prepare_urlparams_from_path(params)
+        name = "/".join(params.path_parts)
+
+        return name, params
 
 
 def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
@@ -1201,19 +1225,19 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
     properties = reader.state.model.data["properties"]
     root = True
     for name in split:
-        base_name = name
+        basename = name
 
         if not base and root:
             skip = True
             root = False
             if _name_complex(name):
                 skip = False
-                base_name = _clean_up_prop_name(name)
+                basename = _clean_up_prop_name(name)
 
-            if base_name not in properties:
+            if basename not in properties:
                 return
 
-            base = properties[base_name]
+            base = properties[basename]
 
             if skip:
                 continue
@@ -1663,6 +1687,7 @@ class State:
     backends: Dict[str, Dict[str, str]] = None
 
     models: Set[str]
+    functional_models: list[str]
 
     manifest: ManifestReader = None
     dataset: DatasetReader = None
@@ -1676,6 +1701,7 @@ class State:
     def __init__(self):
         self.stack = []
         self.models = set()
+        self.functional_models = []
 
     def release(self, reader: TabularReader = None) -> Iterator[ParsedRow]:
         for parent in list(reversed(self.stack)):
@@ -1941,17 +1967,17 @@ def get_relative_model_name(dataset: [str, dict], name: str) -> str:
         return name.replace(dataset, "")
     if name.startswith("/"):
         return name[1:]
-    elif "/" in name:
+    # removing /: to avoid confusion with functional models, for example City/:part
+    if "/" in name.replace("/:", ""):
         return name
-    elif dataset is None:
+    if dataset is None:
         return name
-    else:
-        return "/".join(
-            [
+
+    return "/".join(
+        [
                 dataset["name"],
-                name,
-            ]
-        )
+        name,
+    ])
 
 
 def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
@@ -1960,8 +1986,8 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
         return model.name
     if model.name == f"{dataset.name}/{model.basename}":
         return model.basename
-    else:
-        return "/" + model.name
+
+    return "/" + model.name
 
 
 def _relative_referenced_model_name(
@@ -2523,8 +2549,8 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
-    if model.features:
-        data["model"] = f"{data['model']}{model.features}"
+    if model.given.url_params and not data['model'].endswith(model.given.url_params):
+        data["model"] = f"{data['model']}{model.given.url_params}"
     if external and model.external:
         data.update(
             {
