@@ -9,6 +9,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     get_root_attr,
     PostgresqlMigrationContext,
     PropertyMigrationContext,
+    create_table_migration,
 )
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_column_name, get_pg_table_name
 from spinta.components import Context
@@ -34,7 +35,6 @@ def migrate(
     handler = migration_ctx.handler
 
     name = new.prop.name
-    pg_name = get_pg_column_name(name)
     nullable = not new.required
     table_name = get_pg_table_name(rename.get_table_name(table.name))
     pkey_type = commands.get_primary_key_type(context, new.backend)
@@ -73,15 +73,9 @@ def migrate(
                 ),
             )
         )
-    old_table = get_pg_table_name(table.name, TableType.FILE, pg_name)
-    new_table = get_pg_table_name(table_name, TableType.FILE, pg_name)
-    if not inspector.has_table(old_table):
-        handler.add_action(
-            ma.CreateTableMigrationAction(
-                table_name=new_table,
-                columns=[sa.Column("_id", pkey_type, primary_key=True), sa.Column("_block", sa.LargeBinary)],
-            )
-        )
+    file_table = backend.get_table(new.prop, TableType.FILE)
+    if not inspector.has_table(file_table.name):
+        create_table_migration(handler, file_table)
 
 
 @commands.migrate.register(
