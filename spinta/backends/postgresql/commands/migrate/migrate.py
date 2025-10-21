@@ -18,6 +18,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     CastMatrix,
     validate_rename_map,
     RenameMap,
+    part_of_dataset,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_table_name,
@@ -153,7 +154,11 @@ def _filter_reflect_datasets(inspector: Inspector, datasets: list):
         return None
 
     all_tables = inspector.get_table_names()
-    return [table for table in all_tables if any(table.startswith(dataset) for dataset in datasets)]
+    return [
+        table
+        for table in all_tables
+        if any(part_of_dataset(table, dataset, ignore_compression=False) for dataset in datasets)
+    ]
 
 
 def _filter_models_and_tables(
@@ -172,11 +177,8 @@ def _filter_models_and_tables(
         filtered_names = []
         for table_name in existing_tables:
             for dataset_name in filtered_datasets:
-                if table_name.startswith(f"{dataset_name}/"):
-                    # Check if its model or another sub dataset
-                    additional_check = table_name.replace(f"{dataset_name}/", "", 1)
-                    if "/" not in additional_check:
-                        filtered_names.append(table_name)
+                if part_of_dataset(table_name, dataset_name, ignore_compression=False):
+                    filtered_names.append(table_name)
         existing_tables = filtered_names
 
     for table in existing_tables:
