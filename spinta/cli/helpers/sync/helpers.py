@@ -137,8 +137,8 @@ def render_content_from_manifest(context: Context, manifest: InlineManifest, con
 def read_and_get_manifest(
     context: Context,
     manifest_type: str = "tabular",
-    path: Optional[str] = None,
-    contents: Optional[Union[str, list[str]]] = None,
+    path: str | None = None,
+    contents: Union[str, list[str]] | None = None,
 ):
     manifest_paths = []
 
