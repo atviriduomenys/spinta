@@ -1,6 +1,10 @@
 #!/bin/bash
 CONFIG_FILE="config.yml"
-SPINTA_MODE=${SPINTA_MODE:=external}
+if ${SPINTA_INTERNAL_MODE:=false}; then
+  LAUNCH_MODE="internal"
+else
+  LAUNCH_MODE="external"
+fi
 
 if [ ! -f "$CONFIG_FILE" ]; then
     export SPINTA_CONFIG=config.yml
@@ -24,9 +28,9 @@ manifests:
   default:
     type: csv
     path: /app/manifest.csv
-    backend: $SPINTA_MODE
+    backend: $LAUNCH_MODE
     keymap: default
-    mode: $SPINTA_MODE
+    mode: $LAUNCH_MODE
 accesslog:
   type: file
   file: stdout
@@ -36,7 +40,7 @@ else
     echo "Found existing config.yml."
 fi
 
-if [ "$SPINTA_MODE" = "external" ]; then
+if [ "$LAUNCH_MODE" = "external" ]; then
   git clone https://github.com/atviriduomenys/demo-saltiniai.git
   mkdir manifests
   find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
@@ -50,7 +54,7 @@ else
     cd manifest
     git checkout get.data.gov.lt
     git pull
-    cat get_data_gov_lt.in | xargs spinta copy -o ../manifest.csv
+    cat get_data_gov_lt.in | xargs poetry run spinta copy -o ../manifest.csv
   )
   rm -rf manifest
 
