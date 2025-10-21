@@ -60,6 +60,7 @@ FIELDS_TO_MERGE_FOR_MODEL = {
 }
 
 FIELDS_TO_MERGE_FOR_PROPERTY = {
+    "id",
     "type",
     "uri",
     "description",

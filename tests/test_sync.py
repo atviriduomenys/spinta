@@ -602,12 +602,12 @@ class TestSynchronizationPathCatalogToAgent:
         """
 
         catalog_manifest = """
-            id | dataset | resource   | model   | property | type     | ref   | source                                                   | level     | status    | visibility | access | title      | description
-               | cct     |            |         |          | dataset  | vssa2 | https://example.com                                      |           | open      |            |        | CCT        | cct
-               |         | technology |         |          | dask/csv |       | https://get.data.gov.lt/datasets/org/company/example/:ns | 4         |           |            |        | Technology | technology
-               |         |            |         |          |          |       |                                                          |           |           |            |        |            |
-               |         |            | Item    |          |          | uuid  | model_a                                                  | 4         | completed | package    | open   | Item       | item
-               |         |            |         | uuid     | integer  |       | property_a                                               | 4         |           |            |        | Unique ID  | unique id
+            id                                     | dataset | resource   | model   | property | type     | ref   | source                                                   | level     | status    | visibility | access | title      | description
+            f89e1015-c77c-4d81-958c-52f0120e44a1   | cct     |            |         |          | dataset  | vssa2 | https://example.com                                      |           | open      |            |        | CCT        | cct
+            c3caa75b-fbb6-4868-a366-e61e4f3225bf   |         | technology |         |          | dask/csv |       | https://get.data.gov.lt/datasets/org/company/example/:ns | 4         |           |            |        | Technology | technology
+                                                   |         |            |         |          |          |       |                                                          |           |           |            |        |            |
+            7d5488e7-ce3c-4c64-90d8-f554a7721f20   |         |            | Item    |          |          | uuid  | model_a                                                  | 4         | completed | package    | open   | Item       | item
+            de4107e4-7f9a-425e-ba7a-3626f59b360c   |         |            |         | uuid     | integer  |       | property_a                                               | 4         |           |            |        | Unique ID  | unique id
         """
 
         catalog_manifest_csv = convert_ascii_manifest_to_csv(catalog_manifest).decode("utf-8")
@@ -633,11 +633,11 @@ class TestSynchronizationPathCatalogToAgent:
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
         assert render_tabular_manifest(context, final_manifest) == striptable("""
         id | d | r | b | m | property | type     | ref  | source                                                   | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
-           | cct                      |          |      |                                                          |             |         |        |       |       |           |            |        |     |     | CCT        | cct
-           |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
+        f8 | cct                      |          |      |                                                          |             |         |        |       |       |           |            |        |     |     | CCT        | cct
+        c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
            |                          |          |      |                                                          |             |         |        |       |       |           |            |        |     |     |            |
-           |   |   |   | Item         |          | uuid | model_a                                                  |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
-           |   |   |   |   | uuid     | integer  |      | property_a                                               |             |         |        |       | 4     |           |            |        |     |     | Unique ID  | unique id
+        7d |   |   |   | Item         |          | uuid | model_a                                                  |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
+        de |   |   |   |   | uuid     | integer  |      | property_a                                               |             |         |        |       | 4     |           |            |        |     |     | Unique ID  | unique id
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
