@@ -18,7 +18,7 @@ keymaps:
     dsn: sqlite:///$PWD/$BASEDIR/keymap.db
 backends:
   external:
-    type: sql/postgresql
+    type: postgresql
     dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
   internal:
     type: postgresql
