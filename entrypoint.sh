@@ -79,5 +79,4 @@ EOF
 fi
 
 poetry run spinta upgrade
-poetry run spinta admin model_limit
 make run
