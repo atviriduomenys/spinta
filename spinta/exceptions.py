@@ -1158,3 +1158,7 @@ class AgentRelatedDataServiceDoesNotExist(UserError):
         Data Service related to the Agent that is executing the synchronization request does not exist. 
         Please re-create and re-configure the Agent, since the synchronization can not be executed without Data Service.
     """
+
+
+class UnexpectedErrorReadingData(BaseError):
+    template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""

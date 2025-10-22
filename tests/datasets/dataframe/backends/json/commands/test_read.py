@@ -6,6 +6,7 @@ from spinta.core.enums import Mode
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
+from spinta.testing.utils import get_error_codes, get_error_context
 
 
 def test_json_read(rc: RawConfig, tmp_path: Path):
@@ -818,3 +819,201 @@ def test_json_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
             "planet_name._id": id_mapping["MS"],
         },
     ]
+
+
+def test_json_read_from_different_resource_property(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <countries>
+            <country>
+                <name>Lietuva</name>
+                <data>[{"name": "Lietuva", "capital": "Vilnius"}]</data>
+            </country>
+            <country>
+                <name>Latvija</name>
+                <data>[{"name": "Latvija", "capital": "Ryga"}]</data>
+            </country>
+        </countries>
+    """
+    xml_path = tmp_path / "countries.xml"
+    xml_path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | ref         | source            | access | prepare
+        example                  | dataset   |             |                   |        |
+          | xml_resource         | dask/xml  |             | {xml_path}        |        |
+          |   |   | Country      |           |             | countries/country | open   |
+          |   |   |   | name     | string    |             | name              |        |
+          |   |   |   | data     | string    |             | data              |        |
+          | json_resource        | dask/json |             |                   |        | eval(param(nested_json))
+          |   |   |   |          | param     | nested_json | Country           |        | read().data
+          |   |   | Data         |           |             | .                 | open   |
+          |   |   |   | name     | string    |             | name              |        |
+          |   |   |   | capital  | string    |             | capital           |        |
+
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Country", ["getall"])
+    app.authmodel("example/Data", ["getall"])
+
+    resp = app.get("/example/Data")
+    assert listdata(resp, sort=False) == [
+        ("Vilnius", "Lietuva"),
+        ("Ryga", "Latvija"),
+    ]
+
+
+def test_json_read_from_different_resource_property_with_iterate_pages(rc: RawConfig, tmp_path: Path):
+    page1_file = tmp_path / "page1.xml"
+    page1_file.write_text(
+        f"""
+        <countries>
+            <country>
+                <next>{str(tmp_path / "page2.xml")}</next>
+                <name>Lietuva</name>
+                <data>[{{"name": "Lietuva", "capital": "Vilnius"}}]</data>
+            </country>
+        </countries>
+    `   """
+    )
+    page2_file = tmp_path / "page2.xml"
+    page2_file.write_text(
+        """
+        <countries>
+            <country>
+                <next></next>
+                <name>Latvija</name>
+                <data>[{"name": "Latvija", "capital": "Ryga"}]</data>
+            </country>
+        </countries>
+        """
+    )
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | ref         | source                   | access | prepare
+        example                  | dataset   |             |                          |        |
+          | xml_resource         | dask/xml  |             | {{path}}                 |        |
+          |   |   |              | param     | path        | {tmp_path / "page1.xml"} |        |
+          |   |   |              |           |             | Country                  |        | read().next
+          |   |   | Country      |           |             | countries/country        | open   |
+          |   |   |   | next     | string    |             | next                     |        |
+          |   |   |   | name     | string    |             | name                     |        |
+          |   |   |   | data     | string    |             | data                     |        |
+          | json_resource        | dask/json |             |                          |        | eval(param(nested_json))
+          |   |   |   |          | param     | nested_json | Country                  |        | read().data
+          |   |   | Data         |           |             | .                        | open   |
+          |   |   |   | name     | string    |             | name                     |        |
+          |   |   |   | capital  | string    |             | capital                  |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Country", ["getall"])
+    app.authmodel("example/Data", ["getall"])
+
+    resp = app.get("/example/Data")
+    assert listdata(resp, sort=False) == [
+        ("Vilnius", "Lietuva"),
+        ("Ryga", "Latvija"),
+    ]
+
+
+def test_json_read_raise_error_if_neither_resource_source_nor_prepare_given(rc: RawConfig):
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type      | source  | access
+        example                  | dataset   |         |
+          | json_resource        | dask/json |         |
+          |   |   | Data         |           | .       | open
+          |   |   |   | name     | string    | name    |
+          |   |   |   | capital  | string    | capital |
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Data", ["getall"])
+
+    response = app.get("/example/Data")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["CannotReadResource"]
+    assert get_error_context(response.json(), "CannotReadResource", ["resource"]) == {"resource": "json_resource"}
+
+
+def test_json_read_filters_results_if_url_query_parameter_is_property_without_prepare(rc: RawConfig, tmp_path: Path):
+    path = tmp_path / "countries.json"
+    path.write_text(
+        json.dumps(
+            [
+                {"name": "Lietuva", "capital": "Vilnius"},
+                {"name": "Latvija", "capital": "Ryga"},
+            ]
+        )
+    )
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type      | source  | access
+        example              |           |         |
+          | json_resource    | dask/json | {path}  |
+          |   | Country      |           | .       | open
+          |   |   | name     | string    | name    |
+          |   |   | capital  | string    | capital |
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Country", ["getall", "search"])
+
+    response = app.get("example/Country?name='Lietuva'")
+    assert listdata(response, sort=False) == [("Vilnius", "Lietuva")]
+
+
+def test_json_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <countries>
+            <country>
+                <name>Lietuva</name>
+                <capital>Vilnius</capital>
+            </country>
+            <country>
+                <name>Latvija</name>
+                <capital>Ryga</capital>
+            </country>
+        </countries>
+    """
+    path = tmp_path / "countries.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type      | source  | access
+        example              |           |         |
+          | json_resource    | dask/json | {path}  |
+          |   | Country      |           | .       | open
+          |   |   | name     | string    | name    |
+          |   |   | capital  | string    | capital |
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Country", ["getall"])
+
+    response = app.get("example/Country")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]

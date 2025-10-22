@@ -18,7 +18,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import CannotReadResource
+from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
@@ -79,8 +79,11 @@ def _parse_xml_loop_model_properties(
 def _parse_xml(data, source: str, model_props: dict, namespaces={}) -> Iterator[dict[str, Any]]:
     added_root_elements = []
 
-    iterparse = etree.iterparse(data, events=["start"], remove_blank_text=True)
-    _, root = next(iterparse)
+    try:
+        iterparse = etree.iterparse(data, events=["start"], remove_blank_text=True)
+        _, root = next(iterparse)
+    except etree.XMLSyntaxError as e:
+        raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
 
     if not source.startswith(("/", ".")):
         source = f"/{source}"
@@ -126,7 +129,6 @@ def getall(
     resource = model.external.resource
 
     builder = backend.query_builder_class(context)
-
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}

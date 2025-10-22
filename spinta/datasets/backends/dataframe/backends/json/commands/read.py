@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Iterator
+from typing import Iterator, Any
 
 import requests
 from dask.bag import from_sequence
@@ -17,12 +17,15 @@ from spinta.datasets.backends.dataframe.commands.read import (
     get_dask_dataframe_meta,
     dask_get_all,
 )
+from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
+from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
 from spinta.manifests.dict.helpers import is_blank_node, is_list_of_dicts
 from spinta.typing import ObjectData
+from spinta.utils.schema import NA
 
 
-def _get_prop_full_source(source: str, prop_source: str):
+def _get_prop_full_source(source: str, prop_source: str) -> str:
     if prop_source.startswith(".."):
         split = prop_source[1:].count(".")
         split_source = source.split(".")
@@ -34,8 +37,8 @@ def _get_prop_full_source(source: str, prop_source: str):
         return source
 
 
-def _parse_json_with_params(data, source: list, model_props: dict):
-    def get_prop_value(items, pkeys: list, prop_source: list):
+def _parse_json_with_params(data: list | dict, source: list, model_props: dict) -> Iterator[dict[str, Any]]:
+    def get_prop_value(items: dict, pkeys: list, prop_source: list) -> Any:
         new_value = items
 
         # Remove empty values from split()
@@ -72,17 +75,19 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                 if id == len(prop_source) - 1:
                     return new_value
 
-    def traverse_json(items, current_value: dict, current_path: int = 0, in_model: bool = False):
+    def traverse_json(
+        items: list | dict, current_value: dict, current_path: int = 0, in_model: bool = False
+    ) -> Iterator[dict[str, Any]]:
         last_path = source[: current_path + 1]
-        c_path = source[current_path]
-        if c_path.endswith("[]"):
-            c_path = c_path[:-2]
+        current_source = source[current_path]
+        if current_source.endswith("[]"):
+            current_source = current_source[:-2]
         if isinstance(items, dict):
-            if in_model or c_path == ".":
+            if in_model or current_source == ".":
                 item = items
             else:
-                if c_path in items.keys():
-                    item = items[c_path]
+                if current_source in items.keys():
+                    item = items[current_source]
                 else:
                     return
             if isinstance(item, list) and is_list_of_dicts(item):
@@ -101,14 +106,18 @@ def _parse_json_with_params(data, source: list, model_props: dict):
             for item in items:
                 yield from traverse_json(item, current_value.copy(), current_path, in_model)
 
-    c_value = {}
+    current_value = {}
     for prop in model_props.values():
-        c_value[prop["source"]] = None
-    yield from traverse_json(data, current_value=c_value)
+        current_value[prop["source"]] = None
+    yield from traverse_json(data, current_value=current_value)
 
 
-def _parse_json(data, source: str, model_props: dict):
-    data = json.loads(data)
+def _parse_json(data: str, source: str, model_props: dict) -> Iterator[dict[str, Any]]:
+    try:
+        data = json.loads(data)
+    except json.decoder.JSONDecodeError as e:
+        raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
+
     source_list = source.split(".")
     # Prepare source for blank nodes
     blank_nodes = is_blank_node(data)
@@ -125,13 +134,17 @@ def _parse_json(data, source: str, model_props: dict):
     yield from _parse_json_with_params(data, source_list, model_props)
 
 
-def _get_data_json(url: str, source: str, model_props: dict):
-    if url.startswith(("http", "https")):
-        f = requests.get(url, timeout=30)
-        yield from _parse_json(f.text, source, model_props)
+def _get_data_json(data_source: str, source: str, model_props: dict) -> Iterator[dict[str, Any]]:
+    if data_source.startswith("http"):
+        response = requests.get(data_source, timeout=30)
+        yield from _parse_json(response.text, source, model_props)
+
+    elif is_file_path(data_source):
+        with pathlib.Path(data_source).open(encoding="utf-8-sig") as file:
+            yield from _parse_json(file.read(), source, model_props)
+
     else:
-        with pathlib.Path(url).open(encoding="utf-8-sig") as f:
-            yield from _parse_json(f.read(), source, model_props)
+        yield from _parse_json(data_source, source, model_props)
 
 
 @commands.getall.register(Context, Model, Json)
@@ -145,10 +158,11 @@ def getall(
     extra_properties: dict[str, Property] = None,
     **kwargs,
 ) -> Iterator[ObjectData]:
-    bases = parametrize_bases(context, model, model.external.resource, resolved_params)
+    resource = model.external.resource
 
     builder = backend.query_builder_class(context)
-    builder.update(model=model)
+    builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
+
     props = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
@@ -160,8 +174,16 @@ def getall(
             }
 
     meta = get_dask_dataframe_meta(model)
+
+    if resource.external:
+        data_source = parametrize_bases(context, model, model.external.resource, resolved_params)
+    elif resource.prepare is not NA:
+        data_source = builder.resolve(resource.prepare)
+    else:
+        raise CannotReadResource(resource)
+
     df = (
-        from_sequence(bases)
+        from_sequence(data_source)
         .map(_get_data_json, source=model.external.name, model_props=props)
         .flatten()
         .to_dataframe(meta=meta)

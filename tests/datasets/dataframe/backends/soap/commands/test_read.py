@@ -11,6 +11,7 @@ from spinta.exceptions import SoapRequestBodyParseError
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
+from spinta.testing.utils import get_error_codes
 
 WSDL_SOAP_PARAM_MANIFEST = """
     d | r | b | m | property | type    | ref        | source                                          | access | prepare
@@ -477,3 +478,31 @@ def test_soap_read_filters_results_if_url_query_parameter_is_property_without_pr
     response = app.get("/example/City/?name='test100'")
 
     assert listdata(response, sort=False, full=True) == [{"name": "test100"}]
+
+
+def test_soap_read_error_if_backend_cannot_parse_data(rc: RawConfig, responses: RequestsMock):
+    endpoint_url = "http://example.com/city"
+    soap_response = '[{"id": 100, "name": "test100"},{"id": 101, "name": "test101"}]'
+
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type    | source                                          | access | prepare
+        example                  | dataset |                                                 |        |
+          | wsdl_resource        | wsdl    | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap    | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   | City         |         | /                                               | open   |
+          |   |   |   | name     | string  | name                                            |        |
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("/example/City/", ["getall"])
+
+    response = app.get("/example/City")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]
