@@ -1,1227 +1,650 @@
+import json
 from http import HTTPStatus
-from pathlib import PosixPath
-from typing import Any
-from unittest.mock import patch, MagicMock, ANY
-from urllib.parse import parse_qs, quote
+from pathlib import Path, PosixPath
+from typing import Iterator
+from unittest.mock import patch, MagicMock
 
 import pytest
-import sqlalchemy as sa
-from requests_mock.adapter import _Matcher
 
-from spinta.cli.helpers.sync.controllers.enum import ResourceType
+from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL
+from spinta.cli.helpers.sync.controllers.synchronization.catalog_to_agent import (
+    execute_synchronization_catalog_to_agent,
+)
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
-from spinta.exceptions import (
-    NotImplementedFeature,
-    UnexpectedAPIResponse,
-    UnexpectedAPIResponseData,
-    InvalidCredentialsConfigurationException,
-)
-from spinta.manifests.tabular.helpers import striptable
+from spinta.exceptions import InvalidCredentialsConfigurationException, AgentRelatedDataServiceDoesNotExist
+from spinta.manifests.tabular.helpers import render_tabular_manifest, striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.context import ContextForTests
-from spinta.testing.datasets import Sqlite
-from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.tabular import convert_ascii_manifest_to_csv
+from tests.conftest import get_request_context
+from tests.test_api import ensure_temp_context_and_app
 
-
-def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> list[dict[str, Any]]:
-    """Helper method to build context of what the mocked URLs were called with (Content, query params, URL)."""
-    calls = []
-    for request in mocked_request.request_history:
-        data = {"method": request.method, "url": request.url, "params": request.qs, "data": parse_qs(request.text)}
-        if with_text:
-            data.update({"text": request.text.replace("\r\n", "\n").rstrip("\n")})
-        calls.append(data)
-    return calls
+DATABASE_URL = "default"  # TODO: Replace when data source logic is introduced.
 
 
 @pytest.fixture
-def patched_credentials():
+def credentials() -> Iterator[RemoteClientCredentials]:
     credentials = RemoteClientCredentials(
         section="default",
         remote="origin",
-        client="client-id",
+        client="client_id",
         secret="secret",
-        server="http://example.com",
-        resource_server="http://example.com",
+        server="https://example.com",
+        resource_server="https://example2.com",
         scopes="scope1 scope2",
         organization="vssa",
         organization_type="gov",
     )
-    with patch("spinta.cli.helpers.sync.helpers.get_client_credentials", return_value=credentials):
+    with patch("spinta.cli.sync.get_configuration_credentials", return_value=credentials):
         yield credentials
 
 
 @pytest.fixture
-def sqlite_instance(sqlite: Sqlite) -> Sqlite:
-    sqlite.init(
-        {
-            "COUNTRY": [
-                sa.Column("ID", sa.Integer, primary_key=True),
-                sa.Column("CODE", sa.Text),
-                sa.Column("NAME", sa.Text),
-            ],
-            "CITY": [
-                sa.Column("NAME", sa.Text),
-                sa.Column("COUNTRY_ID", sa.Integer, sa.ForeignKey("COUNTRY.ID")),
-            ],
-        }
-    )
-    return sqlite
+def base_api_path(credentials: RemoteClientCredentials) -> str:
+    return f"{credentials.resource_server}{STATIC_BASE_PATH_TAIL}"
 
 
 @pytest.fixture
-def base_uapi_url() -> str:
-    """Static part of the UAPI type URL to reach open data catalog"""
-    return "uapi/datasets/org/vssa/isris/dcat"
+def configuration(local_manifest_path: PosixPath) -> Iterator[tuple[str, str]]:
+    configuration_parameters = (DATABASE_URL, str(local_manifest_path))
+    with patch("spinta.cli.sync.load_configuration_values", return_value=configuration_parameters):
+        yield configuration_parameters
 
 
 @pytest.fixture
-def dataset_prefix(patched_credentials: RemoteClientCredentials) -> str:
-    return f"datasets/{patched_credentials.organization_type}/{patched_credentials.organization}"
+def local_manifest_path(tmp_path: PosixPath) -> PosixPath:
+    return tmp_path / "local_manifest.csv"
 
 
 @pytest.fixture
-def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
-    """Build csv file and returns its path."""
-    manifest = striptable("""
-        id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
-           | example                       |         |         |         |       |           |            |        |       |
-           |   | cities                    | sql     | default | default |       |           | public     |        |       |
-           |                               |         |         |         |       |           |            |        |       |
-           |   |   |   | City              |         | id      | users   | 4     | completed | public     | open   | Name  |
-           |   |   |   |   | id            | integer |         | id      |       |           | public     |        |       |
-           |   |   |   |   | full_name     | string  |         | name    |       |           | public     |        |       |
-        """)
-    manifest_path = tmp_path / "manifest.csv"
-    create_tabular_manifest(context, manifest_path, manifest)
-    return manifest_path
-
-
-def test_success_existing_dataset(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_data_service_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.OK, "json": {"_data": [{"_id": 2}]}},
-        ],
-    )
-    mock_dataset_put = requests_mock.put(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-        status_code=HTTPStatus.NOT_IMPLEMENTED,
-        json={},
-    )
-    dataset_name = "example"
-    agent_name = patched_credentials.client
-
-    # Act
-    with pytest.raises(NotImplementedFeature) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "status": HTTPStatus.NOT_IMPLEMENTED.value,
-        "dataset_id": 2,
-        "feature": "Updates on existing Datasets",
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_data_service_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name, safe='')}",
-            "params": {"name": [dataset_name]},
-            "data": {},
-        },
-    ]
-    assert get_request_context(mock_dataset_put) == [
-        {
-            "method": "PUT",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-            "params": {},
-            "data": {},
-        }
-    ]
-
-
-def test_success_new_dataset(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-        ],
-    )
-    mock_dataset_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
-        ],
-    )
-    mock_dsa_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-        status_code=HTTPStatus.NO_CONTENT,
-        json={},
-    )
-    mock_dsa_post_2 = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
-        status_code=HTTPStatus.NO_CONTENT,
-        json={},
-    )
-
-    agent_name = patched_credentials.client
-    dataset_name_example = "example"
-    dataset_name_sqlite = "db_sqlite"
-
-    # Act
-    cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_sqlite}",
-            "params": {"name": [dataset_name_sqlite]},
-            "data": {},
-        },
-    ]
-    assert get_request_context(mock_dataset_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "service": ["True"],
-                "subclass": [ResourceType.DATA_SERVICE],
-            },
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
-                "parent_id": ["1"],
-                "subclass": [ResourceType.DATASET],
-            },
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_sqlite],
-                "title": [dataset_name_sqlite],
-                "parent_id": ["1"],
-                "subclass": [ResourceType.DATASET],
-            },
-        },
-    ]
-    assert get_request_context(mock_dsa_post, with_text=True) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-            "params": {},
-            "data": {},
-            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
-,,cities,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,/example/City,,,id,users,,,,,4,completed,public,open,,,Name,
-,,,,,id,integer,,id,,,,,,,public,,,,,
-,,,,,full_name,string,,name,,,,,,,public,,,,,""",
-        }
-    ]
-    assert get_request_context(mock_dsa_post_2, with_text=True) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
-            "params": {},
-            "data": {},
-            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description""",
-        },
-    ]
-
-
-def test_success_private_fields_cleaned_successfully(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    context: ContextForTests,
-    tmp_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-        ],
-    )
-    requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
-        ],
-    )
-    mock_dsa_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-        status_code=HTTPStatus.NO_CONTENT,
-        json={},
-    )
-    requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
-        status_code=HTTPStatus.NO_CONTENT,
-        json={},
-    )
-
-    sqlite.init({})
-    manifest = striptable("""
-    id | dataset | resource  | base | model   | property   | type    | ref     | source                    | prepare | level | status    | visibility | access  | uri | eli | title     | description
-       | example |           |      |         |            |         |         |                           |         |       |           |            |         |     |     |           |
-       |         | countries |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
-       |         |           |      | Country |            |         |         | country_source            |         | 4     | completed | private    | open    |     |     | Countries |
-       |         |           |      |         | id         | integer |         | country_id_source         |         |       |           | package    | open    |     |     |           |
-       |         |           |      |         | name       | string  |         | country_name_source       |         |       |           | package    | open    |     |     |           |
-       |         | cities    |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
-       |         |           |      | City    |            |         |         | city_source               |         | 4     | completed | private    | open    |     |     | Cities    |
-       |         |           |      |         | id         | integer |         | city_id_source            |         |       |           | private    | open    |     |     |           |
-       |         |           |      |         | size       | integer |         | city_size_source          |         |       |           | private    | open    |     |     |           |
-       |         |           |      | Village |            |         |         | village_source            |         | 4     | completed | package    | open    |     |     | Villages  |
-       |         |           |      |         | id         | integer |         | village_id_source         |         |       |           | package    | open    |     |     |           |
-       |         |           |      |         | population | integer |         | village_population_source |         |       |           | private    | private |     |     |           |
-    """)
-    manifest_path = tmp_path / "manifest.csv"
-    create_tabular_manifest(context, manifest_path, manifest)
-
-    # Act
-    cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite.dsn], catch_exceptions=False)
-
-    # Assert
-    assert get_request_context(mock_dsa_post, with_text=True) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-            "params": {},
-            "data": {},
-            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
-,,cities,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,/example/Village,,,,village_source,,,,,4,completed,package,open,,,Villages,
-,,,,,id,integer,,village_id_source,,,,,,,package,open,,,,""",
-        }
-    ]
-
-
-def test_failure_configuration_invalid(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    credentials = RemoteClientCredentials(
-        section="default",
-        remote="origin",
-        secret="secret",
-        scopes="scope1 scope2",
-        client="client",
-        server="https://example.com",
-    )
-    requests_mock.post(
-        f"{credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    with patch("spinta.cli.helpers.sync.helpers.get_client_credentials", return_value=credentials):
-        # Act
-        with pytest.raises(InvalidCredentialsConfigurationException) as exception:
-            cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-        # Assert
-        assert exception.value.status_code == 400
-        assert exception.value.context == {"missing_credentials": "resource_server, organization_type, organization"}
-
-
-def test_failure_get_access_token_api_call(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    sqlite_instance: Sqlite,
-):
-    # Arrange
-    token_url = f"{patched_credentials.server}/auth/token"
-    mock_auth_token_post = requests_mock.post(
-        token_url,
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={"error": "server error"},
-    )
-
-    # Act
-    with pytest.raises(Exception) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-
-
-def test_failure_post_data_service_returns_unexpected_status_code(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
-    )
-    mock_data_service_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={},
-    )
-
-    agent_name = patched_credentials.client
-
-    # Act
-    with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert exception.value.context == {
-        "operation": "Create resource",
-        "expected_status_code": str({HTTPStatus.CREATED.value}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({}),
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-    ]
-    assert get_request_context(mock_data_service_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        }
-    ]
-
-
-def test_failure_post_data_service_returns_invalid_data(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_data_service_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
-    )
-    mock_data_service_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={},
-    )
-
-    agent_name = patched_credentials.client
-
-    # Act
-    with pytest.raises(UnexpectedAPIResponseData) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert exception.value.context == {
-        "operation": "Retrieve dataset `_id`",
-        "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_data_service_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-    ]
-    assert get_request_context(mock_data_service_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        }
-    ]
-
-
-def test_failure_get_dataset_returns_unexpected_status_code(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_data_service_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {
-                "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
-                "json": {
-                    "code": "dataset_not_found",
-                    "type": "DatasetNotFound",
-                    "template": "The requested Dataset could not be found.",
-                    "message": "No dataset matched the provided query.",
-                    "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-                },
-            },
-        ],
-    )
-
-    dataset_name_example = "example"
-    agent_name = patched_credentials.client
-
-    # Act
-    with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-    assert exception.value.context == {
-        "operation": "Get resource",
-        "expected_status_code": str({HTTPStatus.OK.value, HTTPStatus.NOT_FOUND.value}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str(
-            {
-                "code": "dataset_not_found",
-                "type": "DatasetNotFound",
-                "template": "The requested Dataset could not be found.",
-                "message": "No dataset matched the provided query.",
-                "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-            }
-        ),
-    }
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_data_service_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-    ]
-
-
-def test_failure_get_dataset_returns_invalid_data(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_data_service_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.OK, "json": {}},
-        ],
-    )
-
-    agent_name = patched_credentials.client
-    dataset_name_example = "example"
-
-    # Act
-    with pytest.raises(UnexpectedAPIResponseData) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "operation": "Retrieve dataset `_id`",
-        "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_data_service_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-    ]
-
-
-def test_failure_put_dataset_returns_invalid_data(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    """Check the workflow, when DSA put endpoint returns an invalid response.
-
-    Since it is not implemented, it will return an internal server error for now, but when it is implemented, this
-    test will need to be updated.
+def manifest() -> str:
+    return """
+    id                                   | dataset | resource   | model   | property      | type     | ref  | source                                                | level     | status    | visibility | access | title     | description
+    f89e1015-c77c-4d81-958c-52f0120e44a1 | vssa    |            |         |               | dataset  | vssa | https://example.com                                   |           | open      |            |        | VSSA      | vssa
+    c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | geography  |         |               | dask/csv |      | https://get.data.gov.lt/datasets/org/vssa/example/:ns | 4         |           |            |        | Geography | geography
+                                         |         |            |         |               |          |      |                                                       |           |           |            |        |           |
+    7d5488e7-ce3c-4c64-90d8-f554a7721f20 |         |            | Country |               |          | id   | model_country                                         | 4         | completed | package    | open   | Country   | country
+    de4107e4-7f9a-425e-ba7a-3626f59b360c |         |            |         | id            | integer  |      | id                                                    | 4         |           |            |        | Id        | id
     """
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_data_service_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.OK, "json": {"_data": [{"_id": 2}]}},
-        ],
-    )
-    mock_dsa_put = requests_mock.put(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-    )
-
-    agent_name = patched_credentials.client
-    dataset_name_example = "example"
-
-    # Act
-    with pytest.raises(NotImplementedFeature) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "status": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "dataset_id": 2,
-        "feature": "Updates on existing Datasets",
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_data_service_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-    ]
-    assert get_request_context(mock_dsa_put) == [
-        {
-            "method": "PUT",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-            "params": {},
-            "data": {},
-        },
-    ]
 
 
-def test_failure_post_dataset_returns_unexpected_status_code(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
-            {"status_code": HTTPStatus.INTERNAL_SERVER_ERROR, "json": {}},
-        ],
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-        ],
-    )
+class TestSynchronization:
+    def test_success_full_flow(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+    ):
+        local_manifest_file_path = configuration[1]
+        mock_auth_token_post = requests_mock.post(
+            f"{credentials.server}/auth/token",
+            status_code=HTTPStatus.OK,
+            json={"access_token": "test-token"},
+        )
+        mock_data_service_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            status_code=HTTPStatus.OK,
+            json={"_data": [{"_id": 1}]},
+        )
+        mock_data_service_dataset_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+            status_code=HTTPStatus.OK,
+            json={"_data": [{"_id": 2}]},
+        )
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/2/dsa",
+            status_code=HTTPStatus.OK,
+            text=(
+                "id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,"
+                "visibility,access,uri,eli,title,description"
+            ),
+            headers={"Content-Type": "text/csv"},
+        )
 
-    agent_name = patched_credentials.client
-    dataset_name_example = "example"
+        cli.invoke(rc, args=["sync"], catch_exceptions=True)
 
-    # Act
-    with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
+        assert Path(local_manifest_file_path).exists()
 
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "operation": "Create resource",
-        "expected_status_code": str({HTTPStatus.CREATED.value}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({}),
-    }
+        assert get_request_context(mock_auth_token_post) == [
+            {
+                "method": "POST",
+                "url": f"{credentials.server}/auth/token",
+                "params": {},
+                "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
+            }
+        ]
+        assert get_request_context(mock_data_service_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "params": {"name": ["client"]},
+                "data": {},
+            }
+        ]
+        assert get_request_context(mock_data_service_dataset_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+                "params": {"parent_id": ["1"]},
+                "data": {},
+            }
+        ]
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/2/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]
 
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
-                "parent_id": ["1"],
-                "subclass": [ResourceType.DATASET],
-            },
-        },
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-    ]
+    def test_failure_credentials_not_set(self, rc: RawConfig, cli: SpintaCliRunner):
+        credentials = RemoteClientCredentials(
+            section=None,
+            remote=None,
+            client=None,
+            secret=None,
+            server=None,
+            resource_server=None,
+            scopes=None,
+            organization=None,
+            organization_type=None,
+        )
+        with patch("spinta.cli.sync.get_configuration_credentials", return_value=credentials):
+            with pytest.raises(InvalidCredentialsConfigurationException) as exception:
+                cli.invoke(rc, args=["sync"], catch_exceptions=False)
+
+        assert exception.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Credentials.cfg is missing required configuration credentials." in exception.value.message
+
+    def test_failure_auth_server_returned_unexpected_response(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+    ):
+        mock_auth_token_post = requests_mock.post(
+            f"{credentials.server}/auth/token",
+            status_code=HTTPStatus.BAD_REQUEST,
+            json={"error": "unexpected error"},
+        )
+
+        with pytest.raises(Exception) as exception:
+            cli.invoke(rc, args=["sync"], catch_exceptions=False)
+
+        assert exception.value.response.status_code == HTTPStatus.BAD_REQUEST
+        assert exception.value.response.text == json.dumps({"error": "unexpected error"})
+
+        assert get_request_context(mock_auth_token_post) == [
+            {
+                "method": "POST",
+                "url": f"{credentials.server}/auth/token",
+                "params": {},
+                "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
+            }
+        ]
+
+    def test_failure_catalog_does_not_have_the_data_service_related_to_the_agent(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+    ):
+        """Catalog must have a data service related to the Agent; it is created automatically during Agent creation."""
+        mock_auth_token_post = requests_mock.post(
+            f"{credentials.server}/auth/token",
+            status_code=HTTPStatus.OK,
+            json={"access_token": "test-token"},
+        )
+        mock_data_service_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            status_code=HTTPStatus.NOT_FOUND,
+            json={"error": "data_service_not_found"},
+        )
+
+        with pytest.raises(AgentRelatedDataServiceDoesNotExist) as exception:
+            cli.invoke(rc, args=["sync"], catch_exceptions=False)
+
+        assert exception.value.status_code == HTTPStatus.BAD_REQUEST
+        assert (
+            "Data Service related to the Agent that is executing the synchronization request does not exist."
+            in exception.value.message
+        )
+
+        assert get_request_context(mock_auth_token_post) == [
+            {
+                "method": "POST",
+                "url": f"{credentials.server}/auth/token",
+                "params": {},
+                "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
+            }
+        ]
+        assert get_request_context(mock_data_service_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "params": {"name": ["client"]},
+                "data": {},
+            }
+        ]
+
+    def test_success_agent_related_data_service_does_not_have_any_child_datasets(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+    ):
+        mock_auth_token_post = requests_mock.post(
+            f"{credentials.server}/auth/token",
+            status_code=HTTPStatus.OK,
+            json={"access_token": "test-token"},
+        )
+        mock_data_service_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            status_code=HTTPStatus.OK,
+            json={"_data": [{"_id": 1}]},
+        )
+        mock_data_service_dataset_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+            status_code=HTTPStatus.OK,
+            json={"_data": []},
+        )
+
+        cli.invoke(rc, args=["sync"], catch_exceptions=False)
+
+        assert get_request_context(mock_auth_token_post) == [
+            {
+                "method": "POST",
+                "url": f"{credentials.server}/auth/token",
+                "params": {},
+                "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
+            }
+        ]
+        assert get_request_context(mock_data_service_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "params": {"name": ["client"]},
+                "data": {},
+            }
+        ]
+        assert get_request_context(mock_data_service_dataset_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+                "params": {"parent_id": ["1"]},
+                "data": {},
+            }
+        ]
 
 
-def test_failure_post_dataset_returns_invalid_data(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-        ],
-    )
-    mock_dataset_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
-            {"status_code": HTTPStatus.CREATED, "json": {}},
-        ],
-    )
+class TestSynchronizationPathCatalogToAgent:
+    def test_catalog_manifest_and_local_manifest_contents_are_identical(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        manifest: str,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+        base_api_path: str,
+        tmp_path: PosixPath,
+        local_manifest_path: PosixPath,
+    ):
+        """Agent & Catalog manifests are identical, no action required for Catalog -> Agent sync part."""
+        # When;
+        manifest_csv = convert_ascii_manifest_to_csv(manifest).decode("utf-8")
+        local_manifest_path.write_text(manifest_csv)
 
-    agent_name = patched_credentials.client
-    dataset_name_example = "example"
+        dataset_id = "2"
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            status_code=HTTPStatus.OK,
+            text=manifest_csv,
+            headers={"Content-Type": "text/csv"},
+        )
 
-    # Act
-    with pytest.raises(UnexpectedAPIResponseData) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
+        context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "operation": "Retrieve dataset `_id`",
-        "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
-    }
+        # Do;
+        execute_synchronization_catalog_to_agent(
+            context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
+        )
 
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
-                "parent_id": ["1"],
-                "subclass": [ResourceType.DATASET],
-            },
-        },
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-    ]
+        # Check.
+        context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
+        assert render_tabular_manifest(context, final_manifest) == striptable("""
+            id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
+            f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
+            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
+               |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
+            7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
+            de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
+        """)
 
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]
 
-def test_failure_post_dsa_returns_unexpected_status_code(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
-        ],
-    )
-    mock_dataset_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},
-        ],
-    )
-    mock_dsa_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={},
-    )
+    def test_local_manifest_empty_prefilling_content_from_catalog_manifest(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        manifest: str,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+        base_api_path: str,
+        tmp_path: PosixPath,
+        local_manifest_path: PosixPath,
+    ):
+        """If the Agent manifest is empty and Catalog manifest is filled, Agent manifest is filled with Catalog data."""
+        # When;
+        assert not local_manifest_path.is_file()
+        local_manifest_path.touch()
+        catalog_manifest_csv = convert_ascii_manifest_to_csv(manifest).decode("utf-8")
+        dataset_id = "2"
 
-    agent_name = patched_credentials.client
-    dataset_name_example = "example"
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            status_code=HTTPStatus.OK,
+            text=catalog_manifest_csv,
+            headers={"Content-Type": "text/csv"},
+        )
 
-    # Act
-    with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
+        context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "operation": "Create DSA",
-        "expected_status_code": str({HTTPStatus.NO_CONTENT.value}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({}),
-    }
+        # Do;
+        execute_synchronization_catalog_to_agent(
+            context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
+        )
 
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
-            "params": {"name": [agent_name]},
-            "data": {},
-        },
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        },
-    ]
-    assert get_request_context(mock_dataset_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
-                "parent_id": ["1"],
-                "subclass": [ResourceType.DATASET],
-            },
-        },
-    ]
-    assert get_request_context(mock_dsa_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
-            "params": {},
-            "data": ANY,  # DSA Content from file.
-        },
-    ]
+        # Check.
+        context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
+        assert render_tabular_manifest(context, final_manifest) == striptable("""
+            id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
+            f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
+            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
+               |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
+            7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
+            de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
+        """)
+
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]
+
+    def test_catalog_manifest_has_more_fields_than_agent_manifest(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        manifest: str,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+        base_api_path: str,
+        tmp_path: PosixPath,
+        local_manifest_path: PosixPath,
+    ):
+        """Fields that exist in Catalog manifest, but not in Agent manifest are added to the Agent manifest."""
+        # When;
+        catalog_manifest = """
+        id                                   | dataset | resource   | model   | property      | type     | ref | source                                                | level     | status    | visibility | access | title     | description
+        f89e1015-c77c-4d81-958c-52f0120e44a1 | vssa    |            |         |               |          |     | https://example.com                                   |           | open      |            |        | VSSA      | vssa
+        c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | geography  |         |               | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns | 4         |           |            |        | Geography | geography
+                                             |         |            |         |               |          |     |                                                       |           |           |            |        |           |
+        7d5488e7-ce3c-4c64-90d8-f554a7721f20 |         |            | Country |               |          | id  | model_country                                         | 4         | completed | package    | open   | Country   | country
+        de4107e4-7f9a-425e-ba7a-3626f59b360c |         |            |         | id            | integer  |     | id                                                    | 4         |           |            |        | Id        | id
+        6c2fdd17-0408-44fc-b38d-613ca7f6e1c3 |         |            |         | size          | integer  |     | size                                                  | 4         |           |            |        | Size      | size
+        """
+        catalog_manifest_csv = convert_ascii_manifest_to_csv(catalog_manifest).decode("utf-8")
+        manifest_csv = convert_ascii_manifest_to_csv(manifest).decode("utf-8")
+        local_manifest_path.write_text(manifest_csv)
+
+        dataset_id = "2"
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            status_code=HTTPStatus.OK,
+            text=catalog_manifest_csv,
+            headers={"Content-Type": "text/csv"},
+        )
+
+        context, _ = ensure_temp_context_and_app(rc, tmp_path)
+
+        # Do;
+        execute_synchronization_catalog_to_agent(
+            context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
+        )
+
+        # Check.
+        context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
+        assert render_tabular_manifest(context, final_manifest) == striptable("""
+            id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
+            f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
+            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
+               |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
+            7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
+            de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
+            6c |   |   |   |   | size     | integer  |     | size                                                  |             |         |        |       | 4     |           |            |        |     |     | Size      | size
+        """)
+
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]
+
+    def test_catalog_fields_differ_from_agent_fields_catalog_fields_take_precedence_by_id(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        manifest: str,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+        base_api_path: str,
+        tmp_path: PosixPath,
+        local_manifest_path: PosixPath,
+    ):
+        catalog_manifest = """
+            id                                   | dataset | resource   | model | property      | type     | ref  | source                                                | level     | status    | visibility | access | title      | description
+            f89e1015-c77c-4d81-958c-52f0120e44a1 | cct     |            |       |               | dataset  | cct  | https://example.com                                   |           | open      |            |        | CCT        | cct
+            c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | technology |       |               | dask/csv |      | https://get.data.gov.lt/datasets/org/cct/example/:ns  | 4         |           |            |        | Technology | technology
+                                                 |         |            |       |               |          |      |                                                       |           |           |            |        |            |
+            7d5488e7-ce3c-4c64-90d8-f554a7721f20 |         |            | Item  |               |          | uuid | model_item                                            | 4         | completed | package    | open   | Item       | item
+            de4107e4-7f9a-425e-ba7a-3626f59b360c |         |            |       | uuid          | integer  |      | uuid                                                  | 4         |           |            |        | Unique Id  | unique id
+        """
+
+        catalog_manifest_csv = convert_ascii_manifest_to_csv(catalog_manifest).decode("utf-8")
+        manifest_csv = convert_ascii_manifest_to_csv(manifest).decode("utf-8")
+        local_manifest_path.write_text(manifest_csv)
+
+        dataset_id = "2"
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            status_code=HTTPStatus.OK,
+            text=catalog_manifest_csv,
+            headers={"Content-Type": "text/csv"},
+        )
+
+        context, _ = ensure_temp_context_and_app(rc, tmp_path)
+
+        # Do;
+        execute_synchronization_catalog_to_agent(
+            context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
+        )
+
+        # Check.
+        context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
+        assert render_tabular_manifest(context, final_manifest) == striptable("""
+            id | d | r | b | m | property | type     | ref  | source                                               | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
+            f8 | cct                      |          |      |                                                      |             |         |        |       |       |           |            |        |     |     | CCT        | cct
+            c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
+               |                          |          |      |                                                      |             |         |        |       |       |           |            |        |     |     |            |
+            7d |   |   |   | Item         |          | uuid | model_item                                           |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
+            de |   |   |   |   | uuid     | integer  |      | uuid                                                 |             |         |        |       | 4     |           |            |        |     |     | Unique Id  | unique id
+        """)
+
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]
+
+    def test_catalog_fields_differ_from_agent_fields_catalog_fields_take_precedence_by_name(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+        base_api_path: str,
+        tmp_path: PosixPath,
+        local_manifest_path: PosixPath,
+    ):
+        local_manifest = """
+            id | dataset | resource   | model   | property | type     | ref  | source                                                | level     | status    | visibility | access | title     | description
+               | vssa    |            |         |          | dataset  | vssa | https://example.com                                   |           | open      |            |        | VSSA      | vssa
+               |         | geography  |         |          | dask/csv |      | https://get.data.gov.lt/datasets/org/vssa/example/:ns | 4         |           |            |        | Geography | geography
+               |         |            |         |          |          |      |                                                       |           |           |            |        |           |
+               |         |            | Country |          |          | id   | model_country                                         | 4         | completed | package    | open   | Country   | country
+               |         |            |         | id       | integer  |      | id                                                    | 4         |           |            |        | Id        | id
+        """
+
+        catalog_manifest = """
+            id | dataset | resource  | model   | property | type     | ref   | source                                                | level     | status    | visibility | access | title      | description
+               | vssa    |           |         |          | dataset  | vssa2 | https://example.com                                   |           | open      |            |        | VSSA2      | vssa2
+               |         | geography |         |          | dask/csv |       | https://get.data.gov.lt/datasets/org/cct/example/:ns  | 4         |           |            |        | Geography2 | geography2
+               |         |           |         |          |          |       |                                                       |           |           |            |        |            |
+               |         |           | Country |          |          | id    | model_country2                                        | 4         | completed | package    | open   | Country2   | country2
+               |         |           |         | id       | integer  |       | id2                                                   | 4         |           |            |        | id2        | id2
+        """
+
+        catalog_manifest_csv = convert_ascii_manifest_to_csv(catalog_manifest).decode("utf-8")
+        manifest_csv = convert_ascii_manifest_to_csv(local_manifest).decode("utf-8")
+        local_manifest_path.write_text(manifest_csv)
+
+        dataset_id = "2"
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            status_code=HTTPStatus.OK,
+            text=catalog_manifest_csv,
+            headers={"Content-Type": "text/csv"},
+        )
+
+        context, _ = ensure_temp_context_and_app(rc, tmp_path)
+
+        # Do;
+        execute_synchronization_catalog_to_agent(
+            context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
+        )
+
+        # Check.
+        context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
+        assert render_tabular_manifest(context, final_manifest) == striptable("""
+            id | d | r | b | m | property | type     | ref | source                                               | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
+               | vssa                     |          |     |                                                      |             |         |        |       |       |           |            |        |     |     | VSSA2      | vssa2
+               |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography2 | geography2
+               |                          |          |     |                                                      |             |         |        |       |       |           |            |        |     |     |            |
+               |   |   |   | Country      |          | id  | model_country2                                       |             |         |        |       | 4     | completed | package    | open   |     |     | Country2   | country2
+               |   |   |   |   | id       | integer  |     | id2                                                  |             |         |        |       | 4     |           |            |        |     |     | id2        | id2
+        """)
+
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]
+
+    def test_catalog_fields_differ_from_agent_fields_catalog_fields_take_precedence_by_source(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+        configuration: tuple[str, str],
+        base_api_path: str,
+        tmp_path: PosixPath,
+        local_manifest_path: PosixPath,
+    ):
+        local_manifest = """
+            id | dataset | resource   | model   | property | type     | ref  | source                                                   | level     | status    | visibility | access | title     | description
+               | vssa    |            |         |          | dataset  | vssa | https://example.com                                      |           | open      |            |        | VSSA      | vssa
+               |         | geography  |         |          | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns | 4         |           |            |        | Geography | geography
+               |         |            |         |          |          |      |                                                          |           |           |            |        |           |
+               |         |            | Country |          |          | id   | model_a                                                  | 4         | completed | package    | open   | Country   | country
+               |         |            |         | id       | integer  |      | property_a                                               | 4         |           |            |        | Id        | id
+        """
+
+        catalog_manifest = """
+            id                                     | dataset | resource   | model   | property | type     | ref   | source                                                   | level     | status    | visibility | access | title      | description
+            f89e1015-c77c-4d81-958c-52f0120e44a1   | cct     |            |         |          | dataset  | vssa2 | https://example.com                                      |           | open      |            |        | CCT        | cct
+            c3caa75b-fbb6-4868-a366-e61e4f3225bf   |         | technology |         |          | dask/csv |       | https://get.data.gov.lt/datasets/org/company/example/:ns | 4         |           |            |        | Technology | technology
+                                                   |         |            |         |          |          |       |                                                          |           |           |            |        |            |
+            7d5488e7-ce3c-4c64-90d8-f554a7721f20   |         |            | Item    |          |          | uuid  | model_a                                                  | 4         | completed | package    | open   | Item       | item
+            de4107e4-7f9a-425e-ba7a-3626f59b360c   |         |            |         | uuid     | integer  |       | property_a                                               | 4         |           |            |        | Unique ID  | unique id
+        """
+
+        catalog_manifest_csv = convert_ascii_manifest_to_csv(catalog_manifest).decode("utf-8")
+        manifest_csv = convert_ascii_manifest_to_csv(local_manifest).decode("utf-8")
+        local_manifest_path.write_text(manifest_csv)
+
+        dataset_id = "2"
+        mock_dataset_manifest_get = requests_mock.get(
+            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            status_code=HTTPStatus.OK,
+            text=catalog_manifest_csv,
+            headers={"Content-Type": "text/csv"},
+        )
+
+        context, _ = ensure_temp_context_and_app(rc, tmp_path)
+
+        # Do;
+        execute_synchronization_catalog_to_agent(
+            context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
+        )
+
+        # Check.
+        context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
+        assert render_tabular_manifest(context, final_manifest) == striptable("""
+        id | d | r | b | m | property | type     | ref  | source                                                   | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
+        f8 | cct                      |          |      |                                                          |             |         |        |       |       |           |            |        |     |     | CCT        | cct
+        c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
+           |                          |          |      |                                                          |             |         |        |       |       |           |            |        |     |     |            |
+        7d |   |   |   | Item         |          | uuid | model_a                                                  |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
+        de |   |   |   |   | uuid     | integer  |      | property_a                                               |             |         |        |       | 4     |           |            |        |     |     | Unique ID  | unique id
+        """)
+
+        assert get_request_context(mock_dataset_manifest_get) == [
+            {
+                "method": "GET",
+                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "params": {},
+                "data": {},
+            }
+        ]

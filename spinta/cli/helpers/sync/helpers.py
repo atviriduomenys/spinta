@@ -1,44 +1,48 @@
 from __future__ import annotations
-from http import HTTPStatus
-from typing import Any, Optional
+from pathlib import Path
+from io import StringIO
+from typing import Optional, Union
 
 from typer import echo, Context as TyperContext
-from requests import Response
 
 from spinta.auth import DEFAULT_CREDENTIALS_SECTION
-from spinta.cli.helpers.sync import IDENTIFIER, ContentType
-from spinta.client import get_client_credentials, RemoteClientCredentials, get_access_token
-from spinta.components import Config, Context, Model
-from spinta import commands
-from spinta.core.enums import Visibility
-from spinta.datasets.components import Resource
-from spinta.datasets.inspect.helpers import create_manifest_from_inspect
+from spinta.cli.helpers.sync import ContentType
+from spinta.cli.helpers.store import load_manifest
+from spinta.cli.manifest import _read_and_return_manifest
+from spinta.client import get_client_credentials, RemoteClientCredentials
+from spinta.core.config import RawConfig
+from spinta.core.context import configure_context
+from spinta.core.enums import Mode, Access
+from spinta.datasets.inspect.helpers import create_manifest_from_inspect, coalesce
+from spinta.exceptions import ManifestFileInvalidPath, ManifestFilePathNotGiven
+from spinta.manifests.components import Manifest, ManifestPath
+from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.components import Config, MetaData, Context
 from spinta.exceptions import (
     NotImplementedFeature,
-    UnexpectedAPIResponse,
-    UnexpectedAPIResponseData,
     InvalidCredentialsConfigurationException,
 )
 from spinta.formats.csv.commands import _render_manifest_csv
-from spinta.manifests.components import ManifestPath, Manifest
-from spinta.manifests.helpers import init_manifest
 from spinta.manifests.tabular.constants import DATASET
-from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.yaml.components import InlineManifest
 
 
 EXCLUDED_RESOURCE_FIELDS = frozenset({"dataset", "models", "given", "lang"})
 
 
-def validate_api_response(response: Response, expected_status_codes: set[HTTPStatus], operation: str) -> None:
-    """Validates the status code the API has responded with."""
-    if response.status_code not in expected_status_codes:
-        raise UnexpectedAPIResponse(
-            operation=operation,
-            expected_status_code={code.value for code in expected_status_codes},
-            response_status_code=response.status_code,
-            response_data=format_error_response_data(response.json()),
-        )
+def prepare_context(context_object: Context) -> Context:
+    context = configure_context(context_object, None, mode=Mode.external, backend=None)
+    load_manifest(context, ensure_config_dir=True, full_load=True)
+    return context
+
+
+def load_configuration_values(context: Context) -> tuple[str, str]:
+    raw_config: RawConfig = context.get("rc")
+
+    data_source_name = raw_config.get("backends", "default", "dsn")
+    manifest_path = raw_config.get("manifests", "default", "path")
+
+    return data_source_name, manifest_path
 
 
 def get_context_and_manifest(
@@ -75,77 +79,18 @@ def get_context_and_manifest(
     return context, manifest
 
 
-def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
-    """Build a dataset prefix in accordance with the UAPI format."""
-    if not any([credentials.organization_type, credentials.organization]):
-        raise InvalidCredentialsConfigurationException(required_credentials=["organization_type", "organization"])
-    prefix = f"datasets/{credentials.organization_type}/{credentials.organization}"
-    # TODO: Add IS & subIS, when that information is available (When Agents are related w/ DS and not Organizations).
-    return prefix
+def prepare_local_manifest_file(manifest_path: str) -> None:
+    if not manifest_path:
+        raise ManifestFilePathNotGiven
 
+    manifest_file = Path(manifest_path)
 
-def clean_private_attributes(resource: Resource) -> dict[str, Model]:
-    """Cleans up attributes that are marked `visibility=private` in the DSA (Duomenų Struktūros Aprašas)."""
-    for field in resource.__annotations__:
-        if field not in EXCLUDED_RESOURCE_FIELDS:
-            setattr(resource, field, "")
-    resource.type = ""
-
-    resource.models = {name: model for name, model in resource.models.items() if model.visibility != Visibility.private}
-
-    for model in resource.models.values():
-        model.properties = {
-            name: property for name, property in model.properties.items() if property.visibility != Visibility.private
-        }
-
-    return resource.models
-
-
-def prepare_synchronization_manifests(context: Context, manifest: Manifest, prefix: str) -> list[dict[str, Any]]:
-    """Prepare dataset and resource manifests for synchronization.
-
-    Iterates through datasets and their resources to construct separate
-    manifests for each dataset and its resources, along with their models & properties.
-    """
-    dataset_data = []
-    datasets = commands.get_datasets(context, manifest)
-    for dataset_name, dataset_object in datasets.items():
-        dataset_object.name = f"{prefix}/{dataset_object.name}"
-        dataset_manifest = Manifest()
-        init_manifest(context, dataset_manifest, "sync_dataset_manifest")
-
-        dataset_manifest_models = []
-        resource_data = []
-
-        for resource_name, resource_object in dataset_object.resources.items():
-            resource_manifest = Manifest()
-            init_manifest(context, resource_manifest, "sync_resource_manifest")
-
-            resource_models = clean_private_attributes(resource_object)
-            commands.set_models(context, resource_manifest, resource_models)
-            dataset_manifest_models.append(resource_models)
-
-            resource_data.append(
-                {
-                    "name": resource_name,
-                    "manifest": resource_manifest,
-                }
-            )
-
-        dataset_models = {}
-        for model in dataset_manifest_models:
-            dataset_models.update(model)
-        commands.set_models(context, dataset_manifest, dataset_models)
-
-        dataset_data.append(
-            {
-                "name": dataset_object.title or dataset_name.rsplit("/", 1)[-1],
-                "dataset_manifest": dataset_manifest,
-                "resources": resource_data,
-            }
-        )
-
-    return dataset_data
+    try:
+        manifest_file.parent.mkdir(parents=True, exist_ok=True)
+        if not manifest_file.exists():
+            manifest_file.touch()
+    except (OSError, ValueError, PermissionError):
+        raise ManifestFileInvalidPath(manifest_path=manifest_path)
 
 
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
@@ -171,56 +116,12 @@ def validate_credentials(credentials: RemoteClientCredentials) -> None:
         raise InvalidCredentialsConfigurationException(missing_credentials=", ".join(missing))
 
 
-def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str, dict[str, str]]:
-    """Construct the API base path and authentication headers.
-
-    Retrieves client credentials, fetches an access token, and prepares
-    the Authorization headers for API calls to Catalog.
-    """
-    access_token = get_access_token(credentials)
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    resource_server = credentials.resource_server or credentials.server
-    base_path = f"{resource_server}/uapi/datasets/org/vssa/isris/dcat"
-
-    return base_path, headers
-
-
 def get_agent_name(credentials: RemoteClientCredentials) -> str:
     """Retrieves the name of the agent from the client name set in the configuration file."""
     return credentials.client.rsplit("_", 1)[0]
 
 
-def format_error_response_data(data: dict[str, Any]) -> dict:
-    """Cleans up the API error response to be user-friendly."""
-    data.pop("context", None)  # Removing the full traceback.
-    return data
-
-
-def extract_identifier_from_response(response: Response, response_type: str) -> str:
-    """Extract the resource ID from an API response."""
-    identifier = None
-    if response_type == "list":
-        identifier = response.json().get("_data", [{}])[0].get(IDENTIFIER)
-    elif response_type == "detail":
-        identifier = response.json().get(IDENTIFIER)
-
-    if not identifier:
-        raise UnexpectedAPIResponseData(
-            operation=f"Retrieve dataset `{IDENTIFIER}`",
-            context=f"Dataset did not return the `{IDENTIFIER}` field which can be used to identify the dataset.",
-        )
-
-    return identifier
-
-
 def render_content_from_manifest(context: Context, manifest: InlineManifest, content_type: ContentType) -> bytes | str:
-    """Render manifest content in the requested format.
-
-    Converts dataset information from a manifest into tabular rows and serializes it into the selected format:
-     - CSV;
-     - UTF-8 encoded bytes.
-    """
     rows = datasets_to_tabular(context, manifest)
     rows = ({c: row[c] for c in DATASET} for row in rows)
 
@@ -231,3 +132,72 @@ def render_content_from_manifest(context: Context, manifest: InlineManifest, con
         return rendered_rows.encode("utf-8")
     else:
         raise NotImplementedFeature()
+
+
+def read_and_get_manifest(
+    context: Context,
+    manifest_type: str = "tabular",
+    path: str | None = None,
+    contents: Union[str, list[str]] | None = None,
+):
+    manifest_paths = []
+
+    if path:
+        manifest_paths.append(ManifestPath(type=manifest_type, path=path, file=None))
+    if contents:
+        if isinstance(contents, str):
+            contents = [contents]
+        manifest_paths.extend(
+            ManifestPath(type=manifest_type, path=None, file=StringIO(content)) for content in contents
+        )
+
+    if not manifest_paths:
+        raise ManifestFilePathNotGiven
+
+    return _read_and_return_manifest(
+        context,
+        manifest_paths,
+        external=True,
+        access=Access.private,
+        format_names=False,
+        order_by=None,
+        rename_duplicates=False,
+        verbose=False,
+    )
+
+
+def merge_manifest_attributes(target: MetaData, source: MetaData, fields: set[str]) -> None:
+    for field in fields:
+        setattr(target, field, coalesce(getattr(source, field, None), getattr(target, field, None)))
+
+
+def get_nested_attribute(entity: MetaData, attribute_path: str) -> str | None:
+    """Retrieve an attribute from an object, supporting dotted paths.
+
+    This function safely traverses nested attributes using a dot-separated path.
+    For example,
+      - "id" returns `entity.id`
+      - "external.name" returns `entity.external.name` if both exist
+      - Returns None if any intermediate attribute is missing or None.
+    """
+    if not attribute_path:
+        return entity
+
+    current = entity
+    for part in attribute_path.split("."):
+        if current is None:
+            return None
+        current = getattr(current, part, None)
+    return current
+
+
+def find_existing_entity(
+    entity: MetaData, candidates: dict[str, MetaData], keys: tuple[str, str, str] = ("id", "name", "source")
+) -> Union[tuple[MetaData, str], tuple[None, None]]:
+    for candidate_name, candidate in candidates.items():
+        for key in keys:
+            entity_value = get_nested_attribute(entity, key)
+            candidate_value = get_nested_attribute(candidate, key)
+            if entity_value and entity_value == candidate_value:
+                return candidate, candidate_name
+    return None, None

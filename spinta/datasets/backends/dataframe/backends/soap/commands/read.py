@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from typing import Iterator
 
 import dask
+import zeep
 from zeep.helpers import serialize_object
 
 from spinta import commands
@@ -10,13 +13,16 @@ from spinta.datasets.backends.dataframe.backends.soap.components import Soap
 from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, get_dask_dataframe_meta, dask_get_all
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import SoapRequestBodyParseError
+from spinta.exceptions import SoapRequestBodyParseError, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
 def _get_data_soap(url: str, backend: Soap, soap_request: dict) -> list[dict]:
-    response_data = serialize_object(backend.soap_operation(**soap_request), target_cls=dict)
+    try:
+        response_data = serialize_object(backend.soap_operation(**soap_request), target_cls=dict)
+    except zeep.exceptions.Error as e:
+        raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
 
     if response_data and not isinstance(response_data, list):
         response_data = [response_data]
@@ -87,7 +93,7 @@ def getall(
     query: Expr = None,
     resolved_params: ResolvedParams = None,
     extra_properties: dict[str, Property] = None,
-    params: QueryParams,
+    params: QueryParams | None = None,
     **kwargs,
 ) -> Iterator[ObjectData]:
     bases = parametrize_bases(context, model, model.external.resource, resolved_params)

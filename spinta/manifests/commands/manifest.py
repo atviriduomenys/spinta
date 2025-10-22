@@ -2,7 +2,7 @@ from typing import TypedDict, Callable, Dict
 
 from spinta import commands
 from spinta.components import Namespace, Model, Node, Context
-from spinta.datasets.components import Dataset
+from spinta.datasets.components import Dataset, Resource, Property
 from spinta.exceptions import DatasetNotFound, NamespaceNotFound, ModelNotFound, ManifestObjectNotDefined, \
     NotImplementedFeature
 from spinta.manifests.components import Manifest
@@ -97,6 +97,18 @@ def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], *
     manifest.get_objects()['model'] = models
 
 
+@commands.get_model_properties.register(Context, Manifest, str)
+def get_model_properties(context: Context, manifest: Manifest, model_name: str, **kwargs) -> dict[str, Property]:
+    model = commands.get_model(context, manifest, model_name)
+    return model.properties
+
+
+@commands.set_property.register(Context, Manifest, str, str, Property)
+def set_property(context: Context, manifest: Manifest, model_name: str, property_name: str, property: Property, **kwargs) -> None:
+    model = get_model(context, manifest, model_name)
+    model.properties[property_name] = property
+
+
 @commands.has_namespace.register(Context, Manifest, str)
 def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs):
     return namespace in manifest.get_objects()['ns']
@@ -139,6 +151,24 @@ def get_datasets(context: Context, manifest: Manifest, **kwargs):
 @commands.set_dataset.register(Context, Manifest, str, Dataset)
 def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset: Dataset, **kwargs):
     manifest.get_objects()['dataset'][dataset_name] = dataset
+
+
+@commands.get_dataset_resources.register(Context, Manifest, str)
+def get_dataset_resources(context: Context, manifest: Manifest, dataset_name: str, **kwargs) -> dict[str, Resource]:
+    dataset = commands.get_dataset(context, manifest, dataset_name)
+    return dataset.resources
+
+
+@commands.get_resource.register(Context, Manifest, str, str)
+def get_resource(context: Context, manifest: Manifest, dataset_name: str, resource_name: str, **kwargs) -> Resource:
+    dataset = get_dataset(context, manifest, dataset_name)
+    return dataset.resources.get(resource_name)
+
+
+@commands.set_resource.register(Context, Manifest, str, str, Resource)
+def set_resource(context: Context, manifest: Manifest, dataset_name: str, resource_name: str, resource: Resource, **kwargs) -> None:
+    dataset = get_dataset(context, manifest, dataset_name)
+    dataset.resources[resource_name] = resource
 
 
 @commands.get_dataset_models.register(Context, Manifest, str)

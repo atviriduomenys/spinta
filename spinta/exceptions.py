@@ -336,6 +336,14 @@ class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 
 
+class ManifestFilePathNotGiven(BaseError):
+    template = "Manifest file path should be provided in `config.yml` file."
+
+
+class ManifestFileInvalidPath(BaseError):
+    template = "Cannot create manifest file at {manifest_path}."
+
+
 class UnknownProjectOwner(BaseError):
     template = "Unknown owner {owner}."
     context = {"owner": "this.owner"}
@@ -643,6 +651,11 @@ class InvalidInputData(UserError):
 
 class InvalidResourceSource(UserError):
     template = "'{source}' is unacceptable resource source, it must be URL."
+
+
+class CannotReadResource(UserError):
+    status_code = 500
+    template = "Cannot read given resource. Neither source nor prepare function given"
 
 
 class UnknownManifestType(BaseError):
@@ -1138,3 +1151,14 @@ class InvalidCredentialsConfigurationException(UserError):
         Credentials.cfg is missing required configuration credentials.
         Missing: {missing_credentials}.
     """
+
+
+class AgentRelatedDataServiceDoesNotExist(UserError):
+    template = """
+        Data Service related to the Agent that is executing the synchronization request does not exist. 
+        Please re-create and re-configure the Agent, since the synchronization can not be executed without Data Service.
+    """
+
+
+class UnexpectedErrorReadingData(BaseError):
+    template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""
