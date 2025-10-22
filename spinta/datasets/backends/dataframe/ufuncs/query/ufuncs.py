@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from functools import reduce
 from typing import Dict, Any, Tuple, List, Iterator
+
+from dask.dataframe import Series
 
 from spinta.auth import authorized
 from spinta.components import Property
@@ -69,25 +73,24 @@ def offset(env: DaskDataFrameQueryBuilder, n: int):
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
-def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr):
+def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Property:
     return env.call("_resolve_property", attr.obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
-def _resolve_property(env: DaskDataFrameQueryBuilder, bind: Bind):
+def _resolve_property(env: DaskDataFrameQueryBuilder, bind: Bind) -> Property | None:
     return env.call("_resolve_property", bind.name)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, str)
-def _resolve_property(env: DaskDataFrameQueryBuilder, prop: str):
+def _resolve_property(env: DaskDataFrameQueryBuilder, prop: str) -> Property | None:
     if prop in env.model.flatprops:
         return env.model.flatprops.get(prop)
-
-    raise PropertyNotFound(env.model, property=prop)
+    return None
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
-def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property):
+def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property) -> Property:
     return prop
 
 
@@ -433,13 +436,15 @@ COMPARE = [
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)
-def compare(env, op, field, value):
+def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any):
     prop = env.call("_resolve_property", field)
-    return env.call(op, prop.dtype, value)
+    if prop:
+        return env.call(op, prop.dtype, value)
+    return None
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object, name="eq")
-def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
+def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object) -> Series:
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
 
@@ -448,7 +453,7 @@ def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
 def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     resolved_values = (
         param_values.get(param.name)
-        for param_values in iterparams(env.context, env.model, env.model.manifest, [param])
+        for param_values in iterparams(env.context, env.model, env.model.manifest, [param], env.url_query_params)
         if param_values.get(param.name)
     )
 

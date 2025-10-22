@@ -425,7 +425,7 @@ def test_xml_read_from_different_resource_property(rc: RawConfig, tmp_path: Path
           |   |   |   |          | param    | nested_xml | City                                            |        | read().name
           |   |   | Name         |          |            | names/nameData                                  | open   |
           |   |   |   | name     | string   |            | name                                            |        |
-          |   |   |   | since    | integer  |            | founded                                         |        |          
+          |   |   |   | since    | integer  |            | founded                                         |        |
         """,
         mode=Mode.external,
     )
@@ -439,6 +439,59 @@ def test_xml_read_from_different_resource_property(rc: RawConfig, tmp_path: Path
         ("Vilnius", 1387),
         ("Kaunas", 1408),
     ]
+
+
+def test_xml_read_from_different_resource_property_can_use_same_url_parameters_on_both_reads(
+    rc: RawConfig, tmp_path: Path, responses: RequestsMock
+):
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>1</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><title>Vilnius</title><founded>1387</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>2</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><title>Kaunas</title><founded>1408</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    wsdl_file = "tests/datasets/backends/wsdl/data/required_param_wsdl.xml"
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type     | ref        | source                                          | access | prepare
+        example                  | dataset  |            |                                                 |        |
+          | wsdl_resource        | wsdl     |            | {wsdl_file}                                     |        |
+          | soap_resource        | soap     |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param    | parameter1 | request_model/param1                            |        | input()
+          |   |   |   |          | param    | parameter2 | request_model/param2                            |        | input()
+          |   |   | City         |          |            | /                                               | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | p1       | integer  |            |                                                 |        | param(parameter1)
+          |   |   |   | p2       | integer  |            |                                                 |        | param(parameter2)
+          | xml_resource         | dask/xml |            |                                                 |        | eval(param(nested_xml))
+          |   |   |   |          | param    | nested_xml | City                                            |        | read().name
+          |   |   | Name         |          |            | names/nameData                                  | open   |
+          |   |   |   | title    | string   |            | title                                           |        |
+          |   |   |   | since    | integer  |            | founded                                         |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Name", ["getall", "search"])
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/Name?p1='foo'&p2='bar'&title='Vilnius'")
+    assert listdata(resp, sort=False) == [(1387, "Vilnius")]
 
 
 def test_xml_read_raise_error_if_neither_resource_source_nor_prepare_given(rc: RawConfig, tmp_path: Path):
@@ -459,7 +512,7 @@ def test_xml_read_raise_error_if_neither_resource_source_nor_prepare_given(rc: R
           |   |   |   |          | param    | nested_xml | City                                            |        | read().name
           |   |   | Name         |          |            | names/nameData                                  | open   |
           |   |   |   | name     | string   |            | name                                            |        |
-          |   |   |   | since    | integer  |            | founded                                         |        |          
+          |   |   |   | since    | integer  |            | founded                                         |        |
         """,
         mode=Mode.external,
     )

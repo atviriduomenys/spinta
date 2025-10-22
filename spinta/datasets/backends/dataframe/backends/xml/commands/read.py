@@ -126,7 +126,8 @@ def getall(
     resource = model.external.resource
 
     builder = backend.query_builder_class(context)
-    builder.update(model=model, params={param.name: param for param in resource.params})
+
+    builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
     for prop in model.properties.values():
