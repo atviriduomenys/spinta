@@ -1445,10 +1445,7 @@ def recreate_all_reserved_table_names(
 def part_of_dataset(table_name: str, dataset: str, ignore_compression: bool = True) -> bool:
     if table_name.startswith(f"{dataset}/"):
         additional_check = table_name.replace(f"{dataset}/", "", 1)
-        if additional_check[0].isupper():
-            return True
-
-        return False
+        return additional_check[0].isupper()
 
     if ignore_compression:
         return False
@@ -1456,6 +1453,7 @@ def part_of_dataset(table_name: str, dataset: str, ignore_compression: bool = Tr
     if len(table_name) < NAMEDATALEN:
         return False
 
+    # Dataset compression snippet from get_pg_name logic
     i = int(NAMEDATALEN / 100 * 60)
     compressed_dataset = dataset[:i] + "_"
     return table_name.startswith(compressed_dataset)
