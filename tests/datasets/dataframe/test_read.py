@@ -743,14 +743,14 @@ def test_json_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Pat
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property    | type      | ref  | source                 | prepare | access
-    example/json                |           |      |                        |         |
-      | resource                | dask/json |      | {{path}}               |         |
-      |   |   |                 | param     | path | {tmp_path / "page0.json"} |         |
-      |   |   |                 |           |      | Page                   | read().next |
-      |   |   | Page            |           | name | page                   |         |
-      |   |   |   | name        | string    |      | name                   |         | open
-      |   |   |   | next        | uri       |      | next                   |         | open
+    d | r | b | m | property    | type      | ref  | source                    | prepare     | access
+    example/json                |           |      |                           |             |
+      | resource                | dask/json |      | {{path}}                  |             |
+      |   |   |                 | param     | path | {tmp_path / "page0.json"} |             |
+      |   |   |                 |           |      | Page                      | read().next |
+      |   |   | Page            |           | name | page                      |             |
+      |   |   |   | name        | string    |      | name                      |             | open
+      |   |   |   | next        | uri       |      | next                      |             | open
     """,
         mode=Mode.external,
     )
