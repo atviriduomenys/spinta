@@ -8,8 +8,10 @@ Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
 - Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
+- Remove sinchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#1488: https://github.com/atviriduomenys/spinta/issues/1488
 
 
 0.2dev6 (2025-10-09)
