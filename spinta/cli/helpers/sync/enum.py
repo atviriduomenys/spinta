@@ -7,3 +7,8 @@ class ResourceType(str, Enum):
     DATASET_SERIES = "series"
     DATA_SERVICE = "service"
     INFORMATION_SYSTEM = "information_system"
+
+
+class ResponseType(str, Enum):
+    LIST = "list"
+    DETAIL = "detail"

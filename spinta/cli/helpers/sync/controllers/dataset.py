@@ -14,13 +14,13 @@ handles creation and related operations for all DCAT resource types.
 
 from __future__ import annotations
 from http import HTTPStatus
-from typing import Optional
+from typing import Optional, Any
 
 import requests
 from requests.models import Response
 
-from spinta.cli.helpers.sync.controllers.enum import ResourceType
-from spinta.cli.helpers.sync.helpers import validate_api_response
+from spinta.cli.helpers.sync.enum import ResourceType
+from spinta.cli.helpers.sync.api_helpers import validate_api_response
 
 
 DEFAULT_RESOURCE = ResourceType.DATASET
@@ -33,29 +33,16 @@ RESOURCE_TYPE_MAPPER = {
 }
 
 
-def get_resource(
-    base_path: str, headers: dict[str, str], resource_name: str, validate_response: bool = True
+def get_resources(
+    base_path: str,
+    headers: dict[str, str],
+    query_parameters: dict[str, Any],
+    validate_response: bool = True,
 ) -> Response:
-    """Retrieve a resource by its unique name (per organization).
-
-    Sends a GET request to the Dataset object API with a query parameter `name`.
-    Although this endpoint returns a list, at most one resource is expected.
-
-    Args:
-        base_path: Base URL of the API.
-        headers: HTTP headers to include in the request.
-        resource_name: Unique name of the resource (per organization) to retrieve.
-
-    Returns:
-        Response: The HTTP response object from the request.
-
-    Raises:
-        requests.HTTPError: If the response status is not `200 Ok` or `404 Not Found`.
-    """
     response = requests.get(
         f"{base_path}/Dataset/",
         headers=headers,
-        params={"name": resource_name},
+        params=query_parameters,
     )
     if validate_response:
         validate_api_response(response, {HTTPStatus.OK, HTTPStatus.NOT_FOUND}, "Get resource")
@@ -70,21 +57,6 @@ def create_resource(
     resource_type: str = DEFAULT_RESOURCE,
     validate_response: bool = True,
 ) -> Response:
-    """Create a new resource (dataset, data service, etc.).
-
-    Sends a POST request to the Dataset object API to create one of the resources (Dataset model).
-
-    Args:
-        base_path: Base URL of the API.
-        headers: HTTP headers to include in the request.
-        resource_name: Name (and title) of the new resource.
-
-    Returns:
-        Response: The HTTP response object from the request.
-
-    Raises:
-        requests.HTTPError: If the response status is not `201 Created`.
-    """
     resource_data = RESOURCE_TYPE_MAPPER.get(resource_type, RESOURCE_TYPE_MAPPER[DEFAULT_RESOURCE])
 
     data = {

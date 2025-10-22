@@ -13,6 +13,7 @@ from spinta.exceptions import (
     InvalidClientBackend,
     UnknownMethod,
     MissingRequiredProperty,
+    PropertyNotFound,
 )
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take
@@ -24,14 +25,18 @@ def select(env: SoapQueryBuilder, expr: Expr) -> Expr:
     return expr
 
 
-@ufunc.resolver(SoapQueryBuilder, Bind, str, name="eq")
-def eq_(env: SoapQueryBuilder, field: Bind, value: str) -> None:
-    prop = env.resolve_property(field)
+@ufunc.resolver(SoapQueryBuilder, Bind, object, name="eq")
+def eq_(env: SoapQueryBuilder, field: Bind, value: object) -> Expr | None:
+    try:
+        prop = env.resolve_property(field)
+    except PropertyNotFound:
+        # leave query parameter for other query builders to resolve
+        return Expr("eq", field, value)
 
     if not isinstance(prop.external.prepare, Expr):
-        return
+        return Expr("eq", field, value)
 
-    env.query_params.url_params[prop.place] = value
+    env.query_params.url_params[prop.place] = str(value)
 
 
 @ufunc.resolver(SoapQueryBuilder, Expr, name="and")
