@@ -15,7 +15,6 @@ services:
       - INTERNAL_DB_PORT=5432
       - DB_HOST=database
       - DB_PORT=5432
-      - SPINTA_INTERNAL_MODE=false
     env_file:
       template.env
     networks:

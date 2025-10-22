@@ -1,6 +1,6 @@
 #!/bin/bash
 CONFIG_FILE="config.yml"
-if ${SPINTA_INTERNAL_MODE:=false}; then
+if [ "${SPINTA_INTERNAL_MODE:=false}" = "true" ]; then
   LAUNCH_MODE="internal"
 else
   LAUNCH_MODE="external"
