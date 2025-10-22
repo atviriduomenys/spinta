@@ -8,9 +8,10 @@ Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
 - Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
+- Fixed `spinta migrate -d` argument not collecting correct tables with long names (`#1557`_).
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
-
+  .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
 
 0.2dev6 (2025-10-09)
 ====================
