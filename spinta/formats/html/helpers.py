@@ -252,7 +252,7 @@ def _get_output_format_link(fmt: str, params: UrlParams) -> str:
 
     if params.changes:
         params.changes_offset = -10
-        query = "limit(100)"
+        query = f"limit({params.limit_enforced_to})"
 
     params = params.changed_parsetree(change)
     link = "/" + build_url_path(params)

@@ -4,6 +4,26 @@ Changes
 0.2dev7 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- With the addition of new limit features, users are no longer allowed to specify higher value than allowed, this will
+  result in error. Additionally, if `model.limit` or `default_limit_objects` is set and user tries to perform simple `getall`
+  or `changes` without specifying `limit()` or `page()`, an exception will be raised asking user to provide one of them.
+  These new features mean that certain models can no longer be fully downloaded in a single request, requiring
+  users to implement their own parsers and use the `page()` feature to fetch subsequent pages (`#1491_`).
+
+New Features:
+
+- Added `spinta admin model_limit` command. It will use `default_limit_bytes` configuration value to approximately calculate
+  limits for each model that indicates how many entries can be returned as a JSON response before reaching the byte limit.
+  This command helps to determine the maximum number of records that can be safely returned in a single API request. If
+  calculated limit is more than model's `count()`, it will skip it and not add the entry (`#1491`_).
+
+- Added `default_limit_objects` configuration value which (in case `model.limit` is not given) will be used to hard limit
+  `getall` and `changes` responses on all models (`#1491`_).
+
+  .. _#1491: https://github.com/atviriduomenys/spinta/issues/1491
+
 Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)

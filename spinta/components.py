@@ -660,6 +660,8 @@ class Model(MetaData):
 
     required_keymap_properties = None
 
+    limit: int | None = None
+
     schema = {
         "keymap": {"type": "string"},
         "backend": {"type": "string"},
@@ -694,6 +696,7 @@ class Model(MetaData):
         "eli": {"type": "string"},
         "count": {"type": "integer"},
         "origin": {"type": "string"},
+        "limit": {"type": "integer", "default": None},
     }
 
     def __init__(self):
@@ -905,13 +908,13 @@ class UrlParams:
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None
-    # Limit can be enforced even if it is not explicitly given in URL.
+    # Limit can be enforced even if it is not explicitly given in URL. It gets calculated based on several factors.
     limit_enforced: bool = False
-    limit_enforced_to: int = 100
+    limit_enforced_to: int
     # In batch requests, return summary of what was done.
     summary: bool = False
     bbox: Optional[List[float]] = None
-    # In batch requests, continue execution even if some actions fail.
+    # In batch requests, continue execution even if some actiones fail.
     fault_tolerant: bool = False
 
     action: Action = None
@@ -1091,6 +1094,9 @@ class Config:
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int
+
+    default_limit_objects: int = None
+    default_limit_bytes: int
 
     # Config variable that should only be set when running `upgrade` `cli` command, used to track when certain errors
     # can be ignored (like missing migrations while loading configs)

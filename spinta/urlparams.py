@@ -1,7 +1,7 @@
 import re
 import urllib.parse
 from collections import OrderedDict
-from typing import List
+from typing import List, Optional
 from typing import Union
 
 from starlette.requests import Request
@@ -81,6 +81,19 @@ def parse_url_query(query):
         return [rql]
 
 
+def calculate_enforced_limit(context: Context, params: UrlParams) -> Optional[int]:
+    config = context.get("config")
+
+    fmt = params.fmt
+    model = params.model
+    fmt_limit = fmt.limit
+    model_limit = model.limit if isinstance(model, Model) else None
+    default_limit = config.default_limit_objects
+    model_limit = model_limit or default_limit
+
+    return min((value for value in (fmt_limit, model_limit) if value is not None), default=None)
+
+
 def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
@@ -90,6 +103,7 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     params.lang = get_required_lang(context, params)
     config: Config = context.get("config")
     params.fmt = config.exporters[params.format if params.format else "json"]
+    params.limit_enforced_to = calculate_enforced_limit(context, params)
 
     if params.select:
         params_builder = RequestParamsBuilder(context).init(params)

@@ -2,9 +2,8 @@ import asyncio
 import dataclasses
 import datetime
 import pathlib
-import sys
 from collections.abc import Generator
-from typing import List, Iterator, AsyncIterator
+from typing import List, Iterator, AsyncIterator, Optional
 
 import tqdm
 from multipledispatch import dispatch
@@ -19,7 +18,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
+from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, parse_input_path
 from spinta.commands.write import dataitem_from_payload, prepare_data, prepare_patch, prepare_data_for_write
 from spinta.components import Context, Model, DataItem
 from spinta.core.enums import Action
@@ -312,15 +311,22 @@ async def _duplicate_mapping_to_dataitem(
         yield item
 
 
-def models_with_pkey(context: Context, whitelist: list[str]) -> Generator[Model]:
+def models_with_pkey(context: Context, whitelist: Optional[list[str]]) -> Generator[Model]:
     store = ensure_store_is_loaded(context)
 
-    for model_name in whitelist:
-        model = commands.get_model(context, store.manifest, model_name)
-        if model.model_type().startswith("_") or model.external.unknown_primary_key:
-            continue
+    if whitelist is None:
+        for model in commands.get_models(context, store.manifest).values():
+            if model.model_type().startswith("_") or model.external.unknown_primary_key:
+                continue
 
-        yield model
+            yield model
+    else:
+        for model_name in whitelist:
+            model = commands.get_model(context, store.manifest, model_name)
+            if model.model_type().startswith("_") or model.external.unknown_primary_key:
+                continue
+
+            yield model
 
 
 def cli_requires_changelog_migrations(
@@ -389,26 +395,3 @@ def migrate_changelog_duplicates(
                 counter.update(1)
     finally:
         counter.close()
-
-
-def parse_input_path(
-    context: Context,
-    input_path: pathlib.Path = None,
-    **kwargs,
-):
-    if input_path is None:
-        # Reads stdin direct for data
-        if not sys.stdin.isatty():
-            data = sys.stdin.read()
-            data = data.splitlines()
-            return data
-
-        echo("Script requires model list file path (can also add it through `--input <file_path>` argument).", err=True)
-        input_path = input("Enter model list file path: ")
-
-    if not input_path.exists():
-        echo(f'File "{input_path}" does not exist.', err=True)
-        sys.exit(1)
-
-    with input_path.open("r") as f:
-        return f.read().splitlines()
