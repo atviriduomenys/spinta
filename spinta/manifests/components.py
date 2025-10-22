@@ -42,14 +42,14 @@ class ManifestGiven:
 
 
 class Manifest(Component):
-    type: Optional[str] = None
-    name: Optional[str] = None
-    keymap: Optional[KeyMap] = None
-    backend: Optional[Backend] = None
-    parent: Optional[Component] = None
-    store: Optional[Store] = None
-    _objects: Optional[MetaDataContainer] = None
-    path: Optional[str] = None
+    type: str | None = None
+    name: str | None = None
+    keymap: KeyMap | None = None
+    backend: Backend | None = None
+    parent: Component | None = None
+    store: Store | None = None
+    _objects: MetaDataContainer | None = None
+    path: str | None = None
     access: Access = Access.protected
     prefixes: Dict[str, UriPrefix]
     enums: Enums
@@ -101,7 +101,7 @@ ManifestSchema = Tuple[Any, NodeSchema]
 @dataclasses.dataclass
 class ManifestPath:
     type: str = "tabular"
-    name: Optional[str] = None
-    path: Optional[str] = None
+    name: str | None = None
+    path: str | None = None
     file: Optional[IO] = None
-    prepare: Optional[str] = None
+    prepare: str | None = None

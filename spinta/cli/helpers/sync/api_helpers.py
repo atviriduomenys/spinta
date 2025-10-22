@@ -4,6 +4,7 @@ from typing import Any
 from requests import Response
 
 from spinta.cli.helpers.sync import IDENTIFIER
+from spinta.cli.helpers.sync.enum import ResponseType
 from spinta.client import get_access_token, RemoteClientCredentials
 from spinta.exceptions import UnexpectedAPIResponse, UnexpectedAPIResponseData
 
@@ -30,9 +31,9 @@ def format_error_response_data(data: dict[str, Any]) -> dict:
 
 def extract_identifier_from_response(response: Response, response_type: str) -> str:
     identifier = None
-    if response_type == "list":
+    if response_type == ResponseType.LIST:
         identifier = response.json().get("_data", [{}])[0].get(IDENTIFIER)
-    elif response_type == "detail":
+    elif response_type == ResponseType.DETAIL:
         identifier = response.json().get(IDENTIFIER)
 
     if not identifier:
