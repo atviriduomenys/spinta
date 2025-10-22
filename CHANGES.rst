@@ -13,6 +13,10 @@ New Features:
 
 .. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
 
+New Features:
+
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
+
 Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
@@ -20,6 +24,7 @@ Bug fixes:
 - Remove synchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#825: https://github.com/atviriduomenys/spinta/issues/825
 
 Improvements:
 
