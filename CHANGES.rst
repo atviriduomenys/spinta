@@ -8,8 +8,10 @@ Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
 - Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
+- Remove sinchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#1488: https://github.com/atviriduomenys/spinta/issues/1488
 
 
 0.2dev6 (2025-10-09)
@@ -29,7 +31,6 @@ Improvements:
 - `private` and `public` keys now include `kid` field (`#675`_).
 - Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
 - Introduced a new error handling framework with CLI integration, including error reporting and post-processing in `spinta copy` and `spinta check` (`#1462`_)
-- Remove sinchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
 - Calling getall with soap backend will always return list of object, even if SOAP response has one element (`#1486`_)
 - Introduce `base64()` prepare function that decodes base64 string (`#1486`_)
 - `base64()` prepare function that decodes base64 binary now does this outside dask dataframes. Also, raises `InvalidBase64String` for invalid base64 (`#1486`_)
@@ -39,7 +40,6 @@ Improvements:
   .. _#675: https://github.com/atviriduomenys/spinta/issues/675
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
-  .. _#1488: https://github.com/atviriduomenys/spinta/issues/1488
   .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
 
 Bug fixes:
