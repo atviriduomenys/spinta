@@ -54,8 +54,8 @@ else
     cd manifest
     git checkout get.data.gov.lt
     git pull
-    cat get_data_gov_lt.in | xargs poetry run spinta copy -o ../manifest.csv
   )
+  cat manifest/get_data_gov_lt.in | xargs poetry run spinta copy -o manifest.csv
   rm -rf manifest
 
   poetry run spinta bootstrap
