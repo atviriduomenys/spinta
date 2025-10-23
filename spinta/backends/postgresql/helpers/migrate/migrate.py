@@ -18,6 +18,7 @@ from spinta import commands
 from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.constants import NAMEDATALEN
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.name import (
@@ -1439,3 +1440,20 @@ def recreate_all_reserved_table_names(
     old_table_name = get_pg_table_name(old_full_name, table_type)
     new_table_name = get_pg_table_name(model, table_type)
     return old_table_name, new_table_name
+
+
+def part_of_dataset(table_name: str, dataset: str, ignore_compression: bool = True) -> bool:
+    if table_name.startswith(f"{dataset}/"):
+        additional_check = table_name.replace(f"{dataset}/", "", 1)
+        return additional_check[0].isupper()
+
+    if ignore_compression:
+        return False
+
+    if len(table_name) < NAMEDATALEN:
+        return False
+
+    # Dataset compression snippet from get_pg_name logic
+    i = int(NAMEDATALEN / 100 * 60)
+    compressed_dataset = dataset[:i] + "_"
+    return table_name.startswith(compressed_dataset)

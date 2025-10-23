@@ -10,21 +10,20 @@ New Features:
   as a data source instead of a source column. The `eval(param(..))` syntax can reference a property from
   another resource, even if it belongs to a different backend. `dask/json` and `dask/xml` backends can now
   use `eval()` to read data from properties of `dask/json`, `dask/xml`, or `soap` backends. (`#1487`_)
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
 
 .. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
-
-New Features:
-
-- Introduce new optional keymap backend - persistent Redis. (`#825`_)
+.. _#825: https://github.com/atviriduomenys/spinta/issues/825
 
 Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
 - Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
 - Remove synchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
+- Fixed `spinta migrate -d` argument not collecting correct tables with long names (`#1557`_).
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
-  .. _#825: https://github.com/atviriduomenys/spinta/issues/825
+  .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
 
 Improvements:
 
