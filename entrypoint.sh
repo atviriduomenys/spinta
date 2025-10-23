@@ -1,14 +1,13 @@
 #!/bin/bash
-CONFIG_FILE="config.yml"
 if [ "${SPINTA_INTERNAL_MODE:=false}" = "true" ]; then
   LAUNCH_MODE="internal"
 else
   LAUNCH_MODE="external"
 fi
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    export SPINTA_CONFIG=config.yml
-    cat > "$CONFIG_FILE" <<EOF
+export SPINTA_CONFIG=$PWD/config.yml
+if [ ! -f "$SPINTA_CONFIG" ]; then
+    cat > "$SPINTA_CONFIG" <<EOF
 env: test
 data_path: $PWD/$BASEDIR
 default_auth_client: default
@@ -54,8 +53,9 @@ else
     cd manifest
     git checkout get.data.gov.lt
     git pull
+    cat manifest/get_data_gov_lt.in | xargs poetry run spinta copy -o ../manifest.csv
   )
-  cat manifest/get_data_gov_lt.in | xargs poetry run spinta copy -o manifest.csv
+
   rm -rf manifest
 
   poetry run spinta bootstrap
