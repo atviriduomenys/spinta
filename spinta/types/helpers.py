@@ -15,15 +15,14 @@ from spinta.utils.naming import is_valid_model_name, is_valid_property_name
 if TYPE_CHECKING:
     from spinta.types.datatype import DataType
 
+ALLOWED_RESERVED_PROPERTY_NAMES = {"_id", "_created", "_updated", "_revision", "_label"}
 
 RESERVED_PROPERTY_NAMES = {
+    *ALLOWED_RESERVED_PROPERTY_NAMES,
     "_op",
     "_type",
-    "_id",
-    "_revision",
     "_txn",
     "_cid",
-    "_created",
     "_where",
     "_base",
     "_uri",
@@ -69,7 +68,14 @@ def check_model_name(context: Context, model: Model):
 
 def check_property_name(context: Context, prop: Property):
     config: Config = context.get("config")
-    if config.check_names:
-        name = prop.name
-        if name not in RESERVED_PROPERTY_NAMES and not is_valid_property_name(name):
-            raise InvalidName(prop, name=name, type="property")
+    if config.check_names or config.check_property_names:
+        if prop.name.startswith("_"):
+            if prop.explicitly_given:
+                if prop.name in ALLOWED_RESERVED_PROPERTY_NAMES:
+                    return
+            else:
+                if prop.name in RESERVED_PROPERTY_NAMES:
+                    return
+        elif is_valid_property_name(prop.name) or prop.name == "C":
+            return
+        raise InvalidName(prop, name=prop.name, type="property")

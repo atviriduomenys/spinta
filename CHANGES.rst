@@ -63,16 +63,18 @@ Improvements:
 Bug fixes:
 
 - Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
-
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
-
+- Fixed bugs in `spinta copy` and `spinta check` commands where properties starting with underscore symbol were omitted or caused errors. (`#963`_)
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
   .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
+  .. _#963: https://github.com/atviriduomenys/spinta/issues/963
 
 
 Other:
+
 - Removed dependency `mypy`
+
 
 
 0.2dev5 (2025-09-03)
