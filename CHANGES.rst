@@ -10,8 +10,10 @@ New Features:
   as a data source instead of a source column. The `eval(param(..))` syntax can reference a property from
   another resource, even if it belongs to a different backend. `dask/json` and `dask/xml` backends can now
   use `eval()` to read data from properties of `dask/json`, `dask/xml`, or `soap` backends. (`#1487`_)
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
 
 .. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
+.. _#825: https://github.com/atviriduomenys/spinta/issues/825
 
 Bug fixes:
 

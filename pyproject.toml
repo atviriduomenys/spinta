@@ -114,6 +114,7 @@ sqlean-py = "<=3.49.1"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
+redis = "^6.4.0"
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]
@@ -150,6 +151,7 @@ objprint = "*"
 sphinx-rtd-theme = "*"
 sqlalchemy-stubs = "*"
 types-requests = "^2.32.4.20250809"
+fakeredis = "^2.32.0"
 
 
 [build-system]

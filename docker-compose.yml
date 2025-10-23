@@ -38,6 +38,15 @@ services:
       - db
       - mongo
 
+  redis-keymap: # sqlite faster alternative
+    image: valkey/valkey:9
+    restart: always
+    command: [ "redis-server", "--appendonly", "yes" ] # persistence settings to persist always, without any data loss.
+    volumes:
+      - redis_keymap_data:/data
+    ports:
+      - "6379:6379"
 volumes:
   postgres:
   mongo:
+  redis_keymap_data:

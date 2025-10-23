@@ -130,6 +130,7 @@ CONFIG = {
         },
         "keymaps": {
             "sqlalchemy": "spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap",
+            "redis": "spinta.datasets.keymaps.redis:RedisKeyMap",
         },
         "types": {
             "any": "spinta.types.datatype:DataType",
