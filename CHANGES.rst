@@ -1,7 +1,11 @@
 Changes
 #######
 
-0.2dev7 (unreleased)
+0.2dev8 (unreleased)
+===================
+
+
+0.2dev7 (2025-10-23)
 ====================
 
 New Features:
@@ -59,6 +63,7 @@ Improvements:
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
   .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
+  .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
 
 Bug fixes:
 
