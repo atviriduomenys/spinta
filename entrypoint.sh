@@ -8,7 +8,6 @@ fi
 export SPINTA_CONFIG=$PWD/config.yml
 if [ ! -f "$SPINTA_CONFIG" ]; then
     cat > "$SPINTA_CONFIG" <<EOF
-env: test
 data_path: $PWD/$BASEDIR
 default_auth_client: default
 keymaps:
@@ -53,15 +52,18 @@ else
     cd manifest
     git checkout get.data.gov.lt
     git pull
-    cat get_data_gov_lt.in | xargs poetry run spinta copy -o ../manifest.csv
   )
+  sed '/^$/d; s|^|manifest/|' manifest/get_data_gov_lt.in | xargs poetry run spinta copy -o manifest.csv
 
   rm -rf manifest
 
   poetry run spinta bootstrap
 
-  if [ ! -d ~/.config/spinta/clients ]; then
-    poetry run spinta client add -n default -s secret --scope - <<EOF
+  CLIENTS_FOLDER="${XDG_CONFIG_HOME:-$HOME}/.config/spinta/clients"
+  if [ ! -d $CLIENTS_FOLDER ] ||
+     [ ! -f "$CLIENTS_FOLDER/helpers/keymap.yml" ] ||
+     ! grep -q '^client:' "$CLIENTS_FOLDER/helpers/keymap.yml"; then
+    poetry run spinta client add -n client -s secret --scope - <<EOF
 spinta_set_meta_fields
 spinta_auth_clients
 spinta_getone
