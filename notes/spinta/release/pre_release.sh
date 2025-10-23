@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev6
-export OLD_MINOR=2dev5
-export FUTURE_MINOR=2dev7
+export MINOR=2dev7
+export OLD_MINOR=2dev6
+export FUTURE_MINOR=2dev8
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -76,6 +76,7 @@ poetry run pytest -vvx --tb=short tests
 
 # Check if new Spinta version works with manifest files
 poetry env activate
+# arba `poetry shell` priklausomai nuo Poetry versijos
 
 # Configure Spinta server instance
 INSTANCE=releases/$NEW_VERSION
