@@ -1,5 +1,4 @@
 import binascii
-from types import NoneType
 
 from spinta.core.ufuncs import ufunc, Expr
 from spinta.exceptions import InvalidBase64String, NotImplementedFeature
@@ -31,7 +30,7 @@ def split(env: ResultBuilder, expr: Expr):
 
 
 @ufunc.resolver(ResultBuilder, type(None), str)
-def split(env: ResultBuilder, data: NoneType, separator: str):
+def split(env: ResultBuilder, data: type(None), separator: str):
     return None
 
 
