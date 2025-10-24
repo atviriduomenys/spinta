@@ -134,6 +134,7 @@ def geodb_array():
                 {"id": 0, "name": "United Kingdoms", "languages": "English"},
                 {"id": 1, "name": "Lithuania", "languages": "English,Lithuanian"},
                 {"id": 2, "name": "Poland", "languages": "English,Polish"},
+                {"id": 3, "name": "Empty", "languages": None},
             ],
         )
         db.write(
@@ -795,6 +796,7 @@ def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geo
         {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
         {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
         {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
@@ -835,6 +837,7 @@ def test_getall_array_intermediate_multi_pkey_sqlite(context, rc, tmp_path, geod
         {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
         {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
         {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
@@ -874,6 +877,7 @@ def test_getall_array_intermediate_ref_single_pkey_sqlite(context, rc, tmp_path,
         {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
         {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
         {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
@@ -914,6 +918,7 @@ def test_getall_array_intermediate_ref_multi_pkey_sqlite(context, rc, tmp_path, 
         {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
         {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
         {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
@@ -951,6 +956,7 @@ def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path, geo
         {"id": 0, "name": "United Kingdoms", "languages": [{"id": 0, "name": "English"}]},
         {"id": 1, "name": "Lithuania", "languages": [{"id": 0, "name": "English"}, {"id": 1, "name": "Lithuanian"}]},
         {"id": 2, "name": "Poland", "languages": [{"id": 0, "name": "English"}, {"id": 2, "name": "Polish"}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
@@ -990,6 +996,7 @@ def test_getall_array_intermediate_ref_refprop_sqlite(context, rc, tmp_path, geo
         {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
         {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
         {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
@@ -1024,6 +1031,7 @@ def test_getall_array_prepare_split(context, rc, tmp_path, geodb_array):
         {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
         {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
         {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
+        {"id": 3, "name": "Empty", "languages": []},
     ]
 
 
