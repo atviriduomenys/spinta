@@ -25,6 +25,12 @@ Bug fixes:
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
   .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
 
+Security:
+
+- Private keys and client credential files are now created with restrictive permissions (600 for files, 700 for directories) to prevent unauthorized access by other users on the same system. (`APL-1`_)
+
+  .. _APL-1: https://github.com/atviriduomenys/spinta/pull/1573
+
 Improvements:
 
 - Introduce synchronization logic part one: Catalog to Agent (`#1488`_).

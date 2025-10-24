@@ -1,5 +1,6 @@
 import configparser
 import dataclasses
+import os
 import pathlib
 import urllib.parse
 from typing import List
@@ -150,6 +151,7 @@ def add_client_credentials(
 
     with credsfile.open("w") as f:
         config.write(f)
+    os.chmod(credsfile, 0o600)
 
 
 def get_access_token(creds: RemoteClientCredentials) -> str:
