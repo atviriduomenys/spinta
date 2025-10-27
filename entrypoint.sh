@@ -38,6 +38,9 @@ else
     echo "Found existing config.yml."
 fi
 
+# Ensure client folders exists
+poetry run spinta upgrade clients
+
 if [ "$LAUNCH_MODE" = "external" ]; then
   git clone https://github.com/atviriduomenys/demo-saltiniai.git
   mkdir manifests
