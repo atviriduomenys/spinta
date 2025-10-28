@@ -1,7 +1,7 @@
 import binascii
 
 from spinta.core.ufuncs import ufunc, Expr
-from spinta.exceptions import InvalidBase64String
+from spinta.exceptions import InvalidBase64String, NotImplementedFeature
 from spinta.types.datatype import String, Binary
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.querybuilder.components import Selected
@@ -26,7 +26,24 @@ def point(env: ResultBuilder, x: Selected, y: Selected) -> str:
 @ufunc.resolver(ResultBuilder, Expr)
 def split(env: ResultBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
-    return env.call("split", *args, **kwargs)
+    return env.call("split", env.this, *args, **kwargs)
+
+
+@ufunc.resolver(ResultBuilder, type(None), str)
+def split(env: ResultBuilder, data: type(None), separator: str):
+    return None
+
+
+@ufunc.resolver(ResultBuilder, str, str)
+def split(env: ResultBuilder, data: str, separator: str):
+    return data.split(separator)
+
+
+@ufunc.resolver(ResultBuilder, object, str)
+def split(env: ResultBuilder, data: object, separator: str):
+    if hasattr(data, "split"):
+        return data.split(separator)
+    raise NotImplementedFeature(env.prop, feature=f"Ability to split '{type(data)}' type")
 
 
 @ufunc.resolver(ResultBuilder, str)
