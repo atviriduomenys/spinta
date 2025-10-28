@@ -4,6 +4,11 @@ Changes
 0.2dev8 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
+
+  .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
 
 0.2dev7 (2025-10-23)
 ====================
