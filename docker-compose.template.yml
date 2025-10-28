@@ -11,9 +11,7 @@ services:
       - ./entrypoint.sh
     environment:
       - AUTHLIB_INSECURE_TRANSPORT=1
-      - INTERNAL_DB_HOST=spinta-${BRANCH}-database
-      - INTERNAL_DB_PORT=5432
-      - DB_HOST=database
+      - DB_HOST=spinta-${BRANCH}-database
       - DB_PORT=5432
     env_file:
       template.env

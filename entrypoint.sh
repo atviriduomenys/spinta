@@ -15,18 +15,15 @@ keymaps:
     type: sqlalchemy
     dsn: sqlite:///$PWD/$BASEDIR/keymap.db
 backends:
-  external:
+  default:
     type: postgresql
-    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
-  internal:
-    type: postgresql
-    dsn: postgresql://admin:admin123@${INTERNAL_DB_HOST:=localhost}:${INTERNAL_DB_PORT:=5432}/spinta
+    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=5432}/spinta
 manifest: default
 manifests:
   default:
     type: csv
     path: /app/manifest.csv
-    backend: $LAUNCH_MODE
+    backend: default
     keymap: default
     mode: $LAUNCH_MODE
 accesslog:
