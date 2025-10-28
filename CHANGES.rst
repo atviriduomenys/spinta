@@ -81,6 +81,14 @@ Bug fixes:
   .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
 
 
+Bug fixes:
+
+- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in 
+  inspect command. Previously, LONGBLOB columns caused TypeError during 
+  ŠDSA generation (`#1484`_).
+
+  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
+
 Other:
 - Removed dependency `mypy`
 
