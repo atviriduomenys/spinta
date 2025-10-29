@@ -1088,6 +1088,7 @@ class Config:
     sync_page_size: int = None
     languages: List[str]
     check_names: bool = False
+    check_property_names: bool = False
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int
