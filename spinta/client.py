@@ -1,5 +1,6 @@
 import configparser
 import dataclasses
+import os
 import pathlib
 import urllib.parse
 from typing import List
@@ -7,6 +8,7 @@ from typing import Optional
 
 import requests
 
+from spinta.auth import OWNER_READABLE_FILE
 from spinta.exceptions import RemoteClientCredentialsNotFound
 from spinta.exceptions import RemoteClientCredentialsNotGiven
 from spinta.exceptions import RemoteClientScopesNotGiven
@@ -150,6 +152,7 @@ def add_client_credentials(
 
     with credsfile.open("w") as f:
         config.write(f)
+    os.chmod(credsfile, OWNER_READABLE_FILE)
 
 
 def get_access_token(creds: RemoteClientCredentials) -> str:
