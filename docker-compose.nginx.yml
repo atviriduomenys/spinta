@@ -7,6 +7,8 @@ services:
       dockerfile: nginx/Dockerfile
     ports:
       - "80:80"
+    volumes:
+      - nginx_cache:/data/nginx_cache
     networks:
       - spinta
       - katalogas
@@ -29,3 +31,4 @@ networks:
 
 volumes:
   postgres:
+  nginx_cache:
