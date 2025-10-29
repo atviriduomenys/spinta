@@ -1,10 +1,9 @@
 #!/bin/bash
-CONFIG_FILE="config.yml"
+set -x
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    export SPINTA_CONFIG=config.yml
-    cat > "$CONFIG_FILE" <<EOF
-env: test
+export SPINTA_CONFIG=$PWD/config.yml
+if [ ! -f "$SPINTA_CONFIG" ]; then
+    cat > "$SPINTA_CONFIG" <<EOF
 data_path: $PWD/$BASEDIR
 default_auth_client: default
 keymaps:
@@ -14,7 +13,7 @@ keymaps:
 backends:
   default:
     type: postgresql
-    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
+    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=5432}/spinta
 manifest: default
 manifests:
   default:
@@ -31,6 +30,8 @@ EOF
 else
     echo "Found existing config.yml."
 fi
+
+poetry run spinta upgrade clients
 
 git clone https://github.com/atviriduomenys/demo-saltiniai.git
 mkdir manifests
