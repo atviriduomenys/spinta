@@ -74,6 +74,7 @@ def load(context: Context, config: Config) -> Config:
     config.default_auth_client = rc.get("default_auth_client")
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
+    config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
     config.datasets = rc.get("datasets", default={})
     config.env = rc.get("env")
     config.docs_path = rc.get("docs_path", default=None)
