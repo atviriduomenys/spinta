@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 from spinta import commands
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.components import Context
 from spinta.types.datatype import Array
 from spinta.backends.constants import TableType
@@ -33,27 +34,29 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
     #             f'{parent_list_table_name}._id', ondelete='CASCADE',
     #         )),
     #     ]
-    name = get_pg_name(get_table_name(prop, TableType.LIST))
+    name = get_table_name(prop, TableType.LIST)
     main_table_name = get_pg_name(get_table_name(prop.model))
     table = sa.Table(
-        name,
+        get_pg_name(name),
         backend.schema,
         # TODO: List tables eventually will have _id in order to uniquelly
         #       identify list item.
         # sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column("_txn", pkey_type, index=True),
+        sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
         sa.Column(
-            "_rid",
+            get_pg_column_name("_rid"),
             pkey_type,
             sa.ForeignKey(
                 f"{main_table_name}._id",
                 ondelete="CASCADE",
             ),
+            comment="_rid",
         ),
         *columns,
+        comment=name,
     )
     backend.add_table(table, prop, TableType.LIST)
 
     if prop.list is None:
         # For fast whole resource access we also store whole list in a JSONB.
-        return sa.Column(prop.place, JSONB)
+        return sa.Column(get_pg_column_name(prop.place), JSONB, comment=prop.place)
