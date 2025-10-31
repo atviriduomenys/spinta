@@ -33,6 +33,8 @@ from spinta.auth import (
     Scopes,
     authenticate_token,
     StarletteOAuth2Data,
+    KeyType,
+    load_key_from_file,
     has_scope,
 )
 from spinta.auth import BearerTokenValidator
@@ -95,6 +97,20 @@ async def auth_token(request: Request):
         return resp
     else:
         raise NoAuthServer()
+
+
+async def get_verification_keys(request: Request) -> JSONResponse:
+    context = request.state.context
+    config = context.get("config")
+    content: dict = {"keys": []}
+    if config.token_validation_key:
+        if "keys" in config.token_validation_key:
+            content["keys"] += config.token_validation_key["keys"]
+        else:
+            content["keys"] = [config.token_validation_key]
+    elif default_key := load_key_from_file(config, KeyType.public):
+        content["keys"].append(default_key)
+    return JSONResponse(content=content)
 
 
 def _auth_accesslog(context: Context, request: Request, payload: dict, output_format: str):
@@ -425,6 +441,7 @@ def init(context: Context):
         Route("/favicon.ico", favicon, methods=["GET"]),
         Route("/version", version, methods=["GET"]),
         Route("/auth/token", auth_token, methods=["POST"]),
+        Route("/.well-known/jwks.json", get_verification_keys, methods=["GET"]),
         Route("/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}", srid_check, methods=["GET"]),
         Route("/auth/clients", auth_clients_get_all, methods=["GET"]),
         Route("/auth/clients", auth_clients_add, methods=["POST"]),

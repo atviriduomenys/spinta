@@ -2,7 +2,22 @@ Changes
 #######
 
 0.2dev9 (unreleased)
-===================
+====================
+
+New Features:
+
+- Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
+also known as well-known, jwk.
+- Spinta as Agent:
+    - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
+      algorithm (`alg` & `kty`).
+      This unlocks using auth servers with public key rotation, like gravitee.
+    - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
+      verification.
+    - move existing `spinta genkeys` command to `spinta key generate`.
+
+
+.. _#1569: https://github.com/atviriduomenys/spinta/issues/1569
 
 New Features:
 - Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)

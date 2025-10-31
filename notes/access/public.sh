@@ -26,7 +26,7 @@ tree ~/.config/spinta/clients
 
 export SPINTA_CONFIG_PATH=$BASEDIR/config
 mkdir -p $BASEDIR/config
-poetry run spinta genkeys
+poetry run spinta key generate
 #| Private key saved to var/instances/access/public/config/keys/private.json.
 #| Public key saved to var/instances/access/public/config/keys/public.json.
 

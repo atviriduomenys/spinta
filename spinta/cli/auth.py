@@ -12,7 +12,12 @@ from typer import Typer
 from typer import echo
 
 from spinta import commands
-from spinta.auth import KeyFileExists, get_clients_path, ensure_client_folders_exist
+from spinta.auth import (
+    KeyFileExists,
+    get_clients_path,
+    ensure_client_folders_exist,
+    download_and_store_public_keys,
+)
 from spinta.auth import KeyType
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
@@ -26,6 +31,10 @@ from spinta.components import Context
 from spinta.core.context import configure_context
 
 
+key = Typer()
+
+
+@key.command("generate", short_help="Generate client token validation keys.")
 def genkeys(
     ctx: TyperContext,
     path: pathlib.Path = Option(None, "--path", "-p", help=("directory where client YAML files are stored")),
@@ -50,6 +59,25 @@ def genkeys(
 
         click.echo(f"Private key saved to {prv}.")
         click.echo(f"Public key saved to {pub}.")
+
+
+@key.command("download", short_help="Download client token validation keys.")
+def download_keys(ctx: TyperContext):
+    context: Context = ctx.obj
+    config = context.get("config")
+    commands.load(context, config)
+    if not config.token_validation_keys_download_url:
+        echo("Error, config.token_validation_keys_download_url is not set.")
+        return
+    if not config.downloaded_public_keys_file:
+        echo("Error, config.downloaded_public_keys_file is not set.")
+        return
+
+    keys = download_and_store_public_keys(context)
+    if keys:
+        echo(f"Successfully downloaded and stored public keys: {keys}.")
+    else:
+        echo("Failed to download public keys. Check the logs.")
 
 
 token = Typer()
