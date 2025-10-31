@@ -7,8 +7,10 @@ Changes
 Bug fixes:
 
 - Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
+- Changed `admin` and `upgrade` command `Argument` default value check (`#1575`_).
 
   .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
+  .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
 
 0.2dev7 (2025-10-23)
 ====================

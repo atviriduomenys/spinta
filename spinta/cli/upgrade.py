@@ -62,7 +62,7 @@ def upgrade(
         # Ignore UpgradeErrors, since this functions handles them
         pass
 
-    if scripts is None:
+    if not scripts:
         run_all_scripts(
             context=context,
             script_type=UPGRADE_SCRIPT_TYPE,

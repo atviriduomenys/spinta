@@ -64,7 +64,7 @@ def admin(
 
     load_config(context, ensure_config_dir=ensure_config_dir)
 
-    if scripts is None:
+    if not scripts:
         echo("At least one script needs to be specified", err=True)
         sys.exit(1)
 
