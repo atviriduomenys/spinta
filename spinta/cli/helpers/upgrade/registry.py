@@ -4,6 +4,10 @@ from spinta.cli.helpers.script.registry import script_registry
 
 from spinta.cli.helpers.upgrade.components import Script, UpgradeScript, UPGRADE_SCRIPT_TYPE
 from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
+from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import (
+    migrate_comments,
+    cli_requires_comments_migration,
+)
 from spinta.cli.helpers.upgrade.scripts.clients import migrate_clients, cli_requires_clients_migration
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.initial_setup import (
     requires_sql_keymap_initial_migration,
@@ -36,6 +40,17 @@ script_registry.register(
         run=migrate_redirect,
         check=cli_requires_redirect_migration,
         targets={ScriptTarget.BACKEND.value},
+    )
+)
+
+# Postgresql migrations
+script_registry.register(
+    UpgradeScript(
+        name=Script.POSTGRESQL_COMMENTS.value,
+        run=migrate_comments,
+        check=cli_requires_comments_migration,
+        targets={ScriptTarget.BACKEND.value, ScriptTarget.POSTGRESQL.value},
+        tags={ScriptTag.DB_MIGRATION.value},
     )
 )
 
