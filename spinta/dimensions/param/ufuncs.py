@@ -7,7 +7,7 @@ from spinta.core.ufuncs import Bind, Expr
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.components import Param
-from spinta.dimensions.param.components import ParamBuilder, ParamLoader
+from spinta.dimensions.param.components import IterParamBuilder, ParamLoader
 from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
 from spinta.utils.schema import NotAvailable
 
@@ -17,13 +17,13 @@ def param(env: Env, bind: Bind) -> Any:
     return env.params[bind.name]
 
 
-@ufunc.resolver(ParamBuilder, Model)
-def read(env: ParamBuilder, model: Model) -> Any:
+@ufunc.resolver(IterParamBuilder, Model)
+def read(env: IterParamBuilder, model: Model) -> Any:
     return commands.getall(env.context, model, model.backend, resolved_params=env.params, query=env.url_query_params)
 
 
-@ufunc.resolver(ParamBuilder, str)
-def read(env: ParamBuilder, obj: str):
+@ufunc.resolver(IterParamBuilder, str)
+def read(env: IterParamBuilder, obj: str):
     new_name = obj
     if "/" not in obj:
         model_ = env.this
@@ -46,8 +46,8 @@ def read(env: ParamBuilder, obj: str):
     return env.call("read", model)
 
 
-@ufunc.resolver(ParamBuilder)
-def read(env: ParamBuilder) -> Any:
+@ufunc.resolver(IterParamBuilder)
+def read(env: IterParamBuilder) -> Any:
     if isinstance(env.this, Model):
         return env.call("read", env.this)
     raise InvalidParamSource(
@@ -55,27 +55,27 @@ def read(env: ParamBuilder) -> Any:
     )
 
 
-@ufunc.resolver(ParamBuilder, Iterator, Bind, name="getattr")
-def getattr_(env: ParamBuilder, iterator: Iterator, bind: Bind):
+@ufunc.resolver(IterParamBuilder, Iterator, Bind, name="getattr")
+def getattr_(env: IterParamBuilder, iterator: Iterator, bind: Bind):
     for item in iterator:
         yield from env.call("getattr", item, bind)
 
 
-@ufunc.resolver(ParamBuilder, dict, Bind, name="getattr")
-def getattr_(env: ParamBuilder, data: dict, bind: Bind):
+@ufunc.resolver(IterParamBuilder, dict, Bind, name="getattr")
+def getattr_(env: IterParamBuilder, data: dict, bind: Bind):
     if bind.name in data:
         yield data[bind.name]
     else:
         raise KeyNotFound(env.this, key=bind.name, dict_keys=list(data.keys()))
 
 
-@ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
-def getattr_(env: ParamBuilder, _: NotAvailable):
+@ufunc.resolver(IterParamBuilder, NotAvailable, name="getattr")
+def getattr_(env: IterParamBuilder, _: NotAvailable):
     return env.this
 
 
-@ufunc.executor(ParamBuilder, NotAvailable)
-def read(env: ParamBuilder, na: NotAvailable) -> Any:
+@ufunc.executor(IterParamBuilder, NotAvailable)
+def read(env: IterParamBuilder, na: NotAvailable) -> Any:
     return env.this
 
 

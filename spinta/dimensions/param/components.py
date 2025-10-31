@@ -7,7 +7,7 @@ from spinta.datasets.components import Dataset
 from spinta.manifests.components import Manifest
 
 
-class ParamBuilder(Env):
+class IterParamBuilder(Env):
     manifest: Manifest
     params: dict
     target_param: str

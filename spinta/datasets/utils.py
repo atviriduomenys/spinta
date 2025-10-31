@@ -7,7 +7,7 @@ from typing import List
 from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.components import Param
-from spinta.dimensions.param.components import ParamBuilder
+from spinta.dimensions.param.components import IterParamBuilder
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.manifests.components import Manifest
 
@@ -22,7 +22,7 @@ def _recursive_iter_params(
 ) -> Iterator[ResolvedParams]:
     if len(params) > 0:
         param = params[0]
-        env = ParamBuilder(context)
+        env = IterParamBuilder(context)
         env.update(
             params=values or {},
             target_param=param.name,
@@ -65,7 +65,7 @@ def iterparams(
         yield {}
 
 
-def _recurse(env: ParamBuilder, param: Param, source: Model, expr: Expr, values: Iterator) -> Iterator:
+def _recurse(env: IterParamBuilder, param: Param, source: Model, expr: Expr, values: Iterator) -> Iterator:
     if not isinstance(values, Iterator):
         values = iter([values])
 
