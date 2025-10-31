@@ -13,12 +13,13 @@ import uuid
 from collections import defaultdict
 from functools import cached_property
 from threading import Lock
-from typing import Set, Any
+from typing import Set, Any, TypedDict
 from typing import Type
 from typing import Union, List, Tuple
 
+import requests
 import ruamel.yaml
-from authlib.jose import JsonWebKey
+from authlib.jose import JsonWebKey, RSAKey
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from authlib.oauth2 import OAuth2Error
@@ -29,10 +30,11 @@ from authlib.oauth2.rfc6749 import grants, OAuth2Payload, scope_to_list, list_to
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.util import scope_to_list
-from cachetools import cached, LRUCache
+from cachetools import cached, LRUCache, TTLCache
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
+from jwt import PyJWS, InvalidTokenError, DecodeError
 from multipledispatch import dispatch
 from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
@@ -77,6 +79,20 @@ DEPRECATED_SCOPE_PREFIX = "spinta_"
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
 SCOPE_TYPE = Union[tuple, list, set, str, None]
+Kid = str  # key id
+
+
+class JWK(TypedDict):
+    kid: str
+    kty: str
+    alg: str
+    use: str
+    n: str
+    e: str
+
+
+class JWKS(TypedDict):
+    keys: List[JWK]
 
 
 class KeyType(enum.Enum):
@@ -166,10 +182,57 @@ class ResourceProtector(rfc6749.ResourceProtector):
 
 
 class BearerTokenValidator(rfc6750.BearerTokenValidator):
+    downloaded_public_keys_cache = TTLCache(maxsize=1, ttl=1 * 60 * 60)  # 1 hour
+
     def __init__(self, context):
         super().__init__()
         self._context = context
-        self._public_key = load_key(context, KeyType.public)
+        self._default_public_key: RSAKey = load_key(context, KeyType.public)
+        self._all_public_keys: dict[Kid, RSAKey] = self.load_all_public_keys(context)
+
+    def load_all_public_keys(self, context) -> dict[Kid, RSAKey]:
+        config = context.get("config")
+        token_validation_key = config.token_validation_key
+
+        local_public_keys: dict[Kid, RSAKey] = {}
+
+        if isinstance(token_validation_key, dict):
+            if "keys" in token_validation_key:
+                for key in token_validation_key["keys"]:
+                    if kid := key.get("kid"):
+                        local_public_keys[kid] = JsonWebKey.import_key(key)
+            elif kid := token_validation_key.get("kid"):
+                local_public_keys = {kid: JsonWebKey.import_key(token_validation_key)}
+        return self.download_public_keys(context) | local_public_keys
+
+    @staticmethod
+    @cached(downloaded_public_keys_cache)
+    def download_public_keys(context) -> dict[Kid, RSAKey]:
+        config = context.get("config")
+        if not config.token_validation_keys_download_url:
+            return {}
+        log.info("Downloading public keys from %s", config.token_validation_keys_download_url)
+        response = requests.get(config.token_validation_keys_download_url)
+        jwks: JWKS = response.json()
+        keys: list[JWK] = jwks["keys"]
+
+        kid_key_map: dict[Kid, RSAKey] = {}
+        for jwk in keys:
+            if kid := jwk.get("kid"):
+                kid_key_map[kid] = JsonWebKey.import_key(jwk)
+        return kid_key_map
+
+    def get_key(self, kid: Kid | None = None) -> RSAKey:
+        if kid:
+            if key := self._all_public_keys.get(kid):
+                return key
+            else:
+                log.warning(f"Clearing download public key cache, because cannot find key with {kid=}.")
+                self.downloaded_public_keys_cache.clear()
+                self._all_public_keys = self.load_all_public_keys(self._context)
+                if key := self._all_public_keys.get(kid):
+                    return key
+        return self._default_public_key
 
     def authenticate_token(self, token_string: str) -> Token:
         return Token(token_string, self)
@@ -248,8 +311,9 @@ class Client(rfc6749.ClientMixin):
 class Token(rfc6749.TokenMixin):
     def __init__(self, token_string, validator: BearerTokenValidator):
         try:
-            self._token = jwt.decode(token_string, validator._public_key)
-        except JoseError as e:
+            header = PyJWS().get_unverified_header(token_string)
+            self._token = jwt.decode(token_string, validator.get_key(header.get("kid")))
+        except (JoseError, DecodeError, InvalidTokenError) as e:
             raise InvalidToken(error=str(e))
 
         self.expires_in = self._token["exp"] - self._token["iat"]
@@ -460,9 +524,18 @@ def create_key_pair():
     return rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
 
-def load_key(context: Context, key_type: KeyType, *, required: bool = True):
+def load_key_from_file(config: Config, key_type: KeyType) -> dict | None:
+    keypath = config.config_path / "keys" / f"{key_type.value}.json"
+    if keypath.exists():
+        with keypath.open() as f:
+            return json.load(f)
+    return None
+
+
+def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> RSAKey | None:
     key = None
     config = context.get("config")
+    default_key = load_key_from_file(config, key_type)
 
     # Public key can be set via configuration.
     if key_type == KeyType.public:
@@ -470,22 +543,23 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
 
     # Load key from a file.
     if key is None:
-        keypath = config.config_path / "keys" / f"{key_type.value}.json"
-        if keypath.exists():
-            with keypath.open() as f:
-                key = json.load(f)
+        key = default_key
+
+    if isinstance(key, dict) and "keys" in key:
+        # Left for backwards compatibility in case private/public file has multiple keys.
+        keys = [k for k in key["keys"] if k["alg"] == "RS512"]
+        if keys:
+            key = keys[0]
+        elif key != default_key:
+            key = default_key
+        else:
+            key = None
 
     if key is None:
         if required:
             raise NoTokenValidationKey(key_type=key_type.value)
         else:
-            return
-
-    if isinstance(key, dict) and "keys" in key:
-        # XXX: Maybe I should load all keys and then pick right one by algorithm
-        #      used in token?
-        keys = [k for k in key["keys"] if k["alg"] == "RS512"]
-        key = keys[0]
+            return None
 
     return JsonWebKey.import_key(key)
 

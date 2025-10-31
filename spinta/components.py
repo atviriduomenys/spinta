@@ -1072,7 +1072,8 @@ class Config:
     scope_log: bool
     default_auth_client: str
     http_basic_auth: bool
-    token_validation_key: dict = None
+    token_validation_key: dict | None = None
+    token_validation_keys_download_url: str | None = None
     datasets: dict
     env: str
     docs_path: pathlib.Path
