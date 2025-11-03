@@ -13,20 +13,16 @@ class Soap(DaskBackend):
     type: str = "soap"
     query_builder_type = "soap"
 
-    _soap_operation: OperationProxy | None = None
-
     wsdl_backend: WsdlBackend
     service: str
     port: str
     operation: str
 
-    @property
-    def soap_operation(self) -> OperationProxy:
-        return self._soap_operation if self._soap_operation else self._get_soap_operation()
-
-    def _get_soap_operation(self) -> OperationProxy:
+    def get_soap_operation(self, extra_headers: dict) -> OperationProxy:
         with self.wsdl_backend.begin():
             client = self.wsdl_backend.client
+
+        client.transport.session.headers.update(extra_headers)
 
         try:
             soap_service = client.bind(self.service, self.port)

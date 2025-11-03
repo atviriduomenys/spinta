@@ -18,9 +18,11 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
-def _get_data_soap(url: str, backend: Soap, soap_request: dict) -> list[dict]:
+def _get_data_soap(url: str, backend: Soap, soap_request: dict, extra_headers: dict[str, str]) -> list[dict]:
     try:
-        response_data = serialize_object(backend.soap_operation(**soap_request), target_cls=dict)
+        response_data = serialize_object(
+            backend.get_soap_operation(extra_headers=extra_headers)(**soap_request), target_cls=dict
+        )
     except zeep.exceptions.Error as e:
         raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
 
@@ -96,13 +98,16 @@ def getall(
     params: QueryParams | None = None,
     **kwargs,
 ) -> Iterator[ObjectData]:
-    bases = parametrize_bases(context, model, model.external.resource, resolved_params)
+    resource = model.external.resource
+    bases = parametrize_bases(context, model, resource, resolved_params)
     bases = list(bases)
 
     builder = backend.query_builder_class(context)
     builder = builder.init(backend=backend, model=model, query_params=params)
     query = builder.resolve(query)
     builder.build()
+
+    http_headers = resource.get_param_http_headers()
 
     try:
         soap_request = _expand_dict_keys(builder.soap_request_body)
@@ -116,6 +121,7 @@ def getall(
             _get_data_soap,
             backend=backend,
             soap_request=soap_request,
+            extra_headers=http_headers,
         )
         .flatten()
         .to_dataframe(meta=meta)
