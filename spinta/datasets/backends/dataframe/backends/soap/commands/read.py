@@ -10,15 +10,17 @@ from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.soap.components import Soap
+from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, get_dask_dataframe_meta, dask_get_all
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
+from spinta.datasets.components import Resource
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import SoapRequestBodyParseError, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
-def _get_data_soap(url: str, backend: Soap, soap_request: dict, extra_headers: dict[str, str]) -> list[dict]:
+def _get_data_soap(url: str, backend: Soap, soap_request: dict, extra_headers: dict) -> list[dict]:
     try:
         response_data = serialize_object(
             backend.get_soap_operation(extra_headers=extra_headers)(**soap_request), target_cls=dict
@@ -30,6 +32,14 @@ def _get_data_soap(url: str, backend: Soap, soap_request: dict, extra_headers: d
         response_data = [response_data]
 
     return response_data or []
+
+
+def _get_soap_http_headers(resource: Resource, builder: SoapQueryBuilder) -> dict:
+    http_headers = resource.get_param_http_headers()
+    for header_name, header_value in http_headers.items():
+        http_headers[header_name] = builder.resolve(header_value)
+
+    return http_headers
 
 
 def _check_empty_key(key: str) -> None:
@@ -107,7 +117,7 @@ def getall(
     query = builder.resolve(query)
     builder.build()
 
-    http_headers = resource.get_param_http_headers()
+    http_headers = _get_soap_http_headers(resource, builder)
 
     try:
         soap_request = _expand_dict_keys(builder.soap_request_body)

@@ -511,19 +511,7 @@ def test_soap_read_error_if_backend_cannot_parse_data(rc: RawConfig, responses: 
 
 def test_soap_read_with_extra_http_header(rc: RawConfig, responses: RequestsMock):
     endpoint_url = "http://example.com/city"
-    soap_response = """
-        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
-            <ns0:Body>
-                <ns1:CityOutputResponse>
-                    <ns1:CityOutput>
-                        <ns1:id>100</ns1:id>
-                        <ns1:name>Zm9vZm9v</ns1:name>
-                    </ns1:CityOutput>
-                </ns1:CityOutputResponse>
-            </ns0:Body>
-        </ns0:Envelope>
-    """
-    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body="")
 
     context, manifest = prepare_manifest(
         rc,
@@ -547,3 +535,34 @@ def test_soap_read_with_extra_http_header(rc: RawConfig, responses: RequestsMock
     dataset = commands.get_dataset(context, manifest, "example")
     backend = dataset.resources["soap_resource"].backend
     assert backend.wsdl_backend.client.transport.session.headers.get("header_name") == "header_value"
+
+
+def test_soap_read_with_extra_http_header_from_creds(rc: RawConfig, responses: RequestsMock):
+    endpoint_url = "http://example.com/city"
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body="")
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type    | ref | source                                          | access | prepare
+        example                  | dataset |     |                                                 |        |
+          | wsdl_resource        | wsdl    |     | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap    |     | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param   | hdr | header_name                                     |        | creds("header_value").header()
+          |   |   | City         |         |     | /                                               | open   |
+          |   |   |   | name     | string  |     | name                                            |        | base64()
+        """,
+        mode=Mode.external,
+    )
+
+    client_id = "b189eff5-6441-485f-a754-0c367615de71"
+    client_secret = "joWgziYLap3eKDL6Gk2SnkJoyz0F8ukB"
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("/example/City/", ["getall", "search"], creds=(client_id, client_secret))
+    app.get("/example/City/")
+
+    dataset = commands.get_dataset(context, manifest, "example")
+    backend = dataset.resources["soap_resource"].backend
+    assert backend.wsdl_backend.client.transport.session.headers.get("header_name") == "creds_value"

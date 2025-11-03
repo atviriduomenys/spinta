@@ -44,20 +44,27 @@ def test_input_command_value_can_be_unresolved_expr(context: Context) -> None:
     assert param.soap_body == {"foo": asttoexpr(parse("foo_func()"))}
 
 
-def test_header_command_populates_param_http_header(context: Context) -> None:
+@pytest.mark.parametrize(
+    "param_prepare, result",
+    [
+        ('header("header_value")', {"header_name": "header_value"}),
+        ('creds("foo").header()', {"header_name": asttoexpr(parse('creds("foo")'))}),
+    ],
+)
+def test_header_command_populates_param_http_header(context: Context, param_prepare: str, result: dict) -> None:
     param = Param()
 
     env = LoadBuilder(context)
     env.update(this="header_name", param=param)
 
-    expr = asttoexpr(parse('header("header_value")'))
+    expr = asttoexpr(parse(param_prepare))
     env.call("header", expr)
 
-    assert param.http_header == {"header_name": "header_value"}
+    assert param.http_header == result
 
 
 @pytest.mark.parametrize("param_prepare", ["header()", 'header("foo", "bar")'])
-def test_header_command_raise_error_if_number_of_header_values(context: Context, param_prepare: str) -> None:
+def test_header_command_raise_error_if_number_of_header_values_not_one(context: Context, param_prepare: str) -> None:
     param = Param()
 
     env = LoadBuilder(context)

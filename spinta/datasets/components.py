@@ -159,7 +159,7 @@ class Resource(External):
         self.params = {}
         self.source_params = set()
 
-    def get_param_http_headers(self) -> dict[str, str]:
+    def get_param_http_headers(self) -> dict:
         headers = {}
         for param in self.params:
             if hasattr(param, "http_header"):
@@ -177,7 +177,7 @@ class Param(ExtraMetaData):
     formulas: List[Expr]
     dependencies: set
     soap_body: dict[str, Any]  # Used to store result of input() function
-    http_header: dict[str, str]
+    http_header: dict  # Used to store results of header() function
 
     # Given values
     source: List[Any]
