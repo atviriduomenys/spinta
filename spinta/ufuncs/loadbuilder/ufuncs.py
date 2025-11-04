@@ -82,7 +82,7 @@ def header(env: LoadBuilder, expr: Expr) -> None:
 
 
 @ufunc.resolver(LoadBuilder, str, str)
-def header(env: LoadBuilder, header_name, header_value: str) -> None:
+def header(env: LoadBuilder, header_name: str, header_value: str) -> None:
     env.param.http_header = {header_name: header_value}
 
 
