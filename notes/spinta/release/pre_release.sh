@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev7
-export OLD_MINOR=2dev6
-export FUTURE_MINOR=2dev8
+export MINOR=2dev8
+export OLD_MINOR=2dev7
+export FUTURE_MINOR=2dev9
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -55,7 +55,7 @@ git status
 (cd docs && make upgrade)
 
 # Check what was changed and update CHANGES.rst
-xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
+xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...master
 head CHANGES.rst
 # Update CHANGES.rst
 # notes/spinta/release/common.sh    Generate and check changes and readme html files
