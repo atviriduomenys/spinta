@@ -1661,7 +1661,6 @@ def test_auth_clients_create_authorized_correct(
         "client_id": resp_json["client_id"],
         "client_name": resp_client_name,
         "scopes": resp_scopes,
-        "backends": {},
     }
     if not client_name:
         assert is_str_uuid(resp_client_name)
@@ -1669,37 +1668,6 @@ def test_auth_clients_create_authorized_correct(
         path = get_clients_path(context.get("config"))
         client = query_client(path, client=resp_json["client_id"])
         assert client.check_client_secret(secret)
-
-
-@pytest.mark.parametrize(
-    "backends",
-    [
-        {},
-        {"default": {}},
-        {"default": {"test1": 1, "test2": 2}},
-    ],
-)
-def test_auth_clients_create_with_backends_authorized(
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    backends: dict,
-) -> None:
-    context, app = ensure_temp_context_and_app(rc, tmp_path)
-    app.authorize(["uapi:/:auth_clients"])
-    data = {
-        "secret": "test_secret",
-        "backends": backends,
-    }
-    resp = app.post(clients_url(), json=data)
-    resp_json = resp.json()
-
-    assert resp.status_code == 200
-    assert resp_json == {
-        "client_id": ANY,
-        "client_name": ANY,
-        "scopes": [],
-        "backends": backends,
-    }
 
 
 def test_auth_clients_create_authorized_incorrect(rc: RawConfig, tmp_path: pathlib.Path):

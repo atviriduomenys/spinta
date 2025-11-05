@@ -175,7 +175,6 @@ async def auth_clients_add(request: Request) -> JSONResponse:
         client_id,
         client_data["secret"],
         client_data.get("scopes"),
-        client_data.get("backends"),
     )
 
     return JSONResponse(
@@ -183,7 +182,6 @@ async def auth_clients_add(request: Request) -> JSONResponse:
             "client_id": client_["client_id"],
             "client_name": name,
             "scopes": client_["scopes"],
-            "backends": client_["backends"],
         }
     )
 

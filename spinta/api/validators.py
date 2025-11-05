@@ -7,7 +7,6 @@ class ClientAddData(BaseModel):
     client_name: Optional[str] = None
     secret: str = Field(..., min_length=1)
     scopes: Optional[list[str]] = None
-    backends: Optional[dict[str, dict[str, Any]]] = None
 
     model_config = ConfigDict(extra="forbid")
 
