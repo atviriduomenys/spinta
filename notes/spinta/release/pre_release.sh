@@ -139,7 +139,7 @@ git push origin $NEW_VERSION
 
 ed pyproject.toml <<EOF
 /^version = /c
-version = "$FUTURE_VERSION.dev0"
+version = "$FUTURE_VERSION"
 .
 wq
 EOF
