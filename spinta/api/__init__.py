@@ -19,7 +19,7 @@ from starlette.templating import Jinja2Templates
 
 from spinta import components, commands
 from spinta.accesslog import create_accesslog
-from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData
+from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData, ClientBackendsData
 from spinta.auth import (
     AuthorizationServer,
     check_scope,
@@ -33,6 +33,7 @@ from spinta.auth import (
     Scopes,
     authenticate_token,
     StarletteOAuth2Data,
+    has_scope,
 )
 from spinta.auth import BearerTokenValidator
 from spinta.auth import ResourceProtector
@@ -244,15 +245,16 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
     context = _auth_client_context(request)
     token = context.get("auth.token")
     client_id = request.path_params["client"]
+    is_own_client = client_id == token.get_client_id()
 
-    validator_class = ClientPatchData
-    try:
-        check_scope(context, Scopes.AUTH_CLIENTS)
-    except InsufficientScopeError:
+    if has_scope(context, Scopes.AUTH_CLIENTS, raise_error=False):
+        validator_class = ClientPatchData
+    elif has_scope(context, Scopes.CLIENT_BACKENDS_UPDATE_SELF, raise_error=False) and is_own_client:
+        validator_class = ClientBackendsData
+    elif is_own_client:  # Requests without scope can only change its own secret
         validator_class = ClientSecretPatchData
-        # Requests without AUTH_CLIENTS scope can only change its own secret
-        if client_id != token.get_client_id():
-            raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
+    else:
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
     config = context.get("config")
     commands.load(context, config)

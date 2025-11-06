@@ -92,6 +92,9 @@ class Scopes(enum.Enum):
     # Grants access to manipulate client files through API
     AUTH_CLIENTS = "auth_clients"
 
+    # Grants access to change its own client file backends
+    CLIENT_BACKENDS_UPDATE_SELF = "client_backends_update_self"
+
     # Grants access to generate inspect files through API
     INSPECT = "inspect"
 
@@ -547,6 +550,18 @@ def check_scope(context: Context, scope: Union[Scopes, str]):
         scope = scope.value
 
     token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"])
+
+
+def has_scope(context: Context, scope: Scopes | str, raise_error: bool = True) -> bool:
+    valid_scope = False
+    try:
+        check_scope(context, scope)
+        valid_scope = True
+    except InsufficientScopeError as error:
+        if raise_error:
+            raise error
+
+    return valid_scope
 
 
 def get_scope_name(
