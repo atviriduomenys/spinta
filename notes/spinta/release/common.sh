@@ -19,6 +19,7 @@ xdg-open var/readme.html
 # Reset test database
 # password is in the docker-compose.yml file
 #If docker is not running, run `docker compose up`
+export PGPASSWORD=admin123
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin spinta_tests <<EOF
