@@ -826,7 +826,7 @@ def delete_client_file(path: pathlib.Path, client_id: str):
                 Remove only empty folders
             """
     else:
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Invalid client id or secret")
 
 
 def update_client_file(
@@ -876,7 +876,7 @@ def update_client_file(
                 yml.dump(keymap, keymap_path)
         return new_data
     else:
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Invalid client id or secret")
 
 
 def get_client_id_from_name(path: pathlib.Path, client_name: str):
@@ -955,13 +955,13 @@ def _client_file_cache_key(path: pathlib.Path, client: str, *args, is_name: bool
     if is_name:
         client_id = get_client_id_from_name(path, client)
         if client_id is None:
-            raise (InvalidClientError(description="Invalid client name"))
+            raise InvalidClientError(description="Invalid client name")
 
         client = client_id
 
     client_file = get_client_file_path(path, client)
     if not client_file.exists():
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Invalid client id or secret")
 
     time_ = os.path.getmtime(client_file)
     key += tuple([time_])
@@ -992,7 +992,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
     if is_name:
         client_id = get_client_id_from_name(path, client)
         if client_id is None:
-            raise (InvalidClientError(description="Invalid client name"))
+            raise InvalidClientError(description="Invalid client name")
 
         client = client_id
     client_file = get_client_file_path(path, client)
@@ -1003,7 +1003,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
     try:
         data = yaml.load(client_file)
     except FileNotFoundError:
-        raise (InvalidClientError(description="Client file not found. Invalid client id or secret"))
+        raise InvalidClientError(description="Client file not found. Invalid client id or secret")
     if not isinstance(data, dict):
         raise InvalidClientFileFormat(client_file=client_file.name, client_file_type=type(data))
     if not isinstance(data["scopes"], list):
