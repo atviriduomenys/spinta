@@ -1927,7 +1927,7 @@ def test_auth_clients_update_authorized_correct(rc: RawConfig, tmp_path: pathlib
     assert resp.json() == {
         "client_id": client["client_id"],
         "client_name": "TEST",
-        "scopes": ["uapi:/:getall"],
+        "scopes": ["spinta_getall"],
         "backends": {},
     }
     client = query_client(path, client=client["client_id"])
@@ -2002,7 +2002,7 @@ def test_auth_clients_update_name_full_check(rc: RawConfig, tmp_path: pathlib.Pa
     assert resp.json() == {
         "client_id": resp_json["client_id"],
         "client_name": "TESTNEWOTHER",
-        "scopes": ["uapi:/:getall"],
+        "scopes": ["spinta_getall"],
         "backends": {},
     }
 
