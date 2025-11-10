@@ -81,6 +81,8 @@ def load(context: Context, config: Config) -> Config:
     config.default_page_size = rc.get("default_page_size", default=100000, cast=int)
     config.enable_pagination = rc.get("enable_pagination", default=True, cast=bool)
     config.sync_page_size = rc.get("sync_page_size", default=100000, cast=int)
+    config.sync_retry_count = rc.get("sync_retry_count", default=5, cast=int)
+    config.sync_retry_delay = rc.get("sync_retry_delay", default=0.5, cast=float)
     config.languages = rc.get("languages", default=[])
     config.check_names = rc.get("check", "names", default=False)
     config.root = rc.get("root", default=None)

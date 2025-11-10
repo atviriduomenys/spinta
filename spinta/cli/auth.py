@@ -18,7 +18,7 @@ from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.auth import load_key
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import load_config
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials

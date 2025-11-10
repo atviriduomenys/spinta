@@ -7,7 +7,7 @@ import aiofiles
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.export.backends.postgresql.components import PostgresqlExportMetadata
 from spinta.cli.helpers.export.backends.postgresql.helpers import (
     split_data,

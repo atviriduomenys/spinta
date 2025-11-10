@@ -9,6 +9,7 @@ from spinta import commands
 from spinta.auth import authorized
 from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
 from spinta.commands.read import PaginationMetaData, get_paginated_values
@@ -16,17 +17,18 @@ from spinta.components import Context, Config
 from spinta.core.enums import Action
 from spinta.components import Model
 from spinta.components import Page, get_page_size, Property, PageBy
-from spinta.utils.response import get_request
+from spinta.utils.response import get_request_with_retries
 
 
 def _build_push_state_sync_url(server: str, model: str, page: str, page_columns: List[str], limit: int):
-    base = f"{server}/{model}/:format/json?"
+    base = f"{server}/{model}?"
 
     required = ["_id", "_revision", "_page", "checksum()"]
 
     base = f"{base}select({','.join(required)}"
     for page_column in page_columns:
         base = f"{base},{page_column}"
+
     base = f"{base})&sort(_id)"
 
     if page:
@@ -45,7 +47,11 @@ def _fetch_all_model_data(
     server: str,
     error_counter: ErrorCounter,
     timeout: tuple[float, float],
+    retries: int,
+    delay: float,
     initial_page_data: Any = None,
+    *,
+    progress_bar: tqdm.tqdm = None,
 ):
     limit = config.sync_page_size
     page_hash = ""
@@ -54,11 +60,27 @@ def _fetch_all_model_data(
     if model.backend.supports(BackendFeatures.PAGINATION) and page.by and page.enabled:
         for page_by in page.by.values():
             page_columns.append(page_by.prop.name)
+
     while True:
         url = _build_push_state_sync_url(
             server=server, model=model.model_type(), page=page_hash, page_columns=page_columns, limit=limit
         )
-        status_code, resp = get_request(client, url, error_counter=error_counter, timeout=timeout)
+
+        status_code, resp = get_request_with_retries(
+            client,
+            url,
+            error_counter=error_counter,
+            timeout=timeout,
+            delay=delay,
+            retries=retries,
+            progress_bar=progress_bar,
+        )
+        if status_code != 200:
+            cli_message(
+                f'ERROR: Failed to fetch data for model {model.model_type()}. Using "{server}" url.', progress_bar
+            )
+            break
+
         if status_code == 200:
             data = resp["_data"]
             if not data:
@@ -98,7 +120,6 @@ def _get_state_rows_with_id(context: Context, table: sa.Table, size: int) -> sa.
         else:
             stmt = sa.select([table]).order_by(order_by).limit(model_page.size)
             rows = conn.execute(stmt)
-
         yield from get_paginated_values(model_page, page_meta, rows, extract_state_page_id_key)
 
 
@@ -211,12 +232,16 @@ def sync_push_state(
     no_progress_bar: bool,
     metadata: sa.MetaData,
     timeout: tuple[float, float],
+    max_retries: int,
+    delay_between_retries: float,
 ):
     config = context.get("config")
     conn = context.get("push.state.conn")
     counters = {}
+    main_bar = None
     if not no_progress_bar:
-        counters = {"_total": tqdm.tqdm(desc="SYNCHRONIZING PUSH STATE", ascii=True)}
+        main_bar = tqdm.tqdm(desc="SYNCHRONIZING PUSH STATE", ascii=True)
+        counters = {"_total": main_bar}
         echo()
 
     for model in models:
@@ -228,20 +253,30 @@ def sync_push_state(
         for key in primary_keys:
             is_authorized = authorized(context, key, action=Action.SEARCH)
             if not is_authorized:
-                echo(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                cli_message(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.", main_bar)
                 skip_model = True
                 break
 
         if skip_model:
             continue
 
+        model_table = metadata.tables[model.name]
+
         if not no_progress_bar:
             counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)
 
-        model_table = metadata.tables[model.name]
         target_data = _fetch_all_model_data(
-            config=config, model=model, client=client, server=server, error_counter=error_counter, timeout=timeout
+            config=config,
+            model=model,
+            client=client,
+            server=server,
+            error_counter=error_counter,
+            timeout=timeout,
+            retries=max_retries,
+            delay=delay_between_retries,
+            progress_bar=counters.get(model_name, main_bar),
         )
+
         state_data = _get_state_rows_with_id(context=context, table=model_table, size=size)
         target_row = next(target_data, None)
         state_row = next(state_data, None)

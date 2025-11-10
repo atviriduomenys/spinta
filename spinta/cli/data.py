@@ -15,7 +15,8 @@ from spinta.backends import Backend
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream, count_rows
-from spinta.cli.helpers.errors import cli_error, ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.cli.helpers.export.helpers import (
     validate_and_return_shallow_backend,

@@ -5,16 +5,16 @@ from collections.abc import Generator
 from typing import List, Iterable
 
 import tqdm
-from typer import echo
 
 from spinta import commands
 from spinta.auth import authorized
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_message
 from spinta.components import Context, Model, Property, Config
 from spinta.core.enums import action_from_op, Action
 from spinta.datasets.backends.helpers import extract_values_from_row
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
-from spinta.utils.response import get_request
+from spinta.utils.response import get_request_with_retries
 
 
 def _build_changelog_url(server: str, model: str, offset_cid: int, limit: int) -> str:
@@ -33,13 +33,23 @@ def _fetch_changelog_data(
     offset_cid: int,
     error_counter: ErrorCounter,
     timeout: tuple[float, float],
+    retries: int,
+    delay: float,
+    *,
+    progress_bar: tqdm.tqdm = None,
 ):
     limit = config.sync_page_size
     offset = offset_cid
     while True:
         url = _build_changelog_url(server=server, model=model.model_type(), offset_cid=offset, limit=limit)
-        status_code, resp = get_request(client, url, error_counter=error_counter, timeout=timeout)
+        status_code, resp = get_request_with_retries(
+            client, url, error_counter=error_counter, timeout=timeout, retries=retries, delay=delay
+        )
         if status_code != 200:
+            cli_message(
+                f'ERROR: Failed to fetch changelog data for model {model.model_type()}. Using "{server}" url.',
+                progress_bar,
+            )
             break
 
         data = resp.get("_data")
@@ -213,12 +223,16 @@ def sync_keymap(
     no_progress_bar: bool,
     reset_cid: bool,
     timeout: tuple[float, float],
+    max_retries: int,
+    delay_between_retries: float,
     dry_run: bool = False,
 ):
     config = context.get("config")
     counters = {}
+    main_bar = None
     if not no_progress_bar:
-        counters = {"_total": tqdm.tqdm(desc="SYNCHRONIZING KEYMAP", ascii=True)}
+        main_bar = tqdm.tqdm(desc="DATASET", ascii=True)
+        counters = {"_total": main_bar}
     try:
         for model in models:
             model_keymaps = [model.model_type()]
@@ -227,7 +241,9 @@ def sync_keymap(
             for key in primary_keys:
                 is_authorized = authorized(context, key, action=Action.SEARCH)
                 if not is_authorized:
-                    echo(f"SKIPPED KEYMAP '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                    cli_message(
+                        f"SKIPPED KEYMAP '{model.model_type()}' MODEL SYNC, NO PERMISSION.", progress_bar=main_bar
+                    )
                     skip_model = True
                     break
             if skip_model:
@@ -235,6 +251,12 @@ def sync_keymap(
 
             for combination in model.required_keymap_properties:
                 model_keymaps.append(f"{model.model_type()}.{'_'.join(combination)}")
+
+            if not no_progress_bar:
+                model_counters = {}
+                for keymap_name in model_keymaps:
+                    model_counters[keymap_name] = tqdm.tqdm(desc=keymap_name, ascii=True)
+                counters[model.model_type()] = model_counters
 
             # Get min cid (in case new model was added, or models are out of sync)
             offset_cid = _cid_offset(keymap=keymap, model_keymaps=model_keymaps, reset_cid=reset_cid)
@@ -247,13 +269,10 @@ def sync_keymap(
                 offset_cid=offset_cid,
                 error_counter=error_counter,
                 timeout=timeout,
+                retries=max_retries,
+                delay=delay_between_retries,
+                progress_bar=counters.get(model.model_type()) or main_bar,
             )
-
-            if not no_progress_bar:
-                model_counters = {}
-                for keymap_name in model_keymaps:
-                    model_counters[keymap_name] = tqdm.tqdm(desc=keymap_name, ascii=True)
-                counters[model.model_type()] = model_counters
 
             data = process_keymap_data(
                 keymap=keymap, model=model, data=data, primary_keys=primary_keys, counters=counters, dry_run=dry_run

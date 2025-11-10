@@ -10,7 +10,8 @@ from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 
-from spinta.cli.helpers.errors import ErrorCounter, cli_error
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.utils import extract_dependant_nodes
 
