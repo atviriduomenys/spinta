@@ -4,6 +4,11 @@ Changes
 0.2dev9 (unreleased)
 ===================
 
+New Features:
+- Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)
+
+  .. _#1582: https://github.com/atviriduomenys/spinta/issues/1582
+
 Improvements:
 
 - Keymap and push db sync now attempts to retry data fetch after failing to get valid response from remote server.
