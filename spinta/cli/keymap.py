@@ -69,6 +69,9 @@ def keymap_sync(
     store = prepare_manifest(context, full_load=True)
     config: Config = context.get("config")
 
+    max_retries = config.sync_retry_count
+    delay_between_retries = config.sync_retry_delay
+
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
@@ -119,6 +122,8 @@ def keymap_sync(
                 reset_cid=True,
                 dry_run=dry_run,
                 timeout=(connect_timeout, read_timeout),
+                max_retries=max_retries,
+                delay_between_retries=delay_between_retries,
             )
 
         if error_counter.has_errors():
