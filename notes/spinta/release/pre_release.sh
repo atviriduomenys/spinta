@@ -133,6 +133,19 @@ git push origin HEAD
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
+
+# generate hashed requirements file
+
+poetry export -f requirements.txt \
+  --output requirements/spinta-${NEW_VERSION}.txt
+
+cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
+
+git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
+git commit -m "Add hashed requirements for ${NEW_VERSION} and update latest"
+git push
+
+
 # Prepare pyproject.toml and CHANGES.rst for future versions
 git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
