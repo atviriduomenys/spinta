@@ -1152,7 +1152,7 @@ def test_ns_read_csv(model, app, context, tmp_path):
     ]
 
 
-@pytest.mark.parametrize("scope", [{"spinta_getall", "spinta_search"}, {"uapi:/:getall", "uapi:/:search"}])
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_search"}, {"uapi:/:getall", "uapi:/:search"}])
 @pytest.mark.manifests("internal_sql", "csv")
 def test_get_accesslog_default_user(
     manifest_type: str,
@@ -1160,7 +1160,7 @@ def test_get_accesslog_default_user(
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
-    scope: set,
+    scopes: set,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1183,7 +1183,7 @@ def test_get_accesslog_default_user(
         load_key(context, KeyType.private),
         default_client_id,
         int(datetime.timedelta(days=10).total_seconds()),
-        scope,
+        scopes,
     )
 
     model = "backends/postgres/dtypes/test/Entity"
@@ -1226,7 +1226,7 @@ def test_get_accesslog_default_user(
 
 @pytest.mark.manifests("internal_sql", "csv")
 @pytest.mark.parametrize(
-    "scope", [["spinta_getall", "spinta_insert", "spinta_search"], ["uapi:/:getall", "uapi:/:create", "uapi:/:search"]]
+    "scopes", [["spinta_getall", "spinta_insert", "spinta_search"], ["uapi:/:getall", "uapi:/:create", "uapi:/:search"]]
 )
 def test_get_accesslog_not_default_user(
     manifest_type: str,
@@ -1234,7 +1234,7 @@ def test_get_accesslog_not_default_user(
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
-    scope: list,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1254,8 +1254,8 @@ def test_get_accesslog_not_default_user(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(scope, creds=("test-insert", "secret"))
-    expected_scope = " ".join(sorted(scope))
+    app.authorize(scopes, creds=("test-insert", "secret"))
+    expected_scope = " ".join(sorted(scopes))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()
