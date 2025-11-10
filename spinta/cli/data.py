@@ -130,6 +130,9 @@ def export_(
     commands.validate_export_output(context, fmt or backend, output)
     access = get_enum_by_name(Access, access)
 
+    max_retries = config.sync_retry_count
+    delay_between_retries = config.sync_retry_delay
+
     with context:
         require_auth(context)
         error_counter = ErrorCounter(max_count=max_error_count)
@@ -170,6 +173,8 @@ def export_(
                     no_progress_bar=no_progress_bar,
                     reset_cid=ignore_sync_cid,
                     timeout=(connect_timeout, read_timeout),
+                    max_retries=max_retries,
+                    delay_between_retries=delay_between_retries,
                 )
         else:
             dependant_models = extract_dependant_nodes(context, models, True)
