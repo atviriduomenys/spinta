@@ -1983,8 +1983,8 @@ def test_auth_clients_update_name_full_check(rc: RawConfig, tmp_path: pathlib.Pa
 
 def test_auth_clients_update_own_client_using_client_backends_update_self_scope(rc: RawConfig, tmp_path: pathlib.Path):
     context, app = ensure_temp_context_and_app(rc, tmp_path)
-    client = create_client(context.get("config"), secret="OLD_SECRET", scopes=["spinta_client_backends_update_self"])
-    app.authorize(["spinta_client_backends_update_self"], creds=(client["client_id"], "OLD_SECRET"), strict_set=True)
+    client = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+    app.authorize(["uapi:/:client_backends_update_self"], creds=(client["client_id"], "OLD_SECRET"), strict_set=True)
 
     response = app.patch(client_url(client["client_id"]), json={"backends": {"resource": {"test_key": "test_value"}}})
 
@@ -2001,14 +2001,14 @@ def test_auth_clients_update_own_client_fails_using_client_backends_update_self_
     rc: RawConfig, tmp_path: pathlib.Path
 ):
     context, app = ensure_temp_context_and_app(rc, tmp_path)
-    client = create_client(context.get("config"), secret="OLD_SECRET", scopes=["spinta_client_backends_update_self"])
-    app.authorize(["spinta_client_backends_update_self"], creds=(client["client_id"], "OLD_SECRET"), strict_set=True)
+    client = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+    app.authorize(["uapi:/:client_backends_update_self"], creds=(client["client_id"], "OLD_SECRET"), strict_set=True)
 
     response = app.patch(
         client_url(client["client_id"]),
         json={
             "backends": {"resource": {"test_key": "test_value"}},
-            "scopes": ["spinta_client_backends_update_self", "another_scope"],
+            "scopes": ["uapi:/:client_backends_update_self", "another_scope"],
         },
     )
 
@@ -2022,16 +2022,16 @@ def test_auth_clients_update_other_client_fails_using_client_backends_update_sel
     rc: RawConfig, tmp_path: pathlib.Path
 ):
     context, app = ensure_temp_context_and_app(rc, tmp_path)
-    client1 = create_client(context.get("config"), secret="OLD_SECRET", scopes=["spinta_client_backends_update_self"])
-    client2 = create_client(context.get("config"), secret="OLD_SECRET", scopes=["spinta_client_backends_update_self"])
+    client1 = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+    client2 = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
 
-    app.authorize(["spinta_client_backends_update_self"], creds=(client1["client_id"], "OLD_SECRET"), strict_set=True)
+    app.authorize(["uapi:/:client_backends_update_self"], creds=(client1["client_id"], "OLD_SECRET"), strict_set=True)
 
     response = app.patch(
         client_url(client2["client_id"]),
         json={
             "backends": {"resource": {"test_key": "test_value"}},
-            "scopes": ["spinta_client_backends_update_self", "another_scope"],
+            "scopes": ["uapi:/:client_backends_update_self", "another_scope"],
         },
     )
 
