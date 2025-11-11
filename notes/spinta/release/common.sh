@@ -19,6 +19,7 @@ xdg-open var/readme.html
 # Reset test database
 # password is in the docker-compose.yml file
 #If docker is not running, run `docker compose up`
+export PGPASSWORD=admin123
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin spinta_tests <<EOF
@@ -222,17 +223,16 @@ SERVER=:8000
 CLIENT=test
 SECRET=secret
 SCOPES="
-    spinta_set_meta_fields
-    spinta_getone
-    spinta_getall
-    spinta_search
-    spinta_changes
-    spinta_insert
-    spinta_upsert
-    spinta_update
-    spinta_patch
-    spinta_delete
-    spinta_wipe
+    uapi:/:set_meta_fields
+    uapi:/:getone
+    uapi:/:getall
+    uapi:/:search
+    uapi:/:changes
+    uapi:/:create
+    uapi:/:update
+    uapi:/:patch
+    uapi:/:delete
+    uapi:/:wipe
 "
 TOKEN=$(
     http \
@@ -288,17 +288,16 @@ test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 #client = client
 #secret = secret
 #scopes =
-#  spinta_set_meta_fields
-#  spinta_getone
-#  spinta_getall
-#  spinta_search
-#  spinta_changes
-#  spinta_insert
-#  spinta_upsert
-#  spinta_update
-#  spinta_patch
-#  spinta_delete
-#  spinta_wipe
+#  uapi:/:set_meta_fields
+#  uapi:/:getone
+#  uapi:/:getall
+#  uapi:/:search
+#  uapi:/:changes
+#  uapi:/:create
+#  uapi:/:update
+#  uapi:/:patch
+#  uapi:/:delete
+#  uapi:/:wipe
 
 
 spinta push "$BASEDIR"/sdsa.txt -o test@localhost
