@@ -231,7 +231,7 @@ def sync_keymap(
     counters = {}
     main_bar = None
     if not no_progress_bar:
-        main_bar = tqdm.tqdm(desc="DATASET", ascii=True)
+        main_bar = tqdm.tqdm(desc="SYNCHRONIZING KEYMAP", ascii=True)
         counters = {"_total": main_bar}
     try:
         for model in models:
