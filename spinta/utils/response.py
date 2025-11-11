@@ -339,9 +339,9 @@ def get_request(
 def get_request_with_retries(
     client: requests.Session,
     server: str,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     retries: int,
-    delay: float = None,
+    delay_range: tuple[float],
     *,
     error_counter: ErrorCounter = None,
     progress_bar: tqdm.tqdm = None,
@@ -350,16 +350,18 @@ def get_request_with_retries(
     if status_code == 200:
         return status_code, resp
 
-    cli_message(f"ERROR: Failed to fetch data from {server}", progress_bar=progress_bar)
+    cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
     for i in range(retries):
-        if delay:
-            time.sleep(delay)
+        delay = delay_range[min(i, len(delay_range) - 1)]
+
+        cli_message(f"Retrying ({i + 1}/{retries}) in {delay} seconds...", progress_bar=progress_bar)
+        time.sleep(delay)
 
         status_code, resp = get_request(client, server, timeout=timeout)
         if status_code == 200:
             return status_code, resp
 
-        cli_message(f"ERROR: Failed to fetch data from {server}", progress_bar=progress_bar)
+        cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
 
     error_counter.increase()
     return status_code, resp

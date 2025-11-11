@@ -139,7 +139,7 @@ def push(
         override_page = {page_model: page}
 
     max_retries = config.sync_retry_count
-    delay_between_retries = config.sync_retry_delay
+    delay_range = config.sync_retry_delay_range
 
     with context:
         auth_client = auth or config.default_auth_client
@@ -176,7 +176,7 @@ def push(
                 dry_run=dry_run,
                 timeout=(connect_timeout, read_timeout),
                 max_retries=max_retries,
-                delay_between_retries=delay_between_retries,
+                delay_range=delay_range,
             )
 
         # Synchronize push state
@@ -191,7 +191,7 @@ def push(
                 metadata=state.metadata,
                 timeout=(connect_timeout, read_timeout),
                 max_retries=max_retries,
-                delay_between_retries=delay_between_retries,
+                delay_range=delay_range,
             )
 
         initial_page_data = load_initial_page_data(context, state.metadata, models, incremental, override_page)

@@ -34,7 +34,7 @@ def _fetch_changelog_data(
     error_counter: ErrorCounter,
     timeout: tuple[float, float],
     retries: int,
-    delay: float,
+    delay_range: tuple[float],
     *,
     progress_bar: tqdm.tqdm = None,
 ):
@@ -43,7 +43,7 @@ def _fetch_changelog_data(
     while True:
         url = _build_changelog_url(server=server, model=model.model_type(), offset_cid=offset, limit=limit)
         status_code, resp = get_request_with_retries(
-            client, url, error_counter=error_counter, timeout=timeout, retries=retries, delay=delay
+            client, url, error_counter=error_counter, timeout=timeout, retries=retries, delay_range=delay_range
         )
         if status_code != 200:
             cli_message(
@@ -224,7 +224,7 @@ def sync_keymap(
     reset_cid: bool,
     timeout: tuple[float, float],
     max_retries: int,
-    delay_between_retries: float,
+    delay_range: tuple[float],
     dry_run: bool = False,
 ):
     config = context.get("config")
@@ -270,7 +270,7 @@ def sync_keymap(
                 error_counter=error_counter,
                 timeout=timeout,
                 retries=max_retries,
-                delay=delay_between_retries,
+                delay_range=delay_range,
                 progress_bar=counters.get(model.model_type()) or main_bar,
             )
 

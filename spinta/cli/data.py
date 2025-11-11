@@ -131,7 +131,7 @@ def export_(
     access = get_enum_by_name(Access, access)
 
     max_retries = config.sync_retry_count
-    delay_between_retries = config.sync_retry_delay
+    delay_range = config.sync_retry_delay_range
 
     with context:
         require_auth(context)
@@ -174,7 +174,7 @@ def export_(
                     reset_cid=ignore_sync_cid,
                     timeout=(connect_timeout, read_timeout),
                     max_retries=max_retries,
-                    delay_between_retries=delay_between_retries,
+                    delay_range=delay_range,
                 )
         else:
             dependant_models = extract_dependant_nodes(context, models, True)

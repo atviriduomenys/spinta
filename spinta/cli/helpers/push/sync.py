@@ -48,7 +48,7 @@ def _fetch_all_model_data(
     error_counter: ErrorCounter,
     timeout: tuple[float, float],
     retries: int,
-    delay: float,
+    delay_range: tuple[float],
     initial_page_data: Any = None,
     *,
     progress_bar: tqdm.tqdm = None,
@@ -71,14 +71,12 @@ def _fetch_all_model_data(
             url,
             error_counter=error_counter,
             timeout=timeout,
-            delay=delay,
             retries=retries,
             progress_bar=progress_bar,
+            delay_range=delay_range,
         )
         if status_code != 200:
-            cli_message(
-                f'ERROR: Failed to fetch data for model {model.model_type()}. Using "{server}" url.', progress_bar
-            )
+            cli_message(f"ERROR: Failed to fetch data for model {model.model_type()}.", progress_bar)
             break
 
         if status_code == 200:
@@ -233,7 +231,7 @@ def sync_push_state(
     metadata: sa.MetaData,
     timeout: tuple[float, float],
     max_retries: int,
-    delay_between_retries: float,
+    delay_range: tuple[float],
 ):
     config = context.get("config")
     conn = context.get("push.state.conn")
@@ -273,7 +271,7 @@ def sync_push_state(
             error_counter=error_counter,
             timeout=timeout,
             retries=max_retries,
-            delay=delay_between_retries,
+            delay_range=delay_range,
             progress_bar=counters.get(model_name, main_bar),
         )
 

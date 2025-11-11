@@ -253,8 +253,8 @@ CONFIG = {
     "sync_page_size": 20000,
     # Maximum number of retries for sync data fetch
     "sync_retry_count": 5,
-    # Delay between sync data fetch retries in seconds
-    "sync_retry_delay": 0.5,
+    # Delay between retries for sync data fetch, in seconds
+    "sync_retry_delay_range": (1, 5, 10, 30, 60),
     # Default languages
     # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
     # Last updated: 2023-11-08

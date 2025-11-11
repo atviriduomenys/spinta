@@ -70,7 +70,7 @@ def keymap_sync(
     config: Config = context.get("config")
 
     max_retries = config.sync_retry_count
-    delay_between_retries = config.sync_retry_delay
+    delay_range = config.sync_retry_delay_range
 
     if credentials:
         credsfile = pathlib.Path(credentials)
@@ -123,7 +123,7 @@ def keymap_sync(
                 dry_run=dry_run,
                 timeout=(connect_timeout, read_timeout),
                 max_retries=max_retries,
-                delay_between_retries=delay_between_retries,
+                delay_range=delay_range,
             )
 
         if error_counter.has_errors():
