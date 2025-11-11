@@ -21,7 +21,7 @@ from spinta.utils.response import get_request_with_retries
 
 
 def _build_push_state_sync_url(server: str, model: str, page: str, page_columns: List[str], limit: int):
-    base = f"{server}/{model}?"
+    base = f"{server}/{model}?format(json)&"
 
     required = ["_id", "_revision", "_page", "checksum()"]
 
