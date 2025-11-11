@@ -1,16 +1,22 @@
 Changes
 #######
 
-0.2dev8 (unreleased)
+0.2dev9 (unreleased)
 ===================
+
+
+0.2dev8 (2025-11-06)
+====================
 
 Bug fixes:
 
 - Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
 - Changed `admin` and `upgrade` command `Argument` default value check (`#1575`_).
+- Fixed an error where MySQL LONGBLOB wasn't recognized (`#1484`_).
 
   .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
   .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
+  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 0.2dev7 (2025-10-23)
 ====================
