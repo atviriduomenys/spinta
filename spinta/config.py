@@ -345,6 +345,7 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+            "sync_retry_count": 0,
         },
     },
 }
