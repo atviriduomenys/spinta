@@ -45,18 +45,16 @@ def create_client(
     name: str | None = None,
     secret: str = "test_secret",
     scopes: list[str] | None = None,
-    backends: dict[str, dict[str, str]] | None = None,
 ) -> dict:
     client_id = str(client_id or uuid.uuid4())
     name = name or client_id
 
-    _, client = create_client_file(get_clients_path(config), name, client_id, secret, scopes, backends)
+    _, client = create_client_file(get_clients_path(config), name, client_id, secret, scopes)
 
     return {
         "client_id": client["client_id"],
         "client_name": client["client_name"],
         "scopes": client["scopes"],
-        "backends": client["backends"],
     }
 
 
@@ -110,7 +108,8 @@ def ensure_temp_context_and_app(rc: RawConfig, tmp_path: pathlib.Path) -> Tuple[
         config.default_auth_client,
     )
     app = create_test_client(context)
-    return context, app
+    context.set("client", app)
+    return context, context.get("client")
 
 
 def test_version(app):
@@ -1661,7 +1660,6 @@ def test_auth_clients_create_authorized_correct(
         "client_id": resp_json["client_id"],
         "client_name": resp_client_name,
         "scopes": resp_scopes,
-        "backends": {},
     }
     if not client_name:
         assert is_str_uuid(resp_client_name)
@@ -1669,37 +1667,6 @@ def test_auth_clients_create_authorized_correct(
         path = get_clients_path(context.get("config"))
         client = query_client(path, client=resp_json["client_id"])
         assert client.check_client_secret(secret)
-
-
-@pytest.mark.parametrize(
-    "backends",
-    [
-        {},
-        {"default": {}},
-        {"default": {"test1": 1, "test2": 2}},
-    ],
-)
-def test_auth_clients_create_with_backends_authorized(
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    backends: dict,
-) -> None:
-    context, app = ensure_temp_context_and_app(rc, tmp_path)
-    app.authorize(["uapi:/:auth_clients"])
-    data = {
-        "secret": "test_secret",
-        "backends": backends,
-    }
-    resp = app.post(clients_url(), json=data)
-    resp_json = resp.json()
-
-    assert resp.status_code == 200
-    assert resp_json == {
-        "client_id": ANY,
-        "client_name": ANY,
-        "scopes": [],
-        "backends": backends,
-    }
 
 
 def test_auth_clients_create_authorized_incorrect(rc: RawConfig, tmp_path: pathlib.Path):
@@ -1889,7 +1856,7 @@ def test_auth_clients_update_backends_authorized_admin_correct(
     backends: dict,
 ) -> None:
     context, app = ensure_temp_context_and_app(rc, tmp_path)
-    client = create_client(context.get("config"), backends=backends)
+    client = create_client(context.get("config"))
 
     app.authorize(["spinta_auth_clients"])
     resp = app.patch(client_url(client["client_id"]), json={"backends": backends})
@@ -2012,3 +1979,62 @@ def test_auth_clients_update_name_full_check(rc: RawConfig, tmp_path: pathlib.Pa
     assert "TESTNEWOTHER" in keymap
     assert keymap["TESTNEWOTHER"] == test_new_id
     assert "TESTNEW" not in keymap
+
+
+def test_auth_clients_update_own_client_using_client_backends_update_self_scope(rc: RawConfig, tmp_path: pathlib.Path):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
+    client = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+    app.authorize(["uapi:/:client_backends_update_self"], creds=(client["client_id"], "OLD_SECRET"), strict_set=True)
+
+    response = app.patch(client_url(client["client_id"]), json={"backends": {"resource": {"test_key": "test_value"}}})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "client_id": client["client_id"],
+        "client_name": client["client_name"],
+        "scopes": client["scopes"],
+        "backends": {"resource": {"test_key": "test_value"}},
+    }
+
+
+def test_auth_clients_update_own_client_fails_using_client_backends_update_self_scope_with_extra_data(
+    rc: RawConfig, tmp_path: pathlib.Path
+):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
+    client = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+    app.authorize(["uapi:/:client_backends_update_self"], creds=(client["client_id"], "OLD_SECRET"), strict_set=True)
+
+    response = app.patch(
+        client_url(client["client_id"]),
+        json={
+            "backends": {"resource": {"test_key": "test_value"}},
+            "scopes": ["uapi:/:client_backends_update_self", "another_scope"],
+        },
+    )
+
+    assert response.status_code == 400
+    err = error(response, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'scopes': 'Extra inputs are not permitted'}"
+
+
+def test_auth_clients_update_other_client_fails_using_client_backends_update_self_scope(
+    rc: RawConfig, tmp_path: pathlib.Path
+):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
+    client1 = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+    client2 = create_client(context.get("config"), secret="OLD_SECRET", scopes=["uapi:/:client_backends_update_self"])
+
+    app.authorize(["uapi:/:client_backends_update_self"], creds=(client1["client_id"], "OLD_SECRET"), strict_set=True)
+
+    response = app.patch(
+        client_url(client2["client_id"]),
+        json={
+            "backends": {"resource": {"test_key": "test_value"}},
+            "scopes": ["uapi:/:client_backends_update_self", "another_scope"],
+        },
+    )
+
+    assert response.status_code == 403
+    err = error(response, "context", "code")
+    assert err["code"] == "InsufficientPermission"
