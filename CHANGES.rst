@@ -6,8 +6,11 @@ Changes
 
 New Features:
 - Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)
+- Add `param.header()` prepare function that constructs HTTP header. Can be used in `soap` backend (`#1576`_).
+
 
   .. _#1582: https://github.com/atviriduomenys/spinta/issues/1582
+  .. _#1576: https://github.com/atviriduomenys/spinta/issues/1576
 
 Improvements:
 

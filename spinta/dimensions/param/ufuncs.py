@@ -74,16 +74,6 @@ def getattr_(env: ParamBuilder, _: NotAvailable):
     return env.this
 
 
-# {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}
-# getattr [ loop(read()), bind(more) ]
-#  1 -> stack = [1]
-#  loop stack [1]
-#  read(1) -> 2
-#  pop(1) from stack
-#  2 -> stack
-#  loop until stack is empty
-
-
 @ufunc.executor(ParamBuilder, NotAvailable)
 def read(env: ParamBuilder, na: NotAvailable) -> Any:
     return env.this

@@ -11,7 +11,6 @@ class ParamBuilder(Env):
     manifest: Manifest
     params: dict
     target_param: str
-    stack: list
     url_query_params: Expr | None
 
 
