@@ -36,7 +36,7 @@ app = Typer()
 add(app, "config", config.config, short_help="Show current configuration values")
 add(app, "check", config.check, short_help="Check configuration and manifests")
 
-add(app, "genkeys", auth.genkeys, short_help="Generate client token validation keys")
+add(app, "key", auth.key, short_help="Manage client token validation keys")
 add(app, "token", auth.token, short_help="Tools for encoding/decode auth tokens")
 add(app, "client", auth.client, short_help="Manage auth clients")
 

@@ -34,7 +34,7 @@ accesslog:
 EOF
 
 tree ~/.config/spinta/
-poetry run spinta genkeys
+poetry run spinta key generate
 
 
 # Check configuration

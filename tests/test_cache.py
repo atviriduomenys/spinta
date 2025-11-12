@@ -16,6 +16,7 @@ def test_cache_control_postgres_get_one(context, app):
             "status": "1",
         },
     )
+    assert resp.status_code == 201, resp.text
     entry_id = resp.json()["_id"]
     app.post(
         f"/{model}",
