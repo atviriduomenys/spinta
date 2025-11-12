@@ -1096,6 +1096,8 @@ class Config:
     default_page_size: int
     enable_pagination: bool
     sync_page_size: int = None
+    sync_retry_count: int
+    sync_retry_delay_range: tuple[float]
     languages: List[str]
     check_names: bool = False
     # MB

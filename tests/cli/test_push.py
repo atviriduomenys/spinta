@@ -316,9 +316,9 @@ def test_push_with_progress_bar(context, postgresql, rc, cli: SpintaCliRunner, r
     )
 
     assert result.exit_code == 0
-    assert "Count rows:   0%" in result.stderr
-    assert "PUSH:   0%|          | 0/3" in result.stderr
-    assert "PUSH: 100%|##########| 3/3" in result.stderr
+    assert re.search(r"Count rows:\s*0%", result.stderr)
+    assert re.search(r"PUSH:\s*0%.*0/3", result.stderr)
+    assert re.search(r"PUSH:\s*100%.*3/3", result.stderr)
 
 
 def test_push_without_progress_bar(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
@@ -769,7 +769,7 @@ def test_push_pagination_incremental(
     assert remote.url == "https://example.com/"
     result = cli.invoke(localrc, ["push", "-d", "paginated", "-o", remote.url, "--credentials", remote.credsfile])
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 3/3" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*3/3", result.stderr)
 
     geodb.write(
         "salis",
@@ -782,7 +782,7 @@ def test_push_pagination_incremental(
         localrc, ["push", "-d", "paginated", "-o", remote.url, "--credentials", remote.credsfile, "--incremental"]
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 1/1" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*1/1", result.stderr)
 
 
 def test_push_pagination_without_incremental(
@@ -816,7 +816,7 @@ def test_push_pagination_without_incremental(
         localrc, ["push", "-d", "paginated/without", "-o", remote.url, "--credentials", remote.credsfile]
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 3/3" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*3/3", result.stderr)
 
     geodb.write(
         "salis",
@@ -829,7 +829,7 @@ def test_push_pagination_without_incremental(
         localrc, ["push", "-d", "paginated/without", "-o", remote.url, "--credentials", remote.credsfile]
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 4/4" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*4/4", result.stderr)
 
 
 def test_push_pagination_incremental_with_page_valid(
@@ -877,7 +877,7 @@ def test_push_pagination_incremental_with_page_valid(
         ],
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 1/1" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*1/1", result.stderr)
 
     geodb.write(
         "salis",
@@ -904,7 +904,7 @@ def test_push_pagination_incremental_with_page_valid(
         ],
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 2/2" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*2/2", result.stderr)
 
 
 def test_push_pagination_incremental_with_page_invalid(
@@ -1408,11 +1408,11 @@ def test_push_postgresql(
     assert remote.url == "https://example.com/"
     result = cli.invoke(localrc, ["push", "-o", remote.url, "--credentials", remote.credsfile], fail=False)
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 2/2" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*2/2", result.stderr)
 
     result = cli.invoke(localrc, ["push", "-o", remote.url, "--credentials", remote.credsfile, "-i"], fail=False)
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 2/2" not in result.stderr
+    assert not re.search(r"PUSH:\s*100%.*2/2", result.stderr)
     su.drop_database(db)
 
 
@@ -3268,6 +3268,72 @@ def test_push_connect_and_read_timeout(
         in message
         for message in caplog.messages
     )
+
+
+def test_push_timeout_with_retries(
+    context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request, caplog
+):
+    rc = rc.fork({"sync_retry_count": 6, "sync_retry_delay_range": [0.1, 0.2, 0.3]})
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+     d | r | b | m | property| type   | ref     | source       | access
+     datasets/gov/example    |        |         |              |
+       | data                | sql    |         |              |
+       |   |                 |        |         |              |
+       |   |   | Country     |        | code    | salis        |
+       |   |   |   | code    | string |         | kodas        | open
+       |   |   |   | name    | string |         | pavadinimas  | open
+     """),
+    )
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+    assert remote.url == "https://example.com/"
+
+    responses.add(
+        responses.POST,
+        remote.url,
+        body=ReadTimeout(),
+    )
+    responses.add(
+        responses.GET,
+        re.compile(r"https://example.com/datasets/gov/example/Country/.*"),
+        body=ReadTimeout(),
+    )
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(
+            localrc,
+            [
+                "push",
+                "-d",
+                "datasets/gov/example",
+                "-o",
+                remote.url,
+                "--credentials",
+                remote.credsfile,
+                "--sync",
+                "--no-progress-bar",
+            ],
+            fail=False,
+        )
+
+    assert result.exit_code == 1
+    assert any(
+        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 300.0s)."
+        in message
+        for message in caplog.messages
+    )
+    assert "Retrying (1/6) in 0.1 seconds..." in result.output
+    assert "Retrying (2/6) in 0.2 seconds..." in result.output
+    assert "Retrying (3/6) in 0.3 seconds..." in result.output
+    assert "Retrying (4/6) in 0.3 seconds..." in result.output
+    assert "Retrying (5/6) in 0.3 seconds..." in result.output
+    assert "Retrying (6/6) in 0.3 seconds..." in result.output
 
 
 @pytest.mark.parametrize(

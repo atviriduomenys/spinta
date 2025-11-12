@@ -4,6 +4,13 @@ Changes
 0.2dev9 (unreleased)
 ===================
 
+Improvements:
+
+- Keymap and push db sync now attempts to retry data fetch after failing to get valid response from remote server.
+  Retries can be modified with `sync_retry_count` and `sync_retry_delay_range` config values (`#1594`_).
+
+  .. _#1594: https://github.com/atviriduomenys/spinta/issues/1594
+
 
 0.2dev8 (2025-11-06)
 ====================

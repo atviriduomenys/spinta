@@ -6,7 +6,7 @@ from typer import echo
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.data import read_model_data
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.commands import build_data_patch_for_export
 from spinta.components import Context, Model, pagination_enabled, DataItem
