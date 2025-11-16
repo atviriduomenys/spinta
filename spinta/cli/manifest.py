@@ -172,7 +172,11 @@ def _read_and_return_rows(
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
     store = load_manifest(
-        context, rename_duplicates=rename_duplicates, load_internal=False, verbose=verbose, full_load=True
+        context,
+        rename_duplicates=rename_duplicates,
+        load_internal=False,
+        verbose=verbose,
+        full_load=True,
     )
     if format_names:
         reformat_names(context, store.manifest)
