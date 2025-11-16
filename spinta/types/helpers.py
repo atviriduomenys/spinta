@@ -15,7 +15,13 @@ from spinta.utils.naming import is_valid_model_name, is_valid_property_name
 if TYPE_CHECKING:
     from spinta.types.datatype import DataType
 
-ALLOWED_RESERVED_PROPERTY_NAMES = {"_id", "_created", "_updated", "_revision", "_label"}
+ALLOWED_RESERVED_PROPERTY_NAMES = {
+    "_id",
+    "_created",
+    "_updated",
+    "_revision",
+    "_label",
+}
 
 RESERVED_PROPERTY_NAMES = {
     *ALLOWED_RESERVED_PROPERTY_NAMES,
@@ -29,6 +35,8 @@ RESERVED_PROPERTY_NAMES = {
     "_page",
     "_same_as",
 }
+
+C_LANG = "C"
 
 
 def check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
@@ -68,14 +76,16 @@ def check_model_name(context: Context, model: Model):
 
 def check_property_name(context: Context, prop: Property):
     config: Config = context.get("config")
-    if config.check_names or config.check_property_names:
+    if config.check_names:
         if prop.name.startswith("_"):
             if prop.explicitly_given:
                 if prop.name in ALLOWED_RESERVED_PROPERTY_NAMES:
                     return
-            else:
-                if prop.name in RESERVED_PROPERTY_NAMES:
-                    return
-        elif is_valid_property_name(prop.name) or prop.name == "C":
+            elif prop.name in RESERVED_PROPERTY_NAMES:
+                return
+        elif is_valid_property_name(prop.name):
+            return
+        # "C" as default language: dataset1/City?select(id,name@lt,name@pl,name@C)
+        elif prop.name == C_LANG:
             return
         raise InvalidName(prop, name=prop.name, type="property")

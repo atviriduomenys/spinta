@@ -1087,8 +1087,8 @@ class Config:
     enable_pagination: bool
     sync_page_size: int = None
     languages: List[str]
+    # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
-    check_property_names: bool = False
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int

@@ -45,8 +45,7 @@ def copy(
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
-    config = context.get("config")
-    config.check_property_names = not format_names
+    context = configure_context(context, manifests, check_names=True)
     copy_manifest(
         context,
         source=source,
