@@ -1,17 +1,27 @@
-import io
+import datetime
 import json
 import pathlib
 import shutil
 import uuid
+from http import HTTPStatus
 
 import pytest
 import ruamel.yaml
 from authlib.jose import JsonWebKey
 from authlib.jose import jwt
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from spinta import auth, commands
-from spinta.auth import get_client_file_path, query_client, get_clients_path, ensure_client_folders_exist
+from spinta.auth import (
+    get_client_file_path,
+    query_client,
+    get_clients_path,
+    ensure_client_folders_exist,
+    KeyType,
+    load_key_from_file,
+)
 from spinta.components import Context
+from spinta.core.config import RawConfig
 from spinta.core.enums import Action
 from spinta.exceptions import InvalidClientFileFormat
 from spinta.testing.cli import SpintaCliRunner
@@ -19,6 +29,47 @@ from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
 from spinta.testing.utils import get_error_codes
 from spinta.utils.config import get_keymap_path
+
+
+def generate_rsa_keypair(kid: str):
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+    public_numbers = public_key.public_numbers()
+
+    # Build JWK dict
+    jwk = {
+        "kty": "RSA",
+        "kid": kid,
+        "use": "sig",
+        "alg": "RS512",
+        "n": int_to_base64(public_numbers.n),
+        "e": int_to_base64(public_numbers.e),
+    }
+
+    return private_key, jwk
+
+
+def int_to_base64(val):
+    import base64
+
+    b = val.to_bytes((val.bit_length() + 7) // 8, "big")
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode("utf-8")
+
+
+def generate_jwt(private_key, kid, scopes="spinta_getall"):
+    now = datetime.datetime.now()
+    payload = {
+        "sub": "user1",
+        "exp": now + datetime.timedelta(minutes=5),
+        "scope": scopes,
+        "iat": int(now.timestamp()),
+    }
+    token = jwt.encode(
+        {"kid": kid, "alg": "RS512"},
+        payload,
+        private_key,
+    )
+    return token
 
 
 def test_app(context, app):
@@ -58,7 +109,7 @@ def test_app(context, app):
 
 
 def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
-    result = cli.invoke(rc, ["genkeys", "-p", tmp_path])
+    result = cli.invoke(rc, ["key", "generate", "-p", tmp_path])
 
     private_path = tmp_path / "keys" / "private.json"
     public_path = tmp_path / "keys" / "public.json"
@@ -66,6 +117,44 @@ def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
     assert result.output == f"Private key saved to {private_path}.\nPublic key saved to {public_path}.\n"
     JsonWebKey.import_key(json.loads(private_path.read_text()))
     JsonWebKey.import_key(json.loads(public_path.read_text()))
+
+
+def test_cant_download_keys(rc, cli: SpintaCliRunner, tmp_path, context, requests_mock):
+    result = cli.invoke(rc, ["key", "download"])
+    assert result.output == "Error, config.token_validation_keys_download_url is not set.\n"
+
+
+def test_download_keys(rc: RawConfig, cli: SpintaCliRunner, tmp_path, context, requests_mock):
+    mock_url = "https://www.example.com/.well-known/jwks.json"
+    rc = rc.fork({"token_validation_keys_download_url": mock_url})
+    config = context.get("config")
+    well_known = {
+        "keys": [
+            {
+                "kid": "rotation-1",
+                "kty": "RSA",
+                "alg": "RS512",
+                "use": "sig",
+                "n": "oAXjeXtZxiEUI7EcG6uITGCuUHmMQxMdTuSkQMaijmX0R1xSN--xBwVRpCJaM_ZYLdmtiBvX7qoNhEXC5H_uzHNxdw",
+                "e": "AQAB",
+            },
+            {
+                "kty": "RSA",
+                "n": "ngg7HGoRkBDkhLFZpFIF5qOSnWPt7FoThHpP5-HOeVZzrM2NlVKhcJ4sRwn9FFQu1_hHwRt-Lx5UyQ",
+                "e": "AQAB",
+            },
+        ]
+    }
+    download_mock = requests_mock.get(
+        mock_url,
+        status_code=HTTPStatus.OK,
+        json=well_known,
+        headers={"Content-Type": "application/json"},
+    )
+    result = cli.invoke(rc, ["key", "download"])
+    assert download_mock.called
+    assert json.loads(config.downloaded_public_keys_file.read_text()) == well_known
+    assert result.output == f"Successfully downloaded and stored public keys: {well_known}.\n"
 
 
 def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
@@ -129,7 +218,15 @@ def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
     }
 
 
-def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_path):
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope(
+    rc,
+    context: Context,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scopes: set,
+):
+    scopes_in_string_format = " ".join(scopes)
     cli.invoke(
         rc,
         [
@@ -140,20 +237,23 @@ def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_p
             "--name",
             "test",
             "--scope",
-            "spinta_getall spinta_getone",
+            scopes_in_string_format,
         ],
     )
 
     client = query_client(get_clients_path(tmp_path), "test", is_name=True)
     assert client.name == "test"
-    assert client.scopes == {
-        "spinta_getall",
-        "spinta_getone",
-    }
+    assert client.scopes == scopes
 
 
-def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
-    stdin = io.BytesIO(b"spinta_getall\nspinta_getone\n")
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope_via_stdin(
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scopes: set,
+):
+    stdin = "\n".join(sorted(scopes)) + "\n"
     cli.invoke(
         rc,
         [
@@ -171,10 +271,7 @@ def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
 
     client = query_client(get_clients_path(tmp_path), "test", is_name=True)
     assert client.name == "test"
-    assert client.scopes == {
-        "spinta_getall",
-        "spinta_getone",
-    }
+    assert client.scopes == scopes
 
 
 def test_empty_scope(context, app):
@@ -211,7 +308,7 @@ def test_invalid_client(app):
         auth=(client_id, client_secret),
         data={
             "grant_type": "client_credentials",
-            "scope": "",
+            "scopes": "",
         },
     )
     assert resp.status_code == 400, resp.text
@@ -220,7 +317,7 @@ def test_invalid_client(app):
 
 
 @pytest.mark.parametrize(
-    "client, scope, node, action, authorized",
+    "client, scopes, node, action, authorized",
     [
         ("default-client", "spinta_getone", "backends/mongo/Subitem", "getone", False),
         ("test-client", "spinta_getone", "backends/mongo/Subitem", "getone", True),
@@ -344,10 +441,10 @@ def test_invalid_client(app):
         ("test-client", "uapi:/:create", "backends/mongo/Subitem", "insert", True),
     ],
 )
-def test_authorized(context, client, scope, node, action, authorized):
+def test_authorized(context, client, scopes, node, action, authorized):
     if client == "default-client":
         client = context.get("config").default_auth_client
-    scopes = [scope]
+    scopes = [scopes]
     pkey = auth.load_key(context, auth.KeyType.private)
     token = auth.create_access_token(context, pkey, client, scopes=scopes)
     token = auth.Token(token, auth.BearerTokenValidator(context))
@@ -373,7 +470,8 @@ def test_invalid_access_token(app):
     assert get_error_codes(resp.json()) == ["InvalidToken"]
 
 
-def test_token_validation_key_config(backends, rc, tmp_path, request):
+@pytest.mark.parametrize("scopes", [["spinta_report_getall"], ["uapi:/Report/:getall"]])
+def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: list):
     confdir = pathlib.Path(__file__).parent
     prvkey = json.loads((confdir / "config/keys/private.json").read_text())
     pubkey = json.loads((confdir / "config/keys/public.json").read_text())
@@ -391,7 +489,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
 
     prvkey = JsonWebKey.import_key(prvkey)
     client = "RANDOMID"
-    scopes = ["spinta_report_getall"]
+    scopes = scopes
     token = auth.create_access_token(context, prvkey, client, scopes=scopes)
 
     client = create_test_client(context)
@@ -399,8 +497,10 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
     assert resp.status_code == 200
 
 
-@pytest.fixture()
+@pytest.fixture(params=[["spinta_getall"], ["uapi:/:getall"]])
 def basic_auth(backends, rc, tmp_path, request):
+    scopes = request.param
+
     confdir = pathlib.Path(__file__).parent / "config"
     shutil.copytree(str(confdir / "keys"), str(tmp_path / "keys"))
 
@@ -412,7 +512,7 @@ def basic_auth(backends, rc, tmp_path, request):
         name="default",
         client_id=str(new_id),
         secret="secret",
-        scopes=["spinta_getall"],
+        scopes=scopes,
         add_secret=True,
     )
 
@@ -494,35 +594,113 @@ def test_invalid_scope(context, app):
     assert get_error_codes(resp.json()) == ["InvalidScopes"]
 
 
-def test_invalid_client_file_data_type_list(tmp_path, context, cli, rc):
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [
+            "spinta_getone",
+            "spinta_getall",
+            "spinta_search",
+        ],
+        [
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+        ],
+    ],
+)
+def test_invalid_client_file_data_type_list(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scopes: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
         if not str(child).endswith("keymap.yml"):
             client_file = child
     yaml = ruamel.yaml.YAML(typ="safe")
-    scopes = [
-        "spinta_getone",
-        "spinta_getall",
-        "spinta_search",
-    ]
+    scopes = scopes
     yaml.dump(scopes, client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'list'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)
 
 
-def test_invalid_client_file_data_type_str(tmp_path, context, cli, rc):
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [
+            "spinta_getone",
+            "spinta_getall",
+            "spinta_search",
+        ],
+        [
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+        ],
+    ],
+)
+def test_invalid_client_file_data_type_str(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scopes: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
         if not str(child).endswith("keymap.yml"):
             client_file = child
     yaml = ruamel.yaml.YAML(typ="safe")
-    scopes = [
-        "spinta_getone",
-        "spinta_getall",
-        "spinta_search",
-    ]
+    scopes = scopes
     yaml.dump(str(scopes), client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'str'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)
+
+
+def test_get_public_jwk_verification_keys_from_config(app, context):
+    config = context.get("config")
+    jwk_keys = [
+        {"alg": "RS512", "e": "AQAB", "kid": "rotation-1", "kty": "RSA", "n": "jwkrimvoifsdvicmdf", "use": "sig"},
+        {"alg": "RS512", "e": "AQAB", "kid": "rotation-2", "kty": "RSA", "n": "asdsad-asd", "use": "sig"},
+    ]
+    config.token_validation_key = {"keys": jwk_keys}
+    resp = app.get("/.well-known/jwks.json")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()
+    received_keys = resp.json()["keys"]
+    assert received_keys
+    for key in jwk_keys:
+        assert key in received_keys
+    assert load_key_from_file(config, KeyType.public) not in received_keys
+    config.token_validation_key = None
+
+
+def test_get_public_jwk_verification_keys_from_file(app, context):
+    config = context.get("config")
+    config.token_validation_key = None
+    resp = app.get("/.well-known/jwks.json")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()
+    received_keys = resp.json()["keys"]
+    assert received_keys
+    assert [load_key_from_file(config, KeyType.public)] == received_keys
+
+
+def test_pick_correct_key(app, context):
+    config = context.get("config")
+
+    private_1, jwk1 = generate_rsa_keypair("rotation-1")
+    private_2, jwk2 = generate_rsa_keypair("rotation-2")
+
+    config.token_validation_key = {"keys": [jwk1, jwk2]}
+
+    token = generate_jwt(private_2, "rotation-2")
+
+    resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token.decode()}"})
+    assert resp.status_code == 200, resp.text
+    config.token_validation_key = None

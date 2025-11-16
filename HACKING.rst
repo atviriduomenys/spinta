@@ -189,7 +189,7 @@ Here is example how to test endpoints with authorization:
 .. code-block:: python
 
    def test(app):
-      app.authorize(['spinta_model_action'])
+      app.authorize(['uapi:/Model/:action'])
       resp = app.get('/some/endpoint')
       assert resp.status_code == 200
 
@@ -237,7 +237,7 @@ real server. All you need to do is this:
 
    def test(app):
       app.start_session('http://127.0.0.1:8000')  # <-- add this line
-      app.authorize(['spinta_model_action'])
+      app.authorize(['uapi:/Model/:action'])
       resp = app.get('/some/endpoint')
       assert resp.status_code == 200
 

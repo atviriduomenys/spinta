@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
@@ -10,6 +11,7 @@ import itertools
 from urllib.error import HTTPError
 
 import requests
+import tqdm
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
 from starlette.responses import Response
@@ -19,6 +21,7 @@ from spinta import exceptions
 from spinta.api.schema import schema_api
 from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_message
 from spinta.formats.components import Format
 from spinta.components import Model
 from spinta.core.enums import Action
@@ -304,17 +307,19 @@ def get_request(
         ignore_errors = []
 
     try:
-        resp = client.request("GET", server, timeout=timeout)
+        resp = client.get(
+            server,
+            timeout=timeout,
+        )
     except IOError:
         if error_counter:
             error_counter.increase()
         if stop_on_error:
             raise
         return None, None
-
     try:
         resp.raise_for_status()
-    except HTTPError:
+    except (HTTPError, requests.exceptions.HTTPError):
         if resp.status_code not in ignore_errors:
             if error_counter:
                 error_counter.increase()
@@ -329,6 +334,37 @@ def get_request(
         return resp.status_code, None
 
     return resp.status_code, resp.json()
+
+
+def get_request_with_retries(
+    client: requests.Session,
+    server: str,
+    timeout: tuple[float, float],
+    retries: int,
+    delay_range: tuple[float],
+    *,
+    error_counter: ErrorCounter = None,
+    progress_bar: tqdm.tqdm = None,
+):
+    status_code, resp = get_request(client, server, timeout=timeout)
+    if status_code == 200:
+        return status_code, resp
+
+    cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
+    for i in range(retries):
+        delay = delay_range[min(i, len(delay_range) - 1)]
+
+        cli_message(f"Retrying ({i + 1}/{retries}) in {delay} seconds...", progress_bar=progress_bar)
+        time.sleep(delay)
+
+        status_code, resp = get_request(client, server, timeout=timeout)
+        if status_code == 200:
+            return status_code, resp
+
+        cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
+
+    error_counter.increase()
+    return status_code, resp
 
 
 def _extract_latest_change(context: Context, model: Model, target_id: str = None) -> dict | None:

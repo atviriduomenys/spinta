@@ -74,6 +74,10 @@ def load(context: Context, config: Config) -> Config:
     config.default_auth_client = rc.get("default_auth_client")
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
+    config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
+    config.downloaded_public_keys_file = (
+        rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
+    )
     config.datasets = rc.get("datasets", default={})
     config.env = rc.get("env")
     config.docs_path = rc.get("docs_path", default=None)
@@ -81,6 +85,8 @@ def load(context: Context, config: Config) -> Config:
     config.default_page_size = rc.get("default_page_size", default=100000, cast=int)
     config.enable_pagination = rc.get("enable_pagination", default=True, cast=bool)
     config.sync_page_size = rc.get("sync_page_size", default=100000, cast=int)
+    config.sync_retry_count = rc.get("sync_retry_count", default=5, cast=int)
+    config.sync_retry_delay_range = rc.get("sync_retry_delay_range", default=(1, 5, 10, 30, 60), cast=tuple)
     config.languages = rc.get("languages", default=[])
     config.check_names = rc.get("check", "names", default=False)
     config.root = rc.get("root", default=None)
@@ -100,6 +106,11 @@ def load(context: Context, config: Config) -> Config:
     config.upgrade_mode = rc.get("upgrade_mode", default=False)
 
     config.cache_control = rc.get("cache_control_header", default="")
+
+    if config.token_validation_keys_download_url and config.token_validation_key:
+        raise ValueError(
+            "token_validation_keys_download_url and token_validation_keys_download_url are mutually exclusive and can't be used together. Use one."
+        )
 
     return config
 

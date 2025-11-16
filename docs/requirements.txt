@@ -14,7 +14,7 @@ babel==2.17.0
     # via sphinx
 certifi==2025.10.5
     # via requests
-charset-normalizer==3.4.3
+charset-normalizer==3.4.4
     # via requests
 click==8.3.0
     # via uvicorn
@@ -28,7 +28,7 @@ exceptiongroup==1.3.0
     # via anyio
 h11==0.16.0
     # via uvicorn
-idna==3.10
+idna==3.11
     # via
     #   anyio
     #   requests
@@ -77,9 +77,9 @@ sphinxcontrib-qthelp==2.0.0
     # via sphinx
 sphinxcontrib-serializinghtml==2.0.0
     # via sphinx
-starlette==0.48.0
+starlette==0.50.0
     # via sphinx-autobuild
-tomli==2.2.1
+tomli==2.3.0
     # via sphinx
 typing-extensions==4.15.0
     # via
@@ -89,9 +89,9 @@ typing-extensions==4.15.0
     #   uvicorn
 urllib3==2.5.0
     # via requests
-uvicorn==0.37.0
+uvicorn==0.38.0
     # via sphinx-autobuild
-watchfiles==1.1.0
+watchfiles==1.1.1
     # via sphinx-autobuild
 websockets==15.0.1
     # via sphinx-autobuild
