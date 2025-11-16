@@ -36,7 +36,10 @@ Improvements:
 
 Bug fixes:
 
-- Fixed bugs in `spinta copy` and `spinta check` commands where properties starting with underscore symbol were omitted or caused errors. (`#963`_)
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+
   .. _#963: https://github.com/atviriduomenys/spinta/issues/963
 
 
