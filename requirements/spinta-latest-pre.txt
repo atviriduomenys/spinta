@@ -1,3 +1,6 @@
+spinta==0.2.dev8 ; python_version >= "3.9" and python_version < "4.0" \
+    --hash=sha256:1eb6348f63608731761be5f457f4973761672585d4dd3a652d294788476eb46b
+    --hash=sha256:19836477dfd0d92498c4c26d471a2d30583cc21de863120f5bf167936574e05d
 aiofiles==25.1.0 ; python_version >= "3.9" and python_version < "4.0" \
     --hash=sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2 \
     --hash=sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695
