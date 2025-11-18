@@ -139,6 +139,20 @@ git push origin HEAD
 poetry export -f requirements.txt \
   --output requirements/spinta-${NEW_VERSION}.txt
 
+# get hashes to spinta itself
+
+export VER=0.2.dev8
+
+echo "spinta==${VER} \\" > spinta-header.txt
+
+curl -s https://pypi.org/pypi/spinta/${VER}/json | \
+  jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
+  | sed 's/^/    /' >> spinta-header.txt
+
+echo "" >> spinta-header.txt
+
+# ADD THOSE HASHES to the file manually
+
 cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
 
 git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
