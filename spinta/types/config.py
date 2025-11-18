@@ -78,6 +78,7 @@ def load(context: Context, config: Config) -> Config:
     config.downloaded_public_keys_file = (
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )
+    config.contract_dir_path = rc.get("contract_dir_path", default=DEFAULT_DATA_PATH / "smart_contracts")
     config.datasets = rc.get("datasets", default={})
     config.env = rc.get("env")
     config.docs_path = rc.get("docs_path", default=None)

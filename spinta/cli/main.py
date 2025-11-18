@@ -22,6 +22,7 @@ from spinta.cli import pull
 from spinta.cli import push
 from spinta.cli import server
 from spinta.cli.admin import admin
+from spinta.cli.contract import contract_command
 from spinta.cli.keymap import keymap
 from spinta.cli.init import init
 from spinta.cli.show import show
@@ -67,6 +68,8 @@ add(app, "keymap", keymap, short_help="Manage keymap database")
 
 add(app, "getall", get.getall, short_help="Show data from yaml dsn as json")
 add(app, "sync", sync.sync, short_help="Initiate DSA sync with Catalog")
+
+add(app, "contract", contract_command, short_help="Manage smart contracts")
 
 
 @app.callback(invoke_without_command=True)

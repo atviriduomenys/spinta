@@ -115,6 +115,7 @@ cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
 redis = "^6.4.0"
+pdfminer-six = "^20251107"
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]

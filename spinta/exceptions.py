@@ -1162,3 +1162,7 @@ class AgentRelatedDataServiceDoesNotExist(UserError):
 
 class UnexpectedErrorReadingData(BaseError):
     template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""
+
+
+class InvalidAdocError(Exception):
+    pass
