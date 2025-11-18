@@ -16,12 +16,14 @@ class MigrationAction(ABC):
 
 
 class CreateTableMigrationAction(MigrationAction):
-    def __init__(self, table_name: str, columns: List[sa.Column]):
+    def __init__(self, table_name: str, columns: List[sa.Column], comment: str):
         self.table_name = table_name
         self.columns = columns
+        self.comment = comment
 
     def execute(self, op: "Operations"):
         op.create_table(self.table_name, *self.columns)
+        op.create_table_comment(table_name=self.table_name, comment=self.comment)
 
 
 class DropTableMigrationAction(MigrationAction):
@@ -33,12 +35,15 @@ class DropTableMigrationAction(MigrationAction):
 
 
 class RenameTableMigrationAction(MigrationAction):
-    def __init__(self, old_table_name: str, new_table_name: str):
+    def __init__(self, old_table_name: str, new_table_name: str, comment: str | bool = False):
         self.old_table_name = old_table_name
         self.new_table_name = new_table_name
+        self.comment = comment
 
     def execute(self, op: "Operations"):
         op.rename_table(old_table_name=self.old_table_name, new_table_name=self.new_table_name)
+        if self.comment is not False:
+            op.create_table_comment(table_name=self.new_table_name, comment=self.comment)
 
 
 class AddColumnMigrationAction(MigrationAction):
@@ -68,6 +73,7 @@ class AlterColumnMigrationAction(MigrationAction):
         new_column_name: str = None,
         type_=None,
         using: str = None,
+        comment: str = False,
     ):
         self.table_name = table_name
         self.column_name = column_name
@@ -75,6 +81,7 @@ class AlterColumnMigrationAction(MigrationAction):
         self.new_column_name = new_column_name
         self.type_ = type_
         self.using = using
+        self.comment = comment
 
     def execute(self, op: "Operations"):
         op.alter_column(
@@ -84,6 +91,7 @@ class AlterColumnMigrationAction(MigrationAction):
             new_column_name=self.new_column_name,
             type_=self.type_,
             postgresql_using=self.using,
+            comment=self.comment,
         )
 
 

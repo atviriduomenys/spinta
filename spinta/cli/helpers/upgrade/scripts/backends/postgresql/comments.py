@@ -187,8 +187,7 @@ def apply_missing_table_comments(
         if progress_bar:
             progress_bar.write(f"'{get_pg_name(table)}' <- {cleanup_comment(bootstrap_table.comment)}")
 
-        # print(sa.text(f'COMMENT ON TABLE "{get_pg_name(table)}" IS {cleanup_comment(bootstrap_table.comment)}'))
-        # conn.execute(sa.text(f"COMMENT ON TABLE \"{get_pg_name(table)}\" IS '{table}'"))
+        conn.execute(f'COMMENT ON TABLE "{get_pg_name(table)}" IS {cleanup_comment(bootstrap_table.comment)}')
 
     table_columns = {column["name"]: column for column in inspector.get_columns(bootstrap_table.name)}
     for bootstrap_column in backend.tables.get(table).columns:
@@ -203,13 +202,9 @@ def apply_missing_table_comments(
                 progress_bar.write(
                     f"'{get_pg_name(table)}'.'{column['name']}' <- {cleanup_comment(bootstrap_column.comment)}"
                 )
-            #
-            # print(
-            #     sa.text(
-            #         f'COMMENT ON COLUMN "{get_pg_name(table)}"."{column["name"]}" IS {cleanup_comment(bootstrap_column.comment)}'
-            #     )
-            # )
-            # conn.execute(sa.text(f"COMMENT ON COLUMN \"{get_pg_name(table)}\".\"{column['name']}\" IS '{bootstrap_column.comment}'"))
+            conn.execute(
+                f'COMMENT ON COLUMN "{get_pg_name(table)}"."{column["name"]}" IS {cleanup_comment(bootstrap_column.comment)}'
+            )
 
 
 @dispatch(sa.engine.Connection, PostgreSQL, PGInspector, Property, object)

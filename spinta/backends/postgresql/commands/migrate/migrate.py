@@ -1,24 +1,23 @@
-from typing import List, Dict, Tuple
+from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    drop_all_indexes_and_constraints,
-    model_name_key,
     PostgresqlMigrationContext,
     CastMatrix,
     validate_rename_map,
     RenameMap,
     part_of_dataset,
+    generate_model_tables_mapping,
+    ModelTables,
+    name_key,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_table_name,
@@ -31,7 +30,7 @@ from spinta.commands import create_exception
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Ref, File
+from spinta.types.datatype import Ref
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NA
 from spinta.utils.sqlalchemy import get_metadata_naming_convention
@@ -66,40 +65,31 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
     )
     validate_rename_map(context, migration_ctx.rename, manifest)
 
+    mapped_model_tables = generate_model_tables_mapping(metadata, inspector, [EXCLUDED_MODELS])
+
     models = commands.get_models(context, manifest)
     models, tables = _filter_models_and_tables(
         models=models,
-        existing_tables=inspector.get_table_names(),
+        model_tables=mapped_model_tables,
         filtered_datasets=migration_config.datasets,
         rename=migration_ctx.rename,
     )
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
-    sorted_model_names = list([model.name for model in sorted_models])
+    sorted_models_mapping = {model.name: model for model in sorted_models}
     # Do reverse zip, to ensure that sorted models get selected first
-    zipped_names = zipitems(sorted_model_names, tables, model_name_key)
+    zipped_names = zipitems(sorted_models_mapping.keys(), tables.keys(), name_key)
 
     for zipped_name in zipped_names:
-        for new_model_name, old_table_name in zipped_name:
-            # Skip special table migrations, because this is done in DataType migration section
-            if old_table_name and any(
-                value in old_table_name
-                for value in (TableType.CHANGELOG.value, TableType.FILE.value, TableType.REDIRECT.value)
-            ):
-                continue
+        for model_name, model_tables_name in zipped_name:
+            model = NA
+            model_tables = NA
+            if model_name:
+                model = sorted_models_mapping[model_name]
+            if model_tables_name:
+                model_tables = tables[model_tables_name]
 
-            # Skip excluded tables
-            if old_table_name and old_table_name in EXCLUDED_MODELS:
-                continue
-
-            old = NA
-            if old_table_name:
-                name = get_pg_table_name(migration_ctx.rename.get_old_table_name(old_table_name))
-                old = metadata.tables[name]
-
-            new = commands.get_model(context, manifest, new_model_name) if new_model_name else new_model_name
-            commands.migrate(context, backend, migration_ctx, old, new)
-    _clean_up_file_type(inspector, sorted_models, handler, migration_ctx.rename)
+            commands.migrate(context, backend, migration_ctx, model_tables, model)
 
     try:
         # Handle autocommit migrations differently
@@ -162,9 +152,12 @@ def _filter_reflect_datasets(inspector: Inspector, datasets: list):
 
 
 def _filter_models_and_tables(
-    models: Dict[str, Model], existing_tables: List[str], filtered_datasets: List[str], rename: RenameMap
-) -> Tuple[Dict[str, Model], List[str]]:
-    tables = []
+    models: dict[str, Model],
+    model_tables: dict[str, ModelTables],
+    filtered_datasets: list[str],
+    rename: RenameMap,
+) -> tuple[dict[str, Model], dict[str, ModelTables]]:
+    # tables = []
 
     # Filter if only specific dataset can be changed
     if filtered_datasets:
@@ -174,21 +167,22 @@ def _filter_models_and_tables(
                 filtered_models[key] = model
         models = filtered_models
 
-        filtered_names = []
-        for table_name in existing_tables:
+        filtered_names = {}
+        for table_name in model_tables:
             for dataset_name in filtered_datasets:
                 if part_of_dataset(table_name, dataset_name, ignore_compression=False):
-                    filtered_names.append(table_name)
-        existing_tables = filtered_names
+                    filtered_names[table_name] = model_tables[table_name]
+        model_tables = filtered_names
 
-    for table in existing_tables:
+    remapped_tables = {}
+    for name, table in model_tables.items():
         # Do not apply `get_pg_table_name`, since this will be done later on while zipping with `model_name_key`
-        name = rename.get_table_name(table)
-        if name not in models.keys():
-            name = table
-        tables.append(name)
+        table_name = rename.get_table_name(name)
+        if table_name not in models.keys():
+            table_name = name
+        remapped_tables[table_name] = table
 
-    return models, tables
+    return models, remapped_tables
 
 
 def _handle_foreign_key_constraints(
@@ -286,26 +280,3 @@ def _handle_foreign_key_constraints(
                 ),
                 True,
             )
-
-
-def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: RenameMap):
-    allowed_file_tables = []
-    existing_tables = []
-    for model in models:
-        existing_tables.append(rename.get_old_table_name(model.name))
-        for prop in model.properties.values():
-            if isinstance(prop.dtype, File):
-                old_table = rename.get_old_table_name(get_table_name(model))
-                old_column = rename.get_old_column_name(old_table, get_column_name(prop))
-                allowed_file_tables.append(get_pg_table_name(old_table, TableType.FILE, old_column))
-
-    for table in inspector.get_table_names():
-        if TableType.FILE.value in table:
-            split = table.split(f"{TableType.FILE.value}/")
-            if split[0] in existing_tables:
-                if table not in allowed_file_tables and not split[1].startswith("__"):
-                    new_name = get_pg_table_name(split[0], TableType.FILE, f"__{split[1]}")
-                    if inspector.has_table(new_name):
-                        handler.add_action(ma.DropTableMigrationAction(table_name=new_name))
-                    handler.add_action(ma.RenameTableMigrationAction(old_table_name=table, new_table_name=new_name))
-                    drop_all_indexes_and_constraints(inspector, table, new_name, handler)
