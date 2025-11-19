@@ -616,7 +616,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> R
 
     if isinstance(key, dict) and "keys" in key:
         # Left for backwards compatibility in case private/public file has multiple keys.
-        keys = [k for k in key["keys"] if k["alg"] == "RS512"]
+        keys = [k for k in key["keys"] if k.get("alg") == "RS512"]
         if keys:
             key = keys[0]
         elif key != default_key:
