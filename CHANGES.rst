@@ -111,8 +111,10 @@ Bug fixes:
 
 - Fixed several exponential backtracking regex issues (`#1435`_).
 
-- Fixed `inspect` command not recognizing MySQL BLOB types (`#1484`_).
+- Fixed `inspect` command not recognizing MySQL BLOB and Oracle LONG RAW types (`#1484`_, `#1532`_).
 
+
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
   .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
   .. _#1435: https://github.com/atviriduomenys/spinta/issues/1435
   .. _#1409: https://github.com/atviriduomenys/spinta/issues/1409
