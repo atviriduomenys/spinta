@@ -358,6 +358,9 @@ class Client(rfc6749.ClientMixin):
         else:
             return True
 
+    def get_all_contract_scopes(self) -> set[str]:
+        return {scope for contract_scopes in self.contract_scopes.values() for scope in contract_scopes}
+
 
 def decode_unverified_header(token: str) -> dict[str, Any]:
     try:
@@ -782,6 +785,19 @@ def authorized(
             raise AuthorizedClientsOnly()
         else:
             return False
+
+    # Protected nodes can only be accessed if token scopes is a subset of client's contract scopes.
+    # Contract scopes are saved in client file
+    if node.access <= Access.protected:  # TODO: May need to change this to different Access level
+        client = query_client(get_clients_path(context.get("config")), token.get_client_id())
+        # Scopes that contract_scope check should ignore
+        # TODO: ignored_contract_scopes should also have scope prefixes
+        ignored_contract_scopes = {str(Scopes.AUTH_CLIENTS), str(Scopes.CLIENT_BACKENDS_UPDATE_SELF)}
+        contract_scopes = client.get_all_contract_scopes()
+        token_scopes = set(scope_to_list(token.get_scope())) - ignored_contract_scopes
+        if not token_scopes.issubset(contract_scopes):
+            missing_scopes = token_scopes - contract_scopes
+            raise InsufficientScopeError(description=f"Client contracts are missing scopes: {missing_scopes}")
 
     # Private nodes can only be accessed with explicit node scope.
     scopes = [node]
