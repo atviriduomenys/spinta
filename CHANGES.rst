@@ -34,6 +34,11 @@ Improvements:
 
   .. _#1594: https://github.com/atviriduomenys/spinta/issues/1594
 
+Bug fixes:
+
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
+
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
 
 0.2dev8 (2025-11-06)
 ====================
