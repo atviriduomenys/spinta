@@ -101,11 +101,15 @@ def custom_property_table_contains_comments(backend: PostgreSQL, inspector: PGIn
     return table_contains_all_comments(backend, inspector, name)
 
 
-def table_contains_comment(inspector: PGInspector, table: str, comment: str) -> bool:
-    if not inspector.has_table(table):
+def table_contains_comment(inspector: PGInspector, table_name: str, table: sa.Table) -> bool:
+    if table is None:
         return True
 
-    result = inspector.get_table_comment(table).get("text")
+    if not inspector.has_table(table_name):
+        return True
+
+    comment = table.comment
+    result = inspector.get_table_comment(table_name).get("text")
     if not result and comment:
         return False
 
@@ -114,7 +118,11 @@ def table_contains_comment(inspector: PGInspector, table: str, comment: str) -> 
 
 def table_contains_all_comments(backend: PostgreSQL, inspector: PGInspector, table: str) -> bool:
     bootstrap_table = backend.tables.get(table)
-    if not table_contains_comment(inspector, get_pg_name(table), bootstrap_table.comment):
+
+    if bootstrap_table is None:
+        return True
+
+    if not table_contains_comment(inspector, get_pg_name(table), bootstrap_table):
         return False
 
     table_columns = {column["name"]: column for column in inspector.get_columns(bootstrap_table.name)}
@@ -183,7 +191,13 @@ def apply_missing_table_comments(
     conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, table: str, progress_bar: tqdm = None
 ):
     bootstrap_table = backend.tables.get(table)
-    if not table_contains_comment(inspector, get_pg_name(table), bootstrap_table.comment):
+    print(bootstrap_table, table)
+    if bootstrap_table is None:
+        if progress_bar:
+            progress_bar.write(f"COULD NOT FIND '{table}' TABLE")
+        return
+
+    if not table_contains_comment(inspector, get_pg_name(table), bootstrap_table):
         if progress_bar:
             progress_bar.write(f"'{get_pg_name(table)}' <- {cleanup_comment(bootstrap_table.comment)}")
 

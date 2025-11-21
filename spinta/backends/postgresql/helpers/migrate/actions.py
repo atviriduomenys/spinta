@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from sqlalchemy.dialects.postgresql import UUID
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 
 import sqlalchemy as sa
 from typing import TYPE_CHECKING
@@ -46,7 +46,7 @@ class DropTableMigrationAction(MigrationAction):
 
 
 class RenameTableMigrationAction(MigrationAction):
-    def __init__(self, old_table_name: str, new_table_name: str, comment: str | bool = False):
+    def __init__(self, old_table_name: str, new_table_name: str, comment: Union[str, bool] = False):
         self.old_table_name = old_table_name
         self.new_table_name = new_table_name
         self.comment = comment
