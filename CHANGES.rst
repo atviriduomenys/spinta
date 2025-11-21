@@ -1,14 +1,57 @@
 Changes
 #######
 
-0.2dev8 (unreleased)
-===================
+0.2dev9 (unreleased)
+====================
+
+New Features:
+
+- Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
+also known as well-known, jwk.
+- Spinta as Agent:
+    - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
+      algorithm (`alg` & `kty`).
+      This unlocks using auth servers with public key rotation, like gravitee.
+    - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
+      verification.
+    - move existing `spinta genkeys` command to `spinta key generate`.
+
+
+.. _#1569: https://github.com/atviriduomenys/spinta/issues/1569
+
+New Features:
+- Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)
+- Add `param.header()` prepare function that constructs HTTP header. Can be used in `soap` backend (`#1576`_).
+
+
+  .. _#1582: https://github.com/atviriduomenys/spinta/issues/1582
+  .. _#1576: https://github.com/atviriduomenys/spinta/issues/1576
+
+Improvements:
+
+- Keymap and push db sync now attempts to retry data fetch after failing to get valid response from remote server.
+  Retries can be modified with `sync_retry_count` and `sync_retry_delay_range` config values (`#1594`_).
+
+  .. _#1594: https://github.com/atviriduomenys/spinta/issues/1594
+
+Bug fixes:
+
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
+
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
+
+0.2dev8 (2025-11-06)
+====================
 
 Bug fixes:
 
 - Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
+- Changed `admin` and `upgrade` command `Argument` default value check (`#1575`_).
+- Fixed an error where MySQL LONGBLOB wasn't recognized (`#1484`_).
 
   .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
+  .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
+  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 0.2dev7 (2025-10-23)
 ====================
@@ -83,8 +126,8 @@ Bug fixes:
 
 Bug fixes:
 
-- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in 
-  inspect command. Previously, LONGBLOB columns caused TypeError during 
+- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in
+  inspect command. Previously, LONGBLOB columns caused TypeError during
   ŠDSA generation (`#1484`_).
 
   .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484

@@ -110,9 +110,9 @@ faster and more robust storages. Here full list of options:
           type: redis
           dsn: redis://redis-address:6379/1
 Redis (valkey redis fork) docker run configuration can be found under project docker-compose.yml (root directory).
-**IMPORTANT! Redis must be enabled in persistent mode (the `appendonly yes` parameter in docker-compose).**
+**IMPORTANT! Redis must be enabled in persistent mode (the `--appendonly yes --appendfsync always` parameter in docker-compose).**
 There are several persistent modes (see the Redis/Valkey documentation).
-Default one (appendonly) provides the most durability and the least performance compared to the others.
+Recommended approach (`--appendonly yes --appendfsync always`) provides the most durability and the least performance compared to the others.
 
 Environment variables
 *********************

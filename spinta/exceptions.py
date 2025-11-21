@@ -960,11 +960,11 @@ class InvalidScopes(UserError):
 
 
 class InvalidClientBackend(UserError):
-    template = """Backend "{backend_name}" does not exist in configured client's backends."""
+    template = """Backend "{backend_name}" is not defined in the client file."""
 
 
 class InvalidClientBackendCredentials(UserError):
-    template = """Credential "{key}" does not exist in client's backend "{backend_name}"."""
+    template = """Credential "{key}" is not defined in the client's file's "{backend_name}" backends variable."""
 
 
 class DirectRefValueUnassignment(UserError):

@@ -13,14 +13,15 @@ import uuid
 from collections import defaultdict
 from functools import cached_property
 from threading import Lock
-from typing import Set, Any
+from typing import Set, Any, TypedDict, Literal
 from typing import Type
 from typing import Union, List, Tuple
 
+import requests
 import ruamel.yaml
-from authlib.jose import JsonWebKey
+from authlib.jose import JsonWebKey, RSAKey, JWTClaims
 from authlib.jose import jwt
-from authlib.jose.errors import JoseError
+from authlib.jose.errors import JoseError, DecodeError, InvalidTokenError, BadSignatureError
 from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
@@ -34,6 +35,7 @@ from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from multipledispatch import dispatch
+from requests import RequestException
 from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
@@ -77,6 +79,20 @@ DEPRECATED_SCOPE_PREFIX = "spinta_"
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
 SCOPE_TYPE = Union[tuple, list, set, str, None]
+Kid = str  # key id
+
+
+class JWK(TypedDict):
+    kid: str
+    kty: str
+    alg: str
+    use: str
+    n: str
+    e: str
+
+
+class JWKS(TypedDict):
+    keys: List[JWK]
 
 
 class KeyType(enum.Enum):
@@ -91,6 +107,9 @@ class Scopes(enum.Enum):
 
     # Grants access to manipulate client files through API
     AUTH_CLIENTS = "auth_clients"
+
+    # Grants access to change its own client file backends
+    CLIENT_BACKENDS_UPDATE_SELF = "client_backends_update_self"
 
     # Grants access to generate inspect files through API
     INSPECT = "inspect"
@@ -165,11 +184,103 @@ class ResourceProtector(rfc6749.ResourceProtector):
         self.register_token_validator(Validator(context))
 
 
+def load_all_public_keys(context: Context) -> list[RSAKey]:
+    config = context.get("config")
+    token_validation_key = config.token_validation_key
+    token_validation_keys_download_url = config.token_validation_keys_download_url
+
+    if isinstance(token_validation_key, dict) and token_validation_key:
+        local_public_keys: list[RSAKey] = []
+        if "keys" in token_validation_key:
+            for key in token_validation_key["keys"]:
+                local_public_keys.append(JsonWebKey.import_key(key))
+        else:
+            local_public_keys = [JsonWebKey.import_key(token_validation_key)]
+        return local_public_keys
+    elif token_validation_keys_download_url:
+        return load_downloaded_public_keys(context)
+    else:
+        return [load_key(context, KeyType.public)]
+
+
+def load_downloaded_public_keys(context: Context) -> list[RSAKey]:
+    config = context.get("config")
+    if not config.downloaded_public_keys_file:
+        log.error("config.downloaded_public_keys_file is not set")
+        return []
+    if not config.downloaded_public_keys_file.exists():
+        log.error(f"File {config.downloaded_public_keys_file} does not exist")
+        return []
+
+    with config.downloaded_public_keys_file.open() as f:
+        return [JsonWebKey.import_key(key) for key in json.load(f)["keys"]]
+
+
+def download_and_store_public_keys(context: Context) -> JWKS | None:
+    config = context.get("config")
+    if not config.token_validation_keys_download_url:
+        return None
+    log.info("Downloading public keys from %s", config.token_validation_keys_download_url)
+    try:
+        response = requests.get(config.token_validation_keys_download_url)
+    except RequestException as e:
+        log.exception(
+            f"Failed to download public keys from {config.token_validation_keys_download_url}. Exception: {e}"
+        )
+        return None
+    if not response.ok or "keys" not in response.json():
+        log.error(
+            f"Failed to download public keys from {config.token_validation_keys_download_url}. Response: {response.text}"
+        )
+        return None
+
+    jwks: JWKS = response.json()
+
+    if not os.path.exists(config.downloaded_public_keys_file):
+        log.warning(f"Warning: {config.downloaded_public_keys_file=} does not exist. Creating it now.")
+        os.makedirs(os.path.dirname(config.downloaded_public_keys_file), exist_ok=True)
+        with open(config.downloaded_public_keys_file, "x") as f:
+            json.dump({}, f)
+
+    with open(config.downloaded_public_keys_file, "w") as f:
+        json.dump(jwks, f, indent=4)
+        log.info(f"Successfully downloaded public keys ({jwks}) from {config.downloaded_public_keys_file=}")
+
+    return jwks
+
+
 class BearerTokenValidator(rfc6750.BearerTokenValidator):
-    def __init__(self, context):
+    def __init__(self, context: Context):
         super().__init__()
         self._context = context
-        self._public_key = load_key(context, KeyType.public)
+        self._default_public_key: RSAKey = load_key(context, KeyType.public)
+        self._all_public_keys: list[RSAKey] = load_all_public_keys(context)
+
+    def decode_token(self, token_string: str) -> JWTClaims:
+        if not token_string:
+            raise InvalidToken("Token string is required")
+
+        try:
+            token_header = decode_unverified_header(token_string)
+            if kid := token_header.get("key"):
+                for key in self._all_public_keys:
+                    if key.kid and str(key.kid) == str(kid):
+                        return jwt.decode(token_string, key)
+
+            token_kty = decode_kty_from_alg(token_header["alg"])
+            for key in self._all_public_keys:
+                is_not_encryption_key = key.tokens.get("use") != "enc"
+                key_algorithm = key.tokens.get("alg")
+                is_same_algorithm = key_algorithm and token_header["alg"] == key_algorithm
+                is_same_algorithm_type = key.kty and key.kty == token_kty
+                if is_not_encryption_key and (is_same_algorithm or is_same_algorithm_type):
+                    try:
+                        return jwt.decode(token_string, key)
+                    except BadSignatureError:
+                        continue
+        except (JoseError, DecodeError, InvalidTokenError) as e:
+            raise InvalidToken(error=str(e))
+        raise InvalidToken(f"No public key found for token {token_header=}")
 
     def authenticate_token(self, token_string: str) -> Token:
         return Token(token_string, self)
@@ -245,12 +356,34 @@ class Client(rfc6749.ClientMixin):
             return True
 
 
+def decode_unverified_header(token: str) -> dict[str, Any]:
+    try:
+        if isinstance(token, bytes):
+            token = token.decode("utf-8")
+
+        header_b64 = token.split(".")[0]
+
+        # Add padding if missing
+        header_b64 += "=" * (-len(header_b64) % 4)
+        header_bytes = base64.urlsafe_b64decode(header_b64)
+
+        return json.loads(header_bytes)
+    except (UnicodeDecodeError, DecodeError, json.JSONDecodeError, ValueError, IndexError) as e:
+        raise InvalidToken(token=token) from e
+
+
+def decode_kty_from_alg(alg: str) -> Literal["RSA", "EC", None]:
+    """Get Key Type from Token Algorithm."""
+    if alg.startswith("RS"):
+        return "RSA"
+    if alg.startswith("ES"):
+        return "EC"
+    return None
+
+
 class Token(rfc6749.TokenMixin):
     def __init__(self, token_string, validator: BearerTokenValidator):
-        try:
-            self._token = jwt.decode(token_string, validator._public_key)
-        except JoseError as e:
-            raise InvalidToken(error=str(e))
+        self._token = validator.decode_token(token_string)
 
         self.expires_in = self._token["exp"] - self._token["iat"]
         self.client_id = self.get_aud()
@@ -460,9 +593,18 @@ def create_key_pair():
     return rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
 
-def load_key(context: Context, key_type: KeyType, *, required: bool = True):
+def load_key_from_file(config: Config, key_type: KeyType) -> dict | None:
+    keypath = config.config_path / "keys" / f"{key_type.value}.json"
+    if keypath.exists():
+        with keypath.open() as f:
+            return json.load(f)
+    return None
+
+
+def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> RSAKey | None:
     key = None
     config = context.get("config")
+    default_key = load_key_from_file(config, key_type)
 
     # Public key can be set via configuration.
     if key_type == KeyType.public:
@@ -470,22 +612,23 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
 
     # Load key from a file.
     if key is None:
-        keypath = config.config_path / "keys" / f"{key_type.value}.json"
-        if keypath.exists():
-            with keypath.open() as f:
-                key = json.load(f)
+        key = default_key
+
+    if isinstance(key, dict) and "keys" in key:
+        # Left for backwards compatibility in case private/public file has multiple keys.
+        keys = [k for k in key["keys"] if k.get("alg") == "RS512"]
+        if keys:
+            key = keys[0]
+        elif key != default_key:
+            key = default_key
+        else:
+            key = None
 
     if key is None:
         if required:
             raise NoTokenValidationKey(key_type=key_type.value)
         else:
-            return
-
-    if isinstance(key, dict) and "keys" in key:
-        # XXX: Maybe I should load all keys and then pick right one by algorithm
-        #      used in token?
-        keys = [k for k in key["keys"] if k["alg"] == "RS512"]
-        key = keys[0]
+            return None
 
     return JsonWebKey.import_key(key)
 
@@ -547,6 +690,18 @@ def check_scope(context: Context, scope: Union[Scopes, str]):
         scope = scope.value
 
     token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"])
+
+
+def has_scope(context: Context, scope: Scopes | str, raise_error: bool = True) -> bool:
+    valid_scope = False
+    try:
+        check_scope(context, scope)
+        valid_scope = True
+    except InsufficientScopeError as error:
+        if raise_error:
+            raise error
+
+    return valid_scope
 
 
 def get_scope_name(
@@ -811,7 +966,7 @@ def delete_client_file(path: pathlib.Path, client_id: str):
                 Remove only empty folders
             """
     else:
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Invalid client id or secret")
 
 
 def update_client_file(
@@ -861,7 +1016,7 @@ def update_client_file(
                 yml.dump(keymap, keymap_path)
         return new_data
     else:
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Invalid client id or secret")
 
 
 def get_client_id_from_name(path: pathlib.Path, client_name: str):
@@ -940,13 +1095,13 @@ def _client_file_cache_key(path: pathlib.Path, client: str, *args, is_name: bool
     if is_name:
         client_id = get_client_id_from_name(path, client)
         if client_id is None:
-            raise (InvalidClientError(description="Invalid client name"))
+            raise InvalidClientError(description="Invalid client name")
 
         client = client_id
 
     client_file = get_client_file_path(path, client)
     if not client_file.exists():
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Invalid client id or secret")
 
     time_ = os.path.getmtime(client_file)
     key += tuple([time_])
@@ -977,7 +1132,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
     if is_name:
         client_id = get_client_id_from_name(path, client)
         if client_id is None:
-            raise (InvalidClientError(description="Invalid client name"))
+            raise InvalidClientError(description="Invalid client name")
 
         client = client_id
     client_file = get_client_file_path(path, client)
@@ -988,7 +1143,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
     try:
         data = yaml.load(client_file)
     except FileNotFoundError:
-        raise (InvalidClientError(description="Invalid client id or secret"))
+        raise InvalidClientError(description="Client file not found. Invalid client id or secret")
     if not isinstance(data, dict):
         raise InvalidClientFileFormat(client_file=client_file.name, client_file_type=type(data))
     if not isinstance(data["scopes"], list):

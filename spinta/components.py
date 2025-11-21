@@ -1051,6 +1051,16 @@ ScopeFormatterFunc = Callable[
 ]
 
 
+ScopeFormatterFuncUDTS = Callable[
+    [
+        Context,
+        Union[Namespace, Model, Property],
+        Action,
+    ],
+    str,
+]
+
+
 class Config:
     """Spinta configuration
 
@@ -1072,7 +1082,9 @@ class Config:
     scope_log: bool
     default_auth_client: str
     http_basic_auth: bool
-    token_validation_key: dict = None
+    token_validation_key: dict | None = None
+    token_validation_keys_download_url: str | None = None
+    downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str
     docs_path: pathlib.Path
@@ -1086,6 +1098,8 @@ class Config:
     default_page_size: int
     enable_pagination: bool
     sync_page_size: int = None
+    sync_retry_count: int
+    sync_retry_delay_range: tuple[float]
     languages: List[str]
     check_names: bool = False
     # MB

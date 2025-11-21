@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev7
-export OLD_MINOR=2dev6
-export FUTURE_MINOR=2dev8
+export MINOR=2dev8
+export OLD_MINOR=2dev7
+export FUTURE_MINOR=2dev9
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -55,7 +55,7 @@ git status
 (cd docs && make upgrade)
 
 # Check what was changed and update CHANGES.rst
-xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
+xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...master
 head CHANGES.rst
 # Update CHANGES.rst
 # notes/spinta/release/common.sh    Generate and check changes and readme html files
@@ -133,13 +133,40 @@ git push origin HEAD
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
+
+# generate hashed requirements file
+
+poetry export -f requirements.txt \
+  --output requirements/spinta-${NEW_VERSION}.txt
+
+# get hashes to spinta itself
+
+export VER=0.2.dev8
+
+echo "spinta==${VER} \\" > spinta-header.txt
+
+curl -s https://pypi.org/pypi/spinta/${VER}/json | \
+  jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
+  | sed 's/^/    /' >> spinta-header.txt
+
+echo "" >> spinta-header.txt
+
+# ADD THOSE HASHES to the file manually
+
+cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
+
+git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
+git commit -m "Add hashed requirements for ${NEW_VERSION} and update latest"
+git push
+
+
 # Prepare pyproject.toml and CHANGES.rst for future versions
 git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
 
 ed pyproject.toml <<EOF
 /^version = /c
-version = "$FUTURE_VERSION.dev0"
+version = "$FUTURE_VERSION"
 .
 wq
 EOF
