@@ -39,6 +39,7 @@ from spinta.exceptions import (
     ModelNotFound,
     PropertyNotFound,
     FileNotFound,
+    MissingPostgresqlComments,
 )
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref, File, DataType
@@ -1397,7 +1398,7 @@ def generate_model_tables_mapping(
 
         full_table_name = inspector.get_table_comment(table)["text"]
         if not full_table_name:
-            raise Exception(f"Table {table} does not have a comment.")
+            raise MissingPostgresqlComments(table=table)
 
         table_type, base_name, property_name = _extract_table_data_from_name(full_table_name)
         if table_type is None:

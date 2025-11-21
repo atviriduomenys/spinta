@@ -191,7 +191,6 @@ def apply_missing_table_comments(
     conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, table: str, progress_bar: tqdm = None
 ):
     bootstrap_table = backend.tables.get(table)
-    print(bootstrap_table, table)
     if bootstrap_table is None:
         if progress_bar:
             progress_bar.write(f"COULD NOT FIND '{table}' TABLE")

@@ -1162,3 +1162,10 @@ class AgentRelatedDataServiceDoesNotExist(UserError):
 
 class UnexpectedErrorReadingData(BaseError):
     template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""
+
+
+class MissingPostgresqlComments(UpgradeError):
+    template = """
+        {table!r} does not have a comment.
+        Please run `spinta upgrade postgresql_comments` to update all comments.
+    """
