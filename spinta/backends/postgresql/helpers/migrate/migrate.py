@@ -316,6 +316,7 @@ class JSONMigrationContext:
     new_keys: Dict[str, str] = dataclasses.field(default_factory=dict)
     cast_to: Tuple[sa.Column, str] = dataclasses.field(default=None)
     new_name: str = dataclasses.field(default=None)
+    comment: str | bool | None = dataclasses.field(default=False)
     empty: bool = False
 
     # This could be considered a hack, but by default whenever json migration context is create
@@ -1391,6 +1392,9 @@ def generate_model_tables_mapping(
     ]
     mapped_tables = keydefaultdict(ModelTables)
     for table in filtered_tables:
+        if table not in metadata.tables:
+            continue
+
         full_table_name = inspector.get_table_comment(table)["text"]
         if not full_table_name:
             raise Exception(f"Table {table} does not have a comment.")
@@ -1429,6 +1433,29 @@ def _extract_table_data_from_name(table_name: str) -> (TableType, str, str | Non
 
 
 def create_table_migration(table: sa.Table, handler: MigrationHandler):
+    columns = list(table.columns)
+    constraints = list(table.constraints)
+    indexes = list(table.indexes)
+    # Filter constraints, so that sa.Column properties do not duplicate them
+    filtered_constraints = []
+    for constraint in constraints:
+        if isinstance(constraint, sa.UniqueConstraint):
+            if len(constraint.columns) == 1 and constraint.columns[0].unique:
+                continue
+        elif isinstance(constraint, sa.PrimaryKeyConstraint):
+            if len(constraint.columns) == 1 and constraint.columns[0].primary_key:
+                continue
+        filtered_constraints.append(constraint)
+
+    filtered_indexes = []
+    for index in indexes:
+        if len(index.columns) == 1 and index.columns[0].index:
+            continue
+        filtered_indexes.append(index)
+
+    all_columns = columns + filtered_constraints
     handler.add_action(
-        ma.CreateTableMigrationAction(table_name=table.name, columns=list(table.columns), comment=table.comment)
+        ma.CreateTableMigrationAction(
+            table_name=table.name, columns=all_columns, comment=table.comment, indexes=filtered_indexes
+        )
     )

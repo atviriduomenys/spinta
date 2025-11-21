@@ -112,6 +112,7 @@ def migrate(
     if json_column is not None and name_changed(json_column.name, column.name):
         if json_column_meta:
             json_column_meta.new_name = column.name
+            json_column_meta.comment = column.comment
         else:
             commands.migrate(context, backend, migration_ctx, property_ctx, json_column, column, **kwargs)
 

@@ -109,7 +109,11 @@ def migrate(
         if nullable is not None or new_name is not None:
             handler.add_action(
                 ma.AlterColumnMigrationAction(
-                    table_name=table_name, column_name=item.name, nullable=nullable, new_column_name=new_name
+                    table_name=table_name,
+                    column_name=item.name,
+                    nullable=nullable,
+                    new_column_name=new_name,
+                    comment=new_name,
                 )
             )
 

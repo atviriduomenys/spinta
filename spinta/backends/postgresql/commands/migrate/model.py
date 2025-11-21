@@ -29,6 +29,7 @@ from spinta.backends.postgresql.helpers.name import (
     is_removed,
     get_pg_table_name,
     get_pg_foreign_key_name,
+    get_removed_name,
 )
 from spinta.components import Context, Model
 from spinta.utils.itertools import ensure_list
@@ -185,25 +186,35 @@ def migrate(
         # Drop table if it was already flagged for deletion
         handler.add_action(ma.DropTableMigrationAction(table_name=removed_table_name))
 
-    for table_type, table in old.reserved:
+    for table_type, table in old.reserved.items():
         removed_name = get_pg_removed_name(table.comment)
         if inspector.has_table(removed_name):
             handler.add_action(ma.DropTableMigrationAction(table_name=removed_name))
 
     for table_type, table in old.property_tables.values():
-        removed_name = get_pg_removed_name(table.comment)
+        removed_name = get_pg_removed_name(table.comment, remove_model_only=True)
         if inspector.has_table(removed_name):
             handler.add_action(ma.DropTableMigrationAction(table_name=removed_name))
 
     # Soft delete all related tables and drop constraints / indexes
     handler.add_action(
-        ma.RenameTableMigrationAction(old_table_name=source_table.name, new_table_name=removed_table_name)
+        ma.RenameTableMigrationAction(
+            old_table_name=source_table.name,
+            new_table_name=removed_table_name,
+            comment=get_removed_name(source_table.comment),
+        )
     )
     drop_all_indexes_and_constraints(inspector, source_table.name, removed_table_name, handler)
 
-    for table_type, table in old.reserved:
+    for table_type, table in old.reserved.items():
         removed_name = get_pg_removed_name(table.comment)
-        handler.add_action(ma.RenameTableMigrationAction(old_table_name=table.name, new_table_name=removed_name))
+        handler.add_action(
+            ma.RenameTableMigrationAction(
+                old_table_name=table.name,
+                new_table_name=removed_name,
+                comment=get_removed_name(table.comment),
+            )
+        )
         sequence_name = get_pg_sequence_name(table.name)
         if inspector.has_sequence(sequence_name):
             handler.add_action(
@@ -212,34 +223,15 @@ def migrate(
         drop_all_indexes_and_constraints(inspector, table.name, removed_name, handler)
 
     for table_type, table in old.property_tables.values():
-        removed_name = get_pg_removed_name(table.comment)
-        handler.add_action(ma.RenameTableMigrationAction(old_table_name=table.name, new_table_name=removed_name))
-        drop_all_indexes_and_constraints(inspector, table.name, removed_name, handler)
-
-
-def _handle_model_rename(model: Model, old_name: str, new_name: str, inspector: Inspector, handler: MigrationHandler):
-    # Do not rename, if name has not been changed
-    if not name_changed(old_name, new_name):
-        return
-
-    handler.add_action(
-        ma.RenameTableMigrationAction(
-            old_table_name=old_name,
-            new_table_name=new_name,
-            comment=get_table_name(model),
-        )
-    )
-
-    # Handle File table renames
-    old_file_name = get_pg_table_name(old_name, TableType.FILE)
-    for table in inspector.get_table_names():
-        if table.startswith(old_file_name):
-            split = table.split(TableType.FILE.value)
-            handler.add_action(
-                ma.RenameTableMigrationAction(
-                    old_table_name=table, new_table_name=get_pg_table_name(new_name, TableType.FILE, split[1])
-                )
+        removed_name = get_pg_removed_name(table.comment, remove_model_only=True)
+        handler.add_action(
+            ma.RenameTableMigrationAction(
+                old_table_name=table.name,
+                new_table_name=removed_name,
+                comment=get_removed_name(table.comment, remove_model_only=True),
             )
+        )
+        drop_all_indexes_and_constraints(inspector, table.name, removed_name, handler)
 
 
 def _handle_model_unique_constraints(
@@ -408,7 +400,10 @@ def _handle_json_column_migrations(
         if json_context.new_name:
             handler.add_action(
                 ma.AlterColumnMigrationAction(
-                    table_name, json_context.column.name, new_column_name=json_context.new_name
+                    table_name,
+                    json_context.column.name,
+                    new_column_name=json_context.new_name,
+                    comment=json_context.comment,
                 )
             )
 
@@ -589,6 +584,10 @@ def _clean_up_property_tables(
             if inspector.has_table(removed_table_name):
                 handler.add_action(ma.DropTableMigrationAction(table_name=removed_table_name))
             handler.add_action(
-                ma.RenameTableMigrationAction(old_table_name=table.name, new_table_name=removed_table_name)
+                ma.RenameTableMigrationAction(
+                    old_table_name=table.name,
+                    new_table_name=removed_table_name,
+                    comment=get_removed_name(table.comment),
+                )
             )
             drop_all_indexes_and_constraints(inspector, table.name, removed_table_name, handler)

@@ -16,14 +16,25 @@ class MigrationAction(ABC):
 
 
 class CreateTableMigrationAction(MigrationAction):
-    def __init__(self, table_name: str, columns: List[sa.Column], comment: str):
+    def __init__(self, table_name: str, columns: List[sa.Column], comment: str, indexes: List[sa.Index] = None):
         self.table_name = table_name
         self.columns = columns
         self.comment = comment
+        self.indexes = indexes
 
     def execute(self, op: "Operations"):
         op.create_table(self.table_name, *self.columns)
         op.create_table_comment(table_name=self.table_name, comment=self.comment)
+
+        if self.indexes:
+            for index in self.indexes:
+                op.create_index(
+                    index_name=index.name,
+                    table_name=self.table_name,
+                    columns=index.columns,
+                    unique=index.unique,
+                    **index.kwargs,
+                )
 
 
 class DropTableMigrationAction(MigrationAction):

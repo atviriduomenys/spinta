@@ -6,6 +6,7 @@ from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import drop_column, add_column, add_column_comment, rename_column
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
     override_manifest,
@@ -56,10 +57,8 @@ def test_migrate_text_full_remove(postgresql_migration: URL, rc: RawConfig, cli:
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN "new" TEXT;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text')}"
+        f"{add_column(table='migrate/example/Test', column='new', column_type='TEXT')}"
         "COMMIT;\n"
         "\n"
     )
@@ -130,16 +129,15 @@ def test_migrate_string_to_text(postgresql_migration: URL, rc: RawConfig, cli: S
         "ALTER TABLE \"migrate/example/Test\" ADD COLUMN text JSONB DEFAULT '{}' NOT "
         "NULL;\n"
         "\n"
+        f"{add_column_comment(table='migrate/example/Test', column='text')}"
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
         "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text_lt TO __text_lt;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
         "jsonb_build_object('en', \"migrate/example/Test\".text_en));\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text_en TO __text_en;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text_en')}"
         "COMMIT;\n"
         "\n"
     )
@@ -221,13 +219,11 @@ def test_migrate_string_to_text_add_additional(
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
         "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text_lt TO __text_lt;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
         "jsonb_build_object('en', \"migrate/example/Test\".text_en));\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text_en TO __text_en;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text_en')}"
         "COMMIT;\n"
         "\n"
     )
@@ -310,8 +306,7 @@ def test_migrate_string_to_text_rename(postgresql_migration: URL, rc: RawConfig,
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
         "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text_lt TO __text_lt;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
         "COMMIT;\n"
         "\n"
     )
@@ -394,14 +389,12 @@ def test_migrate_string_to_text_advanced_with_rename(
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
         "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text_lt TO __text_lt;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
         'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'en\' '
         "|| jsonb_build_object('__en', (\"migrate/example/Test\".text -> 'en'))) "
         "WHERE \"migrate/example/Test\".text ? 'en';\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text TO other;\n'
-        "\n"
+        f"{rename_column(table='migrate/example/Test', column='text', new_name='other')}"
         "COMMIT;\n"
         "\n"
     )

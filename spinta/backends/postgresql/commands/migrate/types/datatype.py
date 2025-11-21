@@ -30,6 +30,7 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_constraint_name,
     get_pg_removed_name,
     get_pg_index_name,
+    get_removed_name,
 )
 from spinta.components import Context
 from spinta.exceptions import UnableToCastColumnTypes
@@ -155,6 +156,7 @@ def migrate(
                 nullable=nullable,
                 type_=type_,
                 new_column_name=new_name,
+                comment=new.comment if new.comment != old.comment else False,
                 using=using,
             ),
             foreign_key,
@@ -315,7 +317,12 @@ def migrate(
     if any(remove_name == column["name"] for column in columns):
         handler.add_action(ma.DropColumnMigrationAction(table_name=table_name, column_name=remove_name), foreign_key)
     handler.add_action(
-        ma.AlterColumnMigrationAction(table_name=table_name, column_name=old.name, new_column_name=remove_name),
+        ma.AlterColumnMigrationAction(
+            table_name=table_name,
+            column_name=old.name,
+            new_column_name=remove_name,
+            comment=get_removed_name(old.comment),
+        ),
         foreign_key,
     )
     indexes = inspector.get_indexes(table_name=source_table.name)
