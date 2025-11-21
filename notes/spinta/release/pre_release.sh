@@ -141,11 +141,9 @@ poetry export -f requirements.txt \
 
 # get hashes to spinta itself
 
-export VER=0.2.dev8
+echo "spinta==${NEW_VERSION \\" > spinta-header.txt
 
-echo "spinta==${VER} \\" > spinta-header.txt
-
-curl -s https://pypi.org/pypi/spinta/${VER}/json | \
+curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
   | sed 's/^/    /' >> spinta-header.txt
 
