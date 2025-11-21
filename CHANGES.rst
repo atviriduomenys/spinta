@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev9 (unreleased)
+0.2dev9 (2025-11-21)
 ====================
 
 New Features:
