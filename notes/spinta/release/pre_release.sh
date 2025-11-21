@@ -151,7 +151,7 @@ echo "" >> spinta-header.txt
 
 # ADD THOSE HASHES to the file manually
 
-cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
+cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
 
 git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
 git commit -m "Add hashed requirements for ${NEW_VERSION} and update latest"
