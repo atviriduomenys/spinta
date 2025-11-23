@@ -6,6 +6,7 @@ import logging
 import textwrap
 import types
 import uuid
+from copy import deepcopy
 from operator import itemgetter
 from itertools import zip_longest
 from typing import Any
@@ -435,6 +436,7 @@ class ModelReader(TabularReader):
     data: ModelRow
     is_functional: bool = False
     main_model_name: str | None = None
+    from_functional_model: bool = False
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
@@ -503,6 +505,7 @@ class ModelReader(TabularReader):
             "origin": row.get(ORIGIN),
             "params": params,
             "main_model_name": main_model_name,
+            "functional_models": {}
         }
         if resource and not dataset:
             self.data["backend"] = resource.name
@@ -525,8 +528,16 @@ class ModelReader(TabularReader):
         if self.is_functional:
             self.state.functional_models.append(self)
             self.state.model_names.add(self.main_model_name)
+            if self.main_model_name not in self.state.models:
+                main_model = deepcopy(self)
+                main_model.name = self.main_model_name
+                main_model.from_functional_model = True
+                main_model.data["functional_models"][self.name] = self.data
+                self.state.models[self.main_model_name] = [main_model]
+            else
         else:
             self.state.model_names.add(self.name)
+            self.state.models[self.name] = [self]
 
 
     def leave(self) -> None:
@@ -1686,10 +1697,11 @@ READERS = {
 class State:
     stack: List[TabularReader]
 
-    backends: Dict[str, Dict[str, str]] = None
+    backends: dict[str, dict[str, str]] = None
 
-    model_names: Set[str]
-    functional_models: list[str]
+    model_names: set[str]
+    models: dict[str, ModelRow] = {}
+    functional_models: list[ModelRow]
 
     manifest: ManifestReader = None
     dataset: DatasetReader = None

@@ -201,12 +201,12 @@ class ModelRow(TypedDict, total=False):
     type: str
     id: str
     name: str
-    base: Optional[dict]
+    base: dict | None
     level: str
     access: str
     title: str
     description: str
-    properties: Dict[str, PropertyRow]
+    properties: dict[str, PropertyRow]
     external: ModelExternalRow
     backend: str
     lang: LangData
@@ -219,6 +219,7 @@ class ModelRow(TypedDict, total=False):
     origin: str
     params: UrlParams
     main_model_name: str
+    functional_models: dict[str, ModelRow]
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -234,7 +235,7 @@ class EnumRow(TypedDict, total=False):
     id: str
     name: str
     source: str
-    prepare: Optional[Dict[str, Any]]
+    prepare: dict[str, Any] | None
     access: str
     title: str
     description: str
