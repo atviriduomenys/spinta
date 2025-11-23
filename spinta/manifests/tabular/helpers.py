@@ -433,7 +433,8 @@ class BaseReader(TabularReader):
 class ModelReader(TabularReader):
     type: str = "model"
     data: ModelRow
-    is_functional = False
+    is_functional: bool = False
+    main_model_name: str | None = None
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
@@ -450,18 +451,18 @@ class ModelReader(TabularReader):
             main_model_name, params = _read_functional_model(name)
         else:
             main_model_name = params = None
-        # todo params should be added to data as I understand
+        self.main_model_name = main_model_name
         # todo functional model is not being created for some reason, and it finds duplicate models.
         if self.state.rename_duplicates:
             dup = 1
             _name = name
-            while _name in self.state.models:
+            while _name in self.state.model_names:
                 _name = f"{name}_{dup}"
                 dup += 1
             name = _name
         elif self.is_functional:
             pass
-        elif not self.is_functional and (name in self.state.models):
+        elif not self.is_functional and (name in self.state.model_names):
             self.error(f"Model {name!r} with the same name is already defined.")
 
         self.name = name
@@ -523,8 +524,9 @@ class ModelReader(TabularReader):
 
         if self.is_functional:
             self.state.functional_models.append(self)
+            self.state.model_names.add(self.main_model_name)
         else:
-            self.state.models.add(self.name)
+            self.state.model_names.add(self.name)
 
 
     def leave(self) -> None:
@@ -1686,7 +1688,7 @@ class State:
 
     backends: Dict[str, Dict[str, str]] = None
 
-    models: Set[str]
+    model_names: Set[str]
     functional_models: list[str]
 
     manifest: ManifestReader = None
@@ -1700,7 +1702,7 @@ class State:
 
     def __init__(self):
         self.stack = []
-        self.models = set()
+        self.model_names = set()
         self.functional_models = []
 
     def release(self, reader: TabularReader = None) -> Iterator[ParsedRow]:

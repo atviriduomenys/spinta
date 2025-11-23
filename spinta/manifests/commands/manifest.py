@@ -23,10 +23,10 @@ NODE_FUNCTION_MAPPER = {
         get_all=commands.get_models
     ),
     'functional_model': _FunctionTypes(
-        has=commands.has_functional_model,
-        get=commands.get_functional_model,
-        set=commands.set_functional_model,
-        get_all=commands.get_functional_models
+        has=commands.has_model,
+        get=commands.get_model,
+        set=commands.set_model,
+        get_all=commands.get_models
     ),
     'ns': _FunctionTypes(
         has=commands.has_namespace,
