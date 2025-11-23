@@ -525,6 +525,14 @@ class ModelReader(TabularReader):
     def enter(self) -> None:
         self.state.model = self
 
+        #  TODO I still think that the best way to handle functional models is in
+        #    the link section, because here we still don't have properties, and it's difficult to handle them
+        #    in the read part, to decide, either they need to go to the functional model, or to the main
+        #    model, or all of them, also what are the sources in what cases. If the main model is given in the manifest,
+        #    then maybe sources need to be from the given model, if not - maybe they should stay empty in the
+        #    main model, and be only in functional models?
+        #    OK, actually, this could be quite a good solution - in the Property reader we check if the model has
+        #    main model (we should add `main_model` to model row also).
         if self.is_functional:
             self.state.functional_models.append(self)
             self.state.model_names.add(self.main_model_name)
