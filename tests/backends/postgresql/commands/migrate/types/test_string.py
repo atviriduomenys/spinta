@@ -6,6 +6,7 @@ from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import add_column, drop_column
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
     override_manifest,
@@ -66,23 +67,20 @@ def test_migrate_text_to_string_simple(postgresql_migration: URL, rc: RawConfig,
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text_lt TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='text_lt', column_type='TEXT')}"
         'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
         "'lt');\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN other_lt TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='other_lt', column_type='TEXT')}"
         'UPDATE "migrate/example/Test" SET other_lt=("migrate/example/Test".other ->> '
         "'lt');\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME other TO __other;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text')}"
+        f"{drop_column(table='migrate/example/Test', column='other')}"
         "COMMIT;\n"
         "\n"
     )
@@ -159,10 +157,8 @@ def test_migrate_text_to_string_direct(postgresql_migration: URL, rc: RawConfig,
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text TEXT;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text')}"
+        f"{add_column(table='migrate/example/Test', column='text', column_type='TEXT')}"
         "UPDATE \"migrate/example/Test\" SET text=(__text ->> 'lt');\n"
         "\n"
         "COMMIT;\n"
@@ -246,23 +242,19 @@ def test_migrate_text_to_string_multi(postgresql_migration: URL, rc: RawConfig, 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text_lt TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='text_lt', column_type='TEXT')}"
         'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
         "'lt');\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text_en TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='text_en', column_type='TEXT')}"
         'UPDATE "migrate/example/Test" SET text_en=("migrate/example/Test".text ->> '
         "'en');\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text_lv TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='text_lv', column_type='TEXT')}"
         'UPDATE "migrate/example/Test" SET text_lv=("migrate/example/Test".text ->> '
         "'lv');\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='text')}"
         "COMMIT;\n"
         "\n"
     )
@@ -347,8 +339,7 @@ def test_migrate_text_to_string_multi_individual(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text_lt TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='text_lt', column_type='TEXT')}"
         'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
         "'lt');\n"
         "\n"

@@ -4,7 +4,28 @@ Changes
 0.2dev10 (unreleased)
 =====================
 
+Backwards incompatible:
 
+- `spinta migrate` with the `postgresql` backend now requires all tables and
+  columns to have up-to-date comments with their full uncompressed names.
+  Migrations are likely to fail or be incorrect if comments are missing or
+  outdated. Use the `spinta upgrade postgresql_comments` script to validate
+  and update all required comments (`#1579`_).
+
+Improvements:
+
+- `spinta migrate` now uses PostgreSQL comments to map tables and models
+  together (`#1579`_).
+- The `internal` `postgresql` backend now adds full name comments to all its
+  tables and columns. To migrate to the new changes, the
+  `spinta upgrade postgresql_comments` script was added (`#1579`_).
+
+Bug fixes:
+
+- Fixed an issue where `spinta migrate` incorrectly created table drop
+  scripts for `changelog` and `redirect` tables (`#1579`_).
+
+  .. _#1579: https://github.com/atviriduomenys/spinta/issues/1579
 
 0.2dev9 (2025-11-21)
 ====================
