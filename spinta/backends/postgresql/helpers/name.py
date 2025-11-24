@@ -95,7 +95,6 @@ def get_removed_name(name: str, remove_model_only: bool = False) -> str:
             node = split[place]
         elif remove_model_only:
             # dataset/data/Model/:file/new <- -3 is Model
-            print(name, remove_model_only)
             place = -3
             node = split[place]
 
