@@ -48,26 +48,9 @@ def test_migrate_create_models_with_file_type(
     """,
     )
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
-
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'CREATE TABLE "migrate/example/Test/:file/flag" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    _block BYTEA, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:file/flag" PRIMARY KEY (_id)\n'
-        ");\n\n"
-        f"{add_column_comment(table='migrate/example/Test/:file/flag', column='_id')}"
-        f"{add_column_comment(table='migrate/example/Test/:file/flag', column='_block')}"
-        f"{add_table_comment(table='migrate/example/Test/:file/flag', comment='migrate/example/Test/:file/flag')}"
-        'CREATE TABLE "migrate/example/Test/:file/new" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    _block BYTEA, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:file/new" PRIMARY KEY (_id)\n'
-        ");\n\n"
-        f"{add_column_comment(table='migrate/example/Test/:file/new', column='_id')}"
-        f"{add_column_comment(table='migrate/example/Test/:file/new', column='_block')}"
-        f"{add_table_comment(table='migrate/example/Test/:file/new', comment='migrate/example/Test/:file/new')}"
         'CREATE TABLE "migrate/example/Test" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -112,6 +95,22 @@ def test_migrate_create_models_with_file_type(
         f"{add_column_comment(table='migrate/example/Test', column='new._bsize')}"
         f"{add_column_comment(table='migrate/example/Test', column='new._blocks')}"
         f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        'CREATE TABLE "migrate/example/Test/:file/flag" (\n'
+        "    _id UUID NOT NULL, \n"
+        "    _block BYTEA, \n"
+        '    CONSTRAINT "pk_migrate/example/Test/:file/flag" PRIMARY KEY (_id)\n'
+        ");\n\n"
+        f"{add_column_comment(table='migrate/example/Test/:file/flag', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test/:file/flag', column='_block')}"
+        f"{add_table_comment(table='migrate/example/Test/:file/flag', comment='migrate/example/Test/:file/flag')}"
+        'CREATE TABLE "migrate/example/Test/:file/new" (\n'
+        "    _id UUID NOT NULL, \n"
+        "    _block BYTEA, \n"
+        '    CONSTRAINT "pk_migrate/example/Test/:file/new" PRIMARY KEY (_id)\n'
+        ");\n\n"
+        f"{add_column_comment(table='migrate/example/Test/:file/new', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test/:file/new', column='_block')}"
+        f"{add_table_comment(table='migrate/example/Test/:file/new', comment='migrate/example/Test/:file/new')}"
         f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
         f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
