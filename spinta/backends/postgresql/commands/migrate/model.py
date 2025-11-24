@@ -20,6 +20,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     PropertyMigrationContext,
     ModelTables,
     create_table_migration,
+    filter_related_tables,
 )
 from spinta.backends.postgresql.helpers.name import (
     name_changed,
@@ -157,8 +158,7 @@ def migrate(
     **kwargs,
 ):
     handler = migration_ctx.handler
-    table_name = get_table_name(new)
-    related_tables = {name: table for name, table in backend.tables.items() if name.startswith(table_name)}
+    related_tables = filter_related_tables(new, backend.tables)
     for table in related_tables.values():
         create_table_migration(table=table, handler=handler)
 

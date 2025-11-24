@@ -1460,3 +1460,29 @@ def create_table_migration(table: sa.Table, handler: MigrationHandler):
             table_name=table.name, columns=all_columns, comment=table.comment, indexes=filtered_indexes
         )
     )
+
+
+def rank_model_names(name: str) -> int:
+    # This ensures that the main table is prioritized first, then properties and lastly everything else
+    # dataset/Model/:list/item, dataset/Model/:changelog, dataset/Model/:redirect, dataset/Model
+    # Would be ordered as follows:
+    # 1. dataset/Model
+    # 2. dataset/Model/:list/item
+    # 3. dataset/Model/:changelog
+    # 4. dataset/Model/:redirect
+    if "/:" not in name:
+        return 0
+
+    split = name.split("/:")
+    if "/" in split[1]:
+        return 1
+
+    return 2
+
+
+def filter_related_tables(model: Model, tables: dict[str, sa.Table]) -> dict[str, sa.Table]:
+    table_name = get_table_name(model)
+    related_tables = {
+        name: table for name, table in tables.items() if name == table_name or name.startswith(f"{table_name}/:")
+    }
+    return dict(sorted(related_tables.items(), key=lambda item: rank_model_names(item[0])))
