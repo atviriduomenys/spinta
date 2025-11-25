@@ -225,13 +225,21 @@ def zipitems(
                 res[mapped_key] = [new_value]
                 continue
 
-            extension_list = []
-            for existing_value in res[mapped_key]:
+            existing_values = res[mapped_key]
+
+            # Try to fill an empty second slot
+            filled = False
+            for existing_value in existing_values:
                 if existing_value[1] is NA:
                     existing_value[1] = value
-                else:
-                    extension_list.append([existing_value[0], value])
-            res[mapped_key] += extension_list
+                    filled = True
+                    break
+
+            if not filled:
+                # Decide what to use for the left side; if there are existing rows,
+                # it probably should mirror the first one's left side.
+                left = existing_values[0][0] if existing_values else NA
+                existing_values.append([left, value])
 
     yield from res.values()
 

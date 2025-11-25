@@ -1,3 +1,4 @@
+import dataclasses
 from operator import itemgetter
 from typing import Any, TypedDict
 from typing import Dict
@@ -30,7 +31,6 @@ from spinta.utils.naming import to_property_name
 
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
     engine = sa.create_engine(path)
-    schema = None
     if prepare:
         env = SqlResource(context).init(path)
         parsed = spyna.parse(prepare)
@@ -43,80 +43,66 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
                 expected=full_class_name(Engine),
                 received=full_class_name(engine),
             )
-
-        schema = engine.schema
         engine = engine.create()
 
     url = sa.engine.make_url(path)
     dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else "dataset1"
     insp = sa.inspect(engine)
 
-    table_mapper = [
-        {
-            "dataset": dataset,
-            "dataset_given": dataset_name,
-            "resource": "resource1",
-            "mapping": _create_mapping(insp, insp.get_table_names(schema=schema), schema, dataset),
-        }
-    ]
+    schema_mapper: dict[str, _SchemaMapping] = {}
+    for schema in insp.get_schema_names():
+        ds = dataset + "/" + schema
+        table_mapping = _create_mapping(insp, insp.get_table_names(schema=schema), schema, ds)
 
-    get_view_names = getattr(insp, "get_view_names", None)
-    get_materialized_view_names = getattr(insp, "get_materialized_view_names", None)
-    views = []
-    if callable(get_view_names):
-        views += insp.get_view_names(schema=schema)
-    if callable(get_materialized_view_names):
-        views += insp.get_materialized_view_names(schema=schema)
+        get_view_names = getattr(insp, "get_view_names", None)
+        get_materialized_view_names = getattr(insp, "get_materialized_view_names", None)
+        views = []
+        if callable(get_view_names):
+            views += insp.get_view_names(schema=schema)
+        if callable(get_materialized_view_names):
+            views += insp.get_materialized_view_names(schema=schema)
 
-    if views:
-        dataset = f"{dataset}/views"
-        dataset_name = f"{dataset_name}/views"
-        table_mapper.append(
-            {
-                "dataset": dataset,
-                "dataset_given": dataset_name,
-                "resource": "resource1",
-                "mapping": _create_mapping(insp, views, schema, dataset),
-            }
-        )
+        views_mapping = {}
+        if views:
+            views_ds = f"{ds}/views"
+            views_mapping = _create_mapping(insp, views, schema, views_ds)
 
-    for mapping_data in table_mapper:
-        yield (
-            None,
-            {
-                "type": "dataset",
-                "name": mapping_data["dataset"],
-                "resources": {
-                    mapping_data["resource"]: {
-                        "type": "sql",
-                        "external": str(url.set(password="")),
-                        "prepare": prepare,
-                    },
-                },
-                "given_name": mapping_data["dataset_given"],
-            },
-        )
+        schema_map = _SchemaMapping(schema=schema, resource="resource1", dataset=ds)
+        schema_map.tables = table_mapping
+        schema_map.views = views_mapping
+        schema_mapper[schema] = schema_map
 
-        for table in sorted(mapping_data["mapping"]):
-            yield (
-                None,
-                {
-                    "type": "model",
-                    "name": mapping_data["mapping"][table].model,
-                    "external": {
-                        "dataset": mapping_data["dataset"],
-                        "resource": mapping_data["resource"],
-                        "name": table,
-                        "pk": _get_primary_key(insp, table, schema, mapping_data["mapping"]),
-                    },
-                    "description": _get_table_comment(insp, schema, table),
-                    "properties": dict(_read_props(insp, table, schema, mapping_data["mapping"])),
-                },
+    for mapping_data in schema_mapper.values():
+        if mapping_data.tables:
+            yield from _create_dataset_for_schema(
+                schema=mapping_data.schema,
+                dataset=mapping_data.dataset,
+                dataset_given=mapping_data.dataset_given,
+                resource=mapping_data.resource,
+                tables=mapping_data.tables,
+                prepare=prepare,
+                url=url,
+                schema_mapper=schema_mapper,
+                insp=insp,
+            )
+
+        if mapping_data.views:
+            yield from _create_dataset_for_schema(
+                schema=mapping_data.schema,
+                dataset=f"{mapping_data.dataset}/views",
+                dataset_given=f"{mapping_data.dataset_given}/views",
+                resource=mapping_data.resource,
+                tables=mapping_data.views,
+                prepare=prepare,
+                url=url,
+                schema_mapper=schema_mapper,
+                insp=insp,
             )
 
 
 class _TableMapping(NamedTuple):
     model: str  # full model name
+    schema: str
     props: Dict[
         str,  # column
         str,  # property
@@ -127,6 +113,25 @@ _Mapping = Dict[
     str,  # table
     _TableMapping,
 ]
+
+
+@dataclasses.dataclass
+class _SchemaMapping:
+    schema: str
+    dataset: str
+    resource: str
+    dataset_given: str = None
+    tables: _Mapping = dataclasses.field(default_factory=dict)
+    views: _Mapping = dataclasses.field(default_factory=dict)
+
+    def get_table(self, table: str) -> _TableMapping:
+        if table in self.tables:
+            return self.tables[table]
+
+        if table in self.views:
+            return self.views[table]
+
+        raise KeyError(table)
 
 
 def _create_mapping(insp: Inspector, tables: list, schema: str, dataset: str) -> _Mapping:
@@ -143,6 +148,7 @@ def _create_mapping(insp: Inspector, tables: list, schema: str, dataset: str) ->
             props[col["name"]] = prop
         mapping[table] = _TableMapping(
             dataset + "/" + model,
+            schema,
             props,
         )
     return mapping
@@ -152,10 +158,10 @@ def _get_primary_key(
     insp: Inspector,
     table: str,
     schema: str,
-    mapping: _TableMapping,
+    mapping: dict[str, _SchemaMapping],
 ) -> List[str]:
     pk = insp.get_pk_constraint(table, schema=schema)
-    return [mapping[table].props[col] for col in pk["constrained_columns"]]
+    return [mapping[schema].get_table(table).props[col] for col in pk["constrained_columns"]]
 
 
 def _get_table_comment(insp: Inspector, schema: str, table: str) -> str:
@@ -169,7 +175,7 @@ def _read_props(
     insp: Inspector,
     table: str,
     schema: str,
-    mapping: _Mapping,
+    mapping: dict[str, _SchemaMapping],
 ) -> Iterator[
     Tuple[
         str,
@@ -182,7 +188,7 @@ def _read_props(
     cols = sorted(cols, key=itemgetter("name"))
     for col in cols:
         name = col["name"]
-        prop = mapping[table].props[name]
+        prop = mapping[schema].get_table(table).props[name]
         extra = {}
 
         if name in cfkeys:
@@ -274,7 +280,7 @@ def _get_fkeys(
     insp: Inspector,
     table: str,
     schema: str,
-    mapping: _Mapping,
+    mapping: dict[str, _SchemaMapping],
 ) -> Tuple[
     Dict[  # foreign keys
         str,  # column (source)
@@ -293,17 +299,18 @@ def _get_fkeys(
         col = fk["constrained_columns"][0]
 
         rtable = fk["referred_table"]
+        rschema = fk["referred_schema"] or schema
 
         if composite:
-            name = "_".join([mapping[table].props[c] for c in fk["constrained_columns"]])
+            name = "_".join([mapping[schema].get_table(table).props[c] for c in fk["constrained_columns"]])
         else:
-            name = mapping[table].props[col]
+            name = mapping[schema].get_table(table).props[col]
 
-        referenced_model_pkeys = _get_primary_key(insp, rtable, schema, mapping)
-        refprops = [mapping[rtable].props[rcol] for rcol in fk["referred_columns"]]
+        referenced_model_pkeys = _get_primary_key(insp, rtable, rschema, mapping)
+        refprops = [mapping[rschema].get_table(rtable).props[rcol] for rcol in fk["referred_columns"]]
         ref = _Ref(
             name=name,
-            model=mapping[rtable].model,
+            model=mapping[rschema].get_table(rtable).model,
             props=[] if referenced_model_pkeys == refprops else refprops,
         )
 
@@ -313,3 +320,50 @@ def _get_fkeys(
             fkeys[col] = ref
 
     return fkeys, cfkeys
+
+
+def _create_dataset_for_schema(
+    schema: str,
+    dataset: str,
+    dataset_given: str | None,
+    resource: str,
+    tables: dict[str, _TableMapping],
+    prepare: str,
+    url: object,
+    schema_mapper: dict[str, _SchemaMapping],
+    insp: Inspector,
+):
+    yield (
+        None,
+        {
+            "type": "dataset",
+            "name": dataset,
+            "resources": {
+                resource: {
+                    "type": "sql",
+                    "external": str(url.set(password="")),
+                    "prepare": prepare,
+                },
+            },
+            "given_name": dataset_given,
+        },
+    )
+
+    for table in sorted(tables):
+        table_data = tables[table]
+        schema = schema
+        yield (
+            None,
+            {
+                "type": "model",
+                "name": table_data.model,
+                "external": {
+                    "dataset": dataset,
+                    "resource": resource,
+                    "name": f"{schema}.{table}",
+                    "pk": _get_primary_key(insp, table, schema, schema_mapper),
+                },
+                "description": _get_table_comment(insp, schema, table),
+                "properties": dict(_read_props(insp, table, schema, schema_mapper)),
+            },
+        )
