@@ -131,7 +131,7 @@ class XSDKey:
 
     name: str
     selector_xpath: str
-    field_xpaths: List[str]
+    field_xpaths: list[str]
 
 
 """
