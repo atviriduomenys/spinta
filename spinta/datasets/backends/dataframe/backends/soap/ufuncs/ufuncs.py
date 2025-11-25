@@ -102,23 +102,32 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
     env.call("soap_request_body", prop, resource_param)
 
 
+def _get_final_soap_request_body_value(env: SoapQueryBuilder, property_name: str, param_source: str) -> Any:
+    """If value in URL - use it (even if it's None). If not - use whatever default is given in DSA"""
+    url_value = env.query_params.url_params.get(property_name, NA)
+    param_default_value = env.soap_request_body.get(param_source, NA)
+
+    return url_value if url_value is not NA else param_default_value
+
+
 @ufunc.resolver(SoapQueryBuilder, Property, Param)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
     """Replace default param.soap_body values with url_param values"""
-    url_param_value = env.query_params.url_params.get(prop.place, NA)
-    param_body_key = next(iter(param.soap_body))
-    default_value = env.soap_request_body.get(param_body_key, NA)
-    final_value = url_param_value if url_param_value is not NA else default_value
+    param_source = next(iter(param.soap_body))
+    final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
 
     if final_value is NA:
-        env.soap_request_body.pop(param_body_key, None)
+        # If value not in URL and DSA have no default - remove it from SOAP request completely
+        env.soap_request_body.pop(param_source, None)
         final_value = None
-    else:
-        env.soap_request_body[param_body_key] = final_value
+    elif final_value:
+        env.soap_request_body[param_source] = final_value
 
-    if prop.dtype.required and param_body_key not in env.soap_request_body:
+    # Check if required property values exist
+    if prop.dtype.required and param_source not in env.soap_request_body:
         raise MissingRequiredProperty(prop, prop=prop.name)
 
+    # Update property values. Even if value is not sent via SOAP, it should have None value when displayed by Spita
     env.property_values.update({param.name: final_value})
 
 
