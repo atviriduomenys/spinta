@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from lxml import etree
+
 from spinta.auth import authorized, query_client
 from spinta.components import Property
 from spinta.core.enums import Action
@@ -121,7 +123,9 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
         env.soap_request_body.pop(param_source, None)
         final_value = None
     elif final_value:
-        env.soap_request_body[param_source] = final_value
+        # If value should be sent as CDATA - change it to etree.CDATA
+        soap_final_value = etree.CDATA(final_value) if param.soap_body_value_type == "cdata" else final_value
+        env.soap_request_body[param_source] = soap_final_value
 
     # Check if required property values exist
     if prop.dtype.required and param_source not in env.soap_request_body:
