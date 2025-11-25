@@ -225,21 +225,18 @@ def zipitems(
                 res[mapped_key] = [new_value]
                 continue
 
-            existing_values = res[mapped_key]
+            existing_list = res[mapped_key]
 
-            # Try to fill an empty second slot
-            filled = False
-            for existing_value in existing_values:
-                if existing_value[1] is NA:
-                    existing_value[1] = value
-                    filled = True
-                    break
-
-            if not filled:
-                # Decide what to use for the left side; if there are existing rows,
-                # it probably should mirror the first one's left side.
-                left = existing_values[0][0] if existing_values else NA
-                existing_values.append([left, value])
+            # 1) Fill ALL rows that still have NA on the right
+            na_rows = [row for row in existing_list if row[1] is NA]
+            if na_rows:
+                for row in na_rows:
+                    row[1] = value
+            else:
+                # 2) No NA slots left -> append exactly ONE new row
+                #    Left side can mirror the first row's 'a' (or NA if that's what you want)
+                left_side = existing_list[0][0] if existing_list else NA
+                existing_list.append([left_side, value])
 
     yield from res.values()
 
