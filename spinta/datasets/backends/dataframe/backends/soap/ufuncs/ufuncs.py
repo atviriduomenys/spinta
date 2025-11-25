@@ -22,6 +22,21 @@ from spinta.utils.data import take
 from spinta.utils.schema import NA
 
 
+class MakeCDATA:
+    """
+    Small helper class for making CDATA objects. Instances of this class are passed to dask. Passing etree.CDATA
+    objects directly doesn't work because etree.CDATA objects are not hashable and that breaks dask
+    """
+
+    data: str
+
+    def __init__(self, data: str) -> None:
+        self.data = data
+
+    def __call__(self) -> etree.CDATA:
+        return etree.CDATA(self.data)
+
+
 @ufunc.resolver(SoapQueryBuilder, Expr)
 def select(env: SoapQueryBuilder, expr: Expr) -> Expr:
     return expr
@@ -124,7 +139,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
         final_value = None
     elif final_value:
         # If value should be sent as CDATA - change it to etree.CDATA
-        soap_final_value = etree.CDATA(final_value) if param.soap_body_value_type == "cdata" else final_value
+        soap_final_value = MakeCDATA(final_value) if param.soap_body_value_type == "cdata" else final_value
         env.soap_request_body[param_source] = soap_final_value
 
     # Check if required property values exist

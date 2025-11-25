@@ -101,7 +101,7 @@ def test_soap_read_calls_soap_operation_with_empty_request_body(rc: RawConfig, m
     app.authmodel("/example/City/", ["getall"])
     app.get("/example/City/")
 
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request={})
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body={})
 
 
 def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: RawConfig, mocker: MockerFixture) -> None:
@@ -122,12 +122,10 @@ def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: Raw
     app.get("/example/City/")
 
     expected_soap_request = {
-        "request_model": {
-            "param1": "default_val",
-            "param2": "default_val",
-        },
+        "request_model/param1": "default_val",
+        "request_model/param2": "default_val",
     }
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request=expected_soap_request)
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request)
 
 
 def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: RawConfig, mocker: MockerFixture) -> None:
@@ -148,12 +146,10 @@ def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: Ra
     app.get("/example/City/?p1='foo'&p2='bar'")
 
     expected_soap_request = {
-        "request_model": {
-            "param1": "foo",
-            "param2": "bar",
-        },
+        "request_model/param1": "foo",
+        "request_model/param2": "bar",
     }
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request=expected_soap_request)
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request)
 
 
 def test_soap_read_raise_error_if_manifest_resource_param_source_cannot_be_parsed(rc: RawConfig) -> None:

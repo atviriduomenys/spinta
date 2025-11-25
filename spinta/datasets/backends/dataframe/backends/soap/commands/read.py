@@ -11,6 +11,7 @@ from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.soap.components import Soap
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
+from spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs import MakeCDATA
 from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, get_dask_dataframe_meta, dask_get_all
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.components import Resource
@@ -20,7 +21,16 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
-def _get_data_soap(url: str, backend: Soap, soap_request: dict, extra_headers: dict) -> list[dict]:
+def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_headers: dict) -> list[dict]:
+    for key, value in soap_request_body.items():
+        if isinstance(value, MakeCDATA):
+            soap_request_body[key] = value()
+
+    try:
+        soap_request = _expand_dict_keys(soap_request_body)
+    except ValueError as err:
+        raise SoapRequestBodyParseError(err)
+
     try:
         response_data = serialize_object(
             backend.get_soap_operation(extra_headers=extra_headers)(**soap_request), target_cls=dict
@@ -119,18 +129,13 @@ def getall(
 
     http_headers = _get_soap_http_headers(resource, builder)
 
-    try:
-        soap_request = _expand_dict_keys(builder.soap_request_body)
-    except ValueError as err:
-        raise SoapRequestBodyParseError(err)
-
     meta = get_dask_dataframe_meta(model)
     df = (
         dask.bag.from_sequence(bases)
         .map(
             _get_data_soap,
             backend=backend,
-            soap_request=soap_request,
+            soap_request_body=builder.soap_request_body,
             extra_headers=http_headers,
         )
         .flatten()

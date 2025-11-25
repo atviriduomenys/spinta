@@ -460,7 +460,7 @@ class TestSoapRequestBody:
         soap_query_builder.build()
 
         dummy_element = etree.Element("foo")
-        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")
+        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")()
         assert etree.tostring(dummy_element) == b"<foo><![CDATA[default_val]]></foo>"
         assert soap_query_builder.property_values == {"parameter1": "default_val"}
 
@@ -487,7 +487,7 @@ class TestSoapRequestBody:
         soap_query_builder.build()
 
         dummy_element = etree.Element("foo")
-        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")
+        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")()
         assert etree.tostring(dummy_element) == b"<foo><![CDATA[url_value]]></foo>"
         assert soap_query_builder.property_values == {"parameter1": "url_value"}
 
