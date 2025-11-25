@@ -2266,13 +2266,17 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, "inspect_schema").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/test_schema").resources["resource1"].external = "postgresql"
     a, b = compare_manifest(
         manifest,
         """
-       d | r | m | property  | type    | ref       | source     | prepare | access  | title
-       inspect_schema        |         |           |            |         |         |
-         | resource1         | sql     |           | postgresql |         |         |
+       d | r | m | property       | type    | ref       | source             | prepare | access  | title
+       inspect_schema/test_schema |         |           |                    |         |         |
+         | resource1              | sql     |           | postgresql         |         |         |
+                                  |         |           |                    |         |         |
+         |   | Cities             |         |           | test_schema.cities |         |         |
+         |   |   | id             | integer |           | id                 |         |         |
+         |   |   | name           | string  |           | name               |         |         |
 """,
         context,
     )

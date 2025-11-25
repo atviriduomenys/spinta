@@ -28,6 +28,7 @@ from spinta.utils.naming import to_property_name
 
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
     engine = sa.create_engine(path)
+    schema = None
     if prepare:
         env = SqlResource(context).init(path)
         parsed = spyna.parse(prepare)
@@ -40,15 +41,17 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
                 expected=full_class_name(Engine),
                 received=full_class_name(engine),
             )
+        schema = engine.schema
         engine = engine.create()
 
     url = sa.engine.make_url(path)
     dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else "dataset1"
     insp = sa.inspect(engine)
-    default_schema = insp.default_schema_name
+    default_schema = schema or insp.default_schema_name
 
     schema_mapper: dict[str, _SchemaMapping] = {}
-    for schema in insp.get_schema_names():
+    schemas = insp.get_schema_names() if schema is None else [schema]
+    for schema in schemas:
         if is_internal_schema(engine, schema):
             continue
 
