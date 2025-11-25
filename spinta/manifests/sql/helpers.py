@@ -9,10 +9,7 @@ from typing import Tuple
 
 import sqlalchemy as sa
 from geoalchemy2.types import Geometry
-from sqlalchemy.dialects import mysql
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects import oracle
-from sqlalchemy.dialects import mssql
+from sqlalchemy.dialects import postgresql, mysql, sqlite, mssql, oracle
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.sql.sqltypes import _Binary
 from sqlalchemy.types import TypeEngine
@@ -48,10 +45,15 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     url = sa.engine.make_url(path)
     dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else "dataset1"
     insp = sa.inspect(engine)
+    default_schema = insp.default_schema_name
 
     schema_mapper: dict[str, _SchemaMapping] = {}
     for schema in insp.get_schema_names():
-        ds = dataset + "/" + schema
+        if is_internal_schema(engine, schema):
+            continue
+
+        include_schema_in_name = schema != default_schema
+        ds = (dataset + "/" + schema) if include_schema_in_name else dataset
         table_mapping = _create_mapping(insp, insp.get_table_names(schema=schema), schema, ds)
 
         get_view_names = getattr(insp, "get_view_names", None)
@@ -73,6 +75,7 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
         schema_mapper[schema] = schema_map
 
     for mapping_data in schema_mapper.values():
+        include_schema_in_name = mapping_data.schema != default_schema
         if mapping_data.tables:
             yield from _create_dataset_for_schema(
                 schema=mapping_data.schema,
@@ -84,6 +87,7 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
                 url=url,
                 schema_mapper=schema_mapper,
                 insp=insp,
+                include_schema_in_name=include_schema_in_name,
             )
 
         if mapping_data.views:
@@ -97,6 +101,7 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
                 url=url,
                 schema_mapper=schema_mapper,
                 insp=insp,
+                include_schema_in_name=include_schema_in_name,
             )
 
 
@@ -332,6 +337,7 @@ def _create_dataset_for_schema(
     url: object,
     schema_mapper: dict[str, _SchemaMapping],
     insp: Inspector,
+    include_schema_in_name: bool,
 ):
     yield (
         None,
@@ -360,10 +366,52 @@ def _create_dataset_for_schema(
                 "external": {
                     "dataset": dataset,
                     "resource": resource,
-                    "name": f"{schema}.{table}",
+                    "name": f"{schema}.{table}" if include_schema_in_name else table,
                     "pk": _get_primary_key(insp, table, schema, schema_mapper),
                 },
                 "description": _get_table_comment(insp, schema, table),
                 "properties": dict(_read_props(insp, table, schema, schema_mapper)),
             },
         )
+
+
+def is_internal_schema(engine: Engine, schema: str) -> bool:
+    if schema is None:
+        return False
+
+    dialect = engine.dialect
+    if isinstance(dialect, postgresql.dialect):
+        if schema in {"pg_catalog", "information_schema", "pg_toast"}:
+            return True
+        if schema.startswith("pg_temp_") or schema.startswith("pg_toast_temp_"):
+            return True
+        return False
+
+    elif isinstance(dialect, mysql.dialect):
+        return schema in {
+            "mysql",
+            "information_schema",
+            "performance_schema",
+            "sys",
+        }
+
+    elif isinstance(dialect, sqlite.dialect):
+        return schema == "temp"
+
+    elif isinstance(dialect, mssql.dialect):
+        return schema in {"sys", "INFORMATION_SCHEMA"}
+
+    elif isinstance(dialect, oracle.dialect):
+        return schema in {
+            "SYS",
+            "SYSTEM",
+            "XDB",
+            "CTXSYS",
+            "MDSYS",
+            "ORDSYS",
+            "OUTLN",
+            "ORDDATA",
+        }
+
+    # Fallback: nothing internal by default for unknown/other dialects
+    return False
