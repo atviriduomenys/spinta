@@ -12,6 +12,7 @@ services:
     environment:
       - AUTHLIB_INSECURE_TRANSPORT=1
       - DB_HOST=database
+      - DB_HOST_INTERNAL=spinta-${BRANCH}-database
       - DB_PORT=5432
     env_file:
       template.env
@@ -23,30 +24,7 @@ services:
       resources:
         limits:
           memory: 1024M
-  saugykla-${BRANCH}:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-      - ./entrypoint-internal.sh
-    environment:
-      - AUTHLIB_INSECURE_TRANSPORT=1
-      - DB_HOST=saugykla-${BRANCH}-database
-      - DB_PORT=5432
-    env_file:
-      template.env
-    networks:
-      spinta:
-        aliases:
-          - saugykla-${BRANCH}
-    depends_on:
-      - saugykla-${BRANCH}-database
-    deploy:
-      resources:
-        limits:
-          memory: 1024M
-
-  saugykla-${BRANCH}-database:
+  spinta-${BRANCH}-database:
     image: postgis/postgis:16-3.4
     environment:
       - TZ=UTC

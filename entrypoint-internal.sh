@@ -13,7 +13,7 @@ keymaps:
 backends:
   default:
     type: postgresql
-    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=5432}/spinta
+    dsn: postgresql://admin:admin123@${DB_HOST_INTERNAL:=localhost}:${DB_PORT:=5432}/spinta
 manifest: default
 manifests:
   default:
@@ -34,15 +34,12 @@ fi
 # Ensure client folders exists
 poetry run spinta upgrade clients
 
-git clone https://github.com/atviriduomenys/demo-saltiniai.git
+git clone https://github.com/atviriduomenys/manifest.git
 mkdir manifests
-find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
-rm -f manifests/kdsa.csv
+find manifest/datasets/gov -name "*.csv" | xargs -I{} mv "{}" manifests/
 ls manifests/* | xargs poetry run spinta copy -o manifest.csv
 
-rm -rf demo-saltiniai manifests
-
-poetry run spinta bootstrap
+rm -rf manifest manifests
 
 CLIENTS_FOLDER="${XDG_CONFIG_HOME:-$HOME}/.config/spinta/clients"
 if [ ! -d $CLIENTS_FOLDER ] ||
@@ -65,4 +62,6 @@ EOF
   fi
 
 poetry run spinta upgrade
+poetry run spinta push
+
 make run
