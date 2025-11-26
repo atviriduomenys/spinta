@@ -1,0 +1,16 @@
+@startuml
+package wait <<Rectangle>> {
+
+    object wait {
+        +context: Context,
+        +backend: PostgreSQL,
+        +*,
+        +fail: bool = False,
+    }
+}
+
+wait *-- Context
+wait *-- PostgreSQL
+
+@enduml
+
