@@ -7,6 +7,7 @@ from typing import List
 from typing import NamedTuple
 from typing import Tuple
 
+import cachetools
 import sqlalchemy as sa
 from geoalchemy2.types import Geometry
 from sqlalchemy.dialects import postgresql, mysql, sqlite, mssql, oracle
@@ -378,15 +379,27 @@ def _create_dataset_for_schema(
         )
 
 
+@cachetools.cached(cache=cachetools.LRUCache(maxsize=1024))
+def oracle_maintained_schemas(engine: Engine) -> Iterator[str]:
+    query = sa.text("""
+        SELECT USERNAME 
+        FROM ALL_USERS
+        WHERE ORACLE_MAINTAINED = 'Y'
+    """)
+    with engine.connect() as conn:
+        rows = conn.execute(query).fetchall()
+        return {r[0].upper() for r in rows}
+
+
 def is_internal_schema(engine: Engine, schema: str) -> bool:
     if schema is None:
         return False
 
     dialect = engine.dialect
     if isinstance(dialect, postgresql.dialect):
-        if schema in {"pg_catalog", "information_schema", "pg_toast"}:
+        if schema == "information_schema":
             return True
-        if schema.startswith("pg_temp_") or schema.startswith("pg_toast_temp_"):
+        if schema.startswith("pg_"):
             return True
         return False
 
@@ -405,16 +418,9 @@ def is_internal_schema(engine: Engine, schema: str) -> bool:
         return schema in {"sys", "INFORMATION_SCHEMA"}
 
     elif isinstance(dialect, oracle.dialect):
-        return schema in {
-            "SYS",
-            "SYSTEM",
-            "XDB",
-            "CTXSYS",
-            "MDSYS",
-            "ORDSYS",
-            "OUTLN",
-            "ORDDATA",
-        }
+        schema_upper = schema.upper()
+        oracle_schemas = oracle_maintained_schemas(engine)
+        return schema_upper in oracle_schemas
 
     # Fallback: nothing internal by default for unknown/other dialects
     return False
