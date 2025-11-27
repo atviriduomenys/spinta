@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from lxml import etree
+
 from spinta.auth import authorized, query_client
 from spinta.components import Property
 from spinta.core.enums import Action
@@ -18,6 +20,21 @@ from spinta.exceptions import (
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+
+class MakeCDATA:
+    """
+    Small helper class for making CDATA objects. Instances of this class are passed to dask. Passing etree.CDATA
+    objects directly doesn't work because etree.CDATA objects are not hashable and that breaks dask
+    """
+
+    data: str
+
+    def __init__(self, data: str) -> None:
+        self.data = data
+
+    def __call__(self) -> etree.CDATA:
+        return etree.CDATA(self.data)
 
 
 @ufunc.resolver(SoapQueryBuilder, Expr)
@@ -102,23 +119,34 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
     env.call("soap_request_body", prop, resource_param)
 
 
+def _get_final_soap_request_body_value(env: SoapQueryBuilder, property_name: str, param_source: str) -> Any:
+    """If value in URL - use it (even if it's None). If not - use whatever default is given in DSA"""
+    url_value = env.query_params.url_params.get(property_name, NA)
+    param_default_value = env.soap_request_body.get(param_source, NA)
+
+    return url_value if url_value is not NA else param_default_value
+
+
 @ufunc.resolver(SoapQueryBuilder, Property, Param)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
     """Replace default param.soap_body values with url_param values"""
-    url_param_value = env.query_params.url_params.get(prop.place, NA)
-    param_body_key = next(iter(param.soap_body))
-    default_value = env.soap_request_body.get(param_body_key, NA)
-    final_value = url_param_value if url_param_value is not NA else default_value
+    param_source = next(iter(param.soap_body))
+    final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
 
     if final_value is NA:
-        env.soap_request_body.pop(param_body_key, None)
+        # If value not in URL and DSA has no default - remove it from SOAP request completely
+        env.soap_request_body.pop(param_source, None)
         final_value = None
-    else:
-        env.soap_request_body[param_body_key] = final_value
+    elif final_value:
+        # If value should be sent as CDATA - change it to etree.CDATA
+        soap_final_value = MakeCDATA(final_value) if param.soap_body_value_type == "cdata" else final_value
+        env.soap_request_body[param_source] = soap_final_value
 
-    if prop.dtype.required and param_body_key not in env.soap_request_body:
+    # Check if required property values exist
+    if prop.dtype.required and param_source not in env.soap_request_body:
         raise MissingRequiredProperty(prop, prop=prop.name)
 
+    # Update property values. Even if value is not sent via SOAP, it should have None value when displayed by Spinta
     env.property_values.update({param.name: final_value})
 
 
