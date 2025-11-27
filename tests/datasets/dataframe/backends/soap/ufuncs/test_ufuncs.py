@@ -4,6 +4,7 @@ import pathlib
 import uuid
 
 import pytest
+from lxml import etree
 from pytest_mock import MockerFixture
 
 from spinta import auth
@@ -437,6 +438,80 @@ class TestSoapRequestBody:
         soap_query_builder.build()
         assert soap_query_builder.soap_request_body == {"request_model/param1": "cred_value"}
         assert soap_query_builder.property_values == {"parameter1": "cred_value"}
+
+    def test_soap_request_body_when_param_has_value_type_cdata_and_default_value_given(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref        | source                                          | access | prepare
+            example                  | dataset |            |                                                 |        |
+              | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | input('default_val').cdata()
+              |   |   | City         |         | id         | /                                               | open   |
+              |   |   |   | id       | integer |            | id                                              |        |
+              |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+        soap_query_builder.build()
+
+        dummy_element = etree.Element("foo")
+        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")()
+        assert etree.tostring(dummy_element) == b"<foo><![CDATA[default_val]]></foo>"
+        assert soap_query_builder.property_values == {"parameter1": "default_val"}
+
+    def test_soap_request_body_when_param_has_value_type_cdata_and_value_via_url_param(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref        | source                                          | access | prepare
+            example                  | dataset |            |                                                 |        |
+              | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | input('default_val').cdata()
+              |   |   | City         |         | id         | /                                               | open   |
+              |   |   |   | id       | integer |            | id                                              |        |
+              |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        query_params = QueryParams()
+        query_params.url_params = {"p1": "url_value"}
+        soap_query_builder = _get_soap_query_builder(context, manifest, query_params=query_params)
+        soap_query_builder.build()
+
+        dummy_element = etree.Element("foo")
+        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")()
+        assert etree.tostring(dummy_element) == b"<foo><![CDATA[url_value]]></foo>"
+        assert soap_query_builder.property_values == {"parameter1": "url_value"}
+
+    def test_soap_request_body_when_param_has_value_type_cdata_and_value_not_given(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref        | source                                          | access | prepare
+            example                  | dataset |            |                                                 |        |
+              | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | input().cdata()
+              |   |   | City         |         | id         | /                                               | open   |
+              |   |   |   | id       | integer |            | id                                              |        |
+              |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+        soap_query_builder.build()
+
+        assert soap_query_builder.soap_request_body == {}
 
 
 class TestCreds:

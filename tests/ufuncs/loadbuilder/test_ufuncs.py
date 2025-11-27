@@ -74,3 +74,16 @@ def test_header_command_raise_error_if_number_of_header_values_not_one(context: 
 
     with pytest.raises(InvalidArgumentInExpression):
         env.call("header", expr)
+
+
+@pytest.mark.parametrize("param_prepare", ["cdata().input()", "input().cdata()", "cdata()"])
+def test_cdata_command_sets_param_soap_body_value_type(context: Context, param_prepare: str) -> None:
+    param = Param()
+
+    env = LoadBuilder(context)
+    env.update(this="source", param=param)
+
+    expr = asttoexpr(parse(param_prepare))
+    env.resolve(expr)
+
+    assert param.soap_body_value_type == "cdata"
