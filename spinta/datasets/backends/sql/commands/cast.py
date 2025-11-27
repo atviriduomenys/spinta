@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List, Any
+
 from spinta import commands
 from spinta.backends import Backend
 from spinta.components import Context, Model
@@ -8,7 +10,7 @@ from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatt
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound
-from spinta.types.datatype import Ref, ExternalRef
+from spinta.types.datatype import Ref, ExternalRef, Array
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
 
@@ -57,6 +59,11 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
         values[prop.name] = id_data[prop.name]
 
     encoding_values = list(values.values())
+
+    # If all values are None, treat it as None given
+    if all(value is None for value in encoding_values):
+        return None
+
     if len(encoding_values) == 1:
         encoding_values = encoding_values[0]
 
@@ -154,3 +161,18 @@ def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: Sql, d
     return commands.cast_backend_to_python(
         context, dtype, backend, {prop.name: data[i] for i, prop in enumerate(dtype.refprops)}, **kwargs
     )
+
+
+@commands.cast_backend_to_python.register(Context, Array, Sql, list)
+def cast_backend_to_python(context: Context, dtype: Array, backend: Sql, data: List[Any], **kwargs) -> List[Any]:
+    # Edge case, when using intermediate table with Sql backend, None values get returned as [None] instead of None
+    if dtype.model is not None and len(data) == 1 and data[0] is None:
+        return commands.cast_backend_to_python(context, dtype.items.dtype, backend, None, **kwargs)
+
+    if data and dtype:
+        data = [commands.cast_backend_to_python(context, dtype.items.dtype, backend, v, **kwargs) for v in data]
+        if all(v is None for v in data):
+            return None
+        return data
+
+    return data

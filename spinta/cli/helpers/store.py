@@ -67,6 +67,7 @@ def load_config(
     *,
     verbose: bool = True,
     ensure_config_dir: bool = False,
+    check_config: bool = True,
 ) -> Config:
     config = context.get("config")
     commands.load(context, config)
@@ -77,7 +78,8 @@ def load_config(
             config.default_auth_client,
             verbose=verbose,
         )
-    commands.check(context, config)
+    if check_config:
+        commands.check(context, config)
     return config
 
 
@@ -86,11 +88,13 @@ def load_store(
     *,
     verbose: bool = True,
     ensure_config_dir: bool = False,
+    check_config=True,
 ) -> Store:
     load_config(
         context,
         verbose=verbose,
         ensure_config_dir=ensure_config_dir,
+        check_config=check_config,
     )
     store = context.get("store")
     commands.load(context, store)
@@ -106,12 +110,14 @@ def load_manifest(
     rename_duplicates: bool = False,
     load_internal: bool = True,
     full_load: bool = False,
+    check_config: bool = True,
 ) -> Store:
     if store is None:
         store = load_store(
             context,
             verbose=verbose,
             ensure_config_dir=ensure_config_dir,
+            check_config=check_config,
         )
     if verbose:
         if store.manifest.path:

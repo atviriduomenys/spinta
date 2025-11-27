@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from functools import reduce
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Iterator
+
+from dask.dataframe import Series
 
 from spinta.auth import authorized
 from spinta.components import Property
@@ -9,13 +13,14 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskDataFrameQueryBuilder,
     DaskSelected as Selected,
 )
+from spinta.datasets.components import Param
+from spinta.datasets.utils import iterparams
 from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
-from spinta.types.datatype import DataType, PrimaryKey, Ref, Binary
+from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
-import base64 as b64
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
@@ -68,25 +73,24 @@ def offset(env: DaskDataFrameQueryBuilder, n: int):
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
-def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr):
+def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Property:
     return env.call("_resolve_property", attr.obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
-def _resolve_property(env: DaskDataFrameQueryBuilder, bind: Bind):
+def _resolve_property(env: DaskDataFrameQueryBuilder, bind: Bind) -> Property | None:
     return env.call("_resolve_property", bind.name)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, str)
-def _resolve_property(env: DaskDataFrameQueryBuilder, prop: str):
+def _resolve_property(env: DaskDataFrameQueryBuilder, prop: str) -> Property | None:
     if prop in env.model.flatprops:
         return env.model.flatprops.get(prop)
-
-    raise PropertyNotFound(env.model, property=prop)
+    return None
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
-def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property):
+def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property) -> Property:
     return prop
 
 
@@ -414,25 +418,9 @@ def select(
     return {k: env.call("select", v) for k, v in prep.items()}
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder)
-def base64(env: DaskDataFrameQueryBuilder) -> bytes:
-    return env.call("base64", env.this)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Property)
-def base64(env: DaskDataFrameQueryBuilder, prop: Property) -> bytes:
-    return env.call("base64", prop.dtype)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Binary)
-def base64(env: DaskDataFrameQueryBuilder, dtype: Binary) -> Selected:
-    item = f"base64({dtype.prop.external.name})"
-    env.dataframe[item] = (
-        env.dataframe[dtype.prop.external.name]
-        .str.encode("ascii")
-        .map(b64.decodebytes, meta=(dtype.prop.external.name, bytes))
-    )
-    return Selected(item=item, prop=dtype.prop)
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def base64(env: DaskDataFrameQueryBuilder, expr: Expr) -> Expr:
+    return expr  # Expression will be resolved in ResultBuilder
 
 
 COMPARE = [
@@ -448,12 +436,25 @@ COMPARE = [
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)
-def compare(env, op, field, value):
+def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any):
     prop = env.call("_resolve_property", field)
-    return env.call(op, prop.dtype, value)
+    if prop:
+        return env.call(op, prop.dtype, value)
+    return None
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object, name="eq")
-def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
+def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object) -> Series:
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Param, name="eval")
+def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
+    resolved_values = (
+        param_values.get(param.name)
+        for param_values in iterparams(env.context, env.model, env.model.manifest, [param], env.url_query_params)
+        if param_values.get(param.name)
+    )
+
+    return resolved_values

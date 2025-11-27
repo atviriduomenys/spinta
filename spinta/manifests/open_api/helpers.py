@@ -11,6 +11,9 @@ from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 
 from spinta.exceptions import NotImplementedFeature
+from spinta.manifests.components import ManifestPath
+from spinta.manifests.open_api.openapi_generator import OpenAPIGenerator
+
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
@@ -348,3 +351,10 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     yield from get_namespace_schema(info, title, dataset_prefix)
 
     yield from get_dataset_schemas(data, dataset_prefix)
+
+
+def create_openapi_manifest(manifest: ManifestPath) -> dict:
+    """Create OpenAPI manifest from manifest data"""
+
+    generator = OpenAPIGenerator()
+    return generator.generate_spec(manifest)

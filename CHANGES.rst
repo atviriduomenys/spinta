@@ -1,8 +1,123 @@
 Changes
 #######
 
-0.2dev6 (unreleased)
+0.2dev10 (unreleased)
+=====================
+
+Backwards incompatible:
+
+- `spinta migrate` with the `postgresql` backend now requires all tables and
+  columns to have up-to-date comments with their full uncompressed names.
+  Migrations are likely to fail or be incorrect if comments are missing or
+  outdated. Use the `spinta upgrade postgresql_comments` script to validate
+  and update all required comments (`#1579`_).
+
+Improvements:
+
+- `spinta migrate` now uses PostgreSQL comments to map tables and models
+  together (`#1579`_).
+- The `internal` `postgresql` backend now adds full name comments to all its
+  tables and columns. To migrate to the new changes, the
+  `spinta upgrade postgresql_comments` script was added (`#1579`_).
+
+Bug fixes:
+
+- Fixed an issue where `spinta migrate` incorrectly created table drop
+  scripts for `changelog` and `redirect` tables (`#1579`_).
+
+  .. _#1579: https://github.com/atviriduomenys/spinta/issues/1579
+
+0.2dev9 (2025-11-21)
 ====================
+
+New Features:
+
+- Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
+  also known as well-known, jwk.
+- Spinta as Agent:
+    - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
+      algorithm (`alg` & `kty`).
+      This unlocks using auth servers with public key rotation, like Gravitee.
+    - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
+      verification.
+    - move existing `spinta genkeys` command to `spinta key generate`.
+
+
+.. _#1569: https://github.com/atviriduomenys/spinta/issues/1569
+
+New Features:
+- Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)
+- Add `param.header()` prepare function that constructs HTTP header. Can be used in `soap` backend (`#1576`_).
+
+
+  .. _#1582: https://github.com/atviriduomenys/spinta/issues/1582
+  .. _#1576: https://github.com/atviriduomenys/spinta/issues/1576
+
+Improvements:
+
+- Keymap and push db sync now attempts to retry data fetch after failing to get valid response from remote server.
+  Retries can be modified with `sync_retry_count` and `sync_retry_delay_range` config values (`#1594`_).
+
+  .. _#1594: https://github.com/atviriduomenys/spinta/issues/1594
+
+Bug fixes:
+
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
+
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
+
+0.2dev8 (2025-11-06)
+====================
+
+Bug fixes:
+
+- Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
+- Changed `admin` and `upgrade` command `Argument` default value check (`#1575`_).
+- Fixed an error where MySQL LONGBLOB wasn't recognized (`#1484`_).
+
+  .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
+  .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
+
+0.2dev7 (2025-10-23)
+====================
+
+New Features:
+
+- Added `eval()` prepare function for resources. This function allows using the value of a prepare expression
+  as a data source instead of a source column. The `eval(param(..))` syntax can reference a property from
+  another resource, even if it belongs to a different backend. `dask/json` and `dask/xml` backends can now
+  use `eval()` to read data from properties of `dask/json`, `dask/xml`, or `soap` backends. (`#1487`_)
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
+
+.. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
+.. _#825: https://github.com/atviriduomenys/spinta/issues/825
+
+Bug fixes:
+
+- Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
+- Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
+- Remove synchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
+- Fixed `spinta migrate -d` argument not collecting correct tables with long names (`#1557`_).
+
+  .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
+
+Improvements:
+
+- Introduce synchronization logic part one: Catalog to Agent (`#1488`_).
+
+  .. _#1488: https://github.com/atviriduomenys/spinta/issues/1488
+
+
+0.2dev6 (2025-10-09)
+====================
+
+New Features:
+
+- Added config based OpenAPI generator that creates REST API documentation from manifest. (`#1463`_)
+
+
+  .. _#1463: https://github.com/atviriduomenys/spinta/issues/1463
 
 Improvements:
 
@@ -11,14 +126,40 @@ Improvements:
 - `private` and `public` keys now include `kid` field (`#675`_).
 - Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
 - Introduced a new error handling framework with CLI integration, including error reporting and post-processing in `spinta copy` and `spinta check` (`#1462`_)
+- Calling getall with soap backend will always return list of object, even if SOAP response has one element (`#1486`_)
+- Introduce `base64()` prepare function that decodes base64 string (`#1486`_)
+- `base64()` prepare function that decodes base64 binary now does this outside dask dataframes. Also, raises `InvalidBase64String` for invalid base64 (`#1486`_)
+- Added `Cache-Control`, `ETag` and `Last-Modified` headers to most commonly used `GET` requests (`#1506`_).
 
   .. _#605: https://github.com/atviriduomenys/spinta/issues/605
   .. _#675: https://github.com/atviriduomenys/spinta/issues/675
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
+  .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
+  .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
+
+Bug fixes:
+
+- Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
+
+- Fixed `spinta copy` ignores resources without any models (`#1512`_)
+
+
+  .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
+  .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
+
+
+Bug fixes:
+
+- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in
+  inspect command. Previously, LONGBLOB columns caused TypeError during
+  ŠDSA generation (`#1484`_).
+
+  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 Other:
 - Removed dependency `mypy`
+
 
 0.2dev5 (2025-09-03)
 ====================
@@ -52,6 +193,7 @@ New Features:
 - Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
 - Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
 - Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
+
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
   .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378

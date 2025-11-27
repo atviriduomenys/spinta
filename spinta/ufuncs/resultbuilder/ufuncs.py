@@ -1,4 +1,8 @@
+import binascii
+
 from spinta.core.ufuncs import ufunc, Expr
+from spinta.exceptions import InvalidBase64String, NotImplementedFeature
+from spinta.types.datatype import String, Binary
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
@@ -22,7 +26,24 @@ def point(env: ResultBuilder, x: Selected, y: Selected) -> str:
 @ufunc.resolver(ResultBuilder, Expr)
 def split(env: ResultBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
-    return env.call("split", *args, **kwargs)
+    return env.call("split", env.this, *args, **kwargs)
+
+
+@ufunc.resolver(ResultBuilder, type(None), str)
+def split(env: ResultBuilder, data: type(None), separator: str):
+    return None
+
+
+@ufunc.resolver(ResultBuilder, str, str)
+def split(env: ResultBuilder, data: str, separator: str):
+    return data.split(separator)
+
+
+@ufunc.resolver(ResultBuilder, object, str)
+def split(env: ResultBuilder, data: object, separator: str):
+    if hasattr(data, "split"):
+        return data.split(separator)
+    raise NotImplementedFeature(env.prop, feature=f"Ability to split '{type(data)}' type")
 
 
 @ufunc.resolver(ResultBuilder, str)
@@ -56,3 +77,24 @@ def flip(env: ResultBuilder, dtype: Geometry, value: str):
 def swap(env: ResultBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return env.call("swap", *args, *kwargs)
+
+
+@ufunc.resolver(ResultBuilder, Expr)
+def base64(env: ResultBuilder, expr: Expr) -> str:
+    return env.call("base64", env.prop.dtype)
+
+
+@ufunc.resolver(ResultBuilder, String)
+def base64(env: ResultBuilder, dtype: String) -> str:
+    try:
+        return env.call("base64", env.this).decode("utf-8")
+    except (binascii.Error, ValueError):
+        raise InvalidBase64String(env.prop.model, property=env.prop.name, value=env.this)
+
+
+@ufunc.resolver(ResultBuilder, Binary)
+def base64(env: ResultBuilder, dtype: Binary) -> bytes:
+    try:
+        return env.call("base64", env.this)
+    except (binascii.Error, ValueError):
+        raise InvalidBase64String(env.prop.model, property=env.prop.name, value=env.this)

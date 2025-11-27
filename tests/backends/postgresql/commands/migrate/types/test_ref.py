@@ -13,6 +13,16 @@ from spinta.exceptions import (
     UnableToFindPrimaryKeysMultipleUniqueConstraints,
 )
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import (
+    add_index,
+    add_column_comment,
+    add_table_comment,
+    add_changelog_table,
+    add_redirect_table,
+    drop_column,
+    add_column,
+    rename_column,
+)
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
     override_manifest,
@@ -65,12 +75,8 @@ def test_migrate_create_models_with_ref(postgresql_migration: URL, rc: RawConfig
     )
     if order not in result.output:
         order = (
-            'CREATE INDEX "ix_migrate/example/RefOne__txn" ON "migrate/example/RefOne" '
-            "(_txn);\n"
-            "\n"
-            'CREATE INDEX "ix_migrate/example/RefOne_someRef._id" ON '
-            '"migrate/example/RefOne" ("someRef._id");\n'
-            "\n"
+            f"{add_index(index_name='ix_migrate/example/RefOne__txn', table='migrate/example/RefOne', columns=['_txn'])}"
+            f"{add_index(index_name='ix_migrate/example/RefOne_someRef._id', table='migrate/example/RefOne', columns=['someRef._id'])}"
         )
     assert result.output.endswith(
         "BEGIN;\n"
@@ -89,32 +95,18 @@ def test_migrate_create_models_with_ref(postgresql_migration: URL, rc: RawConfig
         '("someText", "someNumber")\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someInteger')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someNumber')}"
+        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        f"{add_changelog_table(table='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Test/:redirect')}"
         'CREATE TABLE "migrate/example/RefOne" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -129,29 +121,16 @@ def test_migrate_create_models_with_ref(postgresql_migration: URL, rc: RawConfig
         ");\n"
         "\n"
         f"{order}"
-        'CREATE TABLE "migrate/example/RefOne/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/RefOne/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/RefOne/:changelog__txn" ON '
-        '"migrate/example/RefOne/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/RefOne/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/RefOne/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/RefOne/:redirect_redirect" ON '
-        '"migrate/example/RefOne/:redirect" (redirect);\n'
-        "\n"
+        f"{add_column_comment(table='migrate/example/RefOne', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/RefOne', column='_created')}"
+        f"{add_column_comment(table='migrate/example/RefOne', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/RefOne', column='_id')}"
+        f"{add_column_comment(table='migrate/example/RefOne', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/RefOne', column='someText')}"
+        f"{add_column_comment(table='migrate/example/RefOne', column='someRef._id')}"
+        f"{add_table_comment(table='migrate/example/RefOne', comment='migrate/example/RefOne')}"
+        f"{add_changelog_table(table='migrate/example/RefOne/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/RefOne/:redirect')}"
         'CREATE TABLE "migrate/example/RefTwo" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -164,32 +143,18 @@ def test_migrate_create_models_with_ref(postgresql_migration: URL, rc: RawConfig
         '    CONSTRAINT "pk_migrate/example/RefTwo" PRIMARY KEY (_id)\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/RefTwo__txn" ON "migrate/example/RefTwo" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/RefTwo/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/RefTwo/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/RefTwo/:changelog__txn" ON '
-        '"migrate/example/RefTwo/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/RefTwo/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/RefTwo/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/RefTwo/:redirect_redirect" ON '
-        '"migrate/example/RefTwo/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/RefTwo__txn', table='migrate/example/RefTwo', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='_created')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='_id')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='someText')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='someRef.someText')}"
+        f"{add_column_comment(table='migrate/example/RefTwo', column='someRef.someNumber')}"
+        f"{add_table_comment(table='migrate/example/RefTwo', comment='migrate/example/RefTwo')}"
+        f"{add_changelog_table(table='migrate/example/RefTwo/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/RefTwo/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -316,9 +281,7 @@ def test_migrate_remove_ref_column(postgresql_migration: URL, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/RefOne" RENAME "someRef._id" TO '
-        '"__someRef._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/RefOne', column='someRef._id')}"
         'DROP INDEX "ix_migrate/example/RefOne_someRef._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/RefOne" DROP CONSTRAINT '
@@ -371,12 +334,8 @@ def test_migrate_remove_ref_column(postgresql_migration: URL, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/RefTwo" RENAME "someRef.someText" TO '
-        '"__someRef.someText";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/RefTwo" RENAME "someRef.someNumber" TO '
-        '"__someRef.someNumber";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/RefTwo', column='someRef.someText')}"
+        f"{drop_column(table='migrate/example/RefTwo', column='someRef.someNumber')}"
         "COMMIT;\n"
         "\n"
     )
@@ -496,18 +455,15 @@ def test_migrate_adjust_ref_levels(postgresql_migration: URL, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someText" TEXT;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someNumber" FLOAT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Ref', column='someRef.someText', column_type='TEXT')}"
+        f"{add_column(table='migrate/example/Ref', column='someRef.someNumber', column_type='FLOAT')}"
         'UPDATE "migrate/example/Ref" SET '
         '"someRef.someText"="migrate/example/Test"."someText", '
         '"someRef.someNumber"="migrate/example/Test"."someNumber" FROM '
         '"migrate/example/Test" WHERE "migrate/example/Ref"."someRef._id" = '
         '"migrate/example/Test"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef._id" TO "__someRef._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
         'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
@@ -562,26 +518,22 @@ def test_migrate_adjust_ref_levels(postgresql_migration: URL, rc: RawConfig, cli
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
         "\n"
-        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
-        '("someRef._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Ref_someRef._id', table='migrate/example/Ref', columns=['someRef._id'])}"
+        f"{add_column_comment(table='migrate/example/Ref', column='someRef._id')}"
         'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
         'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
         '"migrate/example/Test"."someText" AND '
         '"migrate/example/Ref"."someRef.someNumber" = '
         '"migrate/example/Test"."someNumber";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
-        '"__someRef.someText";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someNumber" TO '
-        '"__someRef.someNumber";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someText')}"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someNumber')}"
         'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
         '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
         '"migrate/example/Test" (_id);\n'
@@ -654,6 +606,7 @@ def test_migrate_model_ref_unique_constraint(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -668,32 +621,16 @@ def test_migrate_model_ref_unique_constraint(
         '    CONSTRAINT "uq_migrate/example/Test_someText" UNIQUE ("someText")\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
+        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        f"{add_changelog_table(table='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Test/:redirect')}"
         'CREATE TABLE "migrate/example/Multi" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -704,37 +641,22 @@ def test_migrate_model_ref_unique_constraint(
         '    "someInteger" INTEGER, \n'
         '    "someNumber" FLOAT, \n'
         '    CONSTRAINT "pk_migrate/example/Multi" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_migrate/example/Multi_someNumber" UNIQUE ("someNumber"), \n'
         '    CONSTRAINT "uq_migrate/example/Multi_someText_someNumber" UNIQUE '
-        '("someText", "someNumber"), \n'
-        '    CONSTRAINT "uq_migrate/example/Multi_someNumber" UNIQUE ("someNumber")\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Multi__txn" ON "migrate/example/Multi" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Multi/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Multi/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Multi/:changelog__txn" ON '
-        '"migrate/example/Multi/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Multi/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Multi/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Multi/:redirect_redirect" ON '
-        '"migrate/example/Multi/:redirect" (redirect);\n'
-        "\n"
+        '("someText", "someNumber")\n'
+        ");\n\n"
+        f"{add_index(index_name='ix_migrate/example/Multi__txn', table='migrate/example/Multi', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Multi', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='someInteger')}"
+        f"{add_column_comment(table='migrate/example/Multi', column='someNumber')}"
+        f"{add_table_comment(table='migrate/example/Multi', comment='migrate/example/Multi')}"
+        f"{add_changelog_table(table='migrate/example/Multi/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Multi/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -920,15 +842,13 @@ def test_migrate_scalar_to_ref_simple_level_4(
         "\n"
         'ALTER TABLE "migrate/example/City" ADD COLUMN "country._id" UUID;\n'
         "\n"
-        'CREATE INDEX "ix_migrate/example/City_country._id" ON "migrate/example/City" '
-        '("country._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/City_country._id', table='migrate/example/City', columns=['country._id'])}"
+        f"{add_column_comment(table='migrate/example/City', column='country._id')}"
         'UPDATE "migrate/example/City" SET '
         '"country._id"="migrate/example/Country"._id FROM "migrate/example/Country" '
         'WHERE "migrate/example/City".country = "migrate/example/Country".id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME country TO __country;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/City', column='country')}"
         'ALTER TABLE "migrate/example/City" ADD CONSTRAINT '
         '"fk_migrate/example/City_country._id" FOREIGN KEY("country._id") REFERENCES '
         '"migrate/example/Country" (_id);\n'
@@ -1031,16 +951,14 @@ def test_migrate_scalar_to_ref_simple_level_4_self_reference(
         "\n"
         'ALTER TABLE "migrate/example/Object" ADD COLUMN "object._id" UUID;\n'
         "\n"
-        'CREATE INDEX "ix_migrate/example/Object_object._id" ON '
-        '"migrate/example/Object" ("object._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Object_object._id', table='migrate/example/Object', columns=['object._id'])}"
+        f"{add_column_comment(table='migrate/example/Object', column='object._id')}"
         'UPDATE "migrate/example/Object" SET '
         '"object._id"="migrate/example/Object_1"._id FROM "migrate/example/Object" AS '
         '"migrate/example/Object_1" WHERE "migrate/example/Object".object = '
         '"migrate/example/Object_1".id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/Object" RENAME object TO __object;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Object', column='object')}"
         'ALTER TABLE "migrate/example/Object" ADD CONSTRAINT '
         '"fk_migrate/example/Object_object._id" FOREIGN KEY("object._id") REFERENCES '
         '"migrate/example/Object" (_id);\n'
@@ -1145,14 +1063,12 @@ def test_migrate_scalar_to_ref_simple_level_3(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" ADD COLUMN "country.id" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/City', column='country.id', column_type='INTEGER')}"
         'UPDATE "migrate/example/City" SET "country.id"="migrate/example/Country".id '
         'FROM "migrate/example/Country" WHERE "migrate/example/City".country = '
         '"migrate/example/Country".id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME country TO __country;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/City', column='country')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1242,15 +1158,13 @@ def test_migrate_scalar_to_ref_simple_level_3_self_reference(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Object" ADD COLUMN "object.id" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Object', column='object.id', column_type='INTEGER')}"
         'UPDATE "migrate/example/Object" SET '
         '"object.id"="migrate/example/Object_1".id FROM "migrate/example/Object" AS '
         '"migrate/example/Object_1" WHERE "migrate/example/Object".object = '
         '"migrate/example/Object_1".id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/Object" RENAME object TO __object;\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Object', column='object')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1620,7 +1534,7 @@ def test_migrate_ref_to_scalar_simple_level_3(
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" RENAME "country.id" TO country;\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.id', new_name='country')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -1710,7 +1624,7 @@ def test_migrate_ref_to_scalar_simple_level_3_self_reference(
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/Object" RENAME "object.id" TO object;\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{rename_column(table='migrate/example/Object', column='object.id', new_name='object')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -1823,12 +1737,9 @@ def test_migrate_ref_to_scalar_advanced_level_3_rename(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.id" TO country_id;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.name" TO country_name;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.code" TO country_code;\n'
-        "\n"
+        f"{rename_column(table='migrate/example/City', column='country.id', new_name='country_id')}"
+        f"{rename_column(table='migrate/example/City', column='country.name', new_name='country_name')}"
+        f"{rename_column(table='migrate/example/City', column='country.code', new_name='country_code')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1944,18 +1855,14 @@ def test_migrate_ref_to_scalar_advanced_level_3_rename_with_delete(
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.id" TO country_id;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.name" TO country_name;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.code" TO '
-        '"__country.code";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" ADD COLUMN country_code TEXT;\n'
-        "\n"
+        f"{rename_column(table='migrate/example/City', column='country.id', new_name='country_id')}"
+        f"{rename_column(table='migrate/example/City', column='country.name', new_name='country_name')}"
+        f"{drop_column(table='migrate/example/City', column='country.code')}"
+        f"{add_column(table='migrate/example/City', column='country_code', column_type='TEXT')}"
         "COMMIT;\n"
         "\n"
     )
@@ -2062,14 +1969,12 @@ def test_migrate_ref_to_scalar_simple_level_4(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" ADD COLUMN country INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/City', column='country', column_type='INTEGER')}"
         'UPDATE "migrate/example/City" SET country="migrate/example/Country".id FROM '
         '"migrate/example/Country" WHERE "migrate/example/City"."country._id" = '
         '"migrate/example/Country"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country._id" TO "__country._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/City', column='country._id')}"
         'DROP INDEX "ix_migrate/example/City_country._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/City" DROP CONSTRAINT '
@@ -2177,14 +2082,12 @@ def test_migrate_ref_to_scalar_simple_level_4_self_reference(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Object" ADD COLUMN object INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Object', column='object', column_type='INTEGER')}"
         'UPDATE "migrate/example/Object" SET object="migrate/example/Object_1".id '
         'FROM "migrate/example/Object" AS "migrate/example/Object_1" WHERE '
         '"migrate/example/Object"."object._id" = "migrate/example/Object_1"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/Object" RENAME "object._id" TO "__object._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Object', column='object._id')}"
         'DROP INDEX "ix_migrate/example/Object_object._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/Object" DROP CONSTRAINT '
@@ -2523,32 +2426,18 @@ def test_migrate_ref_level_3_no_pkey_ignore(
         '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id)\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someInteger')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someNumber')}"
+        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        f"{add_changelog_table(table='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Test/:redirect')}"
         'CREATE TABLE "migrate/example/Ref" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -2560,31 +2449,17 @@ def test_migrate_ref_level_3_no_pkey_ignore(
         '    CONSTRAINT "pk_migrate/example/Ref" PRIMARY KEY (_id)\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Ref__txn" ON "migrate/example/Ref" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Ref/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Ref/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Ref/:changelog__txn" ON '
-        '"migrate/example/Ref/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Ref/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Ref/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Ref/:redirect_redirect" ON '
-        '"migrate/example/Ref/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Ref__txn', table='migrate/example/Ref', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Ref', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Ref', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Ref', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Ref', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Ref', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Ref', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Ref', column='someRef._id')}"
+        f"{add_table_comment(table='migrate/example/Ref', comment='migrate/example/Ref')}"
+        f"{add_changelog_table(table='migrate/example/Ref/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Ref/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -2714,12 +2589,11 @@ def test_migrate_adjust_ref_levels_no_pkey(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
-        '("someRef._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Ref_someRef._id', table='migrate/example/Ref', columns=['someRef._id'])}"
         'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
         '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
         '"migrate/example/Test" (_id);\n'
@@ -2902,16 +2776,13 @@ def test_migrate_adjust_ref_levels_no_pkey_previously_given_key(
         "\n"
         'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
         "\n"
-        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
-        '("someRef._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Ref_someRef._id', table='migrate/example/Ref', columns=['someRef._id'])}"
+        f"{add_column_comment(table='migrate/example/Ref', column='someRef._id')}"
         'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
         'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
         '"migrate/example/Test"."someText";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
-        '"__someRef.someText";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someText')}"
         'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
         '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
         '"migrate/example/Test" (_id);\n'
@@ -2962,15 +2833,13 @@ def test_migrate_adjust_ref_levels_no_pkey_previously_given_key(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someText" TEXT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Ref', column='someRef.someText', column_type='TEXT')}"
         'UPDATE "migrate/example/Ref" SET '
         '"someRef.someText"="migrate/example/Test"."someText" FROM '
         '"migrate/example/Test" WHERE "migrate/example/Ref"."someRef._id" = '
         '"migrate/example/Test"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef._id" TO "__someRef._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
         'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
@@ -3106,25 +2975,19 @@ def test_migrate_adjust_ref_levels_no_pkey_previously_given_key_with_denorm(
         "\n"
         'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
         "\n"
-        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
-        '("someRef._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Ref_someRef._id', table='migrate/example/Ref', columns=['someRef._id'])}"
+        f"{add_column_comment(table='migrate/example/Ref', column='someRef._id')}"
         'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
         'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
         '"migrate/example/Test"."someText";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
-        '"__someRef.someText";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someText')}"
         'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
         '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
         '"migrate/example/Test" (_id);\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.new" TO "__someRef.new";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someNumber" TO '
-        '"__someRef.someNumber";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.new')}"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someNumber')}"
         "COMMIT;\n"
         "\n"
     )

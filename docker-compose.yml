@@ -38,6 +38,20 @@ services:
       - db
       - mongo
 
+  redis-keymap: # sqlite faster alternative
+    image: valkey/valkey:9
+    restart: always
+    command:
+      - "valkey-server"
+      - "--appendonly"
+      - "yes"
+      - "--appendfsync"
+      - "always" # persistence settings to persist always, without any data loss.
+    volumes:
+      - redis_keymap_data:/data # persistent volume
+    ports:
+      - "6379:6379"
 volumes:
   postgres:
   mongo:
+  redis_keymap_data:

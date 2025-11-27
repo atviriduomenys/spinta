@@ -19,7 +19,7 @@ from starlette.templating import Jinja2Templates
 
 from spinta import components, commands
 from spinta.accesslog import create_accesslog
-from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData
+from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData, ClientBackendsData
 from spinta.auth import (
     AuthorizationServer,
     check_scope,
@@ -33,6 +33,9 @@ from spinta.auth import (
     Scopes,
     authenticate_token,
     StarletteOAuth2Data,
+    KeyType,
+    load_key_from_file,
+    has_scope,
 )
 from spinta.auth import BearerTokenValidator
 from spinta.auth import ResourceProtector
@@ -94,6 +97,20 @@ async def auth_token(request: Request):
         return resp
     else:
         raise NoAuthServer()
+
+
+async def get_verification_keys(request: Request) -> JSONResponse:
+    context = request.state.context
+    config = context.get("config")
+    content: dict = {"keys": []}
+    if config.token_validation_key:
+        if "keys" in config.token_validation_key:
+            content["keys"] += config.token_validation_key["keys"]
+        else:
+            content["keys"] = [config.token_validation_key]
+    elif default_key := load_key_from_file(config, KeyType.public):
+        content["keys"].append(default_key)
+    return JSONResponse(content=content)
 
 
 def _auth_accesslog(context: Context, request: Request, payload: dict, output_format: str):
@@ -175,7 +192,6 @@ async def auth_clients_add(request: Request) -> JSONResponse:
         client_id,
         client_data["secret"],
         client_data.get("scopes"),
-        client_data.get("backends"),
     )
 
     return JSONResponse(
@@ -183,7 +199,6 @@ async def auth_clients_add(request: Request) -> JSONResponse:
             "client_id": client_["client_id"],
             "client_name": name,
             "scopes": client_["scopes"],
-            "backends": client_["backends"],
         }
     )
 
@@ -246,15 +261,16 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
     context = _auth_client_context(request)
     token = context.get("auth.token")
     client_id = request.path_params["client"]
+    is_own_client = client_id == token.get_client_id()
 
-    validator_class = ClientPatchData
-    try:
-        check_scope(context, Scopes.AUTH_CLIENTS)
-    except InsufficientScopeError:
+    if has_scope(context, Scopes.AUTH_CLIENTS, raise_error=False):
+        validator_class = ClientPatchData
+    elif has_scope(context, Scopes.CLIENT_BACKENDS_UPDATE_SELF, raise_error=False) and is_own_client:
+        validator_class = ClientBackendsData
+    elif is_own_client:  # Requests without scope can only change its own secret
         validator_class = ClientSecretPatchData
-        # Requests without AUTH_CLIENTS scope can only change its own secret
-        if client_id != token.get_client_id():
-            raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
+    else:
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
     config = context.get("config")
     commands.load(context, config)
@@ -425,6 +441,7 @@ def init(context: Context):
         Route("/favicon.ico", favicon, methods=["GET"]),
         Route("/version", version, methods=["GET"]),
         Route("/auth/token", auth_token, methods=["POST"]),
+        Route("/.well-known/jwks.json", get_verification_keys, methods=["GET"]),
         Route("/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}", srid_check, methods=["GET"]),
         Route("/auth/clients", auth_clients_get_all, methods=["GET"]),
         Route("/auth/clients", auth_clients_add, methods=["POST"]),

@@ -8,10 +8,11 @@ services:
       context: .
       dockerfile: Dockerfile
     command:
-      - ./entrypoint.sh
+      - ./entrypoint-external.sh
     environment:
       - AUTHLIB_INSECURE_TRANSPORT=1
       - DB_HOST=database
+      - DB_HOST_INTERNAL=spinta-${BRANCH}-database
       - DB_PORT=5432
     env_file:
       template.env
@@ -23,6 +24,19 @@ services:
       resources:
         limits:
           memory: 1024M
+  spinta-${BRANCH}-database:
+    image: postgis/postgis:16-3.4
+    environment:
+      - TZ=UTC
+      - POSTGRES_DB=spinta
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+    volumes:
+      - ${BRANCH}-postgres:/var/lib/postgresql/data
+    networks:
+      - spinta
 networks:
   spinta:
     external: true
+volumes:
+  ${BRANCH}-postgres:
