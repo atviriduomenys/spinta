@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev10 (unreleased)
+0.2dev10 (2025-11-27)
 =====================
 
 Backwards incompatible:

@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev9
-export OLD_MINOR=2dev8
-export FUTURE_MINOR=2dev10
+export MINOR=2dev10
+export OLD_MINOR=2dev9
+export FUTURE_MINOR=2dev11
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -136,7 +136,7 @@ git push origin HEAD
 
 # generate hashed requirements file
 
-poetry export -f requirements.txt \
+poetry export -f requirements.txt -E sql \
   --output requirements/spinta-${NEW_VERSION}.txt
 
 # get hashes to spinta itself
