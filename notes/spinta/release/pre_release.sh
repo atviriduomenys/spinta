@@ -104,7 +104,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 test -n "$PID" && kill "$PID"
 unset SPINTA_CONFIG
-exit
+
 # notes/docker.sh                   Shutdown docker compose
 
 # Update project version in pyproject.toml
@@ -136,18 +136,18 @@ git push origin HEAD
 
 # generate hashed requirements file
 
-poetry export -f requirements.txt -E sql \
+poetry export -f requirements.txt \
   --output requirements/spinta-${NEW_VERSION}.txt
 
 # get hashes to spinta itself
 
 echo "spinta==${NEW_VERSION} \\" > spinta-header.txt
 
+
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
   | sed 's/^/    /' >> spinta-header.txt
 
-echo "" >> spinta-header.txt
 
 # ADD THOSE HASHES to the file manually
 
@@ -156,6 +156,7 @@ cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
 git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
 git commit -m "Add hashed requirements for ${NEW_VERSION} and update latest"
 git push
+
 
 
 # Prepare pyproject.toml and CHANGES.rst for future versions
