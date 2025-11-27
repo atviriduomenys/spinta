@@ -134,7 +134,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
     final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
 
     if final_value is NA:
-        # If value not in URL and DSA have no default - remove it from SOAP request completely
+        # If value not in URL and DSA has no default - remove it from SOAP request completely
         env.soap_request_body.pop(param_source, None)
         final_value = None
     elif final_value:
@@ -146,7 +146,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
     if prop.dtype.required and param_source not in env.soap_request_body:
         raise MissingRequiredProperty(prop, prop=prop.name)
 
-    # Update property values. Even if value is not sent via SOAP, it should have None value when displayed by Spita
+    # Update property values. Even if value is not sent via SOAP, it should have None value when displayed by Spinta
     env.property_values.update({param.name: final_value})
 
 

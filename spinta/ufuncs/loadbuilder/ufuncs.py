@@ -65,7 +65,7 @@ def or_(env, expr):
 
 
 @ufunc.resolver(LoadBuilder, Expr)
-def cdata(env: LoadBuilder, expr: Expr):
+def cdata(env: LoadBuilder, expr: Expr) -> None:
     expr.resolve(env)
     env.param.soap_body_value_type = "cdata"
 
