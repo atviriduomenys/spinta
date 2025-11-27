@@ -234,7 +234,6 @@ def zipitems(
                     row[1] = value
             else:
                 # 2) No NA slots left -> append exactly ONE new row
-                #    Left side can mirror the first row's 'a' (or NA if that's what you want)
                 left_side = existing_list[0][0] if existing_list else NA
                 existing_list.append([left_side, value])
 
