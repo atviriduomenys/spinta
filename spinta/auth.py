@@ -70,6 +70,11 @@ yml.indent(mapping=2, sequence=4, offset=2)
 yml.width = 80
 yml.explicit_start = False
 
+# File permission constants for sensitive authentication files
+OWNER_READABLE_FILE = 0o600  # rw------- (owner read/write only)
+OWNER_READABLE_DIR = 0o700  # rwx------ (owner read/write/execute only)
+WORLD_READABLE_FILE = 0o644  # rw-r--r-- (owner read/write, others read)
+
 # Cache limits
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
@@ -831,6 +836,7 @@ def gen_auth_server_keys(
 ) -> Tuple[pathlib.Path, pathlib.Path]:
     path = path / "keys"
     path.mkdir(exist_ok=True)
+    os.chmod(path, OWNER_READABLE_DIR)
 
     files = (
         path / "private.json",
@@ -855,10 +861,12 @@ def gen_auth_server_keys(
         with files[0].open("w") as f:
             result = JsonWebKey.import_key(private_key, {"kty": "RSA"})
             json.dump(result.as_dict(is_private=True), f, indent=4, ensure_ascii=False)
+        os.chmod(files[0], OWNER_READABLE_FILE)
 
         with files[1].open("w") as f:
             result = JsonWebKey.import_key(public_key, {"kty": "RSA"})
             json.dump(result.as_dict(), f, indent=4, ensure_ascii=False)
+        os.chmod(files[1], WORLD_READABLE_FILE)
 
     return files
 
@@ -916,6 +924,8 @@ def create_client_file(
         raise ClientWithNameAlreadyExists(client_name=name)
 
     os.makedirs(id_path / client_id[:2] / client_id[2:4], exist_ok=True)
+    os.chmod(id_path / client_id[:2], OWNER_READABLE_DIR)
+    os.chmod(id_path / client_id[:2] / client_id[2:4], OWNER_READABLE_DIR)
 
     secret = secret or passwords.gensecret(32)
     secret_hash = passwords.crypt(secret)
@@ -934,7 +944,9 @@ def create_client_file(
         write = data.copy()
         del write["client_secret"]
     yml.dump(write, client_file)
+    os.chmod(client_file, OWNER_READABLE_FILE)
     yml.dump(keymap, keymap_path)
+    os.chmod(keymap_path, OWNER_READABLE_FILE)
 
     return client_file, data
 
@@ -1004,6 +1016,7 @@ def update_client_file(
         }
 
         yml.dump(new_data, client_path)
+        os.chmod(client_path, OWNER_READABLE_FILE)
         if keymap:
             changed = False
             # Check if client changed name
@@ -1014,6 +1027,7 @@ def update_client_file(
 
             if changed:
                 yml.dump(keymap, keymap_path)
+                os.chmod(keymap_path, OWNER_READABLE_FILE)
         return new_data
     else:
         raise InvalidClientError(description="Invalid client id or secret")
@@ -1042,18 +1056,22 @@ def validate_id_path(id_path: pathlib.Path):
 def ensure_client_folders_exist(clients_path: pathlib.Path):
     # Ensure clients folder exist
     clients_path.mkdir(parents=True, exist_ok=True)
+    os.chmod(clients_path, OWNER_READABLE_DIR)
 
     # Ensure clients/helpers directory
     helpers_path = get_helpers_path(clients_path)
     helpers_path.mkdir(parents=True, exist_ok=True)
+    os.chmod(helpers_path, OWNER_READABLE_DIR)
 
     # Ensure clients/helpers/keymap.yml exists
     keymap_path = get_keymap_path(clients_path)
     keymap_path.touch(exist_ok=True)
+    os.chmod(keymap_path, OWNER_READABLE_FILE)
 
     # Ensure clients/id directory
     id_path = get_id_path(clients_path)
     id_path.mkdir(parents=True, exist_ok=True)
+    os.chmod(id_path, OWNER_READABLE_DIR)
 
 
 def _keymap_file_cache_key(path: pathlib.Path, *args, **kwargs):
