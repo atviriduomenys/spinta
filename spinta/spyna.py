@@ -13,18 +13,23 @@ GRAMMAR = r"""
 ?start: testlist
 ?testlist: test ("," test)* [","]
 ?test: or
-?or: and ("|" and)*
-?and: not ("&" not)*
+?or: and (("|" | "&_or.") and)*
+?and: not (("&" | "&_and.") not)*
 ?not: "!" not | comp
 ?comp: expr (COMP expr)*
 ?expr: term (TERM term)*
 ?term: factor (FACTOR factor)*
 ?factor: SIGN factor | composition
 ?composition: atom trailer*
-?atom: "(" group? ")" | "[" list? "]" | func | value | name
+countfunc: COUNT
+?atom: "(" group? ")" | "[" list? "]" | func | countfunc | value | name
 group: test ("," test)* [","]
 list: test ("," test)* [","]
-?trailer: "[" filter? "]" | method | attr
+?trailer: "[" filter? "]" | method | attr | gt | lt | sw | co
+gt: "._gt" COMP expr
+lt: "._lt" COMP expr
+sw: "._sw" COMP expr
+co: "._co" COMP expr
 func: NAME call
 method: "." NAME call
 ?call: "(" arglist? ")"
@@ -42,6 +47,7 @@ FACTOR: "*" | "/" | "%"
 SIGN: "+" | "-"
 
 NAME: /[a-z_][a-z0-9_]*/i
+COUNT: "_count"
 
 ALL: "*"
 STRING: /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
@@ -195,6 +201,12 @@ class Visitor:
             "name": name.value,
             "args": self._args(*args.children),
         }
+        
+    def countfunc(self, node, name):
+        return {
+            "name": "count",
+            "args": [],
+        }
 
     def method_comp(self, node, arg, name, args):
         return {
@@ -224,6 +236,48 @@ class Visitor:
                 handler = getattr(self, arg.data + "_comp")
                 res = handler(arg, res, *arg.children)
         return res
+
+    def gt_comp(self, node, arg, _, expr):
+        return {
+            "type": "expression",
+            "name": "gt",
+            "args": self._args(arg, expr),
+        }
+
+    def lt_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "expression",
+            "name": "lt",
+            "args": self._args(arg, expr),
+        }
+
+    def ge_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "expression",
+            "name": "ge",
+            "args": self._args(arg, expr),
+        }
+
+    def le_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "expression",
+            "name": "le",
+            "args": self._args(arg, expr),
+        }
+
+    def sw_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "expression",
+            "name": "startswith",
+            "args": self._args(arg, expr),
+        }
+
+    def co_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "expression",
+            "name": "contains",
+            "args": self._args(arg, expr),
+        }
 
     def factor(self, node, sign, expr):
         names = {
