@@ -26,11 +26,12 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
 
     same_backend = backend.name == dtype.backend.name
 
-    if same_backend:
+    table_name = get_table_name(prop, TableType.FILE)
+    if same_backend and table_name not in backend.tables:
         # If dtype is on the same backend currently being prepared, then
         # create table for storing file blocks and also add file metadata
         # columns.
-        table_name = get_table_name(prop, TableType.FILE)
+
         table = sa.Table(
             get_pg_name(table_name),
             model.backend.schema,

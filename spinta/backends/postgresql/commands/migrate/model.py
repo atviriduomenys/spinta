@@ -21,6 +21,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     ModelTables,
     create_table_migration,
     filter_related_tables,
+    gather_prepare_columns,
 )
 from spinta.backends.postgresql.helpers.name import (
     name_changed,
@@ -33,7 +34,6 @@ from spinta.backends.postgresql.helpers.name import (
     get_removed_name,
 )
 from spinta.components import Context, Model
-from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
 
 
@@ -92,7 +92,6 @@ def migrate(
         old_columns=columns,
         new_properties=properties,
         migration_context=migration_ctx,
-        rename=rename,
         model_context=model_ctx,
         **kwargs,
     )
@@ -314,12 +313,8 @@ def _handle_property_unique_constraints(context: Context, backend: PostgreSQL, n
         if not prop.dtype.unique:
             continue
 
-        columns = commands.prepare(context, backend, prop.dtype)
-        columns = ensure_list(columns)
-        column_name_list = []
-        for column in columns:
-            if isinstance(column, sa.Column):
-                column_name_list.append(column.name)
+        columns = gather_prepare_columns(context, backend, prop)
+        column_name_list = [column.name for column in columns]
 
         if column_name_list:
             required_unique_constraints.append(column_name_list)

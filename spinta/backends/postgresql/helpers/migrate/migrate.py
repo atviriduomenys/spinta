@@ -42,12 +42,12 @@ from spinta.exceptions import (
     MissingPostgresqlComments,
 )
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Ref, File, DataType
+from spinta.types.datatype import Ref, File, DataType, Array
 from spinta.types.text.components import Text
 from spinta.utils.collections import keydefaultdict
 from spinta.utils.itertools import ensure_list
 from spinta.utils.nestedstruct import get_root_attr
-from spinta.utils.schema import NA
+from spinta.utils.schema import NA, NotAvailable
 
 
 class CastSupport(enum.Enum):
@@ -917,11 +917,15 @@ def reduce_columns(data: list) -> Union[sa.Column, list[sa.Column]]:
 
 
 def is_internal(
-    columns: List[sa.Column], base_name: str, table_name: str, ref_table_name: str, inspector: Inspector
+    columns: List[sa.Column],
+    base_name: str,
+    table_name: str,
+    ref_table_name: str,
+    inspector: Inspector,
+    is_part_of_list: object,
 ) -> bool:
-    column_name = get_pg_column_name(f"{base_name}._id")
+    column_name = "_id" if is_part_of_list else get_pg_column_name(f"{base_name}._id")
     contains_column = any(column.name == column_name for column in columns)
-
     if not contains_column:
         return False
 
@@ -1269,11 +1273,11 @@ def zip_and_migrate_properties(
     old_columns: List[sa.Column],
     new_properties: List[Property],
     migration_context: PostgresqlMigrationContext,
-    rename: RenameMap,
     model_context: ModelMigrationContext,
     root_name: str = "",
     **kwargs,
 ):
+    rename = migration_context.rename
     zipped_items = zipitems(
         old_columns,
         new_properties,
@@ -1392,9 +1396,7 @@ def generate_model_tables_mapping(
         excluded_tables = []
 
     existing_tables = inspector.get_table_names()
-    filtered_tables = [
-        table for table in existing_tables if table not in excluded_tables and not table.startswith("__")
-    ]
+    filtered_tables = [table for table in existing_tables if table not in excluded_tables and "__" not in table]
     mapped_tables = keydefaultdict(ModelTables)
     for table in filtered_tables:
         if table not in metadata.tables:
@@ -1490,3 +1492,41 @@ def filter_related_tables(model: Model, tables: dict[str, sa.Table]) -> dict[str
         name: table for name, table in tables.items() if name == table_name or name.startswith(f"{table_name}/:")
     }
     return dict(sorted(related_tables.items(), key=lambda item: rank_model_names(item[0])))
+
+
+def gather_prepare_columns(
+    context: Context, backend: PostgreSQL, prop: Property, reduce: bool = False, **kwargs
+) -> list[sa.Column]:
+    columns = commands.prepare(context, backend, prop, **kwargs)
+    columns = ensure_list(columns)
+    columns = extract_sqlalchemy_columns(columns)
+    if reduce:
+        columns = reduce_columns(columns)
+    return columns
+
+
+def get_target_table(backend: PostgreSQL, node: Model | Property) -> sa.Table:
+    if isinstance(node, Model):
+        return backend.get_table(node)
+
+    table_type = TableType.MAIN
+    if node.list:
+        table_type = TableType.LIST
+
+    return backend.get_table(node, table_type)
+
+
+def get_source_table(
+    node_context: PropertyMigrationContext | ModelMigrationContext, source: list[sa.Column] | sa.Column | NotAvailable
+) -> sa.Table:
+    if isinstance(source, list):
+        source = source[0]
+
+    if isinstance(node_context, ModelMigrationContext):
+        return source.table
+
+    prop = node_context.prop
+    if prop.list and source is not NotAvailable:
+        return source.table
+
+    return node_context.model_context.model_tables.main_table

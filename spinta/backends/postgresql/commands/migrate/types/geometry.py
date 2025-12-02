@@ -2,7 +2,11 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import PostgresqlMigrationContext, PropertyMigrationContext
+from spinta.backends.postgresql.helpers.migrate.migrate import (
+    PostgresqlMigrationContext,
+    PropertyMigrationContext,
+    gather_prepare_columns,
+)
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.types.geometry.components import Geometry
@@ -20,7 +24,7 @@ def migrate(
     new: DataType,
     **kwargs,
 ):
-    columns = commands.prepare(context, backend, new.prop)
+    columns = gather_prepare_columns(context, backend, new.prop)
     col = None
     for column in columns:
         if isinstance(column, sa.Column):

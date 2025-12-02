@@ -112,7 +112,7 @@ def get_pg_removed_name(name: str, remove_model_only: bool = False) -> str:
 def get_pg_foreign_key_name(table_name: str, column_name: str) -> str:
     return PG_NAMING_CONVENTION[Convention.FK] % {
         "table_name": table_name,
-        "column_0_N_name": column_name.removeprefix("_"),
+        "column_0_N_name": column_name,
     }
 
 

@@ -13,14 +13,13 @@ from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import extract_sqlalchemy_columns, get_prop_names
+from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names, gather_prepare_columns
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, get_pg_constraint_name
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, move_stream
 from spinta.components import Context, Model, DataItem
 from spinta.core.enums import Action
-from spinta.utils.itertools import ensure_list
 
 
 @dataclasses.dataclass
@@ -121,9 +120,7 @@ def _create_duplicate_entries(context: Context, backend: PostgreSQL, dmodel: _Du
         for name in get_prop_names(pkey):
             pkey_column_names.append(get_pg_column_name(name))
 
-        columns = commands.prepare(context, backend, pkey)
-        columns = ensure_list(columns)
-        columns = extract_sqlalchemy_columns(columns)
+        columns = gather_prepare_columns(context, backend, pkey)
         columns = [_ensure_table_set(col, table) for col in columns]
         pkey_columns.extend(columns)
 

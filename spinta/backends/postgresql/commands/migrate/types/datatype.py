@@ -19,11 +19,12 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     ModelMigrationContext,
     contains_constraint_name,
     constraint_with_columns,
-    extract_sqlalchemy_columns,
-    reduce_columns,
     PropertyMigrationContext,
     column_cast_warning_message,
     CastSupport,
+    gather_prepare_columns,
+    get_target_table,
+    get_source_table,
 )
 from spinta.backends.postgresql.helpers.name import (
     name_changed,
@@ -35,7 +36,6 @@ from spinta.backends.postgresql.helpers.name import (
 from spinta.components import Context
 from spinta.exceptions import UnableToCastColumnTypes
 from spinta.types.datatype import DataType
-from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
 
 from typer import echo
@@ -53,10 +53,7 @@ def migrate(
     new: DataType,
     **kwargs,
 ):
-    columns = commands.prepare(context, backend, new.prop)
-    columns = ensure_list(columns)
-    columns = extract_sqlalchemy_columns(columns)
-    columns = reduce_columns(columns)
+    columns = gather_prepare_columns(context, backend, new.prop, reduce=True)
     if columns is not None and columns != []:
         commands.migrate(context, backend, migration_ctx, property_ctx, old, columns, **kwargs)
 
@@ -73,10 +70,7 @@ def migrate(
     new: DataType,
     **kwargs,
 ):
-    columns = commands.prepare(context, backend, new.prop)
-    columns = ensure_list(columns)
-    columns = extract_sqlalchemy_columns(columns)
-    columns = reduce_columns(columns)
+    columns = gather_prepare_columns(context, backend, new.prop, reduce=True)
     commands.migrate(context, backend, migration_ctx, property_ctx, old, columns, **kwargs)
 
 
@@ -125,8 +119,9 @@ def migrate(
     cast_matrix = migration_ctx.cast_matrix
 
     column_name = new.name
-    source_table = property_ctx.model_context.model_tables.main_table
-    target_table = backend.get_table(property_ctx.prop)
+    source_table = get_source_table(property_ctx, old)
+    target_table = get_target_table(backend, property_ctx.prop)
+
     old_type = extract_literal_name_from_column(old)
     new_type = extract_literal_name_from_column(new)
 
@@ -206,7 +201,7 @@ def migrate(
     inspector = migration_ctx.inspector
     handler = migration_ctx.handler
 
-    target_table = backend.get_table(property_ctx.prop)
+    target_table = get_target_table(backend, property_ctx.prop)
     target_table_name = target_table.name
     handler.add_action(
         ma.AddColumnMigrationAction(
@@ -299,8 +294,13 @@ def migrate(
     **kwargs,
 ):
     model_ctx = node_ctx
+    node = None
     if isinstance(node_ctx, PropertyMigrationContext):
         model_ctx = node_ctx.model_context
+        node = node_ctx.prop
+
+    if node is None:
+        node = model_ctx.model
 
     if old.name.startswith("_"):
         return
@@ -308,8 +308,8 @@ def migrate(
     inspector = migration_ctx.inspector
     handler = migration_ctx.handler
 
-    source_table = model_ctx.model_tables.main_table
-    target_table = backend.get_table(model_ctx.model)
+    source_table = get_source_table(node_ctx, old)
+    target_table = get_target_table(backend, node)
     table_name = target_table.name
     columns = inspector.get_columns(source_table.name)
     remove_name = get_pg_removed_name(old.name)
