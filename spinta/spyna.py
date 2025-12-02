@@ -21,8 +21,16 @@ GRAMMAR = r"""
 ?term: factor (FACTOR factor)*
 ?factor: SIGN factor | composition
 ?composition: atom trailer*
+?specialarg: expr                
+specialarglist: specialarg ("," specialarg)* [","]
 countfunc: COUNT
-?atom: "(" group? ")" | "[" list? "]" | func | countfunc | value | name
+limitfunc: LIMIT "=" specialarglist
+SELECT: "_select"
+SORT: "_sort"
+LIMIT: "_limit"
+sortfunc: SORT "=" specialarglist
+selectfunc: SELECT "=" specialarglist
+?atom: "(" group? ")" | "[" list? "]" | func | limitfunc | countfunc | selectfunc | sortfunc| value | name
 group: test ("," test)* [","]
 list: test ("," test)* [","]
 ?trailer: "[" filter? "]" | method | attr | gt | lt | sw | co
@@ -206,6 +214,24 @@ class Visitor:
         return {
             "name": "count",
             "args": [],
+        }
+        
+    def selectfunc(self, node, name, args):
+        return {
+            "name": "select",
+            "args": self._args(*args.children)
+        }
+        
+    def sortfunc(self, node, name, args):
+        return {
+            "name": "sort",
+            "args": self._args(*args.children)
+        }
+        
+    def limitfunc(self, node, name, args):
+        return {
+            "name": "limit",
+            "args": self._args(*args.children)
         }
 
     def method_comp(self, node, arg, name, args):
