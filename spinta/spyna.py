@@ -33,7 +33,13 @@ selectfunc: SELECT "=" specialarglist
 ?atom: "(" group? ")" | "[" list? "]" | func | limitfunc | countfunc | selectfunc | sortfunc| value | name
 group: test ("," test)* [","]
 list: test ("," test)* [","]
-?trailer: "[" filter? "]" | method | attr | gt | lt | sw | co
+?trailer: "[" filter? "]" | method | attr | gtmethod | gemethod | ltmethod | lemethod | swmethod | comethod
+gtmethod: GT_OP "=" expr
+gemethod: GE_OP "=" expr
+ltmethod: LT_OP "=" expr
+lemethod: LE_OP "=" expr
+swmethod: SW_OP "=" expr
+comethod: CO_OP "=" expr
 gt: "._gt" COMP expr
 lt: "._lt" COMP expr
 sw: "._sw" COMP expr
@@ -53,6 +59,13 @@ COMP: ">=" | "<=" | "!=" | "=" | "<" | ">"
 TERM: "+" | "-"
 FACTOR: "*" | "/" | "%"
 SIGN: "+" | "-"
+
+GT_OP.2: "._gt" 
+GE_OP.2: "._ge"             
+LT_OP.2: "._lt"  
+LE_OP.2: "._le"             
+SW_OP.2: "._sw"             
+CO_OP.2: "._co"             
 
 NAME: /[a-z_][a-z0-9_]*/i
 COUNT: "_count"
@@ -233,6 +246,48 @@ class Visitor:
             "name": "limit",
             "args": self._args(*args.children)
         }
+        
+    def gtmethod_comp(self, node, arg, _, expr):
+        return {
+            "type": "method",
+            "name": "gt",
+            "args": self._args(arg, expr),
+        }
+        
+    def ltmethod_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "method",
+            "name": "lt",
+            "args": self._args(arg, expr),
+        }
+
+    def gemethod_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "method",
+            "name": "ge",
+            "args": self._args(arg, expr),
+        }
+
+    def lemethod_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "method",
+            "name": "le",
+            "args": self._args(arg, expr),
+        }
+
+    def swmethod_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "method",
+            "name": "startswith",
+            "args": self._args(arg, expr),
+        }
+
+    def comethod_comp(self, node, arg, comp_op, expr):
+        return {
+            "type": "method",
+            "name": "contains",
+            "args": self._args(arg, expr),
+        }
 
     def method_comp(self, node, arg, name, args):
         return {
@@ -262,48 +317,6 @@ class Visitor:
                 handler = getattr(self, arg.data + "_comp")
                 res = handler(arg, res, *arg.children)
         return res
-
-    def gt_comp(self, node, arg, _, expr):
-        return {
-            "type": "expression",
-            "name": "gt",
-            "args": self._args(arg, expr),
-        }
-
-    def lt_comp(self, node, arg, comp_op, expr):
-        return {
-            "type": "expression",
-            "name": "lt",
-            "args": self._args(arg, expr),
-        }
-
-    def ge_comp(self, node, arg, comp_op, expr):
-        return {
-            "type": "expression",
-            "name": "ge",
-            "args": self._args(arg, expr),
-        }
-
-    def le_comp(self, node, arg, comp_op, expr):
-        return {
-            "type": "expression",
-            "name": "le",
-            "args": self._args(arg, expr),
-        }
-
-    def sw_comp(self, node, arg, comp_op, expr):
-        return {
-            "type": "expression",
-            "name": "startswith",
-            "args": self._args(arg, expr),
-        }
-
-    def co_comp(self, node, arg, comp_op, expr):
-        return {
-            "type": "expression",
-            "name": "contains",
-            "args": self._args(arg, expr),
-        }
 
     def factor(self, node, sign, expr):
         names = {
