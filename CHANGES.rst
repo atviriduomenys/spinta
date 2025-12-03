@@ -4,6 +4,11 @@ Changes
 0.2dev11 (unreleased)
 ===================
 
+Improvements:
+
+- `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
+
+.. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
 
 0.2dev10 (2025-11-27)
 =====================
@@ -19,9 +24,6 @@ Improvements:
 - `spinta migrate` now uses PostgreSQL comments to map tables and models together (`#1579`_).
 - The `internal` `postgresql` backend now adds full name comments to all its tables and columns. To migrate to the new
   changes, the `spinta upgrade postgresql_comments` script was added (`#1579`_).
-- `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
-
-.. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
 
 Bug fixes:
 
