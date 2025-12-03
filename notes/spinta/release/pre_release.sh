@@ -143,7 +143,6 @@ poetry export -f requirements.txt \
 
 echo "spinta==${NEW_VERSION} \\" > spinta-header.txt
 
-
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
   | sed 's/^/    /' >> spinta-header.txt
@@ -153,8 +152,8 @@ curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
 
 cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
 
-git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
-git commit -m "Add hashed requirements for ${NEW_VERSION} and update latest"
+git add requirements/spinta-${NEW_VERSION}.txt
+git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
 git push
 
 
