@@ -1121,6 +1121,7 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
 
 
 def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _id, _created, _updated, _label, _revision are allowed property names
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -1172,7 +1173,8 @@ def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunne
     )
 
 
-def test_copy_property_with_underscore_error(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+def test_copy_property_with_underscore_reserved(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _op is a reserved property name for internal use only
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -1201,3 +1203,34 @@ def test_copy_property_with_underscore_error(context: Context, rc, cli: SpintaCl
     assert result.exit_code != 0
     assert isinstance(result.exception, InvalidName)
     assert "_op" in str(result.exception)
+
+
+def test_copy_property_with_underscore_wrong(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _* property names are not allowed in the manifest except for the allowed ones
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property   | type   | source | access
+    datasets/gov/example       |        |        |
+      |   |   | Country        |        | salis  |
+      |   |   |   | code       | string | kodas  | public
+      |   |   |   | _test123   | string | test   | public
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert "_test" in str(result.exception)

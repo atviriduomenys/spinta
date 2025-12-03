@@ -80,9 +80,9 @@ def check_property_name(context: Context, prop: Property):
         if prop.name.startswith("_"):
             if prop.explicitly_given:
                 if prop.name in ALLOWED_RESERVED_PROPERTY_NAMES:
-                    return
+                    return  #  prop.name atėjo iš DSA ir yra mažajame  sąraše
             elif prop.name in RESERVED_PROPERTY_NAMES:
-                return
+                return  # prop.name sugeneruotas sistemos (nėra DSA) ir yra dyžiajame sąraše
         elif is_valid_property_name(prop.name):
             return
         # "C" as default language: dataset1/City?select(id,name@lt,name@pl,name@C)
