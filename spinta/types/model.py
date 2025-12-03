@@ -302,10 +302,10 @@ def configure(context: Context, prop: Property):
         prop.backend = backend
 
     if prop_type := prop_config.get("type"):
-        instance = None
+        custom_type = None
         if isinstance(prop_type, str):
-            instance = pydoc.locate(prop_type)
-            if instance is None:
+            custom_type = pydoc.locate(prop_type)
+            if custom_type is None:
                 raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type)
         elif isinstance(prop_type, list):
             values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
@@ -316,22 +316,22 @@ def configure(context: Context, prop: Property):
                 )
 
             try:
-                instance = pydoc.locate(prop_type)(**values)
-                if instance is None:
+                custom_type = pydoc.locate(prop_type)(**values)
+                if custom_type is None:
                     raise Exception
             except Exception:
                 raise InvalidCustomPropertyTypeWithArgsConfiguration(prop, custom_property_type=prop_type, args=values)
-        if instance:
+        if custom_type:
             # Since this is called before load, it expects dict data that will be converted to Attribute
             if not hasattr(prop, "external"):
                 prop.external = {
-                    "custom_type": instance,
+                    "custom_type": custom_type,
                 }
             else:
                 if not isinstance(prop.external, dict):
                     prop.external = {"name": prop.external}
 
-                prop.external["custom_type"] = instance
+                prop.external["custom_type"] = custom_type
 
 
 @load.register(Context, Property, dict, Manifest)
