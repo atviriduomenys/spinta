@@ -18,8 +18,27 @@ from spinta.exceptions import UnableToCastColumnTypes
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import create_test_context
+from spinta.testing.migration import (
+    add_index,
+    add_column_comment,
+    add_table_comment,
+    add_changelog_table,
+    add_redirect_table,
+    add_column,
+    drop_column,
+    get_table_unique_constraint_columns,
+    get_table_foreign_key_constraint_columns,
+    rename_table,
+    rename_changelog,
+    rename_column,
+    drop_table,
+)
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
+
+from sqlalchemy.dialects import postgresql
+
+pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
 
 def configure_migrate(rc, path, manifest):
@@ -60,31 +79,6 @@ def cleanup_table_list(meta: sa.MetaData, tables: list):
 
 def float_equals(a: float, b: float, epsilon=1e-9):
     return abs(a - b) < epsilon
-
-
-def get_table_unique_constraint_columns(table: sa.Table):
-    constraint_columns = []
-    for constraint in table.constraints:
-        if isinstance(constraint, sa.UniqueConstraint):
-            column_names = [column.name for column in constraint.columns]
-            constraint_columns.append(column_names)
-    return constraint_columns
-
-
-def get_table_foreign_key_constraint_columns(table: sa.Table):
-    constraint_columns = []
-    for constraint in table.constraints:
-        if isinstance(constraint, sa.ForeignKeyConstraint):
-            column_names = [column.name for column in constraint.columns]
-            element_names = [element.column.name for element in constraint.elements]
-            constraint_columns.append(
-                {
-                    "constraint_name": constraint.name,
-                    "column_names": column_names,
-                    "referred_column_names": element_names,
-                }
-            )
-    return constraint_columns
 
 
 def cleanup_tables(postgresql_migration: URL):
@@ -130,6 +124,7 @@ def test_migrate_create_simple_datatype_model(
     """,
     )
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -154,32 +149,26 @@ def test_migrate_create_simple_datatype_model(
         '    CONSTRAINT "uq_migrate/example/Test_someUri" UNIQUE ("someUri")\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someInteger')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someNumber')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someDate')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someDateTime')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someTime')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someBoolean')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someUrl')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someUri')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someBinary')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someJson')}"
+        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -296,8 +285,9 @@ def test_migrate_add_simple_column(postgresql_migration: URL, rc: RawConfig, cli
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/Test" ADD COLUMN "someInteger" INTEGER;\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{add_column(table='migrate/example/Test', column='someInteger', column_type='INTEGER')}COMMIT;\n\n"
     )
 
     with sa.create_engine(postgresql_migration).connect() as conn:
@@ -369,8 +359,9 @@ def test_migrate_remove_simple_column(postgresql_migration: URL, rc: RawConfig, 
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/Test" RENAME "someInteger" TO "__someInteger";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{drop_column(table='migrate/example/Test', column='someInteger')}COMMIT;\n\n"
     )
 
     with sa.create_engine(postgresql_migration).connect() as conn:
@@ -449,8 +440,9 @@ def test_migrate_multiple_times_remove_simple_column(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/Test" RENAME "someInteger" TO "__someInteger";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{drop_column(table='migrate/example/Test', column='someInteger')}COMMIT;\n\n"
     )
 
     with sa.create_engine(postgresql_migration).connect() as conn:
@@ -491,6 +483,12 @@ def test_migrate_multiple_times_remove_simple_column(
                          |   |   |      | someInteger  | integer
         """,
     )
+    result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
+    assert result.output.endswith(
+        f"BEGIN;\n\n{add_column(table='migrate/example/Test', column='someInteger', column_type='INTEGER')}COMMIT;\n\n"
+    )
+
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
@@ -517,14 +515,12 @@ def test_migrate_multiple_times_remove_simple_column(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" DROP COLUMN "__someInteger";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someInteger" TO '
-        '"__someInteger";\n'
-        "\n"
+        'ALTER TABLE "migrate/example/Test" DROP COLUMN "__someInteger";\n\n'
+        f"{drop_column(table='migrate/example/Test', column='someInteger')}"
         "COMMIT;\n"
         "\n"
     )
@@ -537,6 +533,17 @@ def test_migrate_multiple_times_remove_simple_column(
 
         columns = tables["migrate/example/Test"].columns
         assert {"someText", "someInteger", "__someInteger"}.issubset(columns.keys())
+
+    result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
+    assert result.output.endswith(
+        "BEGIN;\n"
+        "\n"
+        'ALTER TABLE "migrate/example/Test" DROP COLUMN "__someInteger";\n\n'
+        f"{drop_column(table='migrate/example/Test', column='someInteger')}"
+        "COMMIT;\n"
+        "\n"
+    )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with sa.create_engine(postgresql_migration).connect() as conn:
@@ -593,6 +600,7 @@ def test_migrate_add_unique_constraint(postgresql_migration: URL, rc: RawConfig,
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -666,6 +674,7 @@ def test_migrate_remove_unique_constraint(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -727,6 +736,7 @@ def test_migrate_create_models_with_base(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -744,32 +754,18 @@ def test_migrate_create_models_with_base(
         '("someText", "someNumber")\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Base__txn" ON "migrate/example/Base" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Base/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Base/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Base/:changelog__txn" ON '
-        '"migrate/example/Base/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Base/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Base/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Base/:redirect_redirect" ON '
-        '"migrate/example/Base/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Base__txn', table='migrate/example/Base', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Base', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Base', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Base', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Base', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Base', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Base', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Base', column='someInteger')}"
+        f"{add_column_comment(table='migrate/example/Base', column='someNumber')}"
+        f"{add_table_comment(table='migrate/example/Base', comment='migrate/example/Base')}"
+        f"{add_changelog_table(table='migrate/example/Base/:changelog', comment='migrate/example/Base/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Base/:redirect', comment='migrate/example/Base/:redirect')}"
         'CREATE TABLE "migrate/example/Test" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -781,32 +777,15 @@ def test_migrate_create_models_with_base(
         '"migrate/example/Base" (_id)\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
+        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -836,6 +815,101 @@ def test_migrate_create_models_with_base(
                 "migrate/example/Test/:changelog",
                 "migrate/example/Base",
                 "migrate/example/Base/:changelog",
+            ],
+        )
+
+
+def test_migrate_remove_model(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = """
+     d               | r | b    | m    | property       | type     | ref | source
+     migrate/example |   |      |      |                |          |     |
+                     |   |      | Ref  |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      |                |          |     |
+                     |   |      | Test |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      | someFile       | file     |     |
+    """
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            "migrate/example/Ref",
+            "migrate/example/Test",
+            "migrate/example/Test/:changelog",
+            "migrate/example/Test/:file/someFile",
+        }.issubset(tables.keys())
+
+    override_manifest(
+        context,
+        tmp_path,
+        """
+     d               | r | b    | m   | property       | type     | ref    | source
+     migrate/example |   |      |     |                |          |        |
+                     |   |      | Ref |                |          |        |
+                     |   |      |     | someText       | string   |        |
+    """,
+    )
+
+    result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
+    assert result.output.endswith(
+        "BEGIN;\n"
+        "\n"
+        f"{drop_table(table='migrate/example/Test', remove_model_only=True)}"
+        'DROP INDEX "ix_migrate/example/Test__txn";\n\n'
+        f"{drop_table(table='migrate/example/Test/:changelog', remove_model_only=True)}"
+        'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
+        '"migrate/example/__Test/:changelog__id_seq";\n'
+        "\n"
+        'DROP INDEX "ix_migrate/example/Test/:changelog__txn";\n'
+        "\n"
+        f"{drop_table(table='migrate/example/Test/:redirect', remove_model_only=True)}"
+        'DROP INDEX "ix_migrate/example/Test/:redirect_redirect";\n'
+        "\n"
+        f"{drop_table(table='migrate/example/Test/:file/someFile', remove_model_only=True)}"
+        "COMMIT;\n"
+        "\n"
+    )
+
+    cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            "migrate/example/Ref",
+            "migrate/example/Ref/:changelog",
+            "migrate/example/Ref/:redirect",
+            "migrate/example/__Test",
+            "migrate/example/__Test/:changelog",
+            "migrate/example/__Test/:redirect",
+            "migrate/example/__Test/:file/someFile",
+        }.issubset(tables.keys())
+
+        assert not {
+            "migrate/example/Test",
+            "migrate/example/Test/:changelog",
+            "migrate/example/Test/:redirect",
+            "migrate/example/Test/:file/someFile",
+        }.issubset(tables.keys())
+
+        cleanup_table_list(
+            meta,
+            [
+                "migrate/example/Ref",
+                "migrate/example/Ref/:changelog",
+                "migrate/example/Ref/:redirect",
+                "migrate/example/__Test",
+                "migrate/example/__Test/:changelog",
+                "migrate/example/__Test/:redirect",
+                "migrate/example/__Test/:file/someFile",
             ],
         )
 
@@ -875,6 +949,7 @@ def test_migrate_remove_base_from_model(postgresql_migration: URL, rc: RawConfig
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         'BEGIN;\n\nALTER TABLE "migrate/example/Test" DROP CONSTRAINT "fk_migrate/example/Base__id";\n\nCOMMIT;\n\n'
     )
@@ -964,13 +1039,19 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
-    assert result.output.endswith(
+
+    assert (
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example/Ref" RENAME TO "migrate/example/NewRef";\n'
         "\n"
+        "COMMENT ON TABLE \"migrate/example/NewRef\" IS 'migrate/example/NewRef';\n"
+        "\n"
         'ALTER TABLE "migrate/example/Ref/:changelog" RENAME TO '
         '"migrate/example/NewRef/:changelog";\n'
+        "\n"
+        'COMMENT ON TABLE "migrate/example/NewRef/:changelog" IS '
+        "'migrate/example/NewRef/:changelog';\n"
         "\n"
         'ALTER SEQUENCE "migrate/example/Ref/:changelog__id_seq" RENAME TO '
         '"migrate/example/NewRef/:changelog__id_seq";\n'
@@ -978,13 +1059,18 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
         'ALTER TABLE "migrate/example/Ref/:redirect" RENAME TO '
         '"migrate/example/NewRef/:redirect";\n'
         "\n"
+        'COMMENT ON TABLE "migrate/example/NewRef/:redirect" IS '
+        "'migrate/example/NewRef/:redirect';\n"
+        "\n"
         'ALTER TABLE "migrate/example/Test" RENAME TO "migrate/example/New";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
-        '"migrate/example/New/:file/someFile";\n'
+        "COMMENT ON TABLE \"migrate/example/New\" IS 'migrate/example/New';\n"
         "\n"
         'ALTER TABLE "migrate/example/Test/:changelog" RENAME TO '
         '"migrate/example/New/:changelog";\n'
+        "\n"
+        'COMMENT ON TABLE "migrate/example/New/:changelog" IS '
+        "'migrate/example/New/:changelog';\n"
         "\n"
         'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
         '"migrate/example/New/:changelog__id_seq";\n'
@@ -992,6 +1078,34 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
         'ALTER TABLE "migrate/example/Test/:redirect" RENAME TO '
         '"migrate/example/New/:redirect";\n'
         "\n"
+        'COMMENT ON TABLE "migrate/example/New/:redirect" IS '
+        "'migrate/example/New/:redirect';\n"
+        "\n"
+        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
+        '"migrate/example/New/:file/someFile";\n'
+        "\n"
+        'COMMENT ON TABLE "migrate/example/New/:file/someFile" IS '
+        "'migrate/example/New/:file/someFile';\n"
+        "\n"
+        'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
+        '"ix_migrate/example/New_someRef._id";\n'
+        "\n"
+        'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
+        '"fk_migrate/example/Test_someRef._id" TO '
+        '"fk_migrate/example/New_someRef._id";\n'
+        "\n"
+        "COMMIT;\n"
+        "\n"
+    ) == (
+        "BEGIN;\n"
+        "\n"
+        f"{rename_table(table='migrate/example/Ref', new_name='migrate/example/NewRef')}"
+        f"{rename_changelog(table='migrate/example/Ref/:changelog', new_name='migrate/example/NewRef/:changelog')}"
+        f"{rename_table(table='migrate/example/Ref/:redirect', new_name='migrate/example/NewRef/:redirect')}"
+        f"{rename_table(table='migrate/example/Test', new_name='migrate/example/New')}"
+        f"{rename_changelog(table='migrate/example/Test/:changelog', new_name='migrate/example/New/:changelog')}"
+        f"{rename_table(table='migrate/example/Test/:redirect', new_name='migrate/example/New/:redirect')}"
+        f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/New/:file/someFile')}"
         'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
         '"ix_migrate/example/New_someRef._id";\n'
         "\n"
@@ -1003,7 +1117,28 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
         "\n"
     )
 
-    cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
+    assert result.output.endswith(
+        "BEGIN;\n"
+        "\n"
+        f"{rename_table(table='migrate/example/Ref', new_name='migrate/example/NewRef')}"
+        f"{rename_changelog(table='migrate/example/Ref/:changelog', new_name='migrate/example/NewRef/:changelog')}"
+        f"{rename_table(table='migrate/example/Ref/:redirect', new_name='migrate/example/NewRef/:redirect')}"
+        f"{rename_table(table='migrate/example/Test', new_name='migrate/example/New')}"
+        f"{rename_changelog(table='migrate/example/Test/:changelog', new_name='migrate/example/New/:changelog')}"
+        f"{rename_table(table='migrate/example/Test/:redirect', new_name='migrate/example/New/:redirect')}"
+        f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/New/:file/someFile')}"
+        'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
+        '"ix_migrate/example/New_someRef._id";\n'
+        "\n"
+        'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
+        '"fk_migrate/example/Test_someRef._id" TO '
+        '"fk_migrate/example/New_someRef._id";\n'
+        "\n"
+        "COMMIT;\n"
+        "\n"
+    )
+
+    cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
@@ -1119,42 +1254,25 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+
     assert result.output.endswith(
-        "BEGIN;\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someText" TO "newText";\n'
-        "\n"
+        "BEGIN;\n\n"
+        f"{rename_column(table='migrate/example/Ref', column='someText', new_name='newText')}"
         'ALTER TABLE "migrate/example/Ref" RENAME CONSTRAINT '
         '"uq_migrate/example/Ref_someText" TO "uq_migrate/example/Ref_newText";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someText" TO "newText";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someFile._id" TO "newFile._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someFile._content_type" TO '
-        '"newFile._content_type";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someFile._size" TO '
-        '"newFile._size";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someFile._bsize" TO '
-        '"newFile._bsize";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someFile._blocks" TO '
-        '"newFile._blocks";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
-        '"migrate/example/Test/:file/newFile";\n'
-        "\n"
+        f"{rename_column(table='migrate/example/Test', column='someText', new_name='newText')}"
+        f"{rename_column(table='migrate/example/Test', column='someFile._id', new_name='newFile._id')}"
+        f"{rename_column(table='migrate/example/Test', column='someFile._content_type', new_name='newFile._content_type')}"
+        f"{rename_column(table='migrate/example/Test', column='someFile._size', new_name='newFile._size')}"
+        f"{rename_column(table='migrate/example/Test', column='someFile._bsize', new_name='newFile._bsize')}"
+        f"{rename_column(table='migrate/example/Test', column='someFile._blocks', new_name='newFile._blocks')}"
+        f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/Test/:file/newFile')}"
         'ALTER INDEX "ix_migrate/example/Test_someOther._id" RENAME TO '
         '"ix_migrate/example/Test_newOther._id";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someRef.someText" TO '
-        '"newRef.newText";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someOther._id" TO '
-        '"newOther._id";\n'
-        "\n"
+        f"{rename_column(table='migrate/example/Test', column='someRef.someText', new_name='newRef.newText')}"
+        f"{rename_column(table='migrate/example/Test', column='someOther._id', new_name='newOther._id')}"
         'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
         '"fk_migrate/example/Test_someOther._id" TO '
         '"fk_migrate/example/Test_newOther._id";\n'
@@ -1245,6 +1363,7 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     pieces = [
         (
             "CREATE INDEX "
@@ -1260,15 +1379,9 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
             '("veryLongGeometryPropertyName");\n'
             "\n"
         ),
-        (
-            "CREATE INDEX "
-            '"ix_migrate/example/very/very/long/dat_31c24f29_ngModelName__txn" ON '
-            '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" (_txn);\n'
-            "\n"
-        ),
     ]
 
-    combos = itertools.permutations(pieces, 3)
+    combos = itertools.permutations(pieces, 2)
     ordered = pieces[0]
     for combo in combos:
         parsed = "".join(combo)
@@ -1297,39 +1410,19 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
         '("veryLongPrimaryKeyName")\n'
         ");\n"
         "\n"
+        f"{add_index(index_name='ix_migrate/example/very/very/long/dat_31c24f29_ngModelName__txn', table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_created')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_id')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='veryLongPrimaryKeyName')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='veryLongGeometryPropertyName')}"
+        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='veryLongGeometryPropertyNameOther')}"
+        f"{add_table_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName')}"
         f"{ordered}"
-        "CREATE TABLE "
-        '"migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        "    CONSTRAINT "
-        '"pk_migrate/example/very/very/long/dat_68caa171_lName/:changelog" PRIMARY '
-        "KEY (_id)\n"
-        ");\n"
-        "\n"
-        "CREATE INDEX "
-        '"ix_migrate/example/very/very/long/dat_1c6eef67_/:changelog__txn" ON '
-        '"migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" (_txn);\n'
-        "\n"
-        "CREATE TABLE "
-        '"migrate/example/very/very/long/datase_7adc3c9c_elName/:redirect" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        "    CONSTRAINT "
-        '"pk_migrate/example/very/very/long/dat_d476abfb_elName/:redirect" PRIMARY '
-        "KEY (_id)\n"
-        ");\n"
-        "\n"
-        "CREATE INDEX "
-        '"ix_migrate/example/very/very/long/dat_b1f90d25_edirect_redirect" ON '
-        '"migrate/example/very/very/long/datase_7adc3c9c_elName/:redirect" '
-        "(redirect);\n"
-        "\n"
+        f"{add_changelog_table(table='migrate/example/very/very/long/datase_d087b1e4_lName/:changelog', comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/very/very/long/datase_7adc3c9c_elName/:redirect', comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1395,13 +1488,12 @@ def test_migrate_rename_already_existing_property(
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "otherText" TO "__otherText";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "someText" TO "otherText";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='otherText')}"
+        f"{rename_column(table='migrate/example/Test', column='someText', new_name='otherText')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1508,6 +1600,7 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -1574,8 +1667,7 @@ def test_migrate_datasets(postgresql_migration: URL, rc: RawConfig, cli: SpintaC
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='newColumn', column_type='INTEGER')}"
         'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
         '"uq_migrate/example/Test_someText";\n'
         "\n"
@@ -1635,13 +1727,11 @@ def test_migrate_datasets_multiple_models(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test', column='newColumn', column_type='INTEGER')}"
         'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
         '"uq_migrate/example/Test_someText";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test2" ADD COLUMN "newColumn2" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Test2', column='newColumn2', column_type='INTEGER')}"
         'ALTER TABLE "migrate/example/Test2" DROP CONSTRAINT '
         '"uq_migrate/example/Test2_anotherText";\n'
         "\n"
@@ -1738,8 +1828,7 @@ def test_migrate_datasets_single(postgresql_migration: URL, rc: RawConfig, cli: 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;\n'
-        "\n"
+        f"{add_column(table='dataset1/Test', column='newColumn', column_type='INTEGER')}"
         'ALTER TABLE "dataset1/Test" DROP CONSTRAINT '
         '"uq_dataset1/Test_someText";\n'
         "\n"
@@ -1812,12 +1901,10 @@ def test_migrate_datasets_list(postgresql_migration: URL, rc: RawConfig, cli: Sp
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;\n'
-        "\n"
+        f"{add_column(table='dataset1/Test', column='newColumn', column_type='INTEGER')}"
         'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "uq_dataset1/Test_someText";\n'
         "\n"
-        'ALTER TABLE "dataset2/Test2" ADD COLUMN "newColumn2" INTEGER;\n'
-        "\n"
+        f"{add_column(table='dataset2/Test2', column='newColumn2', column_type='INTEGER')}"
         'ALTER TABLE "dataset2/Test2" DROP CONSTRAINT '
         '"uq_dataset2/Test2_anotherText";\n'
         "\n"
@@ -2316,29 +2403,14 @@ def test_migrate_long_name_rename(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName" RENAME TO '
-        '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName";\n'
-        "\n"
-        "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:changelog" RENAME TO '
-        '"datasets/gov/migrate/example/very/lon_5bf0f407_lName/:changelog";\n'
-        "\n"
-        "ALTER SEQUENCE "
-        '"datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:c__id_seq" RENAME TO '
-        '"datasets/gov/migrate/example/very/lon_5bf0f407_lName/:c__id_seq";\n'
-        "\n"
-        "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_a8ca9fad_elName/:redirect" RENAME TO '
-        '"datasets/gov/migrate/example/very/lon_6f0bc85c_elName/:redirect";\n'
-        "\n"
-        "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName" RENAME '
-        '"someInt" TO "actualInt";\n'
-        "\n"
+        f"{rename_table(table='datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName', new_name='datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName')}"
+        f"{rename_changelog(table='datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:changelog', new_name='datasets/gov/migrate/example/very/lon_5bf0f407_lName/:changelog', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:changelog')}"
+        f"{rename_table(table='datasets/gov/migrate/example/very/lon_a8ca9fad_elName/:redirect', new_name='datasets/gov/migrate/example/very/lon_6f0bc85c_elName/:redirect', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:redirect')}"
+        f"{rename_column(table='datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName', column='someInt', new_name='actualInt')}"
         "ALTER TABLE "
         '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName" RENAME '
         'CONSTRAINT "uq_datasets/gov/migrate/example/very/_97f03b18_odelName_someInt" '
@@ -2473,10 +2545,7 @@ def test_migrate_specific_dataset_long_name(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName" RENAME '
-        '"someInt" TO "otherInt";\n'
-        "\n"
+        f"{rename_column(table='datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName', column='someInt', new_name='otherInt')}"
         "ALTER TABLE "
         '"datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName" RENAME '
         'CONSTRAINT "uq_datasets/gov/migrate/example/very/_97f03b18_odelName_someInt" '

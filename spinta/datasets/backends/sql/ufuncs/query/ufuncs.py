@@ -237,7 +237,7 @@ def _resolve_unresolved(env: SqlQueryBuilder, value: Any) -> Any:
 
 @ufunc.resolver(SqlQueryBuilder, Property)
 def _resolve_unresolved(env: SqlQueryBuilder, prop: Property) -> sa.Column:
-    if prop.external is None:
+    if not prop.external:
         raise NoExternalName(prop)
 
     if prop.external.name:
@@ -383,7 +383,8 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.external.prepare is not NA:
+
+        if prop.external and prop.external.prepare is not NA:
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)

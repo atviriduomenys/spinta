@@ -99,7 +99,7 @@ def load(context: Context, config: Config) -> Config:
     # XXX: A check to make sure, that I don't add mode to the config root, which
     #      already happened several times. Remove this, when configuration
     #      ensures that there are no unknown configuration options added.
-    if rc.get("mode") is not None:
+    if rc.get("mode", default=None) is not None:
         raise RuntimeError(
             "Configuration option `mode` must be added to a manifest, now it is added to the config root."
         )

@@ -225,13 +225,17 @@ def zipitems(
                 res[mapped_key] = [new_value]
                 continue
 
-            extension_list = []
-            for existing_value in res[mapped_key]:
-                if existing_value[1] is NA:
-                    existing_value[1] = value
-                else:
-                    extension_list.append([existing_value[0], value])
-            res[mapped_key] += extension_list
+            existing_list = res[mapped_key]
+
+            # 1) Fill ALL rows that still have NA on the right
+            na_rows = [row for row in existing_list if row[1] is NA]
+            if na_rows:
+                for row in na_rows:
+                    row[1] = value
+            else:
+                # 2) No NA slots left -> append exactly ONE new row
+                left_side = existing_list[0][0] if existing_list else NA
+                existing_list.append([left_side, value])
 
     yield from res.values()
 

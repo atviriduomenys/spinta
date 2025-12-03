@@ -103,14 +103,16 @@ class RedisKeyMap(KeyMap):
         value = data.value
         modified_at = data.data.get("_created")
 
-        value_table_name = self._get_value_table_name(name)
-        key_table_name = self._get_key_table_name(name)
         metadata_table_name = self._get_metadata_table_name(name)
 
-        serialized_value = json.dumps(value, sort_keys=True)
+        if value:
+            value_table_name = self._get_value_table_name(name)
+            key_table_name = self._get_key_table_name(name)
 
-        self.redis.hset(value_table_name, serialized_value, key)
-        self.redis.hset(key_table_name, key, serialized_value)
+            serialized_value = json.dumps(value, sort_keys=True)
+
+            self.redis.hset(value_table_name, serialized_value, key)
+            self.redis.hset(key_table_name, key, serialized_value)
         existing_metadata = self.redis.hget(metadata_table_name, key)
         metadata = json.loads(existing_metadata) if existing_metadata else {}
         if modified_at:

@@ -1162,3 +1162,42 @@ class AgentRelatedDataServiceDoesNotExist(UserError):
 
 class UnexpectedErrorReadingData(BaseError):
     template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""
+
+
+class MissingPostgresqlComments(UpgradeError):
+    template = """
+        {table!r} does not have a comment.
+        Please run `spinta upgrade postgresql_comments` to update all comments.
+    """
+
+
+class InvalidCustomPropertyTypeConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+    """
+
+
+class InvalidCustomPropertyTypeWithArgsConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+        
+        Using args: {args}.
+    """
+
+
+class UnknownConfigurationParameters(UserError):
+    template = """
+        {config_type} {config_object!r} configuration contains unknown parameters: {unknown_params}.
+    """
+
+
+class MissingConfigurationParameter(UserError):
+    template = """
+        {config_type} {config_object!r} configuration is missing parameter: {missing_params!r}.
+    """
+
+
+class UnsupportedDataTypeConfiguration(UserError):
+    template = """
+        DataType {data_type!r} currently does not support custom type assignment in configuration.
+    """

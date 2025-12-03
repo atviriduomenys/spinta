@@ -44,7 +44,13 @@ class Sql(ExternalBackend):
             key = name
 
         if key not in self.schema.tables:
-            sa.Table(name, self.schema, autoload_with=self.engine)
+            schema = None
+            if "." in key:
+                split = key.split(".", 1)
+                schema = split[0]
+                name = split[1]
+
+            sa.Table(name, self.schema, schema=schema, autoload_with=self.engine)
 
         return self.schema.tables[key]
 

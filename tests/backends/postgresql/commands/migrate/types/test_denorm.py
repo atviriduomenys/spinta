@@ -7,6 +7,7 @@ from sqlalchemy.engine import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import add_column, drop_column, rename_column, add_column_comment, add_index
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
     configure_migrate,
@@ -346,21 +347,19 @@ def test_migrate_adjust_ref_levels_with_denorm(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someText" TEXT;\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someNumber" FLOAT;\n'
-        "\n"
+        f"{add_column(table='migrate/example/Ref', column='someRef.someText', column_type='TEXT')}"
+        f"{add_column(table='migrate/example/Ref', column='someRef.someNumber', column_type='FLOAT')}"
         'UPDATE "migrate/example/Ref" SET '
         '"someRef.someText"="migrate/example/Test"."someText", '
         '"someRef.someNumber"="migrate/example/Test"."someNumber" FROM '
         '"migrate/example/Test" WHERE "migrate/example/Ref"."someRef._id" = '
         '"migrate/example/Test"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef._id" TO "__someRef._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
         'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
@@ -427,26 +426,22 @@ def test_migrate_adjust_ref_levels_with_denorm(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
         "\n"
-        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
-        '("someRef._id");\n'
-        "\n"
+        f"{add_index(index_name='ix_migrate/example/Ref_someRef._id', table='migrate/example/Ref', columns=['someRef._id'])}"
+        f"{add_column_comment(table='migrate/example/Ref', column='someRef._id')}"
         'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
         'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
         '"migrate/example/Test"."someText" AND '
         '"migrate/example/Ref"."someRef.someNumber" = '
         '"migrate/example/Test"."someNumber";\n'
         "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
-        '"__someRef.someText";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someNumber" TO '
-        '"__someRef.someNumber";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someText')}"
+        f"{drop_column(table='migrate/example/Ref', column='someRef.someNumber')}"
         'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
         '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
         '"migrate/example/Test" (_id);\n'
@@ -565,7 +560,7 @@ def test_migrate_ref_4_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" ADD COLUMN "country.name" TEXT;\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{add_column(table='migrate/example/City', column='country.name', column_type='TEXT')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -674,7 +669,7 @@ def test_migrate_ref_4_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" RENAME "country.name" TO "__country.name";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{drop_column(table='migrate/example/City', column='country.name')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -792,7 +787,7 @@ def test_migrate_ref_4_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" RENAME "country.name" TO "country.test";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.name', new_name='country.test')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
@@ -1120,15 +1115,12 @@ def test_migrate_ref_nested_ref_to_scalar(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" ADD COLUMN "country.ctr" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/City', column='country.ctr', column_type='INTEGER')}"
         'UPDATE "migrate/example/City" SET "country.ctr"="migrate/example/Country".id '
         'FROM "migrate/example/Country" WHERE '
         '"migrate/example/City"."country.ctr._id" = "migrate/example/Country"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.ctr._id" TO '
-        '"__country.ctr._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/City', column='country.ctr._id')}"
         'DROP INDEX "ix_migrate/example/City_country.ctr._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/City" DROP CONSTRAINT '
@@ -1247,15 +1239,12 @@ def test_migrate_ref_nested_text(postgresql_migration: URL, rc: RawConfig, cli: 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" ADD COLUMN "country.ctr" INTEGER;\n'
-        "\n"
+        f"{add_column(table='migrate/example/City', column='country.ctr', column_type='INTEGER')}"
         'UPDATE "migrate/example/City" SET "country.ctr"="migrate/example/Country".id '
         'FROM "migrate/example/Country" WHERE '
         '"migrate/example/City"."country.ctr._id" = "migrate/example/Country"._id;\n'
         "\n"
-        'ALTER TABLE "migrate/example/City" RENAME "country.ctr._id" TO '
-        '"__country.ctr._id";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/City', column='country.ctr._id')}"
         'DROP INDEX "ix_migrate/example/City_country.ctr._id";\n'
         "\n"
         'ALTER TABLE "migrate/example/City" DROP CONSTRAINT '
@@ -1364,7 +1353,7 @@ def test_migrate_ref_3_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" ADD COLUMN "country.name" TEXT;\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{add_column(table='migrate/example/City', column='country.name', column_type='TEXT')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -1468,7 +1457,7 @@ def test_migrate_ref_3_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" RENAME "country.name" TO "__country.name";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{drop_column(table='migrate/example/City', column='country.name')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -1581,7 +1570,7 @@ def test_migrate_ref_3_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" RENAME "country.name" TO "country.test";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.name', new_name='country.test')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
@@ -1686,7 +1675,7 @@ def test_migrate_object(postgresql_migration: URL, rc: RawConfig, cli: SpintaCli
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/City" RENAME "country.name" TO "country.test";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.name', new_name='country.test')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])

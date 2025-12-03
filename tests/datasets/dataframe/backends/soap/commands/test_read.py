@@ -101,7 +101,7 @@ def test_soap_read_calls_soap_operation_with_empty_request_body(rc: RawConfig, m
     app.authmodel("/example/City/", ["getall"])
     app.get("/example/City/")
 
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request={})
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body={})
 
 
 def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: RawConfig, mocker: MockerFixture) -> None:
@@ -122,12 +122,10 @@ def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: Raw
     app.get("/example/City/")
 
     expected_soap_request = {
-        "request_model": {
-            "param1": "default_val",
-            "param2": "default_val",
-        },
+        "request_model/param1": "default_val",
+        "request_model/param2": "default_val",
     }
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request=expected_soap_request)
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request)
 
 
 def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: RawConfig, mocker: MockerFixture) -> None:
@@ -148,12 +146,10 @@ def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: Ra
     app.get("/example/City/?p1='foo'&p2='bar'")
 
     expected_soap_request = {
-        "request_model": {
-            "param1": "foo",
-            "param2": "bar",
-        },
+        "request_model/param1": "foo",
+        "request_model/param2": "bar",
     }
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request=expected_soap_request)
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request)
 
 
 def test_soap_read_raise_error_if_manifest_resource_param_source_cannot_be_parsed(rc: RawConfig) -> None:
@@ -566,3 +562,54 @@ def test_soap_read_with_extra_http_header_from_creds(rc: RawConfig, responses: R
     dataset = commands.get_dataset(context, manifest, "example")
     backend = dataset.resources["soap_resource"].backend
     assert backend.wsdl_backend.client.transport.session.headers.get("header_name") == "creds_value"
+
+
+def test_soap_read_with_cdata_element_in_soap_body(rc: RawConfig, responses: RequestsMock):
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>100</ns1:id>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>101</ns1:id>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type    | ref        | source                                          | access | prepare
+        example                  | dataset |            |                                                 |        |
+          | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param   | parameter1 | request_model/param1                            |        | input('default_val').cdata()
+          |   |   | City         |         |            | /                                               | open   |
+          |   |   |   | id       | integer |            | id                                              |        |
+          |   |   |   | p1       | string  |            |                                                 |        | param(parameter1)
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("/example/City/", ["getall"])
+
+    response = app.get("/example/City/")
+
+    assert listdata(response, sort=False, full=True) == [
+        {
+            "id": 100,
+            "p1": "default_val",
+        },
+        {
+            "id": 101,
+            "p1": "default_val",
+        },
+    ]

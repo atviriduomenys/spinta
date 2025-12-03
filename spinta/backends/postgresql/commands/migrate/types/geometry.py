@@ -9,14 +9,13 @@ from spinta.types.geometry.components import Geometry
 
 
 @commands.migrate.register(
-    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, Geometry
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Column, Geometry
 )
 def migrate(
     context: Context,
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    table: sa.Table,
     old: sa.Column,
     new: DataType,
     **kwargs,
@@ -27,4 +26,4 @@ def migrate(
         if isinstance(column, sa.Column):
             col = column
             break
-    commands.migrate(context, backend, migration_ctx, property_ctx, table, old, col, **kwargs)
+    commands.migrate(context, backend, migration_ctx, property_ctx, old, col, **kwargs)

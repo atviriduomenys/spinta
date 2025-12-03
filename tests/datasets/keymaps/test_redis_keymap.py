@@ -118,8 +118,12 @@ def test_synchronize_with_redirect(redis_in_memory_keymap):
     redis_in_memory_keymap.synchronize(data)
 
     meta_table = redis_in_memory_keymap._get_metadata_table_name("redirect_test")
+    key_table = redis_in_memory_keymap._get_key_table_name("redirect_test")
+    value_table = redis_in_memory_keymap._get_value_table_name("redirect_test")
     metadata = json.loads(redis_in_memory_keymap.redis.hget(meta_table, "old-id"))
     assert json.loads(metadata["redirect"]) == "new-id"
+    assert redis_in_memory_keymap.redis.hgetall(key_table) == {"old-id": '{"x": 5}'}
+    assert redis_in_memory_keymap.redis.hgetall(value_table) == {'{"x": 5}': "old-id"}
 
 
 def test_validate_data_no_duplicates(redis_in_memory_keymap):

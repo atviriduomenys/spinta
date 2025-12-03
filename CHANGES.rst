@@ -1,17 +1,59 @@
 Changes
 #######
 
-0.2dev9 (unreleased)
+0.2dev11 (unreleased)
+===================
+
+Improvements:
+
+- `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
+- Added ability to customize models and their properties inside config. You can now specify custom type implementation
+  with: `models.<model_name>.properties.<property_name>.type`. It accepts python import path to the implementation (`#599`_).
+
+.. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
+.. _#599: https://github.com/atviriduomenys/spinta/issues/599
+
+Bug fixes:
+
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+
+  .. _#963: https://github.com/atviriduomenys/spinta/issues/963
+
+
+0.2dev10 (2025-11-27)
+=====================
+
+Backwards incompatible:
+
+- `spinta migrate` with the `postgresql` backend now requires all tables and columns to have up-to-date comments with
+  their full uncompressed names. Migrations are likely to fail or be incorrect if comments are missing or
+  outdated. Use the `spinta upgrade postgresql_comments` script to validate and update all required comments (`#1579`_).
+
+Improvements:
+
+- `spinta migrate` now uses PostgreSQL comments to map tables and models together (`#1579`_).
+- The `internal` `postgresql` backend now adds full name comments to all its tables and columns. To migrate to the new
+  changes, the `spinta upgrade postgresql_comments` script was added (`#1579`_).
+
+Bug fixes:
+
+- Fixed an issue where `spinta migrate` incorrectly created table drop scripts for `changelog` and `redirect` tables (`#1579`_).
+
+  .. _#1579: https://github.com/atviriduomenys/spinta/issues/1579
+
+0.2dev9 (2025-11-21)
 ====================
 
 New Features:
 
 - Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
-also known as well-known, jwk.
+  also known as well-known, jwk.
 - Spinta as Agent:
     - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
       algorithm (`alg` & `kty`).
-      This unlocks using auth servers with public key rotation, like gravitee.
+      This unlocks using auth servers with public key rotation, like Gravitee.
     - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
       verification.
     - move existing `spinta genkeys` command to `spinta key generate`.
@@ -36,12 +78,9 @@ Improvements:
 
 Bug fixes:
 
-- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
-  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
-  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
 
-  .. _#963: https://github.com/atviriduomenys/spinta/issues/963
-
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
 
 0.2dev8 (2025-11-06)
 ====================
@@ -54,7 +93,6 @@ Bug fixes:
 
   .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
   .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
-  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 0.2dev7 (2025-10-23)
 ====================
@@ -79,6 +117,12 @@ Bug fixes:
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
   .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
+
+Security:
+
+- Private keys and client credential files are now created with restrictive permissions (600 for files, 700 for directories) to prevent unauthorized access by other users on the same system. (`APL-1`_)
+
+  .. _APL-1: https://github.com/atviriduomenys/spinta/pull/1573
 
 Improvements:
 
