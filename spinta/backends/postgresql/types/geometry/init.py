@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.type import get_column_type
 from spinta.components import Context
 from spinta.types.geometry.components import Geometry
@@ -20,7 +21,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Geometry, **kwargs) ->
     column_type = get_column_type(dtype, ga.Geometry(**kwargs))
     nullable = not dtype.required
     columns = [
-        column := sa.Column(name, column_type, nullable=nullable),
+        column := sa.Column(get_pg_column_name(name), column_type, nullable=nullable, comment=name),
         sa.Index(None, column, postgresql_using="GIST"),
     ]
 

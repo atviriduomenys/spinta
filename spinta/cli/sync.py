@@ -1,75 +1,51 @@
 import logging
-from http import HTTPStatus
-from typing import Optional
 
-from typer import Context as TyperContext, Argument, Option
+from typer import echo, Context as TyperContext
 
-from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.sync import ContentType
-from spinta.cli.helpers.sync.controllers.data_service import get_data_service_id
-from spinta.cli.helpers.sync.controllers.dataset import get_resource, create_resource
-from spinta.cli.helpers.sync.controllers.dsa import update_dsa, create_dsa
-from spinta.cli.helpers.sync.helpers import (
-    get_base_path_and_headers,
-    get_context_and_manifest,
-    prepare_synchronization_manifests,
-    render_content_from_manifest,
-    extract_identifier_from_response,
-    get_configuration_credentials,
-    get_data_service_name_prefix,
-    get_agent_name,
-    validate_credentials,
+from spinta.cli.helpers.sync.api_helpers import get_base_path_and_headers
+from spinta.cli.helpers.sync.controllers.data_service import get_data_service_children_dataset_ids
+from spinta.cli.helpers.sync.controllers.synchronization.catalog_to_agent import (
+    execute_synchronization_catalog_to_agent,
 )
+from spinta.cli.helpers.sync.helpers import (
+    get_configuration_credentials,
+    validate_credentials,
+    get_agent_name,
+    load_configuration_values,
+    prepare_local_manifest_file,
+    prepare_context,
+)
+from spinta.components import Context
+from spinta.manifests.tabular.helpers import render_tabular_manifest
+
 
 logger = logging.getLogger(__name__)
 
 
-def sync(
-    ctx: TyperContext,
-    manifest: Optional[str] = Argument(None, help="Path to manifest."),
-    resource: Optional[tuple[str, str]] = Option(
-        (None, None),
-        "-r",
-        "--resource",
-        help=("Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"),
-    ),
-    formula: str = Option("", "-f", "--formula", help=("Formula if needed, to prepare resource for reading")),
-    backend: Optional[str] = Option(None, "-b", "--backend", help=("Backend connection string")),
-    auth: Optional[str] = Option(None, "-a", "--auth", help=("Authorize as a client")),
-    priority: str = Option("manifest", "-p", "--priority", help=("Merge property priority ('manifest' or 'external')")),
-):
-    """Synchronize datasets from data source to the data Catalog.
+def prepare_synchronization(ctx: TyperContext) -> tuple[Context, str, str]:
+    data_source_name, manifest_path = load_configuration_values(ctx.obj)
+    prepare_local_manifest_file(manifest_path)
+    context = prepare_context(ctx.obj)
 
-    This command:
-     - Reads the specified data sources (databases, files, etc.)
-     - Creates/Retrieves a parent Data Service for all datasets that will be created
-     - Creates/Retrieves datasets corresponding to what was retrieved from source and creates datasets in Catalog.
-     - Creates as many DSA (Duomenų Struktūros Aprašas) as there are datasets in Catalog.
-     - Ensures that the datasets & their DSA's are up to date; # TODO: Yet to be implemented.
+    return context, data_source_name, manifest_path
 
-    Documentation:
-        https://atviriduomenys.readthedocs.io/agentas.html#sinchronizacija
-    """
-    manifest = convert_str_to_manifest_path(manifest)
-    context, manifest = get_context_and_manifest(ctx, manifest, resource, formula, backend, auth, priority)
 
+def prepare_api_context(context: Context) -> tuple[str, dict[str, str], str]:
     credentials = get_configuration_credentials(context)
     validate_credentials(credentials)
     base_path, headers = get_base_path_and_headers(credentials)
     agent_name = get_agent_name(credentials)
 
-    prefix = get_data_service_name_prefix(credentials)
-    dataset_data = prepare_synchronization_manifests(context, manifest, prefix)
+    return base_path, headers, agent_name
 
-    data_service_id = get_data_service_id(base_path, headers, agent_name)
-    for dataset in dataset_data:
-        dataset_name = dataset["name"]
-        response_get_dataset = get_resource(base_path, headers, dataset_name)
-        if response_get_dataset.status_code == HTTPStatus.OK:
-            dataset_id = extract_identifier_from_response(response_get_dataset, "list")
-            update_dsa(base_path, headers, dataset_id)
-        elif response_get_dataset.status_code == HTTPStatus.NOT_FOUND:
-            response_create_dataset = create_resource(base_path, headers, dataset_name, data_service_id)
-            dataset_id = extract_identifier_from_response(response_create_dataset, "detail")
-            content = render_content_from_manifest(context, dataset["dataset_manifest"], ContentType.CSV)
-            create_dsa(base_path, headers, dataset_id, content)
+
+def sync(ctx: TyperContext) -> None:
+    context, data_source_name, manifest_path = prepare_synchronization(ctx)
+    base_path, headers, agent_name = prepare_api_context(context)
+
+    dataset_ids = get_data_service_children_dataset_ids(base_path, headers, agent_name)
+    manifest = execute_synchronization_catalog_to_agent(context, base_path, headers, manifest_path, dataset_ids)
+    echo(render_tabular_manifest(context, manifest))
+
+    # TODO: Part 2: Source -> Agent: https://github.com/atviriduomenys/spinta/issues/1489.
+    # TODO: Part 3: Agent -> Catalog: https://github.com/atviriduomenys/katalogas/issues/1942.

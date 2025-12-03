@@ -4,6 +4,7 @@ import pathlib
 import uuid
 
 import pytest
+from lxml import etree
 from pytest_mock import MockerFixture
 
 from spinta import auth
@@ -13,9 +14,14 @@ from spinta.commands import get_model
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.core.ufuncs import asttoexpr
+from spinta.core.ufuncs import asttoexpr, Expr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
-from spinta.exceptions import PropertyNotFound, UnknownMethod, InvalidClientBackend, InvalidClientBackendCredentials
+from spinta.exceptions import (
+    UnknownMethod,
+    InvalidClientBackend,
+    InvalidClientBackendCredentials,
+    MissingRequiredProperty,
+)
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse, unparse
 from spinta.testing.manifest import prepare_manifest
@@ -76,29 +82,53 @@ def _get_wsdl_soap_manifest(rc: RawConfig) -> tuple[Context, Manifest]:
 
 
 class TestEq:
-    def test_assigns_string_value_to_url_params_if_param_name_is_property(self, rc: RawConfig) -> None:
+    @pytest.mark.parametrize("value", ("test", 1))
+    def test_assigns_string_value_to_url_params_if_param_name_is_property(
+        self, rc: RawConfig, value: str | int
+    ) -> None:
         context, manifest = _get_wsdl_soap_manifest(rc)
         soap_query_builder = _get_soap_query_builder(context, manifest)
 
-        expr = asttoexpr(parse('p1="test"'))
+        expr = asttoexpr(parse(f"p1={value}"))
         soap_query_builder.resolve(expr)
-        assert soap_query_builder.query_params.url_params == {"p1": "test"}
+        assert soap_query_builder.query_params.url_params == {"p1": str(value)}
 
-    def test_raise_error_if_param_name_is_not_property(self, rc: RawConfig) -> None:
+    def test_assigns_bind_name_to_url_params_if_param_name_is_property(self, rc: RawConfig) -> None:
+        context, manifest = _get_wsdl_soap_manifest(rc)
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+
+        expr = asttoexpr(parse("p1=name"))  # name is bind, because it has no quotes
+        soap_query_builder.resolve(expr)
+        assert soap_query_builder.query_params.url_params == {"p1": "name"}
+
+    def test_do_not_resolve_expression_if_param_name_is_property_but_without_prepare(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref | source                                          | access | prepare
+            example                  | dataset |     |                                                 |        |
+              | wsdl_resource        | wsdl    |     | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |     | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   | City         |         | id  | /                                               | open   |
+              |   |   |   | id       | integer |     | id                                              |        |
+            """,
+            mode=Mode.external,
+        )
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+
+        expr = asttoexpr(parse("id=1"))
+        resolved = soap_query_builder.resolve(expr)
+
+        assert type(resolved) is Expr
+
+    def test_do_not_resolve_expression_if_param_name_is_not_property(self, rc: RawConfig) -> None:
         context, manifest = _get_wsdl_soap_manifest(rc)
         soap_query_builder = _get_soap_query_builder(context, manifest)
 
         expr = asttoexpr(parse('any_prop="test"'))
-        with pytest.raises(PropertyNotFound, match="Property 'any_prop' not found"):
-            soap_query_builder.resolve(expr)
+        resolved = soap_query_builder.resolve(expr)
 
-    def test_raise_error_if_param_value_is_not_string(self, rc: RawConfig) -> None:
-        context, manifest = _get_wsdl_soap_manifest(rc)
-        soap_query_builder = _get_soap_query_builder(context, manifest)
-
-        expr = asttoexpr(parse("p1=test"))
-        with pytest.raises(UnknownMethod, match="Unknown method 'eq' with args"):
-            soap_query_builder.resolve(expr)
+        assert type(resolved) is Expr
 
 
 class TestAnd:
@@ -284,8 +314,30 @@ class TestSoapRequestBody:
         soap_query_builder = _get_soap_query_builder(context, manifest)
         soap_query_builder.build()
 
-        assert soap_query_builder.soap_request_body == {"request_model/param1": None}
-        assert soap_query_builder.property_values == {"parameter1": None}
+        assert soap_query_builder.soap_request_body == {}
+
+    def test_build_body_from_request_with_required_prop_without_default_and_no_url_param_given(
+        self, rc: RawConfig
+    ) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type             | ref        | source                                          | access | prepare
+            example                  | dataset          |            |                                                 |        |
+              | wsdl_resource        | wsdl             |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap             |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param            | parameter1 | request_model/param1                            | open   | input()
+              |   |   | City         |                  | id         | /                                               | open   |
+              |   |   |   | id       | integer          |            | id                                              |        |
+              |   |   |   | p1       | integer required |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+        with pytest.raises(MissingRequiredProperty, match="Property 'p1' is required."):
+            soap_query_builder.build()
 
     def test_build_body_from_params_without_property_defined(
         self, rc: RawConfig, tmp_path: pathlib.Path, mocker: MockerFixture
@@ -386,6 +438,80 @@ class TestSoapRequestBody:
         soap_query_builder.build()
         assert soap_query_builder.soap_request_body == {"request_model/param1": "cred_value"}
         assert soap_query_builder.property_values == {"parameter1": "cred_value"}
+
+    def test_soap_request_body_when_param_has_value_type_cdata_and_default_value_given(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref        | source                                          | access | prepare
+            example                  | dataset |            |                                                 |        |
+              | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | input('default_val').cdata()
+              |   |   | City         |         | id         | /                                               | open   |
+              |   |   |   | id       | integer |            | id                                              |        |
+              |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+        soap_query_builder.build()
+
+        dummy_element = etree.Element("foo")
+        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")()
+        assert etree.tostring(dummy_element) == b"<foo><![CDATA[default_val]]></foo>"
+        assert soap_query_builder.property_values == {"parameter1": "default_val"}
+
+    def test_soap_request_body_when_param_has_value_type_cdata_and_value_via_url_param(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref        | source                                          | access | prepare
+            example                  | dataset |            |                                                 |        |
+              | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | input('default_val').cdata()
+              |   |   | City         |         | id         | /                                               | open   |
+              |   |   |   | id       | integer |            | id                                              |        |
+              |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        query_params = QueryParams()
+        query_params.url_params = {"p1": "url_value"}
+        soap_query_builder = _get_soap_query_builder(context, manifest, query_params=query_params)
+        soap_query_builder.build()
+
+        dummy_element = etree.Element("foo")
+        dummy_element.text = soap_query_builder.soap_request_body.get("request_model/param1")()
+        assert etree.tostring(dummy_element) == b"<foo><![CDATA[url_value]]></foo>"
+        assert soap_query_builder.property_values == {"parameter1": "url_value"}
+
+    def test_soap_request_body_when_param_has_value_type_cdata_and_value_not_given(self, rc: RawConfig) -> None:
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            d | r | b | m | property | type    | ref        | source                                          | access | prepare
+            example                  | dataset |            |                                                 |        |
+              | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+              | soap_resource        | soap    |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+              |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | input().cdata()
+              |   |   | City         |         | id         | /                                               | open   |
+              |   |   |   | id       | integer |            | id                                              |        |
+              |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
+
+        soap_query_builder = _get_soap_query_builder(context, manifest)
+        soap_query_builder.build()
+
+        assert soap_query_builder.soap_request_body == {}
 
 
 class TestCreds:

@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, Union
 from typing import List
 from typing import Optional
 
@@ -12,6 +12,7 @@ from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
+from spinta.manifests.components import ManifestPath
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.manifests.tabular.components import ManifestColumn
@@ -144,7 +145,7 @@ def copy_manifest(
 
 def _read_and_return_manifest(
     context: Context,
-    manifests: List[str],
+    manifests: List[Union[str, ManifestPath]],
     *,
     external: bool = True,
     access: Access = Access.private,
@@ -152,14 +153,17 @@ def _read_and_return_manifest(
     order_by: ManifestColumn = None,
     rename_duplicates: bool = False,
     verbose: bool = True,
+    check_config: bool = True,
+    load_backends: bool = True,
 ) -> Iterator[ManifestRow]:
-    context = configure_context(context, manifests)
+    context = configure_context(context, manifests, load_backends=load_backends)
     store = load_manifest(
         context,
         rename_duplicates=rename_duplicates,
         load_internal=False,
         verbose=verbose,
-        full_load=True
+        full_load=True,
+        check_config=check_config,
     )
 
     if format_names:

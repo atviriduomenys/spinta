@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 
 from spinta import commands
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.datatype import ExternalRef, Denorm
@@ -40,16 +41,19 @@ def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef, propagate
                 columns.append(unique_constraint)
 
         else:
-            column_name = get_column_name(dtype.prop) + "._id"
-            if dtype.prop.list and dtype.prop.place == dtype.prop.list.place:
-                column_name = "_id"
+            column_name = (
+                "_id"
+                if dtype.prop.list and dtype.prop.place == dtype.prop.list.place
+                else get_column_name(dtype.prop) + "._id"
+            )
             column_type = commands.get_primary_key_type(context, backend)
             columns.append(
                 sa.Column(
-                    column_name,
+                    get_pg_column_name(column_name),
                     column_type,
                     nullable=not dtype.required,
                     unique=dtype.unique,
+                    comment=column_name,
                 )
             )
 

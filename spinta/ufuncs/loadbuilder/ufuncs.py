@@ -64,9 +64,34 @@ def or_(env, expr):
     return args
 
 
+@ufunc.resolver(LoadBuilder, Expr)
+def cdata(env: LoadBuilder, expr: Expr) -> None:
+    expr.resolve(env)
+    env.param.soap_body_value_type = "cdata"
+
+
 @ufunc.resolver(LoadBuilder, Expr, name="input")
 def input_(env: LoadBuilder, expr: Expr) -> None:
     args, kwargs = expr.resolve(env)
     prep_value = args[0] if args else NA
 
     env.param.soap_body = {env.this: prep_value}
+
+
+@ufunc.resolver(LoadBuilder, Expr)
+def header(env: LoadBuilder, expr: Expr) -> None:
+    args, kwargs = expr.resolve(env)
+    if len(args) != 1:
+        raise InvalidArgumentInExpression(arguments=args, expr="header")
+
+    return env.call("header", env.this, args[0])
+
+
+@ufunc.resolver(LoadBuilder, str, str)
+def header(env: LoadBuilder, header_name: str, header_value: str) -> None:
+    env.param.http_header = {header_name: header_value}
+
+
+@ufunc.resolver(LoadBuilder, str, Expr)
+def header(env: LoadBuilder, header_name: str, header_value: Expr) -> None:
+    env.param.http_header = {header_name: header_value}

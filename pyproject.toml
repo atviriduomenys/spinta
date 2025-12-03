@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2.dev5"
+version = "0.2dev11"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -34,7 +34,7 @@ spinta = "spinta.cli.main:app"
 
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 aiofiles = "*"
 # https://github.com/atviriduomenys/spinta/issues/675
 # 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
@@ -54,7 +54,7 @@ requests = "*"
 setuptools = "*"
 setuptools-scm = "*"
 # https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
-starlette = ">=0.40"
+starlette = ">=0.49.1"
 pydantic = "*"
 toposort = "*"
 tqdm = "*"
@@ -114,6 +114,7 @@ sqlean-py = "<=3.49.1"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
+redis = "^6.4.0"
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]
@@ -150,6 +151,7 @@ objprint = "*"
 sphinx-rtd-theme = "*"
 sqlalchemy-stubs = "*"
 types-requests = "^2.32.4.20250809"
+fakeredis = "^2.32.0"
 
 
 [build-system]

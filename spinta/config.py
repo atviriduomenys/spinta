@@ -130,6 +130,7 @@ CONFIG = {
         },
         "keymaps": {
             "sqlalchemy": "spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap",
+            "redis": "spinta.datasets.keymaps.redis:RedisKeyMap",
         },
         "types": {
             "any": "spinta.types.datatype:DataType",
@@ -249,7 +250,11 @@ CONFIG = {
     "enable_pagination": True,
     # Limit of objects in a page
     # If None is given default is 100000
-    "sync_page_size": 100000,
+    "sync_page_size": 20000,
+    # Maximum number of retries for sync data fetch
+    "sync_retry_count": 5,
+    # Delay between retries for sync data fetch, in seconds
+    "sync_retry_delay_range": (1, 5, 10, 30, 60),
     # Default languages
     # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
     # Last updated: 2023-11-08
@@ -259,6 +264,10 @@ CONFIG = {
     "max_file_size": 100,
     # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
     "max_error_count_on_insert": 100,
+    # Enables setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
+    "load_backends": True,
+    # Response Cache-Control header.
+    "cache_control_header": "public, max-age=60, must-revalidate",
     "environments": {
         "dev": {
             "keymaps.default": {
@@ -336,6 +345,7 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+            "sync_retry_count": 0,
         },
     },
 }

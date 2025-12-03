@@ -2,16 +2,39 @@ from __future__ import annotations
 
 from typing import Any
 
+from lxml import etree
+
 from spinta.auth import authorized, query_client
 from spinta.components import Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import ufunc, Expr, Bind, ShortExpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.components import Param
-from spinta.exceptions import InvalidClientBackendCredentials, InvalidClientBackend, UnknownMethod
+from spinta.exceptions import (
+    InvalidClientBackendCredentials,
+    InvalidClientBackend,
+    UnknownMethod,
+    MissingRequiredProperty,
+    PropertyNotFound,
+)
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+
+class MakeCDATA:
+    """
+    Small helper class for making CDATA objects. Instances of this class are passed to dask. Passing etree.CDATA
+    objects directly doesn't work because etree.CDATA objects are not hashable and that breaks dask
+    """
+
+    data: str
+
+    def __init__(self, data: str) -> None:
+        self.data = data
+
+    def __call__(self) -> etree.CDATA:
+        return etree.CDATA(self.data)
 
 
 @ufunc.resolver(SoapQueryBuilder, Expr)
@@ -19,14 +42,18 @@ def select(env: SoapQueryBuilder, expr: Expr) -> Expr:
     return expr
 
 
-@ufunc.resolver(SoapQueryBuilder, Bind, str, name="eq")
-def eq_(env: SoapQueryBuilder, field: Bind, value: str) -> None:
-    prop = env.resolve_property(field)
+@ufunc.resolver(SoapQueryBuilder, Bind, object, name="eq")
+def eq_(env: SoapQueryBuilder, field: Bind, value: object) -> Expr | None:
+    try:
+        prop = env.resolve_property(field)
+    except PropertyNotFound:
+        # leave query parameter for other query builders to resolve
+        return Expr("eq", field, value)
 
     if not isinstance(prop.external.prepare, Expr):
-        return
+        return Expr("eq", field, value)
 
-    env.query_params.url_params[prop.place] = value
+    env.query_params.url_params[prop.place] = str(value)
 
 
 @ufunc.resolver(SoapQueryBuilder, Expr, name="and")
@@ -92,17 +119,34 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
     env.call("soap_request_body", prop, resource_param)
 
 
+def _get_final_soap_request_body_value(env: SoapQueryBuilder, property_name: str, param_source: str) -> Any:
+    """If value in URL - use it (even if it's None). If not - use whatever default is given in DSA"""
+    url_value = env.query_params.url_params.get(property_name, NA)
+    param_default_value = env.soap_request_body.get(param_source, NA)
+
+    return url_value if url_value is not NA else param_default_value
+
+
 @ufunc.resolver(SoapQueryBuilder, Property, Param)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
     """Replace default param.soap_body values with url_param values"""
-    url_param_value = env.query_params.url_params.get(prop.place)
+    param_source = next(iter(param.soap_body))
+    final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
 
-    final_value = None
-    for param_body_key in param.soap_body.keys():
-        soap_body_value = env.soap_request_body.get(param_body_key)
-        final_value = url_param_value or (soap_body_value if soap_body_value is not NA else None)
-        env.soap_request_body[param_body_key] = final_value
+    if final_value is NA:
+        # If value not in URL and DSA has no default - remove it from SOAP request completely
+        env.soap_request_body.pop(param_source, None)
+        final_value = None
+    elif final_value:
+        # If value should be sent as CDATA - change it to etree.CDATA
+        soap_final_value = MakeCDATA(final_value) if param.soap_body_value_type == "cdata" else final_value
+        env.soap_request_body[param_source] = soap_final_value
 
+    # Check if required property values exist
+    if prop.dtype.required and param_source not in env.soap_request_body:
+        raise MissingRequiredProperty(prop, prop=prop.name)
+
+    # Update property values. Even if value is not sent via SOAP, it should have None value when displayed by Spinta
     env.property_values.update({param.name: final_value})
 
 
