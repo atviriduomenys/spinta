@@ -215,38 +215,29 @@ class Visitor:
             "name": name.value,
             "args": self._args(*args.children),
         }
-        
+
     def countfunc(self, _, __) -> dict:
         return {
             "name": "count",
             "args": [],
         }
-        
+
     def selectfunc(self, _, __, args: lark.Tree) -> dict:
-        return {
-            "name": "select",
-            "args": self._args(*args.children)
-        }
-        
+        return {"name": "select", "args": self._args(*args.children)}
+
     def sortfunc(self, _, __, args: lark.Tree) -> dict:
-        return {
-            "name": "sort",
-            "args": self._args(*args.children)
-        }
-        
+        return {"name": "sort", "args": self._args(*args.children)}
+
     def limitfunc(self, _, __, args: lark.Tree) -> dict:
-        return {
-            "name": "limit",
-            "args": self._args(*args.children)
-        }
-        
+        return {"name": "limit", "args": self._args(*args.children)}
+
     def gtmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "gt",
             "args": self._args(arg, expr),
         }
-        
+
     def ltmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",

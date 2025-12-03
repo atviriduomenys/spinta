@@ -410,7 +410,6 @@ def test_dataset(app):
     }
 
 
-
 @pytest.mark.parametrize(
     "select_syntax",
     [
@@ -832,7 +831,6 @@ def test_select_with_function(app, select_syntax):
     assert context["_data"] == [{"_type": "datasets/json/Rinkimai", "count()": 2}], context["_data"]
 
 
-
 @pytest.mark.parametrize(
     "sort_syntax, expected_titles",
     [
@@ -867,13 +865,15 @@ def test_sort(app, sort_syntax, expected_titles):
         },
     )
     assert resp.status_code == 200, resp.json()
-    resp = app.get(f"/datasets/json/Rinkimai/:format/json?_select=pavadinimas&{sort_syntax}", headers={"accept": "text/html"})
+    resp = app.get(
+        f"/datasets/json/Rinkimai/:format/json?_select=pavadinimas&{sort_syntax}", headers={"accept": "text/html"}
+    )
 
     context = resp.json()
     titles = list(data["pavadinimas"] for data in context["_data"])
     assert titles == expected_titles
-    
-    
+
+
 @pytest.mark.parametrize(
     "limit_syntax, expected_count",
     [
@@ -919,8 +919,8 @@ def test_limit(app, limit_syntax, expected_count):
 
     context = resp.json()
     assert len(context["_data"]) == expected_count
-    
-    
+
+
 @pytest.mark.models(
     "backends/postgres/Report",
     "backends/mongo/Report",
