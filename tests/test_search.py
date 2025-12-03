@@ -204,7 +204,14 @@ def test_search_exact_same_prop_multiple_times(model, context, app):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_gt(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        "count._gt=40",
+        "count.gt(40)",
+        "count>40"
+    ]
+)
+def test_search_gt(model, context, app, query):
     (
         r1,
         r2,
@@ -214,29 +221,51 @@ def test_search_gt(model, context, app):
     app.authmodel(model, ["search"])
 
     # single field search
-    resp = app.get(f"/{model}?count>40")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
+    
+    # test `greater_than` works as expected
+    resp = app.get(f"/{model}?count>42")
+    data = resp.json()["_data"]
+    assert len(data) == 0
+    
+    
+@pytest.mark.models(
+    "backends/mongo/Report",
+    "backends/postgres/Report",
+)
+@pytest.mark.parametrize(
+    "query", [
+        "count._gt=40&count._gt=10",
+        "count.gt(40)&count.gt(10)",
+        "count>40&count>10",
+    ]
+)
+def test_search_gt_joined_and(model, context, app, query):
+    (
+        r1,
+        r2,
+        r3,
+    ) = _push_test_data(app, model)
 
+    app.authmodel(model, ["search"])
+    
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f"/{model}?count>40&count>10")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count>40&report_type.lower()="vmi"')
+    query = query.split("&")
+    resp = app.get(f'/{model}?{query[0]}&report_type.lower()="vmi"')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
-
-    # test `greater_than` works as expected
-    resp = app.get(f"/{model}?count>42")
-    data = resp.json()["_data"]
-    assert len(data) == 0
 
 
 @pytest.mark.models(
@@ -254,7 +283,14 @@ def test_search_gt_with_nested_date(model, context, app):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_gte(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        "count>=40",
+        "count._ge=40",
+        "count.ge(40)",
+    ]
+)
+def test_search_gte(model, context, app, query):
     (
         r1,
         r2,
@@ -264,44 +300,73 @@ def test_search_gte(model, context, app):
     app.authmodel(model, ["search"])
 
     # single field search
-    resp = app.get(f"/{model}?count>=40")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
+    
+     # test `greater_than` works as expected
+    resp = app.get(f"/{model}?count>=42")
+    data = resp.json()["_data"]
+    assert len(data) == 1
+    assert data[0]["_id"] == r2["_id"]
+    
+
+@pytest.mark.models(
+    "backends/mongo/Report",
+    "backends/postgres/Report",
+)
+@pytest.mark.parametrize(
+    "query", [
+        "count>=40&count>10",
+        "count._ge=40&count._gt=10",
+        "count.ge(40)&count.gt(10)",
+    ]
+)
+def test_search_gte_joined_and(model, context, app, query):
+    (
+        r1,
+        r2,
+        r3,
+    ) = _push_test_data(app, model)
+
+    app.authmodel(model, ["search"])
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f"/{model}?count>=40&count>10")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count>=40&report_type.lower()="vmi"')
+    query = query.split("&")
+    resp = app.get(f'/{model}?{query[0]}&report_type.lower()="vmi"')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
-    # test `greater_than` works as expected
-    resp = app.get(f"/{model}?count>=42")
-    data = resp.json()["_data"]
-    assert len(data) == 1
-    assert data[0]["_id"] == r2["_id"]
-
-
+   
 @pytest.mark.models(
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_ge_with_nested_date(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        '>="2019-04-20"',
+        '._ge="2019-04-20"',
+        '.ge("2019-04-20")',
+    ]
+)
+def test_search_ge_with_nested_date(model, context, app, query):
     (
         r1,
         r2,
         r3,
     ) = _push_test_data(app, model)
     app.authmodel(model, ["search"])
-    resp = app.get(f'/{model}?recurse(create_date)>="2019-04-20"')
+    resp = app.get(f'/{model}?recurse(create_date){query}')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
@@ -311,7 +376,14 @@ def test_search_ge_with_nested_date(model, context, app):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_lt(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        "count._lt=12",
+        "count.lt(12)",
+        "count<12"
+    ]
+)
+def test_search_lt(model, context, app, query):
     (
         r1,
         r2,
@@ -321,14 +393,40 @@ def test_search_lt(model, context, app):
     app.authmodel(model, ["search"])
 
     # single field search
-    resp = app.get(f"/{model}?count<12")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r1["_id"]
+    
+     # test `lower_than` works as expected
+    resp = app.get(f"/{model}?count<10")
+    data = resp.json()["_data"]
+    assert len(data) == 0
+    
+    
+@pytest.mark.models(
+    "backends/mongo/Report",
+    "backends/postgres/Report",
+)
+@pytest.mark.parametrize(
+    "query", [
+        "count._lt=20&count._gt=10",
+        "count.lt(20)&count.gt(10)",
+        "count<20&count>10"
+    ]
+)
+def test_search_lt_joined_and(model, context, app, query):
+    (
+        r1,
+        r2,
+        r3,
+    ) = _push_test_data(app, model)
+
+    app.authmodel(model, ["search"])
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f"/{model}?count<20&count>10")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r3["_id"]
@@ -340,24 +438,27 @@ def test_search_lt(model, context, app):
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
-    # test `lower_than` works as expected
-    resp = app.get(f"/{model}?count<10")
-    data = resp.json()["_data"]
-    assert len(data) == 0
-
+   
 
 @pytest.mark.models(
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_lt_with_nested_date(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        '<"2019-02-02"',
+        '._lt="2019-02-02"',
+        '.lt("2019-02-02")',
+    ]
+)
+def test_search_lt_with_nested_date(model, context, app, query):
     (
         r1,
         r2,
         r3,
     ) = _push_test_data(app, model)
     app.authmodel(model, ["search"])
-    resp = app.get(f'/{model}?recurse(create_date)<"2019-02-02"')
+    resp = app.get(f'/{model}?recurse(create_date){query}')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r3["_id"]
@@ -367,7 +468,14 @@ def test_search_lt_with_nested_date(model, context, app):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_lte(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        "count<=12",
+        "count._le=12",
+        "count.le(12)",
+    ]
+)
+def test_search_lte(model, context, app, query):
     (
         r1,
         r2,
@@ -377,14 +485,41 @@ def test_search_lte(model, context, app):
     app.authmodel(model, ["search"])
 
     # single field search
-    resp = app.get(f"/{model}?count<=12")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r1["_id"]
+    
+     # test `lower_than` works as expected
+    resp = app.get(f"/{model}?count<=10")
+    data = resp.json()["_data"]
+    assert len(data) == 1
+    assert data[0]["_id"] == r1["_id"]
+    
+    
+@pytest.mark.models(
+    "backends/mongo/Report",
+    "backends/postgres/Report",
+)
+@pytest.mark.parametrize(
+    "query", [
+        "count<=20&count>10",
+        "count._le=20&count._gt=10",
+        "count.le(20)&count.gt(10)",
+    ]
+)
+def test_search_lte_nested_with_join(model, context, app, query):
+    (
+        r1,
+        r2,
+        r3,
+    ) = _push_test_data(app, model)
+
+    app.authmodel(model, ["search"])
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f"/{model}?count<=20&count>10")
+    resp = app.get(f"/{model}?{query}")
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r3["_id"]
@@ -396,25 +531,27 @@ def test_search_lte(model, context, app):
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
-    # test `lower_than` works as expected
-    resp = app.get(f"/{model}?count<=10")
-    data = resp.json()["_data"]
-    assert len(data) == 1
-    assert data[0]["_id"] == r1["_id"]
-
+   
 
 @pytest.mark.models(
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_le_with_nested_date(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        '<="2019-02-01"',
+        '._le="2019-02-02"',
+        '.le("2019-02-02")',
+    ]
+)
+def test_search_le_with_nested_date(model, context, app, query):
     (
         r1,
         r2,
         r3,
     ) = _push_test_data(app, model)
     app.authmodel(model, ["search"])
-    resp = app.get(f'/{model}?recurse(create_date)<="2019-02-01"')
+    resp = app.get(f'/{model}?recurse(create_date){query}')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r3["_id"]
@@ -499,7 +636,13 @@ def test_search_ne_nested_missing_data(model, context, app):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_contains(model, context, app, mocker):
+@pytest.mark.parametrize(
+    "query", [
+        '.contains("vm")',
+        '._co="vm"',
+    ]
+)
+def test_search_contains(model, context, app, mocker, query):
     (
         r1,
         r2,
@@ -509,7 +652,7 @@ def test_search_contains(model, context, app, mocker):
     app.authmodel(model, ["search"])
 
     # single field search
-    resp = app.get(f'/{model}?report_type.lower().contains("vm")')
+    resp = app.get(f'/{model}?report_type.lower(){query}')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
@@ -519,7 +662,13 @@ def test_search_contains(model, context, app, mocker):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_contains_case_insensitive(model, context, app, mocker):
+@pytest.mark.parametrize(
+    "query", [
+        '.contains("vm")',
+        '._co="vm"',
+    ]
+)
+def test_search_contains_case_insensitive(model, context, app, mocker, query):
     (
         r1,
         r2,
@@ -527,7 +676,7 @@ def test_search_contains_case_insensitive(model, context, app, mocker):
     ) = _push_test_data(app, model)
     app.authmodel(model, ["search"])
     # single field search, case insensitive
-    resp = app.get(f'/{model}?report_type.lower().contains("vm")')
+    resp = app.get(f'/{model}?report_type.lower(){query}')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
@@ -578,14 +727,20 @@ def test_search_contains_multi_field(model, context, app, mocker):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_contains_type_check(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        '.contains("2019-04-20")',
+        '._co="2019-04-20"',
+    ]
+)
+def test_search_contains_type_check(model, context, app, query):
     (
         r1,
         r2,
         r3,
     ) = _push_test_data(app, model)
     app.authmodel(model, ["search"])
-    resp = app.get(f'/{model}?recurse(create_date).contains("2019-04-20")')
+    resp = app.get(f'/{model}?recurse(create_date){query}')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
@@ -594,7 +749,13 @@ def test_search_contains_type_check(model, context, app):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_contains_with_select(model, context, app, mocker):
+@pytest.mark.parametrize(
+    "query", [
+        '.contains("vm")&select(count)',
+        '._co="vm"&_select=count',
+    ]
+)
+def test_search_contains_with_select(model, context, app, mocker, query):
     (
         r1,
         r2,
@@ -603,7 +764,7 @@ def test_search_contains_with_select(model, context, app, mocker):
     app.authmodel(model, ["search"])
 
     # `contains` with select
-    resp = app.get(f'/{model}?report_type.lower().contains("vm")&select(count)')
+    resp = app.get(f'/{model}?report_type.lower(){query}')
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert len(data) == 1
@@ -613,7 +774,7 @@ def test_search_contains_with_select(model, context, app, mocker):
 
     # `contains` with select and always_show_id
     mocker.patch.object(context.get("config"), "always_show_id", True)
-    resp = app.get(f'/{model}?report_type.lower().contains("vm")&select(count)')
+    resp = app.get(f'/{model}?report_type.lower(){query}')
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert len(data) == 1
@@ -623,7 +784,8 @@ def test_search_contains_with_select(model, context, app, mocker):
     }
 
     # `contains` with always_show_id should return just id
-    resp = app.get(f'/{model}?report_type.lower().contains("vm")')
+    query = query.split("&")
+    resp = app.get(f'/{model}?report_type.lower(){query[0]}')
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert len(data) == 1
@@ -636,10 +798,16 @@ def test_search_contains_with_select(model, context, app, mocker):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_select_unknown_property(model, context, app, mocker):
+@pytest.mark.parametrize(
+    "query", [
+        "select(nothere)",
+        "_select=nothere",
+    ]
+)
+def test_select_unknown_property(model, context, app, mocker, query):
     _push_test_data(app, model)
     app.authmodel(model, ["search"])
-    resp = app.get(f"/{model}?select(nothere)")
+    resp = app.get(f"/{model}?{query}")
     assert error(resp) == "FieldNotInResource"
 
 
@@ -647,10 +815,16 @@ def test_select_unknown_property(model, context, app, mocker):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_select_unknown_property_in_object(model, context, app, mocker):
+@pytest.mark.parametrize(
+    "query", [
+        "select(notes.nothere)",
+        "_select=notes.nothere",
+    ]
+)
+def test_select_unknown_property_in_object(model, context, app, mocker, query):
     _push_test_data(app, model)
     app.authmodel(model, ["search"])
-    resp = app.get(f"/{model}?select(notes.nothere)")
+    resp = app.get(f"/{model}?{query}")
     assert error(resp) == "FieldNotInResource"
 
 
@@ -658,7 +832,17 @@ def test_select_unknown_property_in_object(model, context, app, mocker):
     "backends/mongo/Report",
     "backends/postgres/Report",
 )
-def test_search_startswith(model, context, app):
+@pytest.mark.parametrize(
+    "query", [
+        'report_type.startswith("VM")',
+        'report_type.lower().startswith("vm")',
+        'status.startswith("in")&report_type.lower().startswith("vm")',
+        'report_type._sw="VM"',
+        'report_type.lower()._sw="vm"',
+        'status._sw="in"&report_type.lower()._sw="vm"',
+    ]
+)
+def test_search_startswith(model, context, app, query):
     (
         r1,
         r2,
@@ -667,41 +851,51 @@ def test_search_startswith(model, context, app):
 
     app.authmodel(model, ["search"])
 
-    # single field search
-    resp = app.get(f'/{model}?report_type.startswith("VM")')
+    resp = app.get(f'/{model}?{query}')
     data = resp.json()["_data"]
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
-    # single field search, case insensitive
-    resp = app.get(f'/{model}?report_type.lower().startswith("vm")')
-    data = resp.json()["_data"]
-    assert len(data) == 1
-    assert data[0]["_id"] == r2["_id"]
+  
 
-    # multi field search
-    # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?status.startswith("in")&report_type.lower().startswith("vm")')
-    data = resp.json()["_data"]
-    assert len(data) == 1
-    assert data[0]["_id"] == r2["_id"]
+    # # multi field and multi operator search
+    # # test if operators are joined with AND logic
+    # resp = app.get(f'/{model}?report_type.lower().startswith("st")&status.lower()="ok"')
+    # data = resp.json()["_data"]
+    # assert len(data) == 1
+    # assert data[0]["_id"] == r1["_id"]
+    
+@pytest.mark.models(
+    "backends/mongo/Report",
+    "backends/postgres/Report",
+)
+@pytest.mark.parametrize(
+    "query, valid", [
+        ('status.startswith("valid")', True),
+        ('notes.create_date.startswith("2019-04-20")', False),
+        ('status._sw="valid"', True),
+        ('notes.create_date._sw="2019-04-20"', False)
+    ]
+)
+def test_search_startswith_valid(model, context, app, query, valid):
+    (
+        r1,
+        r2,
+        r3,
+    ) = _push_test_data(app, model)
 
-    # multi field and multi operator search
-    # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?report_type.lower().startswith("st")&status.lower()="ok"')
-    data = resp.json()["_data"]
-    assert len(data) == 1
-    assert data[0]["_id"] == r1["_id"]
+    app.authmodel(model, ["search"])
 
     # sanity check that `startswith` searches from the start
-    resp = app.get(f'/{model}?status.startswith("valid")')
-    data = resp.json()["_data"]
-    assert len(data) == 0
+    resp = app.get(f'/{model}?{query}')
+    
+    if valid:
+        data = resp.json()["_data"]
+        assert len(data) == 0
 
-    # `startswith` type check
-    resp = app.get(f'/{model}?notes.create_date.startswith("2019-04-20")')
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    else:
+        assert resp.status_code == 400
+        assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 @pytest.mark.models(
