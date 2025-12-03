@@ -6,7 +6,6 @@ from typing import Optional
 from typing import TypedDict
 
 import lark
-from lark.tree import Tree
 
 from spinta.utils.schema import NA
 
