@@ -6,6 +6,7 @@ from typing import Optional
 from typing import TypedDict
 
 import lark
+from lark.tree import Tree
 
 from spinta.utils.schema import NA
 
@@ -25,25 +26,26 @@ GRAMMAR = r"""
 specialarglist: specialarg ("," specialarg)* [","]
 countfunc: COUNT
 limitfunc: LIMIT "=" specialarglist
+
+COUNT: "_count"
 SELECT: "_select"
 SORT: "_sort"
 LIMIT: "_limit"
+
 sortfunc: SORT "=" specialarglist
 selectfunc: SELECT "=" specialarglist
 ?atom: "(" group? ")" | "[" list? "]" | func | limitfunc | countfunc | selectfunc | sortfunc| value | name
 group: test ("," test)* [","]
 list: test ("," test)* [","]
 ?trailer: "[" filter? "]" | method | attr | gtmethod | gemethod | ltmethod | lemethod | swmethod | comethod
-gtmethod: GT_OP "=" expr
-gemethod: GE_OP "=" expr
-ltmethod: LT_OP "=" expr
-lemethod: LE_OP "=" expr
-swmethod: SW_OP "=" expr
-comethod: CO_OP "=" expr
-gt: "._gt" COMP expr
-lt: "._lt" COMP expr
-sw: "._sw" COMP expr
-co: "._co" COMP expr
+
+gtmethod: "." "_gt" "=" expr
+gemethod: "." "_ge" "=" expr
+ltmethod: "." "_lt" "=" expr
+lemethod: "." "_le" "=" expr
+swmethod: "." "_sw" "=" expr
+comethod: "." "_co" "=" expr
+
 func: NAME call
 method: "." NAME call
 ?call: "(" arglist? ")"
@@ -59,16 +61,8 @@ COMP: ">=" | "<=" | "!=" | "=" | "<" | ">"
 TERM: "+" | "-"
 FACTOR: "*" | "/" | "%"
 SIGN: "+" | "-"
-
-GT_OP.2: "._gt" 
-GE_OP.2: "._ge"             
-LT_OP.2: "._lt"  
-LE_OP.2: "._le"             
-SW_OP.2: "._sw"             
-CO_OP.2: "._co"             
-
+      
 NAME: /[a-z_][a-z0-9_]*/i
-COUNT: "_count"
 
 ALL: "*"
 STRING: /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
@@ -223,86 +217,86 @@ class Visitor:
             "args": self._args(*args.children),
         }
         
-    def countfunc(self, node, name):
+    def countfunc(self, _, __) -> dict:
         return {
             "name": "count",
             "args": [],
         }
         
-    def selectfunc(self, node, name, args):
+    def selectfunc(self, _, __, args: lark.Tree) -> dict:
         return {
             "name": "select",
             "args": self._args(*args.children)
         }
         
-    def sortfunc(self, node, name, args):
+    def sortfunc(self, _, __, args: lark.Tree) -> dict:
         return {
             "name": "sort",
             "args": self._args(*args.children)
         }
         
-    def limitfunc(self, node, name, args):
+    def limitfunc(self, _, __, args: lark.Tree) -> dict:
         return {
             "name": "limit",
             "args": self._args(*args.children)
         }
         
-    def gtmethod_comp(self, node, arg, _, expr):
+    def gtmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "gt",
             "args": self._args(arg, expr),
         }
         
-    def ltmethod_comp(self, node, arg, comp_op, expr):
+    def ltmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "lt",
             "args": self._args(arg, expr),
         }
 
-    def gemethod_comp(self, node, arg, comp_op, expr):
+    def gemethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "ge",
             "args": self._args(arg, expr),
         }
 
-    def lemethod_comp(self, node, arg, comp_op, expr):
+    def lemethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "le",
             "args": self._args(arg, expr),
         }
 
-    def swmethod_comp(self, node, arg, comp_op, expr):
+    def swmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "startswith",
             "args": self._args(arg, expr),
         }
 
-    def comethod_comp(self, node, arg, comp_op, expr):
+    def comethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {
             "type": "method",
             "name": "contains",
             "args": self._args(arg, expr),
         }
 
-    def method_comp(self, node, arg, name, args):
+    def method_comp(self, _, arg, name, args):
         return {
             "type": "method",
             "name": name.value,
             "args": self._args(arg, *args.children),
         }
 
-    def attr_comp(self, node, arg, name):
+    def attr_comp(self, _, arg, name):
         return {
             "name": "getattr",
             "args": self._args(arg, name),
         }
 
-    def filter_comp(self, node, arg, *args):
+    def filter_comp(self, _, arg, *args):
         return {
             "name": "filter",
             "args": self._args(arg, self._args(*args)),
