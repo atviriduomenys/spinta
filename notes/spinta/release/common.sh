@@ -236,21 +236,18 @@ SCOPES="
   spinta_patch
   spinta_delete
   spinta_wipe
+  uapi:/:set_meta_fields
+  uapi:/:getone
+  uapi:/:getall
+  uapi:/:search
+  uapi:/:changes
+  uapi:/:create
+  uapi:/:upsert
+  uapi:/:update
+  uapi:/:patch
+  uapi:/:delete
+  uapi:/:wipe
 "
-
-#SCOPES="
-#  uapi:/:set_meta_fields
-#  uapi:/:getone
-#  uapi:/:getall
-#  uapi:/:search
-#  uapi:/:changes
-#  uapi:/:create
-#  uapi:/:upsert
-#  uapi:/:update
-#  uapi:/:patch
-#  uapi:/:delete
-#  uapi:/:wipe
-#"
 
 TOKEN=$(
     http \

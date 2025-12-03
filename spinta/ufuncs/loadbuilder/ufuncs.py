@@ -64,6 +64,12 @@ def or_(env, expr):
     return args
 
 
+@ufunc.resolver(LoadBuilder, Expr)
+def cdata(env: LoadBuilder, expr: Expr) -> None:
+    expr.resolve(env)
+    env.param.soap_body_value_type = "cdata"
+
+
 @ufunc.resolver(LoadBuilder, Expr, name="input")
 def input_(env: LoadBuilder, expr: Expr) -> None:
     args, kwargs = expr.resolve(env)
