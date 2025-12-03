@@ -7,8 +7,11 @@ Changes
 Improvements:
 
 - `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
+- Added ability to customize models and their properties inside config. You can now specify custom type implementation
+  with: `models.<model_name>.properties.<property_name>.type`. It accepts python import path to the implementation (`#599`_).
 
 .. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
+.. _#599: https://github.com/atviriduomenys/spinta/issues/599
 
 0.2dev10 (2025-11-27)
 =====================
