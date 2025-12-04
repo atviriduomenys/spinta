@@ -32,6 +32,8 @@ from spinta.testing.migration import (
     rename_changelog,
     rename_column,
     drop_table,
+    rename_index,
+    rename_redirect,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
@@ -1039,97 +1041,19 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
-
-    assert (
-        "BEGIN;\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" RENAME TO "migrate/example/NewRef";\n'
-        "\n"
-        "COMMENT ON TABLE \"migrate/example/NewRef\" IS 'migrate/example/NewRef';\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Ref/:changelog" RENAME TO '
-        '"migrate/example/NewRef/:changelog";\n'
-        "\n"
-        'COMMENT ON TABLE "migrate/example/NewRef/:changelog" IS '
-        "'migrate/example/NewRef/:changelog';\n"
-        "\n"
-        'ALTER SEQUENCE "migrate/example/Ref/:changelog__id_seq" RENAME TO '
-        '"migrate/example/NewRef/:changelog__id_seq";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref/:redirect" RENAME TO '
-        '"migrate/example/NewRef/:redirect";\n'
-        "\n"
-        'COMMENT ON TABLE "migrate/example/NewRef/:redirect" IS '
-        "'migrate/example/NewRef/:redirect';\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME TO "migrate/example/New";\n'
-        "\n"
-        "COMMENT ON TABLE \"migrate/example/New\" IS 'migrate/example/New';\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Test/:changelog" RENAME TO '
-        '"migrate/example/New/:changelog";\n'
-        "\n"
-        'COMMENT ON TABLE "migrate/example/New/:changelog" IS '
-        "'migrate/example/New/:changelog';\n"
-        "\n"
-        'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
-        '"migrate/example/New/:changelog__id_seq";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test/:redirect" RENAME TO '
-        '"migrate/example/New/:redirect";\n'
-        "\n"
-        'COMMENT ON TABLE "migrate/example/New/:redirect" IS '
-        "'migrate/example/New/:redirect';\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
-        '"migrate/example/New/:file/someFile";\n'
-        "\n"
-        'COMMENT ON TABLE "migrate/example/New/:file/someFile" IS '
-        "'migrate/example/New/:file/someFile';\n"
-        "\n"
-        'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
-        '"ix_migrate/example/New_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
-        '"fk_migrate/example/Test_someRef._id" TO '
-        '"fk_migrate/example/New_someRef._id";\n'
-        "\n"
-        "COMMIT;\n"
-        "\n"
-    ) == (
-        "BEGIN;\n"
-        "\n"
-        f"{rename_table(table='migrate/example/Ref', new_name='migrate/example/NewRef')}"
-        f"{rename_changelog(table='migrate/example/Ref/:changelog', new_name='migrate/example/NewRef/:changelog')}"
-        f"{rename_table(table='migrate/example/Ref/:redirect', new_name='migrate/example/NewRef/:redirect')}"
-        f"{rename_table(table='migrate/example/Test', new_name='migrate/example/New')}"
-        f"{rename_changelog(table='migrate/example/Test/:changelog', new_name='migrate/example/New/:changelog')}"
-        f"{rename_table(table='migrate/example/Test/:redirect', new_name='migrate/example/New/:redirect')}"
-        f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/New/:file/someFile')}"
-        'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
-        '"ix_migrate/example/New_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
-        '"fk_migrate/example/Test_someRef._id" TO '
-        '"fk_migrate/example/New_someRef._id";\n'
-        "\n"
-        "COMMIT;\n"
-        "\n"
-    )
-
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
         f"{rename_table(table='migrate/example/Ref', new_name='migrate/example/NewRef')}"
         f"{rename_changelog(table='migrate/example/Ref/:changelog', new_name='migrate/example/NewRef/:changelog')}"
-        f"{rename_table(table='migrate/example/Ref/:redirect', new_name='migrate/example/NewRef/:redirect')}"
+        f"{rename_redirect(table='migrate/example/Ref/:redirect', new_name='migrate/example/NewRef/:redirect')}"
+        f"{rename_index(old_index_name='ix_migrate/example/Ref__txn', new_index_name='ix_migrate/example/NewRef__txn')}"
         f"{rename_table(table='migrate/example/Test', new_name='migrate/example/New')}"
         f"{rename_changelog(table='migrate/example/Test/:changelog', new_name='migrate/example/New/:changelog')}"
-        f"{rename_table(table='migrate/example/Test/:redirect', new_name='migrate/example/New/:redirect')}"
+        f"{rename_redirect(table='migrate/example/Test/:redirect', new_name='migrate/example/New/:redirect')}"
         f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/New/:file/someFile')}"
-        'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
-        '"ix_migrate/example/New_someRef._id";\n'
-        "\n"
+        f"{rename_index(old_index_name='ix_migrate/example/Test_someRef._id', new_index_name='ix_migrate/example/New_someRef._id')}"
+        f"{rename_index(old_index_name='ix_migrate/example/Test__txn', new_index_name='ix_migrate/example/New__txn')}"
         'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
         '"fk_migrate/example/Test_someRef._id" TO '
         '"fk_migrate/example/New_someRef._id";\n'
@@ -1268,9 +1192,7 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
         f"{rename_column(table='migrate/example/Test', column='someFile._bsize', new_name='newFile._bsize')}"
         f"{rename_column(table='migrate/example/Test', column='someFile._blocks', new_name='newFile._blocks')}"
         f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/Test/:file/newFile')}"
-        'ALTER INDEX "ix_migrate/example/Test_someOther._id" RENAME TO '
-        '"ix_migrate/example/Test_newOther._id";\n'
-        "\n"
+        f"{rename_index(old_index_name='ix_migrate/example/Test_someOther._id', new_index_name='ix_migrate/example/Test_newOther._id')}"
         f"{rename_column(table='migrate/example/Test', column='someRef.someText', new_name='newRef.newText')}"
         f"{rename_column(table='migrate/example/Test', column='someOther._id', new_name='newOther._id')}"
         'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
@@ -1973,7 +1895,7 @@ def test_migrate_incorrect_unique_constraint_name(
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
-        '"corrupted_unique_constraint" TO "uq_migrate/example/Test_someText";\n'
+        'corrupted_unique_constraint TO "uq_migrate/example/Test_someText";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2024,7 +1946,7 @@ def test_migrate_incorrect_index_name(postgresql_migration: URL, rc: RawConfig, 
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n\nALTER INDEX "corrupted_index_name" RENAME TO "ix_migrate/example/Test_someRef._id";\n\nCOMMIT;\n\n'
+        f"BEGIN;\n\n{rename_index(old_index_name='corrupted_index_name', new_index_name='ix_migrate/example/Test_someRef._id')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
@@ -2087,7 +2009,7 @@ def test_migrate_incorrect_foreign_key_constraint_name(
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
-        '"corrupted_fkey_constraint" TO "fk_migrate/example/Test_someRef._id";\n'
+        'corrupted_fkey_constraint TO "fk_migrate/example/Test_someRef._id";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2409,8 +2331,9 @@ def test_migrate_long_name_rename(postgresql_migration: URL, rc: RawConfig, cli:
         "\n"
         f"{rename_table(table='datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName', new_name='datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName')}"
         f"{rename_changelog(table='datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:changelog', new_name='datasets/gov/migrate/example/very/lon_5bf0f407_lName/:changelog', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:changelog')}"
-        f"{rename_table(table='datasets/gov/migrate/example/very/lon_a8ca9fad_elName/:redirect', new_name='datasets/gov/migrate/example/very/lon_6f0bc85c_elName/:redirect', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:redirect')}"
+        f"{rename_redirect(table='datasets/gov/migrate/example/very/lon_a8ca9fad_elName/:redirect', new_name='datasets/gov/migrate/example/very/lon_6f0bc85c_elName/:redirect', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:redirect')}"
         f"{rename_column(table='datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName', column='someInt', new_name='actualInt')}"
+        f"{rename_index(old_index_name='ix_datasets/gov/migrate/example/very/_71ac6294_ngModelName__txn', new_index_name='ix_datasets/gov/migrate/example/very/_7d25af54_erModelName__txn')}"
         "ALTER TABLE "
         '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName" RENAME '
         'CONSTRAINT "uq_datasets/gov/migrate/example/very/_97f03b18_odelName_someInt" '

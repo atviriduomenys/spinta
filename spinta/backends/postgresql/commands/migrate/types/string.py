@@ -12,6 +12,8 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     jsonb_keys,
     PostgresqlMigrationContext,
     PropertyMigrationContext,
+    get_target_table,
+    get_source_table,
 )
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name
 from spinta.components import Context
@@ -34,8 +36,8 @@ def migrate(
     rename = migration_ctx.rename
     handler = migration_ctx.handler
 
-    target_table = backend.get_table(property_ctx.prop)
-    source_table = property_ctx.model_context.model_tables.main_table
+    target_table = get_target_table(backend, property_ctx.prop)
+    source_table = get_source_table(property_ctx, old)
 
     table_name = target_table.name
     source_table_unhashed_name = source_table.comment

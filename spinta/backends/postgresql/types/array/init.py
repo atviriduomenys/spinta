@@ -39,27 +39,29 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
     #     ]
     name = get_table_name(prop, TableType.LIST)
     main_table_name = get_pg_name(get_table_name(prop.model))
-    table = sa.Table(
-        get_pg_name(name),
-        backend.schema,
-        # TODO: List tables eventually will have _id in order to uniquelly
-        #       identify list item.
-        # sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
-        sa.Column(
-            get_pg_column_name("_rid"),
-            pkey_type,
-            sa.ForeignKey(
-                f"{main_table_name}._id",
-                ondelete="CASCADE",
+    if name not in backend.tables:
+        table = sa.Table(
+            get_pg_name(name),
+            backend.schema,
+            # TODO: List tables eventually will have _id in order to uniquelly
+            #       identify list item.
+            # sa.Column('_id', pkey_type, primary_key=True),
+            sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
+            sa.Column(
+                get_pg_column_name("_rid"),
+                pkey_type,
+                sa.ForeignKey(
+                    f"{main_table_name}._id",
+                    ondelete="CASCADE",
+                ),
+                comment="_rid",
             ),
-            comment="_rid",
-        ),
-        *columns,
-        comment=name,
-    )
-    backend.add_table(table, prop, TableType.LIST)
+            *columns,
+            comment=name,
+        )
+        backend.add_table(table, prop, TableType.LIST)
 
     if prop.list is None:
         # For fast whole resource access we also store whole list in a JSONB.
         return sa.Column(get_pg_column_name(prop.place), JSONB, comment=prop.place)
+    return None

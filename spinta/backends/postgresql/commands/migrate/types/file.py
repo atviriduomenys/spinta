@@ -1,17 +1,19 @@
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import BackendFeatures, TableType
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     get_root_attr,
     PostgresqlMigrationContext,
     PropertyMigrationContext,
     create_table_migration,
+    gather_prepare_columns,
+    get_target_table,
+    get_source_table,
 )
-from spinta.backends.postgresql.helpers.name import name_changed, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import name_changed
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.utils.schema import NotAvailable
@@ -31,49 +33,12 @@ def migrate(
 ):
     inspector = migration_ctx.inspector
     handler = migration_ctx.handler
+    columns = gather_prepare_columns(context, backend, new.prop)
+    for column in columns:
+        if not isinstance(column, sa.Column):
+            continue
 
-    name = new.prop.name
-    nullable = not new.required
-
-    target_table = backend.get_table(property_ctx.prop)
-
-    table_name = target_table.name
-    pkey_type = commands.get_primary_key_type(context, new.backend)
-    handler.add_action(
-        ma.AddColumnMigrationAction(
-            table_name=table_name, column=sa.Column(get_pg_column_name(f"{name}._id"), sa.String, nullable=nullable)
-        )
-    )
-    handler.add_action(
-        ma.AddColumnMigrationAction(
-            table_name=table_name,
-            column=sa.Column(get_pg_column_name(f"{name}._content_type"), sa.String, nullable=nullable),
-        )
-    )
-    handler.add_action(
-        ma.AddColumnMigrationAction(
-            table_name=table_name, column=sa.Column(get_pg_column_name(f"{name}._size"), BIGINT, nullable=nullable)
-        )
-    )
-    if BackendFeatures.FILE_BLOCKS in new.backend.features:
-        handler.add_action(
-            ma.AddColumnMigrationAction(
-                table_name=table_name,
-                column=sa.Column(get_pg_column_name(f"{name}._bsize"), sa.Integer, nullable=nullable),
-            )
-        )
-        handler.add_action(
-            ma.AddColumnMigrationAction(
-                table_name=table_name,
-                column=sa.Column(
-                    get_pg_column_name(f"{name}._blocks"),
-                    ARRAY(
-                        pkey_type,
-                    ),
-                    nullable=nullable,
-                ),
-            )
-        )
+        handler.add_action(ma.AddColumnMigrationAction(table_name=column.table.name, column=column))
 
     target_file_table = backend.get_table(new.prop, TableType.FILE)
     if not inspector.has_table(target_file_table.name):
@@ -94,8 +59,8 @@ def migrate(
     inspector = migration_ctx.inspector
     handler = migration_ctx.handler
 
-    source_table = property_ctx.model_context.model_tables.main_table
-    target_table = backend.get_table(property_ctx.prop)
+    source_table = get_source_table(property_ctx, old)
+    target_table = get_target_table(backend, property_ctx.prop)
     table_name = target_table.name
 
     column_name = rename.get_column_name(source_table, new.prop.name)
