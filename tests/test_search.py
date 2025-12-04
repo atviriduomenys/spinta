@@ -851,13 +851,6 @@ def test_search_startswith(model, context, app, query):
     assert len(data) == 1
     assert data[0]["_id"] == r2["_id"]
 
-    # # multi field and multi operator search
-    # # test if operators are joined with AND logic
-    # resp = app.get(f'/{model}?report_type.lower().startswith("st")&status.lower()="ok"')
-    # data = resp.json()["_data"]
-    # assert len(data) == 1
-    # assert data[0]["_id"] == r1["_id"]
-
 
 @pytest.mark.models(
     "backends/mongo/Report",
