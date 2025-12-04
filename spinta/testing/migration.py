@@ -3,7 +3,12 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from spinta.backends.postgresql.helpers import get_pg_sequence_name
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_removed_name, get_removed_name
+from spinta.backends.postgresql.helpers.name import (
+    PG_NAMING_CONVENTION,
+    get_pg_removed_name,
+    get_removed_name,
+    get_pg_index_name,
+)
 from spinta.utils.sqlalchemy import Convention
 
 pg_identifier_preparer = postgresql.dialect().identifier_preparer
@@ -70,6 +75,10 @@ def drop_column(table: str, column: str, comment: str = None):
     )
 
 
+def rename_index(old_index_name: str, new_index_name: str):
+    return f"ALTER INDEX {pg_identifier_preparer.quote(old_index_name)} RENAME TO {pg_identifier_preparer.quote(new_index_name)};\n\n"
+
+
 def rename_column(table: str, column: str, new_name: str, comment: str = None):
     if comment is None:
         comment = new_name
@@ -93,10 +102,25 @@ def rename_table(table: str, new_name: str, comment: str = None):
 def rename_changelog(table: str, new_name: str, comment: str = None):
     old_sequence_name = get_pg_sequence_name(name=table)
     new_sequence_name = get_pg_sequence_name(name=new_name)
+
+    old_txn_index_name = get_pg_index_name(table, "_txn")
+    new_txn_index_name = get_pg_index_name(new_name, "_txn")
+
     return (
         f"{rename_table(table=table, new_name=new_name, comment=comment)}"
         f"ALTER SEQUENCE {pg_identifier_preparer.quote(old_sequence_name)} RENAME TO "
         f"{pg_identifier_preparer.quote(new_sequence_name)};\n\n"
+        f"{rename_index(old_index_name=old_txn_index_name, new_index_name=new_txn_index_name)}"
+    )
+
+
+def rename_redirect(table: str, new_name: str, comment: str = None):
+    old_redirect_index_name = get_pg_index_name(table, "redirect")
+    new_redirect_index_name = get_pg_index_name(new_name, "redirect")
+
+    return (
+        f"{rename_table(table=table, new_name=new_name, comment=comment)}"
+        f"{rename_index(old_index_name=old_redirect_index_name, new_index_name=new_redirect_index_name)}"
     )
 
 
