@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev10
-export OLD_MINOR=2dev9
-export FUTURE_MINOR=2dev11
+export MINOR=2dev11
+export OLD_MINOR=2dev10
+export FUTURE_MINOR=2dev12
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -20,7 +20,7 @@ git checkout master
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export PREPARE_BRANCH=prepare_${NEW_VERSION}_version
+export PREPARE_BRANCH=release_${NEW_VERSION}_version
 git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
@@ -143,7 +143,6 @@ poetry export -f requirements.txt \
 
 echo "spinta==${NEW_VERSION} \\" > spinta-header.txt
 
-
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
   | sed 's/^/    /' >> spinta-header.txt
@@ -153,8 +152,8 @@ curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
 
 cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
 
-git add requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest.txt
-git commit -m "Add hashed requirements for ${NEW_VERSION} and update latest"
+git add requirements/spinta-${NEW_VERSION}.txt
+git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
 git push
 
 
