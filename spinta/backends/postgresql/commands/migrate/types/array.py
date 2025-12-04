@@ -11,8 +11,16 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     gather_prepare_columns,
     get_target_table,
     get_source_table,
+    index_with_columns,
+    index_not_handled_condition,
+    constraint_with_name,
 )
-from spinta.backends.postgresql.helpers.name import get_pg_column_name, name_changed
+from spinta.backends.postgresql.helpers.name import (
+    get_pg_column_name,
+    name_changed,
+    get_pg_index_name,
+    get_pg_foreign_key_name,
+)
 from spinta.components import Context
 from spinta.types.datatype import Array
 from spinta.utils.schema import NotAvailable
@@ -84,12 +92,12 @@ def migrate(
         source_array_table = None
 
     target_array_table = backend.get_table(new.prop, TableType.LIST)
-
-    if (
+    table_name_changed = (
         source_array_table is not None
         and inspector.has_table(source_array_table.name)
         and name_changed(old_name, column_name, source_array_table.name, target_array_table.name)
-    ):
+    )
+    if table_name_changed:
         handler.add_action(
             ma.RenameTableMigrationAction(
                 old_table_name=source_array_table.name,
@@ -105,6 +113,53 @@ def migrate(
                     new_column_name=new.prop.place,
                 )
             )
+
+    if source_array_table is not None:
+        # reserved _txn column index
+        indexes = inspector.get_indexes(source_array_table.name)
+        existing_index = index_with_columns(
+            indexes,
+            ["_txn"],
+            condition=index_not_handled_condition(property_ctx.model_context, source_array_table.name),
+        )
+        index_name = get_pg_index_name(target_array_table.name, ["_txn"])
+        if existing_index is None:
+            handler.add_action(
+                ma.CreateIndexMigrationAction(
+                    table_name=target_array_table.name, index_name=index_name, columns=["_txn"]
+                )
+            )
+        else:
+            property_ctx.model_context.mark_index_handled(source_array_table.name, existing_index["name"])
+            if table_name_changed:
+                handler.add_action(
+                    ma.RenameIndexMigrationAction(old_index_name=existing_index["name"], new_index_name=index_name)
+                )
+
+        constraints = inspector.get_foreign_keys(source_array_table.name)
+        source_constraint_name = get_pg_foreign_key_name(source_array_table.name, "_rid")
+        existing_constraint = constraint_with_name(constraints, source_constraint_name)
+        constraint_name = get_pg_foreign_key_name(target_array_table.name, "_rid")
+        if existing_constraint is None:
+            handler.add_action(
+                ma.CreateForeignKeyMigrationAction(
+                    source_table=target_array_table.name,
+                    referent_table=target_table.name,
+                    local_cols=["_rid"],
+                    remote_cols=["_id"],
+                    constraint_name=constraint_name,
+                )
+            )
+        else:
+            property_ctx.model_context.mark_foreign_constraint_handled(target_array_table.name, source_constraint_name)
+            if table_name_changed:
+                handler.add_action(
+                    ma.RenameConstraintMigrationAction(
+                        table_name=target_array_table.name,
+                        old_constraint_name=source_constraint_name,
+                        new_constraint_name=constraint_name,
+                    )
+                )
 
     columns = {value.comment: value for value in gather_prepare_columns(context, backend, new.items)}
     target_columns = dict(target_array_table.columns)

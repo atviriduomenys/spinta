@@ -39,6 +39,11 @@ def name_changed(old_table_name: str, new_table_name: str, old_property_name: st
     return old_table_name != new_table_name or old_property_name != new_property_name
 
 
+@dispatch(str, TableType, type(None))
+def get_pg_table_name(table_name: str, ttype: TableType, arg: type(None)) -> str:
+    return get_pg_table_name(table_name, ttype)
+
+
 @dispatch(str, TableType, str)
 def get_pg_table_name(table_name: str, ttype: TableType, arg: str) -> str:
     args_str = arg or ""

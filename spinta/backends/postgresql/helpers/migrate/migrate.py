@@ -347,39 +347,51 @@ class ModelMigrationContext:
     model_tables: ModelTables
     # table: sa.Table
 
+    constraint_states: Dict[str, TableConstraintStates] = dataclasses.field(default_factory=dict)
     json_columns: Dict[str, JSONMigrationContext] = dataclasses.field(default_factory=dict)
-    unique_constraint_states: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
-    foreign_constraint_states: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
-    index_states: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
 
     def initialize(self, inspector: Inspector):
         main_table = self.model_tables.main_table
         if main_table is None:
             return
 
-        constraints = inspector.get_unique_constraints(main_table.name)
-        for constraint in constraints:
-            if not _reserved_constraint(constraint):
-                self.unique_constraint_states[constraint["name"]] = False
+        self._preset_constraints(inspector, main_table, TableType.MAIN)
+        for table_type, reserved_table in self.model_tables.reserved.items():
+            self._preset_constraints(inspector, reserved_table, table_type)
 
-        constraints = inspector.get_foreign_keys(main_table.name)
-        for constraint in constraints:
-            self.foreign_constraint_states[constraint["name"]] = False
+        for prop, (table_type, prop_table) in self.model_tables.property_tables.items():
+            self._preset_constraints(inspector, prop_table, table_type, prop)
 
-        indexes = inspector.get_indexes(main_table.name)
+    def _preset_constraints(self, inspector: Inspector, table: sa.Table, table_type: TableType, prop: str = None):
+        constraint_states = self.constraint_states[table.name] = TableConstraintStates(
+            table=table, table_type=table_type, prop=prop
+        )
+
+        constraints = inspector.get_unique_constraints(table.name)
+        for constraint in constraints:
+            constraint_states.unique_constraint[constraint["name"]] = False
+
+        constraints = inspector.get_foreign_keys(table.name)
+        for constraint in constraints:
+            constraint_states.foreign_constraint[constraint["name"]] = False
+
+        indexes = inspector.get_indexes(table.name)
+
         for index in indexes:
-            if not _reserved_constraint(index):
-                self.index_states[index["name"]] = False
+            constraint_states.index[index["name"]] = False
 
-    def mark_unique_constraint_handled(self, constraint: str):
-        self.unique_constraint_states[constraint] = True
-        self.index_states[constraint] = True
+    def mark_unique_constraint_handled(self, table: str, constraint: str):
+        constraint_states = self.constraint_states[table]
+        constraint_states.unique_constraint[constraint] = True
+        constraint_states.index[constraint] = True
 
-    def mark_foreign_constraint_handled(self, constraint: str):
-        self.foreign_constraint_states[constraint] = True
+    def mark_foreign_constraint_handled(self, table: str, constraint: str):
+        constraint_states = self.constraint_states[table]
+        constraint_states.foreign_constraint[constraint] = True
 
-    def mark_index_handled(self, index: str):
-        self.index_states[index] = True
+    def mark_index_handled(self, table: str, index: str):
+        constraint_states = self.constraint_states[table]
+        constraint_states.index[index] = True
 
     def create_json_context(
         self, backend: PostgreSQL, column: sa.Column, prop: Property, remove: bool = True
@@ -393,6 +405,17 @@ class ModelMigrationContext:
         meta.initialize(backend, main_table)
         self.json_columns[column.name] = meta
         return meta
+
+
+@dataclasses.dataclass
+class TableConstraintStates:
+    table: sa.Table
+    table_type: TableType
+    prop: str = dataclasses.field(default=None)
+
+    unique_constraint: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    foreign_constraint: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    index: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
 
 
 @dataclasses.dataclass
@@ -735,8 +758,8 @@ def index_with_name(indexes: list, index_name: str, condition: Callable[[dict], 
         return None
 
 
-def index_not_handled_condition(model_context: ModelMigrationContext):
-    return lambda index: not model_context.index_states[index["name"]]
+def index_not_handled_condition(model_context: ModelMigrationContext, table: str):
+    return lambda index: not model_context.constraint_states[table].index[index["name"]]
 
 
 def contains_unique_constraint(constraints: list, column_name: str):
@@ -772,25 +795,27 @@ def handle_unique_constraint_migration(
     if not new_column.unique:
         return
 
+    source_table_name = source_table.name
     target_table_name = target_table.name
     new_column_name = new_column.name
 
     unique_name = get_pg_constraint_name(target_table_name, new_column_name)
 
-    if model_context.unique_constraint_states[unique_name]:
+    unique_constraint_states = model_context.constraint_states[source_table_name].unique_constraint
+    if unique_constraint_states[unique_name]:
         return
 
     unique_constraints = inspector.get_unique_constraints(table_name=source_table.name)
     constraint_column = old_column.name if renamed else new_column_name
 
-    model_context.mark_unique_constraint_handled(unique_name)
+    model_context.mark_unique_constraint_handled(source_table_name, unique_name)
     old_constraint = constraint_with_columns(unique_constraints, [constraint_column])
     if old_constraint and old_constraint["name"] == unique_name:
         return
 
     if not contains_constraint_name(unique_constraints, unique_name):
         if old_constraint:
-            model_context.mark_unique_constraint_handled(old_constraint["name"])
+            model_context.mark_unique_constraint_handled(source_table_name, old_constraint["name"])
             handler.add_action(
                 ma.RenameConstraintMigrationAction(
                     table_name=target_table_name,
@@ -857,27 +882,29 @@ def handle_index_migration(
     if not _requires_index(new_column):
         return
 
+    source_table_name = source_table.name
     target_table_name = target_table.name
     new_column_name = new_column.name
 
     index_name = get_pg_index_name(table_name=target_table_name, columns=[new_column_name])
-    if model_context.index_states[index_name]:
+    index_states = model_context.constraint_states[source_table_name].index
+    if index_states[index_name]:
         return
 
     constraint_column = old_column.name if renamed else new_column_name
-    indexes = inspector.get_indexes(table_name=source_table.name)
+    indexes = inspector.get_indexes(table_name=source_table_name)
     using = _index_using_suffix(new_column)
 
     # Check unhandled index with same columns
     existing_index = index_with_columns(
-        indexes, [constraint_column], condition=index_not_handled_condition(model_context)
+        indexes, [constraint_column], condition=index_not_handled_condition(model_context, source_table_name)
     )
-    model_context.mark_index_handled(index_name)
+    model_context.mark_index_handled(source_table_name, index_name)
     if existing_index is not None:
         if existing_index["name"] == index_name:
             return
 
-        model_context.mark_index_handled(existing_index["name"])
+        model_context.mark_index_handled(source_table_name, existing_index["name"])
         handler.add_action(
             ma.RenameIndexMigrationAction(old_index_name=existing_index["name"], new_index_name=index_name)
         )
@@ -1527,6 +1554,13 @@ def get_source_table(
 
     prop = node_context.prop
     if prop.list and source is not NotAvailable:
-        return source.table
+        table = source.table
+        if table is not None:
+            return table
+
+        # This potentially can cause issues; when a property is renamed and trying to add new column to the table
+        # It should probably get rename.get_old_column_name(prop.list.place)
+        _, table = node_context.model_context.model_tables.property_tables[prop.list.place]
+        return table
 
     return node_context.model_context.model_tables.main_table

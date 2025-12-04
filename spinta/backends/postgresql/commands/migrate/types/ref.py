@@ -448,11 +448,12 @@ def _handle_property_foreign_key_constraint(
     rename: RenameMap,
     model_context: ModelMigrationContext,
 ):
+    source_table_name = source_table.name
     source_table_unhashed_name = source_table.comment
     table_name = target_table.name
-    foreign_keys = inspector.get_foreign_keys(source_table.name)
+    foreign_keys = inspector.get_foreign_keys(source_table_name)
     foreign_key_name = get_pg_foreign_key_name(table_name=table_name, column_name=primary_column.name)
-    model_context.mark_foreign_constraint_handled(foreign_key_name)
+    model_context.mark_foreign_constraint_handled(source_table_name, foreign_key_name)
     referent_table = get_pg_table_name(get_table_name(ref.model))
     old_prop_name = (
         get_pg_column_name("_id")
@@ -468,7 +469,7 @@ def _handle_property_foreign_key_constraint(
                 foreign_key["constrained_columns"] == [old_prop_name]
                 and foreign_key["referred_table"] == old_referent_table
             ):
-                model_context.mark_foreign_constraint_handled(foreign_key["name"])
+                model_context.mark_foreign_constraint_handled(source_table_name, foreign_key["name"])
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(
                         table_name=table_name,
@@ -493,7 +494,7 @@ def _handle_property_foreign_key_constraint(
 
     constraint = constraint_with_name(foreign_keys, foreign_key_name)
     if constraint["constrained_columns"] != [old_prop_name] or constraint["referred_table"] != old_referent_table:
-        model_context.mark_foreign_constraint_handled(constraint["name"])
+        model_context.mark_foreign_constraint_handled(source_table_name, constraint["name"])
         handler.add_action(
             ma.DropConstraintMigrationAction(table_name=table_name, constraint_name=constraint["name"]),
             foreign_key=True,
