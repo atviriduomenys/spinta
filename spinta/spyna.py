@@ -13,18 +13,38 @@ GRAMMAR = r"""
 ?start: testlist
 ?testlist: test ("," test)* [","]
 ?test: or
-?or: and ("|" and)*
-?and: not ("&" not)*
+?or: and (("|" | "&_or.") and)*
+?and: not (("&" | "&_and.") not)*
 ?not: "!" not | comp
 ?comp: expr (COMP expr)*
 ?expr: term (TERM term)*
 ?term: factor (FACTOR factor)*
 ?factor: SIGN factor | composition
 ?composition: atom trailer*
-?atom: "(" group? ")" | "[" list? "]" | func | value | name
+?specialarg: expr                
+specialarglist: specialarg ("," specialarg)* [","]
+countfunc: COUNT
+limitfunc: LIMIT "=" specialarglist
+
+COUNT: "_count"
+SELECT: "_select"
+SORT: "_sort"
+LIMIT: "_limit"
+
+sortfunc: SORT "=" specialarglist
+selectfunc: SELECT "=" specialarglist
+?atom: "(" group? ")" | "[" list? "]" | func | limitfunc | countfunc | selectfunc | sortfunc| value | name
 group: test ("," test)* [","]
 list: test ("," test)* [","]
-?trailer: "[" filter? "]" | method | attr
+?trailer: "[" filter? "]" | method | attr | gtmethod | gemethod | ltmethod | lemethod | swmethod | comethod
+
+gtmethod: "." "_gt" "=" expr
+gemethod: "." "_ge" "=" expr
+ltmethod: "." "_lt" "=" expr
+lemethod: "." "_le" "=" expr
+swmethod: "." "_sw" "=" expr
+comethod: "." "_co" "=" expr
+
 func: NAME call
 method: "." NAME call
 ?call: "(" arglist? ")"
@@ -40,7 +60,7 @@ COMP: ">=" | "<=" | "!=" | "=" | "<" | ">"
 TERM: "+" | "-"
 FACTOR: "*" | "/" | "%"
 SIGN: "+" | "-"
-
+      
 NAME: /[a-z_][a-z0-9_]*/i
 
 ALL: "*"
@@ -91,6 +111,15 @@ def parse(rql) -> Optional[SpynaAST]:
 
 
 class Visitor:
+    METHOD_NAMES = {
+        "gtmethod": "gt",
+        "ltmethod": "lt",
+        "gemethod": "ge",
+        "lemethod": "le",
+        "swmethod": "startswith",
+        "comethod": "contains",
+    }
+
     def __call__(self, node):
         if isinstance(node, lark.Tree):
             return getattr(self, node.data, self.__default__)(node, *node.children)
@@ -111,6 +140,17 @@ class Visitor:
                 "name": node.data,
                 "args": self._args(*args),
             }
+
+    def __getattr__(self, name: str) -> dict:
+        if name.endswith("_comp"):
+            rule_name = name[:-5]
+            if rule_name in self.METHOD_NAMES:
+                return lambda node, arg, expr: {
+                    "type": "method",
+                    "name": self.METHOD_NAMES[rule_name],
+                    "args": self._args(arg, expr),
+                }
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def _name(self, node):
         assert node.data == "name", node
@@ -196,20 +236,42 @@ class Visitor:
             "args": self._args(*args.children),
         }
 
-    def method_comp(self, node, arg, name, args):
+    def countfunc(self, _, __) -> dict:
+        return {
+            "name": "count",
+            "args": [],
+        }
+
+    def selectfunc(self, _, __, args: lark.Tree) -> dict:
+        return {"name": "select", "args": self._args(*args.children)}
+
+    def sortfunc(self, _, __, args: lark.Tree) -> dict:
+        return {"name": "sort", "args": self._args(*args.children)}
+
+    def limitfunc(self, _, __, args: lark.Tree) -> dict:
+        return {"name": "limit", "args": self._args(*args.children)}
+
+    def gtmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
+        return {
+            "type": "method",
+            "name": "gt",
+            "args": self._args(arg, expr),
+        }
+
+    def method_comp(self, _, arg: dict, name: lark.lexer.Token, args: lark.tree.Tree) -> dict:
         return {
             "type": "method",
             "name": name.value,
             "args": self._args(arg, *args.children),
         }
 
-    def attr_comp(self, node, arg, name):
+    def attr_comp(self, _, arg: dict, name: lark.lexer.Token) -> dict:
         return {
             "name": "getattr",
             "args": self._args(arg, name),
         }
 
-    def filter_comp(self, node, arg, *args):
+    def filter_comp(self, _, arg: dict, *args: lark.tree.Tree) -> dict:
         return {
             "name": "filter",
             "args": self._args(arg, self._args(*args)),
