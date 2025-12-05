@@ -111,6 +111,15 @@ def parse(rql) -> Optional[SpynaAST]:
 
 
 class Visitor:
+    METHOD_NAMES = {
+        "gtmethod": "gt",
+        "ltmethod": "lt",
+        "gemethod": "ge",
+        "lemethod": "le",
+        "swmethod": "startswith",
+        "comethod": "contains",
+    }
+
     def __call__(self, node):
         if isinstance(node, lark.Tree):
             return getattr(self, node.data, self.__default__)(node, *node.children)
@@ -131,6 +140,17 @@ class Visitor:
                 "name": node.data,
                 "args": self._args(*args),
             }
+
+    def __getattr__(self, name: str) -> dict:
+        if name.endswith("_comp"):
+            rule_name = name[:-5]
+            if rule_name in self.METHOD_NAMES:
+                return lambda node, arg, expr: {
+                    "type": "method",
+                    "name": self.METHOD_NAMES[rule_name],
+                    "args": self._args(arg, expr),
+                }
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def _name(self, node):
         assert node.data == "name", node
@@ -238,55 +258,20 @@ class Visitor:
             "args": self._args(arg, expr),
         }
 
-    def ltmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
-        return {
-            "type": "method",
-            "name": "lt",
-            "args": self._args(arg, expr),
-        }
-
-    def gemethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
-        return {
-            "type": "method",
-            "name": "ge",
-            "args": self._args(arg, expr),
-        }
-
-    def lemethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
-        return {
-            "type": "method",
-            "name": "le",
-            "args": self._args(arg, expr),
-        }
-
-    def swmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
-        return {
-            "type": "method",
-            "name": "startswith",
-            "args": self._args(arg, expr),
-        }
-
-    def comethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
-        return {
-            "type": "method",
-            "name": "contains",
-            "args": self._args(arg, expr),
-        }
-
-    def method_comp(self, _, arg, name, args):
+    def method_comp(self, _, arg: dict, name: lark.lexer.Token, args: lark.tree.Tree) -> dict:
         return {
             "type": "method",
             "name": name.value,
             "args": self._args(arg, *args.children),
         }
 
-    def attr_comp(self, _, arg, name):
+    def attr_comp(self, _, arg: dict, name: lark.lexer.Token) -> dict:
         return {
             "name": "getattr",
             "args": self._args(arg, name),
         }
 
-    def filter_comp(self, _, arg, *args):
+    def filter_comp(self, _, arg: dict, *args: lark.tree.Tree) -> dict:
         return {
             "name": "filter",
             "args": self._args(arg, self._args(*args)),
