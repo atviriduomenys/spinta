@@ -1,0 +1,12 @@
+client_id: b189eff5-6441-485f-a754-0c367615de71
+client_name: b189eff5-6441-485f-a754-0c367615de71
+client_secret_hash:
+  pbkdf2$sha256$2$c2FsdA$dQ6drDKRG9hThvJNXG6gp-iSxpt0AIDju2Xy_2A-Ezc
+scopes:
+  - spinta_example_city_getall
+  - spinta_example_city_search
+  - uapi://example/City//:getall
+  - uapi://example/City//:search
+backends:
+  soap_resource:
+    header_value: creds_value

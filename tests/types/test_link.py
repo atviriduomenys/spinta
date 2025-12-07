@@ -4,9 +4,9 @@ from spinta.exceptions import MissingRefModel
 from spinta.testing.manifest import load_manifest
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_raises_missing_ref_model(manifest_type, tmp_path, rc):
-    manifest = '''
+    manifest = """
     d | r | b | m | property | type       | ref     | uri
     datasets/gov/example     |            |         |
                              |            |         |
@@ -19,11 +19,13 @@ def test_raises_missing_ref_model(manifest_type, tmp_path, rc):
       |   |   | City         |            | name    |
       |   |   |   | name     | string     |         | locn:geographicName
       |   |   |   | country  | ref        |         |
-    '''
+    """
 
     with pytest.raises(MissingRefModel) as e:
         load_manifest(rc, manifest=manifest, manifest_type=manifest_type, tmp_path=tmp_path)
-    assert str(e.value) == '''Property "country" of type "ref" in the model "City" should have a model name in the `ref` column, to which it refers.
+    assert (
+        str(e.value)
+        == """Property "country" of type "ref" in the model "City" should have a model name in the `ref` column, to which it refers.
   Context:
     component: spinta.types.datatype.Ref
     manifest: default
@@ -39,4 +41,5 @@ def test_raises_missing_ref_model(manifest_type, tmp_path, rc):
     model_name: City
     property_name: country
     property_type: ref
-'''
+"""
+    )

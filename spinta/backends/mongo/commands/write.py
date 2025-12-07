@@ -42,16 +42,16 @@ async def update(
         patch = commands.before_write(context, model, backend, data=data)
         result = table.update_one(
             {
-                '__id': data.saved['_id'],
-                '_revision': data.saved['_revision'],
+                "__id": data.saved["_id"],
+                "_revision": data.saved["_revision"],
             },
-            {'$set': patch},
+            {"$set": patch},
         )
         if result.matched_count == 0:
             raise ItemDoesNotExist(
                 model,
-                id=data.saved['_id'],
-                revision=data.saved['_revision'],
+                id=data.saved["_id"],
+                revision=data.saved["_revision"],
             )
         assert result.matched_count == 1 and result.modified_count == 1, (
             f"matched: {result.matched_count}, modified: {result.modified_count}"
@@ -72,16 +72,18 @@ async def delete(
     table = backend.db[model.model_type()]
     async for data in dstream:
         commands.before_write(context, model, backend, data=data)
-        result = table.delete_one({
-            '__id': data.saved['_id'],
-            '_revision': data.saved['_revision'],
-        })
+        result = table.delete_one(
+            {
+                "__id": data.saved["_id"],
+                "_revision": data.saved["_revision"],
+            }
+        )
         if result.deleted_count == 0:
             # FIXME: Respect stop_on_error flag.
             raise ItemDoesNotExist(
                 model,
-                id=data.saved['_id'],
-                revision=data.saved['_revision'],
+                id=data.saved["_id"],
+                revision=data.saved["_revision"],
             )
         commands.after_write(context, model, backend, data=data)
         yield data
@@ -96,10 +98,10 @@ def before_write(
     data: DataItem,
 ) -> dict:
     patch = {}
-    patch['__id'] = take('_id', data.patch)
-    patch['_revision'] = take('_revision', data.patch, data.saved)
-    patch['_txn'] = context.get('transaction').id
-    patch['_created'] = datetime.datetime.now(datetime.timezone.utc)
+    patch["__id"] = take("_id", data.patch)
+    patch["_revision"] = take("_revision", data.patch, data.saved)
+    patch["_txn"] = context.get("transaction").id
+    patch["_created"] = datetime.datetime.now(datetime.timezone.utc)
     for prop in take(model.properties).values():
         value = commands.before_write(
             context,
@@ -133,7 +135,7 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = take(['_id'], data.patch) or None
+    patch = take(["_id"], data.patch) or None
     if inserting(data):
         return {dtype.prop.name: patch}
     else:

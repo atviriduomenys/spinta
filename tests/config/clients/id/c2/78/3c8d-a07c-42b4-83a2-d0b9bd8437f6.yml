@@ -9,3 +9,10 @@ scopes:
   - spinta_insert
   - spinta_delete
   - spinta_wipe
+  - uapi:/:check
+  - uapi:/:getone
+  - uapi:/:getall
+  - uapi:/:search
+  - uapi:/:create
+  - uapi:/:delete
+  - uapi:/:wipe

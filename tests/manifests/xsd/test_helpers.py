@@ -65,7 +65,10 @@ def test_get_description_simple_type():
     xsd = XSDReader("test.xsd", "dataset1")
     result = xsd.get_description(element)
 
-    assert result == "1 = OK (užklausa įvykdyta, atsakymas grąžintas) 0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta) -1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)"
+    assert (
+        result
+        == "1 = OK (užklausa įvykdyta, atsakymas grąžintas) 0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta) -1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)"
+    )
 
 
 def test_get_property_type():
@@ -99,7 +102,9 @@ def test_get_property_type_ref():
     """
 
     schema = etree.fromstring(element_string)
-    element = schema.xpath('//*[@ref="asmenys"]', )[0]
+    element = schema.xpath(
+        '//*[@ref="asmenys"]',
+    )[0]
     print("ELEMENT:", element)
     xsd = XSDReader("test.xsd", "dataset1")
     result = xsd.get_property_type(element)
@@ -185,12 +190,14 @@ def test_node_to_partial_property():
     assert result1 == "ct_e200_forma"
     assert result2 == {
         "description": "E200 medicininės formos pavadinimas",
-        "enums": {'': {}},
+        "enums": {"": {}},
         "external": {
             "name": "CT_E200_FORMA",
         },
-        "type": "string"
+        "type": "string",
     }
+
+
 # TODO: test properties with refs
 
 
@@ -242,12 +249,12 @@ def test_simple_element_to_property():
     assert result1 == "ct_e200_forma"
     assert result2 == {
         "description": "E200 medicininės formos pavadinimas",
-        "enums": {'': {}},
+        "enums": {"": {}},
         "external": {
             "name": "CT_E200_FORMA/text()",
         },
         "type": "string",
-        "required": True
+        "required": True,
     }
 
 
@@ -301,7 +308,7 @@ def test_simple_element_to_property_ref():
             "name": "OBJEKTAI/text()",
         },
         "type": "string",
-        "required": True
+        "required": True,
     }
 
 
@@ -326,12 +333,12 @@ def test_simple_element_to_property_array():
     assert result1 == "ct_e200_forma[]"
     assert result2 == {
         "description": "E200 medicininės formos pavadinimas",
-        "enums": {'': {}},
+        "enums": {"": {}},
         "external": {
             "name": "CT_E200_FORMA/text()",
         },
         "type": "string",
-        "required": True
+        "required": True,
     }
 
 
@@ -356,12 +363,12 @@ def test_simple_element_to_property_required():
     assert result1 == "ct_e200_forma"
     assert result2 == {
         "description": "E200 medicininės formos pavadinimas",
-        "enums": {'': {}},
+        "enums": {"": {}},
         "external": {
             "name": "CT_E200_FORMA/text()",
         },
         "type": "string",
-        "required": True
+        "required": True,
     }
 
 
@@ -386,12 +393,12 @@ def test_simple_element_to_property_not_required():
     assert result1 == "ct_e200_forma"
     assert result2 == {
         "description": "E200 medicininės formos pavadinimas",
-        "enums": {'': {}},
+        "enums": {"": {}},
         "external": {
             "name": "CT_E200_FORMA/text()",
         },
         "type": "string",
-        "required": False
+        "required": False,
     }
 
 
@@ -452,10 +459,7 @@ def test_attributes_to_properties():
         "type": "integer",
         "required": True,
         "enums": {},
-        "external":
-            {
-                "name": "@NEID_FIZ_ID"
-            }
+        "external": {"name": "@NEID_FIZ_ID"},
     }
     assert result["fiz_pastabos"]["type"] == "string"
 
@@ -465,25 +469,21 @@ def test_get_external_info():
     schema = ""
     model = XSDModel(xsd, schema)
     model.add_external_info("test")
-    assert model.external == {
-        "dataset": "test",
-        "resource": "resource1",
-        "name": "test"
-    }
+    assert model.external == {"dataset": "test", "resource": "resource1", "name": "test"}
 
 
 def test_set_dataset_and_resource_info():
     xsd = XSDReader("test.xsd", "dataset_name")
     xsd._set_dataset_and_resource_info()
     assert xsd.dataset_and_resource_info == {
-        'type': 'dataset',
-        'name': "test",
-        'resources': {
+        "type": "dataset",
+        "name": "test",
+        "resources": {
             "resource1": {
-                'type': 'dask/xml',
+                "type": "dask/xml",
             },
         },
-        'given_name': "dataset_name"
+        "given_name": "dataset_name",
     }
 
 
@@ -491,14 +491,14 @@ def test_set_dataset_and_resource_info_url():
     xsd = XSDReader("https://example.com/something/test.php?a=b", "dataset_name")
     xsd._set_dataset_and_resource_info()
     assert xsd.dataset_and_resource_info == {
-        'type': 'dataset',
-        'name': "test",
-        'resources': {
+        "type": "dataset",
+        "name": "test",
+        "resources": {
             "resource1": {
-                'type': 'dask/xml',
+                "type": "dask/xml",
             },
         },
-        'given_name': "dataset_name"
+        "given_name": "dataset_name",
     }
 
 
@@ -667,13 +667,7 @@ def test_extract_custom_types():
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
     xsd._extract_custom_simple_types(schema)
-    assert xsd.custom_types == {
-        "data_laikas":
-            {
-                "base": "string",
-                "enums": {'': {}}
-            }
-    }
+    assert xsd.custom_types == {"data_laikas": {"base": "string", "enums": {"": {}}}}
 
 
 def test_properties_from_references():
@@ -712,25 +706,25 @@ def test_properties_from_references():
     result = xsd._properties_from_references(sequence, model, source_path="tst")
 
     assert result == {
-           'ct_e200_fc_id': {
-               'description': 'E200 duomenų kompozicijos unikalus identifikatorius',
-               'enums': {},
-               'external': {
-                    'name': 'CT_E200_FC_ID/text()',
-                },
-               'required': True,
-               'type': 'integer',
-           },
-           'ct_id': {
-             'description': 'Lentelės įrašų identifikatorius, pirminis raktas',
-             'enums': {},
-             'external': {
-               'name': 'CT_ID/text()',
-             },
-             'required': True,
-             'type': 'integer',
-           }
-        }
+        "ct_e200_fc_id": {
+            "description": "E200 duomenų kompozicijos unikalus identifikatorius",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FC_ID/text()",
+            },
+            "required": True,
+            "type": "integer",
+        },
+        "ct_id": {
+            "description": "Lentelės įrašų identifikatorius, pirminis raktas",
+            "enums": {},
+            "external": {
+                "name": "CT_ID/text()",
+            },
+            "required": True,
+            "type": "integer",
+        },
+    }
 
 
 def test_properties_from_references_complex_not_array():
@@ -779,86 +773,85 @@ def test_properties_from_references_complex_not_array():
     result = xsd._properties_from_references(sequence, model, source_path="tst")
 
     assert result == {
-   'fiziniai_asmenys': {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'enums': {},
-     'external': {'name': 'FIZINIAI_ASMENYS'},
-     'model': 'test/FiziniaiAsmenys',
-     'required': True,
-     'type': 'ref',
-   },
-   'objektai': {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'enums': {},
-     'external': {'name': 'OBJEKTAI'},
-     'model': 'test/Objektai',
-     'required': True,
-     'type': 'ref',
-   },
- }
-
+        "fiziniai_asmenys": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "FIZINIAI_ASMENYS"},
+            "model": "test/FiziniaiAsmenys",
+            "required": True,
+            "type": "ref",
+        },
+        "objektai": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "OBJEKTAI"},
+            "model": "test/Objektai",
+            "required": True,
+            "type": "ref",
+        },
+    }
 
     assert list(xsd.models.values())[0].get_data() == {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'external': {
-       'dataset': 'test',
-       'name': 'tst/OBJEKTAI',
-       'resource': 'resource1',
-     },
-     'name': 'test/Objektai',
-     'properties': {
-       'objektu_asmenys[]': {
-         'description': '',
-         'enums': {},
-         'external': {
-           'name': 'OBJEKTU_ASMENYS/text()',
-         },
-         'required': False,
-         'type': 'string',
-       },
-       'tekstiniai_duomenys[]': {
-         'description': '',
-         'enums': {},
-         'external': {
-           'name': 'TEKSTINIAI_DUOMENYS/text()',
-         },
-         'required': False,
-         'type': 'string',
-       },
-     },
-     'type': 'model',
-   }
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/OBJEKTAI",
+            "resource": "resource1",
+        },
+        "name": "test/Objektai",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
 
     assert list(xsd.models.values())[1].get_data() == {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'external': {
-       'dataset': 'test',
-       'name': 'tst/FIZINIAI_ASMENYS',
-       'resource': 'resource1',
-     },
-     'name': 'test/FiziniaiAsmenys',
-     'properties': {
-       'objektu_asmenys[]': {
-         'description': '',
-         'enums': {},
-         'external': {
-           'name': 'OBJEKTU_ASMENYS/text()',
-         },
-         'required': False,
-         'type': 'string',
-       },
-       'tekstiniai_duomenys[]': {
-         'description': '',
-         'enums': {},
-         'external': {
-           'name': 'TEKSTINIAI_DUOMENYS/text()',
-         },
-         'required': False,
-         'type': 'string',
-       },
-     },
-     'type': 'model',
-   }
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/FIZINIAI_ASMENYS",
+            "resource": "resource1",
+        },
+        "name": "test/FiziniaiAsmenys",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
 
 
 def test_properties_from_references_complex_array():
@@ -909,87 +902,85 @@ def test_properties_from_references_complex_array():
     result = xsd._properties_from_references(sequence, model, source_path="tst")
 
     assert result == {
-   'fiziniai_asmenys[]': {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'enums': {},
-     'external': {'name': 'FIZINIAI_ASMENYS'},
-     'model': 'test/FiziniaiAsmenys',
-     'required': False,
-     'type': 'backref',
-   },
-   'objektai[]': {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'enums': {},
-     'external': {'name': 'OBJEKTAI'},
-     'model': 'test/Objektai',
-     'required': True,
-     'type': 'backref',
-   }
+        "fiziniai_asmenys[]": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "FIZINIAI_ASMENYS"},
+            "model": "test/FiziniaiAsmenys",
+            "required": False,
+            "type": "backref",
+        },
+        "objektai[]": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "OBJEKTAI"},
+            "model": "test/Objektai",
+            "required": True,
+            "type": "backref",
+        },
     }
 
-
     assert list(xsd.models.values())[0].get_data() == {
-     'description': 'Pagrindiniai juridinio asmens duomenys.',
-     'external': {
-       'dataset': 'test',
-       'name': 'tst/OBJEKTAI',
-       'resource': 'resource1',
-     },
-     'name': 'test/Objektai',
-     'properties': {
-       'objektu_asmenys[]': {
-         'description': '',
-         'enums': {},
-         'external': {
-           'name': 'OBJEKTU_ASMENYS/text()',
-         },
-         'required': False,
-         'type': 'string',
-       },
-       'tekstiniai_duomenys[]': {
-         'description': '',
-         'enums': {},
-         'external': {
-           'name': 'TEKSTINIAI_DUOMENYS/text()',
-         },
-         'required': False,
-         'type': 'string',
-       },
-     },
-     'type': 'model',
-   }
-
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/OBJEKTAI",
+            "resource": "resource1",
+        },
+        "name": "test/Objektai",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
 
     assert list(xsd.models.values())[1].get_data() == {
-'description': 'Pagrindiniai juridinio asmens duomenys.',
-'external': {
-    'dataset': 'test',
-    'name': 'tst/FIZINIAI_ASMENYS',
-    'resource': 'resource1',
-},
-'name': 'test/FiziniaiAsmenys',
-'properties': {
-    'objektu_asmenys[]': {
-        'description': '',
-        'enums': {},
-        'external': {
-            'name': 'OBJEKTU_ASMENYS/text()',
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/FIZINIAI_ASMENYS",
+            "resource": "resource1",
         },
-        'required': False,
-        'type': 'string',
-    },
-    'tekstiniai_duomenys[]': {
-        'description': '',
-        'enums': {},
-        'external': {
-            'name': 'TEKSTINIAI_DUOMENYS/text()',
+        "name": "test/FiziniaiAsmenys",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
         },
-        'required': False,
-        'type': 'string',
-    },
-},
-'type': 'model',
-}
+        "type": "model",
+    }
 
 
 def test_is_element():
@@ -1031,12 +1022,13 @@ def test_get_text_property():
     schema = ""
     model = XSDModel(xsd, schema)
     assert model.get_text_property() == {
-        'text': {
-            'type': 'string',
-            'external': {
-                'name': 'text()',
-            }
-        }}
+        "text": {
+            "type": "string",
+            "external": {
+                "name": "text()",
+            },
+        }
+    }
 
 
 def test_get_separate_complex_type_node():
@@ -1155,14 +1147,14 @@ def test_properties_from_simple_elements():
     xsd.namespaces = []
     result = model.properties_from_simple_elements(schema)
     assert result == {
-        'ct_e200_forma': {
-            'description': '',
-            'enums': {},
-            'external': {
-                'name': 'CT_E200_FORMA/text()',
+        "ct_e200_forma": {
+            "description": "",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FORMA/text()",
             },
-            'required': True,
-            'type': 'string',
+            "required": True,
+            "type": "string",
         },
     }
 
@@ -1190,14 +1182,14 @@ def test_properties_from_simple_elements_mix():
     xsd.namespaces = []
     result = model.properties_from_simple_elements(schema)
     assert result == {
-        'ct_e200_forma': {
-            'description': '',
-            'enums': {},
-            'external': {
-                'name': 'CT_E200_FORMA/text()',
+        "ct_e200_forma": {
+            "description": "",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FORMA/text()",
             },
-            'required': True,
-            'type': 'string',
+            "required": True,
+            "type": "string",
         },
     }
 
@@ -1239,14 +1231,14 @@ def test_properties_from_simple_elements_not_from_sequence():
     xsd.namespaces = []
     result = model.properties_from_simple_elements(schema)
     assert result == {
-        'ct_e200_forma': {
-            'description': '',
-            'enums': {},
-            'external': {
-                'name': 'CT_E200_FORMA/text()',
+        "ct_e200_forma": {
+            "description": "",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FORMA/text()",
             },
-            'required': True,
-            'type': 'string',
+            "required": True,
+            "type": "string",
         },
     }
 
@@ -1286,8 +1278,4 @@ def test_get_enums():
     xsd = XSDReader("test.xsd", "dataset1")
     model = XSDModel(xsd, schema)
     result = model._get_enums(element)
-    assert result == {
-        "": {
-            "202": {"source": "202"},
-            "203": {"source": "203"}
-        }}
+    assert result == {"": {"202": {"source": "202"}, "203": {"source": "203"}}}

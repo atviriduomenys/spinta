@@ -34,7 +34,7 @@ accesslog:
 EOF
 
 tree ~/.config/spinta/
-poetry run spinta genkeys
+poetry run spinta key generate
 
 
 # Check configuration
@@ -56,10 +56,10 @@ poetry run spinta bootstrap
 # Add default client
 cat ~/.config/spinta/clients/test.yml
 poetry run spinta client add -n default --add-secret --scope - <<EOF
-spinta_getone
-spinta_getall
-spinta_search
-spinta_changes
+uapi:/:getone
+uapi:/:getall
+uapi:/:search
+uapi:/:changes
 EOF
 
 
@@ -68,18 +68,17 @@ tree ~/.config/spinta
 cat ~/.config/spinta/clients/helpers/keymap.yml
 cat ~/.config/spinta/clients/id/67/eb/a9af-2984-4f21-aae8-a95e888b2834.yml
 poetry run spinta client add -n test -s secret --add-secret --scope - <<EOF
-spinta_set_meta_fields
-spinta_auth_clients
-spinta_getone
-spinta_getall
-spinta_search
-spinta_changes
-spinta_insert
-spinta_upsert
-spinta_update
-spinta_patch
-spinta_delete
-spinta_wipe
+  uapi:/:set_meta_fields
+  uapi:/:auth_clients
+  uapi:/:getone
+  uapi:/:getall
+  uapi:/:search
+  uapi:/:changes
+  uapi:/:create
+  uapi:/:update
+  uapi:/:patch
+  uapi:/:delete
+  uapi:/:wipe
 EOF
 
 

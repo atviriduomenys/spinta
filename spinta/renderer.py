@@ -22,7 +22,10 @@ def render(
     headers: Optional[dict] = None,
 ) -> Response:
     return commands.render(
-        context, request, node, params.fmt,
+        context,
+        request,
+        node,
+        params.fmt,
         action=action,
         params=params,
         data=data,

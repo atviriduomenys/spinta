@@ -7,19 +7,23 @@ import click
 from authlib.jose import jwt
 from typer import Argument
 from typer import Context as TyperContext
-from typer import Exit
 from typer import Option
 from typer import Typer
 from typer import echo
 
 from spinta import commands
-from spinta.auth import KeyFileExists, get_clients_path, ensure_client_folders_exist
+from spinta.auth import (
+    KeyFileExists,
+    get_clients_path,
+    ensure_client_folders_exist,
+    download_and_store_public_keys,
+)
 from spinta.auth import KeyType
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.auth import load_key
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import load_config
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
@@ -27,11 +31,13 @@ from spinta.components import Context
 from spinta.core.context import configure_context
 
 
+key = Typer()
+
+
+@key.command("generate", short_help="Generate client token validation keys.")
 def genkeys(
     ctx: TyperContext,
-    path: pathlib.Path = Option(None, '--path', '-p', help=(
-        "directory where client YAML files are stored"
-    )),
+    path: pathlib.Path = Option(None, "--path", "-p", help=("directory where client YAML files are stored")),
 ):
     """Generate client token validation keys"""
     context: Context = ctx.obj
@@ -40,7 +46,7 @@ def genkeys(
 
         if path is None:
             context = ctx.obj
-            config = context.get('config')
+            config = context.get("config")
             commands.load(context, config)
             path = config.config_path
         else:
@@ -49,23 +55,38 @@ def genkeys(
         try:
             prv, pub = gen_auth_server_keys(path)
         except KeyFileExists as e:
-            cli_error(
-                str(e)
-            )
+            cli_error(str(e))
 
         click.echo(f"Private key saved to {prv}.")
         click.echo(f"Public key saved to {pub}.")
 
 
+@key.command("download", short_help="Download client token validation keys.")
+def download_keys(ctx: TyperContext):
+    context: Context = ctx.obj
+    config = context.get("config")
+    commands.load(context, config)
+    if not config.token_validation_keys_download_url:
+        echo("Error, config.token_validation_keys_download_url is not set.")
+        return
+    if not config.downloaded_public_keys_file:
+        echo("Error, config.downloaded_public_keys_file is not set.")
+        return
+
+    keys = download_and_store_public_keys(context)
+    if keys:
+        echo(f"Successfully downloaded and stored public keys: {keys}.")
+    else:
+        echo("Failed to download public keys. Check the logs.")
+
+
 token = Typer()
 
 
-@token.command('decode', short_help="Decode auth token passed via stdin")
+@token.command("decode", short_help="Decode auth token passed via stdin")
 def token_decode(
     ctx: TyperContext,
-    token_: str = Argument(None, help=(
-        "Token string to decode, if not given token will be read from stdin"
-    )),
+    token_: str = Argument(None, help=("Token string to decode, if not given token will be read from stdin")),
 ):
     """Decode auth token passed via stdin
 
@@ -76,21 +97,17 @@ def token_decode(
     key = load_key(context, KeyType.public)
     token_ = token_ or sys.stdin.read().strip()
     token_ = jwt.decode(token_, key)
-    echo(json.dumps(token_, indent='  '))
+    echo(json.dumps(token_, indent="  "))
 
 
-@token.command('get', short_help="Get auth toke from an auth server")
+@token.command("get", short_help="Get auth toke from an auth server")
 def token_get(
     ctx: TyperContext,
-    server: str = Argument(None, help=(
-        "Source manifest files to copy from"
-    )),
-    header: bool = Option(False, '--header', help=(
-        "Return full header (Authorization: Bearer {token})"
-    )),
-    credentials: str = Option(None, '--credentials', help=(
-        "Credentials file, defaults to {config_path}/credentials.cfg"
-    )),
+    server: str = Argument(None, help=("Source manifest files to copy from")),
+    header: bool = Option(False, "--header", help=("Return full header (Authorization: Bearer {token})")),
+    credentials: str = Option(
+        None, "--credentials", help=("Credentials file, defaults to {config_path}/credentials.cfg")
+    ),
 ):
     """Get auth token from a given authorization server"""
     context = configure_context(ctx.obj)
@@ -98,16 +115,14 @@ def token_get(
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
-            cli_error(
-                f"Credentials file {credsfile} does not exit."
-            )
+            cli_error(f"Credentials file {credsfile} does not exit.")
     else:
         credsfile = config.credentials_file
     # TODO: Read client credentials only if a Spinta URL is given.
     creds = get_client_credentials(credsfile, server)
     token_ = get_access_token(creds)
     if header:
-        echo(f'Authorization: Bearer {token_}')
+        echo(f"Authorization: Bearer {token_}")
     else:
         echo(token_)
 
@@ -115,20 +130,14 @@ def token_get(
 client = Typer()
 
 
-@client.command('add')
+@client.command("add")
 def client_add(
     ctx: TyperContext,
-    name: str = Option(None, '-n', '--name', help="client name"),
-    secret: str = Option(None, '-s', '--secret', help="client secret"),
-    add_secret: bool = Option(False, '--add-secret', help=(
-        "add client secret in plain text to file"
-    )),
-    scope: str = Option(None, help=(
-        "space separated list of scopes (if - is given, read scopes from stdin)"
-    )),
-    path: pathlib.Path = Option(None, '-p', '--path', help=(
-        "directory where client YAML files are stored"
-    )),
+    name: str = Option(None, "-n", "--name", help="client name"),
+    secret: str = Option(None, "-s", "--secret", help="client secret"),
+    add_secret: bool = Option(False, "--add-secret", help=("add client secret in plain text to file")),
+    scope: str = Option(None, help=("space separated list of scopes (if - is given, read scopes from stdin)")),
+    path: pathlib.Path = Option(None, "-p", "--path", help=("directory where client YAML files are stored")),
 ):
     """Add a new client"""
     context = ctx.obj
@@ -137,14 +146,11 @@ def client_add(
 
         if path is None:
             context = ctx.obj
-            config = load_config(
-                context,
-                ensure_config_dir=True
-            )
+            config = load_config(context, ensure_config_dir=True)
             path = get_clients_path(config)
         else:
             path = pathlib.Path(path)
-            if not str(path).endswith('clients'):
+            if not str(path).endswith("clients"):
                 path = get_clients_path(path)
 
         # Ensure all files/folders exist for clients operations
@@ -153,8 +159,8 @@ def client_add(
         client_id = str(uuid.uuid4())
         name = name or client_id
 
-        if scope == '-':
-            scope = click.get_text_stream('stdin').read()
+        if scope == "-":
+            scope = click.get_text_stream("stdin").read()
         if scope:
             scope = [s.strip() for s in scope.split()]
             scope = [s for s in scope if s]
@@ -169,7 +175,7 @@ def client_add(
             add_secret=add_secret,
         )
 
-        client_secret = client_['client_secret']
+        client_secret = client_["client_secret"]
         click.echo(
             f"New client created and saved to:\n\n"
             f"    {client_file}\n\n"

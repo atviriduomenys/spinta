@@ -34,19 +34,19 @@ class FileAccessLog(AccessLog):
 def load(context: Context, accesslog: FileAccessLog, config: Config):
     commands.load[Context, AccessLog, Config](context, accesslog, config)
 
-    file = config.rc.get('accesslog', 'file')
+    file = config.rc.get("accesslog", "file")
 
-    if file == 'stdout':
+    if file == "stdout":
         file = sys.stdout
-    elif file == 'stderr':
+    elif file == "stderr":
         file = sys.stderr
-    elif file in ('null', '/dev/null'):
+    elif file in ("null", "/dev/null"):
         file = None
     else:
         file = pathlib.Path(file)
 
         # Try to open file to check if it is writable.
-        with file.open('a'):
+        with file.open("a"):
             pass
 
     accesslog.file = file
@@ -58,7 +58,7 @@ def _prepare_file(
     file: Union[TextIO, pathlib.Path, None],
 ) -> None:
     if isinstance(file, pathlib.Path):
-        file = file.open('a')
+        file = file.open("a")
         accesslog._closed = False
     else:
         accesslog._closed = True
@@ -74,6 +74,6 @@ def load(context: Context, accesslog: FileAccessLog, store: Store):
 @commands.load.register(Context, FileAccessLog, Request)
 def load(context: Context, accesslog: FileAccessLog, request: Request):
     commands.load[Context, AccessLog, Request](context, accesslog, request)
-    store: Store = context.get('store')
+    store: Store = context.get("store")
     if isinstance(store.accesslog, FileAccessLog):
         _prepare_file(accesslog, store.accesslog.file)

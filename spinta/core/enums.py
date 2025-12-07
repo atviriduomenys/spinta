@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import enum
-from typing import Union, Any
+from typing import Union, Any, TYPE_CHECKING
 
 from spinta import exceptions
 from spinta.exceptions import InvalidLevel
 from spinta.utils.enums import enum_by_name, enum_by_value
 from spinta.utils.errors import report_error
+
+if TYPE_CHECKING:
+    from spinta.components import Component, Context
 
 
 class Access(enum.IntEnum):
@@ -92,25 +95,25 @@ class Visibility(enum.IntEnum):
 
 
 class Action(enum.Enum):
-    INSERT = 'insert'
-    UPSERT = 'upsert'
-    UPDATE = 'update'
-    PATCH = 'patch'
-    DELETE = 'delete'
+    INSERT = "insert"
+    UPSERT = "upsert"
+    UPDATE = "update"
+    PATCH = "patch"
+    DELETE = "delete"
 
-    WIPE = 'wipe'
+    WIPE = "wipe"
 
-    MOVE = 'move'
+    MOVE = "move"
 
-    GETONE = 'getone'
-    GETALL = 'getall'
-    SEARCH = 'search'
+    GETONE = "getone"
+    GETALL = "getall"
+    SEARCH = "search"
 
-    CHANGES = 'changes'
+    CHANGES = "changes"
 
-    CHECK = 'check'
-    INSPECT = 'inspect'
-    SCHEMA = 'schema'
+    CHECK = "check"
+    INSPECT = "inspect"
+    SCHEMA = "schema"
 
     @classmethod
     def has_value(cls, value):
@@ -128,17 +131,14 @@ class Action(enum.Enum):
 class Mode(enum.Enum):
     # Internal mode always use internal backend set on manifest, namespace or
     # model.
-    internal = 'internal'
+    internal = "internal"
 
     # External model always sue external backend set on dataset or model's
     # source entity.
-    external = 'external'
+    external = "external"
 
 
-def load_level(
-    component: 'spinta.components.Component',
-    given_level: Level | int | str
-) -> None:
+def load_level(context: Context, component: Component, given_level: Level | int | str) -> None:
     if given_level:
         if isinstance(given_level, Level):
             level = given_level
@@ -147,7 +147,7 @@ def load_level(
                 given_level = int(given_level)
             if not isinstance(given_level, int):
                 raise InvalidLevel(component, level=given_level)
-            level = enum_by_value(component, 'level', Level, given_level)
+            level = enum_by_value(context, component, "level", Level, given_level)
     else:
         level = None
     component.level = level
@@ -155,25 +155,22 @@ def load_level(
 
 #  enum loaders
 
-def load_status(
-    component: 'spinta.components.Component',
-    given_status: Status | str
-) -> None:
+
+def load_status(component: Component, given_status: Status | str) -> None:
     if isinstance(given_status, Status):
         component.status = given_status
     else:
-        component.status = enum_by_name(component, 'status', Status, given_status or component.status)
+        component.status = enum_by_name(component, "status", Status, given_status or component.status)
     component.given.status = given_status
 
 
-def load_visibility(
-    component: 'spinta.components.Component',
-    given_visibility: Visibility | str
-) -> None:
+def load_visibility(component: Component, given_visibility: Visibility | str) -> None:
     if isinstance(given_visibility, Visibility):
         component.visibility = given_visibility
     else:
-        component.visibility = enum_by_name(component, 'visibility', Visibility, given_visibility or component.visibility)
+        component.visibility = enum_by_name(
+            component, "visibility", Visibility, given_visibility or component.visibility
+        )
     component.given.visibility = given_visibility
 
 
@@ -182,7 +179,7 @@ def action_from_op(
     payload: dict,
     stop_on_error: bool = True,
 ) -> Union[Action, exceptions.UserError]:
-    action = payload.get('_op')
+    action = payload.get("_op")
     if not Action.has_value(action):
         error = exceptions.UnknownAction(
             scope,

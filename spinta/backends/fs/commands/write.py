@@ -1,4 +1,3 @@
-import cgi
 import pathlib
 import typing
 
@@ -13,7 +12,7 @@ from spinta.renderer import render
 from spinta.utils.aiotools import aiter
 from spinta.components import Context, UrlParams, DataItem
 from spinta.core.enums import Action
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, get_filename
 from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem
 
@@ -35,14 +34,14 @@ async def push(
 
     commands.authorize(context, action, prop)
 
-    transaction: WriteTransaction = context.get('transaction')
-    accesslog: AccessLog = context.get('accesslog')
+    transaction: WriteTransaction = context.get("transaction")
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         model=prop.model.model_type(),
         prop=prop.place,
         action=action.value,
         id_=params.pk,
-        rev=request.headers.get('revision'),
+        rev=request.headers.get("revision"),
         txn=transaction.id,
     )
 
@@ -55,32 +54,33 @@ async def push(
     )
     data.given = {
         prop.name: {
-            '_content_type': request.headers.get('content-type'),
-            '_id': None,
+            "_content_type": request.headers.get("content-type"),
+            "_id": None,
         }
     }
 
-    if 'revision' in request.headers:
-        data.given['_revision'] = request.headers.get('revision')
-    if 'content-disposition' in request.headers:
-        data.given[prop.name]['_id'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+    if "revision" in request.headers:
+        data.given["_revision"] = request.headers.get("revision")
+
+    data.given[prop.name]["_id"] = get_filename(request)
+
     require_content_length = (
         Action.INSERT,
         Action.UPSERT,
         Action.UPDATE,
         Action.PATCH,
     )
-    if action in require_content_length and 'content-length' not in request.headers:
+    if action in require_content_length and "content-length" not in request.headers:
         raise HTTPException(status_code=411)
-    if not data.given[prop.name]['_id']:
+    if not data.given[prop.name]["_id"]:
         # XXX: Probably here should be a new UUID.
-        data.given[prop.name]['_id'] = params.pk
+        data.given[prop.name]["_id"] = params.pk
 
     commands.simple_data_check(context, data, data.prop, data.model.backend)
 
     data.saved = commands.getone(context, prop, dtype, prop.model.backend, id_=params.pk)
 
-    filepath = backend.path / data.given[prop.name]['_id']
+    filepath = backend.path / data.given[prop.name]["_id"]
 
     dstream = aiter([data])
     dstream = validate_data(context, dstream)
@@ -93,7 +93,10 @@ async def push(
     else:
         raise Exception(f"Unknown action {action!r}.")
     dstream = commands.create_changelog_entry(
-        context, prop.model, prop.model.backend, dstream=dstream,
+        context,
+        prop.model,
+        prop.model.backend,
+        dstream=dstream,
     )
 
     dstream = log_async_response(context, dstream)
@@ -109,7 +112,7 @@ async def create_file(
 ) -> typing.AsyncGenerator[DataItem, None]:
     # we know that dstream contains one DataItem element
     async for d in dstream:
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             async for chunk in fstream:
                 f.write(chunk)
         yield d

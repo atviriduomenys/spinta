@@ -12,17 +12,15 @@ from spinta.exceptions import BackendUnavailable
 
 
 class Sql(ExternalBackend):
-    type: str = 'sql'
+    type: str = "sql"
     engine: Engine = None
     schema: sa.MetaData = None
     dbschema: str = None  # Database schema name
 
-    features = {
-        BackendFeatures.PAGINATION
-    }
+    features = {BackendFeatures.PAGINATION}
 
-    query_builder_type = 'sql'
-    result_builder_type = 'sql'
+    query_builder_type = "sql"
+    result_builder_type = "sql"
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -41,22 +39,21 @@ class Sql(ExternalBackend):
         name = name or model.external.name
 
         if self.dbschema:
-            key = f'{self.dbschema}.{name}'
+            key = f"{self.dbschema}.{name}"
         else:
             key = name
 
         if key not in self.schema.tables:
-            sa.Table(name, self.schema, autoload_with=self.engine)
+            schema = None
+            if "." in key:
+                split = key.split(".", 1)
+                schema = split[0]
+                name = split[1]
+
+            sa.Table(name, self.schema, schema=schema, autoload_with=self.engine)
 
         return self.schema.tables[key]
 
-    def get_column(
-        self,
-        table: sa.Table,
-        prop: Property,
-        *,
-        select=False,
-        **kwargs
-    ) -> sa.Column:
+    def get_column(self, table: sa.Table, prop: Property, *, select=False, **kwargs) -> sa.Column:
         column = commands.get_column(self, prop, table=table, **kwargs)
         return column

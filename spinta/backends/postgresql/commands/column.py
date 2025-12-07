@@ -78,7 +78,7 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
     column = convert_str_to_column(table, prop, column_name)
 
     if parent and isinstance(parent.dtype, Text):
-        return column[dtype.prop.name].label(dtype.prop.place.replace('@', '.'))
+        return column[dtype.prop.name].label(dtype.prop.place.replace("@", "."))
 
     if isinstance(column.type, (sa.types.JSON, JSONB)) and dtype.prop.place != dtype.prop.name:
         return column[dtype.prop.name].label(dtype.prop.place)
@@ -92,9 +92,9 @@ def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs
     if table is None:
         table = get_table(backend, prop)
     if prop.list is not None:
-        column = '_id'
+        column = "_id"
     else:
-        column += '._id'
+        column += "._id"
     return convert_str_to_column(table, prop, column)
 
 
@@ -111,7 +111,7 @@ def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs
         table_ = table
         column = ref_prop.name
         if prop.list is None:
-            column = f'{column_prefix}.{ref_prop.name}'
+            column = f"{column_prefix}.{ref_prop.name}"
         if ref_prop.name in dtype.properties:
             if isinstance(ref_prop.dtype, type(dtype.properties[ref_prop.name].dtype)):
                 ref_prop_ = dtype.properties[ref_prop.name]
@@ -133,7 +133,7 @@ def get_column(backend: PostgreSQL, dtype: BackRef, table: sa.Table = None, **kw
     if table is None:
         table = get_table(backend, dtype.prop)
     if commands.identifiable(r_prop):
-        column = '_id'
+        column = "_id"
         return convert_str_to_column(table, prop, column)
     else:
         for refprop in r_prop.dtype.refprops:
@@ -156,7 +156,7 @@ def get_column(backend: PostgreSQL, dtype: Ref, model: Model, table: sa.Table = 
     prop = dtype.prop
     if table is None:
         table = backend.get_table(model)
-    column = '_id'
+    column = "_id"
     return convert_str_to_column(table, prop, column)
 
 
@@ -170,6 +170,3 @@ def get_column(backend: PostgreSQL, dtype: ExternalRef, model: Model, table: sa.
     for refprop in prop.dtype.refprops:
         columns.append(refprop.name)
     return convert_str_to_columns(table, prop, columns)
-
-
-

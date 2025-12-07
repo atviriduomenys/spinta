@@ -130,6 +130,27 @@ manifests:
         file:
           type: io
 
+models:
+  type: object
+  keys:
+    type: string
+  values:
+    type: object
+    items:
+      backend:
+        type: ref
+        ref: backends
+      properties:
+        type: object
+        keys:
+          type: string
+        values:
+          type: object
+          keys:
+            type: string
+          values:
+            type: any
+
 manifest:
   type: ref
   ref: manifests

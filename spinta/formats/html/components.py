@@ -10,17 +10,17 @@ from spinta.formats.components import Format
 
 
 class Html(Format):
-    content_type = 'text/html'
+    content_type = "text/html"
     accept_types = {
-        'text/html',
+        "text/html",
     }
     params = {}
     streamable = False
 
 
 class Color(str, Enum):
-    change = '#B2E2AD'
-    null = '#f5f5f5'
+    change = "#B2E2AD"
+    null = "#f5f5f5"
 
 
 @dataclasses.dataclass
@@ -31,19 +31,15 @@ class Cell:
 
     def as_dict(self) -> Dict[str, Any]:
         data = {
-            'value': self.value,
-            'link': self.link,
-            'color': str(self.color.value) if self.color else None,
+            "value": self.value,
+            "link": self.link,
+            "color": str(self.color.value) if self.color else None,
         }
-        return {
-            k: v
-            for k, v in data.items()
-            if k == 'value' or v is not None
-        }
+        return {k: v for k, v in data.items() if k == "value" or v is not None}
 
 
 ComplexCell = Union[
     Cell,
-    Dict[str, 'ComplexCell'],
-    List['ComplexCell'],
+    Dict[str, "ComplexCell"],
+    List["ComplexCell"],
 ]

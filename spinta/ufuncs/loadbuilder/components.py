@@ -2,12 +2,14 @@ from typing import Any
 
 from spinta.components import Model, Config, PageInfo
 from spinta.core.ufuncs import Env, Expr
+from spinta.datasets.components import Param
 from spinta.exceptions import FieldNotInResource
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
 
 class LoadBuilder(Env):
     model: Model
+    param: Param
 
     def resolve(self, expr: Any):
         if not isinstance(expr, Expr):
@@ -37,11 +39,8 @@ class LoadBuilder(Env):
                 pass
 
     def load_page(self):
-        config: Config = self.context.get('config')
-        page = PageInfo(
-            self.model,
-            enabled=config.enable_pagination
-        )
+        config: Config = self.context.get("config")
+        page = PageInfo(self.model, enabled=config.enable_pagination)
         page_given = False
 
         if self.model.external and self.model.external.prepare:
@@ -54,21 +53,19 @@ class LoadBuilder(Env):
                     page_given = True
                     break
         if not page_given:
-            args = ['_id']
+            args = ["_id"]
             if self.model.given.pkeys:
                 if isinstance(self.model.given.pkeys, list):
                     args = self.model.given.pkeys
                 else:
                     args = [self.model.given.pkeys]
-                if '_id' in args:
-                    args.remove('_id')
+                if "_id" in args:
+                    args.remove("_id")
             for arg in args:
                 key = arg
-                if arg in self.model.properties:
-                    prop = self.model.properties[arg]
-                    page.keys.update({
-                        key: prop
-                    })
+                if arg in self.model.flatprops:
+                    prop = self.model.flatprops[arg]
+                    page.keys.update({key: prop})
                 else:
                     raise FieldNotInResource(self.model, property=arg)
 

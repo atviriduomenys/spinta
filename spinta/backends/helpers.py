@@ -51,22 +51,18 @@ def validate_and_return_begin(context: Context, backend: Backend, **kwargs):
 
 
 def load_backend(
-    context: Context,
-    component: Component,
-    name: str,
-    origin: BackendOrigin,
-    data: Dict[str, str]
+    context: Context, component: Component, name: str, origin: BackendOrigin, data: Dict[str, str]
 ) -> Backend:
-    config = context.get('config')
-    type_ = data.get('type')
+    config = context.get("config")
+    type_ = data.get("type")
     if not type_:
         raise exceptions.RequiredConfigParam(
             component,
-            name=f'backends.{name}.type',
+            name=f"backends.{name}.type",
         )
-    if type_ not in config.components['backends']:
+    if type_ not in config.components["backends"]:
         raise exceptions.BackendNotFound(component, name=type_)
-    Backend_ = config.components['backends'][type_]
+    Backend_ = config.components["backends"][type_]
     backend: Backend = Backend_()
     backend.type = type_
     backend.name = name
@@ -89,7 +85,7 @@ def get_select_tree(
     select = _apply_always_show_id(context, action, select)
     if select is None and action in (Action.GETALL, Action.SEARCH):
         # If select is not given, select everything.
-        select = {'*': {}}
+        select = {"*": {}}
     return flat_select_to_nested(select)
 
 
@@ -99,12 +95,12 @@ def _apply_always_show_id(
     select: Optional[List[str]],
 ) -> Optional[List[str]]:
     if action in (Action.GETALL, Action.SEARCH):
-        config = context.get('config')
+        config = context.get("config")
         if config.always_show_id:
             if select is None:
-                return ['_id']
-            elif '_id' not in select:
-                return ['_id'] + select
+                return ["_id"]
+            elif "_id" not in select:
+                return ["_id"] + select
     return select
 
 
@@ -120,18 +116,20 @@ def get_select_prop_names(
     # Allowed reserved property names.
     reserved: List[str] = None,
     # If False, do not include Denorm type props
-    include_denorm_props: bool = True
+    include_denorm_props: bool = True,
 ) -> List[str]:
     known = set(reserved or []) | set(take(props))
     check_unknown_props(node, select, known)
 
-    if select is None or '*' in select:
+    if select is None or "*" in select:
         return [
             p.name
-            for p in props.values() if (
-                not p.name.startswith('_') and
-                not p.hidden and (not auth or authorized(context, p, action)) and
-                (include_denorm_props or not isinstance(p.dtype, Denorm))
+            for p in props.values()
+            if (
+                not p.name.startswith("_")
+                and not p.hidden
+                and (not auth or authorized(context, p, action))
+                and (include_denorm_props or not isinstance(p.dtype, Denorm))
             )
         ]
     else:
@@ -144,11 +142,13 @@ def select_model_props(
     value: dict,
     select: SelectTree,
     reserved: List[str],
-) -> Iterator[Tuple[
-    Union[Property, str],
-    Any,
-    SelectTree,
-]]:
+) -> Iterator[
+    Tuple[
+        Union[Property, str],
+        Any,
+        SelectTree,
+    ]
+]:
     yield from select_props(
         model,
         reserved,
@@ -166,7 +166,7 @@ def select_model_props(
     )
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def select_props(
@@ -177,11 +177,13 @@ def select_props(
     select: SelectTree,
     *,
     reserved: bool = True,
-) -> Iterator[Tuple[
-    Union[Property, str],
-    T,
-    SelectTree,
-]]:
+) -> Iterator[
+    Tuple[
+        Union[Property, str],
+        T,
+        SelectTree,
+    ]
+]:
     for key, val, sel in select_keys(keys, value, select, reserved=reserved):
         prop = _select_prop(key, props, node)
         if prop:
@@ -195,10 +197,12 @@ def select_only_props(
     select: SelectTree,
     *,
     reserved: bool = True,
-) -> Iterator[Tuple[
-    Union[Property, str],
-    SelectTree,
-]]:
+) -> Iterator[
+    Tuple[
+        Union[Property, str],
+        SelectTree,
+    ]
+]:
     for key, sel in select_only_keys(keys, select, reserved=reserved):
         prop = _select_prop(key, props, node)
         if prop:
@@ -210,13 +214,10 @@ def _select_prop(
     props: Dict[str, Property],
     node: Union[Namespace, Model, Property],
 ) -> Optional[Property]:
-    if key not in props:
-        # FIXME: We should check select list at the very beginning of
-        #        request, not when returning results.
-        raise exceptions.FieldNotInResource(node, property=key)
-    prop = props[key]
-    if not prop.hidden:
-        return prop
+    if not (prop := props.get(key)) or prop.hidden:
+        return None
+
+    return prop
 
 
 def select_keys(
@@ -225,11 +226,13 @@ def select_keys(
     select: SelectTree,
     *,
     reserved: bool = True,
-) -> Iterator[Tuple[
-    str,
-    T,
-    SelectTree,
-]]:
+) -> Iterator[
+    Tuple[
+        str,
+        T,
+        SelectTree,
+    ]
+]:
     for key, sel in select_only_keys(keys, select, reserved=reserved):
         if select is None and key not in value:
             # Omit all keys if they are not present in value, this is a common
@@ -249,25 +252,27 @@ def select_only_keys(
     select: SelectTree,
     *,
     reserved: bool = True,
-) -> Iterator[Tuple[
-    str,
-    SelectTree,
-]]:
+) -> Iterator[
+    Tuple[
+        str,
+        SelectTree,
+    ]
+]:
     for key in keys:
-        if reserved is False and key.startswith('_'):
+        if reserved is False and key.startswith("_"):
             continue
 
         if select is None:
             sel = None
-        elif '*' in select:
-            sel = select['*']
+        elif "*" in select:
+            sel = select["*"]
         elif key in select:
             sel = select[key]
         else:
             continue
 
         if sel is not None and sel == {}:
-            sel = {'*': {}}
+            sel = {"*": {}}
 
         yield key, sel
 
@@ -279,11 +284,10 @@ def check_unknown_props(
     select: Optional[Iterable[str]],
     known: Iterable[str],
 ):
-    unknown_properties = set(select or []) - set(known) - {'*'}
+    unknown_properties = set(select or []) - set(known) - {"*"}
     if unknown_properties:
         raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(node, property=prop)
-            for prop in sorted(unknown_properties)
+            exceptions.FieldNotInResource(node, property=prop) for prop in sorted(unknown_properties)
         )
 
 
@@ -302,7 +306,7 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     for v in select:
         if isinstance(v, dict):
             v = spyna.unparse(v)
-        names = v.split('.')
+        names = v.split(".")
         vref = res
         for name in names:
             if name not in vref:
@@ -314,17 +318,17 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
 
 def get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     if action == Action.GETALL:
-        reserved = ['_type', '_id', '_revision']
+        reserved = ["_type", "_id", "_revision"]
     elif action == Action.SEARCH:
-        reserved = ['_type', '_id', '_revision', '_base']
+        reserved = ["_type", "_id", "_revision", "_base"]
     elif action == Action.CHANGES:
-        return ['_cid', '_created', '_op', '_id', '_txn', '_revision', '_same_as']
+        return ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as"]
     elif action == Action.MOVE:
-        return ['_type', '_revision', '_id', '_same_as']
+        return ["_type", "_revision", "_id", "_same_as"]
     else:
-        reserved = ['_type', '_id', '_revision']
+        reserved = ["_type", "_id", "_revision"]
     if include_page:
-        reserved.append('_page')
+        reserved.append("_page")
     return reserved
 
 
@@ -341,7 +345,7 @@ def get_table_name(
     else:
         model = node.model
     if ttype in (TableType.LIST, TableType.FILE):
-        name = model.model_type() + ttype.value + '/' + node.place
+        name = model.model_type() + ttype.value + "/" + node.place
     else:
         name = model.model_type() + ttype.value
     return name
@@ -351,14 +355,14 @@ def load_query_builder_class(config: Config, backend: Backend):
     if backend.query_builder_type is None:
         return
 
-    backend.query_builder_class = config.components.get('querybuilders')[backend.query_builder_type]
+    backend.query_builder_class = config.components.get("querybuilders")[backend.query_builder_type]
 
 
 def load_result_builder_class(config: Config, backend: Backend):
     if backend.result_builder_type is None:
         return
 
-    backend.result_builder_class = config.components.get('resultbuilders')[backend.result_builder_type]
+    backend.result_builder_class = config.components.get("resultbuilders")[backend.result_builder_type]
 
 
 def prepare_response(

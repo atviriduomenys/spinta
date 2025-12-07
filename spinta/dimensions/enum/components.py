@@ -33,31 +33,27 @@ class EnumItem(ExtraMetaData):
     count: int | None = None
 
     schema = {
-        'name': {'type': 'string'},
-        'source': {'type': 'string'},
-        'prepare': {'type': 'spyna', 'default': NA},
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'model.access',
-            'default': 'protected',
+        "name": {"type": "string"},
+        "source": {"type": "string"},
+        "prepare": {"type": "spyna", "default": NA},
+        "access": {
+            "type": "string",
+            "choices": Access,
+            "inherit": "model.access",
+            "default": "protected",
         },
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
-        'lang': {'type': 'object'},
-        'level': {'type': 'string'},
-        'status': {
-            'type': 'string',
-            'choices': Status,
-            'default': 'develop',
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "lang": {"type": "object"},
+        "level": {"type": "string"},
+        "status": {
+            "type": "string",
+            "choices": Status,
+            "default": "develop",
         },
-        'visibility': {
-            'type': 'string',
-            'choices': Visibility,
-            'default': 'private'
-        },
-        'eli': {'type': 'string'},
-        'count': {'type': 'integer'},
+        "visibility": {"type": "string", "choices": Visibility, "default": "private"},
+        "eli": {"type": "string"},
+        "count": {"type": "integer"},
     }
 
     def __init__(self):

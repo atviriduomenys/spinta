@@ -4,14 +4,14 @@ from spinta.backends.postgresql.types.array.write import _get_lists_data
 
 
 def create_model(context, schema):
-    manifest = context.get('store').manifest
+    manifest = context.get("store").manifest
     data = {
-        'type': 'model',
-        'name': 'Model',
+        "type": "model",
+        "name": "Model",
         **schema,
     }
     model = Model()
-    model.eid = '9244f3a6-a672-4aac-bb1c-831646264a51'
+    model.eid = "9244f3a6-a672-4aac-bb1c-831646264a51"
     commands.load(context, model, data, manifest)
     commands.link(context, model)
     return model
@@ -23,210 +23,229 @@ def _get_lists_data_with_key(model, patch):
 
 
 def test_get_list_data_scalar(context):
-    model = create_model(context, {
-        'properties': {
-            'scalar': {'type': 'string'},
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "scalar": {"type": "string"},
+            },
         },
-    })
+    )
     patch = {
-        'scalar': 'ok',
+        "scalar": "ok",
     }
     assert _get_lists_data_with_key(model, patch) == []
 
 
 def test_get_list_data_list_of_scalars(context):
-    model = create_model(context, {
-        'properties': {
-            'scalars': {
-                'type': 'array',
-                'items': {'type': 'integer'},
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "scalars": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                },
             },
         },
-    })
-    patch = {
-        'scalars': [1, 2, 3]
-    }
+    )
+    patch = {"scalars": [1, 2, 3]}
     assert _get_lists_data_with_key(model, patch) == [
-        ('scalars', {'scalars': 1}),
-        ('scalars', {'scalars': 2}),
-        ('scalars', {'scalars': 3}),
+        ("scalars", {"scalars": 1}),
+        ("scalars", {"scalars": 2}),
+        ("scalars", {"scalars": 3}),
     ]
 
 
 def test_get_list_data_list_of_dicts(context):
-    model = create_model(context, {
-        'properties': {
-            'dicts': {
-                'type': 'array',
-                'items': {
-                    'type': 'object',
-                    'properties': {
-                        'foo': {'type': 'integer'},
-                        'bar': {'type': 'integer'},
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "dicts": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "foo": {"type": "integer"},
+                            "bar": {"type": "integer"},
+                        },
                     },
                 },
             },
         },
-    })
+    )
     patch = {
-        'dicts': [
-            {'foo': 1, 'bar': 2},
-            {'foo': 3, 'bar': 4},
+        "dicts": [
+            {"foo": 1, "bar": 2},
+            {"foo": 3, "bar": 4},
         ]
     }
     assert _get_lists_data_with_key(model, patch) == [
-        ('dicts', {'dicts.foo': 1, 'dicts.bar': 2}),
-        ('dicts', {'dicts.foo': 3, 'dicts.bar': 4}),
+        ("dicts", {"dicts.foo": 1, "dicts.bar": 2}),
+        ("dicts", {"dicts.foo": 3, "dicts.bar": 4}),
     ]
 
 
 def test_get_list_data_list_of_lists_of_scalars(context):
-    model = create_model(context, {
-        'properties': {
-            'lists': {
-                'type': 'array',
-                'items': {
-                    'type': 'array',
-                    'items': {'type': 'integer'},
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "lists": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                    },
                 },
             },
         },
-    })
+    )
     patch = {
-        'lists': [
+        "lists": [
             [1, 2],
             [3, 4],
         ]
     }
     assert _get_lists_data_with_key(model, patch) == [
-        ('lists', {'lists': 1}),
-        ('lists', {'lists': 2}),
-        ('lists', {'lists': 3}),
-        ('lists', {'lists': 4}),
+        ("lists", {"lists": 1}),
+        ("lists", {"lists": 2}),
+        ("lists", {"lists": 3}),
+        ("lists", {"lists": 4}),
     ]
 
 
 def test_get_list_data_mixed_nested_lists(context):
-    model = create_model(context, {
-        'properties': {
-            'lists': {
-                'type': 'array',
-                'items': {
-                    'type': 'object',
-                    'properties': {
-                        'foo': {'type': 'integer'},
-                        'lists': {
-                            'type': 'array',
-                            'items': {
-                                'type': 'object',
-                                'properties': {
-                                    'bar': {'type': 'integer'},
-                                    'scalars': {
-                                        'type': 'array',
-                                        'items': {'type': 'integer'},
-                                    }
-                                }
-                            }
-                        }
-                    }
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "lists": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "foo": {"type": "integer"},
+                            "lists": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "bar": {"type": "integer"},
+                                        "scalars": {
+                                            "type": "array",
+                                            "items": {"type": "integer"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },
-    })
+    )
     patch = {
-        'lists': [
+        "lists": [
             {
-                'foo': 1,
-                'lists': [
+                "foo": 1,
+                "lists": [
                     {
-                        'bar': 1,
-                        'scalars': [1, 2],
+                        "bar": 1,
+                        "scalars": [1, 2],
                     },
                     {
-                        'bar': 2,
-                        'scalars': [1, 2],
+                        "bar": 2,
+                        "scalars": [1, 2],
                     },
-                ]
+                ],
             },
             {
-                'foo': 2,
-                'lists': [
+                "foo": 2,
+                "lists": [
                     {
-                        'bar': 1,
-                        'scalars': [1, 2],
+                        "bar": 1,
+                        "scalars": [1, 2],
                     }
-                ]
+                ],
             },
         ]
     }
     assert _get_lists_data_with_key(model, patch) == [
-        ('lists', {'lists.foo': 1}),
-        ('lists.lists', {'lists.lists.bar': 1}),
-        ('lists.lists.scalars', {'lists.lists.scalars': 1}),
-        ('lists.lists.scalars', {'lists.lists.scalars': 2}),
-        ('lists.lists', {'lists.lists.bar': 2}),
-        ('lists.lists.scalars', {'lists.lists.scalars': 1}),
-        ('lists.lists.scalars', {'lists.lists.scalars': 2}),
-        ('lists', {'lists.foo': 2}),
-        ('lists.lists', {'lists.lists.bar': 1}),
-        ('lists.lists.scalars', {'lists.lists.scalars': 1}),
-        ('lists.lists.scalars', {'lists.lists.scalars': 2}),
+        ("lists", {"lists.foo": 1}),
+        ("lists.lists", {"lists.lists.bar": 1}),
+        ("lists.lists.scalars", {"lists.lists.scalars": 1}),
+        ("lists.lists.scalars", {"lists.lists.scalars": 2}),
+        ("lists.lists", {"lists.lists.bar": 2}),
+        ("lists.lists.scalars", {"lists.lists.scalars": 1}),
+        ("lists.lists.scalars", {"lists.lists.scalars": 2}),
+        ("lists", {"lists.foo": 2}),
+        ("lists.lists", {"lists.lists.bar": 1}),
+        ("lists.lists.scalars", {"lists.lists.scalars": 1}),
+        ("lists.lists.scalars", {"lists.lists.scalars": 2}),
     ]
 
 
 def test_get_list_data_nested_dicts_with_lists(context):
-    model = create_model(context, {
-        'properties': {
-            'dict': {
-                'type': 'object',
-                'properties': {
-                    'list': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': {
-                                'foo': {
-                                    'type': 'object',
-                                    'properties': {
-                                        'bar': {'type': 'integer'},
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "dict": {
+                    "type": "object",
+                    "properties": {
+                        "list": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "foo": {
+                                        "type": "object",
+                                        "properties": {
+                                            "bar": {"type": "integer"},
+                                        },
                                     }
-                                }
-                            }
+                                },
+                            },
                         }
-                    }
+                    },
                 }
-            }
+            },
         },
-    })
+    )
     patch = {
-        'dict': {
-            'list': [
-                {'foo': {'bar': 1}},
-                {'foo': {'bar': 2}},
+        "dict": {
+            "list": [
+                {"foo": {"bar": 1}},
+                {"foo": {"bar": 2}},
             ]
         }
     }
     assert _get_lists_data_with_key(model, patch) == [
-        ('dict.list', {'dict.list.foo.bar': 1}),
-        ('dict.list', {'dict.list.foo.bar': 2}),
+        ("dict.list", {"dict.list.foo.bar": 1}),
+        ("dict.list", {"dict.list.foo.bar": 2}),
     ]
 
 
 def test_get_list_data_mixed(context):
-    model = create_model(context, {
-        'properties': {
-            'scalar': {'type': 'string'},
-            'ints': {
-                'type': 'array',
-                'items': {'type': 'integer'},
-            }
+    model = create_model(
+        context,
+        {
+            "properties": {
+                "scalar": {"type": "string"},
+                "ints": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                },
+            },
         },
-    })
+    )
     patch = {
-        'scalar': 1,
-        'ints': [1, 2],
+        "scalar": 1,
+        "ints": [1, 2],
     }
     assert _get_lists_data_with_key(model, patch) == [
-        ('ints', {'ints': 1}),
-        ('ints', {'ints': 2}),
+        ("ints", {"ints": 1}),
+        ("ints", {"ints": 2}),
     ]

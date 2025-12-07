@@ -8,6 +8,7 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.components import Context, Model
 
 if TYPE_CHECKING:
@@ -15,23 +16,17 @@ if TYPE_CHECKING:
 
 
 def get_redirect_table(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_pg_name(get_table_name(model, TableType.REDIRECT))
+    table_name = get_table_name(model, TableType.REDIRECT)
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
-        table_name, backend.schema,
-        sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column('redirect', pkey_type, index=True),
+        get_pg_name(table_name),
+        backend.schema,
+        sa.Column(get_pg_column_name("_id"), pkey_type, primary_key=True, comment="_id"),
+        sa.Column(get_pg_column_name("redirect"), pkey_type, index=True, comment="redirect"),
+        comment=table_name,
     )
     return table
 
 
-def remove_from_redirect(
-    conn: sa.engine.Connection,
-    table: sa.Table,
-    pk: str
-):
-    conn.execute(
-        table.delete().where(
-            table.columns['_id'] == pk
-        )
-    )
+def remove_from_redirect(conn: sa.engine.Connection, table: sa.Table, pk: str):
+    conn.execute(table.delete().where(table.columns["_id"] == pk))

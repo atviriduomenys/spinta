@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, Union
 from typing import List
 from typing import Optional
 
@@ -12,6 +12,7 @@ from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
+from spinta.manifests.components import ManifestPath
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.manifests.tabular.components import ManifestColumn
@@ -68,32 +69,32 @@ def copy(
         columns=columns,
         order_by=order_by,
         rename_duplicates=rename_duplicates,
-        manifests=manifests
+        manifests=manifests,
     )
 
 
 def copy_manifest(
     context: Context,
     source: bool = True,
-    access: str = 'private',
+    access: str = "private",
     format_names: bool = False,
     output: Optional[str] = None,
     columns: Optional[str] = None,
     order_by: Optional[str] = None,
     rename_duplicates: bool = False,
     manifests: List[str] = None,
-    output_type: Optional[str] = None
+    output_type: Optional[str] = None,
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     access = get_enum_by_name(Access, access)
-    cols = normalizes_columns(columns.split(',')) if columns else None
+    cols = normalizes_columns(columns.split(",")) if columns else None
     internal = False
     verbose = True
     if not output:
         verbose = False
     else:
         if output_type:
-            if output_type == 'internal_sql':
+            if output_type == "internal_sql":
                 internal = True
         else:
             internal = InternalSQLManifest.detect_from_path(output)
@@ -123,21 +124,28 @@ def copy_manifest(
             rename_duplicates=rename_duplicates,
             verbose=verbose,
         )
-
     if output:
-        if output_type == 'mermaid':
+        if output_type == "mermaid":
             write_mermaid_manifest(context, output, rows)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:
             write_tabular_manifest(context, output, rows)
     else:
-        echo(render_tabular_manifest_rows(rows, cols))
+        manager = context.get("error_manager")
+        handler = manager.handler
+
+        table = render_tabular_manifest_rows(rows, cols)
+
+        if handler.get_counts():
+            handler.post_process()
+        else:
+            echo(table)
 
 
 def _read_and_return_manifest(
     context: Context,
-    manifests: List[str],
+    manifests: List[Union[str, ManifestPath]],
     *,
     external: bool = True,
     access: Access = Access.private,
@@ -145,14 +153,17 @@ def _read_and_return_manifest(
     order_by: ManifestColumn = None,
     rename_duplicates: bool = False,
     verbose: bool = True,
+    check_config: bool = True,
+    load_backends: bool = True,
 ) -> Iterator[ManifestRow]:
-    context = configure_context(context, manifests)
+    context = configure_context(context, manifests, load_backends=load_backends)
     store = load_manifest(
         context,
         rename_duplicates=rename_duplicates,
         load_internal=False,
         verbose=verbose,
-        full_load=True
+        full_load=True,
+        check_config=check_config,
     )
 
     if format_names:
@@ -190,5 +201,3 @@ def _read_and_return_rows(
         access=access,
         order_by=order_by,
     )
-
-

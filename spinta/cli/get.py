@@ -17,9 +17,7 @@ def getall(
     model: str = Argument(None, help=("Model path")),
 ):
     manifests = convert_str_to_manifest_path(manifests)
-    context = configure_context(
-        ctx.obj, manifests, backend_type="dask/memory", backend=backend
-    )
+    context = configure_context(ctx.obj, manifests, backend_type="dask/memory", backend=backend)
     prepare_manifest(context, ensure_config_dir=True, verbose=False)
     response_dict = {}
     store = context.get("store")
@@ -27,8 +25,6 @@ def getall(
         require_auth(context)
         attach_keymaps(context, store)
         model = commands.get_model(context, store.manifest, model)
-        response_dict["_data"] = list(
-            commands.getall(context, model, store.manifest.backend)
-        )
+        response_dict["_data"] = list(commands.getall(context, model, store.manifest.backend))
     data = json.dumps(response_dict)
     echo(data)

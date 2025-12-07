@@ -14,7 +14,7 @@ class PrepareFileResource(Env):
 @dataclass
 class File:
     path: Path = None
-    encoding: str = 'utf-8'
+    encoding: str = "utf-8"
 
     def open(self):
-        return open(self.path, 'r', encoding=self.encoding)
+        return open(self.path, "r", encoding=self.encoding)

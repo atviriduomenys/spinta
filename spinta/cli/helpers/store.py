@@ -30,7 +30,6 @@ def _ensure_config_dir(
     if not path.exists() and path != DEFAULT_CONFIG_PATH:
         raise Exception(f"Config dir {path} does not exist!")
 
-
     clients_path = get_clients_path(config)
     # Check if client migrations are needed
     if requires_client_migration(clients_path):
@@ -55,10 +54,10 @@ def _ensure_config_dir(
             str(uuid.uuid4()),
             secret=None,
             scopes=[
-                'spinta_getall',
-                'spinta_getone',
-                'spinta_search',
-                'spinta_changes',
+                "uapi:/:getall",
+                "uapi:/:getone",
+                "uapi:/:search",
+                "uapi:/:changes",
             ],
         )
 
@@ -68,8 +67,9 @@ def load_config(
     *,
     verbose: bool = True,
     ensure_config_dir: bool = False,
+    check_config: bool = True,
 ) -> Config:
-    config = context.get('config')
+    config = context.get("config")
     commands.load(context, config)
     if ensure_config_dir:
         _ensure_config_dir(
@@ -78,7 +78,8 @@ def load_config(
             config.default_auth_client,
             verbose=verbose,
         )
-    commands.check(context, config)
+    if check_config:
+        commands.check(context, config)
     return config
 
 
@@ -87,13 +88,15 @@ def load_store(
     *,
     verbose: bool = True,
     ensure_config_dir: bool = False,
+    check_config=True,
 ) -> Store:
     load_config(
         context,
         verbose=verbose,
         ensure_config_dir=ensure_config_dir,
+        check_config=check_config,
     )
-    store = context.get('store')
+    store = context.get("store")
     commands.load(context, store)
     return store
 
@@ -106,31 +109,25 @@ def load_manifest(
     ensure_config_dir: bool = False,
     rename_duplicates: bool = False,
     load_internal: bool = True,
-    full_load: bool = False
+    full_load: bool = False,
+    check_config: bool = True,
 ) -> Store:
     if store is None:
         store = load_store(
             context,
             verbose=verbose,
             ensure_config_dir=ensure_config_dir,
+            check_config=check_config,
         )
     if verbose:
         if store.manifest.path:
             click.echo(
-                f"Loading {type(store.manifest).__name__} "
-                f"manifest {store.manifest.name} "
-                f"({store.manifest.path})..."
+                f"Loading {type(store.manifest).__name__} manifest {store.manifest.name} ({store.manifest.path})..."
             )
         else:
-            click.echo(
-                f"Loading {type(store.manifest).__name__} "
-                f"manifest {store.manifest.name}"
-            )
+            click.echo(f"Loading {type(store.manifest).__name__} manifest {store.manifest.name}")
     commands.load(
-        context, store.manifest,
-        rename_duplicates=rename_duplicates,
-        load_internal=load_internal,
-        full_load=full_load
+        context, store.manifest, rename_duplicates=rename_duplicates, load_internal=load_internal, full_load=full_load
     )
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
@@ -138,39 +135,32 @@ def load_manifest(
 
 
 def prepare_manifest(
-    context: Context,
-    *,
-    verbose: bool = True,
-    ensure_config_dir: bool = False,
-    full_load: bool = False
+    context: Context, *, verbose: bool = True, ensure_config_dir: bool = False, full_load: bool = False
 ) -> Store:
-    store = load_manifest(
-        context,
-        verbose=verbose,
-        ensure_config_dir=ensure_config_dir,
-        full_load=full_load
-    )
+    store = load_manifest(context, verbose=verbose, ensure_config_dir=ensure_config_dir, full_load=full_load)
     commands.wait(context, store)
     commands.prepare(context, store.manifest)
     return store
 
 
 def attach_backends(context: Context, store: Store, manifest: Manifest) -> None:
-    context.attach('transaction', validate_and_return_transaction, context, manifest.backend)
+    context.attach("transaction", validate_and_return_transaction, context, manifest.backend)
     backends = set()
     for backend in store.backends.values():
         backends.add(backend.name)
-        context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
+        context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
     for backend in manifest.backends.values():
         backends.add(backend.name)
-        context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
+        context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
     for dataset_ in commands.get_datasets(context, manifest).values():
         for resource in dataset_.resources.values():
             if resource.backend and resource.backend.name not in backends:
                 backends.add(resource.backend.name)
-                context.attach(f'transaction.{resource.backend.name}', validate_and_return_begin, context, resource.backend)
+                context.attach(
+                    f"transaction.{resource.backend.name}", validate_and_return_begin, context, resource.backend
+                )
 
 
 def attach_keymaps(context: Context, store: Store) -> None:
     for keymap in store.keymaps.values():
-        context.attach(f'keymap.{keymap.name}', lambda: keymap)
+        context.attach(f"keymap.{keymap.name}", lambda: keymap)

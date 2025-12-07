@@ -21,11 +21,11 @@ def binds_to_strs(ast):
     if not isinstance(ast, dict):
         return ast
 
-    if ast['name'] in ('bind', 'getattr'):
+    if ast["name"] in ("bind", "getattr"):
         return spyna.unparse(ast)
 
     # Process all AST recursively.
     return {
         **ast,
-        'args': [binds_to_strs(x) for x in ast['args']],
+        "args": [binds_to_strs(x) for x in ast["args"]],
     }

@@ -29,12 +29,7 @@ from spinta.utils.data import take
 from spinta.utils.nestedstruct import get_separated_name
 
 
-def _get_dtype_header(
-    dtype: DataType,
-    select: SelectTree,
-    name: str,
-    langs: List = None
-) -> Iterator[str]:
+def _get_dtype_header(dtype: DataType, select: SelectTree, name: str, langs: List = None) -> Iterator[str]:
     if isinstance(dtype, Object):
         for prop, sel in select_only_props(
             dtype.prop,
@@ -46,32 +41,34 @@ def _get_dtype_header(
             yield from _get_dtype_header(prop.dtype, sel, name_, langs)
 
     elif isinstance(dtype, Array):
-        name_ = name + '[]'
+        name_ = name + "[]"
         yield from _get_dtype_header(dtype.items.dtype, select, name_, langs)
 
     elif isinstance(dtype, ArrayBackRef):
-        name_ = name + '[]'
+        name_ = name + "[]"
         yield from _get_dtype_header(dtype.items.dtype, select, name_, langs)
 
     elif isinstance(dtype, BackRef):
         yield from _get_dtype_header(dtype.refprop.dtype, select, name, langs)
 
     elif isinstance(dtype, File):
-        yield get_separated_name(dtype, name, '_id')
-        yield get_separated_name(dtype, name, '_content_type')
+        yield get_separated_name(dtype, name, "_id")
+        yield get_separated_name(dtype, name, "_content_type")
 
     elif isinstance(dtype, ExternalRef):
-        if select is None or select == {'*': {}}:
+        if select is None or select == {"*": {}}:
             if dtype.model.given.pkeys or dtype.explicit:
                 props = dtype.refprops
             else:
-                props = [dtype.model.properties['_id']]
+                props = [dtype.model.properties["_id"]]
             processed_props = []
             for prop in props:
                 processed_props.append(get_separated_name(dtype, name, prop.place))
 
             for key, prop in dtype.properties.items():
-                for processed_name in _get_dtype_header(prop.dtype, select, get_separated_name(dtype, name, key), langs):
+                for processed_name in _get_dtype_header(
+                    prop.dtype, select, get_separated_name(dtype, name, key), langs
+                ):
                     if processed_name not in processed_props:
                         processed_props.append(processed_name)
             yield from processed_props
@@ -86,9 +83,9 @@ def _get_dtype_header(
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
 
     elif isinstance(dtype, Ref):
-        if select is None or select == {'*': {}}:
+        if select is None or select == {"*": {}}:
             if not dtype.inherited:
-                yield get_separated_name(dtype, name, '_id')
+                yield get_separated_name(dtype, name, "_id")
             for key, prop in dtype.properties.items():
                 yield from _get_dtype_header(prop.dtype, select, get_separated_name(dtype, name, key), langs)
         else:
@@ -101,7 +98,7 @@ def _get_dtype_header(
                 name_ = get_separated_name(dtype, name, prop.name)
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
     elif isinstance(dtype, Text):
-        if select is None or select == {'*': {}}:
+        if select is None or select == {"*": {}}:
             yield_text_count = 0
             if langs:
                 if len(langs) == 1 and isinstance(langs[0], Star):
@@ -132,7 +129,7 @@ def _get_dtype_header(
                 name_ = get_separated_name(dtype, name, prop.name)
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
     elif isinstance(dtype, Inherit):
-        if select and select != {'*': {}}:
+        if select and select != {"*": {}}:
             properties = {}
             for sel in select.keys():
                 base_model = get_property_base_model(dtype.prop.model, sel)
@@ -152,13 +149,9 @@ def _get_dtype_header(
 
 
 def _get_model_header(
-    model: Model,
-    names: List[str],
-    select: SelectTree,
-    reserved: List[str],
-    langs: List
+    model: Model, names: List[str], select: SelectTree, reserved: List[str], langs: List
 ) -> List[str]:
-    if select is None or select == {'*': {}}:
+    if select is None or select == {"*": {}}:
         keys = reserved + names
     else:
         keys = names
@@ -183,7 +176,7 @@ def get_model_tabular_header(
     reserved: Optional[List[str]] = None,
 ) -> List[str]:
     if reserved is None:
-        if model.name == '_ns':
+        if model.name == "_ns":
             reserved = get_ns_reserved_props(action)
         else:
             reserved = get_model_reserved_props(action, pagination_enabled(model, params))
@@ -192,7 +185,7 @@ def get_model_tabular_header(
     func_select = params.select_funcs
     select = get_select_tree(context, action, prop_select)
 
-    if model.name == '_ns':
+    if model.name == "_ns":
         names = get_select_prop_names(
             context,
             model,
@@ -226,7 +219,7 @@ def get_model_tabular_header(
 
 def rename_page_col(rows):
     for row in rows:
-        yield {'_page.next' if k == '_page' else k: v for k, v in row.items()}
+        yield {"_page.next" if k == "_page" else k: v for k, v in row.items()}
 
 
 @commands.gen_object_id.register(Context, Format, Node)

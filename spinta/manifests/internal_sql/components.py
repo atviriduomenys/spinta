@@ -6,7 +6,7 @@ import sqlalchemy as sa
 
 
 class InternalSQLManifest(Manifest):
-    type = 'internal'
+    type = "internal"
     path: Optional[str] = None
     engine: sa.engine.Engine = None
     table = None
@@ -22,7 +22,7 @@ class InternalSQLManifest(Manifest):
             url.get_dialect()
             engine = sa.create_engine(url)
             inspector = sa.inspect(engine)
-            return inspector.has_table('_manifest')
+            return inspector.has_table("_manifest")
         except sa.exc.SQLAlchemyError:
             return False
 
@@ -40,41 +40,41 @@ class Transaction:
         self.connection = connection
 
 
-INDEX: Final = 'index'
-ID: Final = 'id'
-PARENT: Final = 'parent'
-DEPTH: Final = 'depth'
-PATH: Final = 'path'
-MPATH: Final = 'mpath'
-DIM: Final = 'dim'
-NAME: Final = 'name'
-TYPE: Final = 'type'
-REF: Final = 'ref'
-SOURCE: Final = 'source'
-PREPARE: Final = 'prepare'
-LEVEL: Final = 'level'
-ACCESS: Final = 'access'
-URI: Final = 'uri'
-TITLE: Final = 'title'
-DESCRIPTION: Final = 'description'
+INDEX: Final = "index"
+ID: Final = "id"
+PARENT: Final = "parent"
+DEPTH: Final = "depth"
+PATH: Final = "path"
+MPATH: Final = "mpath"
+DIM: Final = "dim"
+NAME: Final = "name"
+TYPE: Final = "type"
+REF: Final = "ref"
+SOURCE: Final = "source"
+PREPARE: Final = "prepare"
+LEVEL: Final = "level"
+ACCESS: Final = "access"
+URI: Final = "uri"
+TITLE: Final = "title"
+DESCRIPTION: Final = "description"
 InternalManifestColumn = Literal[
-    'index',
-    'id',
-    'parent',
-    'depth',
-    'path',
-    'mpath',
-    'dim',
-    'name',
-    'type',
-    'ref',
-    'source',
-    'prepare',
-    'level',
-    'access',
-    'uri',
-    'title',
-    'description',
+    "index",
+    "id",
+    "parent",
+    "depth",
+    "path",
+    "mpath",
+    "dim",
+    "name",
+    "type",
+    "ref",
+    "source",
+    "prepare",
+    "level",
+    "access",
+    "uri",
+    "title",
+    "description",
 ]
 INTERNAL_MANIFEST_COLUMNS: List[InternalManifestColumn] = [
     INDEX,

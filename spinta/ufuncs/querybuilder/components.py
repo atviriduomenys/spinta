@@ -34,6 +34,10 @@ class QueryParams:
     default_expand: bool = False
     lang: List = None
     push: bool = False
+    url_params: dict
+
+    def __init__(self, url_params: dict | None = None) -> None:
+        self.url_params = url_params or {}
 
 
 class Selected:
@@ -63,39 +67,21 @@ class Selected:
             return self.item == other.item and self.prop == other.prop and self.prep == other.prep
         return False
 
-    def debug(self, indent: str = ''):
-        prop = self.prop.place if self.prop else 'None'
+    def debug(self, indent: str = ""):
+        prop = self.prop.place if self.prop else "None"
         if isinstance(self.prep, Selected):
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep=...)\n'
-            ) + self.prep.debug(indent + '  ')
+            return (f"{indent}Selected(item={self.item}, prop={prop}, prep=...)\n") + self.prep.debug(indent + "  ")
         elif isinstance(self.prep, (tuple, list)):
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep={type(self.prep).__name__}...)\n'
-            ) + ''.join([
-                p.debug(indent + '- ')
-                if isinstance(p, Selected)
-                else str(p)
-                for p in self.prep
-            ])
-        else:
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep={self.prep})\n'
+            return (f"{indent}Selected(item={self.item}, prop={prop}, prep={type(self.prep).__name__}...)\n") + "".join(
+                [p.debug(indent + "- ") if isinstance(p, Selected) else str(p) for p in self.prep]
             )
+        else:
+            return f"{indent}Selected(item={self.item}, prop={prop}, prep={self.prep})\n"
 
 
 class Star:
     def __str__(self):
-        return '*'
+        return "*"
 
 
 class QueryBuilder(Env):
@@ -112,7 +98,7 @@ class QueryBuilder(Env):
 
     property_resolver: PropertyResolver = None
 
-    def init_query_params(self, params: QueryParams):
+    def init_query_params(self, params: QueryParams | None):
         if params is None:
             params = QueryParams()
         self.query_params = params

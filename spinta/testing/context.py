@@ -21,15 +21,11 @@ from spinta.core.config import RawConfig
 
 
 def create_test_context(
-    rc: RawConfig,
-    request: FixtureRequest = None,
-    *,
-    name: str = 'pytest',
-    wipe_data: bool = True
+    rc: RawConfig, request: FixtureRequest = None, *, name: str = "pytest", wipe_data: bool = True
 ) -> TestContext:
     rc = rc.fork()
-    Context_ = rc.get('components', 'core', 'context', cast=importstr)
-    Context_ = type('ContextForTests', (ContextForTests, Context_), {})
+    Context_ = rc.get("components", "core", "context", cast=importstr)
+    Context_ = type("ContextForTests", (ContextForTests, Context_), {})
     context = Context_(name)
     context = create_context(name, rc, context)
     if request and wipe_data:
@@ -50,31 +46,29 @@ class ContextForTests:
 
     @contextlib.contextmanager
     def transaction(self: TestContext, *, write=False):
-        if self.has('transaction'):
+        if self.has("transaction"):
             yield self
         else:
             with self:
-                store = self.get('store')
-                self.set('auth.token', AdminToken())
+                store = self.get("store")
+                self.set("auth.token", AdminToken())
                 backend = store.manifest.backend
-                self.attach('transaction', validate_and_return_transaction, self, backend, write=write)
+                self.attach("transaction", validate_and_return_transaction, self, backend, write=write)
                 yield self
 
     def wipe(self: TestContext, model: Union[str, Node]):
         if isinstance(model, str):
-            store = self.get('store')
+            store = self.get("store")
             model = commands.get_model(self, store.manifest, model)
         with self.transaction() as context:
             commands.wipe(context, model, model.backend)
 
     def wipe_all(self: TestContext):
-        store = self.get('store')
-        self.wipe(commands.get_namespace(self, store.manifest, ''))
+        store = self.get("store")
+        self.wipe(commands.get_namespace(self, store.manifest, ""))
 
     def load(
-        self: TestContext,
-        overrides: Optional[Dict[str, Any]] = None,
-        ensure_config_dir: bool = True
+        self: TestContext, overrides: Optional[Dict[str, Any]] = None, ensure_config_dir: bool = True
     ) -> TestContext:
         # We pass context to tests unloaded, by doing this, we give test
         # functions opportunity to call `context.load` manually and provide
@@ -87,14 +81,17 @@ class ContextForTests:
         if self.loaded:
             raise Exception("test context is already loaded")
 
-        rc: RawConfig = self.get('rc')
+        rc: RawConfig = self.get("rc")
 
         if overrides:
-            rc.add('test', {
-                'environments': {
-                    'test': overrides,
-                }
-            })
+            rc.add(
+                "test",
+                {
+                    "environments": {
+                        "test": overrides,
+                    }
+                },
+            )
 
         store = prepare_manifest(self, ensure_config_dir=ensure_config_dir)
         commands.bootstrap(self, store.manifest)

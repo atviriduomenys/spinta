@@ -1,51 +1,25 @@
 from __future__ import annotations
 
 import enum
-from collections.abc import Callable
 
-try:
-    from typing import Optional, Concatenate, ParamSpec
-except ImportError:
-    from typing_extensions import Optional, Concatenate, ParamSpec
+from spinta.cli.helpers.script.components import ScriptBase
 
-from spinta.components import Context
-
-P = ParamSpec('P')
-
-UpgradeFuncType = Callable[Concatenate[Context, P], None]
-UpgradeCheckFuncType = Callable[Concatenate[Context, P], bool]
+UPGRADE_SCRIPT_TYPE: str = "upgrade"
 
 
-class UpgradeComponent:
-    def __init__(
-        self,
-        upgrade: UpgradeFuncType,
-        check: UpgradeCheckFuncType | None = None,
-        required: list[str] | None = None
-    ):
-        self.__upgrade_func = upgrade
-        self.__check_func = check
-        self.required = required
-
-    def upgrade(self, context: Context, **kwargs):
-        self.__upgrade_func(context, **kwargs)
-
-    def check(self, context: Context, **kwargs) -> bool:
-        if self.__check_func is None:
-            return True
-
-        return self.__check_func(context, **kwargs)
+class UpgradeScript(ScriptBase):
+    script_type: str = UPGRADE_SCRIPT_TYPE
 
 
 @enum.unique
 class Script(enum.Enum):
     CLIENTS = "clients"
     REDIRECT = "redirect"
-    DEDUPLICATE = "deduplicate"
 
+    # Internal postgresql migrations
+    POSTGRESQL_COMMENTS = "postgresql_comments"
 
-class ScriptStatus(enum.Enum):
-    PASSED = "PASSED"
-    REQUIRED = "REQUIRED"
-    FORCED = "FORCED"
-    SKIPPED = "SKIPPED"
+    # Sqlalchemy keymap migrations
+    SQL_KEYMAP_INITIAL = "sqlalchemy_keymap_001_initial"
+    SQL_KEYMAP_REDIRECT = "sqlalchemy_keymap_002_redirect_support"
+    SQL_KEYMAP_MODIFIED = "sqlalchemy_keymap_003_add_modified_time"

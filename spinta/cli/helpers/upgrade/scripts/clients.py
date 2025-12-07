@@ -6,7 +6,7 @@ from typer import echo
 import ruamel.yaml
 
 from spinta.cli.helpers.upgrade.components import Script
-from spinta.cli.helpers.upgrade.helpers import script_destructive_warning
+from spinta.cli.helpers.script.helpers import script_destructive_warning
 from spinta.components import Context, Config
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
@@ -32,7 +32,7 @@ CLIENT_STATUS_FAILED_MISSING_NAME = "FAILED (MISSING `client_name` FIELD)"
 
 
 def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
-    config: Config = context.get('config')
+    config: Config = context.get("config")
     config_path = config.config_path or DEFAULT_CONFIG_PATH
     config_path = pathlib.Path(config_path)
 
@@ -63,25 +63,16 @@ def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
 
     items = os.listdir(clients_path)
     for item in items:
-        if item.endswith('.yml'):
+        if item.endswith(".yml"):
             status = _migrate_client_file(
-                client_file_path=clients_path / item,
-                id_path=id_path,
-                destructive=destructive,
-                keymap=keymap
+                client_file_path=clients_path / item, id_path=id_path, destructive=destructive, keymap=keymap
             )
             echo(client_migration_status_message(item, status))
 
-    _recreate_keymap(
-        id_path=id_path,
-        keymap_path=keymap_path
-    )
+    _recreate_keymap(id_path=id_path, keymap_path=keymap_path)
 
 
-def _recreate_keymap(
-    id_path: pathlib.Path,
-    keymap_path: pathlib.Path
-):
+def _recreate_keymap(id_path: pathlib.Path, keymap_path: pathlib.Path):
     id_items = os.listdir(id_path)
     keymap = {}
     for id0 in id_items:
@@ -95,37 +86,30 @@ def _recreate_keymap(
 
             id1_items = os.listdir(id_path / id0 / id1)
             for uuid_item in id1_items:
-                if uuid_item.endswith('.yml') and len(uuid_item) == 36:
+                if uuid_item.endswith(".yml") and len(uuid_item) == 36:
                     try:
                         data = yaml.load(id_path / id0 / id1 / uuid_item)
                         keymap[data["client_name"]] = data["client_id"]
                     except FileNotFoundError:
-                        raise (InvalidClientError(description='Invalid client id or secret'))
+                        raise (InvalidClientError(description="Invalid client id or secret"))
 
     echo(f"Created keymap with {len(keymap)} users")
     yml.dump(keymap, keymap_path)
 
 
-def _generate_new_file_path(
-    id_path: pathlib.Path,
-    client_id: str,
-    with_yml: bool = True
-) -> pathlib.Path:
+def _generate_new_file_path(id_path: pathlib.Path, client_id: str, with_yml: bool = True) -> pathlib.Path:
     folder_path = id_path / client_id[:2] / client_id[2:4]
     if with_yml:
-        return folder_path / f'{client_id[4:]}.yml'
+        return folder_path / f"{client_id[4:]}.yml"
     return folder_path
 
 
-def _validate_file_structure(
-    data: dict,
-    old: bool = True
-) -> (bool, str):
+def _validate_file_structure(data: dict, old: bool = True) -> (bool, str):
     if not isinstance(data, dict) or data == {}:
         return False, CLIENT_STATUS_FAILED_INVALID
 
     # All versions must contain 'client_id' field
-    if 'client_id' not in data:
+    if "client_id" not in data:
         return False, CLIENT_STATUS_FAILED_MISSING_ID
     else:
         # If it's not old, then 'client_id' must be uuid
@@ -133,45 +117,37 @@ def _validate_file_structure(
             return False, CLIENT_STATUS_FAILED_ID_NOT_UUID
 
     # All versions must contain 'client_secret_hash'
-    if 'client_secret_hash' not in data:
+    if "client_secret_hash" not in data:
         return False, CLIENT_STATUS_FAILED_MISSING_SECRET
 
     # All versions must contain 'scopes
-    if 'scopes' not in data:
+    if "scopes" not in data:
         return False, CLIENT_STATUS_FAILED_MISSING_SCOPES
 
     # Only new version must contain 'client_name'
-    if not old and 'client_name' not in data:
+    if not old and "client_name" not in data:
         return False, CLIENT_STATUS_FAILED_MISSING_NAME
 
     return True, ""
 
 
-def _migrate_client_file(
-    client_file_path: pathlib.Path,
-    id_path: pathlib.Path,
-    destructive: bool,
-    keymap: dict
-) -> str:
+def _migrate_client_file(client_file_path: pathlib.Path, id_path: pathlib.Path, destructive: bool, keymap: dict) -> str:
     try:
         old_data = yaml.load(client_file_path)
     except FileNotFoundError:
-        raise (InvalidClientError(description='Could not open client file'))
+        raise (InvalidClientError(description="Could not open client file"))
 
     validated = _validate_file_structure(old_data)
     if not validated[0]:
         return validated[1]
 
     client_name = old_data.get("client_name", old_data["client_id"])
-    client_id = old_data['client_id']
+    client_id = old_data["client_id"]
 
     # Check if new valid client file exists, if so, skip it
     if client_name in keymap:
         keymap_value = keymap[client_name]
-        new_file_path = _generate_new_file_path(
-            id_path,
-            keymap_value
-        )
+        new_file_path = _generate_new_file_path(id_path, keymap_value)
         client_id = keymap_value
         if new_file_path.exists() and not destructive:
             return CLIENT_STATUS_SKIPPED_MIGRATED
@@ -186,14 +162,14 @@ def _migrate_client_file(
         "client_id": client_id,
         "client_name": client_name,
         "client_secret_hash": old_data["client_secret_hash"],
-        "scopes": old_data["scopes"]
+        "scopes": old_data["scopes"],
     }
     yml.dump(data, new_path)
     return CLIENT_STATUS_SUCCESS
 
 
 def cli_requires_clients_migration(context: Context, **kwargs) -> bool:
-    config: Config = context.get('config')
+    config: Config = context.get("config")
     config_path = config.config_path or DEFAULT_CONFIG_PATH
     config_path = pathlib.Path(config_path)
 
@@ -207,7 +183,7 @@ def requires_client_migration(clients_path: pathlib.Path) -> bool:
         return False
 
     items = os.listdir(clients_path)
-    contains_yml = any([item.endswith('.yml') for item in items])
+    contains_yml = any([item.endswith(".yml") for item in items])
     if contains_yml:
         keymap_path = get_keymap_path(clients_path)
 

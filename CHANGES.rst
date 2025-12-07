@@ -1,8 +1,250 @@
 Changes
 #######
 
-0.2dev3 (unreleased)
+0.2dev12 (unreleased)
+=====================
+
+
+
+0.2dev11 (2025-12-03)
+=====================
+
+Improvements:
+
+- `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
+- Added ability to customize models and their properties inside config. You can now specify custom type implementation
+  with: `models.<model_name>.properties.<property_name>.type`. It accepts python import path to the implementation (`#599`_).
+
+.. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
+.. _#599: https://github.com/atviriduomenys/spinta/issues/599
+
+0.2dev10 (2025-11-27)
+=====================
+
+Backwards incompatible:
+
+- `spinta migrate` with the `postgresql` backend now requires all tables and columns to have up-to-date comments with
+  their full uncompressed names. Migrations are likely to fail or be incorrect if comments are missing or
+  outdated. Use the `spinta upgrade postgresql_comments` script to validate and update all required comments (`#1579`_).
+
+Improvements:
+
+- `spinta migrate` now uses PostgreSQL comments to map tables and models together (`#1579`_).
+- The `internal` `postgresql` backend now adds full name comments to all its tables and columns. To migrate to the new
+  changes, the `spinta upgrade postgresql_comments` script was added (`#1579`_).
+
+Bug fixes:
+
+- Fixed an issue where `spinta migrate` incorrectly created table drop scripts for `changelog` and `redirect` tables (`#1579`_).
+
+  .. _#1579: https://github.com/atviriduomenys/spinta/issues/1579
+
+0.2dev9 (2025-11-21)
 ====================
+
+New Features:
+
+- Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
+  also known as well-known, jwk.
+- Spinta as Agent:
+    - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
+      algorithm (`alg` & `kty`).
+      This unlocks using auth servers with public key rotation, like Gravitee.
+    - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
+      verification.
+    - move existing `spinta genkeys` command to `spinta key generate`.
+
+
+.. _#1569: https://github.com/atviriduomenys/spinta/issues/1569
+
+New Features:
+- Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)
+- Add `param.header()` prepare function that constructs HTTP header. Can be used in `soap` backend (`#1576`_).
+
+
+  .. _#1582: https://github.com/atviriduomenys/spinta/issues/1582
+  .. _#1576: https://github.com/atviriduomenys/spinta/issues/1576
+
+Improvements:
+
+- Keymap and push db sync now attempts to retry data fetch after failing to get valid response from remote server.
+  Retries can be modified with `sync_retry_count` and `sync_retry_delay_range` config values (`#1594`_).
+
+  .. _#1594: https://github.com/atviriduomenys/spinta/issues/1594
+
+Bug fixes:
+
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
+
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
+
+0.2dev8 (2025-11-06)
+====================
+
+Bug fixes:
+
+- Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
+- Changed `admin` and `upgrade` command `Argument` default value check (`#1575`_).
+- Fixed an error where MySQL LONGBLOB wasn't recognized (`#1484`_).
+
+  .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
+  .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
+
+0.2dev7 (2025-10-23)
+====================
+
+New Features:
+
+- Added `eval()` prepare function for resources. This function allows using the value of a prepare expression
+  as a data source instead of a source column. The `eval(param(..))` syntax can reference a property from
+  another resource, even if it belongs to a different backend. `dask/json` and `dask/xml` backends can now
+  use `eval()` to read data from properties of `dask/json`, `dask/xml`, or `soap` backends. (`#1487`_)
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
+
+.. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
+.. _#825: https://github.com/atviriduomenys/spinta/issues/825
+
+Bug fixes:
+
+- Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
+- Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
+- Remove synchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
+- Fixed `spinta migrate -d` argument not collecting correct tables with long names (`#1557`_).
+
+  .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
+
+Security:
+
+- Private keys and client credential files are now created with restrictive permissions (600 for files, 700 for directories) to prevent unauthorized access by other users on the same system. (`APL-1`_)
+
+  .. _APL-1: https://github.com/atviriduomenys/spinta/pull/1573
+
+Improvements:
+
+- Introduce synchronization logic part one: Catalog to Agent (`#1488`_).
+
+  .. _#1488: https://github.com/atviriduomenys/spinta/issues/1488
+
+
+0.2dev6 (2025-10-09)
+====================
+
+New Features:
+
+- Added config based OpenAPI generator that creates REST API documentation from manifest. (`#1463`_)
+
+
+  .. _#1463: https://github.com/atviriduomenys/spinta/issues/1463
+
+Improvements:
+
+- `spinta copy` for XSD supports globally defined attributes, referenced in other places.(`#605`_)
+- Updated `authlib` minimal version to 1.0.0 (`#675`_).
+- `private` and `public` keys now include `kid` field (`#675`_).
+- Added support for scopes following the UDTS format. Now users can use either the UDTS format scopes or the old scopes. If old scopes are used, a deprecation warning is shown. (`#1461`_)
+- Introduced a new error handling framework with CLI integration, including error reporting and post-processing in `spinta copy` and `spinta check` (`#1462`_)
+- Calling getall with soap backend will always return list of object, even if SOAP response has one element (`#1486`_)
+- Introduce `base64()` prepare function that decodes base64 string (`#1486`_)
+- `base64()` prepare function that decodes base64 binary now does this outside dask dataframes. Also, raises `InvalidBase64String` for invalid base64 (`#1486`_)
+- Added `Cache-Control`, `ETag` and `Last-Modified` headers to most commonly used `GET` requests (`#1506`_).
+
+  .. _#605: https://github.com/atviriduomenys/spinta/issues/605
+  .. _#675: https://github.com/atviriduomenys/spinta/issues/675
+  .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
+  .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
+  .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
+  .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
+
+Bug fixes:
+
+- Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
+
+- Fixed `spinta copy` ignores resources without any models (`#1512`_)
+
+
+  .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
+  .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
+
+
+Bug fixes:
+
+- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in
+  inspect command. Previously, LONGBLOB columns caused TypeError during
+  ŠDSA generation (`#1484`_).
+
+  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
+
+Other:
+- Removed dependency `mypy`
+
+
+0.2dev5 (2025-09-03)
+====================
+
+- Added dependency `mypy`
+
+0.2dev4 (2025-08-28)
+====================
+
+New Features:
+
+- Added support for specifying SOAP request body in SOAP requests.(`#1274`_)
+- Allow `Client` POST and PATCH endpoints to save variable `backends` that can store
+  extra authentication data. Implement `.creds("key")` prepare function to read values
+  from saved `backends`. (`#1275`_)
+- Implement the skeleton of `spinta sync` command. (`#1378`_)
+- Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
+- Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415`_)
+- During synchronization, create a Data Service and not a Dataset as was done initially. (`#1415`_)
+- Adjust synchronization credentials retrieve, to include organization name & type. (`#1415`_)
+- Add `spinta inspect` logic to `spinta sync` & loop through all the datasets from inspection instead of using the first one only. (`#1415`_)
+- Refactor tests for synchronization to be more maintainable + assert what endpoints are called with and not only that they are called. (`#1415`_)
+- Build full dataset name following UDTS conventions. (`#1415`_)
+- Remove private source/resource values from DSA. (`#1415`_)
+- Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
+  specific scripts to be passed and cannot run all scripts by default (`#1340`_).
+- Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
+  (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
+  to ensure a single active local-global key pair (`#1340`_).
+- Change `spinta sync` hierarchy creation to: Data Service -> Dataset -> Distribution. (`#1415`_)
+- Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
+- Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
+- Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
+
+  .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
+  .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
+  .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
+  .. _#1260: https://github.com/atviriduomenys/spinta/issues/1260
+  .. _#1377: https://github.com/atviriduomenys/spinta/issues/1377
+  .. _#1381: https://github.com/atviriduomenys/spinta/issues/1381
+  .. _#1382: https://github.com/atviriduomenys/spinta/issues/1382
+  .. _#1389: https://github.com/atviriduomenys/spinta/issues/1389
+  .. _#1415: https://github.com/atviriduomenys/spinta/issues/1415
+
+Improvements:
+
+- `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
+- Added support for `ruff` linting and code formatting (`#434`_).
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+Bug fixes:
+
+- Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
+- Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
+- Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`#1358`_)
+- Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
+- Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
+  duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
+
+  .. _#981: https://github.com/atviriduomenys/spinta/issues/981
+  .. _#986: https://github.com/atviriduomenys/spinta/issues/986
+  .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
+  .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
+
+0.2dev3
+=======
 
 New Features:
 
@@ -18,6 +260,7 @@ New Features:
   .. _#279: https://github.com/atviriduomenys/spinta/issues/279
 
 Bug fixes:
+
 - Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
 - Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
 
@@ -82,23 +325,64 @@ Backwards incompatible:
   an entry was moved to. As a result, this property is now included in all tabular results (HTML, ASCII, CSV),
   even though it will typically be empty (`#1290`_).
 
+- In order to add `move` support and to deobfuscate `SqlAlchemyKeymap` new migration system was added. From now on any
+  schema changes to keymap should be done using `spinta upgrade`. Keymap now stores separate table called `_migrations`,
+  it stores all already executed migrations. Each time `spinta` configures keymap, it will check if all of
+  required migrations have been executed on it (`#1307`_).
+
+- The `spinta upgrade` command no longer uses the `-r` argument to specify a script. Instead, you can now pass one or more
+  scripts directly as arguments, e.g., `spinta upgrade redirect` or `spinta upgrade clients redirect` (`#1340`_).
+
 Improvements:
 
 - `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
   Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
   raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
 
-  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
-
 - The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
   any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
 
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+- The `spinta upgrade` and `spinta admin` commands no longer require the `-r` or `--run` argument to specify scripts.
+  Instead, script names can be passed directly as arguments, allowing multiple scripts to be run at once (`#1340`_).
+
+- Reintroduced the legacy `SqlAlchemyKeymap` synchronization mode for models without a primary key.
+  This is a temporary workaround until such models are reworked to restrict access to features that require a primary key (`#1340`_).
+
+- Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
+  duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
+
+- `keymap sync` now has `--check-all` flag, that allows model dependency checks on models that does not have source set (`#1402`_).
+
+- Reserved models, no longer generate additional meta tables for `postgresql` backend (`#1419`_).
+
+- `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
+
+- Added support for `ruff` linting and code formatting (`#434`_).
+
+  .. _#434: https://github.com/atviriduomenys/spinta/issues/434
+  .. _#1419: https://github.com/atviriduomenys/spinta/issues/1419
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+  .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402
+  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
+  .. _#1230: https://github.com/atviriduomenys/spinta/issues/1230
+
 New Features:
 
-- Added a `redirect` upgrade script (`spinta upgrade -r redirect`) that checks if the current `backend` supports redirects.
+- Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
+  specific scripts to be passed and cannot run all scripts by default (`#1340`_).
+
+- Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
+  (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
+  to ensure a single active local-global key pair (`#1340`_).
+
+- Added a `redirect` upgrade script (`spinta upgrade redirect`) that checks if the current `backend` supports redirects.
   If not, it will attempt to add the missing features (`#1290`_).
 
-- Added a `deduplicate` upgrade script (`spinta upgrade -r deduplicate`). This checks models with assigned primary keys
+- Added a `deduplicate` admin script (`spinta admin deduplicate`). This checks models with assigned primary keys
   (`model.ref`) to ensure uniqueness is enforced. If not, it scans for duplicates, aggregates them using `model.ref` keys,
   and processes them via the `/:move` endpoint (keeping the oldest entry as the root). It then attempts to enforce
   uniqueness going forward (`#1290`_).
@@ -110,6 +394,7 @@ New Features:
   the `redirect` table (`#1290`_).
 
   .. _#1290: https://github.com/atviriduomenys/spinta/issues/1290
+  .. _#1340: https://github.com/atviriduomenys/spinta/issues/1340
 
 Bug fixes:
 
@@ -117,7 +402,18 @@ Bug fixes:
 
 - Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
 
+- Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
+
+- Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
+
+- Fixed `migration` script sometimes applying name compression twice (`#1409`_).
+
+- Fixed several exponential backtracking regex issues (`#1435`_).
+
+  .. _#1435: https://github.com/atviriduomenys/spinta/issues/1435
+  .. _#1409: https://github.com/atviriduomenys/spinta/issues/1409
   .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+  .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
 
 0.1.85 (2025-04-08)
 ===================
@@ -2380,7 +2676,7 @@ Backwards incompatible features:
 
   Here, `test` configuration environment fully overrides `backends` and removes
   `mongo` backend defined in default configuration scope.o
-  
+
   But `dev` environment overrides only `backends.default.type` and leaves
   everything else as is, `mongo` backend stays untouched.
 
@@ -2539,7 +2835,7 @@ Internal changes:
     - `decode` - convert values from external to internal form.
 
   - Data validation:
-    
+
     - `validate` - simple data validation.
     - `verify` - complex data validation involving access to stored data.
 
@@ -2668,7 +2964,7 @@ Internal changes:
 
 - In `PostgreSQL` backends, references to `_txn` model is no longer used, in
   order to remove interdependence between two separate manifests.
-  
+
   Also, `_txn` might be saved on another backend.
 
 - `RawConfig` now can take default values from `spinta/config.yml`.

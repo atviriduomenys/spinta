@@ -1,11 +1,5 @@
-import sqlalchemy as sa
-
-from spinta.utils.schema import NA
-from spinta.components import Context, Property
-from spinta.core.enums import Action
-from spinta.components import Context, Property, Action, DataItem
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.exceptions import UniqueConstraint
+from spinta.components import Context, Property, DataItem
 
 
 def pg_check_unique_constraint(

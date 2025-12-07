@@ -80,7 +80,7 @@ def last(it, default=None):
     return res
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def flatten(it: Iterable[Union[T, List[T]]]) -> Iterator[T]:
@@ -116,4 +116,3 @@ def ensure_list(value: Any) -> List[Any]:
         return value
     else:
         return [value]
-

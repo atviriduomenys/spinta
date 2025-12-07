@@ -25,19 +25,19 @@ if TYPE_CHECKING:
     from spinta.migrations import SchemaVersion
     from spinta.manifests.yaml.components import YamlManifest
 
-yaml = YAML(typ='safe')
+yaml = YAML(typ="safe")
 
 
 def yaml_config_params(context: Context, manifest: YamlManifest) -> None:
     # We do not load manifest.path here, because internal manifest loads it
     # differently. Here we only load commong config parameters.
-    rc = context.get('rc')
-    manifest.ignore = rc.get('ignore', default=[], cast=list)
-    manifest.ignore += rc.get('manifests', manifest.name, 'ignore', default=[], cast=list)
+    rc = context.get("rc")
+    manifest.ignore = rc.get("ignore", default=[], cast=list)
+    manifest.ignore += rc.get("manifests", manifest.name, "ignore", default=[], cast=list)
 
 
 def list_yaml_files(manifest: YamlManifest) -> Iterator[pathlib.Path]:
-    for file in manifest.path.glob('**/*.yml'):
+    for file in manifest.path.glob("**/*.yml"):
         if not is_ignored(manifest.ignore, manifest.path, file):
             yield file
 
@@ -59,29 +59,29 @@ def read_schema_versions(path: pathlib.Path):
     schema = {}
     current = next(docs)
     for version in docs:
-        patch = version.get('changes', [])
+        patch = version.get("changes", [])
         patch = jsonpatch.JsonPatch(patch)
         schema = patch.apply(schema)
-        if 'id' in current:
-            schema['id'] = current['id']
-        elif 'id' in schema:
-            del schema['id']
-        if 'id' not in version:
+        if "id" in current:
+            schema["id"] = current["id"]
+        elif "id" in schema:
+            del schema["id"]
+        if "id" not in version:
             raise InvalidManifestFile(
                 eid=path,
                 error="Version id is not specified.",
             )
-        schema['version'] = version['id']
+        schema["version"] = version["id"]
         yield {
             **version,
-            'schema': schema,
-            'migrate': [
+            "schema": schema,
+            "migrate": [
                 {
                     **action,
-                    'upgrade': spyna.parse(action['upgrade']),
-                    'downgrade': spyna.parse(action['downgrade']),
+                    "upgrade": spyna.parse(action["upgrade"]),
+                    "downgrade": spyna.parse(action["downgrade"]),
                 }
-                for action in version['migrate']
+                for action in version["migrate"]
             ],
         }
 
@@ -99,7 +99,7 @@ def read_freezed_manifest_schemas(
     for path in list_yaml_files(manifest):
         freezed = last(read_schema_versions(path), None)
         if freezed:
-            yield path, freezed['schema']
+            yield path, freezed["schema"]
 
 
 def read_inline_manifest_schemas(
@@ -110,7 +110,6 @@ def read_inline_manifest_schemas(
 
 
 def add_new_version(path: pathlib.Path, version: SchemaVersion):
-
     # Read YAML file
     with path.open() as f:
         versions = yaml.load_all(f)
@@ -120,27 +119,29 @@ def add_new_version(path: pathlib.Path, version: SchemaVersion):
     current = versions[0]
 
     # Ensure schema id
-    if 'id' not in current:
-        current['id'] = str(uuid.uuid4())
+    if "id" not in current:
+        current["id"] = str(uuid.uuid4())
 
     # Update current version
-    current['version'] = version.id
+    current["version"] = version.id
 
     # Add new version
-    versions.append({
-        'id': version.id,
-        'date': version.date,
-        'parents': version.parents,
-        'changes': version.changes,
-        'migrate': [
-            {
-                'type': 'schema',
-                'upgrade': spyna.unparse(action['upgrade'], pretty=True),
-                'downgrade': spyna.unparse(action['downgrade'], pretty=True),
-            }
-            for action in version.actions
-        ],
-    })
+    versions.append(
+        {
+            "id": version.id,
+            "date": version.date,
+            "parents": version.parents,
+            "changes": version.changes,
+            "migrate": [
+                {
+                    "type": "schema",
+                    "upgrade": spyna.unparse(action["upgrade"], pretty=True),
+                    "downgrade": spyna.unparse(action["downgrade"], pretty=True),
+                }
+                for action in version.actions
+            ],
+        }
+    )
 
     yml = YAML()
     yml.indent(mapping=2, sequence=4, offset=2)
@@ -151,5 +152,5 @@ def add_new_version(path: pathlib.Path, version: SchemaVersion):
     walk_tree(versions)
 
     # Write updates back to YAML file
-    with path.open('w') as f:
+    with path.open("w") as f:
         yml.dump_all(versions, f)

@@ -4,9 +4,14 @@ from typing import List
 
 from spinta import commands
 from spinta.components import Context, Model, Property
-from spinta.exceptions import ModelReferenceNotFound, ModelReferenceKeyNotFound, \
-    InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, SameModelIntermediateTableMapping
-from spinta.types.datatype import Array, PartialArray, ArrayBackRef, Ref, DataType
+from spinta.exceptions import (
+    ModelReferenceNotFound,
+    ModelReferenceKeyNotFound,
+    InvalidIntermediateTableMappingRefCount,
+    UnableToMapIntermediateTable,
+    SameModelIntermediateTableMapping,
+)
+from spinta.types.datatype import Array, PartialArray, ArrayBackRef, Ref
 from spinta.types.helpers import set_dtype_backend
 
 
@@ -60,9 +65,8 @@ def _extract_intermediate_table_properties(source: Array, intermediate_model: Mo
         return source.refprops
 
     if intermediate_model.external and not intermediate_model.external.unknown_primary_key:
-        if (
-            len(intermediate_model.external.pkeys) == 2 and
-            all(isinstance(prop.dtype, Ref) for prop in intermediate_model.external.pkeys)
+        if len(intermediate_model.external.pkeys) == 2 and all(
+            isinstance(prop.dtype, Ref) for prop in intermediate_model.external.pkeys
         ):
             return intermediate_model.external.pkeys
 
@@ -77,14 +81,14 @@ def _extract_intermediate_table_properties(source: Array, intermediate_model: Mo
 
 @commands.link.register(Context, PartialArray)
 def link(context: Context, dtype: PartialArray):
-    dtype.prop.given.name = ''
+    dtype.prop.given.name = ""
     super_ = commands.link[Context, Array]
     return super_(context, dtype)
 
 
 @commands.link.register(Context, ArrayBackRef)
 def link(context: Context, dtype: ArrayBackRef):
-    dtype.prop.given.name = ''
+    dtype.prop.given.name = ""
 
     set_dtype_backend(dtype)
     # In case of a dynamic array, dtype of items is not known.

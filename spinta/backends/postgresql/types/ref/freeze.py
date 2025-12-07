@@ -17,14 +17,14 @@ def freeze(
 ):
     return [
         {
-            'name': 'column',
-            'args': [
-                f'{get_column_name(current.prop)}._id',
+            "name": "column",
+            "args": [
+                f"{get_column_name(current.prop)}._id",
                 {
-                    'name': 'ref',
-                    'args': [f'{get_table_name(current.model)}._id'],
+                    "name": "ref",
+                    "args": [f"{get_table_name(current.model)}._id"],
                 },
-            ]
+            ],
         },
     ]
 
@@ -38,35 +38,37 @@ def freeze(
     current: Ref,
 ):
     column = {
-        'name': 'column',
-        'args': [
-            f'{get_column_name(current.prop)}._id',
+        "name": "column",
+        "args": [
+            f"{get_column_name(current.prop)}._id",
             {
-                'name': 'ref',
-                'args': [f'{get_table_name(current.model)}._id'],
-            }
-        ]
+                "name": "ref",
+                "args": [f"{get_table_name(current.model)}._id"],
+            },
+        ],
     }
 
     upgrade = {
-        'name': 'add_column',
-        'args': [
+        "name": "add_column",
+        "args": [
             get_table_name(current.prop),
             column,
-        ]
+        ],
     }
 
-    version.actions.append({
-        'type': 'schema',
-        'upgrade': upgrade,
-        'downgrade': {
-            'name': 'drop_column',
-            'args': [
-                get_table_name(current.prop),
-                f'{get_column_name(current.prop)}._id',
-            ]
+    version.actions.append(
+        {
+            "type": "schema",
+            "upgrade": upgrade,
+            "downgrade": {
+                "name": "drop_column",
+                "args": [
+                    get_table_name(current.prop),
+                    f"{get_column_name(current.prop)}._id",
+                ],
+            },
         }
-    })
+    )
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, Ref, Ref)

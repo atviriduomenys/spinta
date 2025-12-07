@@ -9,7 +9,7 @@ from spinta.testing.manifest import bootstrap_manifest
 import pytest
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests("internal_sql", "csv")
 def test_time(
     manifest_type: str,
     tmp_path: Path,
@@ -18,38 +18,45 @@ def test_time(
     request: FixtureRequest,
 ):
     context = bootstrap_manifest(
-        rc, '''
+        rc,
+        """
     d | r | b | m | property          | type   | ref
     backends/postgres/dtypes/time     |        |
       |   |   | City                  |        |
       |   |   |   | name              | string |
       |   |   |   | time              | time   |
-    ''',
+    """,
         backend=postgresql,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
         request=request,
-        full_load=True
+        full_load=True,
     )
 
     app = create_test_client(context)
-    app.authmodel('backends/postgres/dtypes/time/City', [
-        'insert',
-        'getall',
-    ])
+    app.authmodel(
+        "backends/postgres/dtypes/time/City",
+        [
+            "insert",
+            "getall",
+        ],
+    )
 
     # Write data
-    resp = app.post('/backends/postgres/dtypes/time/City', json={
-        'name': "Vilnius",
-        'time': '00:00:01',
-    })
+    resp = app.post(
+        "/backends/postgres/dtypes/time/City",
+        json={
+            "name": "Vilnius",
+            "time": "00:00:01",
+        },
+    )
     assert resp.status_code == 201
 
     # Read data
-    resp = app.get('/backends/postgres/dtypes/time/City')
+    resp = app.get("/backends/postgres/dtypes/time/City")
     assert listdata(resp, full=True) == [
         {
-            'name': "Vilnius",
-            'time': '00:00:01',
+            "name": "Vilnius",
+            "time": "00:00:01",
         }
     ]

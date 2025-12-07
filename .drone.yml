@@ -20,7 +20,7 @@ steps:
       - envsubst < docker-compose.template.yml > docker-compose.${DRONE_BRANCH/\//-}.yml
       - env > template.env
       - sed -i '/^\(SPINTA_\|-t\(h\|o\)\)/!d' template.env
-      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml build
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml build --no-cache
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml down || true
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml up -d
       - docker image prune -a -f

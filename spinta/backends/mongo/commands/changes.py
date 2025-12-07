@@ -15,25 +15,24 @@ async def create_changelog_entry(
     *,
     dstream: types.AsyncGeneratorType,
 ) -> None:
-    transaction = context.get('transaction')
+    transaction = context.get("transaction")
     if isinstance(model, Model):
-        table = backend.db[model.model_type() + '__changelog']
+        table = backend.db[model.model_type() + "__changelog"]
     else:
-        table = backend.db[model.model.model_type() + '__changelog']
+        table = backend.db[model.model.model_type() + "__changelog"]
     async for data in dstream:
-
         if not data.patch:
             yield data
             continue
 
-        table.insert_one({
-            '__id': data.saved['_id'] if data.saved else data.patch['_id'],
-            '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
-            '_op': data.action.value,
-            '_transaction': transaction.id,
-            '_created': datetime.datetime.now(datetime.timezone.utc),
-            **fix_data_for_json({
-                k: v for k, v in data.patch.items() if not k.startswith('_')
-            }),
-        })
+        table.insert_one(
+            {
+                "__id": data.saved["_id"] if data.saved else data.patch["_id"],
+                "_revision": data.patch["_revision"] if data.patch else data.saved["_revision"],
+                "_op": data.action.value,
+                "_transaction": transaction.id,
+                "_created": datetime.datetime.now(datetime.timezone.utc),
+                **fix_data_for_json({k: v for k, v in data.patch.items() if not k.startswith("_")}),
+            }
+        )
         yield data

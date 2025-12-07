@@ -1,0 +1,74 @@
+<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+     xmlns:tns="city_app"
+     targetNamespace="city_app"
+     name="CityService">
+
+    <wsdl:types>
+        <xs:schema targetNamespace="city_app">
+            <xs:element name="CityInputRequest">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="request_model" type="tns:RequestModelType" minOccurs="0" nillable="true"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+
+            <xs:complexType name="RequestModelType">
+                <xs:sequence>
+                    <xs:element name="param1" type="xs:string" minOccurs="0" nillable="true"/>
+                    <xs:element name="param2" type="xs:string" minOccurs="0" nillable="true"/>
+                </xs:sequence>
+            </xs:complexType>
+
+            <xs:element name="CityOutputResponse">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="CityOutput" type="tns:CityOutput"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+
+            <xs:complexType name="CityOutput">
+                <xs:sequence>
+                    <xs:element name="id" type="xs:int"/>
+                    <xs:element name="name" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+    </wsdl:types>
+
+    <wsdl:message name="CityInputRequest">
+        <wsdl:part name="parameters" element="tns:CityInputRequest"/>
+    </wsdl:message>
+    <wsdl:message name="CityOutputResponse">
+        <wsdl:part name="parameters" element="tns:CityOutputResponse"/>
+    </wsdl:message>
+
+    <wsdl:portType name="CityPortType">
+        <wsdl:operation name="CityOperation">
+            <wsdl:input message="tns:CityInputRequest"/>
+            <wsdl:output message="tns:CityOutputResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <wsdl:binding name="CityServiceBinding" type="tns:CityPortType">
+        <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+        <wsdl:operation name="CityOperation">
+            <soap:operation soapAction="urn:CityOperation"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <wsdl:service name="CityService">
+        <wsdl:port name="CityPort" binding="tns:CityServiceBinding">
+            <soap:address location="http://example.com/city"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

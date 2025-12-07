@@ -1,14 +1,13 @@
 from enum import Enum
 
-import requests
 
 from spinta.manifests.components import Manifest
 
 
 class DictFormat(Enum):
-    JSON = 'json'
-    XML = 'xml'
-    HTML = 'html'
+    JSON = "json"
+    XML = "xml"
+    HTML = "html"
 
 
 class DictManifest(Manifest):
@@ -16,18 +15,18 @@ class DictManifest(Manifest):
 
 
 class JsonManifest(DictManifest):
-    type = 'json'
+    type = "json"
     format: DictFormat = DictFormat.JSON
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.endswith('.json') and not path.startswith('openapi+file://')
+        return path.endswith(".json") and not path.startswith("openapi+file://")
 
 
 class XmlManifest(DictManifest):
-    type = 'xml'
+    type = "xml"
     format: DictFormat = DictFormat.XML
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.endswith('.xml')
+        return path.endswith(".xml")

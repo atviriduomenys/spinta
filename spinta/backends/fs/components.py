@@ -5,7 +5,6 @@ from spinta.backends.constants import BackendFeatures
 
 
 class FileSystem(Backend):
-
     features = {
         BackendFeatures.WRITE,
     }

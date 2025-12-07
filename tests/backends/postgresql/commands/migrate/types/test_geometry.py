@@ -6,18 +6,18 @@ from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from tests.backends.postgresql.commands.migrate.test_migrations import configure_migrate, cleanup_tables, float_equals, \
-    override_manifest, cleanup_table_list
+from tests.backends.postgresql.commands.migrate.test_migrations import (
+    configure_migrate,
+    cleanup_tables,
+    float_equals,
+    override_manifest,
+    cleanup_table_list,
+)
 
 
-def test_migrate_modify_geometry_type(
-    postgresql_migration: URL,
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    tmp_path: Path
-):
+def test_migrate_modify_geometry_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     cleanup_tables(postgresql_migration)
-    initial_manifest = '''
+    initial_manifest = """
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
                      |   |      | Test |                |                |     |
@@ -25,27 +25,28 @@ def test_migrate_modify_geometry_type(
                      |   |      |      | someGeo        | geometry       |     |
                      |   |      |      | someGeoLt      | geometry(3346) |     |
                      |   |      |      | someGeoWorld   | geometry(4326) |     |
-    '''
+    """
     context, rc = configure_migrate(rc, tmp_path, initial_manifest)
 
-    cli.invoke(rc, [
-        'bootstrap', f'{tmp_path}/manifest.csv'
-    ])
+    cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
-        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
-            tables.keys())
+        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
         table = tables["migrate/example/Test"]
-        conn.execute(table.insert().values({
-            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
-            "someText": "Vilnius",
-            "someGeo": "SRID=4326;POINT(15 15)",
-            "someGeoLt": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
-            "someGeoWorld": "SRID=4326;POINT(15 15)"
-        }))
+        conn.execute(
+            table.insert().values(
+                {
+                    "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+                    "someText": "Vilnius",
+                    "someGeo": "SRID=4326;POINT(15 15)",
+                    "someGeoLt": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
+                    "someGeoWorld": "SRID=4326;POINT(15 15)",
+                }
+            )
+        )
 
         result = conn.execute(table.select())
         for item in result:
@@ -61,7 +62,10 @@ def test_migrate_modify_geometry_type(
             assert float_equals(float(some_geo_world_values[0]), 15, epsilon=1e-2)
             assert float_equals(float(some_geo_world_values[1]), 15, epsilon=1e-2)
 
-    override_manifest(context, tmp_path, '''
+    override_manifest(
+        context,
+        tmp_path,
+        """
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
                      |   |      | Test |                |                |     |
@@ -69,32 +73,30 @@ def test_migrate_modify_geometry_type(
                      |   |      |      | someGeo        | geometry(3346) |     |
                      |   |      |      | someGeoLt      | geometry       |     |
                      |   |      |      | someGeoWorld   | geometry(3346) |     |
-    ''')
+    """,
+    )
 
-    result = cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv', '-p'
-    ])
+    result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n'
-        '\n'
+        "BEGIN;\n"
+        "\n"
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
         'geometry(GEOMETRY,3346) USING ST_Transform("migrate/example/Test"."someGeo", '
-        '3346);\n'
-        '\n'
+        "3346);\n"
+        "\n"
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoLt" TYPE '
-        'geometry(GEOMETRY,4326) USING '
+        "geometry(GEOMETRY,4326) USING "
         'ST_Transform("migrate/example/Test"."someGeoLt", 4326);\n'
-        '\n'
+        "\n"
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoWorld" TYPE '
-        'geometry(GEOMETRY,3346) USING '
+        "geometry(GEOMETRY,3346) USING "
         'ST_Transform("migrate/example/Test"."someGeoWorld", 3346);\n'
-        '\n'
-        'COMMIT;\n'
-        '\n')
+        "\n"
+        "COMMIT;\n"
+        "\n"
+    )
 
-    cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv'
-    ])
+    cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
@@ -116,41 +118,39 @@ def test_migrate_modify_geometry_type(
             assert float_equals(float(some_geo_world_values[0]), -471246.92725520115, epsilon=1e-2)
             assert float_equals(float(some_geo_world_values[1]), 1678519.8837915037, epsilon=1e-2)
 
-        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+        cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
 def test_migrate_geometry_to_string_to_geometry(
-    postgresql_migration: URL,
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    tmp_path: Path
+    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
     cleanup_tables(postgresql_migration)
-    initial_manifest = '''
+    initial_manifest = """
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
                      |   |      | Test |                |                |     |
                      |   |      |      | someText       | string         |     |
                      |   |      |      | someGeo        | geometry(3346) |     |
-    '''
+    """
     context, rc = configure_migrate(rc, tmp_path, initial_manifest)
 
-    cli.invoke(rc, [
-        'bootstrap', f'{tmp_path}/manifest.csv'
-    ])
+    cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
-        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
-            tables.keys())
+        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
         table = tables["migrate/example/Test"]
-        conn.execute(table.insert().values({
-            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
-            "someText": "Vilnius",
-            "someGeo": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
-        }))
+        conn.execute(
+            table.insert().values(
+                {
+                    "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+                    "someText": "Vilnius",
+                    "someGeo": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
+                }
+            )
+        )
 
         result = conn.execute(table.select())
         for item in result:
@@ -160,31 +160,32 @@ def test_migrate_geometry_to_string_to_geometry(
             assert float_equals(float(some_geo_lt_values[0]), -471246.92725520115, epsilon=1e-2)
             assert float_equals(float(some_geo_lt_values[1]), 1678519.8837915037, epsilon=1e-2)
 
-    override_manifest(context, tmp_path, '''
+    override_manifest(
+        context,
+        tmp_path,
+        """
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
                      |   |      | Test |                |                |     |
                      |   |      |      | someText       | string         |     |
                      |   |      |      | someGeo        | string         |     |
-    ''')
+    """,
+    )
 
-    result = cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv', '-p'
-    ])
+    result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n'
-        '\n'
+        "BEGIN;\n"
+        "\n"
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE TEXT USING '
         'CAST("migrate/example/Test"."someGeo" AS TEXT);\n'
-        '\n'
+        "\n"
         'DROP INDEX "ix_migrate/example/Test_someGeo";\n'
-        '\n'
-        'COMMIT;\n'
-        '\n')
+        "\n"
+        "COMMIT;\n"
+        "\n"
+    )
 
-    cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv'
-    ])
+    cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
@@ -198,33 +199,34 @@ def test_migrate_geometry_to_string_to_geometry(
             assert item["someText"] == "Vilnius"
             assert item["someGeo"] == "0101000020120D0000306382B53BC31CC1F52840E2B79C3941"
 
-    override_manifest(context, tmp_path, '''
+    override_manifest(
+        context,
+        tmp_path,
+        """
          d               | r | b    | m    | property       | type           | ref | source
          migrate/example |   |      |      |                |                |     |
                          |   |      | Test |                |                |     |
                          |   |      |      | someText       | string         |     |
                          |   |      |      | someGeo        | geometry(3346) |     |
-        ''')
+        """,
+    )
 
-    result = cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv', '-p'
-    ])
+    result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
-        'BEGIN;\n'
-        '\n'
+        "BEGIN;\n"
+        "\n"
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
         'geometry(GEOMETRY,3346) USING CAST("migrate/example/Test"."someGeo" AS '
-        'geometry(GEOMETRY,3346));\n'
-        '\n'
+        "geometry(GEOMETRY,3346));\n"
+        "\n"
         'CREATE INDEX "ix_migrate/example/Test_someGeo" ON "migrate/example/Test" '
         'USING gist ("someGeo");\n'
-        '\n'
-        'COMMIT;\n'
-        '\n')
+        "\n"
+        "COMMIT;\n"
+        "\n"
+    )
 
-    cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv'
-    ])
+    cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
@@ -240,4 +242,4 @@ def test_migrate_geometry_to_string_to_geometry(
             assert float_equals(float(some_geo_lt_values[0]), -471246.92725520115, epsilon=1e-2)
             assert float_equals(float(some_geo_lt_values[1]), 1678519.8837915037, epsilon=1e-2)
 
-        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+        cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])

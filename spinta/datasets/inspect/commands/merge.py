@@ -4,9 +4,19 @@ from spinta import commands
 from spinta.components import Context, Property, Namespace
 from spinta.components import Model
 from spinta.datasets.components import Dataset, Resource, ExternalBackend
-from spinta.datasets.inspect.helpers import zipitems, _backend_dsn, _dataset_key, _merge_resources, \
-    _filter_models_for_dataset, coalesce, _merge_prefixes, _model_key, _resource_key, _merge_model_properties, \
-    _property_key
+from spinta.datasets.inspect.helpers import (
+    zipitems,
+    _backend_dsn,
+    _dataset_key,
+    _merge_resources,
+    _filter_models_for_dataset,
+    coalesce,
+    _merge_prefixes,
+    _model_key,
+    _resource_key,
+    _merge_model_properties,
+    _property_key,
+)
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref, DataType, Array, Object, Denorm
@@ -17,11 +27,7 @@ from spinta.utils.schema import NotAvailable
 
 @commands.merge.register(Context, Manifest, Manifest, Manifest, bool)
 def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest, has_manifest_priority: bool) -> None:
-    backends = zipitems(
-        old.backends.values(),
-        new.backends.values(),
-        _backend_dsn
-    )
+    backends = zipitems(old.backends.values(), new.backends.values(), _backend_dsn)
 
     backend_deduplicator = Deduplicator("_{}")
     for backend in backends:
@@ -103,11 +109,7 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_
     _merge_resources(context, manifest, old, new)
 
     dataset_models = _filter_models_for_dataset(context, manifest, old)
-    models = zipitems(
-        dataset_models,
-        commands.get_models(context, new.manifest).values(),
-        _model_key
-    )
+    models = zipitems(dataset_models, commands.get_models(context, new.manifest).values(), _model_key)
     resource_list = []
     for res in new.resources.values():
         resource_list.append(_resource_key(res))
@@ -218,16 +220,12 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model, h
     old = copy(new)
     old.external = copy(old.external)
     old_name = old.name
-    if f'{old.ns.name}/{old.basename}' != old.name and old.ns.name:
-        name = f'{old.ns.name}/{old.basename}'
+    if f"{old.ns.name}/{old.basename}" != old.name and old.ns.name:
+        name = f"{old.ns.name}/{old.basename}"
         old.name = name
         new.name = name
     if old.external and old.external.resource:
-        resources = zipitems(
-            old.external.dataset.resources.values(),
-            [old.external.resource],
-            _resource_key
-        )
+        resources = zipitems(old.external.dataset.resources.values(), [old.external.resource], _resource_key)
         for res in resources:
             for old_res, new_res in res:
                 if old_res and new_res:
@@ -263,11 +261,7 @@ def merge(context: Context, manifest: Manifest, old: Model, new: Model, has_mani
 
     if old.external and new.external:
         if not has_manifest_priority or (old.external.unknown_primary_key and not new.external.unknown_primary_key):
-            keys = zipitems(
-                old.properties.values(),
-                new.external.pkeys,
-                _property_key
-            )
+            keys = zipitems(old.properties.values(), new.external.pkeys, _property_key)
             new_keys = []
             for key in keys:
                 for o, n in key:
@@ -345,19 +339,11 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Array) -> No
     merged.prop = coalesce(old.prop, new.prop)
     merged.choices = coalesce(old.choices, new.choices)
     merged.prepare = coalesce(old.prepare, new.prepare)
-    models = zipitems(
-        [merged.items.model],
-        commands.get_models(context, manifest).values(),
-        _model_key
-    )
+    models = zipitems([merged.items.model], commands.get_models(context, manifest).values(), _model_key)
     for model in models:
         for o, n in model:
             if o and n:
-                properties = zipitems(
-                    merged.items,
-                    o.properties.values(),
-                    _property_key
-                )
+                properties = zipitems(merged.items, o.properties.values(), _property_key)
                 for prop in properties:
                     for po, pn in prop:
                         if po and pn:
@@ -393,19 +379,11 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Object) -> N
     for key, value in merged.properties.items():
         new_key = key
         new_value = value
-        models = zipitems(
-            [value.model],
-            commands.get_models(context, manifest).values(),
-            _model_key
-        )
+        models = zipitems([value.model], commands.get_models(context, manifest).values(), _model_key)
         for model in models:
             for o, n in model:
                 if o and n:
-                    properties = zipitems(
-                        merged.items,
-                        o.properties.values(),
-                        _property_key
-                    )
+                    properties = zipitems(merged.items, o.properties.values(), _property_key)
                     for prop in properties:
                         for po, pn in prop:
                             if po and pn:
@@ -440,11 +418,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Ref) -> None
     merged.choices = coalesce(old.choices, new.choices)
     merged.prepare = coalesce(old.prepare, new.prepare)
 
-    models = zipitems(
-        [merged.model],
-        commands.get_models(context, manifest).values(),
-        _model_key
-    )
+    models = zipitems([merged.model], commands.get_models(context, manifest).values(), _model_key)
     for model in models:
         for o, n in model:
             if o and n:
@@ -455,11 +429,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Ref) -> None
                             merged.refprops = n.external.pkeys
                         else:
                             new_refprops = []
-                            properties = zipitems(
-                                merged.refprops,
-                                n.properties.values(),
-                                _property_key
-                            )
+                            properties = zipitems(merged.refprops, n.properties.values(), _property_key)
                             for prop in properties:
                                 for po, pn in prop:
                                     if po and pn:
@@ -490,19 +460,11 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Denorm) -> N
     merged.choices = coalesce(old.choices, new.choices)
     merged.prepare = coalesce(old.prepare, new.prepare)
 
-    models = zipitems(
-        [merged.rel_prop.model],
-        commands.get_models(context, manifest).values(),
-        _model_key
-    )
+    models = zipitems([merged.rel_prop.model], commands.get_models(context, manifest).values(), _model_key)
     for model in models:
         for o, n in model:
             if o and n:
-                properties = zipitems(
-                    merged.items,
-                    o.properties.values(),
-                    _property_key
-                )
+                properties = zipitems(merged.items, o.properties.values(), _property_key)
                 for prop in properties:
                     for po, pn in prop:
                         if po and pn:

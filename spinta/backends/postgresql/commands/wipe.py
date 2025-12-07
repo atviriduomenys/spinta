@@ -20,10 +20,7 @@ log = logging.getLogger(__name__)
 def wipe(context: Context, model: Model, backend: PostgreSQL):
     table = backend.get_table(model, fail=False)
     if table is None:
-        log.warning(
-            f"Could not wipe {model.name}, because model is not fully "
-            "initialized."
-        )
+        log.warning(f"Could not wipe {model.name}, because model is not fully initialized.")
         # Model backend might not be prepared, this is especially true for
         # tests. So if backend is not yet prepared, just skip this model.
         return
@@ -31,16 +28,16 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
     for prop in model.properties.values():
         commands.wipe(context, prop.dtype, backend)
 
-    connection = context.get('transaction').connection
+    connection = context.get("transaction").connection
     insp = sa.inspect(backend.engine)
     # Delete redirect table
-    redirect_table_name = get_pg_table_name(model.name, TableType.REDIRECT)
+    redirect_table_name = get_pg_table_name(model, TableType.REDIRECT)
     if insp.has_table(redirect_table_name):
         table = backend.get_table(model, TableType.REDIRECT)
         connection.execute(table.delete())
 
     # Delete changelog table
-    changelog_table_name = get_pg_table_name(model.name, TableType.CHANGELOG)
+    changelog_table_name = get_pg_table_name(model, TableType.CHANGELOG)
     if insp.has_table(changelog_table_name):
         table = backend.get_table(model, TableType.CHANGELOG)
         connection.execute(table.delete())

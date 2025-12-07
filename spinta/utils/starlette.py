@@ -16,4 +16,4 @@ class SpintaFloatConvertor(Convertor[float]):
         return ("%0.20f" % value).rstrip("0").rstrip(".")
 
 
-register_url_convertor('spinta_float', SpintaFloatConvertor())
+register_url_convertor("spinta_float", SpintaFloatConvertor())

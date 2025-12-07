@@ -20,16 +20,9 @@ from spinta.utils.json import fix_data_for_json
 
 
 def generate_export_metadata(
-        model: Model,
-        name: str,
-        file: object,
-        fieldnames: list,
-        counter: CounterManager
+    model: Model, name: str, file: object, fieldnames: list, counter: CounterManager
 ) -> PostgresqlExportMetadata:
-    counter.add_counter(
-        model,
-        name
-    )
+    counter.add_counter(model, name)
 
     writer = csv.DictWriter(file, fieldnames=fieldnames)
     return PostgresqlExportMetadata(
@@ -40,23 +33,19 @@ def generate_export_metadata(
 
 
 def generate_table_data(dtype: DataType, data: object):
-    return TableData(
-        name=generate_file_name(dtype),
-        prop=dtype.prop,
-        data=data
-    )
+    return TableData(name=generate_file_name(dtype), prop=dtype.prop, data=data)
 
 
 @dispatch(Array)
 @lru_cache
 def generate_file_name(dtype: Array) -> str:
-    return f'{dtype.prop.model.model_type()}.{dtype.prop.place}.array'
+    return f"{dtype.prop.model.model_type()}.{dtype.prop.place}.array"
 
 
 @dispatch(File)
 @lru_cache
 def generate_file_name(dtype: File) -> str:
-    return f'{dtype.prop.model.model_type()}.{dtype.prop.place}.file'
+    return f"{dtype.prop.model.model_type()}.{dtype.prop.place}.file"
 
 
 @dispatch(DataType)
@@ -67,13 +56,13 @@ def generate_file_name(dtype: DataType):
 @dispatch(Array)
 @lru_cache
 def generate_file_name(dtype: Array):
-    return f'{dtype.prop.model.model_type()}.{dtype.prop.place}.array'
+    return f"{dtype.prop.model.model_type()}.{dtype.prop.place}.array"
 
 
 @dispatch(File)
 @lru_cache
 def generate_file_name(dtype: File):
-    return f'{dtype.prop.model.model_type()}.{dtype.prop.place}.file'
+    return f"{dtype.prop.model.model_type()}.{dtype.prop.place}.file"
 
 
 @dispatch(Context, DataType, PostgreSQL)
@@ -91,11 +80,7 @@ def generate_csv_headers(context: Context, dtype: Array, backend: PostgreSQL):
     columns = commands.prepare(context, backend, dtype.items)
     columns = ensure_list(columns)
 
-    return [
-        '_txn',
-        '_rid',
-        *[column.name for column in columns]
-    ]
+    return ["_txn", "_rid", *[column.name for column in columns]]
 
 
 def split_data(data: dict) -> (dict, List[TableData]):
@@ -105,16 +90,16 @@ def split_data(data: dict) -> (dict, List[TableData]):
 
 
 def prepare_changelog(data: dict, _id: int, txn: str, created: datetime.datetime) -> dict:
-    reserved_data = {k: v for k, v in data.items() if k.startswith('_')}
-    given_data = {k: v for k, v in data.items() if not k.startswith('_')}
+    reserved_data = {k: v for k, v in data.items() if k.startswith("_")}
+    given_data = {k: v for k, v in data.items() if not k.startswith("_")}
     return {
-        '_id': _id,
-        '_revision': reserved_data['_revision'],
-        '_txn': txn,
-        '_rid': reserved_data['_id'],
-        'datetime': created,
-        'action': Action.INSERT.value,
-        'data': json.dumps(fix_data_for_json(given_data))
+        "_id": _id,
+        "_revision": reserved_data["_revision"],
+        "_txn": txn,
+        "_rid": reserved_data["_id"],
+        "datetime": created,
+        "action": Action.INSERT.value,
+        "data": json.dumps(fix_data_for_json(given_data)),
     }
 
 
@@ -122,39 +107,20 @@ def generate_file_paths(model: Model, root_path: pathlib.Path) -> (dict, dict):
     directory = root_path / model.ns.name
     directory.mkdir(exist_ok=True, parents=True)
 
-    default_paths = [
-        model.model_type(),
-        f'{model.model_type()}.changes'
-    ]
+    default_paths = [model.model_type(), f"{model.model_type()}.changes"]
 
-    additional_paths = {
-        prop: generate_file_name(prop.dtype) for prop in model.flatprops.values()
-    }
-    additional_paths = {
-        path: prop for prop, path in additional_paths.items() if path is not None
-    }
+    additional_paths = {prop: generate_file_name(prop.dtype) for prop in model.flatprops.values()}
+    additional_paths = {path: prop for prop, path in additional_paths.items() if path is not None}
 
     extended_paths = default_paths + list(additional_paths.keys())
-    return {
-        path: f'{root_path / pathlib.Path(path)}.csv' for path in extended_paths
-    }, additional_paths
+    return {path: f"{root_path / pathlib.Path(path)}.csv" for path in extended_paths}, additional_paths
 
 
 async def extract_headers(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    dstream: AsyncIterator[DataItem],
-    **kwargs
+    context: Context, model: Model, backend: PostgreSQL, dstream: AsyncIterator[DataItem], **kwargs
 ) -> (list, AsyncIterator[DataItem]):
     peek = await anext(dstream)
-    data = commands.before_export(
-        context,
-        model,
-        backend,
-        data=peek,
-        **kwargs
-    )
+    data = commands.before_export(context, model, backend, data=peek, **kwargs)
     data_headers = split_data(data)[0].keys()
     dstream = achain([peek], dstream)
     return data_headers, dstream

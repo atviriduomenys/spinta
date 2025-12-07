@@ -24,6 +24,6 @@ def prepare_for_write(
     value: Attachment,
 ):
     return {
-        '_id': value.filename,
-        '_content_type': value.content_type,
+        "_id": value.filename,
+        "_content_type": value.content_type,
     }

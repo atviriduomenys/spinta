@@ -3,7 +3,6 @@ from spinta.core.ufuncs import Env, asttoexpr, ufunc
 
 
 class UFuncTester:
-
     def __init__(
         self,
         Env=Env,

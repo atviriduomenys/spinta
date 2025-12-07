@@ -5,7 +5,10 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type            | ref       | source      | prepare | access
         datasets/gov/example     |                 |           |             |         |
           | data                 | sql             |           |             |         |
@@ -13,19 +16,27 @@ def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   | Country      |                 |           | salis       |         |
           |   |   |   | name     | string          |           | pavadinimas |         | open
           |   |   |   | id       | integer required|           | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -34,9 +45,14 @@ class Country {
 + id : integer [1..1]
 }
 """
+        )
+
 
 def test_copy_mmd_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property   | type            | ref       | source      | prepare | access
         datasets/gov/example       |                 |           |             |         |
           | data                   | sql             |           |             |         |
@@ -46,19 +62,27 @@ def test_copy_mmd_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   |   | id         | integer required|           | id          |         | private
           |   |   |   | continent  | string          |           | pavadinimas |         | protected
           |   |   |   | population | integer         |           | id          |         | public
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -69,10 +93,14 @@ class Country {
 # population : integer [0..1]
 }
 """
+        )
 
 
 def test_copy_mmd_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type            | ref | source      | prepare | access
         datasets/gov/example     |                 |     |             |         |
           | data                 | sql             |     |             |         |
@@ -80,19 +108,27 @@ def test_copy_mmd_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   | Country      |                 |     | salis       |         |
           |   |   |   | name[]   | string          |     | pavadinimas |         | open
           |   |   |   | id       | integer required|     | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -101,10 +137,14 @@ class Country {
 + id : integer [1..1]
 }
 """
+        )
 
 
 def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property  | type             | ref | source      | prepare  | access
         datasets/gov/example      |                  |     |             |          |
           | data                  | sql              |     |             |          |
@@ -116,19 +156,27 @@ def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   |   |           | enum             |     |             | "Africa" |
           |   |   |   |           |                  |     |             | "Asia"   |
           |   |   |   |           |                  |     |             | "Europe" |
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -144,10 +192,14 @@ class Country {
 }
 Country ..> "[1..1]" CountryContinent : continent
 """
+        )
 
 
 def test_copy_mmd_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref       | source      | prepare | access
         datasets/gov/example     |                  |           |             |         |
           | data                 | sql              |           |             |         |
@@ -159,19 +211,27 @@ def test_copy_mmd_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   |   | name     | string           |           | pavadinimas |         | open
           |   |   |   | country  | ref              | Country   |             |         | open
           |   |   |   | id       | integer required |           | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -185,10 +245,14 @@ class City {
 }
 City --> "[0..1]" Country : country
 """
+        )
 
 
 def test_copy_mmd_ref_required(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref     | source      | prepare | access
         datasets/gov/example     |                  |         |             |         |
           | data                 | sql              |         |             |         |
@@ -200,19 +264,27 @@ def test_copy_mmd_ref_required(context: Context, rc, cli: SpintaCliRunner, tmp_p
           |   |   |   | name     | string           |         | pavadinimas |         | open
           |   |   |   | country  | ref required     | Country |             |         | open
           |   |   |   | id       | integer required |         | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -226,10 +298,14 @@ class City {
 }
 City --> "[1..1]" Country : country
 """
+        )
 
 
 def test_copy_mmd_backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref     | source      | prepare | access
         datasets/gov/example     |                  |         |             |         |
           | data                 | sql              |         |             |         |
@@ -242,19 +318,27 @@ def test_copy_mmd_backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   |   | name     | string           |         | pavadinimas |         | open
           |   |   |   | country  | ref              | Country |             |         | open
           |   |   |   | id       | integer required |         | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -269,10 +353,14 @@ class City {
 Country --> "[0..*]" City : cities
 City --> "[0..1]" Country : country
 """
+        )
 
 
 def test_copy_mmd_backref_not_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref       | source      | prepare | access
         datasets/gov/example     |                  |           |             |         |
           | data                 | sql              |           |             |         |
@@ -285,19 +373,27 @@ def test_copy_mmd_backref_not_array(context: Context, rc, cli: SpintaCliRunner, 
           |   |   |   | name     | string           |           | pavadinimas |         | open
           |   |   |   | country  | ref              | Country   |             |         | open
           |   |   |   | id       | integer required |           | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -312,10 +408,14 @@ class City {
 Country --> "[0..1]" City : capital
 City --> "[0..1]" Country : country
 """
+        )
 
 
 def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref       | source      | prepare | access
         datasets/gov/example     |                  |           |             |         |
           | data                 | sql              |           |             |         |
@@ -328,19 +428,27 @@ def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, t
           |   |   |   | name     | string           |           | pavadinimas |         | open
           |   |   |   | country  | ref              | Country   |             |         | open
           |   |   |   | id       | integer required |           | id          |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -355,10 +463,14 @@ class City {
 Country --> "[1..*]" City : cities
 City --> "[0..1]" Country : country
 """
+        )
 
 
 def test_copy_mmd_base(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref       | source      | prepare | access
         datasets/gov/example     |                  |           |             |         |
           | data                 | sql              |           |             |         |
@@ -370,19 +482,27 @@ def test_copy_mmd_base(context: Context, rc, cli: SpintaCliRunner, tmp_path):
           |   |   |   | name     |                  |           | pavadinimas |         | open
           |   |   |   | id       |                  |           | id          |         | open                   
           |   |   |   | council  | string           |           | taryba      |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -395,10 +515,14 @@ class City {
 }
 City --|> Settlement
 """
+        )
 
 
 def test_copy_mmd_base_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
         d | r | b | m | property | type             | ref       | source      | prepare | access
         datasets/gov/example     |                  |           |             |         |
           | data                 | sql              |           |             |         |
@@ -410,19 +534,27 @@ def test_copy_mmd_base_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path)
           |   |   |   | name     |                  |           | pavadinimas |         | open
           |   |   |   | id       |                  |           | id          |         | open                   
           |   |   |   | council  | string           |           | taryba      |         | open
-        '''))
+        """),
+    )
 
-    cli.invoke(rc, [
-        'copy',
-        '--no-source',
-        '--access', 'open',
-        '-o', tmp_path / 'result.mmd',
-              tmp_path / 'manifest.csv',
-    ])
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
 
-    with open(tmp_path / 'result.mmd', "r") as file:
+    with open(tmp_path / "result.mmd", "r") as file:
         contents = file.read()
-        assert contents == """---
+        assert (
+            contents
+            == """---
 datasets/gov/example
 ---
 classDiagram
@@ -435,5 +567,4 @@ class City {
 }
 City --|> Settlement : id
 """
-
-
+        )
