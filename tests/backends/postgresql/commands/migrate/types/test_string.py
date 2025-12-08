@@ -1,7 +1,10 @@
 import json
+import uuid
 from pathlib import Path
 
+import pytest
 import sqlalchemy as sa
+from psycopg2.errors import StringDataRightTruncation
 from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
@@ -368,3 +371,84 @@ def test_migrate_text_to_string_multi_individual(
             assert row["text"] == {"__lt": "LT", "en": "EN", "lv": "LV"}
             assert row["text_lt"] == "LT"
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
+
+
+def test_migrate_string_custom_length(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    cleanup_tables(postgresql_migration)
+
+    initial_manifest = """
+     d               | r | b    | m    | property | type   | ref      | level
+     migrate/example |   |      |      |          |        |          |
+                     |   |      | Test |          |        |          |
+                     |   |      |      | text     | string |          |
+                     |   |      |      | other    | string |          |
+    """
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {"text", "other"}.issubset(columns.keys())
+
+        conn.execute(
+            table.insert().values(
+                {
+                    "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+                    "text": "Test",
+                    "other": "Testas",
+                }
+            )
+        )
+    rc_updated = rc.fork(
+        {
+            "models": {
+                "migrate/example/Test": {
+                    "properties": {
+                        "text": {
+                            "type": {
+                                "name": "sqlalchemy.types.String",
+                                "length": 10,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+
+    result = cli.invoke(rc_updated, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    assert result.output.endswith(
+        "BEGIN;\n"
+        "\n"
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN text TYPE VARCHAR(10) USING '
+        'CAST("migrate/example/Test".text AS VARCHAR(10));\n'
+        "\n"
+        "COMMIT;\n"
+        "\n"
+    )
+
+    cli.invoke(rc_updated, ["migrate", f"{tmp_path}/manifest.csv"])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {"text", "other"}.issubset(columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row["text"] == "Test"
+            assert row["other"] == "Testas"
+
+        with pytest.raises(sa.exc.DataError) as err_info:
+            conn.execute(table.insert().values(**{"_id": str(uuid.uuid4()), "text": "12345678910111213"}))
+        assert isinstance(err_info.value.orig, StringDataRightTruncation)

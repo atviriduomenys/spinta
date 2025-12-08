@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import pydoc
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,6 +19,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
+from spinta.commands import configure
 from spinta.components import PageBy, Page, PageInfo, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
@@ -25,6 +27,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.core.config import RawConfig
 from spinta.core.enums import Level, load_level, load_status, load_visibility, Action, Mode
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
@@ -34,7 +37,12 @@ from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
-from spinta.exceptions import KeymapNotSet
+from spinta.exceptions import (
+    KeymapNotSet,
+    InvalidCustomPropertyTypeConfiguration,
+    InvalidCustomPropertyTypeWithArgsConfiguration,
+    MissingConfigurationParameter,
+)
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
@@ -50,6 +58,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
+from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
@@ -60,6 +69,18 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns = load_namespace_from_name(context, manifest, model.name)
     ns.models[model.model_type()] = model
     model.ns = ns
+
+
+@configure.register(Context, Model)
+def configure(context: Context, model: Model):
+    rc: RawConfig = context.get("rc")
+    model_config = rc.to_dict("models", model.name)
+    model_config = flat_dicts_to_nested(model_config)
+    if not model_config:
+        return
+
+    if backend := model_config.get("backend"):
+        model.backend = backend
 
 
 @load.register(Context, Model, dict, Manifest)
@@ -75,6 +96,10 @@ def load(
     model.manifest = manifest
     model.mode = manifest.mode  # TODO: mode should be inherited from namespace.
     load_node(context, model, data)
+
+    # load_node overwrites everything, so we either set data through configure, or we call configure after and set it directly
+    commands.configure(context, model)
+
     model.lang = load_lang_data(context, model.lang)
     model.comments = load_comments(model, model.comments)
     model.given.name = data.get("given_name", None)
@@ -263,6 +288,52 @@ def link(context: Context, base: Base):
             base.parent.add_keymap_property_combination(base.pk)
 
 
+@configure.register(Context, Property)
+def configure(context: Context, prop: Property):
+    rc: RawConfig = context.get("rc")
+    prop_path = ("models", prop.model.name, "properties", prop.place)
+    if not rc.has(*prop_path):
+        return
+
+    prop_config = rc.to_dict(*prop_path)
+
+    prop_config = flat_dicts_to_nested(prop_config)
+    if backend := prop_config.get("backend"):
+        prop.backend = backend
+
+    if prop_type := prop_config.get("type"):
+        custom_type = None
+        if isinstance(prop_type, str):
+            custom_type = pydoc.locate(prop_type)
+            if custom_type is None:
+                raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type)
+        elif isinstance(prop_type, list):
+            values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
+            prop_type = values.pop("name", None)
+            if prop_type is None:
+                raise MissingConfigurationParameter(
+                    prop, config_type="Property", config_object=prop.place, missing_params="type.name"
+                )
+
+            try:
+                custom_type = pydoc.locate(prop_type)(**values)
+                if custom_type is None:
+                    raise Exception
+            except Exception:
+                raise InvalidCustomPropertyTypeWithArgsConfiguration(prop, custom_property_type=prop_type, args=values)
+        if custom_type:
+            # Since this is called before load, it expects dict data that will be converted to Attribute
+            if not hasattr(prop, "external"):
+                prop.external = {
+                    "custom_type": custom_type,
+                }
+            else:
+                if not isinstance(prop.external, dict):
+                    prop.external = {"name": prop.external}
+
+                prop.external["custom_type"] = custom_type
+
+
 @load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
@@ -274,6 +345,9 @@ def load(
     prop.type = "property"
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
+
+    # load_node overwrites everything, so we either set data through configure, or we call configure after and set it directly
+    commands.configure(context, prop)
 
     parents = list(
         itertools.chain(
@@ -314,7 +388,10 @@ def load(
     prop.dtype.type = "type"
     prop.dtype.prop = prop
     load_node(context, prop.dtype, data)
-    if prop.model.external:
+    # Generate external if defined in prop or model (legacy support).
+    # Older features lack NA checks, so both are handled here for now.
+    # Eventually might need to remove prop.model.external check and fix NA checks.
+    if prop.external or prop.model.external:
         prop.external = _load_property_external(context, manifest, prop, prop.external)
     else:
         prop.external = NA
@@ -467,6 +544,18 @@ def check(context: Context, model: Model):
 
     for prop in model.properties.values():
         commands.check(context, prop)
+
+    # Check if the model configuration does not contain unknown properties
+    rc: RawConfig = context.get("rc")
+    model_config = rc.to_dict("models", model.name)
+    model_config = flat_dicts_to_nested(model_config)
+    if not model_config:
+        return
+
+    if properties := model_config.get("properties"):
+        for prop in properties:
+            if prop not in model.flatprops:
+                raise PropertyNotFound(model, property=prop)
 
 
 @check.register(Context, Property)

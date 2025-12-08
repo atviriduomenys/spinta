@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from spinta import commands
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
+from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.datatype import Array
 from spinta.backends.constants import TableType
@@ -14,6 +15,8 @@ from spinta.backends.postgresql.helpers import get_pg_name
 
 @commands.prepare.register(Context, PostgreSQL, Array)
 def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
+    validate_type_assignment(context, backend, dtype)
+
     prop = dtype.prop
 
     columns = commands.prepare(context, backend, dtype.items, **kwargs)

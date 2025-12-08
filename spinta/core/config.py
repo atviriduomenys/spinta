@@ -406,8 +406,6 @@ class RawConfig:
                     break
             else:
                 default = schema.get("default", NA)
-            if default is NA:
-                default = None
         return default, None
 
     def get_source_names(self) -> List[str]:

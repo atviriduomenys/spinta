@@ -177,6 +177,7 @@ class Param(ExtraMetaData):
     formulas: List[Expr]
     dependencies: set
     soap_body: dict[str, Any]  # Used to store result of input() function
+    soap_body_value_type: str = "string"  # Type that soap body value will be converted to
     http_header: dict  # Used to store results of header() function
 
     # Given values
@@ -241,9 +242,13 @@ class Attribute(External):
     name: str  # property.source
     prepare: Expr = NA  # property.prepare
 
+    # Type object, that overwrites default types
+    custom_type: Any = None
+
     schema = {
         "prop": {"parent": True},
         "name": {"default": None},
         "prepare": {"type": "spyna", "default": NA},
         "type": {"type": "string"},
+        "custom_type": {"type": "object", "default": None},
     }
