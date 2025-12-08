@@ -75,6 +75,7 @@ def migrate(
     old_name = rename.get_old_column_name(source_table, new.prop.place)
 
     pg_column_name = get_pg_column_name(column_name)
+    # Rename models json column
     if name_changed(old.name, pg_column_name):
         handler.add_action(
             ma.AlterColumnMigrationAction(
@@ -97,6 +98,7 @@ def migrate(
         and inspector.has_table(source_array_table.name)
         and name_changed(old_name, column_name, source_array_table.name, target_array_table.name)
     )
+    # Rename list table
     if table_name_changed:
         handler.add_action(
             ma.RenameTableMigrationAction(
@@ -105,14 +107,6 @@ def migrate(
                 comment=target_array_table.comment,
             )
         )
-        if source_array_table.columns.get(old_name):
-            handler.add_action(
-                ma.AlterColumnMigrationAction(
-                    table_name=target_array_table.name,
-                    column_name=old_name,
-                    new_column_name=new.prop.place,
-                )
-            )
 
     if source_array_table is not None:
         # reserved _txn column index
@@ -151,7 +145,7 @@ def migrate(
                 )
             )
         else:
-            property_ctx.model_context.mark_foreign_constraint_handled(target_array_table.name, source_constraint_name)
+            property_ctx.model_context.mark_foreign_constraint_handled(source_array_table.name, source_constraint_name)
             if table_name_changed:
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(

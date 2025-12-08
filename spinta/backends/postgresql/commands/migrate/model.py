@@ -131,12 +131,6 @@ def migrate(
         model_context=model_ctx,
     )
 
-    _clean_up_old_constraints(
-        source_table=source_table,
-        handler=handler,
-        model_context=model_ctx,
-    )
-
     # Handle JSON migrations, that need to be run at the end
     _handle_json_column_migrations(
         context=context,
@@ -156,6 +150,13 @@ def migrate(
         handler=handler,
         inspector=inspector,
         rename=rename,
+        model_context=model_ctx,
+    )
+
+    _clean_up_old_constraints(
+        source_table=source_table,
+        handler=handler,
+        model_context=model_ctx,
     )
 
 
@@ -181,6 +182,7 @@ def migrate(
     migration_ctx: PostgresqlMigrationContext,
     old: ModelTables,
     new: NotAvailable,
+    **kwargs,
 ):
     handler = migration_ctx.handler
     inspector = migration_ctx.inspector
@@ -695,6 +697,7 @@ def _clean_up_property_tables(
     rename: RenameMap,
     inspector: Inspector,
     handler: MigrationHandler,
+    model_context: ModelMigrationContext,
 ):
     source_table = model_tables.main_table
     for prop_name, (table_type, table) in model_tables.property_tables.items():
@@ -711,7 +714,7 @@ def _clean_up_property_tables(
                     comment=get_removed_name(table.comment),
                 )
             )
-            drop_all_indexes_and_constraints(inspector, table.name, removed_table_name, handler)
+            drop_all_indexes_and_constraints(inspector, table.name, removed_table_name, handler, model_context)
 
 
 def _handle_model_reserved_properties(

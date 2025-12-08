@@ -22,6 +22,8 @@ from spinta.testing.migration import (
     drop_column,
     add_column,
     rename_column,
+    drop_index,
+    drop_constraint,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
@@ -282,11 +284,8 @@ def test_migrate_remove_ref_column(postgresql_migration: URL, rc: RawConfig, cli
         "BEGIN;\n"
         "\n"
         f"{drop_column(table='migrate/example/RefOne', column='someRef._id')}"
-        'DROP INDEX "ix_migrate/example/RefOne_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/RefOne" DROP CONSTRAINT '
-        '"fk_migrate/example/RefOne_someRef._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/RefOne_someRef._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/RefOne_someRef._id', table='migrate/example/RefOne')}"
         "COMMIT;\n"
         "\n"
     )
@@ -464,11 +463,8 @@ def test_migrate_adjust_ref_levels(postgresql_migration: URL, rc: RawConfig, cli
         '"migrate/example/Test"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
-        'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
-        '"fk_migrate/example/Ref_someRef._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Ref_someRef._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/Ref_someRef._id', table='migrate/example/Ref')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1975,11 +1971,8 @@ def test_migrate_ref_to_scalar_simple_level_4(
         '"migrate/example/Country"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/City', column='country._id')}"
-        'DROP INDEX "ix_migrate/example/City_country._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" DROP CONSTRAINT '
-        '"fk_migrate/example/City_country._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/City_country._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/City_country._id', table='migrate/example/City')}"
         "COMMIT;\n"
         "\n"
     )
@@ -2088,11 +2081,8 @@ def test_migrate_ref_to_scalar_simple_level_4_self_reference(
         '"migrate/example/Object"."object._id" = "migrate/example/Object_1"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/Object', column='object._id')}"
-        'DROP INDEX "ix_migrate/example/Object_object._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Object" DROP CONSTRAINT '
-        '"fk_migrate/example/Object_object._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Object_object._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/Object_object._id', table='migrate/example/Object')}"
         "COMMIT;\n"
         "\n"
     )
@@ -2644,11 +2634,8 @@ def test_migrate_adjust_ref_levels_no_pkey(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
-        '"fk_migrate/example/Ref_someRef._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Ref_someRef._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/Ref_someRef._id', table='migrate/example/Ref')}"
         "COMMIT;\n"
         "\n"
     )
@@ -2840,11 +2827,8 @@ def test_migrate_adjust_ref_levels_no_pkey_previously_given_key(
         '"migrate/example/Test"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
-        'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
-        '"fk_migrate/example/Ref_someRef._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Ref_someRef._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/Ref_someRef._id', table='migrate/example/Ref')}"
         "COMMIT;\n"
         "\n"
     )

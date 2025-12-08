@@ -7,7 +7,15 @@ from sqlalchemy.engine import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.migration import add_column, drop_column, rename_column, add_column_comment, add_index
+from spinta.testing.migration import (
+    add_column,
+    drop_column,
+    rename_column,
+    add_column_comment,
+    add_index,
+    drop_index,
+    drop_constraint,
+)
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
     configure_migrate,
@@ -347,7 +355,6 @@ def test_migrate_adjust_ref_levels_with_denorm(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
-
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
@@ -360,11 +367,8 @@ def test_migrate_adjust_ref_levels_with_denorm(
         '"migrate/example/Test"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
-        'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
-        '"fk_migrate/example/Ref_someRef._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Ref_someRef._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/Ref_someRef._id', table='migrate/example/Ref')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1121,11 +1125,8 @@ def test_migrate_ref_nested_ref_to_scalar(
         '"migrate/example/City"."country.ctr._id" = "migrate/example/Country"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/City', column='country.ctr._id')}"
-        'DROP INDEX "ix_migrate/example/City_country.ctr._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" DROP CONSTRAINT '
-        '"fk_migrate/example/City_country.ctr._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/City_country.ctr._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/City_country.ctr._id', table='migrate/example/City')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1245,11 +1246,8 @@ def test_migrate_ref_nested_text(postgresql_migration: URL, rc: RawConfig, cli: 
         '"migrate/example/City"."country.ctr._id" = "migrate/example/Country"._id;\n'
         "\n"
         f"{drop_column(table='migrate/example/City', column='country.ctr._id')}"
-        'DROP INDEX "ix_migrate/example/City_country.ctr._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/City" DROP CONSTRAINT '
-        '"fk_migrate/example/City_country.ctr._id";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/City_country.ctr._id')}"
+        f"{drop_constraint(constraint_name='fk_migrate/example/City_country.ctr._id', table='migrate/example/City')}"
         "COMMIT;\n"
         "\n"
     )

@@ -34,6 +34,7 @@ from spinta.testing.migration import (
     drop_table,
     rename_index,
     rename_redirect,
+    drop_index,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
@@ -860,21 +861,18 @@ def test_migrate_remove_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
-
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
         f"{drop_table(table='migrate/example/Test', remove_model_only=True)}"
-        'DROP INDEX "ix_migrate/example/Test__txn";\n\n'
+        f"{drop_index(index_name='ix_migrate/example/Test__txn')}"
         f"{drop_table(table='migrate/example/Test/:changelog', remove_model_only=True)}"
         'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
         '"migrate/example/__Test/:changelog__id_seq";\n'
         "\n"
-        'DROP INDEX "ix_migrate/example/Test/:changelog__txn";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Test/:changelog__txn')}"
         f"{drop_table(table='migrate/example/Test/:redirect', remove_model_only=True)}"
-        'DROP INDEX "ix_migrate/example/Test/:redirect_redirect";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Test/:redirect_redirect')}"
         f"{drop_table(table='migrate/example/Test/:file/someFile', remove_model_only=True)}"
         "COMMIT;\n"
         "\n"

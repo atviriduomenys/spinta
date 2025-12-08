@@ -427,20 +427,41 @@ class ModelTables:
     property_tables: dict[str, tuple[TableType, sa.Table]] = dataclasses.field(default_factory=dict)
 
 
-def drop_all_indexes_and_constraints(inspector: Inspector, table: str, new_table: str, handler: MigrationHandler):
-    constraints = inspector.get_unique_constraints(table)
+def drop_all_indexes_and_constraints(
+    inspector: Inspector, table: str, new_table: str, handler: MigrationHandler, model_ctx: ModelMigrationContext = None
+):
     removed = []
+    constraints = inspector.get_unique_constraints(table)
     foreign_keys = inspector.get_foreign_keys(table)
+    indexes = inspector.get_indexes(table)
     for key in foreign_keys:
-        handler.add_action(ma.DropConstraintMigrationAction(table_name=new_table, constraint_name=key["name"]))
+        constraint_name = key["name"]
+        if model_ctx is not None:
+            if model_ctx.constraint_states[table].foreign_constraint[constraint_name]:
+                continue
+            model_ctx.mark_foreign_constraint_handled(table, constraint_name)
+
+        handler.add_action(ma.DropConstraintMigrationAction(table_name=new_table, constraint_name=constraint_name))
 
     for constraint in constraints:
+        constraint_name = constraint["name"]
+        if model_ctx is not None:
+            if model_ctx.constraint_states[table].unique_constraint[constraint_name]:
+                continue
+            model_ctx.mark_unique_constraint_handled(table, constraint_name)
+
         removed.append(constraint["name"])
-        handler.add_action(ma.DropConstraintMigrationAction(table_name=new_table, constraint_name=constraint["name"]))
-    indexes = inspector.get_indexes(table)
+        handler.add_action(ma.DropConstraintMigrationAction(table_name=new_table, constraint_name=constraint_name))
+
     for index in indexes:
-        if index["name"] not in removed:
-            handler.add_action(ma.DropIndexMigrationAction(table_name=new_table, index_name=index["name"]))
+        index_name = index["name"]
+        if index_name not in removed:
+            if model_ctx is not None:
+                if model_ctx.constraint_states[table].index[index_name]:
+                    continue
+                model_ctx.mark_index_handled(table, index_name)
+
+            handler.add_action(ma.DropIndexMigrationAction(table_name=new_table, index_name=index_name))
 
 
 def get_prop_names(prop: Property):
@@ -484,11 +505,11 @@ def model_name_key(model: str) -> str:
 
 
 def is_name_complex(name: str):
-    return "." in name or "@" in name
+    return "." in name or "@" in name or "[]" in name
 
 
 def is_prop_complex(prop: Property):
-    return isinstance(prop.dtype, (Text, File, Ref))
+    return isinstance(prop.dtype, (Text, File, Ref, Array))
 
 
 def is_name_or_property_complex(name: str, prop: Property):
@@ -550,7 +571,6 @@ def property_and_column_name_key(
         old_full_name = rename.get_old_column_name(table, name)
 
         property_directly_renamed = name_changed(name, old_full_name)
-
         if is_name_or_property_complex(name, item):
             return get_root_attr(name, initial_root=root_name)
 
