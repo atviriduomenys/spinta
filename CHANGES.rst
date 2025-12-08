@@ -4,7 +4,11 @@ Changes
 0.2dev12 (unreleased)
 =====================
 
+Improvements:
 
+- `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
+
+.. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
 
 0.2dev11 (2025-12-03)
 =====================
