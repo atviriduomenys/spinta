@@ -19,6 +19,7 @@ from spinta.auth import (
     ensure_client_folders_exist,
     KeyType,
     load_key_from_file,
+    create_client_file,
 )
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -173,6 +174,7 @@ def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
         "client_secret_hash": client["client_secret_hash"],
         "scopes": [],
         "backends": {},
+        "contract_scopes": {},
     }
 
 
@@ -192,6 +194,7 @@ def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
         "client_secret_hash": client["client_secret_hash"],
         "scopes": [],
         "backends": {},
+        "contract_scopes": {},
     }
 
 
@@ -215,6 +218,7 @@ def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
         "client_secret_hash": client["client_secret_hash"],
         "scopes": [],
         "backends": {},
+        "contract_scopes": {},
     }
 
 
@@ -660,6 +664,31 @@ def test_invalid_client_file_data_type_str(
     yaml.dump(str(scopes), client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'str'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)
+
+
+def test_valid_client_file_data(tmp_path: pathlib.Path, context: Context):
+    clients_path = get_clients_path(tmp_path)
+    ensure_client_folders_exist(clients_path)
+
+    client_id = str(uuid.uuid4())
+    contract_uuid = str(uuid.uuid4())
+    create_client_file(
+        clients_path,
+        name="test_client",
+        client_id=client_id,
+        scopes=["test:scope"],
+        backends={"default": {"foo": "bar"}},
+        contract_scopes={contract_uuid: ["test:scope", "test:scope2"]},
+    )
+
+    client = query_client(clients_path, client_id)
+
+    assert client.id == client_id
+    assert client.name == "test_client"
+    assert client.secret_hash
+    assert client.scopes == {"test:scope"}
+    assert client.backends == {"default": {"foo": "bar"}}
+    assert client.contract_scopes == {contract_uuid: ["test:scope", "test:scope2"]}
 
 
 def test_get_public_jwk_verification_keys_from_config(app, context):

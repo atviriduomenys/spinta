@@ -297,6 +297,7 @@ class Client(rfc6749.ClientMixin):
     secret_hash: str
     scopes: Set[str]
     backends: dict[str, dict[str, Any]]
+    contract_scopes: dict[str, list[str]]
 
     def __init__(
         self,
@@ -306,12 +307,14 @@ class Client(rfc6749.ClientMixin):
         secret_hash: str,
         scopes: list[str],
         backends: dict[str, dict[str, Any]],
+        contract_scopes: dict[str, list[str]],
     ) -> None:
         self.id = id_
         self.name = name_
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
         self.backends = backends
+        self.contract_scopes = contract_scopes
 
         # Auth method used for token endpoint.
         # More info: token_endpoint_auth_method https://datatracker.ietf.org/doc/html/rfc7591#autoid-5
@@ -905,6 +908,7 @@ def create_client_file(
     secret: str | None = None,
     scopes: List[str] | None = None,
     backends: dict[str, dict[str, str]] | None = None,
+    contract_scopes: dict[str, list[str]] | None = None,
     *,
     add_secret: bool = False,
 ) -> tuple[pathlib.Path, dict]:
@@ -937,6 +941,7 @@ def create_client_file(
         "client_secret_hash": secret_hash,
         "scopes": scopes or [],
         "backends": backends or {},
+        "contract_scopes": contract_scopes or {},
     }
     keymap[name] = client_id
 
@@ -989,6 +994,7 @@ def update_client_file(
     secret: str | None,
     scopes: list | None,
     backends: dict[str, dict[str, str]] | None,
+    contract_scopes: dict[str, list[str]] | None = None,
 ) -> dict:
     if client_exists(path, client_id):
         config = context.get("config")
@@ -1000,6 +1006,7 @@ def update_client_file(
         new_secret_hash = passwords.crypt(secret) if secret else client.secret_hash
         new_scopes = scopes if scopes is not None else client.scopes
         new_backends = backends if backends is not None else client.backends
+        new_contract_scopes = contract_scopes if contract_scopes is not None else client.contract_scopes
 
         client_path = get_client_file_path(path, client_id)
         keymap = _load_keymap_data(keymap_path)
@@ -1013,6 +1020,7 @@ def update_client_file(
             "client_secret_hash": new_secret_hash,
             "scopes": list(new_scopes),
             "backends": new_backends,
+            "contract_scopes": new_contract_scopes,
         }
 
         yml.dump(new_data, client_path)
@@ -1173,6 +1181,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
         name_=client_name,
         secret_hash=data["client_secret_hash"],
         scopes=data["scopes"],
-        backends=data["backends"] if data.get("backends") else {},
+        backends=data.get("backends", {}),
+        contract_scopes=data.get("contract_scopes", {}),
     )
     return client
