@@ -959,6 +959,14 @@ class InvalidScopes(UserError):
     template = "Request contains invalid, unknown or malformed scopes: {scopes}."
 
 
+class NoScopesForNamespaces(UserError):
+    template = "Request contains no scopes from available namespaces: {namespaces}."
+
+
+class InvalidExtraScopes(UserError):
+    template = "Request contains extra scopes that are not defined in contract. Extra scopes: {extra_scopes}."
+
+
 class InvalidClientBackend(UserError):
     template = """Backend "{backend_name}" is not defined in the client file."""
 

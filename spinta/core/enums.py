@@ -127,6 +127,12 @@ class Action(enum.Enum):
     def values(cls):
         return list(cls._value2member_map_.keys())
 
+    @classmethod
+    def scope_action_values(cls):
+        old_prefix_actions = list(map(lambda action: "_" + action, cls.values()))
+        new_prefix_actions = list(map(lambda action: "/:" + action, cls.values()))
+        return old_prefix_actions + new_prefix_actions
+
 
 class Mode(enum.Enum):
     # Internal mode always use internal backend set on manifest, namespace or
