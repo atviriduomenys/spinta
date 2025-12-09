@@ -1443,7 +1443,13 @@ def generate_model_tables_mapping(
         excluded_tables = []
 
     existing_tables = inspector.get_table_names()
-    filtered_tables = [table for table in existing_tables if table not in excluded_tables and "__" not in table]
+    filtered_tables = [table for table in existing_tables if table not in excluded_tables]
+    filtered_tables = [
+        table
+        for table in filtered_tables
+        if ((table_comment := inspector.get_table_comment(table)["text"]) and "__" not in table_comment)
+        or "/__" not in table
+    ]
     mapped_tables = keydefaultdict(ModelTables)
     for table in filtered_tables:
         if table not in metadata.tables:
