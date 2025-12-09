@@ -12,8 +12,9 @@ import time
 import uuid
 from collections import defaultdict
 from functools import cached_property
+from itertools import chain
 from threading import Lock
-from typing import Set, Any, TypedDict, Literal
+from typing import Set, Any, TypedDict, Literal, Iterable
 from typing import Type
 from typing import Union, List, Tuple
 
@@ -26,7 +27,7 @@ from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
-from authlib.oauth2.rfc6749 import grants, OAuth2Payload, scope_to_list, list_to_scope
+from authlib.oauth2.rfc6749 import grants, OAuth2Payload, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.util import scope_to_list
@@ -40,11 +41,12 @@ from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
+from spinta import commands
 from spinta.components import Config
 from spinta.components import Context, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access, Action
-from spinta.exceptions import AuthorizedClientsOnly
+from spinta.exceptions import AuthorizedClientsOnly, NoScopesForNamespaces, InvalidExtraScopes
 from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import (
     InvalidToken,
@@ -127,6 +129,9 @@ class Scopes(enum.Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+ALWAYS_VALID_CONTRACT_SCOPES = {Scopes.AUTH_CLIENTS.value, Scopes.CLIENT_BACKENDS_UPDATE_SELF.value}
 
 
 class AuthorizationServer(rfc6749.AuthorizationServer):
@@ -562,6 +567,7 @@ def get_auth_token(context: Context) -> Token:
         token = resource_protector.validate_request(scope, request)
     except JoseError as e:
         raise HTTPException(status_code=400, detail=e.error)
+
     return token
 
 
@@ -825,9 +831,28 @@ def authorized(
     ]
     # Check if client has at least one of required scopes.
     if throw:
-        token.check_scope(scopes)
+        is_token_valid = token.check_scope(scopes)
     else:
-        return token.valid_scope(scopes)
+        is_token_valid = token.valid_scope(scopes)
+
+    # TODO: Task implementation checklist:
+    #  + Check JWT scopes vs node scopes (implemented before task)
+    #  - If check_contract_scopes enabled and node access public, protected, private (node.access < Access.open)
+    #    + Collect all available namespaces
+    #    + Collect all namespaces from JWT token scopes
+    #    + Filter all JWT token scopes that are in available namespaces
+    #       ? Should actions be checked somehow?
+    #       ?! Given namespace "datasets/gov/Dataset", scope "uapi:/datasets/gov/Data" should be invalid
+    #    + Check filtered JWT scopes vs client.contract_scopes. ALL JWT scopes must be in client.contract_scopes
+    #    - Scopes defined in ALWAYS_VALID_CONTRACT_SCOPES can be in JWT scope even if they are not in contract_scopes
+    #    ? Scope auth_clients and client_backends_update_self can always be in JWT token.
+    #      How to distinguish them from actual scopes?
+
+    # Contract scopes are only checked for non-open nodes and when check_contract_scopes is enabled
+    if config.check_contract_scopes and node.access < Access.open:
+        check_contract_scopes(context, token)
+
+    return is_token_valid
 
 
 def auth_server_keys_exists(path: pathlib.Path):
@@ -1188,3 +1213,72 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
         contract_scopes=data.get("contract_scopes", {}),
     )
     return client
+
+
+def _collect_available_namespaces(context: Context) -> set[str]:
+    """Collects all scopes that can be used to get data from currently loaded manifest"""
+    manifest = context.get("store").manifest
+    model_namespaces = {
+        model_namespace
+        for model_namespace in commands.get_models(context, manifest).keys()
+        if not model_namespace.startswith("_")
+    }
+
+    return model_namespaces
+
+
+def _get_jwt_scope_namespace(config: Config, single_scope: str) -> str:
+    """Removes spinta prefixes and action suffixes, leaving only namespace part of scope"""
+    for prefix in [config.scope_prefix, config.scope_prefix_udts]:
+        if single_scope.startswith(prefix):
+            single_scope = single_scope.removeprefix(prefix)
+
+    for suffix in Action.scope_action_values():
+        if single_scope.endswith(suffix):
+            single_scope = single_scope.removesuffix(suffix)
+
+    return single_scope
+
+
+def _get_jwt_scope_map(config: Config, scope_string: str) -> dict[str, set[str]]:
+    """
+    Returns dictionary of jwt_namespaces with list of all original scopes
+    from single string with all scopes separated by space
+    """
+    scope_dict = {}
+    for scope in scope_to_list(scope_string):
+        if jwt_namespace := _get_jwt_scope_namespace(config, scope):
+            scope_dict.setdefault(jwt_namespace, []).append(scope)
+
+    return {jwt_namespace: set(scopes) for jwt_namespace, scopes in scope_dict.items()}
+
+
+def _get_jwt_scopes_for_available_namespaces(jwt_namespaces: Iterable[str], model_namespaces: set[str]) -> set[str]:
+    """Return cleaned JWT scopes that matches currently loaded manifest namespaces"""
+    filtered_jwt_namespaces = {
+        jwt_namespace for jwt_namespace in jwt_namespaces if jwt_namespace.startswith(tuple(model_namespaces))
+    }
+
+    return filtered_jwt_namespaces
+
+
+def _get_contract_scopes_from_client(config: Config, client_id: str) -> set[str]:
+    client = query_client(get_clients_path(config), client_id)
+    return set(chain.from_iterable(client.contract_scopes.values()))
+
+
+def check_contract_scopes(context: Context, token: Token) -> None:
+    """Check if ALL JWT scopes with currently loaded manifest namespaces are saved in client's contract scopes"""
+    config = context.get("config")
+    model_namespaces = _collect_available_namespaces(context)
+    jwt_scopes = _get_jwt_scope_map(config, token.get_scope())
+    filtered_jwt_namespaces = _get_jwt_scopes_for_available_namespaces(jwt_scopes.keys(), model_namespaces)
+
+    filtered_jwt_scopes = set(
+        chain.from_iterable(jwt_scopes.get(jwt_namespace, []) for jwt_namespace in filtered_jwt_namespaces)
+    )
+    contract_scopes = _get_contract_scopes_from_client(config, token.get_client_id())
+    if not filtered_jwt_scopes:
+        raise NoScopesForNamespaces(namespaces=", ".join(model_namespaces))
+    elif not contract_scopes.issuperset(filtered_jwt_scopes):
+        raise InvalidExtraScopes(scopes=", ".join(filtered_jwt_scopes - contract_scopes))
