@@ -10,6 +10,8 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
     json_has_key,
     PropertyMigrationContext,
+    get_target_table,
+    get_source_table,
 )
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name
 from spinta.components import Context
@@ -33,8 +35,8 @@ def migrate(
     column: sa.Column = commands.prepare(context, backend, new.prop)
     columns = old.copy()
 
-    source_table = property_ctx.model_context.model_tables.main_table
-    target_table = backend.get_table(property_ctx.prop)
+    source_table = get_source_table(property_ctx, old)
+    target_table = get_target_table(backend, property_ctx.prop)
     table_name = target_table.name
     source_table_unhashed_name = source_table.comment
 

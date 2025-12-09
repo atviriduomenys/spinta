@@ -39,6 +39,11 @@ def name_changed(old_table_name: str, new_table_name: str, old_property_name: st
     return old_table_name != new_table_name or old_property_name != new_property_name
 
 
+@dispatch(str, TableType, type(None))
+def get_pg_table_name(table_name: str, ttype: TableType, arg: type(None)) -> str:
+    return get_pg_table_name(table_name, ttype)
+
+
 @dispatch(str, TableType, str)
 def get_pg_table_name(table_name: str, ttype: TableType, arg: str) -> str:
     args_str = arg or ""
@@ -112,7 +117,7 @@ def get_pg_removed_name(name: str, remove_model_only: bool = False) -> str:
 def get_pg_foreign_key_name(table_name: str, column_name: str) -> str:
     return PG_NAMING_CONVENTION[Convention.FK] % {
         "table_name": table_name,
-        "column_0_N_name": column_name.removeprefix("_"),
+        "column_0_N_name": column_name,
     }
 
 

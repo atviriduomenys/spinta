@@ -3,7 +3,12 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from spinta.backends.postgresql.helpers import get_pg_sequence_name
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_removed_name, get_removed_name
+from spinta.backends.postgresql.helpers.name import (
+    PG_NAMING_CONVENTION,
+    get_pg_removed_name,
+    get_removed_name,
+    get_pg_index_name,
+)
 from spinta.utils.sqlalchemy import Convention
 
 pg_identifier_preparer = postgresql.dialect().identifier_preparer
@@ -34,11 +39,33 @@ def get_table_foreign_key_constraint_columns(table: sa.Table):
     return constraint_columns
 
 
+# Index migration helpers
 def add_index(index_name: str, table: str, columns: list[str]) -> str:
     column = ",".join(pg_identifier_preparer.quote(column) for column in columns)
     return f"CREATE INDEX {pg_identifier_preparer.quote(index_name)} ON {pg_identifier_preparer.quote(table)} ({column});\n\n"
 
 
+def rename_index(old_index_name: str, new_index_name: str):
+    return f"ALTER INDEX {pg_identifier_preparer.quote(old_index_name)} RENAME TO {pg_identifier_preparer.quote(new_index_name)};\n\n"
+
+
+def drop_index(index_name: str):
+    return f"DROP INDEX {pg_identifier_preparer.quote(index_name)};\n\n"
+
+
+# Constraint migration helpers
+def rename_constraint(table: str, constraint_name: str, new_constraint_name: str):
+    return (
+        f"ALTER TABLE {pg_identifier_preparer.quote(table)} "
+        f"RENAME CONSTRAINT {pg_identifier_preparer.quote(constraint_name)} TO {pg_identifier_preparer.quote(new_constraint_name)};\n\n"
+    )
+
+
+def drop_constraint(constraint_name: str, table: str):
+    return f"ALTER TABLE {pg_identifier_preparer.quote(table)} DROP CONSTRAINT {pg_identifier_preparer.quote(constraint_name)};\n\n"
+
+
+# Column migration helpers
 def add_column_comment(table: str, column: str, comment: str = None) -> str:
     if comment is None:
         comment = column
@@ -46,15 +73,21 @@ def add_column_comment(table: str, column: str, comment: str = None) -> str:
     return f"COMMENT ON COLUMN {pg_identifier_preparer.quote(table)}.{escaped_column} IS '{comment}';\n\n"
 
 
-def add_table_comment(table: str, comment: str) -> str:
-    return f"COMMENT ON TABLE {pg_identifier_preparer.quote(table)} IS '{comment}';\n\n"
-
-
 def add_column(table: str, column: str, column_type: str, comment: str = None):
     return (
         f"ALTER TABLE {pg_identifier_preparer.quote(table)} ADD COLUMN {pg_identifier_preparer.quote(column)} {column_type};\n"
         "\n"
         f"{add_column_comment(table=table, column=column, comment=comment)}"
+    )
+
+
+def rename_column(table: str, column: str, new_name: str, comment: str = None):
+    if comment is None:
+        comment = new_name
+    return (
+        f"{add_column_comment(table=table, column=column, comment=comment)}"
+        f"ALTER TABLE {pg_identifier_preparer.quote(table)} RENAME "
+        f"{pg_identifier_preparer.quote(column)} TO {pg_identifier_preparer.quote(new_name)};\n\n"
     )
 
 
@@ -70,34 +103,9 @@ def drop_column(table: str, column: str, comment: str = None):
     )
 
 
-def rename_column(table: str, column: str, new_name: str, comment: str = None):
-    if comment is None:
-        comment = new_name
-    return (
-        f"{add_column_comment(table=table, column=column, comment=comment)}"
-        f"ALTER TABLE {pg_identifier_preparer.quote(table)} RENAME "
-        f"{pg_identifier_preparer.quote(column)} TO {pg_identifier_preparer.quote(new_name)};\n\n"
-    )
-
-
-def rename_table(table: str, new_name: str, comment: str = None):
-    if comment is None:
-        comment = new_name
-
-    return (
-        f"ALTER TABLE {pg_identifier_preparer.quote(table)} RENAME TO {pg_identifier_preparer.quote(new_name)};\n\n"
-        f"{add_table_comment(table=new_name, comment=comment)}"
-    )
-
-
-def rename_changelog(table: str, new_name: str, comment: str = None):
-    old_sequence_name = get_pg_sequence_name(name=table)
-    new_sequence_name = get_pg_sequence_name(name=new_name)
-    return (
-        f"{rename_table(table=table, new_name=new_name, comment=comment)}"
-        f"ALTER SEQUENCE {pg_identifier_preparer.quote(old_sequence_name)} RENAME TO "
-        f"{pg_identifier_preparer.quote(new_sequence_name)};\n\n"
-    )
+# Table migration helpers
+def add_table_comment(table: str, comment: str) -> str:
+    return f"COMMENT ON TABLE {pg_identifier_preparer.quote(table)} IS '{comment}';\n\n"
 
 
 def add_changelog_table(table: str, comment: str = None) -> str:
@@ -147,6 +155,41 @@ def add_redirect_table(table: str, comment: str = None) -> str:
         f"{add_column_comment(table, '_id')}"
         f"{add_column_comment(table, 'redirect')}"
         f"{add_table_comment(table, comment)}"
+    )
+
+
+def rename_table(table: str, new_name: str, comment: str = None):
+    if comment is None:
+        comment = new_name
+
+    return (
+        f"ALTER TABLE {pg_identifier_preparer.quote(table)} RENAME TO {pg_identifier_preparer.quote(new_name)};\n\n"
+        f"{add_table_comment(table=new_name, comment=comment)}"
+    )
+
+
+def rename_changelog(table: str, new_name: str, comment: str = None):
+    old_sequence_name = get_pg_sequence_name(name=table)
+    new_sequence_name = get_pg_sequence_name(name=new_name)
+
+    old_txn_index_name = get_pg_index_name(table, "_txn")
+    new_txn_index_name = get_pg_index_name(new_name, "_txn")
+
+    return (
+        f"{rename_table(table=table, new_name=new_name, comment=comment)}"
+        f"ALTER SEQUENCE {pg_identifier_preparer.quote(old_sequence_name)} RENAME TO "
+        f"{pg_identifier_preparer.quote(new_sequence_name)};\n\n"
+        f"{rename_index(old_index_name=old_txn_index_name, new_index_name=new_txn_index_name)}"
+    )
+
+
+def rename_redirect(table: str, new_name: str, comment: str = None):
+    old_redirect_index_name = get_pg_index_name(table, "redirect")
+    new_redirect_index_name = get_pg_index_name(new_name, "redirect")
+
+    return (
+        f"{rename_table(table=table, new_name=new_name, comment=comment)}"
+        f"{rename_index(old_index_name=old_redirect_index_name, new_index_name=new_redirect_index_name)}"
     )
 
 

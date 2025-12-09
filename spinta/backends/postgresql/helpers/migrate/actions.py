@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects import postgresql
 from typing import List, Tuple, Dict, Union
 
 import sqlalchemy as sa
@@ -7,6 +8,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from alembic.operations import Operations
+
+pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
 
 class MigrationAction(ABC):
@@ -138,7 +141,11 @@ class CreateUniqueConstraintMigrationAction(MigrationAction):
 
 class RenameConstraintMigrationAction(MigrationAction):
     def __init__(self, table_name: str, old_constraint_name: str, new_constraint_name: str):
-        self.query = f'ALTER TABLE "{table_name}" RENAME CONSTRAINT "{old_constraint_name}" TO "{new_constraint_name}"'
+        self.query = (
+            f"ALTER TABLE {pg_identifier_preparer.quote(table_name)} RENAME CONSTRAINT "
+            f"{pg_identifier_preparer.quote(old_constraint_name)} "
+            f"TO {pg_identifier_preparer.quote(new_constraint_name)}"
+        )
 
     def execute(self, op: "Operations"):
         replaced = self.query.replace(":", "\\:")
@@ -170,7 +177,10 @@ class CreateIndexMigrationAction(MigrationAction):
 
 class RenameIndexMigrationAction(MigrationAction):
     def __init__(self, old_index_name: str, new_index_name: str):
-        self.query = f'ALTER INDEX "{old_index_name}" RENAME TO "{new_index_name}"'
+        self.query = (
+            f"ALTER INDEX {pg_identifier_preparer.quote(old_index_name)} RENAME "
+            f"TO {pg_identifier_preparer.quote(new_index_name)}"
+        )
 
     def execute(self, op: "Operations"):
         replaced = self.query.replace(":", "\\:")
@@ -321,7 +331,10 @@ class CreateForeignKeyMigrationAction(MigrationAction):
 
 class RenameSequenceMigrationAction(MigrationAction):
     def __init__(self, old_name: str, new_name: str):
-        self.query = f'ALTER SEQUENCE "{old_name}" RENAME TO "{new_name}"'
+        self.query = (
+            f"ALTER SEQUENCE {pg_identifier_preparer.quote(old_name)} RENAME "
+            f"TO {pg_identifier_preparer.quote(new_name)}"
+        )
 
     def execute(self, op: "Operations"):
         replaced = self.query.replace(":", "\\:")
