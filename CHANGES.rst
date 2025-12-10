@@ -13,6 +13,15 @@ Improvements:
 0.2dev11 (2025-12-03)
 =====================
 
+New Features:
+
+- Added support for URL-friendly query syntax with operators `_or.` and `_and.` as alternatives to `|` and `&`,
+  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`, 
+  `._ge`, `._lt=`, `._le`, `._sw=` (starts with), and `._co=` (contains). This makes it easier to construct queries in URL query
+  strings without requiring special character encoding (`#1615`_).
+
+.. _#1615: https://github.com/atviriduomenys/spinta/issues/1615
+
 Improvements:
 
 - `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
