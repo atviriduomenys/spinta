@@ -1080,6 +1080,7 @@ class Config:
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
     scope_log: bool
+    check_contract_scopes: bool
     default_auth_client: str
     http_basic_auth: bool
     token_validation_key: dict | None = None

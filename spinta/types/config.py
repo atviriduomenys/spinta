@@ -71,6 +71,7 @@ def load(context: Context, config: Config) -> Config:
     config.scope_prefix_udts = rc.get("scope_prefix_udts")
     config.scope_max_length = rc.get("scope_max_length", cast=int)
     config.scope_log = rc.get("scope_log", default=False, cast=asbool)
+    config.check_contract_scopes = rc.get("check_contract_scopes", default=False, cast=asbool)
     config.default_auth_client = rc.get("default_auth_client")
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
