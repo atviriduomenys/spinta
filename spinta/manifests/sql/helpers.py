@@ -10,6 +10,7 @@ from typing import Tuple
 import cachetools
 import sqlalchemy as sa
 from geoalchemy2.types import Geometry
+from spinta.datasets.backends.sql.backends.sas.dialect import SASStringType, SASDateType, SASDateTimeType, SASTimeType
 from sqlalchemy.dialects import postgresql, mysql, sqlite, mssql, oracle
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.sql.sqltypes import _Binary
@@ -27,7 +28,19 @@ from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
+def _ensure_dialect_registered(path: str):
+    url = sa.engine.make_url(path)
+    dialect_name = url.drivername  # e.g., 'sas+jdbc', 'postgresql', etc.
+
+    # Check if this is a custom dialect that needs registration
+    if dialect_name.startswith("sas"):
+        # Import the SAS backend module to trigger dialect registration
+        import spinta.datasets.backends.sql.backends.sas  # noqa: F401
+
+
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
+    _ensure_dialect_registered(path)
+
     engine = sa.create_engine(path)
     schema = None
     if prepare:
@@ -47,6 +60,11 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 
     url = sa.engine.make_url(path)
     dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else "dataset1"
+
+    # Extract schema from URL query parameters if not set by prepare
+    if schema is None:
+        schema = url.query.get("schema")
+
     insp = sa.inspect(engine)
     default_schema = schema or insp.default_schema_name
 
@@ -264,6 +282,11 @@ TYPES = [
     (mssql.MONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.SMALLMONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.UNIQUEIDENTIFIER, "string"),  # Example: 6F9619FF-8B86-D011-B42D-00C04FC964FF
+    # SAS custom types
+    (SASStringType, "string"),
+    (SASDateType, "date"),
+    (SASDateTimeType, "datetime"),
+    (SASTimeType, "time"),
 ]
 
 

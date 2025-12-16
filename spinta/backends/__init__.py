@@ -1938,6 +1938,15 @@ def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, da
     return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
 
 
+@commands.cast_backend_to_python.register(Context, String, Backend, str)
+def cast_backend_to_python(context: Context, dtype: String, backend: Backend, data: str, **kwargs) -> Any:
+    if _check_if_nan(data):
+        return None
+    if hasattr(backend, "type") and backend.type == "sql/sas":
+        return data.strip()
+    return data
+
+
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)
 def reload_backend_metadata(context, manifest, backend):
     pass
