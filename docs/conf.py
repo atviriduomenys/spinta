@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "Spinta"
-copyright = "2020-2021, Spinta Team"
+copyright = "2020-2025, Spinta Team"
 author = "Spinta Team"
 
 
@@ -30,6 +30,9 @@ author = "Spinta Team"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx_rtd_theme",
+    "myst_parser", 
+
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -64,3 +67,9 @@ master_doc = "index"
 
 
 autodoc_typehints = "description"
+
+
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
