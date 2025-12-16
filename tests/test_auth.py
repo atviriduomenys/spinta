@@ -11,7 +11,7 @@ from authlib.jose import JsonWebKey
 from authlib.jose import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from spinta import auth, commands
+from spinta import commands
 from spinta.auth import (
     get_client_file_path,
     query_client,
@@ -20,6 +20,11 @@ from spinta.auth import (
     KeyType,
     load_key_from_file,
     create_client_file,
+    load_key,
+    create_access_token,
+    Token,
+    authorized,
+    BearerTokenValidator,
 )
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -320,151 +325,6 @@ def test_invalid_client(app):
     assert resp.json() == {"error": "invalid_client", "error_description": "Invalid client name"}
 
 
-@pytest.mark.parametrize(
-    "client, scopes, node, action, authorized",
-    [
-        ("default-client", "spinta_getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem", "update", False),
-        ("test-client", "spinta_backends_getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem", "getone", True),
-        ("default-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "spinta_backends_mongo_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "spinta_backends_mongo_subitem_subobj_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_subobj_getone",
-            "backends/mongo/Subitem.subobj",
-            "insert",
-            False,
-        ),
-        (
-            "default-client",
-            "spinta_backends_mongo_subitem_subobj_getone",
-            "backends/mongo/Subitem.subobj",
-            "getone",
-            False,
-        ),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        ("test-client", "spinta_backends_mongo_getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_hidden_subobj_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            True,
-        ),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_hidden_subobj_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "update",
-            False,
-        ),
-        (
-            "default-client",
-            "spinta_backends_mongo_subitem_hidden_subobj_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        ("default-client", "uapi:/:getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem", "update", False),
-        ("test-client", "uapi:/backends/:getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem", "getone", True),
-        ("default-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "uapi:/backends/mongo/:getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem.subobj", "getone", True),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@subobj/:getone",
-            "backends/mongo/Subitem.subobj",
-            "getone",
-            True,
-        ),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@subobj/:getone",
-            "backends/mongo/Subitem.subobj",
-            "insert",
-            False,
-        ),
-        (
-            "default-client",
-            "uapi:/backends/mongo/Subitem/@subobj/:getone",
-            "backends/mongo/Subitem.subobj",
-            "getone",
-            False,
-        ),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        ("test-client", "uapi:/backends/mango/:getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@hidden_subobj/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            True,
-        ),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@hidden_subobj/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "update",
-            False,
-        ),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        (
-            "default-client",
-            "uapi:/backends/mongo/Subitem/@hidden_subobj/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        ("test-client", "uapi:/backends/mongo/Subitem/:create", "backends/mongo/Subitem", "insert", True),
-        ("test-client", "uapi:/:create", "backends/mongo/Subitem", "insert", True),
-    ],
-)
-def test_authorized(context, client, scopes, node, action, authorized):
-    if client == "default-client":
-        client = context.get("config").default_auth_client
-    scopes = [scopes]
-    pkey = auth.load_key(context, auth.KeyType.private)
-    token = auth.create_access_token(context, pkey, client, scopes=scopes)
-    token = auth.Token(token, auth.BearerTokenValidator(context))
-    context.set("auth.token", token)
-    store = context.get("store")
-    if "." in node:
-        model, prop = node.split(".", 1)
-        node = commands.get_model(context, store.manifest, model).flatprops[prop]
-    elif commands.has_model(context, store.manifest, node):
-        node = commands.get_model(context, store.manifest, node)
-    else:
-        node = commands.get_namespace(context, store.manifest, node)
-    action = getattr(Action, action.upper())
-    assert auth.authorized(context, node, action) is authorized
-
-
 def test_invalid_access_token(app):
     app.headers.update({"Authorization": "Bearer FAKE_TOKEN"})
     resp = app.get("/Report")
@@ -494,7 +354,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: li
     prvkey = JsonWebKey.import_key(prvkey)
     client = "RANDOMID"
     scopes = scopes
-    token = auth.create_access_token(context, prvkey, client, scopes=scopes)
+    token = create_access_token(context, prvkey, client, scopes=scopes)
 
     client = create_test_client(context)
     resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
@@ -511,7 +371,7 @@ def basic_auth(backends, rc, tmp_path, request):
     path = get_clients_path(tmp_path)
     ensure_client_folders_exist(path)
     new_id = uuid.uuid4()
-    auth.create_client_file(
+    create_client_file(
         path,
         name="default",
         client_id=str(new_id),
@@ -733,3 +593,191 @@ def test_pick_correct_key(app, context):
     resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token.decode()}"})
     assert resp.status_code == 200, resp.text
     config.token_validation_key = None
+
+
+class TestAuthorized:
+    @pytest.mark.parametrize(
+        "client, scopes, node, action, result",
+        [
+            ("default-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, False),
+            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
+            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
+            ("test-client", {"spinta_backends_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            ("test-client", {"spinta_backends_mongo_subitem_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            (
+                "default-client",
+                {"spinta_backends_mongo_subitem_getone"},
+                "backends/mongo/Subitem",
+                Action.GETONE,
+                False,
+            ),
+            ("test-client", {"spinta_backends_mongo_subitem_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
+            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
+            ("test-client", {"spinta_backends_mongo_getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
+            (
+                "test-client",
+                {"spinta_backends_mongo_subitem_getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_mongo_subitem_subobj_getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_mongo_subitem_subobj_getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.INSERT,
+                False,
+            ),
+            (
+                "default-client",
+                {"spinta_backends_mongo_subitem_subobj_getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.GETONE,
+                False,
+            ),
+            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
+            (
+                "test-client",
+                {"spinta_backends_mongo_getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_mongo_subitem_getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.UPDATE,
+                False,
+            ),
+            (
+                "default-client",
+                {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            ("default-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, False),
+            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
+            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
+            ("test-client", {"uapi:/backends/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            ("test-client", {"uapi:/backends/mongo/Subitem/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            (
+                "default-client",
+                {"uapi:/backends/mongo/Subitem/:getone"},
+                "backends/mongo/Subitem",
+                Action.GETONE,
+                False,
+            ),
+            ("test-client", {"uapi:/backends/mongo/Subitem/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
+            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
+            ("test-client", {"uapi:/backends/mongo/:getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
+            (
+                "test-client",
+                {"uapi:/backends/mongo/Subitem/:getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.INSERT,
+                False,
+            ),
+            (
+                "default-client",
+                {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
+                "backends/mongo/Subitem.subobj",
+                Action.GETONE,
+                False,
+            ),
+            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
+            (
+                "test-client",
+                {"uapi:/backends/mango/:getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.UPDATE,
+                False,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/mongo/Subitem/:getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "default-client",
+                {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
+                "backends/mongo/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            ("test-client", {"uapi:/backends/mongo/Subitem/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
+            ("test-client", {"uapi:/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
+        ],
+    )
+    def test_authorized(self, context: Context, client: str, scopes: set[str], node: str, action: Action, result: bool):
+        if client == "default-client":
+            client = context.get("config").default_auth_client
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, client, scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        store = context.get("store")
+
+        if "." in node:
+            model, prop = node.split(".", 1)
+            node = commands.get_model(context, store.manifest, model).flatprops[prop]
+        elif commands.has_model(context, store.manifest, node):
+            node = commands.get_model(context, store.manifest, node)
+        else:
+            node = commands.get_namespace(context, store.manifest, node)
+
+        assert authorized(context, node, action) is result
