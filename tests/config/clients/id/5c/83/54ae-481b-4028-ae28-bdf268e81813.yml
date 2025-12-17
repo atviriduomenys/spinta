@@ -16,12 +16,12 @@ scopes:
 backends:
 contract_scopes:
   f6/87/4645-ff8c-4822-969a-61eb4d3d1726.adoc:
-    - spinta_datasets_test_example_Foo
-    - spinta_datasets_test_example_Bar
-    - spinta_datasets_test_example_Baz
-    - spinta_datasets_test_example_Buz
+    - spinta_datasets_test_example_Foo_getall
+    - spinta_datasets_test_example_Bar_getall
+    - spinta_datasets_test_example_Baz_getall
+    - spinta_datasets_test_example_Buz_getall
   ba/16/dc7d-3706-41b7-95d6-b5b868db4d2a.adoc:
-    - uapi:/datasets/test/example/Foo
-    - uapi:/datasets/test/example/Bar
-    - uapi:/datasets/test/example/Baz
-    - uapi:/datasets/test/example/Buz
+    - uapi:/datasets/test/example/Foo/:getall
+    - uapi:/datasets/test/example/Bar/:getall
+    - uapi:/datasets/test/example/Baz/:getall
+    - uapi:/datasets/test/example/Buz/:getall
