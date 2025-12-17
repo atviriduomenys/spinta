@@ -41,4 +41,3 @@ def test_plus_vs_encoded_plus(context):
 
     assert params_space.formatparams["title"] == "My Report"
     # assert params_plus.formatparams["title"] == "My+Report"
-
