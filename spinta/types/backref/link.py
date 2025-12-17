@@ -3,7 +3,6 @@ from spinta.components import Context, Model, Property
 from spinta.exceptions import (
     ModelReferenceNotFound,
     MultipleBackRefReferencesFound,
-    NoBackRefReferencesFound,
     NoReferencesFound,
     OneToManyBackRefNotSupported,
 )
@@ -83,21 +82,23 @@ def _link_backref(context: Context, dtype: BackRef):
     if not result:
         if given_refprop is not None:
             raise NoReferencesFound(dtype, prop_name=given_refprop, model=dtype.model)
-        raise NoBackRefReferencesFound(dtype, model=dtype.model.name)
-    for prop in result:
-        if count < 1:
-            if given_refprop and prop.name == given_refprop or given_refprop is None:
-                dtype.refprop = prop
-                count += 1
-        else:
-            raise MultipleBackRefReferencesFound(dtype, model=dtype.model.name)
+        # Allow backref without a corresponding ref property
+        dtype.refprop = None
+    else:
+        for prop in result:
+            if count < 1:
+                if given_refprop and prop.name == given_refprop or given_refprop is None:
+                    dtype.refprop = prop
+                    count += 1
+            else:
+                raise MultipleBackRefReferencesFound(dtype, model=dtype.model.name)
 
 
 @commands.link.register(Context, BackRef)
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
-    if _is_parent_array_backref(dtype) or dtype.refprop.list is None:
+    if _is_parent_array_backref(dtype) or dtype.refprop is None or dtype.refprop.list is None:
         return
 
     raise OneToManyBackRefNotSupported(dtype)
