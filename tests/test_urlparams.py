@@ -33,3 +33,12 @@ def test_limit(context):
         _parse(context, "limit(0)")
     with pytest.raises(InvalidValue):
         _parse(context, "limit(-1)")
+
+
+def test_plus_vs_encoded_plus(context):
+    params_space = _parse(context, "format(csv,title(My+Report))")
+    # params_plus = _parse(context, "format(csv,title(My%2BReport))")
+
+    assert params_space.formatparams["title"] == "My Report"
+    # assert params_plus.formatparams["title"] == "My+Report"
+
