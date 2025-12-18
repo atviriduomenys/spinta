@@ -14,25 +14,8 @@ from typing import Any
 from spinta import commands
 from spinta.components import Context
 from spinta.datasets.backends.sql.backends.sas.components import SAS
+from spinta.utils.types import is_nan
 from spinta.types.datatype import String
-
-
-def _check_if_nan(value: Any) -> bool:
-    """
-    Check for NaN values using IEEE 754 standard.
-
-    IEEE 754 defines that comparing with NaN always returns false,
-    including comparison with itself.
-
-    Args:
-        value: Value to check for NaN
-
-    Returns:
-        True if value is NaN, False otherwise
-    """
-    if value != value:
-        return True
-    return False
 
 
 @commands.cast_backend_to_python.register(Context, String, SAS, str)
@@ -60,7 +43,7 @@ def cast_backend_to_python(context: Context, dtype: String, backend: SAS, data: 
         SAS CHAR(10) field with value "test" is stored as "test      "
         This handler returns "test"
     """
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
 
     # Strip trailing whitespace from SAS CHAR fields
