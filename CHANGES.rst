@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev12 (unreleased)
+0.2dev12 (2025-12-18)
 =====================
 
 New Features:
@@ -15,6 +15,13 @@ Improvements:
 - `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
 
 .. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
+
+Bug fixes:
+
+Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
+libraries if those don't exist (`#1637`_).
+
+.. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
 
 
 0.2dev11 (2025-12-03)

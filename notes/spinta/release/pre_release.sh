@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev11
-export OLD_MINOR=2dev10
-export FUTURE_MINOR=2dev12
+export MINOR=2dev12
+export OLD_MINOR=2dev11
+export FUTURE_MINOR=2dev13
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
