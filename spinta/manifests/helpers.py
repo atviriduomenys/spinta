@@ -108,7 +108,7 @@ def _configure_manifest(
             raise UnknownKeyMap(manifest, keymap=keymap)
         manifest.keymap = store.keymaps[keymap]
     backend = rc.get("manifests", name, "backend", default=backend)
-    if backend and rc.get("load_backends"):
+    if backend and rc.get("ensure_backends"):
         manifest.backend = store.backends[backend]
     mode = rc.get("manifests", name, "mode")
     if mode:
