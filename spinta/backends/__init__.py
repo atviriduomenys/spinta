@@ -75,6 +75,7 @@ from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
+from spinta.utils.types import is_nan
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
@@ -1744,14 +1745,14 @@ def cast_backend_to_python(context: Context, prop: Property, backend: Backend, d
 
 @commands.cast_backend_to_python.register(Context, DataType, Backend, object)
 def cast_backend_to_python(context: Context, dtype: DataType, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     return data
 
 
 @commands.cast_backend_to_python.register(Context, UUID, Backend, object)
 def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1763,7 +1764,7 @@ def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, DateTime, Backend, object)
 def cast_backend_to_python(context: Context, dtype: DateTime, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1775,7 +1776,7 @@ def cast_backend_to_python(context: Context, dtype: DateTime, backend: Backend, 
 
 @commands.cast_backend_to_python.register(Context, Time, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Time, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str) and ":" in data:
         try:
@@ -1788,7 +1789,7 @@ def cast_backend_to_python(context: Context, dtype: Time, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, Date, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Date, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1801,7 +1802,7 @@ def cast_backend_to_python(context: Context, dtype: Date, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, Integer, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Integer, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1818,7 +1819,7 @@ def cast_backend_to_python(context: Context, dtype: Integer, backend: Backend, d
 
 @commands.cast_backend_to_python.register(Context, Number, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Number, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1835,7 +1836,7 @@ def cast_backend_to_python(context: Context, dtype: Number, backend: Backend, da
 
 @commands.cast_backend_to_python.register(Context, Binary, Backend, str)
 def cast_backend_to_python(context: Context, dtype: Binary, backend: Backend, data: str, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1847,7 +1848,7 @@ def cast_backend_to_python(context: Context, dtype: Binary, backend: Backend, da
 
 @commands.cast_backend_to_python.register(Context, Boolean, Backend, str)
 def cast_backend_to_python(context: Context, dtype: Boolean, backend: Backend, data: str, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1859,7 +1860,7 @@ def cast_backend_to_python(context: Context, dtype: Boolean, backend: Backend, d
 
 @commands.cast_backend_to_python.register(Context, Geometry, Backend, str)
 def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: str, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1871,14 +1872,14 @@ def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, 
 
 @commands.cast_backend_to_python.register(Context, Geometry, Backend, WKTElement)
 def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: WKTElement, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     return to_shape(data)
 
 
 @commands.cast_backend_to_python.register(Context, Geometry, Backend, WKBElement)
 def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: WKBElement, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     return to_shape(data)
 
@@ -1946,13 +1947,6 @@ def reload_backend_metadata(context, manifest, backend):
 @commands.reload_backend_metadata.register(Context, Manifest, type(None))
 def reload_backend_metadata(context, manifest, backend):
     pass
-
-
-def _check_if_nan(value: Any) -> bool:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if value != value:
-        return True
-    return False
 
 
 @commands.get_error_context.register(Backend)
