@@ -92,7 +92,7 @@ def load(context: Context, config: Config) -> Config:
     config.root = rc.get("root", default=None)
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
-    config.load_backends = rc.get("load_backends", default=True)
+    config.ensure_backends = rc.get("ensure_backends", default=True)
     if config.root is not None:
         config.root = config.root.strip().strip("/")
 
