@@ -8,10 +8,38 @@ from spinta.testing.tabular import create_tabular_manifest
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
 
+MANIFEST_WITH_SOAP_PREPARE = striptable("""
+id | d | r | b | m | property           | type     | ref              | source                                                 | source.type | prepare                 | origin | count | level | status | visibility | access | uri | eli | title | description
+   | datasets/gov/vssa/demo/rctest      |          |                  |                                                        |             |                         |        |       |       |        |            |        |     |     |       | D
+   |   | rc_wsdl                        | wsdl     |                  | https://test-data.data.gov.lt/api/v1/rc/get-data/?wsdl |             |                         |        |       |       |        |            |        |     |     |       |
+   |   | get_data                       | soap     |                  | Get.GetPort.GetPort.GetData                            |             | wsdl(rc_wsdl)           |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | action_type      | input/ActionType                                       |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | caller_code      | input/CallerCode                                       |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | end_user_info    | input/EndUserInfo                                      |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | parameters       | input/Parameters                                       |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | time             | input/Time                                             |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | signature        | input/Signature                                        |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    | param    | caller_signature | input/CallerSignature                                  |             | input()                 |        |       |       |        |            |        |     |     |       |
+   |                                    |          |                  |                                                        |             |                         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | GetData                |          |                  | /                                                      |             |                         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | response_code      | string   |                  | ResponseCode                                           |             |                         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | response_data      | string   |                  | ResponseData                                           |             | base64()                |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | decoded_parameters | string   |                  | DecodedParameters                                      |             |                         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | action_type        | string   |                  |                                                        |             | param(action_type)      |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | end_user_info      | string   |                  |                                                        |             | param(end_user_info)    |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | caller_code        | string   |                  |                                                        |             | param(caller_code)      |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | parameters         | string   |                  |                                                        |             | param(parameters)       |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | time               | string   |                  |                                                        |             | param(time)             |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | signature          | string   |                  |                                                        |             | param(signature)        |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | caller_signature   | string   |                  |                                                        |             | param(caller_signature) |        |       |       |        |            |        |     |     |       |
+
+""")
+
 MANIFEST = striptable("""
 id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
    | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     | Test title                                                 | Test description
    |   | test                         | memory                |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
+   |   | datasets/demo/demo/test_resource   |                       |     |test        |             |         |        |       |       |        |            |        |     |     |                                                            |
    |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
    |   |   |   | Organization         |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Reporting Organizations                                    |
    |   |   |   |   | org_name         | string                |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization name                                          |
@@ -47,7 +75,32 @@ def open_manifest_path(tmp_path, rc):
     file_handle.close()
 
 
-def test_basic_structure(open_manifest_path: ManifestPath):
+@pytest.fixture
+def open_manifest_path_factory(tmp_path, rc):
+    """Factory fixture that creates manifest paths with custom MANIFEST data"""
+    opened_files = []
+
+    def _create_manifest(manifest_data):
+        path = f"{tmp_path}/manifest_{len(opened_files)}.csv"
+        context = create_test_context(rc)
+        create_tabular_manifest(
+            context,
+            path,
+            manifest_data,
+        )
+        file_handle = open(path, "r")
+        opened_files.append(file_handle)
+        return ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
+
+    yield _create_manifest
+
+    for file_handle in opened_files:
+        file_handle.close()
+
+
+@pytest.mark.parametrize("manifest_data", [MANIFEST, MANIFEST_WITH_SOAP_PREPARE])
+def test_basic_structure(open_manifest_path_factory, manifest_data):
+    open_manifest_path = open_manifest_path_factory(manifest_data)
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     expected_keys = {"openapi", "info", "servers", "tags", "externalDocs", "paths", "components"}
