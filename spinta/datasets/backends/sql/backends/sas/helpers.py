@@ -103,7 +103,7 @@ def sas_time_to_python(sas_time_value):
         raise ValueError(f"Invalid SAS time value: {sas_time_value}") from e
 
 
-def group_array(column: Union[sa.Column, Sequence[sa.Column]]):
+def group_array(column: sa.Column | Sequence[sa.Column]):
     """
     Create an array aggregation expression for SAS using CATX function.
 
