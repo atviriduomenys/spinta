@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev11
-export OLD_MINOR=2dev10
-export FUTURE_MINOR=2dev12
+export MINOR=2dev12
+export OLD_MINOR=2dev11
+export FUTURE_MINOR=2dev13
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -141,7 +141,7 @@ poetry export -f requirements.txt \
 
 # get hashes to spinta itself
 
-echo "spinta==${NEW_VERSION} \\" > spinta-header.txt
+echo "spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\" > spinta-header.txt
 
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \

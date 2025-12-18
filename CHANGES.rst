@@ -1,12 +1,17 @@
 Changes
 #######
 
-0.2dev12 (unreleased)
+0.2dev13 (unreleased)
+=====================
+
+
+0.2dev12 (2025-12-18)
 =====================
 
 New Features:
 
-- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_). `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
+`spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
 
 .. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
 
@@ -15,6 +20,13 @@ Improvements:
 - `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
 
 .. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
+
+Bug fixes:
+
+Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
+libraries if those don't exist (`#1637`_).
+
+.. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
 
 
 0.2dev11 (2025-12-03)
