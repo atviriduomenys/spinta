@@ -10,7 +10,8 @@ Changes
 
 New Features:
 
-- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_). `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
+`spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
 
 .. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
 
