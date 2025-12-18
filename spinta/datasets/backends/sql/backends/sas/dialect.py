@@ -42,7 +42,66 @@ class SASCompiler(SQLCompiler):
 
     Also handles SAS-specific LIMIT syntax by applying (OBS=n) table options
     instead of standard LIMIT clauses.
+
+    Also handles NULL comparisons by converting = NULL to IS NULL and != NULL to IS NOT NULL.
+
+    CRITICAL: SAS SQL passthrough does NOT support parameterized queries with bind
+    parameters (? or :name style). All values must be compiled as literal values
+    directly in the SQL string.
     """
+
+    def visit_bindparam(self, bindparam, **kw):
+        """
+        Render bind parameters as literal values for SAS.
+
+        SAS SQL passthrough doesn't support JDBC-style bind parameters (?),
+        so we compile all bind parameters as literal values directly in the SQL.
+
+        This overrides SQLAlchemy's default behavior which would generate placeholders.
+        """
+        # Force literal rendering by delegating to the bound value's literal processor
+        return self.render_literal_value(bindparam.value, bindparam.type)
+
+    def visit_binary(self, binary, override_operator=None, **kw):
+        """
+        Visit a binary expression and handle NULL comparisons for SAS.
+
+        SAS does not support 'column = NULL' syntax, requiring 'column IS NULL' instead.
+        This method intercepts binary expressions and converts:
+        - column = None → column IS NULL
+        - column != None → column IS NOT NULL
+
+        Args:
+            binary: The binary expression object
+            override_operator: Optional operator override
+            **kw: Additional keyword arguments
+
+        Returns:
+            Compiled SQL string with proper NULL handling
+        """
+        # DEBUG: Log entry to verify this method is being called
+        logger.debug(f"DEBUG: visit_binary() called with binary={binary}, operator={binary.operator}")
+
+        # Check if either operand is None (SQL NULL)
+        from sqlalchemy.sql import operators
+
+        left_is_none = hasattr(binary.left, "value") and binary.left.value is None
+        right_is_none = hasattr(binary.right, "value") and binary.right.value is None
+
+        if left_is_none or right_is_none:
+            # Determine which operand is not None
+            non_none_operand = binary.right if left_is_none else binary.left
+
+            # Convert operator: == to IS NULL, != to IS NOT NULL
+            if binary.operator == operators.eq:
+                logger.debug("Converting '= NULL' to 'IS NULL' for SAS compatibility")
+                return "%s IS NULL" % self.process(non_none_operand, **kw)
+            elif binary.operator == operators.ne:
+                logger.debug("Converting '!= NULL' to 'IS NOT NULL' for SAS compatibility")
+                return "%s IS NOT NULL" % self.process(non_none_operand, **kw)
+
+        # For non-NULL comparisons, use parent's implementation
+        return super().visit_binary(binary, override_operator, **kw)
 
     def visit_table(
         self,
@@ -126,8 +185,12 @@ class SASDialect(SASIntrospectionMixin, BaseDialect, DefaultDialect):
     # SAS identifier limitation (32 characters max)
     max_identifier_length = 32
 
-    # Custom compiler for SAS
+    # Custom compiler for SAS - renders bind params as literals
     statement_compiler = SASCompiler
+
+    # IMPORTANT: SAS SQL passthrough doesn't support bind parameters
+    # All values are compiled as literals in the SQL string (see SASCompiler.visit_bindparam)
+    supports_native_boolean = False
 
     # Feature support flags
     supports_comments = True
@@ -252,7 +315,6 @@ class SASDialect(SASIntrospectionMixin, BaseDialect, DefaultDialect):
                 schema = self.url.query.get("schema")
 
             self.default_schema_name = schema or ""
-            logger.debug(f"SAS dialect: default_schema_name set to '{self.default_schema_name}'")
 
         except Exception as e:
             logger.warning(f"SAS dialect initialization failed: {e}. Using fallback settings.")

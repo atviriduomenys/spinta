@@ -25,6 +25,7 @@ from spinta.datasets.backends.sql.backends.sas.dialect import register_sas_diale
 # This ensures it's available before any create_engine() calls
 register_sas_dialect()
 
+
 # Public API
 __all__ = [
     "register_sas_dialect",

@@ -91,6 +91,9 @@ class SASIntrospectionMixin:
         Returns:
             List of schema names (library names), empty list on error
         """
+        if hasattr(connection, "dialect") and getattr(connection.dialect, "default_schema_name", None):
+            return [connection.dialect.default_schema_name]
+
         return self._execute_query_with_fallback(
             connection,
             """

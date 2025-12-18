@@ -9,7 +9,6 @@ requiring special conversion functions for date, datetime, and time values.
 """
 
 from collections.abc import Sequence
-from typing import Union
 from datetime import date, datetime, time, timedelta
 
 import sqlalchemy as sa

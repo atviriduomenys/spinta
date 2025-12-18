@@ -282,6 +282,10 @@ class TestSASDialect:
 
         dialect = SASDialect()
         mock_connection = Mock()
+        # Add the missing dialect attribute
+        mock_dialect = Mock()
+        mock_dialect.default_schema_name = ""  # or None
+        mock_connection.dialect = mock_dialect
         mock_connection.execute.side_effect = Exception("Database error")
 
         # Should return empty list instead of raising
