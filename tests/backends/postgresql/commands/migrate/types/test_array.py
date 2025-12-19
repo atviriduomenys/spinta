@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import sqlalchemy as sa
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
@@ -22,7 +22,6 @@ from spinta.testing.migration import (
     rename_constraint,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    cleanup_tables,
     override_manifest,
     cleanup_table_list,
     configure_migrate,
@@ -30,9 +29,8 @@ from tests.backends.postgresql.commands.migrate.test_migrations import (
 
 
 def test_migrate_create_models_with_array_type(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m    | property     | type | ref | source
     """
@@ -103,7 +101,7 @@ def test_migrate_create_models_with_array_type(
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -131,8 +129,7 @@ def test_migrate_create_models_with_array_type(
         )
 
 
-def test_migrate_add_array_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_add_array_type(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -183,7 +180,7 @@ def test_migrate_add_array_type(postgresql_migration: URL, rc: RawConfig, cli: S
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -211,8 +208,7 @@ def test_migrate_add_array_type(postgresql_migration: URL, rc: RawConfig, cli: S
         )
 
 
-def test_migrate_remove_array_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_array_type(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -250,7 +246,7 @@ def test_migrate_remove_array_type(postgresql_migration: URL, rc: RawConfig, cli
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -278,8 +274,7 @@ def test_migrate_remove_array_type(postgresql_migration: URL, rc: RawConfig, cli
         )
 
 
-def test_migrate_rename_array(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_rename_array(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -326,7 +321,7 @@ def test_migrate_rename_array(postgresql_migration: URL, rc: RawConfig, cli: Spi
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -354,8 +349,7 @@ def test_migrate_rename_array(postgresql_migration: URL, rc: RawConfig, cli: Spi
         )
 
 
-def test_migrate_change_array_subtype(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_change_array_subtype(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -394,7 +388,7 @@ def test_migrate_change_array_subtype(postgresql_migration: URL, rc: RawConfig, 
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables

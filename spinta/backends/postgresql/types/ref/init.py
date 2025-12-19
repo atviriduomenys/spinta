@@ -4,9 +4,10 @@ import sqlalchemy as sa
 from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
-from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_table_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context, Property
 from spinta.types.datatype import Ref
@@ -18,14 +19,14 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref, propagate: bool =
     pkey_type = commands.get_primary_key_type(context, backend)
     columns = []
 
+    table_identifier = get_table_identifier(dtype.model)
+
     if not dtype.inherited:
         columns = get_pg_foreign_key(
             dtype.prop,
-            table_name=get_pg_table_name(dtype.model),
-            model_name=dtype.prop.model.name,
+            table_name=table_identifier.pg_qualified_name,
             column_type=pkey_type,
         )
-
     if not propagate:
         return columns
 
@@ -40,7 +41,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref, propagate: bool =
 
 
 def get_pg_foreign_key(
-    prop: Property, *, table_name: str, model_name: str, column_type: TypeEngine
+    prop: Property, *, table_name: str, column_type: TypeEngine
 ) -> List[Union[sa.Column, sa.Constraint]]:
     column_name = "_id" if prop.list and prop.place == prop.list.place else get_column_name(prop) + "._id"
     nullable = not prop.dtype.required

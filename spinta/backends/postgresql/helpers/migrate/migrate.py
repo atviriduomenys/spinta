@@ -1,27 +1,34 @@
 from __future__ import annotations
 
 import dataclasses
-import enum
-import json
-import os
 from collections import defaultdict
 from typing import List, Union, Dict, Tuple, Callable
 
 import geoalchemy2.types
 import sqlalchemy as sa
-from multipledispatch import dispatch
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB, JSON
+from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import (
+    get_table_name,
+    get_table_identifier,
+    split_logical_name,
+    TableIdentifier,
+    extract_table_data_from_logical_name,
+)
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.constants import NAMEDATALEN
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
+from spinta.backends.postgresql.helpers.migrate.name import (
+    RenameMap,
+    get_full_name,
+)
 from spinta.backends.postgresql.helpers.name import (
     name_changed,
     get_pg_constraint_name,
@@ -38,10 +45,10 @@ from spinta.exceptions import (
     UnableToFindPrimaryKeysMultipleUniqueConstraints,
     ModelNotFound,
     PropertyNotFound,
-    FileNotFound,
     MissingPostgresqlComments,
 )
 from spinta.manifests.components import Manifest
+from spinta.manifests.sql.helpers import is_internal_schema
 from spinta.types.datatype import Ref, File, DataType, Array
 from spinta.types.text.components import Text
 from spinta.utils.collections import keydefaultdict
@@ -50,260 +57,39 @@ from spinta.utils.nestedstruct import get_root_attr
 from spinta.utils.schema import NA, NotAvailable
 
 
-class CastSupport(enum.Enum):
-    # Doest not support casting
-    INVALID = 0
-    # Supports based on context (can only be resolved runtime, which can cause unexpected errors)
-    UNSAFE = 1
-    # Has direct support from backend
-    VALID = 2
-
-
-class CastMatrix:
-    _cache: dict[tuple[str, str], CastSupport]
-    engine: sa.engine.Engine
-
-    def __init__(self, engine: sa.engine.Engine):
-        self._cache = {}
-        self.engine = engine
-
-    def supports(self, from_type: str, to_type: str) -> CastSupport:
-        key = (from_type, to_type)
-
-        if key in self._cache:
-            return self._cache[key]
-
-        self._cache[key] = self.__supports_exec(from_type, to_type)
-        return self._cache[key]
-
-    def __supports_exec(self, from_type: str, to_type: str) -> CastSupport:
-        """
-        Checks postgresql cast table between given type strings
-        """
-
-        with self.engine.connect() as conn:
-            result = conn.execute(
-                sa.text("""
-            SELECT 1
-            FROM pg_cast
-            WHERE castsource = CAST(:source AS regtype)
-              AND casttarget = CAST(:target AS regtype)
-            LIMIT 1
-            """),
-                {"source": from_type, "target": to_type},
-            ).scalar()
-
-        result = result is not None
-        if result:
-            return CastSupport.VALID
-
-        result = self.__runtime_cast_exec(from_type, to_type)
-        return result
-
-    def __runtime_cast_exec(self, from_type: str, to_type: str) -> CastSupport:
-        """
-        Checks for unsafe casting between 2 types using runtime
-        """
-        with self.engine.connect() as conn:
-            try:
-                conn.execute(
-                    sa.text("SELECT NULL::" + from_type + "::" + to_type),
-                ).scalar()
-                return CastSupport.UNSAFE
-            except Exception as _:
-                return CastSupport.INVALID
-
-
-class RenameMap:
-    @dataclasses.dataclass
-    class _Name:
-        normal: str
-        compressed: str
-
-    @dataclasses.dataclass
-    class _TableRename:
-        old: "RenameMap._Name"
-        new: "RenameMap._Name" | None
-        columns: Dict[str, str]
-
-        def get_new_name(self, fallback: bool = False) -> str | None:
-            if self.new is None:
-                if fallback:
-                    return self.get_old_name()
-
-                return None
-
-            return self.new.normal
-
-        def get_old_name(self) -> str:
-            return self.old.normal
-
-    tables: Dict[str, _TableRename]
-
-    def __init__(self, rename_src: str | dict):
-        self.tables = {}
-        self.parse_rename_src(rename_src)
-
-    def _find_new_table(self, name: str, compressed: bool) -> _TableRename | None:
-        if name in self.tables:
-            return self.tables[name]
-
-        for table in self.tables.values():
-            table_name = table.old.compressed if compressed else table.old.normal
-            if table_name == name:
-                return table
-
-        return None
-
-    def _find_old_table(self, name: str, compressed: bool) -> _TableRename | None:
-        for table in self.tables.values():
-            if table.new is None:
-                continue
-
-            table_name = table.new.compressed if compressed else table.new.normal
-            if table_name == name:
-                return table
-
-        return None
-
-    def insert_table(self, old_name: str, new_name: str | None = None):
-        self.tables[old_name] = self._TableRename(
-            old=self._Name(normal=old_name, compressed=get_pg_table_name(old_name)),
-            new=self._Name(normal=new_name, compressed=get_pg_table_name(new_name)) if new_name else None,
-            columns={},
-        )
-
-    def insert_column(self, table_name: str, column_name: str, new_column_name: str):
-        if table_name not in self.tables.keys():
-            self.insert_table(table_name)
-        if column_name == "":
-            self.tables[table_name].new = self._Name(
-                normal=new_column_name, compressed=get_pg_table_name(new_column_name)
-            )
-            return
-
-        self.tables[table_name].columns[column_name] = new_column_name
-
-    def get_column_name(
-        self, table_name: str | sa.Table | Model, column_name: str, root_only: bool = False, root_value: str = ""
-    ):
-        # If table does not have renamed, return given column
-        table_name = get_full_name(table_name)
-        table = self._find_new_table(table_name, compressed=True)
-        if table is None:
-            return column_name
-
-        columns = table.columns
-
-        if column_name in columns:
-            return columns[column_name]
-
-        # If column was not directly set, and it cannot be mapped through root node, return it
-        if not root_only:
-            return column_name
-
-        root_attr = get_root_attr(column_name, initial_root=root_value)
-        for old_column_name, new_column_name in columns.items():
-            target_root_attr = get_root_attr(old_column_name, initial_root=root_value)
-            if root_attr == target_root_attr:
-                new_name = get_root_attr(new_column_name, initial_root=root_value)
-                return new_name
-        return column_name
-
-    def get_old_column_name(
-        self, table_name: str | sa.Table | Model, column_name: str, root_only: bool = False, root_value: str = ""
-    ):
-        table_name = get_full_name(table_name)
-        table = self._find_new_table(table_name, compressed=True)
-        if table is None:
-            return column_name
-
-        given_name = get_root_attr(column_name, initial_root=root_value) if root_only else column_name
-        for old_column_column, new_column_name in table.columns.items():
-            target_name = get_root_attr(new_column_name, initial_root=root_value) if root_only else new_column_name
-
-            if target_name == given_name:
-                old_name = get_root_attr(old_column_column, initial_root=root_value) if root_only else old_column_column
-                return old_name
-        return column_name
-
-    # Compressed default True, because in most cases we want new name from old tables, which are compressed
-    def get_table_name(self, table_name: str | sa.Table | Model, compressed: bool = True) -> str:
-        table_name = get_full_name(table_name)
-        table = self._find_new_table(table_name, compressed=compressed)
-        if table is None:
-            return table_name
-
-        name = table.get_new_name()
-        if name is not None:
-            table_name = name
-
-        return table_name
-
-    # Compressed default False, because in most cases we want old name from model name, which is not compressed
-    def get_old_table_name(self, table_name: str | sa.Table | Model, compressed: bool = False) -> str:
-        table_name = get_full_name(table_name)
-        table = self._find_old_table(table_name, compressed=compressed)
-        if table is None:
-            return table_name
-
-        return table.get_old_name()
-
-    def parse_rename_src(self, rename_src: str | dict):
-        def _parse_dict(src: dict):
-            for table, table_data in src.items():
-                table_rename = table_data.pop("", None)
-                self.insert_table(table, table_rename)
-                for column, column_data in table_data.items():
-                    self.insert_column(table, column, column_data)
-
-        if rename_src:
-            if isinstance(rename_src, str):
-                if os.path.exists(rename_src):
-                    with open(rename_src, "r") as f:
-                        data = json.loads(f.read())
-                        _parse_dict(data)
-                else:
-                    raise FileNotFound(file=rename_src)
-            else:
-                _parse_dict(rename_src)
-
-
-@dispatch(str)
-def get_full_name(item: str) -> str:
-    return item
-
-
-@dispatch(sa.Table)
-def get_full_name(item: sa.Table) -> str:
-    if item.comment:
-        return item.comment
-    return item.name
-
-
-@dispatch(sa.Column)
-def get_full_name(item: sa.Column) -> str:
-    if item.comment:
-        return item.comment
-    return item.name
-
-
-@dispatch(Model)
-def get_full_name(item: Model) -> str:
-    return get_table_name(item)
-
-
-@dispatch(Property)
-def get_full_name(item: Property) -> str:
-    return get_column_name(item)
-
-
 @dataclasses.dataclass
 class PostgresqlMigrationContext(MigrationContext):
     inspector: Inspector
     rename: RenameMap
     handler: MigrationHandler
     cast_matrix: CastMatrix
+
+    _table_identifier_cache: dict[str, TableIdentifier] = dataclasses.field(default_factory=dict)
+
+    def get_table_identifier(
+        self, item: (str, Model, Property, sa.Table), table_type: TableType = TableType.MAIN
+    ) -> TableIdentifier:
+        key = item
+        table_type_allowed = False
+        if isinstance(item, (Model, Property)):
+            if isinstance(item, Property) and item.list:
+                table_type = TableType.LIST
+
+            key = get_table_name(item, table_type)
+            table_type_allowed = True
+        elif isinstance(item, sa.Table):
+            key = item.comment or item.name
+
+        if cached := self._table_identifier_cache.get(key):
+            return cached
+
+        if table_type_allowed:
+            identifier = get_table_identifier(item, table_type)
+        else:
+            identifier = get_table_identifier(item)
+
+        self._table_identifier_cache[key] = identifier
+        return identifier
 
 
 @dataclasses.dataclass
@@ -345,7 +131,6 @@ class PropertyMigrationContext:
 class ModelMigrationContext:
     model: Model
     model_tables: ModelTables
-    # table: sa.Table
 
     constraint_states: Dict[str, TableConstraintStates] = dataclasses.field(default_factory=dict)
     json_columns: Dict[str, JSONMigrationContext] = dataclasses.field(default_factory=dict)
@@ -367,15 +152,15 @@ class ModelMigrationContext:
             table=table, table_type=table_type, prop=prop
         )
 
-        constraints = inspector.get_unique_constraints(table.name)
+        constraints = inspector.get_unique_constraints(table.name, schema=table.schema)
         for constraint in constraints:
             constraint_states.unique_constraint[constraint["name"]] = False
 
-        constraints = inspector.get_foreign_keys(table.name)
+        constraints = inspector.get_foreign_keys(table.name, schema=table.schema)
         for constraint in constraints:
             constraint_states.foreign_constraint[constraint["name"]] = False
 
-        indexes = inspector.get_indexes(table.name)
+        indexes = inspector.get_indexes(table.name, schema=table.schema)
 
         for index in indexes:
             constraint_states.index[index["name"]] = False
@@ -426,42 +211,59 @@ class ModelTables:
     reserved: dict[TableType, sa.Table] = dataclasses.field(default_factory=dict)
     property_tables: dict[str, tuple[TableType, sa.Table]] = dataclasses.field(default_factory=dict)
 
+    schema: str | None = dataclasses.field(init=False)
+    base_table_name: str = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.schema, self.base_table_name, _, _ = split_logical_name(self.base_name)
+
 
 def drop_all_indexes_and_constraints(
-    inspector: Inspector, table: str, new_table: str, handler: MigrationHandler, model_ctx: ModelMigrationContext = None
+    inspector: Inspector,
+    table: sa.Table,
+    target_table_identifier: TableIdentifier,
+    handler: MigrationHandler,
+    model_ctx: ModelMigrationContext = None,
 ):
+    table_name = table.name
     removed = []
-    constraints = inspector.get_unique_constraints(table)
-    foreign_keys = inspector.get_foreign_keys(table)
-    indexes = inspector.get_indexes(table)
+    constraints = inspector.get_unique_constraints(table_name, schema=table.schema)
+    foreign_keys = inspector.get_foreign_keys(table_name, schema=table.schema)
+    indexes = inspector.get_indexes(table_name, schema=table.schema)
     for key in foreign_keys:
         constraint_name = key["name"]
         if model_ctx is not None:
-            if model_ctx.constraint_states[table].foreign_constraint[constraint_name]:
+            if model_ctx.constraint_states[table_name].foreign_constraint[constraint_name]:
                 continue
-            model_ctx.mark_foreign_constraint_handled(table, constraint_name)
+            model_ctx.mark_foreign_constraint_handled(table_name, constraint_name)
 
-        handler.add_action(ma.DropConstraintMigrationAction(table_name=new_table, constraint_name=constraint_name))
+        handler.add_action(
+            ma.DropConstraintMigrationAction(table_identifier=target_table_identifier, constraint_name=constraint_name)
+        )
 
     for constraint in constraints:
         constraint_name = constraint["name"]
         if model_ctx is not None:
-            if model_ctx.constraint_states[table].unique_constraint[constraint_name]:
+            if model_ctx.constraint_states[table_name].unique_constraint[constraint_name]:
                 continue
-            model_ctx.mark_unique_constraint_handled(table, constraint_name)
+            model_ctx.mark_unique_constraint_handled(table_name, constraint_name)
 
         removed.append(constraint["name"])
-        handler.add_action(ma.DropConstraintMigrationAction(table_name=new_table, constraint_name=constraint_name))
+        handler.add_action(
+            ma.DropConstraintMigrationAction(table_identifier=target_table_identifier, constraint_name=constraint_name)
+        )
 
     for index in indexes:
         index_name = index["name"]
         if index_name not in removed:
             if model_ctx is not None:
-                if model_ctx.constraint_states[table].index[index_name]:
+                if model_ctx.constraint_states[table_name].index[index_name]:
                     continue
-                model_ctx.mark_index_handled(table, index_name)
+                model_ctx.mark_index_handled(table_name, index_name)
 
-            handler.add_action(ma.DropIndexMigrationAction(table_name=new_table, index_name=index_name))
+            handler.add_action(
+                ma.DropIndexMigrationAction(table_identifier=target_table_identifier, index_name=index_name)
+            )
 
 
 def get_prop_names(prop: Property):
@@ -542,8 +344,8 @@ def property_and_column_name_key(
         # Replace existing edge case -> Indirect renaming / removal edge case -> New name -> Old name
 
         name = get_full_name(item)
-        new_name = rename.get_column_name(table, name, True, root_value=root_name)
-        full_name = rename.get_column_name(table, name)
+        new_name = rename.to_new_column_name(table, name, True, root_value=root_name)
+        full_name = rename.to_new_column_name(table, name)
         column_renamed = name_changed(name, new_name)
         column_directly_renamed = name_changed(name, full_name)
 
@@ -552,7 +354,7 @@ def property_and_column_name_key(
         # rename provides "column_two": "column_one"
         # meaning, you need to remove old "column_one" and rename old "column_two" to "column_one"
         if not column_renamed:
-            old_name = rename.get_old_column_name(table, name)
+            old_name = rename.to_old_column_name(table, name)
             if name_changed(name, old_name):
                 return name
 
@@ -567,8 +369,8 @@ def property_and_column_name_key(
         # New Property (complex) -> Old column (complex) -> New Property
 
         name = get_full_name(item)
-        old_name = rename.get_old_column_name(table, name, True, root_value=root_name)
-        old_full_name = rename.get_old_column_name(table, name)
+        old_name = rename.to_old_column_name(table, name, True, root_value=root_name)
+        old_full_name = rename.to_old_column_name(table, name)
 
         property_directly_renamed = name_changed(name, old_full_name)
         if is_name_or_property_complex(name, item):
@@ -636,28 +438,28 @@ def handle_internal_ref_to_scalar_conversion(
 
     manifest = new_property.model.manifest
 
-    constraints = inspector.get_foreign_keys(table.name)
+    constraints = inspector.get_foreign_keys(table.name, schema=table.schema)
     ref_model = None
-    table_name = None
     # Try to find referred table's matching model
     for constraint in constraints:
         if constraint["constrained_columns"] == [ref_col.name]:
-            table_name = constraint["referred_table"]
-            if commands.has_model(context, manifest, table_name):
-                ref_model = commands.get_model(context, manifest, table_name)
-            else:
-                # In case table name has been truncated, need to loop through all models and convert their names to pg
-                all_models = commands.get_models(context, manifest)
-                for model in all_models.values():
-                    if get_pg_name(model.name) == table_name:
-                        ref_model = model
-                        break
-            break
+            ref_table_name = constraint["referred_table"]
+            ref_table_schema = constraint["referred_schema"]
+            ref_table_comment = inspector.get_table_comment(ref_table_name, schema=ref_table_schema)["text"]
+            if commands.has_model(context, manifest, ref_table_comment):
+                ref_model = commands.get_model(context, manifest, ref_table_comment)
+                break
 
     if not ref_model:
         return False
 
-    ref_primary_keys = get_spinta_primary_keys(table_name=table_name, model=ref_model, inspector=inspector, error=True)
+    ref_table_identifier = migration_context.get_table_identifier(ref_model)
+    ref_primary_keys = get_spinta_primary_keys(
+        table_identifier=ref_table_identifier,
+        model=ref_model,
+        inspector=inspector,
+        error=True,
+    )
 
     if len(ref_primary_keys) > 1:
         raise MigrateScalarToRefTooManyKeys(new_property.dtype, primary_keys=[key for key in ref_primary_keys])
@@ -668,11 +470,15 @@ def handle_internal_ref_to_scalar_conversion(
     updated_kwargs = adjust_kwargs(kwargs, {"foreign_key": True})
 
     commands.migrate(context, backend, migration_context, model_context, NA, new_property, **updated_kwargs)
-    table_name = get_pg_table_name(rename.get_table_name(table))
-    foreign_table_name = get_pg_table_name(get_table_name(ref_model))
+    table_identifier = rename.to_new_table(table)
+
     handler.add_action(
         ma.DowngradeTransferDataMigrationAction(
-            table_name, foreign_table_name, ref_col, {column_name: ref_primary_column}, "_id"
+            table_identifier=table_identifier,
+            referenced_table_identifier=ref_table_identifier,
+            source_column=ref_col,
+            columns={column_name: ref_primary_column},
+            target="_id",
         ),
         foreign_key=True,
     )
@@ -681,7 +487,7 @@ def handle_internal_ref_to_scalar_conversion(
 
 
 def extract_target_column(rename: RenameMap, columns: list, table: sa.Table, prop: Property):
-    full_name = rename.get_old_column_name(table.name, prop.name)
+    full_name = rename.to_old_column_name(table.name, prop.name)
     if isinstance(columns, list):
         for col in columns:
             if isinstance(col, sa.Column) and col.name == full_name:
@@ -794,16 +600,20 @@ def contains_index(indexes: list, column_name: str):
     return any(index["column_names"] == [column_name] for index in indexes)
 
 
-def contains_foreign_key_with_table_columns(constraints: list, table_name: str, column_names: list[str]):
+def contains_foreign_key_with_table_columns(
+    constraints: list, table_identifier: TableIdentifier, column_names: list[str]
+):
     return any(
-        constraint["constrained_columns"] == column_names and constraint["referred_table"] == table_name
+        constraint["constrained_columns"] == column_names
+        and constraint["referred_table"] == table_identifier.pg_table_name
+        and constraint["referred_schema"] == table_identifier.pg_schema_name
         for constraint in constraints
     )
 
 
 def handle_unique_constraint_migration(
-    source_table: sa.Table,
-    target_table: sa.Table,
+    source_table_identifier: TableIdentifier,
+    target_table_identifier: TableIdentifier,
     old_column: sa.Column,
     new_column: sa.Column,
     handler: MigrationHandler,
@@ -815,8 +625,8 @@ def handle_unique_constraint_migration(
     if not new_column.unique:
         return
 
-    source_table_name = source_table.name
-    target_table_name = target_table.name
+    source_table_name = source_table_identifier.pg_table_name
+    target_table_name = target_table_identifier.pg_table_name
     new_column_name = new_column.name
 
     unique_name = get_pg_constraint_name(target_table_name, new_column_name)
@@ -825,7 +635,9 @@ def handle_unique_constraint_migration(
     if unique_constraint_states[unique_name]:
         return
 
-    unique_constraints = inspector.get_unique_constraints(table_name=source_table.name)
+    unique_constraints = inspector.get_unique_constraints(
+        table_name=source_table_name, schema=source_table_identifier.pg_schema_name
+    )
     constraint_column = old_column.name if renamed else new_column_name
 
     model_context.mark_unique_constraint_handled(source_table_name, unique_name)
@@ -838,7 +650,7 @@ def handle_unique_constraint_migration(
             model_context.mark_unique_constraint_handled(source_table_name, old_constraint["name"])
             handler.add_action(
                 ma.RenameConstraintMigrationAction(
-                    table_name=target_table_name,
+                    table_identifier=target_table_identifier,
                     old_constraint_name=old_constraint["name"],
                     new_constraint_name=unique_name,
                 )
@@ -847,7 +659,7 @@ def handle_unique_constraint_migration(
 
         handler.add_action(
             ma.CreateUniqueConstraintMigrationAction(
-                constraint_name=unique_name, table_name=target_table_name, columns=[new_column_name]
+                constraint_name=unique_name, table_identifier=target_table_identifier, columns=[new_column_name]
             ),
             foreign_key,
         )
@@ -856,15 +668,15 @@ def handle_unique_constraint_migration(
     if not contains_unique_constraint(unique_constraints, constraint_column):
         handler.add_action(
             ma.DropConstraintMigrationAction(
+                table_identifier=target_table_identifier,
                 constraint_name=unique_name,
-                table_name=target_table_name,
             ),
             foreign_key,
         )
 
         handler.add_action(
             ma.CreateUniqueConstraintMigrationAction(
-                constraint_name=unique_name, table_name=target_table_name, columns=[new_column_name]
+                constraint_name=unique_name, table_identifier=target_table_identifier, columns=[new_column_name]
             ),
             foreign_key,
         )
@@ -889,8 +701,8 @@ def _requires_index(column: sa.Column, skip_unique: bool = True) -> bool:
 
 
 def handle_index_migration(
-    source_table: sa.Table,
-    target_table: sa.Table,
+    source_table_identifier: TableIdentifier,
+    target_table_identifier: TableIdentifier,
     old_column: sa.Column,
     new_column: sa.Column,
     handler: MigrationHandler,
@@ -902,8 +714,8 @@ def handle_index_migration(
     if not _requires_index(new_column):
         return
 
-    source_table_name = source_table.name
-    target_table_name = target_table.name
+    source_table_name = source_table_identifier.pg_table_name
+    target_table_name = target_table_identifier.pg_table_name
     new_column_name = new_column.name
 
     index_name = get_pg_index_name(table_name=target_table_name, columns=[new_column_name])
@@ -912,7 +724,7 @@ def handle_index_migration(
         return
 
     constraint_column = old_column.name if renamed else new_column_name
-    indexes = inspector.get_indexes(table_name=source_table_name)
+    indexes = inspector.get_indexes(table_name=source_table_name, schema=source_table_identifier.pg_schema_name)
     using = _index_using_suffix(new_column)
 
     # Check unhandled index with same columns
@@ -926,7 +738,12 @@ def handle_index_migration(
 
         model_context.mark_index_handled(source_table_name, existing_index["name"])
         handler.add_action(
-            ma.RenameIndexMigrationAction(old_index_name=existing_index["name"], new_index_name=index_name)
+            ma.RenameIndexMigrationAction(
+                old_index_name=existing_index["name"],
+                new_index_name=index_name,
+                table_identifier=target_table_identifier,
+                old_table_identifier=source_table_identifier,
+            )
         )
         return
 
@@ -937,11 +754,14 @@ def handle_index_migration(
             return
 
         handler.add_action(
-            ma.DropIndexMigrationAction(index_name=index_name, table_name=target_table_name), foreign_key
+            ma.DropIndexMigrationAction(index_name=index_name, table_identifier=target_table_identifier), foreign_key
         )
         handler.add_action(
             ma.CreateIndexMigrationAction(
-                index_name=index_name, table_name=target_table_name, columns=[constraint_column], using=using
+                index_name=index_name,
+                table_identifier=target_table_identifier,
+                columns=[constraint_column],
+                using=using,
             ),
             foreign_key,
         )
@@ -949,7 +769,7 @@ def handle_index_migration(
 
     handler.add_action(
         ma.CreateIndexMigrationAction(
-            index_name=index_name, table_name=target_table_name, columns=[constraint_column], using=using
+            index_name=index_name, table_identifier=target_table_identifier, columns=[constraint_column], using=using
         ),
         foreign_key,
     )
@@ -966,8 +786,8 @@ def reduce_columns(data: list) -> Union[sa.Column, list[sa.Column]]:
 def is_internal(
     columns: List[sa.Column],
     base_name: str,
-    table_name: str,
-    ref_table_name: str,
+    table_identifier: TableIdentifier,
+    referenced_table_identifier: TableIdentifier,
     inspector: Inspector,
     is_part_of_list: object,
 ) -> bool:
@@ -976,8 +796,8 @@ def is_internal(
     if not contains_column:
         return False
 
-    foreign_keys = inspector.get_foreign_keys(table_name)
-    return contains_foreign_key_with_table_columns(foreign_keys, ref_table_name, [column_name])
+    foreign_keys = inspector.get_foreign_keys(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name)
+    return contains_foreign_key_with_table_columns(foreign_keys, referenced_table_identifier, [column_name])
 
 
 def _split_columns_by_reserved_internal_column(
@@ -1211,16 +1031,19 @@ def get_explicit_primary_keys(ref: Ref, rename: RenameMap) -> List[str]:
         return []
 
     props = ref.refprops
-    old_ref_table_name = rename.get_old_table_name(get_table_name(ref.model))
-    old_names = [rename.get_old_column_name(old_ref_table_name, prop.name) for prop in props]
+    olf_ref_table_identifier = rename.to_old_table(ref.model)
+    old_ref_table_name = olf_ref_table_identifier.logical_qualified_name
+    old_names = [rename.to_old_column_name(old_ref_table_name, prop.name) for prop in props]
     return old_names
 
 
-def get_spinta_primary_keys(table_name: str, model: Model, inspector: Inspector, error: bool = False) -> List[str]:
+def get_spinta_primary_keys(
+    table_identifier: TableIdentifier, model: Model, inspector: Inspector, error: bool = False
+) -> List[str]:
     """Extracts `manifest` declared primary keys (from internal PostgresSql)
 
     Args:
-        table_name: old table's name
+        table_identifier: table identifier
         model: new table's model
         inspector: SQLAlchemy Inspector object
         error: Raise an error if no primary keys were found
@@ -1233,12 +1056,14 @@ def get_spinta_primary_keys(table_name: str, model: Model, inspector: Inspector,
     that the `UniqueConstraint` you find is actually primary key
     """
 
-    unique_constraints = inspector.get_unique_constraints(table_name)
+    unique_constraints = inspector.get_unique_constraints(
+        table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+    )
     unique_constraint_columns = [constraint["column_names"] for constraint in unique_constraints]
 
     if not unique_constraint_columns:
         if error:
-            raise UnableToFindPrimaryKeysNoUniqueConstraints(model, table_name=table_name)
+            raise UnableToFindPrimaryKeysNoUniqueConstraints(model, table_name=table_identifier.pg_qualified_name)
 
         return []
 
@@ -1258,7 +1083,7 @@ def get_spinta_primary_keys(table_name: str, model: Model, inspector: Inspector,
     if error:
         raise UnableToFindPrimaryKeysMultipleUniqueConstraints(
             model,
-            table_name=table_name,
+            table_name=table_identifier.pg_qualified_name,
             unique_constraints=_format_multiple_unique_constraints_error_msg(unique_constraints),
         )
 
@@ -1266,15 +1091,15 @@ def get_spinta_primary_keys(table_name: str, model: Model, inspector: Inspector,
 
 
 def get_model_column_names(
-    table_name: str,
+    table_identifier: TableIdentifier,
     inspector: Inspector,
 ):
-    columns = inspector.get_columns(table_name)
+    columns = inspector.get_columns(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name)
     return list(column["name"] for column in columns)
 
 
 def nested_column_rename(column_name: str, table_name: str, rename: RenameMap) -> str:
-    renamed = rename.get_column_name(table_name, column_name)
+    renamed = rename.to_new_column_name(table_name, column_name)
     if name_changed(column_name, renamed):
         return renamed
 
@@ -1291,7 +1116,7 @@ def remap_and_rename_columns(
 ) -> dict:
     result = {}
     for column in columns:
-        name = rename.get_column_name(table_name, column.name)
+        name = rename.to_new_column_name(table_name, column.name)
         # Handle nested renaming from 2 tables
         if column.name.startswith(base_name):
             leaf_name = column.name.removeprefix(base_name)
@@ -1381,10 +1206,11 @@ def validate_rename_map(context: Context, rename: RenameMap, manifest: Manifest)
     tables = rename.tables.values()
     for table in tables:
         models = commands.get_models(context, manifest)
-        name = table.get_new_name(fallback=True)
-        if name not in models.keys():
-            raise ModelNotFound(model=name)
-        model = models.get(name)
+        table_identifier = table.get_new_table_identifier(fallback=True)
+        logical_qualified_name = table_identifier.logical_qualified_name
+        if logical_qualified_name not in models.keys():
+            raise ModelNotFound(model=logical_qualified_name)
+        model = models.get(logical_qualified_name)
         for column in table.columns.values():
             if column not in model.flatprops.keys():
                 raise PropertyNotFound(property=column)
@@ -1394,105 +1220,58 @@ def column_cast_warning_message(dtype: DataType, column_name: str, old_type: str
     return f"WARNING: Casting '{column_name}' (from '{dtype.prop.model.model_type()}' model) column's type from '{old_type}' to '{new_type}' might not be possible."
 
 
-def contains_any_table(
-    *tables,
-    inspector: Inspector,
-) -> bool:
-    return any(inspector.has_table(table) for table in tables)
-
-
-def recreate_all_reserved_table_names(
-    model: Model,
-    old_name: str,
-    new_name: str,
-    table_type: TableType,
-    rename: RenameMap,
-) -> (str, str):
-    renamed = name_changed(old_name, new_name)
-    if not renamed:
-        table = get_pg_table_name(model, table_type)
-        return table, table
-
-    old_full_name = rename.get_old_table_name(model.name)
-    old_table_name = get_pg_table_name(old_full_name, table_type)
-    new_table_name = get_pg_table_name(model, table_type)
-    return old_table_name, new_table_name
-
-
-def part_of_dataset(table_name: str, dataset: str, ignore_compression: bool = True) -> bool:
-    if table_name.startswith(f"{dataset}/"):
-        additional_check = table_name.replace(f"{dataset}/", "", 1)
+def part_of_dataset(table_comment: str, dataset: str) -> bool:
+    if table_comment.startswith(f"{dataset}/"):
+        additional_check = table_comment.replace(f"{dataset}/", "", 1)
         return additional_check[0].isupper()
-
-    if ignore_compression:
-        return False
-
-    if len(table_name) < NAMEDATALEN:
-        return False
-
-    # Dataset compression snippet from get_pg_name logic
-    i = int(NAMEDATALEN / 100 * 60)
-    compressed_dataset = dataset[:i] + "_"
-    return table_name.startswith(compressed_dataset)
+    return False
 
 
 def generate_model_tables_mapping(
-    metadata: sa.MetaData, inspector: Inspector, excluded_tables: list[str] = None
+    metadata: sa.MetaData, inspector: Inspector, schemas: list, excluded_tables: list[str] = None
 ) -> dict[str, ModelTables]:
     if excluded_tables is None:
         excluded_tables = []
 
-    existing_tables = inspector.get_table_names()
-    filtered_tables = [table for table in existing_tables if table not in excluded_tables]
-    filtered_tables = [
-        table
-        for table in filtered_tables
-        if ((table_comment := inspector.get_table_comment(table)["text"]) and "__" not in table_comment)
-        or "/__" not in table
-    ]
     mapped_tables = keydefaultdict(ModelTables)
-    for table in filtered_tables:
-        if table not in metadata.tables:
-            continue
+    for schema in schemas:
+        existing_tables = inspector.get_table_names(schema=schema)
+        filtered_tables = [table for table in existing_tables if table not in excluded_tables]
+        filtered_tables = [
+            table
+            for table in filtered_tables
+            if (
+                (table_comment := inspector.get_table_comment(table, schema=schema)["text"])
+                and "__" not in table_comment
+            )
+        ]
 
-        full_table_name = inspector.get_table_comment(table)["text"]
-        if not full_table_name:
-            raise MissingPostgresqlComments(table=table)
+        for table in filtered_tables:
+            metadata_table_name = f"{schema}.{table}"
+            if metadata_table_name not in metadata.tables:
+                continue
 
-        table_type, base_name, property_name = _extract_table_data_from_name(full_table_name)
-        if table_type is None:
-            raise Exception(f"Table {table} does not have a table type.")
+            logical_qualified_named = inspector.get_table_comment(table, schema=schema)["text"]
+            if not logical_qualified_named:
+                raise MissingPostgresqlComments(table=table)
 
-        model_tables = mapped_tables[base_name]
-        if property_name is None:
-            if table_type == TableType.MAIN:
-                model_tables.main_table = metadata.tables[table]
+            base_name, table_type, property_name = extract_table_data_from_logical_name(logical_qualified_named)
+            if table_type is None:
+                raise Exception(f"Table {table} does not have a table type.")
+
+            model_tables = mapped_tables[base_name]
+            if property_name is None:
+                if table_type == TableType.MAIN:
+                    model_tables.main_table = metadata.tables[metadata_table_name]
+                else:
+                    model_tables.reserved[table_type] = metadata.tables[metadata_table_name]
             else:
-                model_tables.reserved[table_type] = metadata.tables[table]
-        else:
-            model_tables.property_tables[property_name] = (table_type, metadata.tables[table])
+                model_tables.property_tables[property_name] = (table_type, metadata.tables[metadata_table_name])
 
     return mapped_tables
 
 
-def _extract_table_data_from_name(table_name: str) -> (TableType, str, str | None):
-    if "/:" not in table_name:
-        return TableType.MAIN, table_name, None
-
-    for table_type in TableType:
-        if table_type is TableType.MAIN:
-            continue
-
-        if table_type.value in table_name:
-            data = table_name.split(table_type.value, 1)
-            if data[1]:
-                return table_type, data[0], data[1][1:]  # skip /property slash
-            return table_type, data[0], None
-
-    return None, None, None
-
-
-def create_table_migration(table: sa.Table, handler: MigrationHandler):
+def create_table_migration(table: sa.Table, handler: MigrationHandler, table_identifier: TableIdentifier = None):
     columns = list(table.columns)
     constraints = list(table.constraints)
     indexes = list(table.indexes)
@@ -1514,9 +1293,11 @@ def create_table_migration(table: sa.Table, handler: MigrationHandler):
         filtered_indexes.append(index)
 
     all_columns = columns + filtered_constraints
+    if table_identifier is None:
+        table_identifier = get_table_identifier(table)
     handler.add_action(
         ma.CreateTableMigrationAction(
-            table_name=table.name, columns=all_columns, comment=table.comment, indexes=filtered_indexes
+            table_identifier=table_identifier, columns=all_columns, comment=table.comment, indexes=filtered_indexes
         )
     )
 
@@ -1590,3 +1371,21 @@ def get_source_table(
         return table
 
     return node_context.model_context.model_tables.main_table
+
+
+def get_spinta_schemas(engine: Engine) -> list[str]:
+    inspector = sa.inspect(engine)
+    schemas = inspector.get_schema_names()
+    return [schema for schema in schemas if not is_internal_schema(engine, schema)]
+
+
+def create_missing_schemas(
+    context: Context, manifest: Manifest, handler: MigrationHandler, schemas: list[str], datasets: list[str] | None
+):
+    datasets = datasets or commands.get_datasets(context, manifest).keys()
+    for dataset in datasets:
+        pg_schema_name = get_pg_name(dataset)
+        if pg_schema_name in schemas:
+            continue
+
+        handler.add_action(ma.CreateSchemaMigrationAction(schema_name=pg_schema_name))

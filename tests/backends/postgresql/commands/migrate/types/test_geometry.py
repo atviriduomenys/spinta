@@ -2,22 +2,20 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from geoalchemy2.shape import to_shape
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import drop_index
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     configure_migrate,
-    cleanup_tables,
     float_equals,
     override_manifest,
     cleanup_table_list,
 )
 
 
-def test_migrate_modify_geometry_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_modify_geometry_type(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
@@ -31,7 +29,7 @@ def test_migrate_modify_geometry_type(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -98,7 +96,7 @@ def test_migrate_modify_geometry_type(postgresql_migration: URL, rc: RawConfig, 
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -123,9 +121,8 @@ def test_migrate_modify_geometry_type(postgresql_migration: URL, rc: RawConfig, 
 
 
 def test_migrate_geometry_to_string_to_geometry(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
@@ -137,7 +134,7 @@ def test_migrate_geometry_to_string_to_geometry(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -186,7 +183,7 @@ def test_migrate_geometry_to_string_to_geometry(
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -227,7 +224,7 @@ def test_migrate_geometry_to_string_to_geometry(
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables

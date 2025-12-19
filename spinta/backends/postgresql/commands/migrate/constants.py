@@ -1,1 +1,1 @@
-EXCLUDED_MODELS = "spatial_ref_sys"
+EXCLUDED_MODELS = ["spatial_ref_sys"]

@@ -11,6 +11,7 @@ import sqlalchemy_utils as su
 from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
 
+from spinta.backends.postgresql.helpers.migrate.migrate import get_spinta_schemas
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
 from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
@@ -271,6 +272,13 @@ def postgresql_migration(rc) -> URL:
 
 
 @pytest.fixture(scope="function")
+def migration_db(postgresql_migration: URL) -> sa.engine.Engine:
+    engine = sa.create_engine(postgresql_migration)
+    yield engine
+    _cleanup_tables(engine)
+
+
+@pytest.fixture(scope="function")
 def reset_keymap(context):
     def _reset_keymap(excluded_tables: list[str] = None):
         keymap.metadata.reflect()
@@ -289,11 +297,20 @@ def reset_keymap(context):
     _reset_keymap(excluded)
 
 
-def _prepare_migration_postgresql(dsn: URL) -> None:
-    engine = sa.create_engine(dsn)
+def _cleanup_tables(engine: sa.engine.Engine):
+    schemas = get_spinta_schemas(engine)
     with engine.connect() as conn:
-        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
-        conn.execute(sa.text("CREATE SCHEMA public"))
+        for schema in schemas:
+            conn.execute(sa.text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+    _prepare_migration_postgresql(engine)
+
+
+def _prepare_migration_postgresql(engine: URL | sa.engine.Engine) -> None:
+    if isinstance(engine, URL):
+        engine = sa.create_engine(engine)
+    with engine.connect() as conn:
+        conn.execute(sa.text("DROP SCHEMA IF EXISTS public CASCADE"))
+        conn.execute(sa.text("CREATE SCHEMA IF NOT EXISTS public"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))

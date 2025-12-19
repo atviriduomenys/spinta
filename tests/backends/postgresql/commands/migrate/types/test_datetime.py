@@ -3,21 +3,19 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
 from spinta.core.config import RawConfig
 from spinta.exceptions import UnableToCastColumnTypes
 from spinta.testing.cli import SpintaCliRunner
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     configure_migrate,
-    cleanup_tables,
     override_manifest,
     cleanup_table_list,
 )
 
 
-def test_migrate_date_to_datetime(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_date_to_datetime(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type | ref | source
      migrate/example |   |   |      |          |      |     |
@@ -28,7 +26,7 @@ def test_migrate_date_to_datetime(postgresql_migration: URL, rc: RawConfig, cli:
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -67,7 +65,7 @@ def test_migrate_date_to_datetime(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -81,8 +79,7 @@ def test_migrate_date_to_datetime(postgresql_migration: URL, rc: RawConfig, cli:
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_date_to_time_error(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_date_to_time_error(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type | ref | source
      migrate/example |   |   |      |          |      |     |
@@ -93,7 +90,7 @@ def test_migrate_date_to_time_error(postgresql_migration: URL, rc: RawConfig, cl
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -135,14 +132,13 @@ def test_migrate_date_to_time_error(postgresql_migration: URL, rc: RawConfig, cl
         result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"], fail=False)
         raise result.exception
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_datetime_to_date(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datetime_to_date(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type     | ref | source
      migrate/example |   |   |      |          |          |     |
@@ -153,7 +149,7 @@ def test_migrate_datetime_to_date(postgresql_migration: URL, rc: RawConfig, cli:
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -191,7 +187,7 @@ def test_migrate_datetime_to_date(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -205,8 +201,7 @@ def test_migrate_datetime_to_date(postgresql_migration: URL, rc: RawConfig, cli:
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_datetime_to_time(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datetime_to_time(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type     | ref | source
      migrate/example |   |   |      |          |          |     |
@@ -217,7 +212,7 @@ def test_migrate_datetime_to_time(postgresql_migration: URL, rc: RawConfig, cli:
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -256,7 +251,7 @@ def test_migrate_datetime_to_time(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -270,8 +265,7 @@ def test_migrate_datetime_to_time(postgresql_migration: URL, rc: RawConfig, cli:
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_time_to_date_error(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_time_to_date_error(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type | ref | source
      migrate/example |   |   |      |          |      |     |
@@ -282,7 +276,7 @@ def test_migrate_time_to_date_error(postgresql_migration: URL, rc: RawConfig, cl
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -323,14 +317,13 @@ def test_migrate_time_to_date_error(postgresql_migration: URL, rc: RawConfig, cl
         result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"], fail=False)
         raise result.exception
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_time_to_datetime_error(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_time_to_datetime_error(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type | ref | source
      migrate/example |   |   |      |          |      |     |
@@ -341,7 +334,7 @@ def test_migrate_time_to_datetime_error(postgresql_migration: URL, rc: RawConfig
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -383,7 +376,7 @@ def test_migrate_time_to_datetime_error(postgresql_migration: URL, rc: RawConfig
         result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"], fail=False)
         raise result.exception
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])

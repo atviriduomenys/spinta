@@ -4,7 +4,7 @@ from multipledispatch import dispatch
 from sqlalchemy.cimmutabledict import immutabledict
 
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.components import Model
 from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_pg_name
@@ -29,8 +29,11 @@ PG_NAMING_CONVENTION = immutabledict(
 )
 
 
-@dispatch(str, str)
-def name_changed(old_name: str, new_name: str) -> bool:
+@dispatch((str, type(None)), (str, type(None)))
+def name_changed(old_name: str | None, new_name: str | None) -> bool:
+    if old_name is None and new_name is None:
+        return False
+
     return old_name != new_name
 
 
@@ -60,12 +63,14 @@ def get_pg_table_name(table_name: str, ttype: TableType) -> str:
 
 @dispatch(Model, TableType)
 def get_pg_table_name(model: Model, ttype: TableType) -> str:
-    return get_pg_table_name(get_table_name(model, ttype))
+    table_identifier = get_table_identifier(model, ttype)
+    return table_identifier.pg_qualified_name
 
 
 @dispatch(Model)
 def get_pg_table_name(model: Model) -> str:
-    return get_pg_table_name(get_table_name(model))
+    table_identifier = get_table_identifier(model)
+    return table_identifier.pg_qualified_name
 
 
 @dispatch(str)
