@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.helpers import get_column_name
@@ -31,9 +31,12 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest, **kwargs)
 @overload
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicate: bool = False, **kwargs):
-    table_name = get_table_name(model)
-    main_table_name = get_pg_table_name(table_name)
-    if table_name in backend.tables and ignore_duplicate:
+    table_identifier = get_table_identifier(model)
+    # schema, table_name = split_table_name(full_name)
+    # pg_schema_name = get_pg_name(schema) if schema else None
+    # pg_table_name = get_pg_table_name(table_name)
+    # print(pg_schema_name, pg_table_name, full_name)
+    if table_identifier.logical_qualified_name in backend.tables and ignore_duplicate:
         return
 
     columns = []
@@ -67,13 +70,14 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
     # Create main table.
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
-        main_table_name,
+        table_identifier.pg_table_name,
         backend.schema,
         sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
         sa.Column(get_pg_column_name("_created"), sa.DateTime, comment="_created"),
         sa.Column(get_pg_column_name("_updated"), sa.DateTime, comment="_updated"),
         *columns,
-        comment=table_name,
+        schema=table_identifier.pg_schema_name,
+        comment=table_identifier.logical_qualified_name,
     )
     backend.add_table(main_table, model)
 

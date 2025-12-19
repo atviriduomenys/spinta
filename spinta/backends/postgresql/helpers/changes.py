@@ -7,8 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT
 
 from spinta import commands
-from spinta.backends.helpers import get_table_name
-from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.components import Context, Model
 from spinta.backends.constants import TableType
@@ -18,10 +17,13 @@ if TYPE_CHECKING:
 
 
 def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_table_name(model, TableType.CHANGELOG)
+    table_identifier = get_table_identifier(model, TableType.CHANGELOG)
+    # schema, table_name = split_table_name(full_name)
+    # pg_table_name = get_pg_table_name(table_name)
+    # pg_schema_name = get_pg_name(schema) if schema else None
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
-        get_pg_name(table_name),
+        table_identifier.pg_table_name,
         backend.schema,
         # XXX: This will not work with multi master setup. Consider changing it
         #      to UUID or something like that.
@@ -39,6 +41,7 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
         # FIXME: Change `action` to `_op` for consistency.
         sa.Column(get_pg_column_name("action"), sa.String(8), comment="action"),  # insert, update, delete
         sa.Column(get_pg_column_name("data"), JSONB, comment="data"),
-        comment=table_name,
+        schema=table_identifier.pg_schema_name,
+        comment=table_identifier.logical_qualified_name,
     )
     return table

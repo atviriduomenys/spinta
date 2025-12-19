@@ -13,7 +13,7 @@ from spinta.utils.schema import NA
 from spinta.components import Model, Property
 from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.components import Backend
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailable
 
@@ -97,7 +97,8 @@ class PostgreSQL(Backend):
         node: Union[Model, Property],
         ttype: TableType = TableType.MAIN,
     ):
-        name = get_table_name(node, ttype)
+        table_identifier = get_table_identifier(node, ttype)
+        name = table_identifier.logical_qualified_name
         assert name not in self.tables, name
         self.tables[name] = table
 
@@ -108,7 +109,8 @@ class PostgreSQL(Backend):
         *,
         fail: bool = True,
     ):
-        name = get_table_name(node, ttype)
+        table_identifier = get_table_identifier(node, ttype)
+        name = table_identifier.logical_qualified_name
         if fail:
             return self.tables[name]
         else:
