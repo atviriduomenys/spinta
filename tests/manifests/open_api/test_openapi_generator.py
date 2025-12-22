@@ -1,53 +1,16 @@
 import pytest
-
 from spinta.manifests.components import ManifestPath
-from spinta.manifests.tabular.helpers import striptable
+
 from spinta.manifests.open_api.helpers import create_openapi_manifest
-from spinta.testing.context import create_test_context
-from spinta.testing.tabular import create_tabular_manifest
+from tests.manifests.open_api.conftest import MANIFEST, MANIFEST_WITH_SOAP_PREPARE
+
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
 
-MANIFEST = striptable("""
-id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
-   | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     | Test title                                                 | Test description
-   |   | test                         | memory                |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   |   |   | Organization         |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Reporting Organizations                                    |
-   |   |   |   |   | org_name         | string                |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization name                                          |
-   |   |   |   |   | annual_revenue   | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Annual revenue amount                                      |
-   |   |   |   |   | coordinates      | geometry(point, 3346) |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization coordinates                                   |
-   |   |   |   |   | established_date | date                  | D   |        |             |         |        |       | 4     |        |            | open   |     |     | Organization establishment date                            |
-   |   |   |   |   | org_logo         | image                 |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization logo image                                    |
-   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   |   |   | ProcessingUnit       |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Processing unit data with treatment methods and capacities |
-   |   |   |   |   | unit_name        | string                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing unit name                                       |
-   |   |   |   |   | unit_type        | string                |     |        |             |         |        |       | 4     |        |            | open   |     |     | Processing unit type                                       |
-   |                                  | enum                  |     |        |             | 'FAC'   |        |       |       |        |            |        |     |     | Processing Facility                                        |
-   |                                  |                       |     |        |             | 'TRT'   |        |       |       |        |            |        |     |     | Treatment Plant                                            |
-   |                                  |                       |     |        |             | 'OUT'   |        |       |       |        |            |        |     |     | Outlet Point                                               |
-   |                                  |                       |     |        |             | 'OTH'   |        |       |       |        |            |        |     |     | Other Equipment                                            |
-   |   |   |   |   | efficiency_rate  | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing efficiency rate percentage                      |
-   |   |   |   |   | capacity         | integer               |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing capacity, units per day                         |
-   |   |   |   |   | technical_specs  | file                  |     |        |             |         |        |       | 3     |        |            | open   |     |     | Technical specifications document                          |
-    """)
 
-
-@pytest.fixture
-def open_manifest_path(tmp_path, rc):
-    path = f"{tmp_path}/manifest.csv"
-    context = create_test_context(rc)
-    create_tabular_manifest(
-        context,
-        path,
-        MANIFEST,
-    )
-    file_handle = open(path, "r")
-    yield ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
-    file_handle.close()
-
-
-def test_basic_structure(open_manifest_path: ManifestPath):
+@pytest.mark.parametrize("manifest_data", [MANIFEST, MANIFEST_WITH_SOAP_PREPARE])
+def test_basic_structure(open_manifest_path_factory, manifest_data):
+    open_manifest_path = open_manifest_path_factory(manifest_data)
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     expected_keys = {"openapi", "info", "servers", "tags", "externalDocs", "paths", "components"}
