@@ -415,23 +415,21 @@ class Token(rfc6749.TokenMixin):
         # Scope is not valid. Raise an exception
         client_id = self._token["aud"]
 
-        operator = "OR"
-        if isinstance(scope, str):
-            operator = "AND"
-            scope = [scope]
+        require_all_scopes = isinstance(scope, str)
+        scope_list = [scope] if require_all_scopes else scope
+
         missing_scopes = ", ".join(
-            sorted([single_scope for single_scope in scope if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX)])
+            sorted(single_scope for single_scope in scope_list if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX))
         )
 
-        # FIXME: this should be wrapped into UserError.
-        if operator == "AND":
+        if require_all_scopes:
+            message = f"Missing required scopes: {missing_scopes}"
             log.error(f"client {client_id!r} is missing required scopes: %s", missing_scopes)
-            raise InsufficientScopeError(description=f"Missing scopes: {missing_scopes}")
-        elif operator == "OR":
-            log.error(f"client {client_id!r} is missing one of required scopes: %s", missing_scopes)
-            raise InsufficientScopeError(description=f"Missing one of scopes: {missing_scopes}")
         else:
-            raise Exception(f"Unknown operator {operator}.")
+            message = f"Missing one of required scopes: {missing_scopes}"
+            log.error(f"client {client_id!r} is missing one of required scopes: %s", missing_scopes)
+
+        raise InsufficientScopeError(description=message)
 
     # No longer mandatory, but will keep it, since it is used in other places.
     def get_client_id(self) -> str:
