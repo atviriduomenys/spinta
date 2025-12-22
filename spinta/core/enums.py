@@ -128,7 +128,7 @@ class Action(enum.Enum):
         return list(cls._value2member_map_.keys())
 
     @classmethod
-    def scope_action_values(cls):
+    def scope_action_values(cls) -> list[str]:
         old_prefix_actions = list(map(lambda action: "_" + action, cls.values()))
         new_prefix_actions = list(map(lambda action: "/:" + action, cls.values()))
         return old_prefix_actions + new_prefix_actions
