@@ -12,6 +12,7 @@ import time
 import uuid
 from collections import defaultdict
 from functools import cached_property
+from itertools import chain
 from threading import Lock
 from typing import Set, Any, TypedDict, Literal
 from typing import Type
@@ -26,7 +27,7 @@ from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
-from authlib.oauth2.rfc6749 import grants, OAuth2Payload, scope_to_list, list_to_scope
+from authlib.oauth2.rfc6749 import grants, OAuth2Payload, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.util import scope_to_list
@@ -40,11 +41,12 @@ from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
+from spinta import commands
 from spinta.components import Config
 from spinta.components import Context, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access, Action
-from spinta.exceptions import AuthorizedClientsOnly
+from spinta.exceptions import AuthorizedClientsOnly, NoScopesForNamespaces, InvalidExtraScopes
 from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import (
     InvalidToken,
@@ -363,6 +365,9 @@ class Client(rfc6749.ClientMixin):
         else:
             return True
 
+    def get_all_contract_scopes(self) -> set[str]:
+        return set(chain.from_iterable(self.contract_scopes.values()))
+
 
 def decode_unverified_header(token: str) -> dict[str, Any]:
     try:
@@ -462,6 +467,76 @@ class Token(rfc6749.TokenMixin):
     def is_expired(self) -> bool:
         return time.time() > self._token["exp"]
 
+    @staticmethod
+    def _collect_available_namespaces(context: Context) -> set[str]:
+        """Collects all scopes that can be used to get data from currently loaded manifest"""
+
+        manifest = context.get("store").manifest
+        model_namespaces = chain.from_iterable(
+            model.get_namespaces()
+            for model in commands.get_models(context, manifest).values()
+            if not model.name.startswith("_")
+        )
+
+        return set(model_namespaces)
+
+    @staticmethod
+    def _get_scope_namespace(single_scope: str, scope_prefixes: list[str]) -> str:
+        """Removes spinta prefixes and action suffixes, leaving only namespace part of scope"""
+        for prefix in scope_prefixes:
+            if single_scope.startswith(prefix):
+                single_scope = single_scope.removeprefix(prefix)
+
+        for action in Action.scope_action_values():
+            if single_scope.endswith(action):
+                single_scope = single_scope.removesuffix(action)
+
+        return single_scope
+
+    def _get_namespace_scope_map(self, scope_prefixes: list[str]) -> dict[str, set[str]]:
+        """
+        Splits JWT scope into separate scopes and build a mapping of namespaces to their corresponding scopes
+        """
+        scope_dict = defaultdict(set)
+        for scope in scope_to_list(self.get_scope()):
+            if namespace := self._get_scope_namespace(scope, scope_prefixes):
+                scope_dict[namespace].add(scope)
+
+        return dict(scope_dict)
+
+    def _get_scopes_from_model_namespaces(self, model_namespaces: set[str], scope_prefixes: list[str]) -> set[str]:
+        """Returns only JWT scopes that match any namespaces from manifest"""
+        scope_namespace_map = self._get_namespace_scope_map(scope_prefixes)
+
+        return {
+            scope
+            for namespace, scopes in scope_namespace_map.items()
+            if namespace in model_namespaces
+            for scope in scopes
+        }
+
+    def check_contract_scopes(self, context: Context) -> None:
+        """
+        Checks if there are no extra JWT scopes from manifest namespaces comparing to contract scopes saved
+        in client's file.
+        """
+
+        if not (model_namespaces := self._collect_available_namespaces(context)):
+            raise NoScopesForNamespaces(namespaces=[])
+
+        config = context.get("config")
+        client = query_client(get_clients_path(config), self.get_client_id())
+
+        contract_scopes = client.get_all_contract_scopes()
+        filtered_jwt_scopes = self._get_scopes_from_model_namespaces(
+            model_namespaces, [config.scope_prefix, config.scope_prefix_udts]
+        )
+
+        if not filtered_jwt_scopes:
+            raise NoScopesForNamespaces(namespaces=", ".join(sorted(model_namespaces)))
+        elif not contract_scopes.issuperset(filtered_jwt_scopes):
+            raise InvalidExtraScopes(extra_scopes=", ".join(sorted(filtered_jwt_scopes - contract_scopes)))
+
 
 class AdminToken(rfc6749.TokenMixin):
     def valid_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
@@ -481,6 +556,9 @@ class AdminToken(rfc6749.TokenMixin):
 
     def get_client_id(self) -> str:
         return self.get_aud()
+
+    def check_contract_scopes(self, context: Context) -> None:
+        pass
 
 
 @dataclasses.dataclass
@@ -560,6 +638,7 @@ def get_auth_token(context: Context) -> Token:
         token = resource_protector.validate_request(scope, request)
     except JoseError as e:
         raise HTTPException(status_code=400, detail=e.error)
+
     return token
 
 
@@ -823,9 +902,15 @@ def authorized(
     ]
     # Check if client has at least one of required scopes.
     if throw:
-        token.check_scope(scopes)
+        is_token_valid = token.check_scope(scopes)
     else:
-        return token.valid_scope(scopes)
+        is_token_valid = token.valid_scope(scopes)
+
+    # Contract scopes are only checked for non-open nodes and when check_contract_scopes is enabled
+    if config.check_contract_scopes and node.access < Access.open:
+        token.check_contract_scopes(context)
+
+    return is_token_valid
 
 
 def auth_server_keys_exists(path: pathlib.Path):

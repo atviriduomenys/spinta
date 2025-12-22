@@ -22,17 +22,18 @@ from spinta.auth import (
     create_client_file,
     load_key,
     create_access_token,
-    Token,
     authorized,
     BearerTokenValidator,
+    Token,
 )
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.core.enums import Action
-from spinta.exceptions import InvalidClientFileFormat
+from spinta.core.enums import Action, Mode
+from spinta.exceptions import InvalidClientFileFormat, InvalidExtraScopes, NoScopesForNamespaces, UserError
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
+from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.utils.config import get_keymap_path
 
@@ -526,7 +527,7 @@ def test_invalid_client_file_data_type_str(
         query_client(get_clients_path(tmp_path), "test", is_name=True)
 
 
-def test_valid_client_file_data(tmp_path: pathlib.Path, context: Context):
+def test_valid_client_file_data(tmp_path: pathlib.Path):
     clients_path = get_clients_path(tmp_path)
     ensure_client_folders_exist(clients_path)
 
@@ -781,3 +782,430 @@ class TestAuthorized:
             node = commands.get_namespace(context, store.manifest, node)
 
         assert authorized(context, node, action) is result
+
+    @pytest.mark.parametrize(
+        "scopes",
+        [
+            {"uapi:/datasets/test/example/Foo/:getall"},
+            {"uapi:/datasets/test/example/Foo/:getall", "uapi:/datasets/test/example/Bar/:getall"},
+        ],
+    )
+    def test_authorized_contract_scope_check_success(self, rc: RawConfig, scopes: set[str]):
+        rc = rc.fork({"check_contract_scopes": True})
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        assert authorized(context, node, Action.GETALL)
+
+    @pytest.mark.parametrize(
+        "scopes",
+        [
+            set(),  # No scopes
+            {"uapi:/datasets/test/example/Test/:getall"},  # Invalid scope for manifest
+            {"uapi:/datasets/test/:getall"},  # Scope not in contract_scopes
+        ],
+    )
+    def test_authorized_contract_scope_check_failure(self, rc: RawConfig, scopes: set[str]):
+        rc = rc.fork({"check_contract_scopes": True})
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        with pytest.raises(UserError) as e:
+            authorized(context, node, Action.GETALL)
+        assert type(e.value) in (NoScopesForNamespaces, InvalidExtraScopes)
+
+
+class TestQueryClient:
+    def test_get_all_contract_scopes(self, tmp_path: pathlib.Path):
+        clients_path = get_clients_path(tmp_path)
+        ensure_client_folders_exist(clients_path)
+        client_id = str(uuid.uuid4())
+        contract_uuid = str(uuid.uuid4())
+
+        create_client_file(
+            clients_path,
+            name="test_client",
+            client_id=client_id,
+            scopes=["test:scope"],
+            backends={"default": {"foo": "bar"}},
+            contract_scopes={contract_uuid: ["test:scope", "test:scope2"]},
+        )
+
+        client = query_client(clients_path, client_id)
+        assert client.get_all_contract_scopes() == {"test:scope", "test:scope2"}
+
+    def test_get_all_contract_scopes_without_contract_scopes(self, tmp_path: pathlib.Path):
+        clients_path = get_clients_path(tmp_path)
+        ensure_client_folders_exist(clients_path)
+        client_id = str(uuid.uuid4())
+
+        create_client_file(
+            clients_path,
+            name="test_client",
+            client_id=client_id,
+            scopes=["test:scope"],
+            backends={"default": {"foo": "bar"}},
+            contract_scopes=None,
+        )
+
+        client = query_client(clients_path, client_id)
+        assert client.get_all_contract_scopes() == set()
+
+
+class TestTokenCollectAvailableNamespaces:
+    def test_return_manifest_namespaces(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property
+               | datasets/uuid/example
+               |   | data
+               |   |   |   | Foo
+               |   | data2
+               |   |   |   | Bar
+               | datasets/test/test_example
+               |   |   |   | Buz
+                """,
+            mode=Mode.external,
+        )
+
+        assert Token._collect_available_namespaces(context) == {
+            "datasets",
+            "datasets/uuid",
+            "datasets/uuid/example",
+            "datasets/uuid/example/Foo",
+            "datasets/uuid/example/Bar",
+            "datasets/test",
+            "datasets/test/test_example",
+            "datasets/test/test_example/Buz",
+        }
+
+
+class TestTokenNamespaceScopeMap:
+    def test_get_scopes_from_scope_string(self, context: Context):
+        config = context.get("config")
+
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "datasets/gov/rc/ar/ws/Country",
+            "datasets2/Street",
+            "datasets_gov_rc_ar_ws_Country",
+            "datasets_gov_rc_ar_ws_Town",
+        }
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+
+        assert token._get_namespace_scope_map([config.scope_prefix, config.scope_prefix]) == {
+            "datasets/gov/rc/ar/ws/Country": {"datasets/gov/rc/ar/ws/Country"},
+            "datasets2/Street": {"datasets2/Street"},
+            "datasets_gov_rc_ar_ws_Country": {"datasets_gov_rc_ar_ws_Country"},
+            "datasets_gov_rc_ar_ws_Town": {"datasets_gov_rc_ar_ws_Town"},
+        }
+
+    def test_remove_scope_prefix_and_suffix_from_scope_string(self, context: Context):
+        config = context.get("config")
+
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "uapi:/datasets/gov/rc/ar/ws/Country/:getall",
+            "uapi:/datasets2/Street/:getone",
+            "spinta_datasets_gov_rc_ar_ws_Country_getall",
+            "spinta_datasets_gov_rc_ar_ws_Town_getone",
+        }
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+
+        assert token._get_namespace_scope_map([config.scope_prefix, config.scope_prefix_udts]) == {
+            "datasets/gov/rc/ar/ws/Country": {"uapi:/datasets/gov/rc/ar/ws/Country/:getall"},
+            "datasets2/Street": {"uapi:/datasets2/Street/:getone"},
+            "datasets_gov_rc_ar_ws_Country": {"spinta_datasets_gov_rc_ar_ws_Country_getall"},
+            "datasets_gov_rc_ar_ws_Town": {"spinta_datasets_gov_rc_ar_ws_Town_getone"},
+        }
+
+
+class TestTokenGetScopesFromModelNamespaces:
+    jwt_scopes = {
+        "uapi:/datasets/gov/rc/ar/ws/Country/:getall",
+        "uapi:/datasets/gov/rc/ar/ws/Country/:getone",
+        "uapi:/datasets/gov/rc/ar/ws/Town/:getall",
+        "uapi:/datasets/gov/rc/ar/ws/Town/:getone",
+        "uapi:/datasets/gov/rc/ar/ws/Town",
+        "uapi:/datasets/aa/ba/ca/da/Ea",
+        "uapi:/datasets/aa/ba/Cc",
+        "uapi:/datasets/Ab",
+        "uapi:/Ab",
+        "spinta_datasets_gov_rc_ar_ws_Country_getall",
+        "spinta_datasets_gov_rc_ar_ws_Country_getone",
+        "spinta_datasets_gov_rc_ar_ws_Town_getall",
+        "spinta_datasets_gov_rc_ar_ws_Town_getone",
+        "spinta_datasets_gov_rc_ar_ws_Town",
+        "spinta_datasets2_aa_ba_ca_da_Ea",
+        "spinta_datasets3_ac_bc_Cc",
+        "spinta_datasets3_Ab",
+        "spinta_Ab",
+    }
+
+    @pytest.mark.parametrize(
+        "namespaces, result",
+        [
+            (set(), set()),
+            ("test/test", set()),
+            ({"datasets/gov"}, set()),
+            ({"datasets/gov/rc/ar/ws/Count"}, set()),  # Count model does not exist
+            ({"datasets/aa/ba/ca/da/Ea"}, {"uapi:/datasets/aa/ba/ca/da/Ea"}),
+            (
+                {"datasets3_Ab", "datasets/gov/rc/ar/ws/Town"},
+                {
+                    "spinta_datasets3_Ab",
+                    "uapi:/datasets/gov/rc/ar/ws/Town/:getall",
+                    "uapi:/datasets/gov/rc/ar/ws/Town/:getone",
+                    "uapi:/datasets/gov/rc/ar/ws/Town",
+                },
+            ),
+            (
+                {"datasets_gov_rc_ar_ws_Country"},
+                {"spinta_datasets_gov_rc_ar_ws_Country_getall", "spinta_datasets_gov_rc_ar_ws_Country_getone"},
+            ),
+        ],
+    )
+    def test_return_jwt_scopes_that_starts_with_namespace(
+        self, context: Context, namespaces: set[str], result: set[str]
+    ):
+        config = context.get("config")
+
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=self.jwt_scopes)
+        token = Token(token, BearerTokenValidator(context))
+
+        assert (
+            token._get_scopes_from_model_namespaces(namespaces, [config.scope_prefix, config.scope_prefix_udts])
+            == result
+        )
+
+
+class TestTokenCheckContractScopes:
+    def test_raise_error_if_contracts_has_no_scopes(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_datasets_test_example_Foo",
+            "uapi:/datasets/test/example/Foo",
+        }
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(InvalidExtraScopes) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains extra scopes that are not defined in contract. "
+            "Extra scopes: uapi:/datasets/test/example/Foo."
+        )
+
+    def test_raise_error_if_token_has_no_scopes(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=None)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(NoScopesForNamespaces) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains no scopes from available namespaces: datasets, datasets/test, "
+            "datasets/test/example, datasets/test/example/Foo."
+        )
+
+    def test_raise_error_if_manifest_has_no_models(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=None)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(NoScopesForNamespaces) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == "Request contains no scopes from available namespaces: []."
+
+    def test_raise_error_if_token_has_no_scopes_in_available_namespaces(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {"random_scope1", "random_scope2"}
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(NoScopesForNamespaces) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains no scopes from available namespaces: datasets, datasets/test, "
+            "datasets/test/example, datasets/test/example/Foo."
+        )
+
+    def test_raise_error_if_token_has_more_scopes_than_contracts_in_available_namespace(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_datasets_test_example_Foo",
+            "uapi:/datasets/test/example/Foo",
+            "uapi:/datasets/test/example/Foo/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(InvalidExtraScopes) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains extra scopes that are not defined in contract. "
+            "Extra scopes: uapi:/datasets/test/example/Foo."
+        )
+
+    def test_success_if_token_has_more_scopes_than_contracts_outside_available_namespace(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_extra_scope",
+            "spinta_datasets_test_example_Foo_getall",
+            "uapi:/datasets/test/example/Foo/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        assert token.check_contract_scopes(context) is None
+
+    def test_success_if_token_has_same_scopes_as_contract(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_datasets_test_example_Foo_getall",
+            "spinta_datasets_test_example_Bar_getall",
+            "spinta_datasets_test_example_Baz_getall",
+            "spinta_datasets_test_example_Buz_getall",
+            "uapi:/datasets/test/example/Foo/:getall",
+            "uapi:/datasets/test/example/Bar/:getall",
+            "uapi:/datasets/test/example/Baz/:getall",
+            "uapi:/datasets/test/example/Buz/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        assert token.check_contract_scopes(context) is None
+
+    def test_success_if_token_has_less_scopes_than_contract(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "uapi:/datasets/test/example/Foo/:getall",
+            "uapi:/datasets/test/example/Bar/:getall",
+            "uapi:/datasets/test/example/Baz/:getall",
+            "uapi:/datasets/test/example/Buz/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        assert token.check_contract_scopes(context) is None
