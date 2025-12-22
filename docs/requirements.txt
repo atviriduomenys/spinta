@@ -93,3 +93,5 @@ watchfiles==1.1.1
     # via sphinx-autobuild
 websockets==15.0.1
     # via sphinx-autobuild
+sphinx-intl==2.2.0
+    # via requirements.in

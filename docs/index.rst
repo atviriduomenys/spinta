@@ -63,6 +63,7 @@ Opening and publishing your data has never been so simple!
    :maxdepth: 2
    :caption: Manual
 
+   manual/setup/index
    manual/configuration/index
    manual/access
    manual/manifest/index
