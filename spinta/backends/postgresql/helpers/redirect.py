@@ -16,9 +16,6 @@ if TYPE_CHECKING:
 
 def get_redirect_table(context: Context, backend: PostgreSQL, model: Model):
     table_identifier = get_table_identifier(model, TableType.REDIRECT)
-    # schema, table_name = split_table_name(full_name)
-    # pg_table_name = get_pg_table_name(table_name)
-    # pg_schema_name = get_pg_name(schema) if schema else None
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
         table_identifier.pg_table_name,

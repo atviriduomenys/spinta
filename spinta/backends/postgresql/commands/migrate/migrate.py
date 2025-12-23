@@ -62,8 +62,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
     )
     validate_rename_map(context, migration_ctx.rename, manifest)
     create_missing_schemas(
-        context=context,
-        manifest=manifest,
+        backend=backend,
         handler=handler,
         schemas=schemas,
         datasets=migration_config.datasets,
@@ -150,7 +149,8 @@ def _filter_reflect_datasets(inspector: Inspector, schema: str, datasets: list):
         table
         for table in all_tables
         if any(
-            part_of_dataset(inspector.get_table_comment(table, schema=schema)["text"], dataset) for dataset in datasets
+            part_of_dataset(inspector.get_table_comment(table, schema=schema)["text"] or "", dataset)
+            for dataset in datasets
         )
     ]
 

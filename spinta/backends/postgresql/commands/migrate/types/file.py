@@ -84,7 +84,7 @@ def migrate(
 
     source_file_table = property_ctx.model_context.model_tables.property_tables.get(old_name)
     if source_file_table and source_file_table[0] is TableType.FILE:
-        source_file_identifier = migration_ctx.get_table_identifier(source_file_table)
+        source_file_identifier = migration_ctx.get_table_identifier(source_file_table[1])
     else:
         source_file_identifier = None
 

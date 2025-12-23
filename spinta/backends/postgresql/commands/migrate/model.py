@@ -30,7 +30,6 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_removed_name,
     is_removed,
     get_pg_foreign_key_name,
-    get_removed_name,
     get_pg_index_name,
 )
 from spinta.components import Context, Model
@@ -199,7 +198,7 @@ def migrate(
     removed_table_identifiers = []
     table_identifier = migration_ctx.get_table_identifier(source_table)
     removed_table_identifiers.append((table_identifier, table_identifier.apply_removed_prefix()))
-    for table in old.reserved.values():
+    for table in old.sorted_reserve.values():
         table_identifier = migration_ctx.get_table_identifier(table)
         removed_table_identifiers.append((table_identifier, table_identifier.apply_removed_prefix()))
 
@@ -218,7 +217,7 @@ def migrate(
             ma.RenameTableMigrationAction(
                 old_table_identifier=table_identifier,
                 new_table_identifier=removed_table_identifier,
-                comment=get_removed_name(source_table.comment),
+                comment=removed_table_identifier.logical_qualified_name,
             )
         )
         sequence_name = get_pg_sequence_name(table_identifier.pg_table_name)
@@ -230,7 +229,7 @@ def migrate(
                     table_identifier=table_identifier,
                 )
             )
-        drop_all_indexes_and_constraints(inspector, source_table, removed_table_identifier, handler)
+        drop_all_indexes_and_constraints(inspector, table_identifier, removed_table_identifier, handler)
 
 
 def _handle_model_unique_constraints(
@@ -259,7 +258,7 @@ def _handle_model_unique_constraints(
                 )
 
         constraints = inspector.get_unique_constraints(source_table_name, schema=source_table_identifier.pg_schema_name)
-        constraint_name = get_pg_constraint_name(source_table_name, column_name_list)
+        constraint_name = get_pg_constraint_name(target_table_identifier.pg_table_name, column_name_list)
         unique_constraint_states = model_context.constraint_states[source_table_name].unique_constraint
         if unique_constraint_states[constraint_name]:
             continue
@@ -463,7 +462,11 @@ def _handle_model_foreign_key_constraints(
         referent_table_identifier = rename.to_old_table(model.base.parent)
         referent_table = referent_table_identifier.pg_table_name
         referent_schema = referent_table_identifier.pg_schema_name
-        fk_name = get_pg_foreign_key_name(referent_table, "_id")
+        fk_name = get_pg_foreign_key_name(
+            table_identifier=source_table_identifier,
+            referred_table_identifier=referent_table_identifier,
+            column_name="_id",
+        )
         model_context.mark_foreign_constraint_handled(source_table_identifier.pg_table_name, fk_name)
         if id_constraint is not None:
             if id_constraint["name"] == fk_name:
@@ -748,10 +751,12 @@ def _clean_up_property_tables(
                 ma.RenameTableMigrationAction(
                     old_table_identifier=table_identifier,
                     new_table_identifier=removed_table_identifier,
-                    comment=get_removed_name(table.comment),
+                    comment=removed_table_identifier.logical_qualified_name,
                 )
             )
-            drop_all_indexes_and_constraints(inspector, table.name, removed_table_identifier, handler, model_context)
+            drop_all_indexes_and_constraints(
+                inspector, table_identifier, removed_table_identifier, handler, model_context
+            )
 
 
 def _handle_model_reserved_properties(

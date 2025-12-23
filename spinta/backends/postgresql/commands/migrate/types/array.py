@@ -67,6 +67,7 @@ def migrate(
     handler = migration_ctx.handler
 
     source_table = get_source_table(property_ctx, old)
+    source_table_identifier = migration_ctx.get_table_identifier(source_table)
     target_table_identifier = migration_ctx.get_table_identifier(property_ctx.prop)
 
     column_name = rename.to_new_column_name(source_table, new.prop.place)
@@ -139,9 +140,17 @@ def migrate(
                 )
 
         constraints = inspector.get_foreign_keys(source_array_table.name, schema=source_array_table.schema)
-        source_constraint_name = get_pg_foreign_key_name(source_array_table.name, "_rid")
+        source_constraint_name = get_pg_foreign_key_name(
+            table_identifier=source_array_identifier,
+            referred_table_identifier=source_table_identifier,
+            column_name="_rid",
+        )
         existing_constraint = constraint_with_name(constraints, source_constraint_name)
-        constraint_name = get_pg_foreign_key_name(target_array_table.name, "_rid")
+        constraint_name = get_pg_foreign_key_name(
+            table_identifier=target_array_identifier,
+            referred_table_identifier=target_table_identifier,
+            column_name="_rid",
+        )
         if existing_constraint is None:
             handler.add_action(
                 ma.CreateForeignKeyMigrationAction(

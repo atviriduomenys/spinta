@@ -67,13 +67,12 @@ class RenameTableMigrationAction(MigrationAction):
         self.old_table_identifier = old_table_identifier
         self.new_table_identifier = new_table_identifier
         self.comment = comment
+        self.schema_rename_query = f"ALTER TABLE {self.old_table_identifier.pg_escaped_qualified_name} SET SCHEMA {pg_identifier_preparer.quote(new_table_identifier.pg_schema_name)}"
 
     def execute(self, op: "Operations"):
         if name_changed(self.old_table_identifier.pg_schema_name, self.new_table_identifier.pg_schema_name):
-            schema_name = self.new_table_identifier.pg_schema_name
-            op.execute(
-                f"ALTER TABLE {self.old_table_identifier.pg_escaped_qualified_name} SET SCHEMA {pg_identifier_preparer.quote(schema_name)}"
-            )
+            replaced = self.schema_rename_query.replace(":", "\\:")
+            op.execute(replaced)
 
         if name_changed(self.old_table_identifier.pg_table_name, self.new_table_identifier.pg_table_name):
             op.rename_table(
