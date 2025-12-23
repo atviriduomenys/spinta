@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import sqlalchemy as sa
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
@@ -15,7 +15,6 @@ from spinta.testing.migration import (
     drop_table,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    cleanup_tables,
     override_manifest,
     cleanup_table_list,
     configure_migrate,
@@ -23,9 +22,8 @@ from tests.backends.postgresql.commands.migrate.test_migrations import (
 
 
 def test_migrate_create_models_with_file_type(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m    | property     | type | ref | source
     """
@@ -118,7 +116,7 @@ def test_migrate_create_models_with_file_type(
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -157,8 +155,7 @@ def test_migrate_create_models_with_file_type(
         )
 
 
-def test_migrate_remove_file_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_file_type(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -202,7 +199,7 @@ def test_migrate_remove_file_type(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables

@@ -7,13 +7,13 @@ from spinta.components import Model
 from spinta.typing import ObjectData
 from spinta.backends.memory.components import Memory
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 
 
 @commands.getall.register(Context, Model, Memory)
 def getall(context: Context, model: Model, db: Memory, *, query: Expr = None, **kwargs) -> Iterator[ObjectData]:
-    table = get_table_name(model)
-    return db.data[table].values()
+    table = get_table_identifier(model)
+    return db.data[table.logical_qualified_name].values()
 
 
 @commands.getone.register(Context, Model, Memory)
@@ -24,8 +24,8 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    table = get_table_name(model)
-    return db.data[table][id_]
+    table = get_table_identifier(model)
+    return db.data[table.logical_qualified_name][id_]
 
 
 @commands.changes.register(Context, Model, Memory)
@@ -38,5 +38,5 @@ def changes(
     limit: int = 100,
     offset: int = -10,
 ):
-    table = get_table_name(model, TableType.CHANGELOG)
-    return db.data[table].values()
+    table = get_table_identifier(model, TableType.CHANGELOG)
+    return db.data[table.logical_qualified_name].values()
