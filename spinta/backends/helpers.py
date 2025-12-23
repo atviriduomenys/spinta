@@ -463,7 +463,7 @@ def split_logical_name(full_name: str) -> tuple[Optional[str], str, TableType, O
         return None, parts[0], table_type, property_name
 
     for i, part in enumerate(parts):
-        if part[0].isupper():
+        if part[0].isupper() or (part[:2] == "__" and part[2].isupper()):
             namespace = "/".join(parts[:i])
             model = "/".join(parts[i:])
             return namespace, model, table_type, property_name

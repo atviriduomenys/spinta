@@ -4,7 +4,7 @@ from multipledispatch import dispatch
 from sqlalchemy.cimmutabledict import immutabledict
 
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_identifier
+from spinta.backends.helpers import get_table_identifier, TableIdentifier
 from spinta.components import Model
 from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_pg_name
@@ -22,7 +22,7 @@ PG_NAMING_CONVENTION = immutabledict(
     {
         Convention.IX: _PgNamingConvention("ix_%(table_name)s_%(column_0_N_name)s"),
         Convention.UQ: _PgNamingConvention("uq_%(table_name)s_%(column_0_N_name)s"),
-        Convention.FK: _PgNamingConvention("fk_%(table_name)s_%(column_0_N_name)s"),
+        Convention.FK: _PgNamingConvention("fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s"),
         Convention.CK: _PgNamingConvention("ck_%(table_name)s_%(constraint_name)s"),
         Convention.PK: _PgNamingConvention("pk_%(table_name)s"),
     }
@@ -119,10 +119,19 @@ def get_pg_removed_name(name: str, remove_model_only: bool = False) -> str:
     return get_pg_name(get_removed_name(name, remove_model_only))
 
 
-def get_pg_foreign_key_name(table_name: str, column_name: str) -> str:
+def get_pg_foreign_key_name(
+    table_identifier: TableIdentifier,
+    referred_table_identifier: TableIdentifier,
+    column_name: str,
+) -> str:
+    referred_table_name = referred_table_identifier.pg_table_name
+    if referred_table_identifier.pg_schema_name != table_identifier.pg_schema_name:
+        referred_table_name = referred_table_identifier.pg_qualified_name
+
     return PG_NAMING_CONVENTION[Convention.FK] % {
-        "table_name": table_name,
+        "table_name": table_identifier.pg_table_name,
         "column_0_N_name": column_name,
+        "referred_table_name": referred_table_name,
     }
 
 

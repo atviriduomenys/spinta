@@ -217,19 +217,24 @@ class ModelTables:
     def __post_init__(self):
         self.schema, self.base_table_name, _, _ = split_logical_name(self.base_name)
 
+    @property
+    def sorted_reserve(self) -> dict[TableType, sa.Table]:
+        return dict(sorted(self.reserved.items(), key=lambda item: item[0].value))
+
 
 def drop_all_indexes_and_constraints(
     inspector: Inspector,
-    table: sa.Table,
+    source_table_identifier: TableIdentifier,
     target_table_identifier: TableIdentifier,
     handler: MigrationHandler,
     model_ctx: ModelMigrationContext = None,
 ):
-    table_name = table.name
+    table_name = source_table_identifier.pg_table_name
+    table_schema = source_table_identifier.pg_schema_name
     removed = []
-    constraints = inspector.get_unique_constraints(table_name, schema=table.schema)
-    foreign_keys = inspector.get_foreign_keys(table_name, schema=table.schema)
-    indexes = inspector.get_indexes(table_name, schema=table.schema)
+    constraints = inspector.get_unique_constraints(table_name, schema=table_schema)
+    foreign_keys = inspector.get_foreign_keys(table_name, schema=table_schema)
+    indexes = inspector.get_indexes(table_name, schema=table_schema)
     for key in foreign_keys:
         constraint_name = key["name"]
         if model_ctx is not None:
@@ -1380,12 +1385,35 @@ def get_spinta_schemas(engine: Engine) -> list[str]:
 
 
 def create_missing_schemas(
-    context: Context, manifest: Manifest, handler: MigrationHandler, schemas: list[str], datasets: list[str] | None
+    backend: PostgreSQL,
+    handler: MigrationHandler,
+    schemas: list[str],
+    datasets: list[str] | None,
 ):
-    datasets = datasets or commands.get_datasets(context, manifest).keys()
-    for dataset in datasets:
-        pg_schema_name = get_pg_name(dataset)
-        if pg_schema_name in schemas:
+    # If datasets are given, only apply changes to them
+    if datasets:
+        for dataset in datasets:
+            pg_schema_name = get_pg_name(dataset)
+            if pg_schema_name in schemas:
+                continue
+
+            handler.add_action(ma.CreateSchemaMigrationAction(schema_name=pg_schema_name))
+        return
+
+    # Ideally, we would only use datasets (with commands.get_datasets()), but there are some systemic models that
+    # might need to be changed that do not have a dataset. (_schema/Version, _schema, etc.).)
+    validated_schemas = []
+    for table in backend.tables.values():
+        schema = table.schema
+        if not schema:
             continue
 
-        handler.add_action(ma.CreateSchemaMigrationAction(schema_name=pg_schema_name))
+        if schema in validated_schemas:
+            continue
+
+        if schema in schemas:
+            validated_schemas.append(schema)
+            continue
+
+        handler.add_action(ma.CreateSchemaMigrationAction(schema_name=schema))
+        validated_schemas.append(schema)

@@ -460,7 +460,9 @@ def _handle_property_foreign_key_constraint(
 
     foreign_keys = inspector.get_foreign_keys(source_table_name, schema=source_table_identifier.pg_schema_name)
     foreign_key_name = get_pg_foreign_key_name(
-        table_name=target_table_identifier.pg_table_name, column_name=primary_column.name
+        table_identifier=target_table_identifier,
+        referred_table_identifier=referenced_table_identifier,
+        column_name=primary_column.name,
     )
     model_context.mark_foreign_constraint_handled(source_table_name, foreign_key_name)
     old_prop_name = (
