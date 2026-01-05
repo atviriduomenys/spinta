@@ -4,6 +4,13 @@ Changes
 0.2dev13 (unreleased)
 =====================
 
+New Features:
+
+- Added support for Oracle SDO_GEOMETRY data type in the SQL backend. The Oracle backend now properly
+  decodes geometry data using SDO_GEOMETRY format (`#1645`_).
+
+.. _#1645: https://github.com/atviriduomenys/spinta/issues/1645
+
 
 0.2dev12 (2025-12-18)
 =====================
