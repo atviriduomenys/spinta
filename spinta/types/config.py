@@ -113,6 +113,11 @@ def load(context: Context, config: Config) -> Config:
             "token_validation_keys_download_url and token_validation_keys_download_url are mutually exclusive and can't be used together. Use one."
         )
 
+    # Logging configuration
+    config.log_level = rc.get("log_level", default=config.log_level)
+    config.file_log_level = rc.get("file_log_level", default=config.file_log_level)
+    config.file_log_path = pathlib.Path(rc.get("file_log_path", default=config.file_log_path))
+
     return config
 
 

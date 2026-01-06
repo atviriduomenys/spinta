@@ -500,6 +500,7 @@ def _get_default_dir(name, default):
 
 DEFAULT_CONFIG_PATH = _get_default_dir("XDG_CONFIG_HOME", "~/.config")
 DEFAULT_DATA_PATH = _get_default_dir("XDG_DATA_HOME", "~/.local/share")
+DEFAULT_FILE_LOG_PATH = pathlib.Path().home() / ".spinta_logs"
 
 
 class ResourceTuple(NamedTuple):

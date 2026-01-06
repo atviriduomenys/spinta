@@ -22,6 +22,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
+from spinta.core.config import DEFAULT_FILE_LOG_PATH
 from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
@@ -1126,6 +1127,11 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    # Logging configuration
+    log_level: str = "WARNING"
+    file_log_level: str = "DEBUG"
+    file_log_path: pathlib.Path = DEFAULT_FILE_LOG_PATH
 
     def __init__(self):
         self.commands = _CommandsConfig()

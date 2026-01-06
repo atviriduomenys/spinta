@@ -3,26 +3,28 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
 
+from spinta.components import Config
 
-def setup_logging() -> logging.Logger:
+
+def setup_logging(config: Config) -> logging.Logger:
     # Get the current directory or a suitable place in the user's environment
-    log_dir = os.path.join(os.path.expanduser("~"), ".spinta_logs")
+    log_dir = config.file_log_path
     os.makedirs(log_dir, exist_ok=True)
     log_file = f"spinta_{datetime.now().strftime('%Y-%m-%d')}.log"
     log_path = os.path.join(log_dir, log_file)
 
     logger: logging.Logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.getLevelName(config.log_level))
 
     # Create a timed rotating file handler that rotates every day and keeps logs for 7 days
     file_handler = TimedRotatingFileHandler(log_path, when="midnight", interval=1, backupCount=7)
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.getLevelName(config.file_log_level))
     file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(file_formatter)
 
     # Create a console handler that only logs WARNING and above
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)
+    console_handler.setLevel(logging.getLevelName(config.log_level))
     console_formatter = logging.Formatter("%(levelname)s - %(message)s")
     console_handler.setFormatter(console_formatter)
 
