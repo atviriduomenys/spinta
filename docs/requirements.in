@@ -3,3 +3,4 @@ sphinx-autobuild
 sphinxcontrib.httpdomain
 sphinx_rtd_theme
 sphinx-intl
+myst-parser
