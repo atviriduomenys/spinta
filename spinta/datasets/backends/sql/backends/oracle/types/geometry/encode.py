@@ -7,7 +7,7 @@ from spinta.core.enums import Action
 from spinta.formats.components import Format
 from spinta.formats.html.components import Cell, Html
 from spinta.types.geometry.components import Geometry
-from .helpers import get_display_value, get_osm_link
+from spinta.types.geometry.helpers import get_display_value, get_osm_link
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Geometry, BaseGeometry)
