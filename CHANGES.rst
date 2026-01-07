@@ -11,6 +11,11 @@ New Features:
 
 .. _#1645: https://github.com/atviriduomenys/spinta/issues/1645
 
+Bug fixes:
+
+- fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+
+.. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
 
 0.2dev12 (2025-12-18)
 =====================
@@ -35,14 +40,13 @@ libraries if those don't exist (`#1637`_).
 
 .. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
 
-
 0.2dev11 (2025-12-03)
 =====================
 
 New Features:
 
 - Added support for URL-friendly query syntax with operators `_or.` and `_and.` as alternatives to `|` and `&`,
-  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`, 
+  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`,
   `._ge`, `._lt=`, `._le`, `._sw=` (starts with), and `._co=` (contains). This makes it easier to construct queries in URL query
   strings without requiring special character encoding (`#1615`_).
 
