@@ -32,6 +32,7 @@ def disable_logging_during_tests():
     yield
     logging.disable(logging.NOTSET)
 
+
 def _remove_push_state(rc: RawConfig) -> None:
     data_dir = rc.get("data_path")
     for file in (data_dir / "push").glob("*.db"):
