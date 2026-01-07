@@ -178,15 +178,13 @@ def get_ref_filters(
             else:
                 _fpr = ForeignProperty(fpr, prop.dtype)
 
-            seen += [ref_key]
-
             query = merge_formulas(
                 query,
                 get_ref_filters(
                     context,
                     prop.dtype.model,
                     _fpr,
-                    seen=seen,
+                    seen=seen + [ref_key],
                 ),
             )
 
