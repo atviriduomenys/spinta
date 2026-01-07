@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
+from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import drop_column, add_column, add_column_comment, rename_column
@@ -27,10 +28,10 @@ def test_migrate_text_full_remove(migration_db: Engine, rc: RawConfig, cli: Spin
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -52,11 +53,12 @@ def test_migrate_text_full_remove(migration_db: Engine, rc: RawConfig, cli: Spin
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text')}"
-        f"{add_column(table='migrate/example/Test', column='new', column_type='TEXT')}"
+        f"{drop_column(table_identifier=table_identifier, column='text')}"
+        f"{add_column(table_identifier=table_identifier, column='new', column_type='TEXT')}"
         "COMMIT;\n"
         "\n"
     )
@@ -64,11 +66,11 @@ def test_migrate_text_full_remove(migration_db: Engine, rc: RawConfig, cli: Spin
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"new", "__text"}.issubset(columns.keys())
         assert not {"text"}.issubset(columns.keys())
@@ -90,10 +92,10 @@ def test_migrate_string_to_text(migration_db: Engine, rc: RawConfig, cli: Spinta
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "text_en"}.issubset(columns.keys())
 
@@ -120,21 +122,22 @@ def test_migrate_string_to_text(migration_db: Engine, rc: RawConfig, cli: Spinta
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        "ALTER TABLE \"migrate/example/Test\" ADD COLUMN text JSONB DEFAULT '{}' NOT "
+        'ALTER TABLE "migrate/example"."Test" ADD COLUMN text JSONB DEFAULT \'{}\' NOT '
         "NULL;\n"
         "\n"
-        f"{add_column_comment(table='migrate/example/Test', column='text')}"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
-        "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
+        f"{add_column_comment(table_identifier=table_identifier, column='text')}"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
+        'jsonb_build_object(\'lt\', "migrate/example"."Test".text_lt));\n'
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
-        "jsonb_build_object('en', \"migrate/example/Test\".text_en));\n"
+        f"{drop_column(table_identifier=table_identifier, column='text_lt')}"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
+        'jsonb_build_object(\'en\', "migrate/example"."Test".text_en));\n'
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text_en')}"
+        f"{drop_column(table_identifier=table_identifier, column='text_en')}"
         "COMMIT;\n"
         "\n"
     )
@@ -142,11 +145,11 @@ def test_migrate_string_to_text(migration_db: Engine, rc: RawConfig, cli: Spinta
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "__text_lt", "__text_en"}.issubset(columns.keys())
         assert not {"__text", "text_lt", "text_en"}.issubset(columns.keys())
@@ -176,10 +179,10 @@ def test_migrate_string_to_text_add_additional(
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "text_en", "text"}.issubset(columns.keys())
 
@@ -209,17 +212,18 @@ def test_migrate_string_to_text_add_additional(
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
-        "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
+        'jsonb_build_object(\'lt\', "migrate/example"."Test".text_lt));\n'
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
-        "jsonb_build_object('en', \"migrate/example/Test\".text_en));\n"
+        f"{drop_column(table_identifier=table_identifier, column='text_lt')}"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
+        'jsonb_build_object(\'en\', "migrate/example"."Test".text_en));\n'
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text_en')}"
+        f"{drop_column(table_identifier=table_identifier, column='text_en')}"
         "COMMIT;\n"
         "\n"
     )
@@ -227,11 +231,11 @@ def test_migrate_string_to_text_add_additional(
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "__text_lt", "__text_en"}.issubset(columns.keys())
         assert not {"__text", "text_lt", "text_en"}.issubset(columns.keys())
@@ -258,10 +262,10 @@ def test_migrate_string_to_text_rename(migration_db: Engine, rc: RawConfig, cli:
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "text"}.issubset(columns.keys())
 
@@ -291,17 +295,18 @@ def test_migrate_string_to_text_rename(migration_db: Engine, rc: RawConfig, cli:
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lt\' '
-        "|| jsonb_build_object('__lt', (\"migrate/example/Test\".text -> 'lt'))) "
-        "WHERE \"migrate/example/Test\".text ? 'lt';\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text - \'lt\' '
+        "|| jsonb_build_object('__lt', (\"migrate/example\".\"Test\".text -> 'lt'))) "
+        'WHERE "migrate/example"."Test".text ? \'lt\';\n'
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
-        "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
+        'jsonb_build_object(\'lt\', "migrate/example"."Test".text_lt));\n'
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
+        f"{drop_column(table_identifier=table_identifier, column='text_lt')}"
         "COMMIT;\n"
         "\n"
     )
@@ -309,11 +314,11 @@ def test_migrate_string_to_text_rename(migration_db: Engine, rc: RawConfig, cli:
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "__text_lt"}.issubset(columns.keys())
         assert not {"__text", "text_lt"}.issubset(columns.keys())
@@ -342,10 +347,10 @@ def test_migrate_string_to_text_advanced_with_rename(
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "text"}.issubset(columns.keys())
 
@@ -373,22 +378,23 @@ def test_migrate_string_to_text_advanced_with_rename(
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lt\' '
-        "|| jsonb_build_object('__lt', (\"migrate/example/Test\".text -> 'lt'))) "
-        "WHERE \"migrate/example/Test\".text ? 'lt';\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text - \'lt\' '
+        "|| jsonb_build_object('__lt', (\"migrate/example\".\"Test\".text -> 'lt'))) "
+        'WHERE "migrate/example"."Test".text ? \'lt\';\n'
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
-        "jsonb_build_object('lt', \"migrate/example/Test\".text_lt));\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
+        'jsonb_build_object(\'lt\', "migrate/example"."Test".text_lt));\n'
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text_lt')}"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'en\' '
-        "|| jsonb_build_object('__en', (\"migrate/example/Test\".text -> 'en'))) "
-        "WHERE \"migrate/example/Test\".text ? 'en';\n"
+        f"{drop_column(table_identifier=table_identifier, column='text_lt')}"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text - \'en\' '
+        "|| jsonb_build_object('__en', (\"migrate/example\".\"Test\".text -> 'en'))) "
+        'WHERE "migrate/example"."Test".text ? \'en\';\n'
         "\n"
-        f"{rename_column(table='migrate/example/Test', column='text', new_name='other')}"
+        f"{rename_column(table_identifier=table_identifier, column='text', new_name='other')}"
         "COMMIT;\n"
         "\n"
     )
@@ -396,11 +402,11 @@ def test_migrate_string_to_text_advanced_with_rename(
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"other", "__text_lt"}.issubset(columns.keys())
         assert not {"__text", "text_lt"}.issubset(columns.keys())
@@ -426,10 +432,10 @@ def test_migrate_text_add_empty(migration_db: Engine, rc: RawConfig, cli: Spinta
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -461,7 +467,7 @@ def test_migrate_text_add_empty(migration_db: Engine, rc: RawConfig, cli: Spinta
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text || '
         "jsonb_build_object('lv', NULL));\n"
         "\n"
         "COMMIT;\n"
@@ -477,11 +483,11 @@ def test_migrate_text_add_empty(migration_db: Engine, rc: RawConfig, cli: Spinta
     )
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
         assert not {"__text"}.issubset(columns.keys())
@@ -507,10 +513,10 @@ def test_migrate_text_rename_lang(migration_db: Engine, rc: RawConfig, cli: Spin
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -545,9 +551,9 @@ def test_migrate_text_rename_lang(migration_db: Engine, rc: RawConfig, cli: Spin
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lv\' '
-        "|| jsonb_build_object('sp', (\"migrate/example/Test\".text -> 'lv'))) "
-        "WHERE \"migrate/example/Test\".text ? 'lv';\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text - \'lv\' '
+        "|| jsonb_build_object('sp', (\"migrate/example\".\"Test\".text -> 'lv'))) "
+        'WHERE "migrate/example"."Test".text ? \'lv\';\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -556,11 +562,11 @@ def test_migrate_text_rename_lang(migration_db: Engine, rc: RawConfig, cli: Spin
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
         assert not {"__text"}.issubset(columns.keys())
@@ -586,10 +592,10 @@ def test_migrate_text_remove_lang(migration_db: Engine, rc: RawConfig, cli: Spin
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -622,9 +628,9 @@ def test_migrate_text_remove_lang(migration_db: Engine, rc: RawConfig, cli: Spin
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lv\' '
-        "|| jsonb_build_object('__lv', (\"migrate/example/Test\".text -> 'lv'))) "
-        "WHERE \"migrate/example/Test\".text ? 'lv';\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text - \'lv\' '
+        "|| jsonb_build_object('__lv', (\"migrate/example\".\"Test\".text -> 'lv'))) "
+        'WHERE "migrate/example"."Test".text ? \'lv\';\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -639,11 +645,11 @@ def test_migrate_text_remove_lang(migration_db: Engine, rc: RawConfig, cli: Spin
     )
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
         assert not {"__text"}.issubset(columns.keys())
@@ -668,10 +674,10 @@ def test_migrate_multi_text_do_nothing(migration_db: Engine, rc: RawConfig, cli:
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -718,11 +724,11 @@ def test_migrate_multi_text_do_nothing(migration_db: Engine, rc: RawConfig, cli:
     )
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
         assert not {"__text"}.issubset(columns.keys())
@@ -744,10 +750,10 @@ def test_migrate_empty_text_do_nothing(migration_db: Engine, rc: RawConfig, cli:
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -782,11 +788,11 @@ def test_migrate_empty_text_do_nothing(migration_db: Engine, rc: RawConfig, cli:
     )
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
         assert not {"__text"}.issubset(columns.keys())

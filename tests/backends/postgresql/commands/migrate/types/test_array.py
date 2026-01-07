@@ -4,6 +4,8 @@ from pathlib import Path
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
@@ -20,6 +22,7 @@ from spinta.testing.migration import (
     rename_table,
     rename_index,
     rename_constraint,
+    add_schema,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     override_manifest,
@@ -52,10 +55,13 @@ def test_migrate_create_models_with_array_type(
     """,
     )
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/Test")
+    list_table_identifier = table_identifier.change_table_type(new_type=TableType.LIST, table_arg="new")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'CREATE TABLE "migrate/example/Test" (\n'
+        f"{add_schema(schema='migrate/example')}"
+        'CREATE TABLE "migrate/example"."Test" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -65,37 +71,37 @@ def test_migrate_create_models_with_array_type(
         '    "someInteger" INTEGER, \n'
         '    "someNumber" FLOAT, \n'
         '    "new" JSONB, \n'
-        '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id), \n'
-        '    CONSTRAINT "uq_migrate/example/Test_someText_someNumber" UNIQUE '
+        '    CONSTRAINT "pk_Test" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_Test_someText_someNumber" UNIQUE '
         '("someText", "someNumber")\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someInteger')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someNumber')}"
-        f"{add_column_comment(table='migrate/example/Test', column='new')}"
-        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
-        'CREATE TABLE "migrate/example/Test/:list/new" (\n'
+        f"{add_index(table_identifier=table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someText')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someInteger')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someNumber')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='new')}"
+        f"{add_table_comment(table_identifier=table_identifier, comment='migrate/example/Test')}"
+        'CREATE TABLE "migrate/example"."Test/:list/new" (\n'
         "    _txn UUID, \n"
         "    _rid UUID, \n"
         '    "new" INTEGER, \n'
-        '    CONSTRAINT "fk_migrate/example/Test/:list/new__rid" FOREIGN KEY(_rid) '
-        'REFERENCES "migrate/example/Test" (_id) ON DELETE CASCADE\n'
+        '    CONSTRAINT "fk_Test/:list/new__rid_Test" FOREIGN KEY(_rid) '
+        'REFERENCES "migrate/example"."Test" (_id) ON DELETE CASCADE\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Test/:list/new__txn', table='migrate/example/Test/:list/new', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/Test/:list/new', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/Test/:list/new', column='_rid')}"
-        f"{add_column_comment(table='migrate/example/Test/:list/new', column='new')}"
-        f"{add_table_comment(table='migrate/example/Test/:list/new', comment='migrate/example/Test/:list/new')}"
-        f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
-        f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
+        f"{add_index(table_identifier=list_table_identifier, index_name='ix_Test/:list/new__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=list_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=list_table_identifier, column='_rid')}"
+        f"{add_column_comment(table_identifier=list_table_identifier, column='new')}"
+        f"{add_table_comment(table_identifier=list_table_identifier, comment='migrate/example/Test/:list/new')}"
+        f"{add_changelog_table(table_identifier=table_identifier, comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table_identifier=table_identifier, comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -103,14 +109,14 @@ def test_migrate_create_models_with_array_type(
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:list/new",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:list/new",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",
@@ -156,25 +162,26 @@ def test_migrate_add_array_type(migration_db: Engine, rc: RawConfig, cli: Spinta
     """,
     )
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
-
+    table_identifier = get_table_identifier("migrate/example/Test")
+    list_table_identifier = table_identifier.change_table_type(new_type=TableType.LIST, table_arg="new")
     assert result.output.endswith(
         "BEGIN;\n\n"
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN "new" JSONB;\n'
+        'ALTER TABLE "migrate/example"."Test" ADD COLUMN "new" JSONB;\n'
         "\n"
-        f"{add_column_comment(table='migrate/example/Test', column='new')}"
-        'CREATE TABLE "migrate/example/Test/:list/new" (\n'
+        f"{add_column_comment(table_identifier=table_identifier, column='new')}"
+        'CREATE TABLE "migrate/example"."Test/:list/new" (\n'
         "    _txn UUID, \n"
         "    _rid UUID, \n"
         '    "new" INTEGER, \n'
-        '    CONSTRAINT "fk_migrate/example/Test/:list/new__rid" FOREIGN KEY(_rid) '
-        'REFERENCES "migrate/example/Test" (_id) ON DELETE CASCADE\n'
+        '    CONSTRAINT "fk_Test/:list/new__rid_Test" FOREIGN KEY(_rid) '
+        'REFERENCES "migrate/example"."Test" (_id) ON DELETE CASCADE\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Test/:list/new__txn', table='migrate/example/Test/:list/new', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/Test/:list/new', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/Test/:list/new', column='_rid')}"
-        f"{add_column_comment(table='migrate/example/Test/:list/new', column='new')}"
-        f"{add_table_comment(table='migrate/example/Test/:list/new', comment='migrate/example/Test/:list/new')}"
+        f"{add_index(table_identifier=list_table_identifier, index_name='ix_Test/:list/new__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=list_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=list_table_identifier, column='_rid')}"
+        f"{add_column_comment(table_identifier=list_table_identifier, column='new')}"
+        f"{add_table_comment(table_identifier=list_table_identifier, comment='migrate/example/Test/:list/new')}"
         "COMMIT;\n"
         "\n"
     )
@@ -182,14 +189,14 @@ def test_migrate_add_array_type(migration_db: Engine, rc: RawConfig, cli: Spinta
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:list/new",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:list/new",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",
@@ -235,12 +242,15 @@ def test_migrate_remove_array_type(migration_db: Engine, rc: RawConfig, cli: Spi
     """,
     )
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/Test")
+    list_table_identifier = table_identifier.change_table_type(new_type=TableType.LIST, table_arg="new")
+    removed_list_table_identifier = list_table_identifier.apply_removed_prefix()
     assert result.output.endswith(
         "BEGIN;\n\n"
-        f"{drop_column(table='migrate/example/Test', column='new')}"
-        f"{drop_table(table='migrate/example/Test/:list/new')}"
-        f"{drop_constraint(constraint_name='fk_migrate/example/Test/:list/new__rid', table='migrate/example/Test/:list/__new')}"
-        f"{drop_index(index_name='ix_migrate/example/Test/:list/new__txn')}"
+        f"{drop_column(table_identifier=table_identifier, column='new')}"
+        f"{drop_table(table_identifier=list_table_identifier)}"
+        f"{drop_constraint(table_identifier=removed_list_table_identifier, constraint_name='fk_Test/:list/new__rid_Test')}"
+        f"{drop_index(table_identifier=removed_list_table_identifier, index_name='ix_Test/:list/new__txn')}"
         "COMMIT;\n"
         "\n"
     )
@@ -248,14 +258,14 @@ def test_migrate_remove_array_type(migration_db: Engine, rc: RawConfig, cli: Spi
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:list/__new",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:list/__new",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",
@@ -309,13 +319,16 @@ def test_migrate_rename_array(migration_db: Engine, rc: RawConfig, cli: SpintaCl
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
+    old_list_table_identifier = table_identifier.change_table_type(new_type=TableType.LIST, table_arg="new")
+    new_list_table_identifier = table_identifier.change_table_type(new_type=TableType.LIST, table_arg="renamed")
     assert result.output.endswith(
         "BEGIN;\n\n"
-        f"{rename_column(table='migrate/example/Test', column='new', new_name='renamed')}"
-        f"{rename_table(table='migrate/example/Test/:list/new', new_name='migrate/example/Test/:list/renamed')}"
-        f"{rename_index(old_index_name='ix_migrate/example/Test/:list/new__txn', new_index_name='ix_migrate/example/Test/:list/renamed__txn')}"
-        f"{rename_constraint(table='migrate/example/Test/:list/renamed', constraint_name='fk_migrate/example/Test/:list/new__rid', new_constraint_name='fk_migrate/example/Test/:list/renamed__rid')}"
-        f"{rename_column(table='migrate/example/Test/:list/renamed', column='new', new_name='renamed')}"
+        f"{rename_column(table_identifier=table_identifier, column='new', new_name='renamed')}"
+        f"{rename_table(old_table_identifier=old_list_table_identifier, new_table_identifier=new_list_table_identifier)}"
+        f"{rename_index(table_identifier=new_list_table_identifier, old_index_name='ix_Test/:list/new__txn', new_index_name='ix_Test/:list/renamed__txn')}"
+        f"{rename_constraint(table_identifier=new_list_table_identifier, constraint_name='fk_Test/:list/new__rid_Test', new_constraint_name='fk_Test/:list/renamed__rid_Test')}"
+        f"{rename_column(table_identifier=new_list_table_identifier, column='new', new_name='renamed')}"
         "COMMIT;\n"
         "\n"
     )
@@ -323,14 +336,14 @@ def test_migrate_rename_array(migration_db: Engine, rc: RawConfig, cli: SpintaCl
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:list/renamed",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:list/renamed",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",
@@ -380,8 +393,8 @@ def test_migrate_change_array_subtype(migration_db: Engine, rc: RawConfig, cli: 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
         "BEGIN;\n\n"
-        'ALTER TABLE "migrate/example/Test/:list/new" ALTER COLUMN "new" TYPE TEXT '
-        'USING CAST("migrate/example/Test/:list/new"."new" AS TEXT);\n'
+        'ALTER TABLE "migrate/example"."Test/:list/new" ALTER COLUMN "new" TYPE TEXT '
+        'USING CAST("migrate/example"."Test/:list/new"."new" AS TEXT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -390,14 +403,14 @@ def test_migrate_change_array_subtype(migration_db: Engine, rc: RawConfig, cli: 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:list/new",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:list/new",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",

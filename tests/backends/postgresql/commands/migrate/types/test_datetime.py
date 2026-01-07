@@ -28,10 +28,10 @@ def test_migrate_date_to_datetime(migration_db: Engine, rc: RawConfig, cli: Spin
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -56,8 +56,8 @@ def test_migrate_date_to_datetime(migration_db: Engine, rc: RawConfig, cli: Spin
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE TIMESTAMP '
-        'WITHOUT TIME ZONE USING CAST("migrate/example/Test"."someDate" AS TIMESTAMP '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIMESTAMP '
+        'WITHOUT TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIMESTAMP '
         "WITHOUT TIME ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -67,10 +67,10 @@ def test_migrate_date_to_datetime(migration_db: Engine, rc: RawConfig, cli: Spin
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
@@ -92,10 +92,10 @@ def test_migrate_date_to_time_error(migration_db: Engine, rc: RawConfig, cli: Sp
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -120,8 +120,8 @@ def test_migrate_date_to_time_error(migration_db: Engine, rc: RawConfig, cli: Sp
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE TIME WITHOUT '
-        'TIME ZONE USING CAST("migrate/example/Test"."someDate" AS TIME WITHOUT TIME '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIME WITHOUT '
+        'TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIME WITHOUT TIME '
         "ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -134,7 +134,7 @@ def test_migrate_date_to_time_error(migration_db: Engine, rc: RawConfig, cli: Sp
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
@@ -151,10 +151,10 @@ def test_migrate_datetime_to_date(migration_db: Engine, rc: RawConfig, cli: Spin
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -179,8 +179,8 @@ def test_migrate_datetime_to_date(migration_db: Engine, rc: RawConfig, cli: Spin
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE DATE USING '
-        'CAST("migrate/example/Test"."someDate" AS DATE);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE DATE USING '
+        'CAST("migrate/example"."Test"."someDate" AS DATE);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -189,10 +189,10 @@ def test_migrate_datetime_to_date(migration_db: Engine, rc: RawConfig, cli: Spin
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
@@ -214,10 +214,10 @@ def test_migrate_datetime_to_time(migration_db: Engine, rc: RawConfig, cli: Spin
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -242,8 +242,8 @@ def test_migrate_datetime_to_time(migration_db: Engine, rc: RawConfig, cli: Spin
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE TIME WITHOUT '
-        'TIME ZONE USING CAST("migrate/example/Test"."someDate" AS TIME WITHOUT TIME '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIME WITHOUT '
+        'TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIME WITHOUT TIME '
         "ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -253,10 +253,10 @@ def test_migrate_datetime_to_time(migration_db: Engine, rc: RawConfig, cli: Spin
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "--raise"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
@@ -278,10 +278,10 @@ def test_migrate_time_to_date_error(migration_db: Engine, rc: RawConfig, cli: Sp
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -306,8 +306,8 @@ def test_migrate_time_to_date_error(migration_db: Engine, rc: RawConfig, cli: Sp
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE DATE USING '
-        'CAST("migrate/example/Test"."someDate" AS DATE);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE DATE USING '
+        'CAST("migrate/example"."Test"."someDate" AS DATE);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -319,7 +319,7 @@ def test_migrate_time_to_date_error(migration_db: Engine, rc: RawConfig, cli: Sp
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
@@ -336,10 +336,10 @@ def test_migrate_time_to_datetime_error(migration_db: Engine, rc: RawConfig, cli
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -364,8 +364,8 @@ def test_migrate_time_to_datetime_error(migration_db: Engine, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE TIMESTAMP '
-        'WITHOUT TIME ZONE USING CAST("migrate/example/Test"."someDate" AS TIMESTAMP '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIMESTAMP '
+        'WITHOUT TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIMESTAMP '
         "WITHOUT TIME ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -378,5 +378,5 @@ def test_migrate_time_to_datetime_error(migration_db: Engine, rc: RawConfig, cli
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
