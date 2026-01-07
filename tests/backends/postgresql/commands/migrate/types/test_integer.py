@@ -27,10 +27,10 @@ def test_migrate_custom_big_integer(migration_db: Engine, rc: RawConfig, cli: Sp
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "id"}.issubset(columns.keys())
 
@@ -65,8 +65,8 @@ def test_migrate_custom_big_integer(migration_db: Engine, rc: RawConfig, cli: Sp
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN id TYPE BIGINT USING '
-        'CAST("migrate/example/Test".id AS BIGINT);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN id TYPE BIGINT USING '
+        'CAST("migrate/example"."Test".id AS BIGINT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -75,11 +75,11 @@ def test_migrate_custom_big_integer(migration_db: Engine, rc: RawConfig, cli: Sp
     cli.invoke(rc_updated, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "id"}.issubset(columns.keys())
 

@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from geoalchemy2.shape import to_shape
 from sqlalchemy.engine import Engine
 
+from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import drop_index
@@ -31,10 +32,10 @@ def test_migrate_modify_geometry_type(migration_db: Engine, rc: RawConfig, cli: 
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -79,17 +80,17 @@ def test_migrate_modify_geometry_type(migration_db: Engine, rc: RawConfig, cli: 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
-        'geometry(GEOMETRY,3346) USING ST_Transform("migrate/example/Test"."someGeo", '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeo" TYPE '
+        'geometry(GEOMETRY,3346) USING ST_Transform("migrate/example"."Test"."someGeo", '
         "3346);\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoLt" TYPE '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeoLt" TYPE '
         "geometry(GEOMETRY,4326) USING "
-        'ST_Transform("migrate/example/Test"."someGeoLt", 4326);\n'
+        'ST_Transform("migrate/example"."Test"."someGeoLt", 4326);\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoWorld" TYPE '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeoWorld" TYPE '
         "geometry(GEOMETRY,3346) USING "
-        'ST_Transform("migrate/example/Test"."someGeoWorld", 3346);\n'
+        'ST_Transform("migrate/example"."Test"."someGeoWorld", 3346);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -98,10 +99,10 @@ def test_migrate_modify_geometry_type(migration_db: Engine, rc: RawConfig, cli: 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
@@ -136,10 +137,10 @@ def test_migrate_geometry_to_string_to_geometry(
 
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -171,13 +172,14 @@ def test_migrate_geometry_to_string_to_geometry(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE TEXT USING '
-        'CAST("migrate/example/Test"."someGeo" AS TEXT);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeo" TYPE TEXT USING '
+        'CAST("migrate/example"."Test"."someGeo" AS TEXT);\n'
         "\n"
-        f"{drop_index(index_name='ix_migrate/example/Test_someGeo')}"
+        f"{drop_index(table_identifier=table_identifier, index_name='ix_Test_someGeo')}"
         "COMMIT;\n"
         "\n"
     )
@@ -185,10 +187,10 @@ def test_migrate_geometry_to_string_to_geometry(
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
@@ -212,11 +214,11 @@ def test_migrate_geometry_to_string_to_geometry(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
-        'geometry(GEOMETRY,3346) USING CAST("migrate/example/Test"."someGeo" AS '
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeo" TYPE '
+        'geometry(GEOMETRY,3346) USING CAST("migrate/example"."Test"."someGeo" AS '
         "geometry(GEOMETRY,3346));\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test_someGeo" ON "migrate/example/Test" '
+        'CREATE INDEX "ix_Test_someGeo" ON "migrate/example"."Test" '
         'USING gist ("someGeo");\n'
         "\n"
         "COMMIT;\n"
@@ -226,10 +228,10 @@ def test_migrate_geometry_to_string_to_geometry(
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
