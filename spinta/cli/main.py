@@ -85,7 +85,7 @@ def main(
     ),
     # Deprecated. Use env file instead
     log_level: Optional[str] = Option(
-        "warning",
+        None,
         "--log-level",
         help=("Log level. Possible levels: fatal, error, warning, info, debug. Default: warning."),
     ),
