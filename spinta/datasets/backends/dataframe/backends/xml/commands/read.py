@@ -27,8 +27,6 @@ def _parse_xml_loop_model_properties(
     value, added_root_elements: list, model_props: dict, namespaces: dict
 ) -> dict[str, Any]:
     new_dict = {}
-    import inspect; print(inspect.currentframe().f_code.co_name)
-    breakpoint()
 
     # Go through each prop source with xpath of root path
     for prop in model_props.values():
@@ -57,10 +55,11 @@ def _parse_xml_loop_model_properties(
                             elif not ref_item:
                                 ref_item = None
                             ref_keys.append(str(ref_item))
-                        if len(ref_keys) == 1:
-                            new_value = ref_keys[0]
-                        else:
-                            new_value = ref_keys
+                    # Set new_value based on ref_keys after processing all keys
+                    if len(ref_keys) == 1:
+                        new_value = ref_keys[0]
+                    elif ref_keys:
+                        new_value = ref_keys
                 else:
                     if v.text:
                         new_value = str(v.text)
