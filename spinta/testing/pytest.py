@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import tempfile
@@ -23,6 +24,13 @@ from spinta.testing.context import ContextForTests
 from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
+
+
+@pytest.fixture(autouse=True)
+def disable_logging_during_tests():
+    logging.disable(logging.CRITICAL)
+    yield
+    logging.disable(logging.NOTSET)
 
 
 def _remove_push_state(rc: RawConfig) -> None:
