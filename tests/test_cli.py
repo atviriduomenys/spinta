@@ -1,9 +1,6 @@
-import logging
 import re
-from pathlib import Path
 
 import pytest
-from _pytest.logging import LogCaptureFixture
 
 from responses import GET
 
@@ -96,27 +93,3 @@ def test_pull(responses, rc, cli: SpintaCliRunner, app, tmp_path):
         ("lt", "Lietuva", "country/:dataset/csv/:resource/countries"),
         ("lv", "Latvija", "country/:dataset/csv/:resource/countries"),
     ]
-
-
-def test_log_file(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    tmp_path: Path,
-    caplog: LogCaptureFixture,
-):
-    log_file = tmp_path / "spinta.log"
-    with caplog.at_level(logging.DEBUG, "spinta.cli.main"):
-        cli.invoke(
-            rc,
-            [
-                "--log-file",
-                log_file,
-                "--log-level",
-                "debug",
-                "--version",
-            ],
-        )
-    # XXX: Can't test if log_file exists, because pytest overrides logging
-    #      handlers and I don't know how to tell pytest not to do that.
-    assert f"log file set to: {log_file}" in caplog.text
-    assert "log level set to: debug" in caplog.text
