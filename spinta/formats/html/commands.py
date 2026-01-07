@@ -22,7 +22,7 @@ from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.backends.postgresql.types.geometry.helpers import get_display_value, get_osm_link
+from spinta.types.geometry.helpers import get_display_value, get_osm_link
 from spinta.components import pagination_enabled, page_in_data
 from spinta.core.enums import Action
 from spinta.components import Context
