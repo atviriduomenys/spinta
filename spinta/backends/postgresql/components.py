@@ -137,7 +137,7 @@ class PostgreSQL(Backend):
         meta = sa.MetaData(self.engine)
         table = sa.Table("_schema", meta)
         insp = sa.inspect(self.engine)
-        if insp.has_table(table.name):
+        if insp.has_table(table.name, schema=table.schema):
             with self.engine.begin() as conn:
                 query = sa.select([sa.func.count()]).select_from(table)
                 return conn.execute(query).scalar() > 0
