@@ -4,6 +4,14 @@ Changes
 0.2dev13 (unreleased)
 =====================
 
+Bug fixes:
+
+- Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
+(using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+
+.. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
+
 
 0.2dev12 (2025-12-18)
 =====================
