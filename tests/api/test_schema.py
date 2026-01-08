@@ -2,21 +2,21 @@ import pathlib
 import uuid
 from pathlib import Path
 from typing import Union
+
 import pytest
+import sqlalchemy as sa
 from pytest import FixtureRequest
 
 from spinta.api.schema import create_migrate_rename_mapping
 from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.core.config import RawConfig
 from spinta.manifests.internal_sql.helpers import get_table_structure
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
-import sqlalchemy as sa
-
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
 from spinta.testing.utils import error
 from spinta.utils.schema import NA
@@ -46,13 +46,17 @@ def boostrap_manifest_with_drop(
 
 def clean_up_after_schema_changes(backend: PostgreSQL, tables: list):
     meta = backend.schema
-    meta.reflect()
     drop_list = []
+    reflected_schemas = []
     for table in tables:
+        table_identifier = get_table_identifier(table)
+        if table_identifier.pg_schema_name not in reflected_schemas:
+            meta.reflect(schema=table_identifier.pg_schema_name)
+
         for type_ in TableType:
-            table_name = get_pg_name(f"{table}{type_.value}")
-            if table_name in meta.tables:
-                drop_list.append(meta.tables[table_name])
+            identifier = table_identifier.change_table_type(new_type=type_)
+            if identifier.pg_qualified_name in meta.tables:
+                drop_list.append(meta.tables[identifier.pg_qualified_name])
     meta.drop_all(tables=drop_list)
 
 
