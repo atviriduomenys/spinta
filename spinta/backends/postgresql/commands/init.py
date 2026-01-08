@@ -10,7 +10,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.redirect import get_redirect_table
 from spinta.backends.postgresql.helpers.type import get_column_type
 from spinta.components import Context, Model
@@ -135,12 +135,12 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
     base = dtype.prop.model.base
     column_name = get_pg_column_name("_id")
     if base and commands.identifiable(base):
-        ref_table = get_pg_table_name(base.parent)
+        ref_table_identifier = get_table_identifier(base.parent)
         return [
             sa.Column(column_name, pkey_type, primary_key=True, comment="_id"),
             sa.ForeignKeyConstraint(
                 [column_name],
-                [f"{ref_table}._id"],
+                [f"{ref_table_identifier.pg_qualified_name}._id"],
             ),
         ]
     return sa.Column(column_name, pkey_type, primary_key=True, comment="_id")
