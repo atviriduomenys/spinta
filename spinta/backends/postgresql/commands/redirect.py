@@ -6,9 +6,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.components import Model, Context, Property
 from spinta.exceptions import RedirectFeatureMissing
 
@@ -38,8 +37,10 @@ async def create_redirect_entry(
 def redirect(context: Context, backend: PostgreSQL, model: Model, id_: str):
     try:
         with backend.begin() as conn:
-            redirect_table = get_pg_name(get_table_name(model, TableType.REDIRECT))
-            result = conn.execute(f"SELECT redirect FROM \"{redirect_table}\" WHERE _id = '{id_}' LIMIT 1").scalar()
+            table_identifier = get_table_identifier(model, TableType.REDIRECT)
+            result = conn.execute(
+                f"SELECT redirect FROM {table_identifier.pg_escaped_qualified_name} WHERE _id = '{id_}' LIMIT 1"
+            ).scalar()
             return result
     except sa.exc.ProgrammingError as e:
         if isinstance(e.orig, psycopg2.errors.UndefinedTable):
