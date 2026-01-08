@@ -30,8 +30,12 @@ New Features:
 Improvements:
 
 - `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
+- Added new config `check_contract_scopes` that enables additional scope checks on each request. This check
+  compares `contract_scopes` saved in client's file with scopes from JWT token. Fails if JWT token has more
+  scopes with currently loaded manifest namespaces than `contract_scopes`. (`#1598`_)
 
 .. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
+.. _#1598: https://github.com/atviriduomenys/spinta/issues/1598
 
 Bug fixes:
 
