@@ -8,7 +8,6 @@ from pytest import FixtureRequest
 
 from spinta.core.config import RawConfig
 from spinta.exceptions import (
-    NoBackRefReferencesFound,
     NoReferencesFound,
     MultipleBackRefReferencesFound,
     OneToManyBackRefNotSupported,
@@ -1050,36 +1049,6 @@ def test_backref_multiple_all_types(
     assert result_json[3]["country_0"] is None
     assert result_json[3]["country_1"] == []
     assert result_json[3]["country_array"] == []
-
-
-@pytest.mark.manifests("internal_sql", "csv")
-def test_backref_error_no_ref(
-    manifest_type: str,
-    tmp_path: pathlib.Path,
-    rc: RawConfig,
-    postgresql: str,
-):
-    with pytest.raises(NoBackRefReferencesFound):
-        bootstrap_manifest(
-            rc,
-            """
-        d | r | b | m | property    | type    | ref      | access | level
-        example/dtypes/backref/error/no_ref |         |          |        |
-                                    |         |          |        |
-          |   |   | Language        |         | id, name |        |
-          |   |   |   | id          | integer |          | open   |
-          |   |   |   | name        | string  |          | open   |
-          |   |   |   | country     | backref | Country  | open   |
-                                    |         |          |        |
-          |   |   | Country         |         | id       |        |
-          |   |   |   | id          | integer |          | open   |
-          |   |   |   | name        | string  |          | open   |
-        """,
-            backend=postgresql,
-            tmp_path=tmp_path,
-            manifest_type=manifest_type,
-            full_load=True,
-        )
 
 
 @pytest.mark.manifests("internal_sql", "csv")

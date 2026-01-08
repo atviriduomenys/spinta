@@ -30,8 +30,10 @@ New Features:
 Improvements:
 
 - `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
+- `backref` no longer requires a corresponding `ref` entry (`#1314`_).
 
 .. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
+.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
 
 Bug fixes:
 
