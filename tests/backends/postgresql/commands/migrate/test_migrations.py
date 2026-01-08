@@ -169,7 +169,7 @@ def test_migrate_create_simple_datatype_model(
     )
     with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert not {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
