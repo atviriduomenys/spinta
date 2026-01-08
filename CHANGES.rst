@@ -13,9 +13,11 @@ New Features:
 
 Bug fixes:
 
-- fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
 
 .. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
+.. _#1649: https://github.com/atviriduomenys/spinta/pull/1649
 
 0.2dev12 (2025-12-18)
 =====================
