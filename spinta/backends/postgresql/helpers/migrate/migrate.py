@@ -33,7 +33,6 @@ from spinta.backends.postgresql.helpers.name import (
     name_changed,
     get_pg_constraint_name,
     get_pg_index_name,
-    get_pg_table_name,
     get_pg_column_name,
 )
 from spinta.cli.helpers.migrate import MigrationContext
@@ -305,10 +304,6 @@ def empty_table(backend: PostgreSQL, table: sa.Table) -> bool:
 
 def name_key(name: str):
     return name
-
-
-def model_name_key(model: str) -> str:
-    return get_pg_table_name(model)
 
 
 def is_name_complex(name: str):
