@@ -15,9 +15,15 @@ Bug fixes:
 
 - Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
 - Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
+- Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
+(using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+
 
 .. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
 .. _#1649: https://github.com/atviriduomenys/spinta/pull/1649
+.. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
+
 
 0.2dev12 (2025-12-18)
 =====================
