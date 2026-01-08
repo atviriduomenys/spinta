@@ -483,6 +483,11 @@ def sort(env, field):
     return env.call("asc", prop.dtype)
 
 
+@ufunc.resolver(MongoQueryBuilder, DataType)
+def sort(env, dtype):
+    return env.call("asc", dtype)
+
+
 @ufunc.resolver(MongoQueryBuilder, Positive)
 def sort(env, sign):
     return env.call("asc", sign.arg)
