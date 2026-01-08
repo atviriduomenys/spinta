@@ -114,9 +114,6 @@ CONFIG = {
             # External result builders
             "sql": "spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder",
         },
-        "migrations": {
-            "alembic": "spinta.migrations.schema.alembic:Alembic",
-        },
         "nodes": {
             "ns": "spinta.components:Namespace",
             "model": "spinta.components:Model",
