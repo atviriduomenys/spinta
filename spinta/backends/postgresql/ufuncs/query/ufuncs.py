@@ -1138,6 +1138,11 @@ def sort(env, dtype):
     return env.call("asc", dtype)
 
 
+@ufunc.resolver(PgQueryBuilder, NestedProperty)
+def sort(env: PgQueryBuilder, nested: NestedProperty):
+    return env.call("asc", nested.right)
+
+
 @ufunc.resolver(PgQueryBuilder, Negative_)
 def sort(env, field):
     prop = env.resolve_property(field)
