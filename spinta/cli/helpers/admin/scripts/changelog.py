@@ -14,10 +14,10 @@ from typer import echo
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import validate_and_return_transaction
+from spinta.backends.helpers import validate_and_return_transaction, get_table_identifier, TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, prepare_data, prepare_patch, prepare_data_for_write
@@ -69,13 +69,15 @@ class _DuplicateChangelogModel:
             yield entry.to_move_mapping()
 
 
-def check_if_corrupted_changelog_exists(engine: Engine, table_name: str, data_keys: List[str]) -> bool:
+def check_if_corrupted_changelog_exists(
+    engine: Engine, table_identifier: TableIdentifier, data_keys: List[str]
+) -> bool:
     keys_list = ", ".join(f"('{key}')" for key in data_keys)
 
     contains_deleted_stmt = f"""
     SELECT EXISTS (
         SELECT 1
-        FROM "{table_name}"
+        FROM {table_identifier.pg_escaped_qualified_name}
         WHERE action = 'delete'
     )
     """
@@ -87,7 +89,7 @@ def check_if_corrupted_changelog_exists(engine: Engine, table_name: str, data_ke
             c._rid,
             t.key,
             c.data::jsonb ->> t.key AS value
-          FROM "{table_name}" AS c
+          FROM {table_identifier.pg_escaped_qualified_name} AS c
           CROSS JOIN LATERAL (VALUES {keys_list}) AS t(key)
           WHERE c.action NOT IN ('delete','move')
             AND c.data::jsonb ? t.key
@@ -106,7 +108,7 @@ def check_if_corrupted_changelog_exists(engine: Engine, table_name: str, data_ke
           SELECT DISTINCT ON (_rid)
             _rid,
             action AS last_action
-          FROM "{table_name}"
+          FROM {table_identifier.pg_escaped_qualified_name}
           ORDER BY _rid, datetime DESC
         ),
         filtered AS (
@@ -136,7 +138,7 @@ def check_if_corrupted_changelog_exists(engine: Engine, table_name: str, data_ke
 
 
 def fetch_corrupted_changelog_entities(
-    engine: Engine, table_name: str, data_keys: List[str]
+    engine: Engine, table_identifier: TableIdentifier, data_keys: List[str]
 ) -> Generator[_DuplicateChangelogEntry]:
     # Safely quote the data_keys for the SQL IN clause
     keys_list = ", ".join(f"('{key}')" for key in data_keys)
@@ -150,7 +152,7 @@ def fetch_corrupted_changelog_entities(
                 c.datetime,
                 t.key,
                 c.data::jsonb ->> t.key AS value
-            FROM "{table_name}" AS c
+            FROM {table_identifier.pg_escaped_qualified_name} AS c
             CROSS JOIN LATERAL (VALUES {keys_list}) AS t(key)
             WHERE c.action NOT IN ('delete', 'move')
               -- emit only the changelog rows that actually mention each key:
@@ -174,7 +176,7 @@ def fetch_corrupted_changelog_entities(
                 _rid,
                 action AS last_action,
                 _revision as last_revision
-            FROM "{table_name}"
+            FROM {table_identifier.pg_escaped_qualified_name}
             ORDER BY _rid, datetime DESC
         ),
     
@@ -212,7 +214,7 @@ def fetch_corrupted_changelog_entities(
     contains_deleted_stmt = f"""
     SELECT EXISTS (
         SELECT 1
-        FROM "{table_name}"
+        FROM {table_identifier.pg_escaped_qualified_name}
         WHERE action = 'delete'
     )
     """
@@ -265,7 +267,7 @@ def _gather_corrupted_changelog_entities(
             pkey_columns.append(get_pg_column_name(name))
 
     yield from fetch_corrupted_changelog_entities(
-        backend.engine, get_pg_table_name(model, TableType.CHANGELOG), pkey_columns
+        backend.engine, get_table_identifier(model, TableType.CHANGELOG), pkey_columns
     )
 
 
@@ -292,8 +294,8 @@ def _changelog_contains_corrupted_data(context: Context, backend: PostgreSQL, mo
         for name in get_prop_names(pkey):
             pkey_columns.append(get_pg_column_name(name))
 
-    table_name = get_pg_table_name(model, TableType.CHANGELOG)
-    if check_if_corrupted_changelog_exists(backend.engine, table_name, pkey_columns):
+    table_identifier = get_table_identifier(model, TableType.CHANGELOG)
+    if check_if_corrupted_changelog_exists(backend.engine, table_identifier, pkey_columns):
         return True
     return False
 
