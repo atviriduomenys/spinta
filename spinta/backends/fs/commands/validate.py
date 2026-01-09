@@ -5,9 +5,9 @@ from spinta import commands
 from spinta.components import Context, Property, DataItem
 from spinta.core.enums import Action
 from spinta.backends.components import Backend
-from spinta.types.datatype import DataType, File
+from spinta.types.datatype import DataType, File, Money
 from spinta.backends.fs.components import FileSystem
-from spinta.exceptions import FileNotFound, ConflictingValue, UnacceptableFileName
+from spinta.exceptions import FileNotFound, ConflictingValue, UnacceptableFileName, InvalidValue
 
 
 @commands.simple_data_check.register(Context, DataItem, File, Property, FileSystem, dict)
@@ -22,6 +22,21 @@ def simple_data_check(
     if value["_id"] is not None:
         # Check if given filepath stays on backend.path.
         _validate_path(value["_id"], backend, dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Money, Property, FileSystem, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Money,
+    prop: Property,
+    backend: FileSystem,
+    value: dict,
+):
+    currency = data.given.get('currency')
+    if currency is not None:
+        if len(currency) > 3:
+            raise InvalidValue(dtype, value=currency)
 
 
 @commands.complex_data_check.register()
