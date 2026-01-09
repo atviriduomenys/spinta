@@ -20,7 +20,7 @@ from spinta.manifests.tabular.helpers import write_tabular_manifest, datasets_to
 PRIVATE_PROPERTY_PREFIX = "_"
 
 
-def execute_synchronization_catalog_to_agent(
+def execute_manifest_synchronization_catalog_to_agent(
     context: Context,
     base_path: str,
     headers: dict[str, str],
