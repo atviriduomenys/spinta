@@ -5,8 +5,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.auth import AdminToken
-from spinta.backends.constants import TableType
-from spinta.backends.postgresql.helpers.name import get_pg_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -1812,12 +1811,12 @@ def test_getone_invalid_value_missing_redirect(
     app.authorize(scope)
     lt_id = str(uuid.uuid4())
 
-    country_redirect = get_pg_table_name("datasets/redirect/Country", TableType.REDIRECT)
+    country_redirect = get_table_identifier("datasets/redirect/Country/:redirect")
     manifest = context.get("store").manifest
     with manifest.backend.begin() as conn:
-        conn.execute(f'''
-            DROP TABLE IF EXISTS "{country_redirect}";
-        ''')
+        conn.execute(f"""
+            DROP TABLE IF EXISTS {country_redirect.pg_escaped_qualified_name};
+        """)
 
     resp = app.get(f"/datasets/redirect/Country/{lt_id}")
     assert resp.status_code == 500
