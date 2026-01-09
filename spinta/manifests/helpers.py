@@ -6,7 +6,6 @@ from typing import Dict
 from typing import List, Iterable, Optional
 from typing import Type
 
-import jsonpatch
 
 from spinta import commands
 from spinta.backends.constants import BackendOrigin
@@ -195,17 +194,6 @@ def _load_manifest_node(
     node.manifest = manifest
     commands.load(context, node, data, manifest, source=source)
     return node
-
-
-def get_current_schema_changes(
-    context: Context,
-    manifest: Manifest,
-    eid: EntryId,
-) -> List[dict]:
-    freezed = commands.manifest_read_freezed(context, manifest, eid=eid)
-    current = commands.manifest_read_current(context, manifest, eid=eid)
-    patch = jsonpatch.make_patch(freezed, current)
-    return list(patch)
 
 
 def entity_to_schema(entity: Optional[Entity]) -> ManifestSchema:

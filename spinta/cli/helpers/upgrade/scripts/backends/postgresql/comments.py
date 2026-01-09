@@ -5,9 +5,8 @@ from tqdm import tqdm
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_name, get_table_identifier, TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Property, Model
 
@@ -101,15 +100,15 @@ def custom_property_table_contains_comments(backend: PostgreSQL, inspector: PGIn
     return table_contains_all_comments(backend, inspector, name)
 
 
-def table_contains_comment(inspector: PGInspector, table_name: str, table: sa.Table) -> bool:
+def table_contains_comment(inspector: PGInspector, table: sa.Table) -> bool:
     if table is None:
         return True
 
-    if not inspector.has_table(table_name):
+    if not inspector.has_table(table.name, schema=table.schema):
         return True
 
     comment = table.comment
-    result = inspector.get_table_comment(table_name).get("text")
+    result = inspector.get_table_comment(table.name, schema=table.schema).get("text")
     if not result and comment:
         return False
 
@@ -122,10 +121,12 @@ def table_contains_all_comments(backend: PostgreSQL, inspector: PGInspector, tab
     if bootstrap_table is None:
         return True
 
-    if not table_contains_comment(inspector, get_pg_name(table), bootstrap_table):
+    if not table_contains_comment(inspector, bootstrap_table):
         return False
 
-    table_columns = {column["name"]: column for column in inspector.get_columns(bootstrap_table.name)}
+    table_columns = {
+        column["name"]: column for column in inspector.get_columns(bootstrap_table.name, schema=bootstrap_table.schema)
+    }
     for bootstrap_column in backend.tables.get(table).columns:
         if not bootstrap_column.comment:
             continue
@@ -160,24 +161,24 @@ def migrate_comments(context: Context, **kwargs):
     for model in progress_bar:
         backend = model.backend
         with backend.begin() as conn:
-            table_name = get_table_name(model)
-            changes_name = get_table_name(model, TableType.CHANGELOG)
-            redirect_name = get_table_name(model, TableType.REDIRECT)
+            table_identifier = get_table_identifier(model)
+            changes_identifier = table_identifier.change_table_type(new_type=TableType.CHANGELOG)
+            redirect_identifier = table_identifier.change_table_type(new_type=TableType.REDIRECT)
             inspector = inspectors[backend.name]
 
             progress_bar.display(model.model_type())
 
-            apply_missing_table_comments(conn, backend, inspector, table_name, progress_bar=progress_bar)
+            apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar)
 
             for prop in model.flatprops.values():
                 apply_custom_property_table_comments(conn, backend, inspector, prop, progress_bar)
 
-            if table_name.startswith("_"):
+            if table_identifier.logical_qualified_name.startswith("_"):
                 continue
 
             # Specialized tables for normal models
-            apply_missing_table_comments(conn, backend, inspector, changes_name, progress_bar=progress_bar)
-            apply_missing_table_comments(conn, backend, inspector, redirect_name, progress_bar=progress_bar)
+            apply_missing_table_comments(conn, backend, inspector, changes_identifier, progress_bar=progress_bar)
+            apply_missing_table_comments(conn, backend, inspector, redirect_identifier, progress_bar=progress_bar)
 
 
 def cleanup_comment(comment: str) -> str:
@@ -188,22 +189,30 @@ def cleanup_comment(comment: str) -> str:
 
 
 def apply_missing_table_comments(
-    conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, table: str, progress_bar: tqdm = None
+    conn: sa.engine.Connection,
+    backend: PostgreSQL,
+    inspector: PGInspector,
+    table_identifier: TableIdentifier,
+    progress_bar: tqdm = None,
 ):
-    bootstrap_table = backend.tables.get(table)
+    bootstrap_table = backend.tables.get(table_identifier.logical_qualified_name)
     if bootstrap_table is None:
         if progress_bar:
-            progress_bar.write(f"COULD NOT FIND '{table}' TABLE")
+            progress_bar.write(f"COULD NOT FIND '{table_identifier.logical_qualified_name}' TABLE")
         return
 
-    if not table_contains_comment(inspector, get_pg_name(table), bootstrap_table):
+    if not table_contains_comment(inspector, bootstrap_table):
         if progress_bar:
-            progress_bar.write(f"'{get_pg_name(table)}' <- {cleanup_comment(bootstrap_table.comment)}")
+            progress_bar.write(f"'{table_identifier.pg_qualified_name}' <- {cleanup_comment(bootstrap_table.comment)}")
 
-        conn.execute(f'COMMENT ON TABLE "{get_pg_name(table)}" IS {cleanup_comment(bootstrap_table.comment)}')
+        conn.execute(
+            f"COMMENT ON TABLE {table_identifier.pg_escaped_qualified_name} IS {cleanup_comment(bootstrap_table.comment)}"
+        )
 
-    table_columns = {column["name"]: column for column in inspector.get_columns(bootstrap_table.name)}
-    for bootstrap_column in backend.tables.get(table).columns:
+    table_columns = {
+        column["name"]: column for column in inspector.get_columns(bootstrap_table.name, schema=bootstrap_table.schema)
+    }
+    for bootstrap_column in bootstrap_table.columns:
         if not bootstrap_column.comment:
             continue
 
@@ -213,10 +222,10 @@ def apply_missing_table_comments(
         if column["comment"] != bootstrap_column.comment:
             if progress_bar:
                 progress_bar.write(
-                    f"'{get_pg_name(table)}'.'{column['name']}' <- {cleanup_comment(bootstrap_column.comment)}"
+                    f"'{table_identifier.pg_qualified_name}'.'{column['name']}' <- {cleanup_comment(bootstrap_column.comment)}"
                 )
             conn.execute(
-                f'COMMENT ON COLUMN "{get_pg_name(table)}"."{column["name"]}" IS {cleanup_comment(bootstrap_column.comment)}'
+                f'COMMENT ON COLUMN {table_identifier.pg_escaped_qualified_name}."{column["name"]}" IS {cleanup_comment(bootstrap_column.comment)}'
             )
 
 
@@ -238,13 +247,13 @@ def apply_custom_property_table_comments(
 def apply_custom_property_table_comments(
     conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, dtype: Array, progress_bar: tqdm
 ):
-    name = get_table_name(dtype.prop, TableType.LIST)
-    return apply_missing_table_comments(conn, backend, inspector, name, progress_bar=progress_bar)
+    table_identifier = get_table_identifier(dtype.prop, TableType.LIST)
+    return apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar)
 
 
 @dispatch(sa.engine.Connection, PostgreSQL, PGInspector, File, object)
 def apply_custom_property_table_comments(
     conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, dtype: File, progress_bar: tqdm
 ):
-    name = get_table_name(dtype.prop, TableType.FILE)
-    return apply_missing_table_comments(conn, backend, inspector, name, progress_bar=progress_bar)
+    table_identifier = get_table_identifier(dtype.prop, TableType.FILE)
+    return apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar)

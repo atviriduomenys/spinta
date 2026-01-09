@@ -5,18 +5,17 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.redirect import get_redirect_table
 from spinta.backends.postgresql.helpers.type import get_column_type
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
-from spinta.utils.sqlalchemy import Convention
 
 
 @overload
@@ -31,9 +30,8 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest, **kwargs)
 @overload
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicate: bool = False, **kwargs):
-    table_name = get_table_name(model)
-    main_table_name = get_pg_table_name(table_name)
-    if table_name in backend.tables and ignore_duplicate:
+    table_identifier = get_table_identifier(model)
+    if table_identifier.logical_qualified_name in backend.tables and ignore_duplicate:
         return
 
     columns = []
@@ -67,13 +65,14 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
     # Create main table.
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
-        main_table_name,
+        table_identifier.pg_table_name,
         backend.schema,
         sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
         sa.Column(get_pg_column_name("_created"), sa.DateTime, comment="_created"),
         sa.Column(get_pg_column_name("_updated"), sa.DateTime, comment="_updated"),
         *columns,
-        comment=table_name,
+        schema=table_identifier.pg_schema_name,
+        comment=table_identifier.logical_qualified_name,
     )
     backend.add_table(main_table, model)
 
@@ -136,13 +135,12 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
     base = dtype.prop.model.base
     column_name = get_pg_column_name("_id")
     if base and commands.identifiable(base):
-        ref_table = get_pg_table_name(base.parent)
+        ref_table_identifier = get_table_identifier(base.parent)
         return [
             sa.Column(column_name, pkey_type, primary_key=True, comment="_id"),
             sa.ForeignKeyConstraint(
                 [column_name],
-                [f"{ref_table}._id"],
-                name=PG_NAMING_CONVENTION[Convention.FK] % {"table_name": ref_table, "column_0_N_name": column_name},
+                [f"{ref_table_identifier.pg_qualified_name}._id"],
             ),
         ]
     return sa.Column(column_name, pkey_type, primary_key=True, comment="_id")
