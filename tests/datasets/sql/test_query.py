@@ -166,10 +166,9 @@ def test_unresolved_getattr(rc: RawConfig):
 
 
 def test_join_aliases(rc: RawConfig):
-    assert (
-        _build(
-            rc,
-            """
+    result = _build(
+        rc,
+        """
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
       | data                 | sql    |         |            |                  |
@@ -197,8 +196,10 @@ def test_join_aliases(rc: RawConfig):
       |   |   |   | country  | ref    | Country | COUNTRY_ID |                  | open
       |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
     """,
-            "example/Street",
-        )
+        "example/Street",
+    )
+    assert (
+        result
         == """
     SELECT
       "STREET"."NAME",
@@ -207,19 +208,11 @@ def test_join_aliases(rc: RawConfig):
       "STREET"."PLANET_ID"
     FROM "STREET"
     LEFT OUTER JOIN "CITY" AS "CITY_1" ON "STREET"."CITY_ID" = "CITY_1"."ID"
-    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY_1"."COUNTRY_ID" = "COUNTRY_1"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_1" ON "COUNTRY_1"."PLANET_ID" = "PLANET_1"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_2" ON "CITY_1"."PLANET_ID" = "PLANET_2"."ID"
-    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_2" ON "STREET"."COUNTRY_ID" = "COUNTRY_2"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_3" ON "COUNTRY_2"."PLANET_ID" = "PLANET_3"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_4" ON "STREET"."PLANET_ID" = "PLANET_4"."ID"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY_1"."COUNTRY_ID" = "COUNTRY_1"."ID" OR "STREET"."COUNTRY_ID" = "COUNTRY_1"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_1" ON "COUNTRY_1"."PLANET_ID" = "PLANET_1"."ID" OR "CITY_1"."PLANET_ID" = "PLANET_1"."ID" OR "STREET"."PLANET_ID" = "PLANET_1"."ID"
     WHERE ("CITY_1"."NAME" IS NULL OR "CITY_1"."NAME" = :NAME_1)
       AND ("COUNTRY_1"."CODE" IS NULL OR "COUNTRY_1"."CODE" = :CODE_1)
       AND ("PLANET_1"."CODE" IS NULL OR "PLANET_1"."CODE" = :CODE_2)
-      AND ("PLANET_2"."CODE" IS NULL OR "PLANET_2"."CODE" = :CODE_3)
-      AND ("COUNTRY_2"."CODE" IS NULL OR "COUNTRY_2"."CODE" = :CODE_4)
-      AND ("PLANET_3"."CODE" IS NULL OR "PLANET_3"."CODE" = :CODE_5)
-      AND ("PLANET_4"."CODE" IS NULL OR "PLANET_4"."CODE" = :CODE_6)
     """
     )
 
