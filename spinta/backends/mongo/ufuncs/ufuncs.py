@@ -484,7 +484,7 @@ def sort(env, field):
 
 
 @ufunc.resolver(MongoQueryBuilder, DataType)
-def sort(env, dtype):
+def sort(env: MongoQueryBuilder, dtype: DataType) -> Any:
     return env.call("asc", dtype)
 
 
