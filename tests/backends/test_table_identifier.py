@@ -307,7 +307,7 @@ def test_get_table_identifier_from_string(
 def test_get_table_identifier_from_table_comment(
     identifier_case: IdentifierCase,
 ):
-    table = sa.Table("test", sa.MetaData(), comment=identifier_case.model)
+    table = sa.Table("test", sa.MetaData(), comment=identifier_case.model, schema=identifier_case.pg_schema_name)
     table_identifier = get_table_identifier(table)
     assert table_identifier.logical_qualified_name == identifier_case.logical_qualified_name
     assert table_identifier.pg_schema_name == identifier_case.pg_schema_name

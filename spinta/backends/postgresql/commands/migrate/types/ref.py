@@ -280,7 +280,7 @@ def _migrate_scalar_to_ref_3(
     handler.add_action(
         ma.DowngradeTransferDataMigrationAction(
             table_identifier=target_table_identifier,
-            referenced_table_identifier=get_table_identifier(ref.model),
+            referenced_table_identifier=migration_ctx.get_table_identifier(ref.model),
             source_column=column,
             columns={ref_column.name: sa.Column(target, type_=ref_column.type)},
             target=target,

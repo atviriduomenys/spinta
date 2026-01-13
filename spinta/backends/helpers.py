@@ -355,7 +355,7 @@ class TableIdentifier:
     base_name: str
     table_type: TableType = dataclasses.field(default=TableType.MAIN)
     table_arg: Optional[str] = dataclasses.field(default=None)
-    default_pg_schema: Optional[str] = dataclasses.field(default="public")
+    default_pg_schema: Optional[str] = dataclasses.field(default=None)
 
     logical_name: str = dataclasses.field(init=False)
     # Name with namespace connected with '/', like it is used with Model class
@@ -401,13 +401,13 @@ class TableIdentifier:
 
 
 @dispatch(str)
-def get_table_identifier(item: str) -> TableIdentifier:
+def get_table_identifier(item: str, **kwargs) -> TableIdentifier:
     schema, model_name, table_type, table_arg = split_logical_name(item)
-    return TableIdentifier(schema=schema, base_name=model_name, table_type=table_type, table_arg=table_arg)
+    return TableIdentifier(schema=schema, base_name=model_name, table_type=table_type, table_arg=table_arg, **kwargs)
 
 
 @dispatch(sa.Table)
-def get_table_identifier(item: sa.Table) -> TableIdentifier:
+def get_table_identifier(item: sa.Table, **kwargs) -> TableIdentifier:
     if item.comment:
         if item.schema in ("public", None):
             schema, model_name, table_type, table_arg = split_logical_name(item.comment)
@@ -416,18 +416,19 @@ def get_table_identifier(item: sa.Table) -> TableIdentifier:
                 base_name=f"{schema}/{model_name}" if schema else model_name,
                 table_type=table_type,
                 table_arg=table_arg,
+                **kwargs,
             )
-        return get_table_identifier(item.comment)
-    return TableIdentifier(schema=item.schema, base_name=item.name)
+        return get_table_identifier(item.comment, **kwargs)
+    return TableIdentifier(schema=item.schema, base_name=item.name, **kwargs)
 
 
 @dispatch((Model, Property))
-def get_table_identifier(node: Union[Model, Property]) -> TableIdentifier:
-    return get_table_identifier(node, TableType.MAIN)
+def get_table_identifier(node: Union[Model, Property], **kwargs) -> TableIdentifier:
+    return get_table_identifier(node, TableType.MAIN, **kwargs)
 
 
 @dispatch((Model, Property), TableType)
-def get_table_identifier(node: Union[Model, Property], ttype: TableType) -> TableIdentifier:
+def get_table_identifier(node: Union[Model, Property], ttype: TableType, **kwargs) -> TableIdentifier:
     if isinstance(node, Model):
         model = node
     else:
@@ -440,7 +441,7 @@ def get_table_identifier(node: Union[Model, Property], ttype: TableType) -> Tabl
     if ttype in (TableType.LIST, TableType.FILE):
         table_arg = node.place
 
-    return TableIdentifier(schema, base_name, ttype, table_arg)
+    return TableIdentifier(schema, base_name, ttype, table_arg, **kwargs)
 
 
 def get_table_name(
