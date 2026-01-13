@@ -21,6 +21,8 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     create_table_migration,
     filter_related_tables,
     gather_prepare_columns,
+    revalidate_table_identifier,
+    extract_sequence_name,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (
@@ -245,6 +247,7 @@ def _handle_model_unique_constraints(
         return
 
     source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
 
     for property_combination in model.unique:
         column_name_list = []
@@ -259,13 +262,13 @@ def _handle_model_unique_constraints(
 
         constraints = inspector.get_unique_constraints(source_table_name, schema=source_table_identifier.pg_schema_name)
         constraint_name = get_pg_constraint_name(target_table_identifier.pg_table_name, column_name_list)
-        unique_constraint_states = model_context.constraint_states[source_table_name].unique_constraint
+        unique_constraint_states = model_context.constraint_states[source_logical_name].unique_constraint
         if unique_constraint_states[constraint_name]:
             continue
 
         constraint = constraint_with_name(constraints, constraint_name)
         if constraint:
-            model_context.mark_unique_constraint_handled(source_table_name, constraint_name)
+            model_context.mark_unique_constraint_handled(source_logical_name, constraint_name)
             if constraint["column_names"] == column_name_list:
                 continue
 
@@ -287,11 +290,11 @@ def _handle_model_unique_constraints(
                 if unique_constraint_states[constraint["name"]]:
                     continue
 
-                model_context.mark_unique_constraint_handled(source_table_name, constraint_name)
+                model_context.mark_unique_constraint_handled(source_logical_name, constraint_name)
                 if constraint["name"] == constraint_name:
                     continue
 
-                model_context.mark_unique_constraint_handled(source_table_name, constraint["name"])
+                model_context.mark_unique_constraint_handled(source_logical_name, constraint["name"])
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(
                         table_identifier=target_table_identifier,
@@ -301,7 +304,7 @@ def _handle_model_unique_constraints(
                 )
 
         if not unique_constraint_states[constraint_name]:
-            model_context.mark_unique_constraint_handled(source_table_name, constraint_name)
+            model_context.mark_unique_constraint_handled(source_logical_name, constraint_name)
             handler.add_action(
                 ma.CreateUniqueConstraintMigrationAction(
                     table_identifier=target_table_identifier, constraint_name=constraint_name, columns=column_name_list
@@ -460,6 +463,7 @@ def _handle_model_foreign_key_constraints(
 
     if model.base and commands.identifiable(model.base):
         referent_table_identifier = rename.to_old_table(model.base.parent)
+        referent_table_identifier = revalidate_table_identifier(referent_table_identifier, inspector)
         referent_table = referent_table_identifier.pg_table_name
         referent_schema = referent_table_identifier.pg_schema_name
         fk_name = get_pg_foreign_key_name(
@@ -467,7 +471,7 @@ def _handle_model_foreign_key_constraints(
             referred_table_identifier=referent_table_identifier,
             column_name="_id",
         )
-        model_context.mark_foreign_constraint_handled(source_table_identifier.pg_table_name, fk_name)
+        model_context.mark_foreign_constraint_handled(source_table_identifier.logical_qualified_name, fk_name)
         if id_constraint is not None:
             if id_constraint["name"] == fk_name:
                 # Everything matches
@@ -496,7 +500,9 @@ def _handle_model_foreign_key_constraints(
                 )
                 return
 
-            model_context.mark_foreign_constraint_handled(source_table_identifier.pg_table_name, id_constraint["name"])
+            model_context.mark_foreign_constraint_handled(
+                source_table_identifier.logical_qualified_name, id_constraint["name"]
+            )
             # Tables match, but name does not
             if (
                 id_constraint["referred_schema"] == referent_schema
@@ -598,7 +604,7 @@ def _handle_changelog_migration(
                 )
             ).add_action(
                 ma.RenameSequenceMigrationAction(
-                    old_name=get_pg_sequence_name(changelog_table.name),
+                    old_name=extract_sequence_name(changelog_table),
                     new_name=get_pg_sequence_name(new_table_identifier.pg_table_name),
                     table_identifier=new_table_identifier,
                     old_table_identifier=old_table_identifier,
@@ -656,8 +662,9 @@ def _generic_reserved_table_constraint_flag(
 ):
     target_table_name = target_table_identifier.pg_table_name
     source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
     renamed = name_changed(target_table_identifier.pg_qualified_name, source_table_identifier.pg_qualified_name)
-    constraint_states = model_context.constraint_states[source_table_name]
+    constraint_states = model_context.constraint_states[source_logical_name]
 
     unique_constraints = {
         constraint["name"]: constraint
@@ -669,7 +676,7 @@ def _generic_reserved_table_constraint_flag(
         if state:
             continue
 
-        model_context.mark_unique_constraint_handled(source_table_name, unique_constraint)
+        model_context.mark_unique_constraint_handled(source_logical_name, unique_constraint)
 
         if not renamed:
             continue
@@ -692,7 +699,7 @@ def _generic_reserved_table_constraint_flag(
         if state:
             continue
 
-        model_context.mark_foreign_constraint_handled(source_table_name, foreign_constraint)
+        model_context.mark_foreign_constraint_handled(source_logical_name, foreign_constraint)
         if not renamed:
             continue
         new_constraint_name = get_pg_constraint_name(
@@ -714,7 +721,7 @@ def _generic_reserved_table_constraint_flag(
         if state:
             continue
 
-        model_context.mark_index_handled(source_table_name, index)
+        model_context.mark_index_handled(source_logical_name, index)
         if not renamed:
             continue
         new_index_name = get_pg_index_name(target_table_name, indexes[index]["column_names"])

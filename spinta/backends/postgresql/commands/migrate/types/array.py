@@ -12,7 +12,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     get_source_table,
     index_with_columns,
     index_not_handled_condition,
-    constraint_with_name,
+    constraint_with_foreign_key_columns,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_column_name,
@@ -118,7 +118,9 @@ def migrate(
         existing_index = index_with_columns(
             indexes,
             ["_txn"],
-            condition=index_not_handled_condition(property_ctx.model_context, source_array_table.name),
+            condition=index_not_handled_condition(
+                property_ctx.model_context, source_array_identifier.logical_qualified_name
+            ),
         )
         index_name = get_pg_index_name(target_array_table.name, ["_txn"])
         if existing_index is None:
@@ -128,7 +130,9 @@ def migrate(
                 )
             )
         else:
-            property_ctx.model_context.mark_index_handled(source_array_table.name, existing_index["name"])
+            property_ctx.model_context.mark_index_handled(
+                source_array_identifier.logical_qualified_name, existing_index["name"]
+            )
             if table_name_changed:
                 handler.add_action(
                     ma.RenameIndexMigrationAction(
@@ -140,12 +144,7 @@ def migrate(
                 )
 
         constraints = inspector.get_foreign_keys(source_array_table.name, schema=source_array_table.schema)
-        source_constraint_name = get_pg_foreign_key_name(
-            table_identifier=source_array_identifier,
-            referred_table_identifier=source_table_identifier,
-            column_name="_rid",
-        )
-        existing_constraint = constraint_with_name(constraints, source_constraint_name)
+        existing_constraint = constraint_with_foreign_key_columns(constraints, source_table_identifier, ["_rid"])
         constraint_name = get_pg_foreign_key_name(
             table_identifier=target_array_identifier,
             referred_table_identifier=target_table_identifier,
@@ -162,7 +161,10 @@ def migrate(
                 )
             )
         else:
-            property_ctx.model_context.mark_foreign_constraint_handled(source_array_table.name, source_constraint_name)
+            source_constraint_name = existing_constraint["name"]
+            property_ctx.model_context.mark_foreign_constraint_handled(
+                source_array_identifier.logical_qualified_name, source_constraint_name
+            )
             if table_name_changed:
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(
