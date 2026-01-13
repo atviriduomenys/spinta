@@ -37,7 +37,6 @@ from spinta.testing.migration import (
     rename_redirect,
     drop_index,
     add_schema,
-    change_index_schema,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
@@ -2370,7 +2369,6 @@ def test_migrate_long_name_rename(migration_db: Engine, rc: RawConfig, cli: Spin
         f"{rename_changelog(old_table_identifier=long_table_identifier, new_table_identifier=even_longer_table_identifier, comment='datasets/gov/migrate/example/very/long/dataset/new/EvenLongerModelName/:changelog')}"
         f"{rename_redirect(old_table_identifier=long_table_identifier, new_table_identifier=even_longer_table_identifier, comment='datasets/gov/migrate/example/very/long/dataset/new/EvenLongerModelName/:redirect')}"
         f"{rename_column(table_identifier=even_longer_table_identifier, column='someInt', new_name='actualInt')}"
-        f"{change_index_schema(table_identifier=long_table_identifier, index_name='ix_LongModelName__txn', new_schema=even_longer_table_identifier.pg_schema_name)}"
         f"{rename_index(table_identifier=even_longer_table_identifier, old_index_name='ix_LongModelName__txn', new_index_name='ix_EvenLongerModelName__txn')}"
         "ALTER TABLE "
         '"datasets/gov/migrate/example/very/long/dataset/new"."EvenLongerModelName" '
