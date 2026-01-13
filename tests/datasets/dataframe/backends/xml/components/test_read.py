@@ -804,7 +804,6 @@ def test_xml_read_text_lang_select_single_search_dot(rc: RawConfig, tmp_path: Pa
         mode=Mode.external,
     )
     context.loaded = True
-    store = context.get('store')
     app = create_test_client(context)
     app.authmodel("example/xml/City", ["getall", "search"])
 
@@ -859,7 +858,6 @@ def test_xml_read_text_lang_select_single_search_at(rc: RawConfig, tmp_path: Pat
         mode=Mode.external,
     )
     context.loaded = True
-    store = context.get('store')
     app = create_test_client(context)
     app.authmodel("example/xml/City", ["getall", "search"])
 
