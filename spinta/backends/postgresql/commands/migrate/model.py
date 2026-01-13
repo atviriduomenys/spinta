@@ -5,7 +5,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_identifier, TableIdentifier
+from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
@@ -83,6 +83,7 @@ def migrate(
         model=new,
         model_tables=old,
         model_context=model_ctx,
+        migration_context=migration_ctx,
         handler=handler,
         inspector=inspector,
     )
@@ -554,6 +555,7 @@ def _handle_reserved_tables(
     model: Model,
     model_tables: ModelTables,
     model_context: ModelMigrationContext,
+    migration_context: PostgresqlMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
@@ -568,6 +570,7 @@ def _handle_reserved_tables(
         handler=handler,
         inspector=inspector,
         model_context=model_context,
+        migration_context=migration_context,
     )
     _handle_redirect_migration(
         backend=backend,
@@ -576,6 +579,7 @@ def _handle_reserved_tables(
         handler=handler,
         model_context=model_context,
         inspector=inspector,
+        migration_context=migration_context,
     )
 
 
@@ -584,6 +588,7 @@ def _handle_changelog_migration(
     model: Model,
     model_tables: ModelTables,
     model_context: ModelMigrationContext,
+    migration_context: PostgresqlMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
@@ -592,8 +597,8 @@ def _handle_changelog_migration(
     if changelog_table is None:
         create_table_migration(table=target_table, handler=handler)
     else:
-        old_table_identifier = get_table_identifier(changelog_table)
-        new_table_identifier = get_table_identifier(model, TableType.CHANGELOG)
+        old_table_identifier = migration_context.get_table_identifier(changelog_table)
+        new_table_identifier = migration_context.get_table_identifier(model, TableType.CHANGELOG)
         renamed = name_changed(old_table_identifier.pg_qualified_name, new_table_identifier.pg_qualified_name)
         if renamed:
             handler.add_action(
@@ -625,6 +630,7 @@ def _handle_redirect_migration(
     model: Model,
     model_tables: ModelTables,
     model_context: ModelMigrationContext,
+    migration_context: PostgresqlMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
@@ -633,8 +639,8 @@ def _handle_redirect_migration(
     if redirect_table is None:
         create_table_migration(table=target_table, handler=handler)
     else:
-        old_table_identifier = get_table_identifier(redirect_table)
-        new_table_identifier = get_table_identifier(model, TableType.REDIRECT)
+        old_table_identifier = migration_context.get_table_identifier(redirect_table)
+        new_table_identifier = migration_context.get_table_identifier(model, TableType.REDIRECT)
         if name_changed(old_table_identifier.pg_qualified_name, new_table_identifier.pg_qualified_name):
             handler.add_action(
                 ma.RenameTableMigrationAction(

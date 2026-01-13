@@ -89,9 +89,9 @@ class PostgresqlMigrationContext(MigrationContext):
             return cached
 
         if table_type_allowed:
-            identifier = get_table_identifier(item, table_type)
+            identifier = get_table_identifier(item, table_type, default_pg_schema=self.inspector.default_schema_name)
         else:
-            identifier = get_table_identifier(item)
+            identifier = get_table_identifier(item, default_pg_schema=self.inspector.default_schema_name)
 
         self._table_identifier_cache[key] = identifier
         return identifier
@@ -153,7 +153,7 @@ class ModelMigrationContext:
             self._preset_constraints(inspector, prop_table, table_type, prop)
 
     def _preset_constraints(self, inspector: Inspector, table: sa.Table, table_type: TableType, prop: str = None):
-        table_identifier = get_table_identifier(table)
+        table_identifier = get_table_identifier(table, default_pg_schema=inspector.default_schema_name)
         constraint_states = self.constraint_states[table_identifier.logical_qualified_name] = TableConstraintStates(
             table=table, table_type=table_type, prop=prop
         )

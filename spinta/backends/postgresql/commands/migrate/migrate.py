@@ -180,7 +180,6 @@ def _filter_models_and_tables(
 
     remapped_tables = {}
     for name, table in model_tables.items():
-        # Do not apply `get_pg_table_name`, since this will be done later on while zipping with `model_name_key`
         table_identifier = rename.to_new_table(name)
         table_name = table_identifier.logical_qualified_name
         if table_name not in models.keys():

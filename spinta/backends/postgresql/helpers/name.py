@@ -3,9 +3,7 @@ from typing import Any
 from multipledispatch import dispatch
 from sqlalchemy.cimmutabledict import immutabledict
 
-from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_identifier, TableIdentifier
-from spinta.components import Model
+from spinta.backends.helpers import TableIdentifier
 from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.utils.itertools import ensure_list
@@ -40,42 +38,6 @@ def name_changed(old_name: str | None, new_name: str | None) -> bool:
 @dispatch(str, str, str, str)
 def name_changed(old_table_name: str, new_table_name: str, old_property_name: str, new_property_name: str) -> bool:
     return old_table_name != new_table_name or old_property_name != new_property_name
-
-
-@dispatch(str, TableType, type(None))
-def get_pg_table_name(table_name: str, ttype: TableType, arg: type(None)) -> str:
-    return get_pg_table_name(table_name, ttype)
-
-
-@dispatch(str, TableType, str)
-def get_pg_table_name(table_name: str, ttype: TableType, arg: str) -> str:
-    args_str = arg or ""
-    if args_str and not args_str.startswith("/"):
-        args_str = f"/{arg}"
-
-    return get_pg_table_name(f"{table_name}{ttype.value}{args_str}")
-
-
-@dispatch(str, TableType)
-def get_pg_table_name(table_name: str, ttype: TableType) -> str:
-    return get_pg_table_name(f"{table_name}{ttype.value}")
-
-
-@dispatch(Model, TableType)
-def get_pg_table_name(model: Model, ttype: TableType) -> str:
-    table_identifier = get_table_identifier(model, ttype)
-    return table_identifier.pg_qualified_name
-
-
-@dispatch(Model)
-def get_pg_table_name(model: Model) -> str:
-    table_identifier = get_table_identifier(model)
-    return table_identifier.pg_qualified_name
-
-
-@dispatch(str)
-def get_pg_table_name(table_name: str) -> str:
-    return get_pg_name(table_name)
 
 
 def get_pg_column_name(column_name: str) -> str:
