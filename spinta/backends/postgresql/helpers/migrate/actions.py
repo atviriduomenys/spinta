@@ -235,26 +235,8 @@ class RenameIndexMigrationAction(MigrationAction):
         )
 
         self.query = f"ALTER INDEX {target_index} RENAME TO {pg_identifier_preparer.quote(new_index_name)}"
-        self.schema_query = None
-        if old_table_identifier:
-            target_index = (
-                f"{pg_identifier_preparer.quote(old_table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(old_index_name)}"
-                if old_table_identifier.pg_schema_name
-                else pg_identifier_preparer.quote(old_index_name)
-            )
-            self.schema_query = (
-                f"ALTER INDEX {target_index} SET SCHEMA {pg_identifier_preparer.quote(table_identifier.pg_schema_name)}"
-            )
 
     def execute(self, op: "Operations"):
-        if (
-            self.schema_query
-            and self.old_table_identifier
-            and name_changed(self.old_table_identifier.pg_schema_name, self.table_identifier.pg_schema_name)
-        ):
-            replaced = self.schema_query.replace(":", "\\:")
-            op.execute(replaced)
-
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
@@ -436,25 +418,8 @@ class RenameSequenceMigrationAction(MigrationAction):
         )
 
         self.query = f"ALTER SEQUENCE {target_sequence} RENAME TO {pg_identifier_preparer.quote(new_name)}"
-        self.schema_query = None
-
-        if old_table_identifier:
-            target_sequence = (
-                f"{pg_identifier_preparer.quote(old_table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(old_name)}"
-                if old_table_identifier.pg_schema_name
-                else pg_identifier_preparer.quote(old_name)
-            )
-            self.schema_query = f"ALTER SEQUENCE {target_sequence} SET SCHEMA {pg_identifier_preparer.quote(table_identifier.pg_schema_name)}"
 
     def execute(self, op: "Operations"):
-        if (
-            self.schema_query
-            and self.old_table_identifier
-            and name_changed(self.old_table_identifier.pg_schema_name, self.table_identifier.pg_schema_name)
-        ):
-            replaced = self.schema_query.replace(":", "\\:")
-            op.execute(replaced)
-
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 

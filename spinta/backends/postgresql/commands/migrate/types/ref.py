@@ -30,6 +30,8 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     get_explicit_primary_keys,
     gather_prepare_columns,
     get_source_table,
+    revalidate_table_identifier,
+    constraint_with_foreign_key_columns,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_foreign_key_name
@@ -323,11 +325,12 @@ def migrate(
     new_children_column_names = [column.name for column in new_children_columns]
 
     old_ref_table_identifier = rename.to_old_table(new.model)
+    old_ref_table_identifier = revalidate_table_identifier(old_ref_table_identifier, inspector)
     old_prop_name = get_pg_column_name(rename.to_old_column_name(source_table, get_column_name(new.prop)))
 
     new_name = get_pg_column_name(new.prop.place)
     ref_model_columns = get_model_column_names(table_identifier=old_ref_table_identifier, inspector=inspector)
-    ref_model_explicit_keys = get_explicit_primary_keys(ref=new, rename=rename)
+    ref_model_explicit_keys = get_explicit_primary_keys(ref=new, rename=rename, inspector=inspector)
     ref_model_primary_keys = get_spinta_primary_keys(
         table_identifier=old_ref_table_identifier,
         model=new.model,
@@ -457,6 +460,7 @@ def _handle_property_foreign_key_constraint(
     model_context: ModelMigrationContext,
 ):
     source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
 
     foreign_keys = inspector.get_foreign_keys(source_table_name, schema=source_table_identifier.pg_schema_name)
     foreign_key_name = get_pg_foreign_key_name(
@@ -464,32 +468,29 @@ def _handle_property_foreign_key_constraint(
         referred_table_identifier=referenced_table_identifier,
         column_name=primary_column.name,
     )
-    model_context.mark_foreign_constraint_handled(source_table_name, foreign_key_name)
+    model_context.mark_foreign_constraint_handled(source_logical_name, foreign_key_name)
     old_prop_name = (
         get_pg_column_name("_id")
         if ref.prop.list
         else get_pg_column_name(f"{rename.to_old_column_name(source_table_identifier, get_column_name(ref.prop))}._id")
     )
     old_referent_table_identifier = rename.to_old_table(ref.model)
+    old_referent_table_identifier = revalidate_table_identifier(old_referent_table_identifier, inspector)
     old_referent_table = old_referent_table_identifier.pg_table_name
     old_referent_schema = old_referent_table_identifier.pg_schema_name
     if not contains_constraint_name(foreign_keys, foreign_key_name):
-        for foreign_key in foreign_keys:
-            if (
-                foreign_key["constrained_columns"] == [old_prop_name]
-                and foreign_key["referred_table"] == old_referent_table
-                and foreign_key["referred_schema"] == old_referent_schema
-            ):
-                model_context.mark_foreign_constraint_handled(source_table_name, foreign_key["name"])
-                handler.add_action(
-                    ma.RenameConstraintMigrationAction(
-                        table_identifier=target_table_identifier,
-                        old_constraint_name=foreign_key["name"],
-                        new_constraint_name=foreign_key_name,
-                    ),
-                    foreign_key=True,
-                )
-                return
+        constraint = constraint_with_foreign_key_columns(foreign_keys, old_referent_table_identifier, [old_prop_name])
+        if constraint:
+            model_context.mark_foreign_constraint_handled(source_logical_name, constraint["name"])
+            handler.add_action(
+                ma.RenameConstraintMigrationAction(
+                    table_identifier=target_table_identifier,
+                    old_constraint_name=constraint["name"],
+                    new_constraint_name=foreign_key_name,
+                ),
+                foreign_key=True,
+            )
+            return
 
         handler.add_action(
             ma.CreateForeignKeyMigrationAction(
@@ -509,7 +510,7 @@ def _handle_property_foreign_key_constraint(
         or constraint["referred_table"] != old_referent_table
         or constraint["referred_schema"] != old_referent_schema
     ):
-        model_context.mark_foreign_constraint_handled(source_table_name, constraint["name"])
+        model_context.mark_foreign_constraint_handled(source_logical_name, constraint["name"])
         handler.add_action(
             ma.DropConstraintMigrationAction(
                 table_identifier=target_table_identifier, constraint_name=constraint["name"]
@@ -550,6 +551,7 @@ def migrate(
 
     source_table_unhashed_name = source_table.comment
     old_ref_table_identifier = rename.to_old_table(new.model)
+    old_ref_table_identifier = revalidate_table_identifier(old_ref_table_identifier, inspector)
     old_prop_name = rename.to_old_column_name(source_table, get_column_name(new.prop))
 
     new_primary_columns = gather_prepare_columns(context, backend, new.prop, propagate=False)
@@ -562,7 +564,7 @@ def migrate(
 
     new_name = get_pg_column_name(new.prop.place)
     ref_model_columns = get_model_column_names(table_identifier=old_ref_table_identifier, inspector=inspector)
-    ref_model_explicit_keys = get_explicit_primary_keys(ref=new, rename=rename)
+    ref_model_explicit_keys = get_explicit_primary_keys(ref=new, rename=rename, inspector=inspector)
     ref_model_primary_keys = get_spinta_primary_keys(
         table_identifier=old_ref_table_identifier, model=new.model, inspector=inspector
     )

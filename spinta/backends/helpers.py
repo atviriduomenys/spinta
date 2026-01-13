@@ -355,6 +355,7 @@ class TableIdentifier:
     base_name: str
     table_type: TableType = dataclasses.field(default=TableType.MAIN)
     table_arg: Optional[str] = dataclasses.field(default=None)
+    default_pg_schema: Optional[str] = dataclasses.field(default="public")
 
     logical_name: str = dataclasses.field(init=False)
     # Name with namespace connected with '/', like it is used with Model class
@@ -375,7 +376,7 @@ class TableIdentifier:
         self.logical_qualified_name = f"{self.schema}/{self.logical_name}" if self.schema else self.logical_name
 
         self.pg_table_name = get_pg_name(self.logical_name)
-        self.pg_schema_name = get_pg_name(self.schema) if self.schema else None
+        self.pg_schema_name = get_pg_name(self.schema) if self.schema else self.default_pg_schema
         self.pg_qualified_name = (
             f"{self.pg_schema_name}.{self.pg_table_name}" if self.pg_schema_name else self.pg_table_name
         )
@@ -408,6 +409,14 @@ def get_table_identifier(item: str) -> TableIdentifier:
 @dispatch(sa.Table)
 def get_table_identifier(item: sa.Table) -> TableIdentifier:
     if item.comment:
+        if item.schema in ("public", None):
+            schema, model_name, table_type, table_arg = split_logical_name(item.comment)
+            return TableIdentifier(
+                schema=None,
+                base_name=f"{schema}/{model_name}" if schema else model_name,
+                table_type=table_type,
+                table_arg=table_arg,
+            )
         return get_table_identifier(item.comment)
     return TableIdentifier(schema=item.schema, base_name=item.name)
 

@@ -28,6 +28,21 @@ def get_pg_name(name: str) -> str:
         i = int(NAMEDATALEN / 100 * 60)
         j = NAMEDATALEN - i - hs - 2
         name = name[:i] + "_" + h + "_" + name[-j:]
+
+    # Imitate postgresql encoding issue with lithuanian characters
+    # This should not be needed after models are enforced to not contain special characters
+    # Also, this is a hack for backwards compatibility
+    encoded = name.encode("utf-8")
+    if len(encoded) > NAMEDATALEN:
+        truncated = encoded[:NAMEDATALEN]
+        # Fix broken bytes
+        while True:
+            try:
+                name = truncated.decode("utf-8")
+                break
+            except UnicodeDecodeError:
+                truncated = truncated[:-1]
+
     return name
 
 

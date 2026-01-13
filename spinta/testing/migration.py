@@ -256,17 +256,6 @@ def rename_changelog(old_table_identifier: TableIdentifier, new_table_identifier
 
     sequence_rename = ""
     index_rename = ""
-    if name_changed(old_table_identifier.pg_schema_name, new_table_identifier.pg_schema_name):
-        sequence_rename += change_sequence_schema(
-            table_identifier=old_table_identifier,
-            sequence_name=old_sequence_name,
-            new_schema=new_table_identifier.pg_schema_name,
-        )
-        index_rename += change_index_schema(
-            table_identifier=old_table_identifier,
-            index_name=old_txn_index_name,
-            new_schema=new_table_identifier.pg_schema_name,
-        )
     sequence_rename += rename_sequence(
         table_identifier=new_table_identifier, sequence_name=old_sequence_name, new_sequence_name=new_sequence_name
     )
@@ -292,12 +281,6 @@ def rename_redirect(old_table_identifier: TableIdentifier, new_table_identifier:
     new_redirect_index_name = get_pg_index_name(new_table_identifier.pg_table_name, "redirect")
 
     index_rename = ""
-    if name_changed(old_table_identifier.pg_schema_name, new_table_identifier.pg_schema_name):
-        index_rename += change_index_schema(
-            table_identifier=old_table_identifier,
-            index_name=old_redirect_index_name,
-            new_schema=new_table_identifier.pg_schema_name,
-        )
     index_rename += rename_index(
         table_identifier=new_table_identifier,
         old_index_name=old_redirect_index_name,

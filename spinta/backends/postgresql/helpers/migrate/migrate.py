@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 from collections import defaultdict
 from typing import List, Union, Dict, Tuple, Callable
 
@@ -10,6 +11,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB, JSON
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.sql.elements import TextClause
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
@@ -22,7 +24,7 @@ from spinta.backends.helpers import (
     extract_table_data_from_logical_name,
 )
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
+from spinta.backends.postgresql.helpers import get_pg_name, get_column_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
 from spinta.backends.postgresql.helpers.migrate.name import (
@@ -55,6 +57,8 @@ from spinta.utils.itertools import ensure_list
 from spinta.utils.nestedstruct import get_root_attr
 from spinta.utils.schema import NA, NotAvailable
 
+_NEXTVAL_RE = re.compile(r"^nextval\('(?P<ident>[^']+)'\s*::regclass\)$", re.I)
+
 
 @dataclasses.dataclass
 class PostgresqlMigrationContext(MigrationContext):
@@ -78,6 +82,8 @@ class PostgresqlMigrationContext(MigrationContext):
             table_type_allowed = True
         elif isinstance(item, sa.Table):
             key = item.comment or item.name
+            if not item.schema or item.schema == self.inspector.default_schema_name:
+                key = self.inspector.default_schema_name + "." + key
 
         if cached := self._table_identifier_cache.get(key):
             return cached
@@ -147,7 +153,8 @@ class ModelMigrationContext:
             self._preset_constraints(inspector, prop_table, table_type, prop)
 
     def _preset_constraints(self, inspector: Inspector, table: sa.Table, table_type: TableType, prop: str = None):
-        constraint_states = self.constraint_states[table.name] = TableConstraintStates(
+        table_identifier = get_table_identifier(table)
+        constraint_states = self.constraint_states[table_identifier.logical_qualified_name] = TableConstraintStates(
             table=table, table_type=table_type, prop=prop
         )
 
@@ -165,15 +172,44 @@ class ModelMigrationContext:
             constraint_states.index[index["name"]] = False
 
     def mark_unique_constraint_handled(self, table: str, constraint: str):
+        """
+        Marks a unique constraint as handled for a given table and constraint. It ensures that the
+        unique constraint and its index are both marked as processed to avoid redundant processing.
+
+        Args:
+            table (str): The name of the database table whose unique constraint status
+                is being updated (use logical qualified name, table comment).
+            constraint (str): The specific unique constraint identifier to mark as
+                handled.
+        """
         constraint_states = self.constraint_states[table]
         constraint_states.unique_constraint[constraint] = True
         constraint_states.index[constraint] = True
 
     def mark_foreign_constraint_handled(self, table: str, constraint: str):
+        """
+        Marks a foreign key constraint as handled for a given table and constraint. It ensures that the
+        foreign key constraint is marked as processed to avoid redundant processing.
+
+        Args:
+            table (str): The name of the table whose foreign key constraint is
+                being marked as handled (use logical qualified name, table comment).
+            constraint (str): The specific foreign key constraint that is being
+                marked as handled.
+        """
         constraint_states = self.constraint_states[table]
         constraint_states.foreign_constraint[constraint] = True
 
     def mark_index_handled(self, table: str, index: str):
+        """
+        Marks an index as handled for a given table and index name. It ensures that the
+        index is marked as processed to avoid redundant processing.
+
+        Args:
+            table (str): The name of the database table whose unique constraint status
+                is being updated (use logical qualified name, table comment).
+            index (str): The specific index identifier to mark as handled.
+        """
         constraint_states = self.constraint_states[table]
         constraint_states.index[index] = True
 
@@ -230,6 +266,7 @@ def drop_all_indexes_and_constraints(
 ):
     table_name = source_table_identifier.pg_table_name
     table_schema = source_table_identifier.pg_schema_name
+    logical_name = source_table_identifier.logical_qualified_name
     removed = []
     constraints = inspector.get_unique_constraints(table_name, schema=table_schema)
     foreign_keys = inspector.get_foreign_keys(table_name, schema=table_schema)
@@ -237,9 +274,9 @@ def drop_all_indexes_and_constraints(
     for key in foreign_keys:
         constraint_name = key["name"]
         if model_ctx is not None:
-            if model_ctx.constraint_states[table_name].foreign_constraint[constraint_name]:
+            if model_ctx.constraint_states[logical_name].foreign_constraint[constraint_name]:
                 continue
-            model_ctx.mark_foreign_constraint_handled(table_name, constraint_name)
+            model_ctx.mark_foreign_constraint_handled(logical_name, constraint_name)
 
         handler.add_action(
             ma.DropConstraintMigrationAction(table_identifier=target_table_identifier, constraint_name=constraint_name)
@@ -248,9 +285,9 @@ def drop_all_indexes_and_constraints(
     for constraint in constraints:
         constraint_name = constraint["name"]
         if model_ctx is not None:
-            if model_ctx.constraint_states[table_name].unique_constraint[constraint_name]:
+            if model_ctx.constraint_states[logical_name].unique_constraint[constraint_name]:
                 continue
-            model_ctx.mark_unique_constraint_handled(table_name, constraint_name)
+            model_ctx.mark_unique_constraint_handled(logical_name, constraint_name)
 
         removed.append(constraint["name"])
         handler.add_action(
@@ -261,9 +298,9 @@ def drop_all_indexes_and_constraints(
         index_name = index["name"]
         if index_name not in removed:
             if model_ctx is not None:
-                if model_ctx.constraint_states[table_name].index[index_name]:
+                if model_ctx.constraint_states[logical_name].index[index_name]:
                     continue
-                model_ctx.mark_index_handled(table_name, index_name)
+                model_ctx.mark_index_handled(logical_name, index_name)
 
             handler.add_action(
                 ma.DropIndexMigrationAction(table_identifier=target_table_identifier, index_name=index_name)
@@ -570,6 +607,19 @@ def constraint_with_columns(constraints: list, column_names: list[str]):
         return None
 
 
+def constraint_with_foreign_key_columns(constraints: list, table_identifier: TableIdentifier, column_names: list[str]):
+    try:
+        return next(
+            constraint
+            for constraint in constraints
+            if constraint["constrained_columns"] == column_names
+            and constraint["referred_table"] == table_identifier.pg_table_name
+            and constraint["referred_schema"] == table_identifier.pg_schema_name
+        )
+    except StopIteration:
+        return None
+
+
 def index_with_columns(indexes: list, column_names: list[str], condition: Callable[[dict], bool] = lambda index: True):
     try:
         return next(index for index in indexes if index["column_names"] == column_names and condition(index))
@@ -626,12 +676,13 @@ def handle_unique_constraint_migration(
         return
 
     source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
     target_table_name = target_table_identifier.pg_table_name
     new_column_name = new_column.name
 
     unique_name = get_pg_constraint_name(target_table_name, new_column_name)
 
-    unique_constraint_states = model_context.constraint_states[source_table_name].unique_constraint
+    unique_constraint_states = model_context.constraint_states[source_logical_name].unique_constraint
     if unique_constraint_states[unique_name]:
         return
 
@@ -640,14 +691,14 @@ def handle_unique_constraint_migration(
     )
     constraint_column = old_column.name if renamed else new_column_name
 
-    model_context.mark_unique_constraint_handled(source_table_name, unique_name)
+    model_context.mark_unique_constraint_handled(source_logical_name, unique_name)
     old_constraint = constraint_with_columns(unique_constraints, [constraint_column])
     if old_constraint and old_constraint["name"] == unique_name:
         return
 
     if not contains_constraint_name(unique_constraints, unique_name):
         if old_constraint:
-            model_context.mark_unique_constraint_handled(source_table_name, old_constraint["name"])
+            model_context.mark_unique_constraint_handled(source_logical_name, old_constraint["name"])
             handler.add_action(
                 ma.RenameConstraintMigrationAction(
                     table_identifier=target_table_identifier,
@@ -715,11 +766,12 @@ def handle_index_migration(
         return
 
     source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
     target_table_name = target_table_identifier.pg_table_name
     new_column_name = new_column.name
 
     index_name = get_pg_index_name(table_name=target_table_name, columns=[new_column_name])
-    index_states = model_context.constraint_states[source_table_name].index
+    index_states = model_context.constraint_states[source_logical_name].index
     if index_states[index_name]:
         return
 
@@ -729,14 +781,14 @@ def handle_index_migration(
 
     # Check unhandled index with same columns
     existing_index = index_with_columns(
-        indexes, [constraint_column], condition=index_not_handled_condition(model_context, source_table_name)
+        indexes, [constraint_column], condition=index_not_handled_condition(model_context, source_logical_name)
     )
-    model_context.mark_index_handled(source_table_name, index_name)
+    model_context.mark_index_handled(source_logical_name, index_name)
     if existing_index is not None:
         if existing_index["name"] == index_name:
             return
 
-        model_context.mark_index_handled(source_table_name, existing_index["name"])
+        model_context.mark_index_handled(source_logical_name, existing_index["name"])
         handler.add_action(
             ma.RenameIndexMigrationAction(
                 old_index_name=existing_index["name"],
@@ -1026,13 +1078,14 @@ def _format_multiple_unique_constraints_error_msg(constraints: list[dict]) -> st
     return result
 
 
-def get_explicit_primary_keys(ref: Ref, rename: RenameMap) -> List[str]:
+def get_explicit_primary_keys(ref: Ref, rename: RenameMap, inspector: Inspector) -> List[str]:
     if not ref.explicit:
         return []
 
     props = ref.refprops
-    olf_ref_table_identifier = rename.to_old_table(ref.model)
-    old_ref_table_name = olf_ref_table_identifier.logical_qualified_name
+    old_ref_table_identifier = rename.to_old_table(ref.model)
+    old_ref_table_identifier = revalidate_table_identifier(old_ref_table_identifier, inspector)
+    old_ref_table_name = old_ref_table_identifier.logical_qualified_name
     old_names = [rename.to_old_column_name(old_ref_table_name, prop.name) for prop in props]
     return old_names
 
@@ -1412,3 +1465,40 @@ def create_missing_schemas(
 
         handler.add_action(ma.CreateSchemaMigrationAction(schema_name=schema))
         validated_schemas.append(schema)
+
+
+def revalidate_table_identifier(table_identifier: TableIdentifier, inspector: Inspector) -> TableIdentifier:
+    if inspector.has_table(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name):
+        return table_identifier
+
+    # Check ff it's old system, where namespace was part of table name
+    pg_table_name = get_pg_name(table_identifier.logical_qualified_name)
+    if inspector.has_table(pg_table_name, schema=None):
+        base_name = (
+            f"{table_identifier.schema}/{table_identifier.base_name}"
+            if table_identifier.schema
+            else table_identifier.base_name
+        )
+        return TableIdentifier(
+            schema=None,
+            base_name=base_name,
+            table_type=table_identifier.table_type,
+            table_arg=table_identifier.table_arg,
+        )
+
+    return table_identifier
+
+
+def extract_sequence_name(table: sa.Table) -> str:
+    if (column := table.columns.get("_id")) is not None and column.server_default is not None:
+        default_arg = column.server_default.arg
+        if isinstance(default_arg, TextClause):
+            results = _NEXTVAL_RE.search(str(default_arg))
+            if results:
+                result = results.group("ident")
+                if "." in result:
+                    result = result.split(".")[-1]
+
+                return result.strip('"')
+
+    return get_pg_sequence_name(table.name)

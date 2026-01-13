@@ -204,7 +204,7 @@ def migrate(
     handler = migration_ctx.handler
 
     source_table = get_source_table(property_ctx, new)
-    source_table_name = source_table.name
+    source_table_identifier = migration_ctx.get_table_identifier(source_table)
     target_table_identifier = migration_ctx.get_table_identifier(property_ctx.prop)
     target_table_name = target_table_identifier.pg_table_name
     handler.add_action(
@@ -221,7 +221,9 @@ def migrate(
         unique_constraints = inspector.get_unique_constraints(
             table_name=target_table_name, schema=target_table_identifier.pg_schema_name
         )
-        property_ctx.model_context.mark_unique_constraint_handled(source_table_name, constraint_name)
+        property_ctx.model_context.mark_unique_constraint_handled(
+            source_table_identifier.logical_qualified_name, constraint_name
+        )
         if not contains_unique_constraint(unique_constraints, new_column_name):
             handler.add_action(
                 ma.CreateUniqueConstraintMigrationAction(
@@ -231,7 +233,9 @@ def migrate(
         elif not contains_constraint_name(unique_constraints, constraint_name):
             constraint = constraint_with_columns(unique_constraints, [new_column_name])
             if constraint:
-                property_ctx.model_context.mark_unique_constraint_handled(source_table_name, constraint["name"])
+                property_ctx.model_context.mark_unique_constraint_handled(
+                    source_table_identifier.logical_qualified_name, constraint["name"]
+                )
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(
                         table_identifier=target_table_identifier,
@@ -243,7 +247,7 @@ def migrate(
     index_required = isinstance(new.type, geoalchemy2.types.Geometry)
     if index_required:
         index_name = get_pg_index_name(target_table_name, new_column_name)
-        property_ctx.model_context.mark_index_handled(source_table_name, index_name)
+        property_ctx.model_context.mark_index_handled(source_table_identifier.logical_qualified_name, index_name)
         handler.add_action(
             ma.CreateIndexMigrationAction(
                 table_identifier=target_table_identifier, columns=[new_column_name], index_name=index_name, using="GIST"
@@ -315,7 +319,9 @@ def migrate(
     handler = migration_ctx.handler
 
     source_table = get_source_table(node_ctx, old)
-    source_table_name = source_table.name
+    source_table_identifier = migration_ctx.get_table_identifier(source_table)
+    source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
     target_table_identifier = migration_ctx.get_table_identifier(node)
     columns = inspector.get_columns(source_table_name, schema=source_table.schema)
     remove_name = get_pg_removed_name(old.name)
@@ -336,7 +342,7 @@ def migrate(
     indexes = inspector.get_indexes(table_name=source_table_name, schema=source_table.schema)
     for index in indexes:
         if index["column_names"] == [old.name]:
-            model_ctx.mark_index_handled(source_table_name, index["name"])
+            model_ctx.mark_index_handled(source_logical_name, index["name"])
             handler.add_action(
                 ma.DropIndexMigrationAction(
                     table_identifier=target_table_identifier,
@@ -348,7 +354,7 @@ def migrate(
         unique_constraints = inspector.get_unique_constraints(table_name=source_table_name, schema=source_table.schema)
         for constraint in unique_constraints:
             if old.name in constraint["column_names"]:
-                model_ctx.mark_unique_constraint_handled(source_table_name, constraint["name"])
+                model_ctx.mark_unique_constraint_handled(source_logical_name, constraint["name"])
                 handler.add_action(
                     ma.DropConstraintMigrationAction(
                         table_identifier=target_table_identifier,
