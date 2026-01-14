@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev13 (unreleased)
+0.2dev13 (2026-01-14)
 =====================
 
 New Features:
@@ -16,8 +16,8 @@ Bug fixes:
 - Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
 - Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
 - Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
-(using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
-log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+  (using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+  log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
 
 
 .. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
@@ -31,7 +31,7 @@ log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
 New Features:
 
 - Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
-`spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+  `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
 
 .. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
 
