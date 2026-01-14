@@ -708,6 +708,7 @@ def test_xml_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: Pa
     assert response.status_code == 500
     assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]
 
+
 def test_xml_read_text_lang_select_single_plain_query(rc: RawConfig, tmp_path: Path):
     xml = """
     <miestai>
@@ -753,60 +754,6 @@ def test_xml_read_text_lang_select_single_plain_query(rc: RawConfig, tmp_path: P
     app.authmodel("example/xml/City", ["getall", "search"])
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, "code", "name@lt", sort=False) == [
-        ("KNS", "Kaunas"),
-        ("VNO", "Vilnius"),
-        ("KLJ", "Klaipėda"),
-        ("SQQ", "Šiauliai"),
-        ("PNV", "Panevėžys"),
-    ]
-
-
-def test_xml_read_text_lang_select_single_search_dot(rc: RawConfig, tmp_path: Path):
-    xml = """
-    <miestai>
-        <miestas>
-            <pavadinimas>Kaunas</pavadinimas>
-            <kodas>KNS</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Vilnius</pavadinimas>
-            <kodas>VNO</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Klaipėda</pavadinimas>
-            <kodas>KLJ</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Šiauliai</pavadinimas>
-            <kodas>SQQ</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Panevėžys</pavadinimas>
-            <kodas>PNV</kodas>
-        </miestas>
-    </miestai>
-    """
-    path = tmp_path / "miestai.xml"
-    path.write_text(xml)
-
-    context, manifest = prepare_manifest(
-        rc,
-        f"""
-    d | r | b | m | property | type     | ref  | source            | access
-    example/xml              |          |      |                   |
-      | xml                  | dask/xml |      | {path}            |
-      |   |   | City         |          | code | /miestai/miestas  |
-      |   |   |   | name@lt  | string   |      | pavadinimas/text()| open
-      |   |   |   | code     | string   |      | kodas/text()      | open
-    """,
-        mode=Mode.external,
-    )
-    context.loaded = True
-    app = create_test_client(context)
-    app.authmodel("example/xml/City", ["getall", "search"])
-
-    resp = app.get("/example/xml/City?select(code,name.lt)")
     assert listdata(resp, "code", "name@lt", sort=False) == [
         ("KNS", "Kaunas"),
         ("VNO", "Vilnius"),
@@ -870,7 +817,7 @@ def test_xml_read_text_lang_select_single_search_at(rc: RawConfig, tmp_path: Pat
     ]
 
 
-def test_xml_read_text_lang_select_multiple_variants(rc: RawConfig, tmp_path: Path):
+def test_xml_read_text_lang_select_multiple_variants_search(rc: RawConfig, tmp_path: Path):
     xml = """
         <miestai>
             <miestas>
