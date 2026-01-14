@@ -62,7 +62,7 @@ def manifest() -> str:
     return """
     id                                   | dataset | resource   | model   | property      | type     | ref  | source                                                | level     | status    | visibility | access | title     | description
     f89e1015-c77c-4d81-958c-52f0120e44a1 | vssa    |            |         |               | dataset  | vssa | https://example.com                                   |           | open      |            |        | VSSA      | vssa
-    c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | geography  |         |               | dask/csv |      | https://get.data.gov.lt/datasets/org/vssa/example/:ns | 4         |           |            |        | Geography | geography
+    c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | geography  |         |               | dask/csv |      | https://get.data.gov.lt/datasets/gov/vssa/example/:ns | 4         |           |            |        | Geography | geography
                                          |         |            |         |               |          |      |                                                       |           |           |            |        |           |
     7d5488e7-ce3c-4c64-90d8-f554a7721f20 |         |            | Country |               |          | id   | model_country                                         | 4         | completed | package    | open   | Country   | country
     de4107e4-7f9a-425e-ba7a-3626f59b360c |         |            |         | id            | integer  |      | id                                                    | 4         |           |            |        | Id        | id
@@ -85,17 +85,17 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 1}]},
         )
         mock_data_service_dataset_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?parent_id=1",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 2}]},
         )
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/2/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/2/dsa",
             status_code=HTTPStatus.OK,
             text=(
                 "id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,"
@@ -119,7 +119,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -127,7 +127,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_dataset_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?parent_id=1",
                 "params": {"parent_id": ["1"]},
                 "data": {},
             }
@@ -135,7 +135,7 @@ class TestSynchronization:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/2/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/2/dsa",
                 "params": {},
                 "data": {},
             }
@@ -202,7 +202,7 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?name=client",
             status_code=HTTPStatus.NOT_FOUND,
             json={"error": "data_service_not_found"},
         )
@@ -227,7 +227,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -246,12 +246,12 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 1}]},
         )
         mock_data_service_dataset_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?parent_id=1",
             status_code=HTTPStatus.OK,
             json={"_data": []},
         )
@@ -269,7 +269,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -277,7 +277,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_dataset_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/?parent_id=1",
                 "params": {"parent_id": ["1"]},
                 "data": {},
             }
@@ -304,7 +304,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -322,7 +322,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert render_tabular_manifest(context, final_manifest) == striptable("""
             id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
             f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
-            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
+            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/gov/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
                |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
             7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
             de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
@@ -331,7 +331,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -357,7 +357,7 @@ class TestSynchronizationPathCatalogToAgent:
         dataset_id = "2"
 
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -375,7 +375,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert render_tabular_manifest(context, final_manifest) == striptable("""
             id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
             f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
-            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
+            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/gov/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
                |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
             7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
             de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
@@ -384,7 +384,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -407,7 +407,7 @@ class TestSynchronizationPathCatalogToAgent:
         catalog_manifest = """
         id                                   | dataset | resource   | model   | property      | type     | ref | source                                                | level     | status    | visibility | access | title     | description
         f89e1015-c77c-4d81-958c-52f0120e44a1 | vssa    |            |         |               |          |     | https://example.com                                   |           | open      |            |        | VSSA      | vssa
-        c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | geography  |         |               | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns | 4         |           |            |        | Geography | geography
+        c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | geography  |         |               | dask/csv |     | https://get.data.gov.lt/datasets/gov/vssa/example/:ns | 4         |           |            |        | Geography | geography
                                              |         |            |         |               |          |     |                                                       |           |           |            |        |           |
         7d5488e7-ce3c-4c64-90d8-f554a7721f20 |         |            | Country |               |          | id  | model_country                                         | 4         | completed | package    | open   | Country   | country
         de4107e4-7f9a-425e-ba7a-3626f59b360c |         |            |         | id            | integer  |     | id                                                    | 4         |           |            |        | Id        | id
@@ -419,7 +419,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -437,7 +437,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert render_tabular_manifest(context, final_manifest) == striptable("""
             id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
             f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
-            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
+            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/gov/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
                |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
             7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
             de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
@@ -447,7 +447,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -468,7 +468,7 @@ class TestSynchronizationPathCatalogToAgent:
         catalog_manifest = """
             id                                   | dataset | resource   | model | property      | type     | ref  | source                                                | level     | status    | visibility | access | title      | description
             f89e1015-c77c-4d81-958c-52f0120e44a1 | cct     |            |       |               | dataset  | cct  | https://example.com                                   |           | open      |            |        | CCT        | cct
-            c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | technology |       |               | dask/csv |      | https://get.data.gov.lt/datasets/org/cct/example/:ns  | 4         |           |            |        | Technology | technology
+            c3caa75b-fbb6-4868-a366-e61e4f3225bf |         | technology |       |               | dask/csv |      | https://get.data.gov.lt/datasets/gov/cct/example/:ns  | 4         |           |            |        | Technology | technology
                                                  |         |            |       |               |          |      |                                                       |           |           |            |        |            |
             7d5488e7-ce3c-4c64-90d8-f554a7721f20 |         |            | Item  |               |          | uuid | model_item                                            | 4         | completed | package    | open   | Item       | item
             de4107e4-7f9a-425e-ba7a-3626f59b360c |         |            |       | uuid          | integer  |      | uuid                                                  | 4         |           |            |        | Unique Id  | unique id
@@ -480,7 +480,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -498,7 +498,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert render_tabular_manifest(context, final_manifest) == striptable("""
             id | d | r | b | m | property | type     | ref  | source                                               | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
             f8 | cct                      |          |      |                                                      |             |         |        |       |       |           |            |        |     |     | CCT        | cct
-            c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
+            c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/gov/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
                |                          |          |      |                                                      |             |         |        |       |       |           |            |        |     |     |            |
             7d |   |   |   | Item         |          | uuid | model_item                                           |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
             de |   |   |   |   | uuid     | integer  |      | uuid                                                 |             |         |        |       | 4     |           |            |        |     |     | Unique Id  | unique id
@@ -507,7 +507,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -527,7 +527,7 @@ class TestSynchronizationPathCatalogToAgent:
         local_manifest = """
             id | dataset | resource   | model   | property | type     | ref  | source                                                | level     | status    | visibility | access | title     | description
                | vssa    |            |         |          | dataset  | vssa | https://example.com                                   |           | open      |            |        | VSSA      | vssa
-               |         | geography  |         |          | dask/csv |      | https://get.data.gov.lt/datasets/org/vssa/example/:ns | 4         |           |            |        | Geography | geography
+               |         | geography  |         |          | dask/csv |      | https://get.data.gov.lt/datasets/gov/vssa/example/:ns | 4         |           |            |        | Geography | geography
                |         |            |         |          |          |      |                                                       |           |           |            |        |           |
                |         |            | Country |          |          | id   | model_country                                         | 4         | completed | package    | open   | Country   | country
                |         |            |         | id       | integer  |      | id                                                    | 4         |           |            |        | Id        | id
@@ -536,7 +536,7 @@ class TestSynchronizationPathCatalogToAgent:
         catalog_manifest = """
             id | dataset | resource  | model   | property | type     | ref   | source                                                | level     | status    | visibility | access | title      | description
                | vssa    |           |         |          | dataset  | vssa2 | https://example.com                                   |           | open      |            |        | VSSA2      | vssa2
-               |         | geography |         |          | dask/csv |       | https://get.data.gov.lt/datasets/org/cct/example/:ns  | 4         |           |            |        | Geography2 | geography2
+               |         | geography |         |          | dask/csv |       | https://get.data.gov.lt/datasets/gov/cct/example/:ns  | 4         |           |            |        | Geography2 | geography2
                |         |           |         |          |          |       |                                                       |           |           |            |        |            |
                |         |           | Country |          |          | id    | model_country2                                        | 4         | completed | package    | open   | Country2   | country2
                |         |           |         | id       | integer  |       | id2                                                   | 4         |           |            |        | id2        | id2
@@ -548,7 +548,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -566,7 +566,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert render_tabular_manifest(context, final_manifest) == striptable("""
             id | d | r | b | m | property | type     | ref | source                                               | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
                | vssa                     |          |     |                                                      |             |         |        |       |       |           |            |        |     |     | VSSA2      | vssa2
-               |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography2 | geography2
+               |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/gov/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography2 | geography2
                |                          |          |     |                                                      |             |         |        |       |       |           |            |        |     |     |            |
                |   |   |   | Country      |          | id  | model_country2                                       |             |         |        |       | 4     | completed | package    | open   |     |     | Country2   | country2
                |   |   |   |   | id       | integer  |     | id2                                                  |             |         |        |       | 4     |           |            |        |     |     | id2        | id2
@@ -575,7 +575,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -595,7 +595,7 @@ class TestSynchronizationPathCatalogToAgent:
         local_manifest = """
             id | dataset | resource   | model   | property | type     | ref  | source                                                   | level     | status    | visibility | access | title     | description
                | vssa    |            |         |          | dataset  | vssa | https://example.com                                      |           | open      |            |        | VSSA      | vssa
-               |         | geography  |         |          | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns | 4         |           |            |        | Geography | geography
+               |         | geography  |         |          | dask/csv |      | https://get.data.gov.lt/datasets/gov/company/example/:ns | 4         |           |            |        | Geography | geography
                |         |            |         |          |          |      |                                                          |           |           |            |        |           |
                |         |            | Country |          |          | id   | model_a                                                  | 4         | completed | package    | open   | Country   | country
                |         |            |         | id       | integer  |      | property_a                                               | 4         |           |            |        | Id        | id
@@ -604,7 +604,7 @@ class TestSynchronizationPathCatalogToAgent:
         catalog_manifest = """
             id                                     | dataset | resource   | model   | property | type     | ref   | source                                                   | level     | status    | visibility | access | title      | description
             f89e1015-c77c-4d81-958c-52f0120e44a1   | cct     |            |         |          | dataset  | vssa2 | https://example.com                                      |           | open      |            |        | CCT        | cct
-            c3caa75b-fbb6-4868-a366-e61e4f3225bf   |         | technology |         |          | dask/csv |       | https://get.data.gov.lt/datasets/org/company/example/:ns | 4         |           |            |        | Technology | technology
+            c3caa75b-fbb6-4868-a366-e61e4f3225bf   |         | technology |         |          | dask/csv |       | https://get.data.gov.lt/datasets/gov/company/example/:ns | 4         |           |            |        | Technology | technology
                                                    |         |            |         |          |          |       |                                                          |           |           |            |        |            |
             7d5488e7-ce3c-4c64-90d8-f554a7721f20   |         |            | Item    |          |          | uuid  | model_a                                                  | 4         | completed | package    | open   | Item       | item
             de4107e4-7f9a-425e-ba7a-3626f59b360c   |         |            |         | uuid     | integer  |       | property_a                                               | 4         |           |            |        | Unique ID  | unique id
@@ -616,7 +616,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -634,7 +634,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert render_tabular_manifest(context, final_manifest) == striptable("""
         id | d | r | b | m | property | type     | ref  | source                                                   | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
         f8 | cct                      |          |      |                                                          |             |         |        |       |       |           |            |        |     |     | CCT        | cct
-        c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
+        c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/gov/company/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
            |                          |          |      |                                                          |             |         |        |       |       |           |            |        |     |     |            |
         7d |   |   |   | Item         |          | uuid | model_a                                                  |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
         de |   |   |   |   | uuid     | integer  |      | property_a                                               |             |         |        |       | 4     |           |            |        |     |     | Unique ID  | unique id
@@ -643,7 +643,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
