@@ -707,3 +707,101 @@ def test_xml_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: Pa
     response = app.get("/example/xml/Names")
     assert response.status_code == 500
     assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]
+
+
+def test_xml_read_many_refs(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <planets>
+            <planet>
+                <id>1</id>
+                <code>er</code>
+                <name>Earth</name>
+                <countries>
+                    <country>
+                        <id>2</id>
+                        <code>lt</code>
+                        <name>Lietuva</name>
+                        <cities>
+                            <city name="Vilnius"/>
+                                <id>4</id>
+                                <streets>
+                                    <street name="Gedimino pr." />
+                                </streets>
+                            </city>
+                        </cities>
+                    </country>
+                    <country>
+                        <id>3</id>
+                        <code>lv</code>
+                        <name>Latvija</name>
+                        <cities>
+                            <city name="Ryga">
+                                <id>5</id>
+                                <streets>
+                                    <street name="Elizabetes" />
+                                </streets>
+                            </city>
+                        </cities>
+                    </country>
+                    <country>
+                        <id>6</id>
+                        <code>ee</code>
+                        <name>Estija</name>
+                        <cities>
+                            <city name="Talin"/>
+                                <id>7</id>
+                                <streets>
+                                    <street name="Narva" />
+                                </streets>
+                            </city>
+                        </cities>
+                    </country>
+                </countries>
+            </planet>
+        </planets>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type   | ref     | source                                                           | prepare          | access
+    example/xml                  |        |         |                                                                  |                  |
+      | data                 | xml    |         | {path}                                                                |                  |
+      |   |                  |        |         |                                                                  |                  |
+      |   |   | Planet       |        | id      | /planets/planet                                                           | code = 'er'      |
+      |   |   |   | id       | string |         | id                                                               |                  | open
+      |   |   |   | code     | string |         | code                                                             |                  | open
+      |   |   |   | name     | string |         | name                                                             |                  | open
+      |   |                  |        |         |                                                                  |                  |
+      |   |   | Country      |        | id      | /planets/planet/countries/country                                | code = 'lt'      |
+      |   |   |   | id       | string |         | id                                                               |                  | open      
+      |   |   |   | code     | string |         | code                                                             |                  | open
+      |   |   |   | name     | string |         | name                                                             |                  | open
+      |   |   |   | planet   | ref    | Planet  | ../../id                                                        |                  | open
+      |   |                  |        |         |                                                                  |                  |
+      |   |   | City         |        | id      | /planets/planet/countries/country/cities/city                    | name = 'Vilnius' |
+      |   |   |   | id       | string |         | id                                                               |                  | open
+      |   |   |   | name     | string |         | @name                                                            |                  | open
+      |   |   |   | country  | ref    | Country | ../../id                                                       |                  | open
+      |   |   |   | planet   | ref    | Planet  | ../../../../id                                                 |                  | open
+      |   |                  |        |         |                                                                  |                  |
+      |   |   | Street       |        | name    | /planets/planet/countries/country/cities/city/streets/street     |                  |
+      |   |   |   | name     | string |         | @name       |                  | open
+      |   |   |   | city     | ref    | City    | ../../id    |                  | open
+      |   |   |   | country  | ref    | Country | ../../../../id |                  | open
+      |   |   |   | planet   | ref    | Planet  | ../../../../../../id |                  | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        ("lt", "Vilnius"),
+        ("lv", "Ryga"),
+        ("ee", "Talin"),
+    ]

@@ -178,6 +178,12 @@ def get_ref_filters(
             else:
                 _fpr = ForeignProperty(fpr, prop.dtype)
 
+            # seen += [ref_key]
+            print(len(seen))
+            # global lines
+            # lines += 1
+            # assert lines < 100
+            # print("PROPERTIES: ", ".".join([f"{m.split('/')[-1]} - {n} " for m, n in seen]))
             query = merge_formulas(
                 query,
                 get_ref_filters(
@@ -189,3 +195,4 @@ def get_ref_filters(
             )
 
     return query
+lines = 0
