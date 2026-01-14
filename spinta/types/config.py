@@ -8,6 +8,7 @@ from spinta.auth import client_name_exists, get_clients_path
 from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
+from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
@@ -112,6 +113,13 @@ def load(context: Context, config: Config) -> Config:
         raise ValueError(
             "token_validation_keys_download_url and token_validation_keys_download_url are mutually exclusive and can't be used together. Use one."
         )
+
+    # Logging configuration
+    config.log_level = rc.get("log_level", default="WARNING")
+    config.file_log_level = rc.get("file_log_level", default="DEBUG")
+    config.file_log_path = pathlib.Path(rc.get("file_log_path", default=pathlib.Path().home() / ".spinta_logs"))
+
+    setup_logging(config)
 
     return config
 
