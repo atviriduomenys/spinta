@@ -28,7 +28,6 @@ from spinta.cli.show import show
 from spinta.cli.helpers.typer import add
 from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
-from spinta.logging_config import setup_logging
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +97,6 @@ def main(
         raise ValueError("Unknown value {tb!r} for --tb option. Possible values are: pretty, native.")
 
     ctx.obj = ctx.obj or create_context("cli", args=option, envfile=env_file)
-    setup_logging(ctx.obj.get("config"))
 
     if log_file:
         log.warning(
@@ -110,9 +108,6 @@ def main(
             "Deprecation warning:log_level option is deprecated and will be removed in a future version. "
             "Set log_level and file_log_level via env file instead."
         )
-
-    log.debug("log file set to: %s", ctx.obj.get("config").file_log_path)
-    log.debug("log level set to: %s", ctx.obj.get("config").file_log_level)
 
     if version:
         echo(spinta.__version__)

@@ -14,7 +14,7 @@ def setup_logging(config: Config) -> logging.Logger:
     log_path = os.path.join(log_dir, log_file)
 
     logger: logging.Logger = logging.getLogger()
-    logger.setLevel(logging.getLevelName(config.log_level))
+    logger.setLevel(logging.DEBUG)
 
     # Create a timed rotating file handler that rotates every day and keeps logs for 7 days
     file_handler = TimedRotatingFileHandler(log_path, when="midnight", interval=1, backupCount=7)
