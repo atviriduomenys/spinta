@@ -35,11 +35,17 @@ fi
 poetry run spinta upgrade clients
 
 git clone https://github.com/atviriduomenys/manifest.git
-mkdir manifests
-find manifest/datasets/gov -name "*.csv" | xargs -I{} mv "{}" manifests/
-ls manifests/* | xargs poetry run spinta copy -o manifest.csv
+git clone https://github.com/atviriduomenys/demo-saltiniai.git
 
-rm -rf manifest manifests
+mkdir manifests
+
+find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
+cat manifest/get_data_gov_lt.in | xargs -I{} mv "manifest/{}" manifests/
+
+ls manifests/* | xargs poetry run spinta copy -o manifest.csv
+cp manifest/datasets/gov/vssa/demo/sql/sql_sdsa.csv sql_sdsa.csv
+
+rm -rf manifest manifests demo-saltiniai
 
 CLIENTS_FOLDER="${XDG_CONFIG_HOME:-$HOME}/.config/spinta/clients"
 if [ ! -d $CLIENTS_FOLDER ] ||
