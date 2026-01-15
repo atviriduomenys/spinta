@@ -62,7 +62,7 @@ node:
 ---
 kind: pipeline
 type: docker
-name: build-image
+name: deploy-dev
 
 platform:
   os: linux
