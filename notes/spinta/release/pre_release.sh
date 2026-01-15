@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev12
-export OLD_MINOR=2dev11
-export FUTURE_MINOR=2dev13
+export MINOR=2dev13
+export OLD_MINOR=2dev12
+export FUTURE_MINOR=2dev14
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -107,6 +107,10 @@ unset SPINTA_CONFIG
 
 # notes/docker.sh                   Shutdown docker compose
 
+# Create pull request for release version in github and check if all tests run
+
+# notes/spinta/release/common.sh    Publish version to PyPI
+
 # Update project version in pyproject.toml
 cd ~/dev/data/spinta
 
@@ -128,10 +132,6 @@ git diff
 
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
-
-# Create pull request for release version in github and check if all tests run
-
-# notes/spinta/release/common.sh    Publish version to PyPI
 
 
 # generate hashed requirements file
