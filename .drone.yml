@@ -67,14 +67,24 @@ platform:
   arch: amd64
 
 steps:
-  - name: build-image
+  - name: deploy-with-docker-compose
     image: docker:cli
     volumes:
-      - name: docker_sock
-        path: /var/run/docker.sock
+    - name: docker_sock
+      path: /var/run/docker.sock
     privileged: true
     commands:
-      - export REGISTRY=registry.hub.docker.com/vssadevops/spinta
+      - echo "Deploying application for branch ${DRONE_BRANCH}..."
+      - apk add gettext
+      - export BRANCH=${DRONE_BRANCH/\//-}
+      - envsubst < docker-compose.template.yml > docker-compose.${DRONE_BRANCH/\//-}.yml
+      - env > template.env
+      - sed -i '/^\(SPINTA_\|-t\(h\|o\)\)/!d' template.env
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml build --no-cache
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml down || true
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml up -d
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml spinta-${DRONE_BRANCH/\//-} logs
+      - docker image prune -a -f
 volumes:
   - name: docker_sock
     host:
