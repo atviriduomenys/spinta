@@ -29,6 +29,8 @@ volumes:
 - name: docker_sock
   host:
     path: /var/run/docker.sock
+node:
+  label: runner
 
 ---
 kind: pipeline
