@@ -26,9 +26,9 @@ steps:
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml spinta-${DRONE_BRANCH/\//-} logs
       - docker image prune -a -f
 volumes:
-- name: docker_sock
-  host:
-    path: /var/run/docker.sock
+  - name: docker_sock
+    host:
+      path: /var/run/docker.sock
 node:
   label: runner
 
@@ -50,10 +50,6 @@ steps:
     privileged: true
     commands:
       - export REGISTRY=registry.hub.docker.com/vssadevops/spinta
-      - export SHORT_SHA=${DRONE_COMMIT_SHA}
-      - podman build -f production.Dockerfile -t ${REGISTRY}:latest -t ${REGISTRY}:${SHORT_SHA} .
-      - podman push ${REGISTRY}:${SHORT_SHA}
-      - podman push ${REGISTRY}:latest
 volumes:
   - name: docker_sock
     host:
