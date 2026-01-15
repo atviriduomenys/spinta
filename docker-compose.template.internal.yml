@@ -8,15 +8,15 @@ services:
       context: .
       dockerfile: Dockerfile
     command:
-      - ./entrypoint-external.sh
+      - ./entrypoint-internal.sh
     environment:
       - AUTHLIB_INSECURE_TRANSPORT=1
-      - DB_HOST=database
+      - DB_HOST=spinta-${BRANCH}-database
       - DB_PORT=5432
     networks:
        spinta:
           aliases:
-             - spinta-${BRANCH}
+             - spinta-${BRANCH}-app
     deploy:
       resources:
         limits:
@@ -32,8 +32,19 @@ services:
       - ${BRANCH}-postgres:/var/lib/postgresql/data
     networks:
       - spinta
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/internal.Dockerfile
+    volumes:
+      - ${BRANCH}-nginx_cache:/data/nginx_cache
+    networks:
+       spinta:
+          aliases:
+             - spinta-${BRANCH}
 networks:
   spinta:
     external: true
 volumes:
   ${BRANCH}-postgres:
+  ${BRANCH}-nginx_cache:
