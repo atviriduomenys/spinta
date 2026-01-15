@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "Spinta"
-copyright = "2020-2025, Spinta Team"
+copyright = "2020-2026, Spinta Team"
 author = "Spinta Team"
 
 
@@ -70,6 +70,15 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["static"]
+
+html_context = {
+    "languages": [
+        ("English", "../en/index.html"),
+        ("Lietuvių", "../lt/index.html"),
+    ],
+    "current_language": "en",
+    "current_version": "latest",
+}
 
 master_doc = "index"
 

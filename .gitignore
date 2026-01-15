@@ -7,7 +7,7 @@
 /.venv/
 /build/
 /dist/
-/docs/_build/
+/docs/**/_build/
 /docs/.venv/
 /env/
 /tags
