@@ -23,8 +23,56 @@ steps:
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml build --no-cache
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml down || true
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml up -d
+      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml spinta-${DRONE_BRANCH/\//-} logs
       - docker image prune -a -f
 volumes:
-- name: docker_sock
-  host:
-    path: /var/run/docker.sock
+  - name: docker_sock
+    host:
+      path: /var/run/docker.sock
+node:
+  label: runner
+when:
+  ref:
+    exclude:
+    - refs/tags/**
+
+---
+kind: pipeline
+type: docker
+name: build-image
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: build-image
+    image: docker:cli
+    volumes:
+      - name: docker_sock
+        path: /var/run/docker.sock
+      - name: docker_auth
+        path: /root/.docker/config.json
+    privileged: true
+    commands:
+      - docker login
+      - export REGISTRY=vssadevops/spinta
+      - export SHORT_SHA=${DRONE_COMMIT_SHA:0:8}
+      - docker build -f production.Dockerfile -t $${REGISTRY}:latest -t $${REGISTRY}:$${SHORT_SHA} -t $${REGISTRY}:${DRONE_TAG##refs/tags/} .
+      - docker push $${REGISTRY}:$${SHORT_SHA}
+      - docker push $${REGISTRY}:latest
+      - docker push $${REGISTRY}:${DRONE_TAG##refs/tags/}
+      - docker image prune -a -f
+volumes:
+  - name: docker_sock
+    host:
+      path: /var/run/docker.sock
+  - name: docker_auth
+    host:
+      path: /root/.docker/config.json
+node:
+  label: runner-saugykla-dev1
+when:
+  ref:
+    include:
+    - refs/tags/**
