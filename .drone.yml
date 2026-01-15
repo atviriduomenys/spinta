@@ -56,3 +56,28 @@ volumes:
       path: /var/run/docker.sock
 node:
   label: runner-saugykla-dev1
+
+---
+kind: pipeline
+type: docker
+name: build-image-katalogas
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: build-image
+    image: docker:cli
+    volumes:
+      - name: docker_sock
+        path: /var/run/docker.sock
+    privileged: true
+    commands:
+      - export REGISTRY=registry.hub.docker.com/vssadevops/spinta
+volumes:
+  - name: docker_sock
+    host:
+      path: /var/run/docker.sock
+node:
+  label: runner-katalogas-dev1
