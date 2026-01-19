@@ -75,14 +75,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["static"]
 
-html_context = {
-    "languages": [
-        ("English", "../en/index.html"),
-        ("Lietuvių", "../lt/index.html"),
-    ],
-    "current_language": "lt",
-    "current_version": "latest",
-}
 
 master_doc = "index"
 

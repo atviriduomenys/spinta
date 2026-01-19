@@ -71,14 +71,6 @@ html_theme = "sphinx_rtd_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["static"]
 
-html_context = {
-    "languages": [
-        ("English", "../en/index.html"),
-        ("Lietuvių", "../lt/index.html"),
-    ],
-    "current_language": "en",
-    "current_version": "latest",
-}
 
 master_doc = "index"
 
