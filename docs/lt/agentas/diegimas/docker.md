@@ -3,7 +3,7 @@
 Norint naudoti Spinta Agentą kaip konteinerį galima konteinerį kurtis patiems arba naudoti oficialų VSSA palaikomą docker image. Tačiau verta atkreipti dėmesį, kad naudojant VSSA image apima tik Spinta dalį, tačiau Redis ir Reverse proxy (SSL užtikrinimui) diegimas ir konfigūravimas lieka institucijos atsakomybėje.
 
 <p align="center">
-  <img src="/_static/docker-pavyzdys.png" alt="Docker pavyzdys">
+  <img src="../../_static/docker-pavyzdys.png" alt="Docker pavyzdys">
   <br>
   <em>Docker pavyzdys</em>
 </p>
@@ -72,7 +72,7 @@ mkdir /opt/spinta/.spinta_logs
 ### Keymap DB
 
 <p align="center">
-  <img src="/_static/keymap-db-docker.png" alt="KeymapDB">
+  <img src="../../_static/keymap-db-docker.png" alt="KeymapDB">
   <br>
   <em>Keymap DB</em>
 </p>

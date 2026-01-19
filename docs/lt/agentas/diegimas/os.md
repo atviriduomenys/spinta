@@ -95,7 +95,7 @@ env/bin/spinta --version
 ## Spinta Agento konfigūracijos failų paruošimas
 
 <p align="center">
-  <img src="/_static/SOAP-šaltinio-generavimas.png" alt="SOAP šaltinio konfigūravimo pavyzdys">
+  <img src="../../_static/SOAP-šaltinio-generavimas.png" alt="SOAP šaltinio konfigūravimo pavyzdys">
   <br>
   <em>SOAP šaltinio konfigūravimo pavyzdys</em>
 </p>
@@ -186,7 +186,7 @@ env/bin/spinta wait 1
 ## Keymap DB
 
 <p align="center">
-  <img src="/_static/keymap-db-os.png" alt="KeymapDB">
+  <img src="../../_static/keymap-db-os.png" alt="KeymapDB">
   <br>
   <em>Keymap DB</em>
 </p>
