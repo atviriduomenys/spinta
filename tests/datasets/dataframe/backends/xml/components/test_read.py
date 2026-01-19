@@ -744,6 +744,7 @@ def test_xml_read_text_lang_get_all(rc: RawConfig, tmp_path: Path):
     example/xml              |          |      |                   |
       | xml                  | dask/xml |      | {path}            |
       |   |   | City         |          | code | /miestai/miestas  |
+      |   |   |   | name     | text     |      | pavadinimas/text()| open
       |   |   |   | name@lt  | string   |      | pavadinimas/text()| open
       |   |   |   | code     | string   |      | kodas/text()      | open
     """,
