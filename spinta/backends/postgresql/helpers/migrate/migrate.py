@@ -36,6 +36,7 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_constraint_name,
     get_pg_index_name,
     get_pg_column_name,
+    PG_NAMING_CONVENTION,
 )
 from spinta.cli.helpers.migrate import MigrationContext
 from spinta.components import Context, Model, Property
@@ -56,6 +57,7 @@ from spinta.utils.collections import keydefaultdict
 from spinta.utils.itertools import ensure_list
 from spinta.utils.nestedstruct import get_root_attr
 from spinta.utils.schema import NA, NotAvailable
+from spinta.utils.sqlalchemy import Convention
 
 _NEXTVAL_RE = re.compile(r"^nextval\('(?P<ident>[^']+)'\s*::regclass\)$", re.I)
 
@@ -66,6 +68,9 @@ class PostgresqlMigrationContext(MigrationContext):
     rename: RenameMap
     handler: MigrationHandler
     cast_matrix: CastMatrix
+
+    # Live metadata
+    metadata: sa.MetaData
 
     _table_identifier_cache: dict[str, TableIdentifier] = dataclasses.field(default_factory=dict)
 
@@ -1484,6 +1489,7 @@ def revalidate_table_identifier(table_identifier: TableIdentifier, inspector: In
             base_name=base_name,
             table_type=table_identifier.table_type,
             table_arg=table_identifier.table_arg,
+            default_pg_schema=table_identifier.default_pg_schema,
         )
 
     return table_identifier
@@ -1502,3 +1508,23 @@ def extract_sequence_name(table: sa.Table) -> str:
                 return result.strip('"')
 
     return get_pg_sequence_name(table.name)
+
+
+def update_primary_key(
+    inspector: Inspector,
+    source_table_identifier: TableIdentifier,
+    target_table_identifier: TableIdentifier,
+    handler: MigrationHandler,
+):
+    pk_constraint = inspector.get_pk_constraint(
+        source_table_identifier.pg_table_name, schema=source_table_identifier.pg_schema_name
+    )
+    if pk_constraint and pk_constraint["name"]:
+        handler.add_action(
+            ma.RenameConstraintMigrationAction(
+                table_identifier=target_table_identifier,
+                old_constraint_name=pk_constraint["name"],
+                new_constraint_name=PG_NAMING_CONVENTION[Convention.PK]
+                % {"table_name": target_table_identifier.pg_table_name},
+            )
+        )

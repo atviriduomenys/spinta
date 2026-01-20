@@ -59,6 +59,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         handler=handler,
         rename=RenameMap(rename_src=migration_config.rename_src),
         cast_matrix=CastMatrix(backend.engine),
+        metadata=metadata,
     )
     validate_rename_map(context, migration_ctx.rename, manifest)
     create_missing_schemas(

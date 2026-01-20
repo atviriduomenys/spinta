@@ -23,6 +23,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     gather_prepare_columns,
     revalidate_table_identifier,
     extract_sequence_name,
+    update_primary_key,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (
@@ -71,6 +72,12 @@ def migrate(
                 new_table_identifier=target_table_identifier,
                 comment=target_table.comment,
             )
+        )
+        update_primary_key(
+            inspector=inspector,
+            source_table_identifier=source_table_identifier,
+            target_table_identifier=target_table_identifier,
+            handler=handler,
         )
 
     properties = list(new.properties.values())
@@ -619,6 +626,7 @@ def _handle_changelog_migration(
         _generic_reserved_table_constraint_flag(
             source_table_identifier=old_table_identifier,
             target_table_identifier=new_table_identifier,
+            migration_context=migration_context,
             model_context=model_context,
             handler=handler,
             inspector=inspector,
@@ -653,6 +661,7 @@ def _handle_redirect_migration(
         _generic_reserved_table_constraint_flag(
             source_table_identifier=old_table_identifier,
             target_table_identifier=new_table_identifier,
+            migration_context=migration_context,
             model_context=model_context,
             handler=handler,
             inspector=inspector,
@@ -662,6 +671,7 @@ def _handle_redirect_migration(
 def _generic_reserved_table_constraint_flag(
     source_table_identifier: TableIdentifier,
     target_table_identifier: TableIdentifier,
+    migration_context: PostgresqlMigrationContext,
     model_context: ModelMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
@@ -671,6 +681,14 @@ def _generic_reserved_table_constraint_flag(
     source_logical_name = source_table_identifier.logical_qualified_name
     renamed = name_changed(target_table_identifier.pg_qualified_name, source_table_identifier.pg_qualified_name)
     constraint_states = model_context.constraint_states[source_logical_name]
+
+    if renamed:
+        update_primary_key(
+            inspector=inspector,
+            source_table_identifier=source_table_identifier,
+            target_table_identifier=target_table_identifier,
+            handler=handler,
+        )
 
     unique_constraints = {
         constraint["name"]: constraint
@@ -708,8 +726,17 @@ def _generic_reserved_table_constraint_flag(
         model_context.mark_foreign_constraint_handled(source_logical_name, foreign_constraint)
         if not renamed:
             continue
-        new_constraint_name = get_pg_constraint_name(
-            target_table_name, unique_constraints[foreign_constraints]["column_names"]
+
+        ref_table_name = foreign_constraints[foreign_constraint]["referred_table"]
+        ref_table_schema = foreign_constraints[foreign_constraint]["referred_schema"]
+        ref_table_metadata_name = ".".join([ref_table_schema, ref_table_name] if ref_table_schema else [ref_table_name])
+        ref_table = migration_context.metadata.tables.get(ref_table_metadata_name)
+
+        ref_table_identifier = migration_context.get_table_identifier(ref_table)
+        new_constraint_name = get_pg_foreign_key_name(
+            table_identifier=target_table_identifier,
+            referred_table_identifier=ref_table_identifier,
+            column_name=foreign_constraints[foreign_constraint]["column_names"],
         )
         handler.add_action(
             ma.RenameConstraintMigrationAction(

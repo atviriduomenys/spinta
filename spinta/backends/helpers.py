@@ -428,7 +428,9 @@ def get_table_identifier(node: Union[Model, Property], **kwargs) -> TableIdentif
 
 
 @dispatch((Model, Property), TableType)
-def get_table_identifier(node: Union[Model, Property], ttype: TableType, **kwargs) -> TableIdentifier:
+def get_table_identifier(
+    node: Union[Model, Property], table_type: TableType, table_arg: str = None, **kwargs
+) -> TableIdentifier:
     if isinstance(node, Model):
         model = node
     else:
@@ -436,12 +438,11 @@ def get_table_identifier(node: Union[Model, Property], ttype: TableType, **kwarg
 
     schema = model.ns.name if model.ns else None
     base_name = model.get_name_without_ns()
-    table_arg = None
 
-    if ttype in (TableType.LIST, TableType.FILE):
+    if isinstance(node, Property) and table_type in (TableType.LIST, TableType.FILE):
         table_arg = node.place
 
-    return TableIdentifier(schema, base_name, ttype, table_arg, **kwargs)
+    return TableIdentifier(schema, base_name, table_type, table_arg, **kwargs)
 
 
 def get_table_name(

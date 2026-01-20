@@ -13,6 +13,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     index_with_columns,
     index_not_handled_condition,
     constraint_with_foreign_key_columns,
+    update_primary_key,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_column_name,
@@ -110,6 +111,12 @@ def migrate(
                 new_table_identifier=target_array_identifier,
                 comment=target_array_table.comment,
             )
+        )
+        update_primary_key(
+            inspector=inspector,
+            source_table_identifier=source_array_identifier,
+            target_table_identifier=target_array_identifier,
+            handler=handler,
         )
 
     if source_array_table is not None:

@@ -5,7 +5,7 @@ from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.helpers import get_table_identifier, TableIdentifier
+from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
@@ -173,7 +173,7 @@ def _migrate_scalar_to_ref_4(
     new_name = rename.to_new_column_name(source_table, column.name)
 
     # Check if after rename column becomes ref itself, or only part of it (can check if name contains special characters)
-    if is_name_complex(new_name):
+    if is_name_complex(new_name) or ref.prop.list and new_name == "_id":
         return False
 
     # Check if refprops is size of 1
@@ -617,7 +617,7 @@ def migrate(
                 handler.add_action(
                     ma.DowngradeTransferDataMigrationAction(
                         table_identifier=target_table_identifier,
-                        referenced_table_identifier=get_table_identifier(new.model),
+                        referenced_table_identifier=migration_ctx.get_table_identifier(new.model),
                         source_column=old_primary_column,
                         columns=column_mapping,
                         target="_id",

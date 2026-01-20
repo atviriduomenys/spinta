@@ -19,7 +19,7 @@ from spinta.utils.nestedstruct import get_root_attr
 def _get_table_identifier(table: str | sa.Table | Model | TableIdentifier):
     if isinstance(table, TableIdentifier):
         return table
-    return get_table_identifier(table)
+    return get_table_identifier(table, default_pg_schema="public")
 
 
 class RenameMap:
