@@ -221,7 +221,12 @@ def add_redirect_table(table_identifier: TableIdentifier, comment: str = None) -
     )
 
 
-def rename_table(old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None):
+def rename_table(
+    old_table_identifier: TableIdentifier,
+    new_table_identifier: TableIdentifier,
+    comment: str = None,
+    rename_pk_constraint: bool = True,
+):
     if comment is None:
         comment = new_table_identifier.logical_qualified_name
 
@@ -235,10 +240,16 @@ def rename_table(old_table_identifier: TableIdentifier, new_table_identifier: Ta
             table_arg=old_table_identifier.table_arg,
         )
 
-    return query + (
+    query += (
         f"ALTER TABLE {old_table_identifier.pg_escaped_qualified_name} RENAME TO {pg_identifier_preparer.quote(new_table_identifier.pg_table_name)};\n\n"
         f"{add_table_comment(table_identifier=new_table_identifier, comment=comment)}"
     )
+
+    if rename_pk_constraint:
+        old_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": old_table_identifier.pg_table_name}
+        new_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": new_table_identifier.pg_table_name}
+        query += f"{rename_constraint(table_identifier=new_table_identifier, constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
+    return query
 
 
 def rename_changelog(old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None):
@@ -263,9 +274,13 @@ def rename_changelog(old_table_identifier: TableIdentifier, new_table_identifier
         table_identifier=new_table_identifier, old_index_name=old_txn_index_name, new_index_name=new_txn_index_name
     )
 
+    old_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": old_table_identifier.pg_table_name}
+    new_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": new_table_identifier.pg_table_name}
+
     return (
-        f"{rename_table(old_table_identifier=old_table_identifier, new_table_identifier=new_table_identifier, comment=comment)}"
+        f"{rename_table(old_table_identifier=old_table_identifier, new_table_identifier=new_table_identifier, comment=comment, rename_pk_constraint=False)}"
         f"{sequence_rename}"
+        f"{rename_constraint(table_identifier=new_table_identifier, constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
         f"{index_rename}"
     )
 
@@ -299,5 +314,8 @@ def drop_table(table_identifier: TableIdentifier, remove_model_only: bool = Fals
         comment = removed_table_identifier.logical_qualified_name
 
     return rename_table(
-        old_table_identifier=table_identifier, new_table_identifier=removed_table_identifier, comment=comment
+        old_table_identifier=table_identifier,
+        new_table_identifier=removed_table_identifier,
+        comment=comment,
+        rename_pk_constraint=False,
     )

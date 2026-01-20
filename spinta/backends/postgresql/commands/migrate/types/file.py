@@ -11,6 +11,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     create_table_migration,
     gather_prepare_columns,
     get_source_table,
+    update_primary_key,
 )
 from spinta.backends.postgresql.helpers.name import name_changed
 from spinta.components import Context
@@ -103,4 +104,10 @@ def migrate(
                 new_table_identifier=target_file_identifier,
                 comment=target_file_table.comment,
             )
+        )
+        update_primary_key(
+            inspector=inspector,
+            source_table_identifier=source_file_identifier,
+            target_table_identifier=target_file_identifier,
+            handler=handler,
         )

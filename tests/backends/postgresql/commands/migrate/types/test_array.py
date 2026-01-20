@@ -325,7 +325,7 @@ def test_migrate_rename_array(migration_db: Engine, rc: RawConfig, cli: SpintaCl
     assert result.output.endswith(
         "BEGIN;\n\n"
         f"{rename_column(table_identifier=table_identifier, column='new', new_name='renamed')}"
-        f"{rename_table(old_table_identifier=old_list_table_identifier, new_table_identifier=new_list_table_identifier)}"
+        f"{rename_table(old_table_identifier=old_list_table_identifier, new_table_identifier=new_list_table_identifier, rename_pk_constraint=False)}"
         f"{rename_index(table_identifier=new_list_table_identifier, old_index_name='ix_Test/:list/new__txn', new_index_name='ix_Test/:list/renamed__txn')}"
         f"{rename_constraint(table_identifier=new_list_table_identifier, constraint_name='fk_Test/:list/new__rid_Test', new_constraint_name='fk_Test/:list/renamed__rid_Test')}"
         f"{rename_column(table_identifier=new_list_table_identifier, column='new', new_name='renamed')}"

@@ -335,7 +335,7 @@ def migrate(
             table_identifier=target_table_identifier,
             column_name=old.name,
             new_column_name=remove_name,
-            comment=get_removed_name(old.comment),
+            comment=get_removed_name(old.comment or old.name),
         ),
         foreign_key,
     )
