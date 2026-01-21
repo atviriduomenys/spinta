@@ -145,6 +145,7 @@ def migrate_schemas(context: Context, **kwargs):
                 connection = get_conn(backend_)
                 ctx = MigrationContext.configure(
                     connection,
+                    # If uncommented, it will only generate SQL and output it to stdout
                     # opts={
                     #     "as_sql": True,
                     #     "literal_binds": True,
@@ -164,7 +165,6 @@ def migrate_schemas(context: Context, **kwargs):
         for model in progress_bar:
             backend = model.backend
             handler = get_handler(backend)
-            # op = get_op(backend)
             table_identifier = get_table_identifier(model)
             inspector = inspectors[backend.name]
 
@@ -216,14 +216,16 @@ def _update_table_migration(
         old_table_identifier.pg_table_name, schema=old_table_identifier.pg_schema_name
     )
     if pk_constraint and pk_constraint["name"]:
-        handler.add_action(
-            RenameConstraintMigrationAction(
-                table_identifier=new_table_identifier,
-                old_constraint_name=pk_constraint["name"],
-                new_constraint_name=PG_NAMING_CONVENTION[Convention.PK]
-                % {"table_name": new_table_identifier.pg_table_name},
+        new_constraint_name = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": new_table_identifier.pg_table_name}
+
+        if new_constraint_name != pk_constraint["name"]:
+            handler.add_action(
+                RenameConstraintMigrationAction(
+                    table_identifier=new_table_identifier,
+                    old_constraint_name=pk_constraint["name"],
+                    new_constraint_name=new_constraint_name,
+                )
             )
-        )
         updated_constraints.append(pk_constraint["name"])
 
     unique_constraints = {
@@ -237,13 +239,14 @@ def _update_table_migration(
             continue
 
         new_constraint_name = get_pg_constraint_name(new_table_identifier.pg_table_name, constraint["column_names"])
-        handler.add_action(
-            RenameConstraintMigrationAction(
-                table_identifier=new_table_identifier,
-                old_constraint_name=constraint_name,
-                new_constraint_name=new_constraint_name,
+        if constraint_name != new_constraint_name:
+            handler.add_action(
+                RenameConstraintMigrationAction(
+                    table_identifier=new_table_identifier,
+                    old_constraint_name=constraint_name,
+                    new_constraint_name=new_constraint_name,
+                )
             )
-        )
         updated_constraints.append(constraint_name)
 
     foreign_constraints = {
@@ -269,13 +272,14 @@ def _update_table_migration(
             referred_table_identifier=ref_table_identifier,
             column_name=constraint["constrained_columns"][0],
         )
-        handler.add_action(
-            RenameConstraintMigrationAction(
-                table_identifier=new_table_identifier,
-                old_constraint_name=constraint_name,
-                new_constraint_name=new_constraint_name,
+        if constraint_name != new_constraint_name:
+            handler.add_action(
+                RenameConstraintMigrationAction(
+                    table_identifier=new_table_identifier,
+                    old_constraint_name=constraint_name,
+                    new_constraint_name=new_constraint_name,
+                )
             )
-        )
         updated_constraints.append(constraint_name)
 
     indexes = {
@@ -289,23 +293,27 @@ def _update_table_migration(
             continue
 
         new_index_name = get_pg_index_name(new_table_identifier.pg_table_name, index["column_names"])
-        handler.add_action(
-            RenameIndexMigrationAction(
-                old_index_name=index_name,
-                new_index_name=new_index_name,
-                table_identifier=new_table_identifier,
-                old_table_identifier=old_table_identifier,
+        if index_name != new_index_name:
+            handler.add_action(
+                RenameIndexMigrationAction(
+                    old_index_name=index_name,
+                    new_index_name=new_index_name,
+                    table_identifier=new_table_identifier,
+                    old_table_identifier=old_table_identifier,
+                )
             )
-        )
         updated_constraints.append(index_name)
 
-    # Currently only changelog has sequences
+    # Currently, only changelog has sequences
     if old_table_identifier.table_type == TableType.CHANGELOG:
-        handler.add_action(
-            RenameSequenceMigrationAction(
-                old_name=extract_sequence_name(table),
-                new_name=get_pg_sequence_name(new_table_identifier.pg_table_name),
-                table_identifier=new_table_identifier,
-                old_table_identifier=old_table_identifier,
+        old_sequence_name = extract_sequence_name(table)
+        new_sequence_name = get_pg_sequence_name(new_table_identifier.pg_table_name)
+        if new_sequence_name != extract_sequence_name(table):
+            handler.add_action(
+                RenameSequenceMigrationAction(
+                    old_name=old_sequence_name,
+                    new_name=new_sequence_name,
+                    table_identifier=new_table_identifier,
+                    old_table_identifier=old_table_identifier,
+                )
             )
-        )
