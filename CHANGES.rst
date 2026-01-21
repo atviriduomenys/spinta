@@ -4,6 +4,13 @@ Changes
 0.2dev14 (unreleased)
 =====================
 
+New Features:
+
+- Change URL for calls to Data Catalog. Changed the organization type and information system name
+  (from ISRIS to ROR) (`#Katalogas2275`_).
+
+.. _#Katalogas2275: https://github.com/atviriduomenys/katalogas/pull/2275
+
 
 0.2dev13 (2026-01-14)
 =====================
