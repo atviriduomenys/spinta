@@ -36,6 +36,12 @@ Bug fixes:
 .. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
 
 
+Bug fixes:
+
+- Fixed a bug where spinta froze when reading XML data with references (`#1659`_).
+
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
 0.2dev12 (2025-12-18)
 =====================
 
