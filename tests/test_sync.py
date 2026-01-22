@@ -7,8 +7,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL
-from spinta.cli.helpers.sync.controllers.synchronization.catalog_to_agent import (
-    execute_synchronization_catalog_to_agent,
+from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
+    execute_manifest_synchronization_catalog_to_agent,
 )
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
@@ -313,7 +313,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -366,7 +366,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -428,7 +428,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -489,7 +489,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -557,7 +557,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -625,7 +625,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
