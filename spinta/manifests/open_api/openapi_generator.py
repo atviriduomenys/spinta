@@ -568,10 +568,10 @@ class OpenAPIGenerator:
 
         spec = {
             "openapi": VERSION,
-            "info": INFO,
-            "externalDocs": EXTERNAL_DOCS,
-            "servers": SERVERS,
-            "tags": BASE_TAGS,
+            "info": copy.deepcopy(INFO),
+            "externalDocs": copy.deepcopy(EXTERNAL_DOCS),
+            "servers": copy.deepcopy(SERVERS),
+            "tags": copy.deepcopy(BASE_TAGS),
             "components": {},
         }
 
