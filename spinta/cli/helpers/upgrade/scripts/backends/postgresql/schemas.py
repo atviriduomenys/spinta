@@ -87,7 +87,9 @@ def model_missing_schema(model: Model, inspectors: dict) -> bool:
 
     associated_tables = gather_associated_tables(backend, table_identifier)
     for table in associated_tables:
-        if not inspector.has_table(table.name, schema=table.schema):
+        if not inspector.has_table(table.name, schema=table.schema) and inspector.has_table(
+            get_pg_name(table.comment or table.name)
+        ):
             return True
 
     return False
