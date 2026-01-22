@@ -44,6 +44,7 @@ script_registry.register(
         run=migrate_redirect,
         check=cli_requires_redirect_migration,
         targets={ScriptTarget.BACKEND.value},
+        required=[Script.POSTGRESQL_SCHEMAS.value],
     )
 )
 
@@ -55,6 +56,7 @@ script_registry.register(
         check=cli_requires_comments_migration,
         targets={ScriptTarget.BACKEND.value, ScriptTarget.POSTGRESQL.value},
         tags={ScriptTag.DB_MIGRATION.value},
+        required=[Script.POSTGRESQL_SCHEMAS.value],
     )
 )
 script_registry.register(
