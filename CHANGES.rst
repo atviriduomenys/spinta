@@ -84,6 +84,15 @@ Improvements:
 .. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
 .. _#599: https://github.com/atviriduomenys/spinta/issues/599
 
+Bug fixes:
+
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+
+  .. _#963: https://github.com/atviriduomenys/spinta/issues/963
+
+
 0.2dev10 (2025-11-27)
 =====================
 
@@ -225,9 +234,7 @@ Improvements:
 Bug fixes:
 
 - Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
-
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
-
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
   .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
@@ -242,7 +249,9 @@ Bug fixes:
   .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 Other:
+
 - Removed dependency `mypy`
+
 
 
 0.2dev5 (2025-09-03)
