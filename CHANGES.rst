@@ -4,6 +4,12 @@ Changes
 0.2dev14 (unreleased)
 =====================
 
+Bug fixes:
+
+New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. Use this option with caution (`#1659`_).
+
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
 New Features:
 
 - Change URL for calls to Data Catalog. Changed the organization type and information system name

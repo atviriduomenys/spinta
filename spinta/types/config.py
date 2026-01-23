@@ -91,6 +91,7 @@ def load(context: Context, config: Config) -> Config:
     config.sync_retry_delay_range = rc.get("sync_retry_delay_range", default=(1, 5, 10, 30, 60), cast=tuple)
     config.languages = rc.get("languages", default=[])
     config.check_names = rc.get("check", "names", default=False)
+    config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
