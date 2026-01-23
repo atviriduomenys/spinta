@@ -4,18 +4,20 @@ Changes
 0.2dev14 (unreleased)
 =====================
 
-Bug fixes:
-
-New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. Use this option with caution (`#1659`_).
-
-.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
-
 New Features:
 
 - Change URL for calls to Data Catalog. Changed the organization type and information system name
   (from ISRIS to ROR) (`#Katalogas2275`_).
 
 .. _#Katalogas2275: https://github.com/atviriduomenys/katalogas/pull/2275
+
+Improvements:
+
+- New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. (`#1659`_).
+- Property `backref` no longer requires a corresponding `ref` entry (`#1314`_).
+
+.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
 
 
 0.2dev13 (2026-01-14)
@@ -54,7 +56,7 @@ New Features:
 
 Improvements:
 
-- `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
+- `spinta migrate` now supports `Array` datatype migrations (`#1501`_)
 - Added new config `check_contract_scopes` that enables additional scope checks on each request. This check
   compares `contract_scopes` saved in client's file with scopes from JWT token. Fails if JWT token has more
   scopes with currently loaded manifest namespaces than `contract_scopes`. (`#1598`_)
@@ -64,10 +66,11 @@ Improvements:
 
 Bug fixes:
 
-Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
+- Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
 libraries if those don't exist (`#1637`_).
 
 .. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
+
 
 0.2dev11 (2025-12-03)
 =====================
