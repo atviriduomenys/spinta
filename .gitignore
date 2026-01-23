@@ -24,3 +24,4 @@ manifest.*
 /reports/
 /config.yml
 /manifest.csv
+/test/

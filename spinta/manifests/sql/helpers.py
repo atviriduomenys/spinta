@@ -18,6 +18,7 @@ from sqlalchemy.types import TypeEngine
 from spinta import spyna
 from spinta.components import Context
 from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.sql.backends.oracle.helpers import SDO_GEOMETRY
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
 from spinta.exceptions import UnexpectedFormulaResult
 from spinta.utils.imports import full_class_name
@@ -260,6 +261,7 @@ TYPES = [
     (postgresql.INTERVAL, "integer"),  # total number of seconds
     (postgresql.OID, "integer"),  # four-byte integer, https://www.postgresql.org/docs/current/datatype-oid.html
     (Geometry, "geometry"),
+    (SDO_GEOMETRY, "geometry"),
     (oracle.ROWID, "string"),
     (mssql.MONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.SMALLMONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40

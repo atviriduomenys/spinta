@@ -7,6 +7,7 @@ from typing import Union, Any
 import geoalchemy2.functions
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql.elements import UnaryExpression
 
 from spinta import exceptions, commands
 from spinta.auth import authorized
@@ -1136,6 +1137,11 @@ def sort(env, field):
 @ufunc.resolver(PgQueryBuilder, DataType)
 def sort(env, dtype):
     return env.call("asc", dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, NestedProperty)
+def sort(env: PgQueryBuilder, nested: NestedProperty) -> UnaryExpression:
+    return env.call("asc", nested.right)
 
 
 @ufunc.resolver(PgQueryBuilder, Negative_)

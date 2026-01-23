@@ -1,16 +1,76 @@
 Changes
 #######
 
-0.2dev12 (unreleased)
+0.2dev14 (unreleased)
 =====================
+
+New Features:
+
+- Change URL for calls to Data Catalog. Changed the organization type and information system name
+  (from ISRIS to ROR) (`#Katalogas2275`_).
+
+.. _#Katalogas2275: https://github.com/atviriduomenys/katalogas/pull/2275
 
 Improvements:
 
-- `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
-- `backref` no longer requires a corresponding `ref` entry (`#1314`_).
+- New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. (`#1659`_).
+- Property `backref` no longer requires a corresponding `ref` entry (`#1314`_).
+
+.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
+
+0.2dev13 (2026-01-14)
+=====================
+
+New Features:
+
+- Added support for Oracle SDO_GEOMETRY data type in the SQL backend. The Oracle backend now properly
+  decodes geometry data using SDO_GEOMETRY format (`#1645`_).
+
+.. _#1645: https://github.com/atviriduomenys/spinta/issues/1645
+
+Bug fixes:
+
+- Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
+- Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
+  (using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+  log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+
+
+.. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
+.. _#1649: https://github.com/atviriduomenys/spinta/pull/1649
+.. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
+
+
+0.2dev12 (2025-12-18)
+=====================
+
+New Features:
+
+- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
+  `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+
+.. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
+
+Improvements:
+
+- `spinta migrate` now supports `Array` datatype migrations (`#1501`_)
+- Added new config `check_contract_scopes` that enables additional scope checks on each request. This check
+  compares `contract_scopes` saved in client's file with scopes from JWT token. Fails if JWT token has more
+  scopes with currently loaded manifest namespaces than `contract_scopes`. (`#1598`_)
 
 .. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
-.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
+.. _#1598: https://github.com/atviriduomenys/spinta/issues/1598
+
+Bug fixes:
+
+- Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
+libraries if those don't exist (`#1637`_).
+
+.. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
+
 
 0.2dev11 (2025-12-03)
 =====================
@@ -18,7 +78,7 @@ Improvements:
 New Features:
 
 - Added support for URL-friendly query syntax with operators `_or.` and `_and.` as alternatives to `|` and `&`,
-  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`, 
+  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`,
   `._ge`, `._lt=`, `._le`, `._sw=` (starts with), and `._co=` (contains). This makes it easier to construct queries in URL query
   strings without requiring special character encoding (`#1615`_).
 

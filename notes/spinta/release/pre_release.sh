@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev11
-export OLD_MINOR=2dev10
-export FUTURE_MINOR=2dev12
+export MINOR=2dev13
+export OLD_MINOR=2dev12
+export FUTURE_MINOR=2dev14
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -107,6 +107,10 @@ unset SPINTA_CONFIG
 
 # notes/docker.sh                   Shutdown docker compose
 
+# Create pull request for release version in github and check if all tests run
+
+# notes/spinta/release/common.sh    Publish version to PyPI
+
 # Update project version in pyproject.toml
 cd ~/dev/data/spinta
 
@@ -129,10 +133,6 @@ git diff
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
 
-# Create pull request for release version in github and check if all tests run
-
-# notes/spinta/release/common.sh    Publish version to PyPI
-
 
 # generate hashed requirements file
 
@@ -141,7 +141,7 @@ poetry export -f requirements.txt \
 
 # get hashes to spinta itself
 
-echo "spinta==${NEW_VERSION} \\" > spinta-header.txt
+echo "spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\" > spinta-header.txt
 
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \

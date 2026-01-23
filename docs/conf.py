@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "Spinta"
-copyright = "2020-2021, Spinta Team"
+copyright = "2020-2025, Spinta Team"
 author = "Spinta Team"
 
 
@@ -30,6 +30,8 @@ author = "Spinta Team"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx_rtd_theme",
+    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -41,6 +43,15 @@ templates_path = ["_templates"]
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
 language = "en"
+
+locale_dirs = ["locale/"]
+gettext_compact = False
+
+
+def setup(app):
+    if app.config.language:
+        app.tags.add(app.config.language)
+
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -64,3 +75,9 @@ master_doc = "index"
 
 
 autodoc_typehints = "description"
+
+
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
