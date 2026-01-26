@@ -527,9 +527,9 @@ COMMON_SCHEMAS = {
                     "version": {"type": "string", "examples": [0.1]},
                 },
             },
-            "dsa": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
+            "dsa": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.1.0"]}}},
             "uapi": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.1.0"]}}},
-            "build": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.1.0"]}}},
+            "build": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
         },
     },
     "health": {
