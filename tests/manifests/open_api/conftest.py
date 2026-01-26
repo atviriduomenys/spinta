@@ -34,28 +34,31 @@ id | d | r | b | m | property           | type     | ref              | source  
 """)
 
 MANIFEST = striptable("""
-id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
-   | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     | Test title                                                 | Test description
-   |   | test                         | memory                |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   | datasets/demo/demo/test_resource   |                       |     |test        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   |   |   | Organization         |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Reporting Organizations                                    |
-   |   |   |   |   | org_name         | string                |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization name                                          |
-   |   |   |   |   | annual_revenue   | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Annual revenue amount                                      |
-   |   |   |   |   | coordinates      | geometry(point, 3346) |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization coordinates                                   |
-   |   |   |   |   | established_date | date                  | D   |        |             |         |        |       | 4     |        |            | open   |     |     | Organization establishment date                            |
-   |   |   |   |   | org_logo         | image                 |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization logo image                                    |
-   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   |   |   | ProcessingUnit       |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Processing unit data with treatment methods and capacities |
-   |   |   |   |   | unit_name        | string                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing unit name                                       |
-   |   |   |   |   | unit_type        | string                |     |        |             |         |        |       | 4     |        |            | open   |     |     | Processing unit type                                       |
-   |                                  | enum                  |     |        |             | 'FAC'   |        |       |       |        |            |        |     |     | Processing Facility                                        |
-   |                                  |                       |     |        |             | 'TRT'   |        |       |       |        |            |        |     |     | Treatment Plant                                            |
-   |                                  |                       |     |        |             | 'OUT'   |        |       |       |        |            |        |     |     | Outlet Point                                               |
-   |                                  |                       |     |        |             | 'OTH'   |        |       |       |        |            |        |     |     | Other Equipment                                            |
-   |   |   |   |   | efficiency_rate  | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing efficiency rate percentage                      |
-   |   |   |   |   | capacity         | integer               |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing capacity, units per day                         |
-   |   |   |   |   | technical_specs  | file                  |     |        |             |         |        |       | 3     |        |            | open   |     |     | Technical specifications document                          |
+id | d | r | b | m | property             | type                  | ref | source | prepare | level | access | title                                                      | description
+   | datasets/demo/system_data            |                       |     |        |         |       |        | Test title                                                 | Test description
+   |   | test                             | memory                |     |        |         |       |        |                                                            |
+   |   | datasets/demo/demo/test_resource |                       |     | test   |         |       |        |                                                            |
+   |                                      |                       |     |        |         |       |        |                                                            |
+   |   |   |   | Organization             |                       |     |        |         | 2     |        | Reporting Organizations                                    |
+   |   |   |   |   | org_name             | string                |     |        |         | 2     | open   | Organization name                                          |
+   |   |   |   |   | annual_revenue       | number                |     |        |         | 3     | open   | Annual revenue amount                                      |
+   |   |   |   |   | coordinates          | geometry(point, 3346) |     |        |         | 2     | open   | Organization coordinates                                   |
+   |   |   |   |   | established_date     | date                  | D   |        |         | 4     | open   | Organization establishment date                            |
+   |   |   |   |   | org_logo             | image                 |     |        |         | 2     | open   | Organization logo image                                    |
+   |                                      |                       |     |        |         |       |        |                                                            |
+   |   |   |   | ProcessingUnit           |                       |     |        |         | 2     |        | Processing unit data with treatment methods and capacities |
+   |   |   |   |   | unit_name            | string                |     |        |         | 3     | open   | Processing unit name                                       |
+   |   |   |   |   | unit_type            | string                |     |        |         | 4     | open   | Processing unit type                                       |
+   |                                      | enum                  |     |        | 'FAC'   |       |        | Processing Facility                                        |
+   |                                      |                       |     |        | 'TRT'   |       |        | Treatment Plant                                            |
+   |                                      |                       |     |        | 'OUT'   |       |        | Outlet Point                                               |
+   |                                      |                       |     |        | 'OTH'   |       |        | Other Equipment                                            |
+   |   |   |   |   | unit_version         | integer               |     |        |         | 4     | open   | Processing unit version                                    |
+   |                                      | enum                  |     |        | 1       |       |        | Version v1                                                 |
+   |                                      |                       |     |        | 2       |       |        | Version v2                                                 |
+   |   |   |   |   | efficiency_rate      | number                |     |        |         | 3     | open   | Processing efficiency rate percentage                      |
+   |   |   |   |   | capacity             | integer               |     |        |         | 3     | open   | Processing capacity, units per day                         |
+   |   |   |   |   | technical_specs      | file                  |     |        |         | 3     | open   | Technical specifications document                          |
     """)
 
 

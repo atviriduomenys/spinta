@@ -435,10 +435,15 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     properties = pu_schema["properties"]
 
     assert properties["unit_name"]["type"] == "string"
+
     assert properties["unit_type"]["type"] == "string"
     assert "enum" in properties["unit_type"]
     expected_enum = ["FAC", "TRT", "OUT", "OTH"]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
+
+    assert properties["unit_version"]["type"] == "integer"
+    assert "enum" in properties["unit_version"]
+    assert set(properties["unit_version"]["enum"]) == {1, 2}
 
     assert properties["efficiency_rate"]["type"] == "number"
     assert properties["capacity"]["type"] == "integer"
