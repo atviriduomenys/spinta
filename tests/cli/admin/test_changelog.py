@@ -5,7 +5,8 @@ import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.constants import TableType
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_constraint_name
+from spinta.backends.helpers import get_table_identifier
+from spinta.backends.postgresql.helpers.name import get_pg_constraint_name
 from spinta.cli.helpers.admin.components import Script
 from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
 from spinta.cli.helpers.script.components import ScriptStatus
@@ -57,35 +58,35 @@ def test_admin_changelog_requires_redirect(
     store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
-    country_redirect = get_pg_table_name("datasets/deduplicate/cli/req/Country", TableType.REDIRECT)
-    city_redirect = get_pg_table_name("datasets/deduplicate/cli/req/City", TableType.REDIRECT)
-    random_redirect = get_pg_table_name("datasets/deduplicate/rand/req/Random", TableType.REDIRECT)
+    country_redirect = get_table_identifier(f"datasets/deduplicate/cli/req/Country{TableType.REDIRECT.value}")
+    city_redirect = get_table_identifier(f"datasets/deduplicate/cli/req/City{TableType.REDIRECT.value}")
+    random_redirect = get_table_identifier(f"datasets/deduplicate/rand/req/Random{TableType.REDIRECT.value}")
 
     with backend.begin() as conn:
-        conn.execute(f'''
-            DROP TABLE IF EXISTS "{country_redirect}";
-            DROP TABLE IF EXISTS "{city_redirect}";
-            DROP TABLE IF EXISTS "{random_redirect}";
-        ''')
+        conn.execute(f"""
+            DROP TABLE IF EXISTS {country_redirect.pg_escaped_qualified_name};
+            DROP TABLE IF EXISTS {city_redirect.pg_escaped_qualified_name};
+            DROP TABLE IF EXISTS {random_redirect.pg_escaped_qualified_name};
+        """)
 
-    assert not insp.has_table(country_redirect)
-    assert not insp.has_table(city_redirect)
-    assert not insp.has_table(random_redirect)
+    assert not insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert not insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
     result = cli.invoke(context.get("rc"), ["admin", Script.CHANGELOG.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
 
-    assert not insp.has_table(country_redirect)
-    assert not insp.has_table(city_redirect)
-    assert not insp.has_table(random_redirect)
+    assert not insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert not insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
 
     result = cli.invoke(context.get("rc"), ["upgrade", UpgradeScript.REDIRECT.value])
     assert result.exit_code == 0
     assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
 
-    assert insp.has_table(country_redirect)
-    assert insp.has_table(city_redirect)
-    assert insp.has_table(random_redirect)
+    assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
 
     with open(tmp_path / "modellist.txt", "w") as f:
         f.write("datasets/deduplicate/cli/req/Country\n")
@@ -138,16 +139,26 @@ def test_admin_changelog_requires_deduplicate(
     manifest = store.manifest
     backend = manifest.backend
     insp = sa.inspect(backend.engine)
-    city_name = get_pg_table_name("datasets/deduplicate/cli/City")
-    uq_city_constraint = get_pg_constraint_name("datasets/deduplicate/cli/City", ["id"])
-    assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
+    table_identifier = get_table_identifier("datasets/deduplicate/cli/City")
+    uq_city_constraint = get_pg_constraint_name(table_identifier.pg_table_name, ["id"])
+    assert any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     with backend.begin() as conn:
         conn.execute(f'''
-                ALTER TABLE "{city_name}" DROP CONSTRAINT "{uq_city_constraint}";
+                ALTER TABLE {table_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_city_constraint}";
             ''')
     insp = sa.inspect(backend.engine)
-    assert not any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
+    assert not any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     result = cli.invoke(context.get("rc"), ["admin", Script.CHANGELOG.value])
     assert result.exit_code == 0
@@ -158,7 +169,12 @@ def test_admin_changelog_requires_deduplicate(
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
 
     insp = sa.inspect(backend.engine)
-    assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
+    assert any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     with open(tmp_path / "modellist.txt", "w") as f:
         f.write("datasets/deduplicate/cli/Country\n")

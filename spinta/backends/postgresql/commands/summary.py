@@ -2,8 +2,8 @@ import calendar
 import datetime
 import sqlalchemy as sa
 
-from spinta.backends.helpers import get_table_name
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name
+from spinta.backends.helpers import get_table_identifier
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.core.ufuncs import Expr
 from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTime, Time, Ref
 from spinta import commands
@@ -46,8 +46,10 @@ def summary(context: Context, dtype: Number, backend: PostgreSQL, **kwargs):
 def _handle_numeric_summary(connection, model_prop: Property):
     try:
         prop = get_pg_column_name(model_prop.place)
-        model = get_pg_table_name(get_table_name(model_prop))
-        min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
+        table_identifier = get_table_identifier(model_prop)
+        min_value, max_value = connection.execute(
+            f'SELECT MIN("{prop}") , MAX("{prop}") FROM {table_identifier.pg_escaped_qualified_name}'
+        ).fetchone()
         if min_value is None and max_value is None:
             return []
 
@@ -63,7 +65,7 @@ def _handle_numeric_summary(connection, model_prop: Property):
                 WIDTH_BUCKET("{prop}", {min_value}, {max_value + min(0.01, bin_size * 0.01)}, 100) AS bucket, 
                 COUNT(*) AS count,
                 MIN(_id::text) AS _id
-            FROM "{model}" 
+            FROM {table_identifier.pg_escaped_qualified_name} 
             GROUP BY 
                 bucket 
             ORDER BY 
@@ -90,7 +92,7 @@ def summary(context: Context, dtype: Boolean, backend: PostgreSQL, **kwargs):
     connection = context.get("transaction").connection
     try:
         prop = get_pg_column_name(dtype.prop.place)
-        model = get_pg_table_name(get_table_name(dtype.prop))
+        table_identifier = get_table_identifier(dtype.prop)
 
         result = connection.execute(f'''
                 SELECT 
@@ -99,7 +101,7 @@ def summary(context: Context, dtype: Boolean, backend: PostgreSQL, **kwargs):
                     MIN(model._id::text) AS _id
                 FROM UNNEST(ARRAY[TRUE, FALSE]) AS bin
                     LEFT OUTER JOIN 
-                        "{model}" AS model 
+                        {table_identifier.pg_escaped_qualified_name} AS model 
                     ON 
                         bin = "{prop}"
                     GROUP BY 
@@ -131,7 +133,7 @@ def summary(context: Context, dtype: String, backend: PostgreSQL, **kwargs):
         enum_list.append(value.prepare)
     try:
         prop = get_pg_column_name(dtype.prop.place)
-        model = get_pg_table_name(get_table_name(dtype.prop))
+        table_identifier = get_table_identifier(dtype.prop)
 
         result = connection.execute(f'''
                 SELECT 
@@ -140,7 +142,7 @@ def summary(context: Context, dtype: String, backend: PostgreSQL, **kwargs):
                     MIN(model._id::text) AS _id
                 FROM UNNEST(ARRAY{enum_list}) AS bin
                     LEFT OUTER JOIN 
-                        "{model}" AS model 
+                        {table_identifier.pg_escaped_qualified_name} AS model 
                     ON 
                         bin = "{prop}"
                     GROUP BY 
@@ -243,13 +245,15 @@ def _handle_time_units_given(model_prop: Property, value):
 def _handle_time_summary(connection, model_prop: Property):
     try:
         prop = get_pg_column_name(model_prop.place)
-        model = get_pg_table_name(get_table_name(model_prop))
+        table_identifier = get_table_identifier(model_prop)
         if isinstance(model_prop.dtype, (Date, DateTime)):
             min_value, max_value = connection.execute(
-                f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"'
+                f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM {table_identifier.pg_escaped_qualified_name}'
             ).fetchone()
         else:
-            min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
+            min_value, max_value = connection.execute(
+                f'SELECT MIN("{prop}") , MAX("{prop}") FROM {table_identifier.pg_escaped_qualified_name}'
+            ).fetchone()
             if min_value and max_value:
                 min_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), min_value)
                 max_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), max_value)
@@ -272,7 +276,7 @@ def _handle_time_summary(connection, model_prop: Property):
                     WIDTH_BUCKET(EXTRACT(EPOCH FROM "{prop}"), {seq_start}, {seq_end + min(0.01, seq_step * 0.01)}, 100) AS bucket, 
                     COUNT(*) AS count,
                     MIN(_id::text) AS _id
-                FROM "{model}" 
+                FROM {table_identifier.pg_escaped_qualified_name}
                 GROUP BY 
                     bucket 
                 ORDER BY 
@@ -317,7 +321,7 @@ def summary(context: Context, dtype: Ref, backend: PostgreSQL, **kwargs):
                     feature="Ability to get summary for Ref type Property, when level is 3 and below and there are multiple refprops",
                 )
             key = dtype.refprops[0].name
-        model = get_pg_table_name(get_table_name(dtype.prop))
+        table_identifier = get_table_identifier(dtype.prop)
         uri = dtype.model.uri
         prefixes = dtype.model.external.dataset.prefixes
         label = None
@@ -336,7 +340,7 @@ def summary(context: Context, dtype: Ref, backend: PostgreSQL, **kwargs):
                     MIN(model._id::text) AS _id,
                     MIN(model._created) AS created_at
                 FROM
-                    "{model}" AS model 
+                    {table_identifier.pg_escaped_qualified_name} AS model 
                     GROUP BY 
                         "{prop}.{key}"
                     ORDER BY
@@ -370,7 +374,7 @@ def summary(context: Context, dtype: Geometry, backend: PostgreSQL, **kwargs):
     connection = context.get("transaction").connection
     try:
         prop = get_pg_column_name(dtype.prop.place)
-        model = get_pg_table_name(get_table_name(dtype.prop))
+        table_identifier = get_table_identifier(dtype.prop)
         bounding_box = ""
         params = {}
         if "bbox" in kwargs:
@@ -402,7 +406,7 @@ def summary(context: Context, dtype: Geometry, backend: PostgreSQL, **kwargs):
                 f'''
                 SELECT COUNT(*) FROM (
                     SELECT DISTINCT "{prop}"
-                    FROM "{model}"
+                    FROM {table_identifier.pg_escaped_qualified_name}
                     {bounding_box}
                     LIMIT {maximum_cluster_amount}
                 ) AS filtered_data;
@@ -426,7 +430,7 @@ def summary(context: Context, dtype: Geometry, backend: PostgreSQL, **kwargs):
                     model."{prop}" AS geom,
                     model._id AS _id,
                     model._created AS created_at
-                    FROM "{model}" AS model
+                    FROM {table_identifier.pg_escaped_qualified_name} AS model
                     {bounding_box}
                 )
                 SELECT 

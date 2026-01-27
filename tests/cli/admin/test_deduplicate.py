@@ -4,7 +4,8 @@ import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.constants import TableType
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_constraint_name
+from spinta.backends.helpers import get_table_identifier
+from spinta.backends.postgresql.helpers.name import get_pg_constraint_name
 from spinta.cli.helpers.admin.components import Script
 from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
 from spinta.cli.helpers.script.components import ScriptStatus
@@ -56,35 +57,35 @@ def test_admin_deduplicate_missing_redirect(
     store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
-    country_redirect = get_pg_table_name("datasets/deduplicate/cli/req/Country", TableType.REDIRECT)
-    city_redirect = get_pg_table_name("datasets/deduplicate/cli/req/City", TableType.REDIRECT)
-    random_redirect = get_pg_table_name("datasets/deduplicate/rand/req/Random", TableType.REDIRECT)
+    country_redirect = get_table_identifier(f"datasets/deduplicate/cli/req/Country{TableType.REDIRECT.value}")
+    city_redirect = get_table_identifier(f"datasets/deduplicate/cli/req/City{TableType.REDIRECT.value}")
+    random_redirect = get_table_identifier(f"datasets/deduplicate/rand/req/Random{TableType.REDIRECT.value}")
 
     with backend.begin() as conn:
-        conn.execute(f'''
-            DROP TABLE IF EXISTS "{country_redirect}";
-            DROP TABLE IF EXISTS "{city_redirect}";
-            DROP TABLE IF EXISTS "{random_redirect}";
-        ''')
+        conn.execute(f"""
+            DROP TABLE IF EXISTS {country_redirect.pg_escaped_qualified_name};
+            DROP TABLE IF EXISTS {city_redirect.pg_escaped_qualified_name};
+            DROP TABLE IF EXISTS {random_redirect.pg_escaped_qualified_name};
+        """)
 
-    assert not insp.has_table(country_redirect)
-    assert not insp.has_table(city_redirect)
-    assert not insp.has_table(random_redirect)
+    assert not insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert not insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.SKIPPED) in result.stdout
 
-    assert not insp.has_table(country_redirect)
-    assert not insp.has_table(city_redirect)
-    assert not insp.has_table(random_redirect)
+    assert not insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert not insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
 
     result = cli.invoke(context.get("rc"), ["upgrade", UpgradeScript.REDIRECT.value])
     assert result.exit_code == 0
     assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
 
-    assert insp.has_table(country_redirect)
-    assert insp.has_table(city_redirect)
-    assert insp.has_table(random_redirect)
+    assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value, "-c"])
     assert result.exit_code == 0
@@ -130,23 +131,38 @@ def test_admin_deduplicate_missing_constraint(
     manifest = store.manifest
     backend = manifest.backend
     insp = sa.inspect(backend.engine)
-    city_name = get_pg_table_name("datasets/deduplicate/cli/City")
-    uq_city_constraint = get_pg_constraint_name("datasets/deduplicate/cli/City", ["id"])
-    assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
+    table_identifier = get_table_identifier("datasets/deduplicate/cli/City")
+    uq_city_constraint = get_pg_constraint_name(table_identifier.pg_table_name, ["id"])
+    assert any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     with backend.begin() as conn:
         conn.execute(f'''
-            ALTER TABLE "{city_name}" DROP CONSTRAINT "{uq_city_constraint}";
+            ALTER TABLE {table_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_city_constraint}";
         ''')
     insp = sa.inspect(backend.engine)
-    assert not any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
+    assert not any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
 
     insp = sa.inspect(backend.engine)
-    assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
+    assert any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
 
 @pytest.mark.parametrize(
@@ -239,17 +255,25 @@ def test_admin_deduplicate_requires_destructive(
     manifest = store.manifest
     backend = manifest.backend
     insp = sa.inspect(backend.engine)
-    random_name = get_pg_table_name("datasets/deduplicate/rand/Random")
-    uq_random_constraint = get_pg_constraint_name("datasets/deduplicate/rand/Random", ["id"])
-    assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
+    table_identifier = get_table_identifier("datasets/deduplicate/rand/Random")
+    uq_random_constraint = get_pg_constraint_name(table_identifier.pg_table_name, ["id"])
+    assert any(
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     with backend.begin() as conn:
         conn.execute(f'''
-            ALTER TABLE "{random_name}" DROP CONSTRAINT "{uq_random_constraint}";
+            ALTER TABLE {table_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_random_constraint}";
         ''')
     insp = sa.inspect(backend.engine)
     assert not any(
-        uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name)
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
     )
 
     # insert data
@@ -281,7 +305,10 @@ def test_admin_deduplicate_requires_destructive(
 
     insp = sa.inspect(backend.engine)
     assert not any(
-        uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name)
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
     )
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value, "-d"])
@@ -293,7 +320,12 @@ def test_admin_deduplicate_requires_destructive(
     )
 
     insp = sa.inspect(backend.engine)
-    assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
+    assert any(
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     result = app.get("datasets/deduplicate/rand/Random")
     assert listdata(result, "id", "name", "city", "_id", full=True) == [
@@ -453,17 +485,25 @@ def test_admin_deduplicate_simple(
     manifest = store.manifest
     backend = manifest.backend
     insp = sa.inspect(backend.engine)
-    random_name = get_pg_table_name("datasets/deduplicate/rand/Random")
-    uq_random_constraint = get_pg_constraint_name("datasets/deduplicate/rand/Random", ["id"])
-    assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
+    table_identifier = get_table_identifier("datasets/deduplicate/rand/Random")
+    uq_random_constraint = get_pg_constraint_name(table_identifier.pg_table_name, ["id"])
+    assert any(
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     with backend.begin() as conn:
         conn.execute(f'''
-            ALTER TABLE "{random_name}" DROP CONSTRAINT "{uq_random_constraint}";
+            ALTER TABLE {table_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_random_constraint}";
         ''')
     insp = sa.inspect(backend.engine)
     assert not any(
-        uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name)
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
     )
 
     # insert data
@@ -493,7 +533,12 @@ def test_admin_deduplicate_simple(
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
 
     insp = sa.inspect(backend.engine)
-    assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
+    assert any(
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        )
+    )
 
     result = app.get("datasets/deduplicate/cli/Country")
     assert listdata(result, "id", "name", "_id", "_revision", full=True) == data["datasets/deduplicate/cli/Country"]
@@ -679,26 +724,43 @@ def test_admin_deduplicate_referenced(
     manifest = store.manifest
     backend = manifest.backend
     insp = sa.inspect(backend.engine)
-    random_name = get_pg_table_name("datasets/deduplicate/rand/Random")
-    city_name = get_pg_table_name("datasets/deduplicate/cli/City")
-    country_name = get_pg_table_name("datasets/deduplicate/cli/Country")
-    uq_random_constraint = get_pg_constraint_name("datasets/deduplicate/rand/Random", ["id"])
-    uq_city_constraint = get_pg_constraint_name("datasets/deduplicate/cli/City", ["id"])
-    uq_country_constraint = get_pg_constraint_name("datasets/deduplicate/cli/Country", ["id"])
-    assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
-    assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
-    assert any(uq_country_constraint == constraint["name"] for constraint in insp.get_unique_constraints(country_name))
+    random_identifier = get_table_identifier("datasets/deduplicate/rand/Random")
+    city_identifier = get_table_identifier("datasets/deduplicate/cli/City")
+    country_identifier = get_table_identifier("datasets/deduplicate/cli/Country")
+    uq_random_constraint = get_pg_constraint_name(random_identifier.pg_table_name, ["id"])
+    uq_city_constraint = get_pg_constraint_name(city_identifier.pg_table_name, ["id"])
+    uq_country_constraint = get_pg_constraint_name(country_identifier.pg_table_name, ["id"])
+    assert any(
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            random_identifier.pg_table_name, schema=random_identifier.pg_schema_name
+        )
+    )
+    assert any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            city_identifier.pg_table_name, schema=city_identifier.pg_schema_name
+        )
+    )
+    assert any(
+        uq_country_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            country_identifier.pg_table_name, schema=country_identifier.pg_schema_name
+        )
+    )
 
     with backend.begin() as conn:
         conn.execute(f'''
-            ALTER TABLE "{random_name}" DROP CONSTRAINT "{uq_random_constraint}";
-            ALTER TABLE "{city_name}" DROP CONSTRAINT "{uq_city_constraint}";
-            ALTER TABLE "{country_name}" DROP CONSTRAINT "{uq_country_constraint}";
+            ALTER TABLE {random_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_random_constraint}";
+            ALTER TABLE {city_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_city_constraint}";
+            ALTER TABLE {country_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{uq_country_constraint}";
         ''')
     insp = sa.inspect(backend.engine)
     assert not any(
         constraint["name"] in (uq_country_constraint, uq_city_constraint, uq_random_constraint)
-        for constraint in insp.get_unique_constraints(random_name)
+        for constraint in insp.get_unique_constraints(
+            random_identifier.pg_table_name, schema=random_identifier.pg_schema_name
+        )
     )
 
     # insert data
@@ -728,9 +790,24 @@ def test_admin_deduplicate_referenced(
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
 
     insp = sa.inspect(backend.engine)
-    assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
-    assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
-    assert any(uq_country_constraint == constraint["name"] for constraint in insp.get_unique_constraints(country_name))
+    assert any(
+        uq_random_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            random_identifier.pg_table_name, schema=random_identifier.pg_schema_name
+        )
+    )
+    assert any(
+        uq_city_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            city_identifier.pg_table_name, schema=city_identifier.pg_schema_name
+        )
+    )
+    assert any(
+        uq_country_constraint == constraint["name"]
+        for constraint in insp.get_unique_constraints(
+            country_identifier.pg_table_name, schema=country_identifier.pg_schema_name
+        )
+    )
 
     result = app.get("datasets/deduplicate/cli/Country")
     assert listdata(result, "id", "name", "_id", full=True) == [

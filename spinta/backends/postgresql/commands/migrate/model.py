@@ -5,7 +5,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
@@ -16,22 +16,23 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     ModelMigrationContext,
     zip_and_migrate_properties,
     constraint_with_name,
-    RenameMap,
     PropertyMigrationContext,
     ModelTables,
     create_table_migration,
     filter_related_tables,
     gather_prepare_columns,
+    revalidate_table_identifier,
+    extract_sequence_name,
+    update_primary_key,
 )
+from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (
     name_changed,
     get_pg_column_name,
     get_pg_constraint_name,
     get_pg_removed_name,
     is_removed,
-    get_pg_table_name,
     get_pg_foreign_key_name,
-    get_removed_name,
     get_pg_index_name,
 )
 from spinta.components import Context, Model
@@ -48,28 +49,35 @@ def migrate(
     **kwargs,
 ):
     source_table = old.main_table
-    target_table = backend.get_table(new)
     # Clean up loose tables that could have been picked up by zipper
     if source_table is None:
         commands.migrate(context, backend, migration_ctx, NA, new, **kwargs)
         return
+
+    source_table_identifier = migration_ctx.get_table_identifier(source_table)
+    target_table = backend.get_table(new)
+    target_table_identifier = migration_ctx.get_table_identifier(new)
 
     rename = migration_ctx.rename
     handler = migration_ctx.handler
     inspector = migration_ctx.inspector
 
     columns = list(source_table.columns)
-    new_table_name = target_table.name
-    old_table_name = source_table.name
 
-    # Handle table renaming
-    if name_changed(old_table_name, new_table_name):
+    # Handle table rename
+    if name_changed(source_table_identifier.pg_qualified_name, target_table_identifier.pg_qualified_name):
         handler.add_action(
             ma.RenameTableMigrationAction(
-                old_table_name=old_table_name,
-                new_table_name=new_table_name,
+                old_table_identifier=source_table_identifier,
+                new_table_identifier=target_table_identifier,
                 comment=target_table.comment,
             )
+        )
+        update_primary_key(
+            inspector=inspector,
+            source_table_identifier=source_table_identifier,
+            target_table_identifier=target_table_identifier,
+            handler=handler,
         )
 
     properties = list(new.properties.values())
@@ -82,6 +90,7 @@ def migrate(
         model=new,
         model_tables=old,
         model_context=model_ctx,
+        migration_context=migration_ctx,
         handler=handler,
         inspector=inspector,
     )
@@ -111,8 +120,8 @@ def migrate(
 
     # Handle model unique constraint
     _handle_model_unique_constraints(
-        source_table=source_table,
-        target_table=target_table,
+        source_table_identifier=source_table_identifier,
+        target_table_identifier=target_table_identifier,
         model=new,
         inspector=inspector,
         handler=handler,
@@ -122,8 +131,8 @@ def migrate(
 
     # Handle model foreign key constraint (Base `_id`)
     _handle_model_foreign_key_constraints(
-        source_table=source_table,
-        target_table=target_table,
+        source_table_identifier=source_table_identifier,
+        target_table_identifier=target_table_identifier,
         model=new,
         inspector=inspector,
         handler=handler,
@@ -137,7 +146,7 @@ def migrate(
         backend=backend,
         migration_context=migration_ctx,
         model_context=model_ctx,
-        target_table=target_table,
+        target_table_identifier=target_table_identifier,
         handler=handler,
         **kwargs,
     )
@@ -145,16 +154,18 @@ def migrate(
     # Clean up property tables, when property no longer exists (column clean up does not know if there are additional tables left)
     _clean_up_property_tables(
         backend=backend,
+        source_table_identifier=source_table_identifier,
         model=new,
         model_tables=old,
         handler=handler,
         inspector=inspector,
         rename=rename,
         model_context=model_ctx,
+        migration_ctx=migration_ctx,
     )
 
     _clean_up_old_constraints(
-        source_table=source_table,
+        source_table_identifier=source_table_identifier,
         handler=handler,
         model_context=model_ctx,
     )
@@ -193,63 +204,47 @@ def migrate(
     if is_removed(source_table.name):
         return
 
-    # Remove soft deleted tables if they exist
-    removed_table_name = get_pg_removed_name(source_table.comment)
-    if inspector.has_table(removed_table_name):
-        # Drop table if it was already flagged for deletion
-        handler.add_action(ma.DropTableMigrationAction(table_name=removed_table_name))
+    # Precalculate removed table identifiers
+    removed_table_identifiers = []
+    table_identifier = migration_ctx.get_table_identifier(source_table)
+    removed_table_identifiers.append((table_identifier, table_identifier.apply_removed_prefix()))
+    for table in old.sorted_reserve.values():
+        table_identifier = migration_ctx.get_table_identifier(table)
+        removed_table_identifiers.append((table_identifier, table_identifier.apply_removed_prefix()))
 
-    for table_type, table in old.reserved.items():
-        removed_name = get_pg_removed_name(table.comment)
-        if inspector.has_table(removed_name):
-            handler.add_action(ma.DropTableMigrationAction(table_name=removed_name))
-
-    for table_type, table in old.property_tables.values():
-        removed_name = get_pg_removed_name(table.comment, remove_model_only=True)
-        if inspector.has_table(removed_name):
-            handler.add_action(ma.DropTableMigrationAction(table_name=removed_name))
-
-    # Soft delete all related tables and drop constraints / indexes
-    handler.add_action(
-        ma.RenameTableMigrationAction(
-            old_table_name=source_table.name,
-            new_table_name=removed_table_name,
-            comment=get_removed_name(source_table.comment),
+    for _, table in old.property_tables.values():
+        table_identifier = migration_ctx.get_table_identifier(table)
+        removed_table_identifiers.append(
+            (table_identifier, table_identifier.apply_removed_prefix(remove_model_only=True))
         )
-    )
-    drop_all_indexes_and_constraints(inspector, source_table.name, removed_table_name, handler)
 
-    for table_type, table in old.reserved.items():
-        removed_name = get_pg_removed_name(table.comment)
+    for table_identifier, removed_table_identifier in removed_table_identifiers:
+        # Remove soft deleted tables if they exist
+        if inspector.has_table(removed_table_identifier.pg_table_name, schema=removed_table_identifier.pg_schema_name):
+            handler.add_action(ma.DropTableMigrationAction(table_identifier=removed_table_identifier))
+
         handler.add_action(
             ma.RenameTableMigrationAction(
-                old_table_name=table.name,
-                new_table_name=removed_name,
-                comment=get_removed_name(table.comment),
+                old_table_identifier=table_identifier,
+                new_table_identifier=removed_table_identifier,
+                comment=removed_table_identifier.logical_qualified_name,
             )
         )
-        sequence_name = get_pg_sequence_name(table.name)
-        if inspector.has_sequence(sequence_name):
+        sequence_name = get_pg_sequence_name(table_identifier.pg_table_name)
+        if inspector.has_sequence(sequence_name, schema=table_identifier.pg_schema_name):
             handler.add_action(
-                ma.RenameSequenceMigrationAction(old_name=sequence_name, new_name=get_pg_sequence_name(removed_name))
+                ma.RenameSequenceMigrationAction(
+                    old_name=sequence_name,
+                    new_name=get_pg_sequence_name(removed_table_identifier.pg_table_name),
+                    table_identifier=table_identifier,
+                )
             )
-        drop_all_indexes_and_constraints(inspector, table.name, removed_name, handler)
-
-    for table_type, table in old.property_tables.values():
-        removed_name = get_pg_removed_name(table.comment, remove_model_only=True)
-        handler.add_action(
-            ma.RenameTableMigrationAction(
-                old_table_name=table.name,
-                new_table_name=removed_name,
-                comment=get_removed_name(table.comment, remove_model_only=True),
-            )
-        )
-        drop_all_indexes_and_constraints(inspector, table.name, removed_name, handler)
+        drop_all_indexes_and_constraints(inspector, table_identifier, removed_table_identifier, handler)
 
 
 def _handle_model_unique_constraints(
-    source_table: sa.Table,
-    target_table: sa.Table,
+    source_table_identifier: TableIdentifier,
+    target_table_identifier: TableIdentifier,
     model: Model,
     inspector: Inspector,
     handler: MigrationHandler,
@@ -259,8 +254,8 @@ def _handle_model_unique_constraints(
     if not model.unique:
         return
 
-    table_name = target_table.name
-    source_table_name = source_table.name
+    source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
 
     for property_combination in model.unique:
         column_name_list = []
@@ -269,29 +264,31 @@ def _handle_model_unique_constraints(
         for prop in property_combination:
             for name in get_prop_names(prop):
                 column_name_list.append(get_pg_column_name(name))
-                old_column_name_list.append(get_pg_column_name(rename.get_old_column_name(source_table, name)))
+                old_column_name_list.append(
+                    get_pg_column_name(rename.to_old_column_name(source_table_identifier, name))
+                )
 
-        constraints = inspector.get_unique_constraints(source_table_name)
-        constraint_name = get_pg_constraint_name(table_name, column_name_list)
-        unique_constraint_states = model_context.constraint_states[source_table_name].unique_constraint
+        constraints = inspector.get_unique_constraints(source_table_name, schema=source_table_identifier.pg_schema_name)
+        constraint_name = get_pg_constraint_name(target_table_identifier.pg_table_name, column_name_list)
+        unique_constraint_states = model_context.constraint_states[source_logical_name].unique_constraint
         if unique_constraint_states[constraint_name]:
             continue
 
         constraint = constraint_with_name(constraints, constraint_name)
         if constraint:
-            model_context.mark_unique_constraint_handled(source_table_name, constraint_name)
+            model_context.mark_unique_constraint_handled(source_logical_name, constraint_name)
             if constraint["column_names"] == column_name_list:
                 continue
 
             handler.add_action(
                 ma.DropConstraintMigrationAction(
-                    table_name=table_name,
+                    table_identifier=target_table_identifier,
                     constraint_name=constraint_name,
                 )
             )
             handler.add_action(
                 ma.CreateUniqueConstraintMigrationAction(
-                    table_name=table_name, constraint_name=constraint_name, columns=column_name_list
+                    table_identifier=target_table_identifier, constraint_name=constraint_name, columns=column_name_list
                 )
             )
             continue
@@ -301,24 +298,24 @@ def _handle_model_unique_constraints(
                 if unique_constraint_states[constraint["name"]]:
                     continue
 
-                model_context.mark_unique_constraint_handled(source_table.name, constraint_name)
+                model_context.mark_unique_constraint_handled(source_logical_name, constraint_name)
                 if constraint["name"] == constraint_name:
                     continue
 
-                model_context.mark_unique_constraint_handled(source_table.name, constraint["name"])
+                model_context.mark_unique_constraint_handled(source_logical_name, constraint["name"])
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(
-                        table_name=table_name,
+                        table_identifier=target_table_identifier,
                         old_constraint_name=constraint["name"],
                         new_constraint_name=constraint_name,
                     )
                 )
 
         if not unique_constraint_states[constraint_name]:
-            model_context.mark_unique_constraint_handled(source_table.name, constraint_name)
+            model_context.mark_unique_constraint_handled(source_logical_name, constraint_name)
             handler.add_action(
                 ma.CreateUniqueConstraintMigrationAction(
-                    table_name=table_name, constraint_name=constraint_name, columns=column_name_list
+                    table_identifier=target_table_identifier, constraint_name=constraint_name, columns=column_name_list
                 )
             )
 
@@ -338,37 +335,46 @@ def _handle_property_unique_constraints(context: Context, backend: PostgreSQL, n
 
 
 def _clean_up_old_constraints(
-    source_table: sa.Table,
+    source_table_identifier: TableIdentifier,
     handler: MigrationHandler,
     model_context: ModelMigrationContext,
 ):
     # Ignore deleted tables
-    if source_table.name.startswith("_"):
+    if source_table_identifier.pg_table_name.startswith("_"):
         return
 
-    model_tables = model_context.model_tables
     for constrained_table, constraint_states in model_context.constraint_states.items():
-        table_name = get_pg_table_name(model_tables.base_name, constraint_states.table_type, constraint_states.prop)
+        table_identifier = source_table_identifier.change_table_type(
+            new_type=constraint_states.table_type, table_arg=constraint_states.prop
+        )
 
         for constraint, state in constraint_states.unique_constraint.items():
             if state:
                 continue
             model_context.mark_unique_constraint_handled(constrained_table, constraint)
-            handler.add_action(ma.DropConstraintMigrationAction(table_name=table_name, constraint_name=constraint))
+            handler.add_action(
+                ma.DropConstraintMigrationAction(table_identifier=table_identifier, constraint_name=constraint)
+            )
 
         for constraint, state in constraint_states.foreign_constraint.items():
             if state:
                 continue
             model_context.mark_foreign_constraint_handled(constrained_table, constraint)
             handler.add_action(
-                ma.DropConstraintMigrationAction(table_name=table_name, constraint_name=constraint), foreign_key=True
+                ma.DropConstraintMigrationAction(table_identifier=table_identifier, constraint_name=constraint),
+                foreign_key=True,
             )
 
         for index, state in constraint_states.index.items():
             if state:
                 continue
             model_context.mark_index_handled(constrained_table, index)
-            handler.add_action(ma.DropIndexMigrationAction(table_name=table_name, index_name=index))
+            handler.add_action(
+                ma.DropIndexMigrationAction(
+                    table_identifier=table_identifier,
+                    index_name=index,
+                )
+            )
 
 
 def _handle_json_column_migrations(
@@ -376,12 +382,10 @@ def _handle_json_column_migrations(
     backend: Backend,
     migration_context: PostgresqlMigrationContext,
     model_context: ModelMigrationContext,
-    target_table: sa.Table,
+    target_table_identifier: TableIdentifier,
     handler: MigrationHandler,
     **kwargs,
 ):
-    table_name = target_table.name
-
     for json_context in model_context.json_columns.values():
         property_ctx = PropertyMigrationContext(prop=json_context.prop, model_context=model_context)
         if json_context.new_keys and json_context.cast_to is None:
@@ -394,10 +398,17 @@ def _handle_json_column_migrations(
                 for old_key, new_key in json_context.new_keys.items():
                     if new_key in json_context.keys:
                         handler.add_action(
-                            ma.RemoveJSONAttributeMigrationAction(table_name, json_context.column, new_key)
+                            ma.RemoveJSONAttributeMigrationAction(
+                                table_identifier=target_table_identifier, source=json_context.column, key=new_key
+                            )
                         )
                     handler.add_action(
-                        ma.RenameJSONAttributeMigrationAction(table_name, json_context.column, old_key, new_key)
+                        ma.RenameJSONAttributeMigrationAction(
+                            table_identifier=target_table_identifier,
+                            source=json_context.column,
+                            old_key=old_key,
+                            new_key=new_key,
+                        )
                     )
         elif isinstance(json_context.cast_to, tuple) and len(json_context.cast_to) == 2:
             new_column = json_context.cast_to[0]
@@ -410,13 +421,17 @@ def _handle_json_column_migrations(
             renamed = json_context.column._copy()
             renamed.name = get_pg_removed_name(json_context.column.name)
             renamed.key = get_pg_removed_name(json_context.column.name)
-            handler.add_action(ma.TransferJSONDataMigrationAction(table_name, renamed, [(key, new_column)]))
+            handler.add_action(
+                ma.TransferJSONDataMigrationAction(
+                    table_identifier=target_table_identifier, source=renamed, columns=[(key, new_column)]
+                )
+            )
         # Rename column
         if json_context.new_name:
             handler.add_action(
                 ma.AlterColumnMigrationAction(
-                    table_name,
-                    json_context.column.name,
+                    table_identifier=target_table_identifier,
+                    column_name=json_context.column.name,
                     new_column_name=json_context.new_name,
                     comment=json_context.comment,
                 )
@@ -438,39 +453,53 @@ def _get_new_model_unique_constraint(new_model: Model):
 
 
 def _handle_model_foreign_key_constraints(
-    source_table: sa.Table,
-    target_table: sa.Table,
+    source_table_identifier: TableIdentifier,
+    target_table_identifier: TableIdentifier,
     model: Model,
     inspector: Inspector,
     handler: MigrationHandler,
     rename: RenameMap,
     model_context: ModelMigrationContext,
 ):
-    table_name = target_table.name
-    foreign_keys = inspector.get_foreign_keys(source_table.name)
-    source_table_name = source_table.name
+    # table_name = target_table.name
+    foreign_keys = inspector.get_foreign_keys(
+        source_table_identifier.pg_table_name, schema=source_table_identifier.pg_schema_name
+    )
     id_constraint = next(
         (constraint for constraint in foreign_keys if constraint.get("constrained_columns") == ["_id"]), None
     )
 
     if model.base and commands.identifiable(model.base):
-        referent_table = get_pg_table_name(rename.get_old_table_name(get_table_name(model.base.parent)))
-        fk_name = get_pg_foreign_key_name(referent_table, "_id")
-        model_context.mark_foreign_constraint_handled(source_table_name, fk_name)
+        referent_table_identifier = rename.to_old_table(model.base.parent)
+        referent_table_identifier = revalidate_table_identifier(referent_table_identifier, inspector)
+        referent_table = referent_table_identifier.pg_table_name
+        referent_schema = referent_table_identifier.pg_schema_name
+        fk_name = get_pg_foreign_key_name(
+            table_identifier=source_table_identifier,
+            referred_table_identifier=referent_table_identifier,
+            column_name="_id",
+        )
+        model_context.mark_foreign_constraint_handled(source_table_identifier.logical_qualified_name, fk_name)
         if id_constraint is not None:
             if id_constraint["name"] == fk_name:
                 # Everything matches
-                if id_constraint["referred_table"] == referent_table:
+                if (
+                    id_constraint["referred_schema"] == referent_schema
+                    and id_constraint["referred_table"] == referent_table
+                ):
                     return
 
                 # Name matches, but tables don't
                 handler.add_action(
-                    ma.DropConstraintMigrationAction(table_name=table_name, constraint_name=id_constraint["name"]), True
+                    ma.DropConstraintMigrationAction(
+                        table_identifier=target_table_identifier, constraint_name=id_constraint["name"]
+                    ),
+                    True,
                 )
                 handler.add_action(
                     ma.CreateForeignKeyMigrationAction(
-                        source_table=table_name,
-                        referent_table=referent_table,
+                        source_table_identifier=target_table_identifier,
+                        referent_table_identifier=referent_table_identifier,
                         constraint_name=fk_name,
                         local_cols=["_id"],
                         remote_cols=["_id"],
@@ -479,24 +508,34 @@ def _handle_model_foreign_key_constraints(
                 )
                 return
 
-            model_context.mark_foreign_constraint_handled(source_table_name, id_constraint["name"])
+            model_context.mark_foreign_constraint_handled(
+                source_table_identifier.logical_qualified_name, id_constraint["name"]
+            )
             # Tables match, but name does not
-            if id_constraint["referred_table"] == referent_table:
+            if (
+                id_constraint["referred_schema"] == referent_schema
+                and id_constraint["referred_table"] == referent_table
+            ):
                 handler.add_action(
                     ma.RenameConstraintMigrationAction(
-                        table_name, old_constraint_name=id_constraint["name"], new_constraint_name=fk_name
+                        table_identifier=target_table_identifier,
+                        old_constraint_name=id_constraint["name"],
+                        new_constraint_name=fk_name,
                     )
                 )
                 return
 
             # Nothing matches, but foreign key with _id exists
             handler.add_action(
-                ma.DropConstraintMigrationAction(table_name=table_name, constraint_name=id_constraint["name"]), True
+                ma.DropConstraintMigrationAction(
+                    table_identifier=target_table_identifier, constraint_name=id_constraint["name"]
+                ),
+                True,
             )
             handler.add_action(
                 ma.CreateForeignKeyMigrationAction(
-                    source_table=table_name,
-                    referent_table=referent_table,
+                    source_table_identifier=target_table_identifier,
+                    referent_table_identifier=referent_table_identifier,
                     constraint_name=fk_name,
                     local_cols=["_id"],
                     remote_cols=["_id"],
@@ -508,8 +547,8 @@ def _handle_model_foreign_key_constraints(
         # If all checks passed, add the constraint
         handler.add_action(
             ma.CreateForeignKeyMigrationAction(
-                source_table=table_name,
-                referent_table=referent_table,
+                source_table_identifier=target_table_identifier,
+                referent_table_identifier=referent_table_identifier,
                 constraint_name=fk_name,
                 local_cols=["_id"],
                 remote_cols=["_id"],
@@ -523,6 +562,7 @@ def _handle_reserved_tables(
     model: Model,
     model_tables: ModelTables,
     model_context: ModelMigrationContext,
+    migration_context: PostgresqlMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
@@ -537,6 +577,7 @@ def _handle_reserved_tables(
         handler=handler,
         inspector=inspector,
         model_context=model_context,
+        migration_context=migration_context,
     )
     _handle_redirect_migration(
         backend=backend,
@@ -545,6 +586,7 @@ def _handle_reserved_tables(
         handler=handler,
         model_context=model_context,
         inspector=inspector,
+        migration_context=migration_context,
     )
 
 
@@ -553,6 +595,7 @@ def _handle_changelog_migration(
     model: Model,
     model_tables: ModelTables,
     model_context: ModelMigrationContext,
+    migration_context: PostgresqlMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
@@ -561,26 +604,29 @@ def _handle_changelog_migration(
     if changelog_table is None:
         create_table_migration(table=target_table, handler=handler)
     else:
-        changelog_table_name = get_table_name(model, TableType.CHANGELOG)
-        pg_changelog_table_name = get_pg_name(changelog_table_name)
-        renamed = name_changed(changelog_table.name, pg_changelog_table_name)
+        old_table_identifier = migration_context.get_table_identifier(changelog_table)
+        new_table_identifier = migration_context.get_table_identifier(model, TableType.CHANGELOG)
+        renamed = name_changed(old_table_identifier.pg_qualified_name, new_table_identifier.pg_qualified_name)
         if renamed:
             handler.add_action(
                 ma.RenameTableMigrationAction(
-                    old_table_name=changelog_table.name,
-                    new_table_name=pg_changelog_table_name,
-                    comment=changelog_table_name,
+                    old_table_identifier=old_table_identifier,
+                    new_table_identifier=new_table_identifier,
+                    comment=new_table_identifier.logical_qualified_name,
                 )
             ).add_action(
                 ma.RenameSequenceMigrationAction(
-                    old_name=get_pg_sequence_name(changelog_table.name),
-                    new_name=get_pg_sequence_name(pg_changelog_table_name),
+                    old_name=extract_sequence_name(changelog_table),
+                    new_name=get_pg_sequence_name(new_table_identifier.pg_table_name),
+                    table_identifier=new_table_identifier,
+                    old_table_identifier=old_table_identifier,
                 )
             )
 
         _generic_reserved_table_constraint_flag(
-            source_table_name=changelog_table.name,
-            target_table_name=pg_changelog_table_name,
+            source_table_identifier=old_table_identifier,
+            target_table_identifier=new_table_identifier,
+            migration_context=migration_context,
             model_context=model_context,
             handler=handler,
             inspector=inspector,
@@ -592,6 +638,7 @@ def _handle_redirect_migration(
     model: Model,
     model_tables: ModelTables,
     model_context: ModelMigrationContext,
+    migration_context: PostgresqlMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
@@ -600,20 +647,21 @@ def _handle_redirect_migration(
     if redirect_table is None:
         create_table_migration(table=target_table, handler=handler)
     else:
-        redirect_table_name = get_table_name(model, TableType.REDIRECT)
-        pg_redirect_table_name = get_pg_name(redirect_table_name)
-        if redirect_table.name != pg_redirect_table_name:
+        old_table_identifier = migration_context.get_table_identifier(redirect_table)
+        new_table_identifier = migration_context.get_table_identifier(model, TableType.REDIRECT)
+        if name_changed(old_table_identifier.pg_qualified_name, new_table_identifier.pg_qualified_name):
             handler.add_action(
                 ma.RenameTableMigrationAction(
-                    old_table_name=redirect_table.name,
-                    new_table_name=pg_redirect_table_name,
-                    comment=redirect_table_name,
+                    old_table_identifier=old_table_identifier,
+                    new_table_identifier=new_table_identifier,
+                    comment=new_table_identifier.logical_qualified_name,
                 )
             )
 
         _generic_reserved_table_constraint_flag(
-            source_table_name=redirect_table.name,
-            target_table_name=pg_redirect_table_name,
+            source_table_identifier=old_table_identifier,
+            target_table_identifier=new_table_identifier,
+            migration_context=migration_context,
             model_context=model_context,
             handler=handler,
             inspector=inspector,
@@ -621,23 +669,38 @@ def _handle_redirect_migration(
 
 
 def _generic_reserved_table_constraint_flag(
-    source_table_name: str,
-    target_table_name: str,
+    source_table_identifier: TableIdentifier,
+    target_table_identifier: TableIdentifier,
+    migration_context: PostgresqlMigrationContext,
     model_context: ModelMigrationContext,
     handler: MigrationHandler,
     inspector: Inspector,
 ):
-    renamed = name_changed(source_table_name, target_table_name)
-    constraint_states = model_context.constraint_states[source_table_name]
+    target_table_name = target_table_identifier.pg_table_name
+    source_table_name = source_table_identifier.pg_table_name
+    source_logical_name = source_table_identifier.logical_qualified_name
+    renamed = name_changed(target_table_identifier.pg_qualified_name, source_table_identifier.pg_qualified_name)
+    constraint_states = model_context.constraint_states[source_logical_name]
+
+    if renamed:
+        update_primary_key(
+            inspector=inspector,
+            source_table_identifier=source_table_identifier,
+            target_table_identifier=target_table_identifier,
+            handler=handler,
+        )
 
     unique_constraints = {
-        constraint["name"]: constraint for constraint in inspector.get_unique_constraints(source_table_name)
+        constraint["name"]: constraint
+        for constraint in inspector.get_unique_constraints(
+            source_table_name, schema=source_table_identifier.pg_schema_name
+        )
     }
     for unique_constraint, state in constraint_states.unique_constraint.items():
         if state:
             continue
 
-        model_context.mark_unique_constraint_handled(source_table_name, unique_constraint)
+        model_context.mark_unique_constraint_handled(source_logical_name, unique_constraint)
 
         if not renamed:
             continue
@@ -646,39 +709,52 @@ def _generic_reserved_table_constraint_flag(
         )
         handler.add_action(
             ma.RenameConstraintMigrationAction(
-                table_name=target_table_name,
+                table_identifier=target_table_identifier,
                 old_constraint_name=unique_constraint,
                 new_constraint_name=new_constraint_name,
             )
         )
 
     foreign_constraints = {
-        constraint["name"]: constraint for constraint in inspector.get_foreign_keys(source_table_name)
+        constraint["name"]: constraint
+        for constraint in inspector.get_foreign_keys(source_table_name, schema=source_table_identifier.pg_schema_name)
     }
     for foreign_constraint, state in constraint_states.foreign_constraint.items():
         if state:
             continue
 
-        model_context.mark_foreign_constraint_handled(source_table_name, foreign_constraint)
+        model_context.mark_foreign_constraint_handled(source_logical_name, foreign_constraint)
         if not renamed:
             continue
-        new_constraint_name = get_pg_constraint_name(
-            target_table_name, unique_constraints[foreign_constraints]["column_names"]
+
+        ref_table_name = foreign_constraints[foreign_constraint]["referred_table"]
+        ref_table_schema = foreign_constraints[foreign_constraint]["referred_schema"]
+        ref_table_metadata_name = ".".join([ref_table_schema, ref_table_name] if ref_table_schema else [ref_table_name])
+        ref_table = migration_context.metadata.tables.get(ref_table_metadata_name)
+
+        ref_table_identifier = migration_context.get_table_identifier(ref_table)
+        new_constraint_name = get_pg_foreign_key_name(
+            table_identifier=target_table_identifier,
+            referred_table_identifier=ref_table_identifier,
+            column_name=foreign_constraints[foreign_constraint]["column_names"],
         )
         handler.add_action(
             ma.RenameConstraintMigrationAction(
-                table_name=target_table_name,
+                table_identifier=target_table_identifier,
                 old_constraint_name=foreign_constraint,
                 new_constraint_name=new_constraint_name,
             )
         )
 
-    indexes = {index["name"]: index for index in inspector.get_indexes(source_table_name)}
+    indexes = {
+        index["name"]: index
+        for index in inspector.get_indexes(source_table_name, schema=source_table_identifier.pg_schema_name)
+    }
     for index, state in constraint_states.index.items():
         if state:
             continue
 
-        model_context.mark_index_handled(source_table_name, index)
+        model_context.mark_index_handled(source_logical_name, index)
         if not renamed:
             continue
         new_index_name = get_pg_index_name(target_table_name, indexes[index]["column_names"])
@@ -686,35 +762,41 @@ def _generic_reserved_table_constraint_flag(
             ma.RenameIndexMigrationAction(
                 old_index_name=index,
                 new_index_name=new_index_name,
+                table_identifier=target_table_identifier,
+                old_table_identifier=source_table_identifier,
             )
         )
 
 
 def _clean_up_property_tables(
     backend: PostgreSQL,
+    source_table_identifier: TableIdentifier,
     model_tables: ModelTables,
     model: Model,
     rename: RenameMap,
     inspector: Inspector,
     handler: MigrationHandler,
     model_context: ModelMigrationContext,
+    migration_ctx: PostgresqlMigrationContext,
 ):
-    source_table = model_tables.main_table
     for prop_name, (table_type, table) in model_tables.property_tables.items():
-        column_name = rename.get_column_name(source_table, prop_name)
+        column_name = rename.to_new_column_name(source_table_identifier, prop_name)
         required_table_name = model.model_type() + table_type.value + "/" + column_name
         if required_table_name not in backend.tables:
-            removed_table_name = get_pg_removed_name(table.name)
-            if inspector.has_table(removed_table_name):
-                handler.add_action(ma.DropTableMigrationAction(table_name=removed_table_name))
+            table_identifier = migration_ctx.get_table_identifier(table)
+            removed_table_identifier = table_identifier.apply_removed_prefix()
+            if inspector.has_table(removed_table_identifier.pg_table_name, schema=removed_table_identifier.schema):
+                handler.add_action(ma.DropTableMigrationAction(table_identifier=removed_table_identifier))
             handler.add_action(
                 ma.RenameTableMigrationAction(
-                    old_table_name=table.name,
-                    new_table_name=removed_table_name,
-                    comment=get_removed_name(table.comment),
+                    old_table_identifier=table_identifier,
+                    new_table_identifier=removed_table_identifier,
+                    comment=removed_table_identifier.logical_qualified_name,
                 )
             )
-            drop_all_indexes_and_constraints(inspector, table.name, removed_table_name, handler, model_context)
+            drop_all_indexes_and_constraints(
+                inspector, table_identifier, removed_table_identifier, handler, model_context
+            )
 
 
 def _handle_model_reserved_properties(
