@@ -81,6 +81,56 @@ def test_model_path_contents(open_manifest_path: ManifestPath):
             _test_property_path_content(paths, dataset_name, model_name, prop_name)
 
 
+def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_path_factory):
+    """During subsequent runs, specification generation should not duplicate values."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST)
+    create_openapi_manifest(open_manifest_path)
+    open_manifest_path.file.seek(0)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    open_api_spec.pop("components")  # Components do not have a default initial value.
+    open_api_spec.pop("paths")  # Paths are not part of the generated specification
+    assert open_api_spec == {
+        "openapi": "3.1.0",
+        "info": {
+            "version": "1.0.0",
+            "title": "Universal application programming interface",
+            "contact": {
+                "email": "info@vssa.lt",
+                "name": "VSSA",
+                "url": "https://vssa.lrv.lt/",
+            },
+            "license": {
+                "name": "CC-BY 4.0",
+                "url": "https://creativecommons.org/licenses/by/4.0/",
+            },
+            "summary": "Test title",
+            "description": "Test description",
+        },
+        "externalDocs": {"url": "https://ivpk.github.io/uapi"},
+        "servers": [
+            {
+                "description": "Data access server",
+                "url": "get.data.gov.lt",
+            }
+        ],
+        "tags": [  # Utility is a default tag, others are generated from models. Should not be duplicated.
+            {
+                "name": "utility",
+                "description": "Utility operations performed on the API itself",
+            },
+            {
+                "name": "Organization",
+                "description": "Operations with Organization",
+            },
+            {
+                "name": "ProcessingUnit",
+                "description": "Operations with ProcessingUnit",
+            },
+        ],
+    }
+
+
 def _validate_operation_id_contains(operation_id: str, path: str, *required_terms):
     """Validate that operation ID contains all required terms."""
     for term in required_terms:

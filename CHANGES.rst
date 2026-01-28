@@ -7,9 +7,10 @@ Changes
 New Features:
 
 - Change URL for calls to Data Catalog. Changed the organization type and information system name
-  (from ISRIS to ROR) (`#Katalogas2275`_).
+  (from ISRIS to ROR) (`#Katalogas2273`_).
 
-.. _#Katalogas2275: https://github.com/atviriduomenys/katalogas/pull/2275
+
+.. _#Katalogas2273: https://github.com/atviriduomenys/katalogas/issues/2273
 
 Improvements:
 
@@ -18,6 +19,12 @@ Improvements:
 
 .. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
 .. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
+Bug Fixes:
+
+- Adjusting a bug where tags would be duplicated, due to list mutability (`#Katalogas2291`_).
+
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 
 
 0.2dev13 (2026-01-14)
