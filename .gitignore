@@ -25,3 +25,7 @@ manifest.*
 /config.yml
 /manifest.csv
 /test/
+
+# Script input/output directories & files
+scripts/xml/output/
+scripts/xml/examples.xml
