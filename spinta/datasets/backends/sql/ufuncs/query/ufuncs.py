@@ -279,10 +279,20 @@ def _resolve_unresolved(env: SqlQueryBuilder, data: tuple) -> tuple:
 def and_(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     args = [env.call("_resolve_unresolved", arg) for arg in args if arg is not None]
-    if len(args) > 1:
-        return sa.and_(*args)
-    elif args:
-        return args[0]
+
+    # Deduplicate WHERE conditions by converting to strings
+    unique_args = []
+    seen_args = set()
+    for arg in args:
+        arg_str = str(arg)
+        if arg_str not in seen_args:
+            seen_args.add(arg_str)
+            unique_args.append(arg)
+
+    if len(unique_args) > 1:
+        return sa.and_(*unique_args)
+    elif unique_args:
+        return unique_args[0]
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr, name="or")
