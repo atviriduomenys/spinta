@@ -8,9 +8,10 @@ New Features:
 
 - Change URL for calls to Data Catalog. Changed the organization type and information system name
   (from ISRIS to ROR) (`#Katalogas2273`_).
-
+- Add a script for file having multiple XML defitinions splitting to multiple files (`#dvms428`_).
 
 .. _#Katalogas2273: https://github.com/atviriduomenys/katalogas/issues/2273
+.. _#dvms428: https://github.com/atviriduomenys/dvms/issues/428
 
 Improvements:
 
