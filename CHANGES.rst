@@ -26,6 +26,9 @@ Bug Fixes:
 
 .. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 
+- Added `dsa` and `uapi` properties to version endpoint in OpenAPI schema (`#Katalogas2315`_).
+
+.. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
 
 0.2dev13 (2026-01-14)
 =====================

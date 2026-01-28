@@ -450,3 +450,28 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     unit_type_change = change_properties["unit_type"]
     assert "enum" in unit_type_change
     assert set(unit_type_change["enum"]) == set(expected_enum)
+
+
+def test_version_schema_structure(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+    version_schema = open_api_spec["components"]["schemas"]["version"]
+
+    properties = version_schema["properties"]
+
+    assert set(properties.keys()) == {
+        "api",
+        "implementation",
+        "dsa",
+        "uapi",
+        "build",
+    }
+
+    assert properties["api"]["properties"]["version"]["type"] == "string"
+
+    implementation = properties["implementation"]["properties"]
+
+    assert implementation["name"]["type"] == "string"
+    assert implementation["version"]["type"] == "string"
+    assert properties["dsa"]["properties"]["version"]["type"] == "string"
+    assert properties["uapi"]["properties"]["version"]["type"] == "string"
+    assert properties["build"]["properties"]["version"]["type"] == "string"
