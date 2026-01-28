@@ -25,7 +25,7 @@ services:
         limits:
           memory: 1024M
   spinta-${BRANCH}-database:
-    image: postgis/postgis:16-3.4
+    build: ./.docker/citus-postgis
     environment:
       - TZ=UTC
       - POSTGRES_DB=spinta
@@ -33,6 +33,7 @@ services:
       - POSTGRES_PASSWORD=admin123
     volumes:
       - ${BRANCH}-postgres:/var/lib/postgresql/data
+      - ./.docker/citus-postgis/init:/docker-entrypoint-initdb.d
     networks:
       - spinta
 networks:

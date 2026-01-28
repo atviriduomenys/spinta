@@ -22,15 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # https://github.com/marketplace/actions/setup-postgresql-with-postgis-12
-      - name: Start PostgreSQL with PostGIS
-        uses: ireznik/postgis-action@v12
-        with:
-          # https://hub.docker.com/r/postgis/postgis
-          postgresql version: "16-3.4"
-          postgresql password: "secret"
-          postgresql user: "ci"
-          postgresql db: "spinta"
+      - name: Build Citus + PostGIS image
+        run: |
+          docker build -t citus-postgis:ci .docker/citus-postgis
+
+      - name: Start PostgreSQL (Citus + PostGIS)
+        run: |
+          docker run -d \
+            --name postgres \
+            -p 5432:5432 \
+            -e POSTGRES_DB=spinta \
+            -e POSTGRES_USER=ci \
+            -e POSTGRES_PASSWORD=secret \
+            -v "$PWD/.docker/citus-postgis/init:/docker-entrypoint-initdb.d" \
+            citus-postgis:ci
 
       # https://github.com/marketplace/actions/mongodb-in-github-actions
       - name: Start MongoDB
