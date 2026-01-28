@@ -1,4 +1,4 @@
-spinta==0.2dev13 ; python_version >= 3.10 and python_version < 4.0 \
+spinta==0.2dev13 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:4e27cae86efa189cdf558b750b44498742cc0745059ddec9bc8b07f63bb14979
     --hash=sha256:702fd4be71763991c2723052075d1462ab757d9273ae389e16126f2543c60dba
 aiofiles==25.1.0 ; python_version >= "3.10" and python_version < "4.0" \
