@@ -56,6 +56,9 @@ id | d | r | b | m | property             | type                  | ref | source
    |   |   |   |   | unit_version         | integer               |     |        |         | 4     | open   | Processing unit version                                    |
    |                                      | enum                  |     |        | 1       |       |        | Version v1                                                 |
    |                                      |                       |     |        | 2       |       |        | Version v2                                                 |
+   |   |   |   |   | unit_kind            | string                |     |        |         | 4     | open   | Processing unit kind                                       |
+   |                                      | enum                  |     | A      |         |       |        | Kind A                                                     |
+   |                                      |                       |     | B      |         |       |        | Kind B                                                     |
    |   |   |   |   | efficiency_rate      | number                |     |        |         | 3     | open   | Processing efficiency rate percentage                      |
    |   |   |   |   | capacity             | integer               |     |        |         | 3     | open   | Processing capacity, units per day                         |
    |   |   |   |   | technical_specs      | file                  |     |        |         | 3     | open   | Technical specifications document                          |

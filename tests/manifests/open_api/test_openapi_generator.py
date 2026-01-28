@@ -445,6 +445,10 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     assert "enum" in properties["unit_version"]
     assert set(properties["unit_version"]["enum"]) == {1, 2}
 
+    assert properties["unit_kind"]["type"] == "string"
+    assert "enum" in properties["unit_kind"]
+    assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
+
     assert properties["efficiency_rate"]["type"] == "number"
     assert properties["capacity"]["type"] == "integer"
 
