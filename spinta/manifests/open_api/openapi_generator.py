@@ -101,10 +101,10 @@ class DataTypeHandler:
         if self.is_enum_property(model_property):
             enum_values = self.get_enum_values(model_property)
             dtype_name = self.get_dtype_name(dtype)
-            enum_schema = copy.deepcopy(self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string"}))
-            enum_schema.update({"enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"})
-
-            return enum_schema
+            return {
+                **copy.deepcopy(self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string"})),
+                **{"enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"},
+            }
 
         if self.is_reference_type(dtype):
             return {
