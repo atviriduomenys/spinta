@@ -730,7 +730,7 @@ def _ensure_non_empty(op, s):
 
 
 @ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE_STRING)
-def compare(env: PgQueryBuilder, dtype: UUID_dtype, op: str, value: str):
+def compare(env: PgQueryBuilder, op: str, dtype: UUID_dtype, value: str):
     if op in ("startswith", "contains"):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
