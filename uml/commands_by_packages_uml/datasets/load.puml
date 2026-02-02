@@ -1,0 +1,22 @@
+@startuml
+package load <<Rectangle>> {
+
+    object load {
+        +context: Context,
+        +dataset: Dataset,
+        +data: dict,
+        +manifest: Manifest,
+        +*,
+        +source: Manifest = None,
+        +entity: Entity,
+        +attr: Attribute
+    }
+}
+
+load *-- Context
+load *-- Dataset
+load *-- Manifest
+load *-- Entity
+load *-- Attribute
+
+@enduml
