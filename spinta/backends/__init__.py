@@ -30,11 +30,12 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import select_keys
 from spinta.backends.helpers import select_model_props
 from spinta.backends.helpers import select_props
+from spinta.datasets.backends.dataframe.backends.xml.adapter.xml_model import XmlModel
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Context
+from spinta.components import Component, Context
 from spinta.components import DataItem
 from spinta.components import Model
 from spinta.components import Namespace
@@ -58,6 +59,7 @@ from spinta.exceptions import (
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
+from spinta.models.components import DataModel
 from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
@@ -613,6 +615,18 @@ def is_object_id(context: Context, backend: type(None), model: Namespace, value:
     # Namespaces do not have object id.
     return False
 
+@commands.prepare_data_for_response.register(Context, Model, Format, XmlModel)
+def prepare_data_for_response(
+    context: Context,
+    model: Model,
+    fmt: Format,
+    value: XmlModel,
+    *,
+    action: Action,
+    select: SelectTree,
+    prop_names: List[str],
+) -> dict:
+    return dict(value)
 
 @commands.prepare_data_for_response.register(Context, Namespace, Format, dict)
 def prepare_data_for_response(
