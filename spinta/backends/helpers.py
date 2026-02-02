@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import dataclasses
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -8,12 +11,17 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+import sqlalchemy as sa
+
+from multipledispatch import dispatch
+
 from spinta import commands
 from spinta import exceptions
 from spinta import spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.commands import build_full_response
 from spinta.components import Config, DataItem
 from spinta.core.enums import Action
@@ -26,6 +34,11 @@ from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import DataType, Denorm
 from spinta.utils.data import take
 from spinta.backends.constants import TableType, BackendOrigin
+
+
+from sqlalchemy.dialects import postgresql
+
+pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
 
 def validate_and_return_transaction(context: Context, backend: Backend, **kwargs):
@@ -336,6 +349,102 @@ def get_ns_reserved_props(action: Action) -> List[str]:
     return []
 
 
+@dataclasses.dataclass
+class TableIdentifier:
+    schema: Optional[str]
+    base_name: str
+    table_type: TableType = dataclasses.field(default=TableType.MAIN)
+    table_arg: Optional[str] = dataclasses.field(default=None)
+    default_pg_schema: Optional[str] = dataclasses.field(default=None)
+
+    logical_name: str = dataclasses.field(init=False)
+    # Name with namespace connected with '/', like it is used with Model class
+    logical_qualified_name: str = dataclasses.field(init=False)
+
+    pg_table_name: str = dataclasses.field(init=False)
+    pg_schema_name: Optional[str] = dataclasses.field(init=False)
+    # Used for hashed schema and table names
+    pg_qualified_name: str = dataclasses.field(init=False)
+    # Escaped qualified name, used for queries
+    pg_escaped_qualified_name: str = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.logical_name = self.base_name + self.table_type.value
+        if self.table_arg:
+            self.logical_name += "/" + self.table_arg
+
+        self.logical_qualified_name = f"{self.schema}/{self.logical_name}" if self.schema else self.logical_name
+
+        self.pg_table_name = get_pg_name(self.logical_name)
+        self.pg_schema_name = get_pg_name(self.schema) if self.schema else self.default_pg_schema
+        self.pg_qualified_name = (
+            f"{self.pg_schema_name}.{self.pg_table_name}" if self.pg_schema_name else self.pg_table_name
+        )
+        self.pg_escaped_qualified_name = (
+            f"{pg_identifier_preparer.quote(self.pg_schema_name)}.{pg_identifier_preparer.quote(self.pg_table_name)}"
+            if self.pg_schema_name
+            else pg_identifier_preparer.quote(self.pg_table_name)
+        )
+
+    def change_table_type(self, new_type: TableType, table_arg: Optional[str] = None) -> "TableIdentifier":
+        return dataclasses.replace(self, table_type=new_type, table_arg=table_arg)
+
+    def apply_removed_prefix(self, remove_model_only: bool = False) -> "TableIdentifier":
+        if remove_model_only or not self.table_arg:
+            if not self.base_name.startswith("__"):
+                return dataclasses.replace(self, base_name=f"__{self.base_name}")
+            return self
+
+        if not self.table_arg.startswith("__"):
+            return dataclasses.replace(self, table_arg=f"__{self.table_arg}")
+        return self
+
+
+@dispatch(str)
+def get_table_identifier(item: str, **kwargs) -> TableIdentifier:
+    schema, model_name, table_type, table_arg = split_logical_name(item)
+    return TableIdentifier(schema=schema, base_name=model_name, table_type=table_type, table_arg=table_arg, **kwargs)
+
+
+@dispatch(sa.Table)
+def get_table_identifier(item: sa.Table, **kwargs) -> TableIdentifier:
+    if item.comment:
+        if item.schema in ("public", None):
+            schema, model_name, table_type, table_arg = split_logical_name(item.comment)
+            return TableIdentifier(
+                schema=None,
+                base_name=f"{schema}/{model_name}" if schema else model_name,
+                table_type=table_type,
+                table_arg=table_arg,
+                **kwargs,
+            )
+        return get_table_identifier(item.comment, **kwargs)
+    return TableIdentifier(schema=item.schema, base_name=item.name, **kwargs)
+
+
+@dispatch((Model, Property))
+def get_table_identifier(node: Union[Model, Property], **kwargs) -> TableIdentifier:
+    return get_table_identifier(node, TableType.MAIN, **kwargs)
+
+
+@dispatch((Model, Property), TableType)
+def get_table_identifier(
+    node: Union[Model, Property], table_type: TableType, table_arg: str = None, **kwargs
+) -> TableIdentifier:
+    if isinstance(node, Model):
+        model = node
+    else:
+        model = node.model
+
+    schema = model.ns.name if model.ns else None
+    base_name = model.get_name_without_ns()
+
+    if isinstance(node, Property) and table_type in (TableType.LIST, TableType.FILE):
+        table_arg = node.place
+
+    return TableIdentifier(schema, base_name, table_type, table_arg, **kwargs)
+
+
 def get_table_name(
     node: Union[Model, Property],
     ttype: TableType = TableType.MAIN,
@@ -349,6 +458,27 @@ def get_table_name(
     else:
         name = model.model_type() + ttype.value
     return name
+
+
+def split_table_name(full_name: str) -> tuple[Optional[str], str]:
+    parts = full_name.split(".", maxsplit=1)
+    if len(parts) == 1:
+        return None, parts[0]
+    return parts[0], parts[1]
+
+
+def split_logical_name(full_name: str) -> tuple[Optional[str], str, TableType, Optional[str]]:
+    base_name, table_type, property_name = extract_table_data_from_logical_name(full_name)
+    parts = base_name.split("/")
+    if len(parts) == 1:
+        return None, parts[0], table_type, property_name
+
+    for i, part in enumerate(parts):
+        if part[0].isupper() or (part[:2] == "__" and part[2].isupper()):
+            namespace = "/".join(parts[:i])
+            model = "/".join(parts[i:])
+            return namespace, model, table_type, property_name
+    return None, base_name, table_type, property_name
 
 
 def load_query_builder_class(config: Config, backend: Backend):
@@ -400,3 +530,37 @@ def prepare_response(
     else:
         resp = {}
     return resp
+
+
+def extract_table_data_from_logical_name(table_name: str) -> (str, TableType, str | None):
+    """
+    Extracts the main table name, table type, and an optional property suffix from a logical
+    table name string. It parses the given logical table name and determines whether it belongs
+    to the main table or some specific table type. If a specific type is found, it splits the
+    table name into its components.
+
+    Parameters:
+        table_name (str): The logical table name string that needs to be processed.
+
+    Returns:
+        tuple: A tuple containing:
+            - str: The main table name.
+            - TableType: The type of the table, which can be `MAIN` or other enum members of
+              `TableType`.
+            - str | None: A property suffix string if present in the logical table name, or
+              None otherwise.
+    """
+    if "/:" not in table_name:
+        return table_name, TableType.MAIN, None
+
+    for table_type in TableType:
+        if table_type is TableType.MAIN:
+            continue
+
+        if table_type.value in table_name:
+            data = table_name.split(table_type.value, 1)
+            if data[1]:
+                return data[0], table_type, data[1][1:]  # skip /property slash
+            return data[0], table_type, None
+
+    return None, None, None
