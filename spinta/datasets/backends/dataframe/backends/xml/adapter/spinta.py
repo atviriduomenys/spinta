@@ -45,15 +45,14 @@ class Spinta(ManifestAdapter):
             access=prop.access if hasattr(prop, "access") else None,
         )]
 
-        # if isinstance(prop.dtype, String):
-        #     return rows
         if isinstance(prop.dtype, Text):
+            rows = []
             for lang, lang_prop in prop.dtype.langs.items():
                 path = f"{prop_name}@{lang}"
                 external_name = lang_prop.external.name
                 row = ManifestRow(
                     path=(path,),
-                    property=prop_name,
+                    property=path,
                     type=str(lang_prop.dtype),
                     ref=prop_name,
                     source=external_name,

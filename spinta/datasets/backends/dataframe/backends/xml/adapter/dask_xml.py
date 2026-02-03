@@ -9,17 +9,17 @@ from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import Manif
 from spinta.datasets.backends.dataframe.backends.xml.domain import DataAdapter, DataAdapterError
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
 from spinta.types.datatype import String
+from spinta.utils.schema import NA
 
 @dataclass
 class DaskXml(DataAdapter):
     df: dd.DataFrame
-    context: Context
 
     def _resolve_dataframe_row(self, manifest: Manifest, properties: list[str], row_properties: Mapping[str, object]) -> Mapping[str, object]:
         columns = {}
         for row in manifest.rows:
-            if row.property in properties:
-                if row_properties.get(row.source) is not None:
+            if row.type != ManifestHeader and row.property in properties:
+                if row_properties.get(row.source) is not NA:
                     columns[row.path] = row_properties[row.source]
 
         return columns

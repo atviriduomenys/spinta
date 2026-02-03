@@ -173,7 +173,8 @@ def getall(
         if isinstance(prop.dtype, Text):
             for lang, lang_prop in prop.dtype.langs.items():
                 if lang_prop.external and lang_prop.external.name:
-                    props[f"{prop.name}@{lang}"] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
+                    props[prop.name] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
+                    # props[f"{prop.name}@{lang}"] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
         # if isinstance(prop.dtype, PrimaryKey):
         #     props['_id'] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
             
@@ -200,8 +201,8 @@ def getall(
         .to_dataframe(meta=meta)
     )    
 
-    yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df, context=context), MetaXml(key_map=keymap), XmlModel.to_object_data)
-    # yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df), MetaXml(key_map=keymap), XmlModel.to_object_data)
+
 
 @commands.getone.register(Context, Model, Xml)
 def getone(
@@ -215,21 +216,12 @@ def getone(
         private_keynames.append(private_key.name)
     ast = {
         'name': 'select',
-        'args': [{'name': 'bind', 'args': [name]} for name in private_keynames] + [{ 'name': 'bind', 'args': ['_id'] }]
+        'args': [{ 'name': 'bind', 'args': ['_id'] }]
     }
-    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
-    manifest = Spinta(context=context).from_model(model)
-    getAll = commands.getall(context, model, backend, query=asttoexpr(ast))
-    # for item in getAll:
-    #     item_obj = XmlModel.to_object_data(
-    #         manifest=manifest,
-    #         data=item,
-    #         metadata_loader=MetaXml(key_map=keymap),
-    #     )
-    #     item_dict = dict(item_obj)
-    #     if item_dict.get('_id') == id_:
-    #         return item_dict
-    for item in getAll:
+
+    get_all = commands.getall(context, model, backend, query=asttoexpr(ast))
+
+    for item in get_all:
         if dict(item).get('_id') == id_:
             return dict(item)
     raise UnknownMethod(f"Object with id '{id_}' not found.")

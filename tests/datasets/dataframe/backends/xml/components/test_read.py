@@ -9,6 +9,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.utils.schema import NA
 
 
 def test_xml_read(rc: RawConfig, tmp_path: Path):
@@ -201,7 +202,7 @@ def test_xml_read_refs_level_4(rc: RawConfig, tmp_path: Path):
     assert sorted(countries) == ["ee", "lt", "lv"]
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, sort=False) == [
+    assert listdata(resp, "code._id", "name", sort=False) == [
         (countries["lt"], "Vilnius"),
         (countries["lv"], "Ryga"),
         (countries["ee"], "Talin"),
@@ -755,16 +756,16 @@ def test_xml_read_text_lang_get_all(rc: RawConfig, tmp_path: Path):
     app.authmodel("example/xml/City", ["getall"])
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, "code", "name", "name@lt", sort=False) == [
-        ("KNS", "Kaunas", "Kaunas"),
-        ("VNO", "Vilnius", "Vilnius"),
-        ("KLJ", "Klaipėda", "Klaipėda"),
-        ("SQQ", "Šiauliai", "Šiauliai"),
-        ("PNV", "Panevėžys", "Panevėžys"),
+    assert listdata(resp, "code", "name@lt", "name", sort=False) == [
+        ("KNS", "Kaunas", NA),
+        ("VNO", "Vilnius", NA),
+        ("KLJ", "Klaipėda", NA),
+        ("SQQ", "Šiauliai", NA),
+        ("PNV", "Panevėžys", NA),
     ]
 
 
-def test_xml_read_text_lang_seearch_select(rc: RawConfig, tmp_path: Path):
+def test_xml_read_text_lang_with_select_query(rc: RawConfig, tmp_path: Path):
     xml = """
     <miestai>
         <miestas>
@@ -907,9 +908,9 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
     app.authmodel("example/xml/City", ["getall"])
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
-        ("KNS", "Kaunas", "Kaunas", "Kaunas"),
-        ("VNO", "Vilnius", "Vilnius", "Vilnius"),
+    assert listdata(resp, "code", "name@lt", "name@en", "name", sort=False) == [
+        ("KNS", "Kaunas", "Kaunas", NA),
+        ("VNO", "Vilnius", "Vilnius", NA),
     ]
 
 
