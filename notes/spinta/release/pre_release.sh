@@ -109,6 +109,15 @@ unset SPINTA_CONFIG
 
 # Create pull request for release version in github and check if all tests run
 
+
+# Update version release date in CHANGES.rst
+ed CHANGES.rst <<EOF
+/$NEW_VERSION (unreleased)/c
+$NEW_VERSION ($(date +%Y-%m-%d))
+.
+wq
+EOF
+
 # notes/spinta/release/common.sh    Publish version to PyPI
 
 # generate hashed requirements file
@@ -138,7 +147,7 @@ git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
 
 
-# prepare for the futuure version
+# prepare for the future version
 ed pyproject.toml <<EOF
 /^version = /c
 version = "$FUTURE_VERSION"
@@ -161,41 +170,3 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Merge pull request with release branch
-
-# Prepare master branch post release
-git status
-git checkout master
-git pull
-
-export POST_RELEASE_BRANCH=post-release_${NEW_VERSION}
-git branch $POST_RELEASE_BRANCH
-git checkout $POST_RELEASE_BRANCH
-git status
-
-
-# Update version release date in CHANGES.rst
-ed CHANGES.rst <<EOF
-/$NEW_VERSION (unreleased)/c
-$NEW_VERSION ($(date +%Y-%m-%d))
-.
-wq
-EOF
-
-ed CHANGES.rst <<EOF
-/$NEW_VERSION ($(date +%Y-%m-%d))/i
-$FUTURE_VERSION (unreleased)
-===================
-
-
-.
-wq
-EOF
-head CHANGES.rst
-
-git diff
-git commit -a -m "Post-release changes for $NEW_VERSION release"
-git push origin HEAD
-git log -n3
-
-# Create PR for master and merge it if all tests pass
