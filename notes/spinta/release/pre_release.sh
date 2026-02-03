@@ -133,40 +133,19 @@ git add requirements/spinta-${NEW_VERSION}.txt
 git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
 git push
 
-
-
-# Prepare pyproject.toml and CHANGES.rst for future versions
+# tag the release
 git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
 
-# Update project version in pyproject.toml
-cd ~/dev/data/spinta
 
-ed pyproject.toml <<EOF
-/^version = /c
-version = "$NEW_VERSION"
-.
-wq
-EOF
-
-# Update version release date in CHANGES.rst
-ed CHANGES.rst <<EOF
-/unreleased/c
-$NEW_VERSION ($(date +%Y-%m-%d))
-.
-wq
-EOF
-git diff
-
-git commit -a -m "Releasing version $NEW_VERSION"
-git push origin HEAD
-
+# prepare for the futuure version
 ed pyproject.toml <<EOF
 /^version = /c
 version = "$FUTURE_VERSION"
 .
 wq
 EOF
+
 ed CHANGES.rst <<EOF
 /^###/a
 
