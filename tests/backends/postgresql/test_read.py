@@ -1822,3 +1822,85 @@ def test_getone_invalid_value_missing_redirect(
     resp = app.get(f"/datasets/redirect/Country/{lt_id}")
     assert resp.status_code == 500
     assert get_error_codes(resp.json()) == ["RedirectFeatureMissing", "ItemDoesNotExist"]
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_insert", "spinta_getall", "spinta_wipe", "spinta_search", "spinta_set_meta_fields"],
+        ["uapi:/:create", "uapi:/:getall", "uapi:/:wipe", "uapi:/:search", "uapi:/:set_meta_fields"],
+    ],
+)
+def test_filter_boolean_values(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    scope: list,
+):
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/filters/bools     |          |     |                         |        |
+      |   |   | City           |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | is_value   | boolean  |     |                         | open   |
+    """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True,
+    )
+
+    app = create_test_client(context)
+    app.authorize(scope)
+
+    app.post(
+        "/datasets/filters/bools/City",
+        json={"id": 0, "is_value": True},
+    )
+    app.post(
+        "/datasets/filters/bools/City",
+        json={"id": 1, "is_value": False},
+    )
+    app.post(
+        "/datasets/filters/bools/City",
+        json={"id": 2, "is_value": None},
+    )
+
+    resp = app.get("/datasets/filters/bools/City?is_value=true")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "is_value", full=True) == [{"id": 0, "is_value": True}]
+
+    resp = app.get("/datasets/filters/bools/City?is_value=false")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "is_value", full=True) == [{"id": 1, "is_value": False}]
+
+    resp = app.get("/datasets/filters/bools/City?is_value!=true")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "is_value", full=True) == [
+        {"id": 1, "is_value": False},
+        {"id": 2, "is_value": None},
+    ]
+
+    resp = app.get("/datasets/filters/bools/City?is_value!=false")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "is_value", full=True) == [
+        {"id": 0, "is_value": True},
+        {"id": 2, "is_value": None},
+    ]
+
+    resp = app.get("/datasets/filters/bools/City?is_value=null")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "is_value", full=True) == [{"id": 2, "is_value": None}]
+
+    resp = app.get("/datasets/filters/bools/City?is_value!=null")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "is_value", full=True) == [
+        {"id": 0, "is_value": True},
+        {"id": 1, "is_value": False},
+    ]

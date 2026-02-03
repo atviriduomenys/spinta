@@ -25,9 +25,13 @@ Bug Fixes:
 
 - Adjusting a bug where tags would be duplicated, due to list mutability (`#Katalogas2291`_).
 - Added `dsa` and `uapi` properties to version endpoint in OpenAPI schema (`#Katalogas2315`_).
+- Added `Boolean` filter support to `postgresql` backend (`#1700`_).
 
 .. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
+.. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
+
 
 ..
 
