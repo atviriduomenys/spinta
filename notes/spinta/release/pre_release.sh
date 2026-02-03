@@ -111,6 +111,34 @@ unset SPINTA_CONFIG
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
+# generate hashed requirements file
+
+poetry export -f requirements.txt \
+  --output requirements/spinta-${NEW_VERSION}.txt
+
+# get hashes to spinta itself
+
+echo 'spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\' > spinta-header.txt
+
+curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
+  jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
+  | sed 's/^/    /' >> spinta-header.txt
+
+
+# ADD THOSE HASHES to the file manually
+
+cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
+
+git add requirements/spinta-${NEW_VERSION}.txt
+git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
+git push
+
+
+
+# Prepare pyproject.toml and CHANGES.rst for future versions
+git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
+git push origin $NEW_VERSION
+
 # Update project version in pyproject.toml
 cd ~/dev/data/spinta
 
@@ -132,35 +160,6 @@ git diff
 
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
-
-
-# generate hashed requirements file
-
-poetry export -f requirements.txt \
-  --output requirements/spinta-${NEW_VERSION}.txt
-
-# get hashes to spinta itself
-
-echo "spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\" > spinta-header.txt
-
-curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
-  jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
-  | sed 's/^/    /' >> spinta-header.txt
-
-
-# ADD THOSE HASHES to the file manually
-
-cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
-
-git add requirements/spinta-${NEW_VERSION}.txt
-git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
-git push
-
-
-
-# Prepare pyproject.toml and CHANGES.rst for future versions
-git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
-git push origin $NEW_VERSION
 
 ed pyproject.toml <<EOF
 /^version = /c
