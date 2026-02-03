@@ -43,7 +43,15 @@ def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> Li
                     if arg['name'] == 'getattr':
                         if arg['args'][0]['name'] == 'bind' and arg['args'][0]['args'][0] in props.keys():
                             prop = arg['args'][0]['args'][0]
-                            if arg['args'][1]['name'] == 'bind' and arg['args'][1]['args'][0] in model.properties.get(prop).dtype.langs.keys():
+                            prop_def = model.properties.get(prop)
+                            if (
+                                prop_def
+                                and isinstance(prop_def.dtype, Text)
+                                and len(arg['args']) > 1
+                                and arg['args'][1]['name'] == 'bind'
+                                and arg['args'][1]['args']
+                                and arg['args'][1]['args'][0] in prop_def.dtype.langs
+                            ):
                                 lang = arg['args'][1]['args'][0]
                                 manifest_paths.append(f"{prop}@{lang}")
     else:
@@ -216,7 +224,7 @@ def getone(
         private_keynames.append(private_key.name)
     ast = {
         'name': 'select',
-        'args': [{ 'name': 'bind', 'args': ['_id'] }]
+        'args': [{ 'name': 'bind', 'args': ['_id'] }] + [{'name': 'getattr', 'args': [ {'name': 'bind', 'args': [pk]} ]} for pk in private_keynames]
     }
 
     get_all = commands.getall(context, model, backend, query=asttoexpr(ast))

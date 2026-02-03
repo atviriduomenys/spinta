@@ -2,11 +2,14 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
+from pandas import NA
+
 from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef, Spinta
 from spinta.datasets.backends.dataframe.backends.xml.adapter.xml_model import XmlModel
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
 from spinta.datasets.keymaps.components import KeyMap
+from spinta.utils.schema import NA as NotAvailable
 
 
 @dataclass
@@ -25,9 +28,13 @@ class MetaXml(DataAdapter):
                     if _row.property == row.ref:
                         val = data[_row.path]
                         break
-                id = self.key_map.encode(row.property, val)
-                yield '_id', id 
-                yield '_type', row.property
+                if val is None or val is NA:
+                    yield '_id', None #or NotAvailable 
+                    yield '_type', row.property
+                else:
+                    id = self.key_map.encode(row.property, val)
+                    yield '_id', id
+                    yield '_type', row.property
             if row.type == ManifestRef:
                 val = data[row.path]
                 id = self.key_map.encode(row.ref, val)

@@ -50,7 +50,7 @@ class XmlModel(DataModel):
             else:
                 path = str(manifest_row.path)
             if path in data_keys and manifest_row.type != ManifestHeader and manifest_row.type != ManifestRef:
-                yield path, str(self.data[manifest_row.path])
+                yield path, self.data[manifest_row.path]
             # if manifest_row.value is not None:
             #     yield path, str(manifest_row.value)
             
