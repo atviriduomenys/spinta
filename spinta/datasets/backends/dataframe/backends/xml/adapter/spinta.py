@@ -5,7 +5,7 @@ from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.xml.domain.adapter import ManifestAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestRow
-from spinta.types.datatype import Ref, String
+from spinta.types.datatype import URI, Ref, String
 from spinta.types.text.components import Text
 
 
@@ -76,6 +76,15 @@ class Spinta(ManifestAdapter):
                 access=prop.access if hasattr(prop, "access") else None,
                 value=lambda _id: commands.getone(self.context, prop.dtype.model, prop.dtype.model.backend, id_=_id),  #"""select id"""
             )]
+        if isinstance(prop.dtype, URI):
+            rows = [ManifestRow(
+                path=(prop_name,),
+                property=prop_name,
+                type=str(prop.dtype),
+                ref=prop_name,
+                source=prop.external.name,
+                access=prop.access if hasattr(prop, "access") else None,
+            )]
 
         if self.manifest_paths:
             rows = [row for row in rows if ".".join(row.path) in self.manifest_paths]
@@ -83,7 +92,6 @@ class Spinta(ManifestAdapter):
 
     def _resolve_model_metadata(self, model: Model) -> Sequence[ManifestRow]:
         rows = []
-        model_type = model.model_type()
         for pkey in model.external.pkeys:
             rows.append(ManifestRow(
                 path=(pkey,),

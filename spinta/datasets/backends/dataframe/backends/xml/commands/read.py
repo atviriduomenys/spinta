@@ -1,7 +1,7 @@
 from copy import Error
 import io
 import pathlib
-from typing import Iterator, Any, List
+from typing import Dict, Iterator, Any, List
 
 import requests
 from dask.bag import from_sequence
@@ -34,34 +34,44 @@ from spinta.utils.schema import NA
 def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> List[str]:
     query_dict = query.todict() if query is not None else None
     manifest_paths = []
-    if query_dict and 'args' in query_dict and query_dict['args']:
+    if query_dict and 'args' in query_dict and query_dict['args'] and query_dict['name'] == 'select':
         for key, value in query_dict.items():
             if key == 'name' and value == "select" and query_dict['args']:
                 for arg in query_dict['args']:
                     if arg['name'] == 'bind' and arg['args'][0] in props.keys():
                         manifest_paths.append(arg['args'][0])  
                     if arg['name'] == 'getattr':
-                        if arg['args'][0]['name'] == 'bind' and arg['args'][0]['args'][0] in props.keys():
+                        if (
+                            isinstance(arg.get('args'), list)
+                            and len(arg['args']) > 1
+                            and isinstance(arg['args'][0], dict)
+                            and isinstance(arg['args'][1], dict)
+                            and isinstance(arg['args'][0].get('args'), list)
+                            and len(arg['args'][0]['args']) > 0
+                            and isinstance(arg['args'][1].get('args'), list)
+                            and len(arg['args'][1]['args']) > 0
+                            and len(arg['args']) > 1
+                            and arg['args'][1]['name'] == 'bind'
+                            and arg['args'][1]['args']
+                            and arg['args'][0]['name'] == 'bind'
+                        ):
                             prop = arg['args'][0]['args'][0]
-                            prop_def = model.properties.get(prop)
-                            if (
-                                prop_def
-                                and isinstance(prop_def.dtype, Text)
-                                and len(arg['args']) > 1
-                                and arg['args'][1]['name'] == 'bind'
-                                and arg['args'][1]['args']
-                                and arg['args'][1]['args'][0] in prop_def.dtype.langs
-                            ):
-                                lang = arg['args'][1]['args'][0]
-                                manifest_paths.append(f"{prop}@{lang}")
+                            lang = arg['args'][1]['args'][0]
+                            canidate_prop = f"{arg['args'][0]['args'][0]}@{lang}"
+                            if canidate_prop in props.keys():
+                                prop_def = model.properties.get(prop)
+                                if (
+                                    prop_def
+                                    and isinstance(prop_def.dtype, Text)
+                                    and lang in prop_def.dtype.langs
+                                ):
+                                    manifest_paths.append(str(canidate_prop))
     else:
         for prop in model.properties.values():
             manifest_paths.append(prop.name)
             if isinstance(prop.dtype, Text):
                 for lang in prop.dtype.langs.keys():
                     manifest_paths.append(f"{prop.name}@{lang}")
-            # if isinstance(prop.dtype, PrimaryKey):
-            #     manifest_paths.append('_id')
 
     return manifest_paths
 
@@ -156,6 +166,25 @@ def _gather_namespaces_from_model(context: Context, model: Model) -> dict:
             result[key] = prefix.uri
     return result
 
+def _get_dask_dataframe_mask(query: Expr, props: dict, model: Model) -> Dict[str, Dict[str, Any]]:
+    df_mask = {}
+    property_keys = props.keys()
+    query_dict = query.todict() if query is not None else None
+    if query_dict and 'args' in query_dict and query_dict['args'] and query_dict['name'] == 'and':
+        for arg in query_dict['args']:
+            op = arg.get('name')
+            if op in {'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'startswith', 'contains'}:
+                left = arg['args'][0]
+                right = arg['args'][1]
+                if left['name'] == 'bind' and left['args'][0] in property_keys:
+                    df_mask[left['args'][0]] = {"op": op, "value": right}
+    if query_dict and 'args' in query_dict and query_dict['args'] and query_dict['name'] == 'eq':
+        left = query_dict['args'][0]
+        right = query_dict['args'][1]
+        if left['name'] == 'bind' and left['args'][0] in property_keys:
+            df_mask[left['args'][0]] = {"op": 'eq', "value": right}
+
+    return df_mask
 
 @commands.getall.register(Context, Model, Xml)
 def getall(
@@ -181,13 +210,10 @@ def getall(
         if isinstance(prop.dtype, Text):
             for lang, lang_prop in prop.dtype.langs.items():
                 if lang_prop.external and lang_prop.external.name:
-                    props[prop.name] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
-                    # props[f"{prop.name}@{lang}"] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
-        # if isinstance(prop.dtype, PrimaryKey):
-        #     props['_id'] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
-            
-    manifest_paths = _get_query_selected_properties(query, props, model)
+                    props[f"{prop.name}@{lang}"] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
 
+    manifest_paths = _get_query_selected_properties(query, props, model)
+    df_mask = _get_dask_dataframe_mask(query, props, model)
     meta = get_dask_dataframe_meta(model)
 
     if resource.external:
@@ -209,7 +235,8 @@ def getall(
         .to_dataframe(meta=meta)
     )    
 
-    yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df), MetaXml(key_map=keymap), XmlModel.to_object_data)
+    yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df, df_mask=df_mask), MetaXml(key_map=keymap), XmlModel.to_object_data)
+    # yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getone.register(Context, Model, Xml)

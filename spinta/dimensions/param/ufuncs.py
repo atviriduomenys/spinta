@@ -1,11 +1,15 @@
 from collections.abc import Iterator
 from typing import Any
 
+import numpy as np
+from pandas import NA
+
 from spinta import commands
 from spinta.components import Model
 from spinta.core.ufuncs import Bind, Expr
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import ufunc
+from spinta.datasets.backends.dataframe.backends.xml.adapter.xml_model import XmlModel
 from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder, ParamLoader
 from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
@@ -60,6 +64,29 @@ def getattr_(env: ParamBuilder, iterator: Iterator, bind: Bind):
     for item in iterator:
         yield from env.call("getattr", item, bind)
 
+@ufunc.resolver(ParamBuilder, XmlModel, Bind, name="getattr")
+def getattr_(env: ParamBuilder, model: XmlModel, bind: Bind):
+    data = model()
+    key_map = {}
+    for key in data.keys():
+        if isinstance(key, tuple):
+            normalized = "".join(str(part) for part in key)
+        else:
+            normalized = str(key)
+        key_map[normalized] = key
+    if bind.name in key_map:
+        value = data[key_map[bind.name]]
+        is_np_na = False
+        if isinstance(value, np.generic):
+            try:
+                is_np_na = bool(np.isnan(value))
+            except TypeError:
+                is_np_na = False
+        if value is not None and value is not NA and not is_np_na:
+            return iter([value])
+        return iter([None])
+    else:
+        raise KeyNotFound(env.this, key=bind.name, dict_keys=list(data.keys()))
 
 @ufunc.resolver(ParamBuilder, dict, Bind, name="getattr")
 def getattr_(env: ParamBuilder, data: dict, bind: Bind):

@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, cast
+from typing import Any, Iterator, Optional, cast
 
 from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
@@ -53,6 +53,9 @@ class XmlModel(DataModel):
                 yield path, self.data[manifest_row.path]
             # if manifest_row.value is not None:
             #     yield path, str(manifest_row.value)
+
+    def __getattribute__(self, name: str) -> Any:
+        return super().__getattribute__(name)
             
     
     @staticmethod

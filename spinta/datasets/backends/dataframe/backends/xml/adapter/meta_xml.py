@@ -16,7 +16,7 @@ from spinta.utils.schema import NA as NotAvailable
 class MetaXml(DataAdapter):
     key_map: KeyMap
 
-    def load(self, manifest: Manifest, data: dict[str, object]) -> Iterable[Mapping[str, object]]:
+    def load(self, manifest: Manifest, data: dict[str, object]) -> Iterable[tuple[str, None | object]]:
         """Load and resolve model metadata based on the manifest."""
 
         # data
@@ -40,8 +40,5 @@ class MetaXml(DataAdapter):
                 id = self.key_map.encode(row.ref, val)
                 if callable(row.value):
                     val = row.value(id)
-                yield ".".join(map(str, row.path)), val #dict({ '_id': id, '_type': row.ref }) 
+                yield ".".join(map(str, row.path)), val
 
-                
-# jeigu manifesto tipas yra spinta ir manifestrow yra ref
-# pnanasu, kad reiks loadint external modeli norint suzonit target value?
