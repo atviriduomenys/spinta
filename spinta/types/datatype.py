@@ -152,6 +152,8 @@ class Integer(DataType):
 
         if isinstance(value, int) and not isinstance(value, bool):
             return value
+        elif isinstance(value, str) and (value.removeprefix("-").isdigit() or value.removeprefix("+").isdigit()):
+            return int(value)
         else:
             raise exceptions.InvalidValue(self, value=value)
 
