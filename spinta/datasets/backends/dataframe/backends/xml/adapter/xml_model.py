@@ -2,8 +2,8 @@ from typing import Any, Iterator, Optional, cast
 
 from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
-from spinta.models.components import DataModel
+from spinta.datasets.backends.dataframe.backends.xml.domain.model import DataModel, Manifest
+
 from spinta.typing import ObjectData
 
 

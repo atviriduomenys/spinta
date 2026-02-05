@@ -59,7 +59,6 @@ from spinta.exceptions import (
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
-from spinta.models.components import DataModel
 from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType

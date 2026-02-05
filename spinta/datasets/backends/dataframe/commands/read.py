@@ -200,8 +200,6 @@ def get_dask_dataframe_meta(model: Model):
             for _, lang_prop in prop.dtype.langs.items():
                 if lang_prop.external and lang_prop.external.name:
                     dask_meta[lang_prop.external.name] = spinta_to_np_dtype(lang_prop.dtype)
-        if isinstance(prop.dtype, URI):
-            dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
     return dask_meta
 
 

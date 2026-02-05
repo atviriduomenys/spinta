@@ -5,10 +5,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 import enum
 
-from typing import Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 from spinta.components import Component
 
+class DataModel(Component):
+    """Data model component"""
+    schema = {
+        "data": {"type": "dict", "required": True}
+    }
+    data: dict[str, Any]
+
+    def __dict__(self):
+        return self.data
 
 @dataclass(frozen=True)
 class ManifestRow:
