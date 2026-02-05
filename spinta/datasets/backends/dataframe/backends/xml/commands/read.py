@@ -25,7 +25,6 @@ from spinta.datasets.backends.helpers import is_file_path
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData, UnknownMethod
-from spinta.types.datatype import PrimaryKey
 from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA

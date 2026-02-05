@@ -19,6 +19,15 @@ class DataModel(Component):
     def __dict__(self):
         return self.data
 
+class ManifestMeta():
+    pass
+    
+class ManifestHeader(ManifestMeta):
+    pass
+
+class ManifestRef(ManifestMeta):
+    pass
+
 @dataclass(frozen=True)
 class ManifestRow:
     """Represents a row in a manifest after adapter normalization."""

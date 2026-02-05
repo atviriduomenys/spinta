@@ -3,11 +3,9 @@ from typing import Iterable
 
 from pandas import NA
 
-from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
+from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestHeader, ManifestRef
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.utils.schema import NA as NotAvailable
 
 
 @dataclass

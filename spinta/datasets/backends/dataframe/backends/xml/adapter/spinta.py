@@ -4,16 +4,10 @@ from spinta.components import Context, Model
 
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.xml.domain.adapter import ManifestAdapter
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestRow
+from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestHeader, ManifestRef, ManifestRow
 from spinta.types.datatype import URI, Ref
 from spinta.types.text.components import Text
 
-
-class ManifestHeader():
-    pass
-
-class ManifestRef():
-    pass
 
 class Spinta(ManifestAdapter):
     manifest_paths: List[str]

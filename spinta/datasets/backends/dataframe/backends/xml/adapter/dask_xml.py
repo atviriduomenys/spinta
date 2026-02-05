@@ -3,10 +3,8 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 
 import dask.dataframe as dd
 
-from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader
 from spinta.datasets.backends.dataframe.backends.xml.domain import DataAdapter, DataAdapterError
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
-from spinta.types.datatype import String
+from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestHeader
 from spinta.utils.schema import NA
 
 @dataclass
