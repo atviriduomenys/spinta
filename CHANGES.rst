@@ -1,7 +1,12 @@
 Changes
 #######
 
-0.2dev14 (unreleased)
+
+0.2dev15 (unreleased)
+=====================
+
+
+0.2dev14 (2026-02-03)
 =====================
 
 New Features:
@@ -27,10 +32,13 @@ Bug Fixes:
 - Added `dsa` and `uapi` properties to version endpoint in OpenAPI schema (`#Katalogas2315`_).
 - Added `Boolean` filter support to `postgresql` backend (`#1700`_).
 
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
 .. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
 
+
+..
 
 0.2dev13 (2026-01-14)
 =====================
@@ -78,8 +86,8 @@ Improvements:
 
 Bug fixes:
 
-- Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
-libraries if those don't exist (`#1637`_).
+- Added try except block which offers a fallback to `immutables`
+  sqlalchemy python libraries instead of C libraries if those don't exist (`#1637`_).
 
 .. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
 
