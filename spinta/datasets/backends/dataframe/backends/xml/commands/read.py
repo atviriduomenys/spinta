@@ -1,4 +1,3 @@
-from copy import Error
 import io
 import pathlib
 from typing import Dict, Iterator, Any, List
@@ -236,7 +235,6 @@ def getall(
     )    
 
     yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df, df_mask=df_mask), MetaXml(key_map=keymap), XmlModel.to_object_data)
-    # yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getone.register(Context, Model, Xml)

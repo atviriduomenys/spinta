@@ -1,11 +1,9 @@
-from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Iterable
 
 from pandas import NA
 
-from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef, Spinta
-from spinta.datasets.backends.dataframe.backends.xml.adapter.xml_model import XmlModel
+from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
 from spinta.datasets.keymaps.components import KeyMap
@@ -19,9 +17,7 @@ class MetaXml(DataAdapter):
     def load(self, manifest: Manifest, data: dict[str, object]) -> Iterable[tuple[str, None | object]]:
         """Load and resolve model metadata based on the manifest."""
 
-        # data
         for row in manifest.rows:
-            # keymap.encode(sel.prop.model.model_type(), val
             if row.type == ManifestHeader:
                 val = None
                 for _row in manifest.rows:
@@ -29,7 +25,7 @@ class MetaXml(DataAdapter):
                         val = data[_row.path]
                         break
                 if val is None or val is NA:
-                    yield '_id', None #or NotAvailable 
+                    yield '_id', None
                     yield '_type', row.property
                 else:
                     id = self.key_map.encode(row.property, val)

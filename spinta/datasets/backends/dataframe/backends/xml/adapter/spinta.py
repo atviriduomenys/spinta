@@ -5,7 +5,7 @@ from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.xml.domain.adapter import ManifestAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestRow
-from spinta.types.datatype import URI, Ref, String
+from spinta.types.datatype import URI, Ref
 from spinta.types.text.components import Text
 
 
@@ -59,7 +59,7 @@ class Spinta(ManifestAdapter):
                     access=lang_prop.access if hasattr(lang_prop, "access") else None,
                 )
                 rows.append(row)
-        # filter out rows that are not in manifest_paths if manifest_paths is defined
+
         if isinstance(prop.dtype, Ref):
             ast = {
                 'name': 'select',
@@ -70,11 +70,11 @@ class Spinta(ManifestAdapter):
             rows = [ManifestRow(
                 path=(prop_name,),
                 property=prop_name,
-                type=ManifestRef, #str(prop.dtype),
+                type=ManifestRef,
                 ref=prop.dtype.model.name,
                 source=prop.external.name,
                 access=prop.access if hasattr(prop, "access") else None,
-                value=lambda _id: commands.getone(self.context, prop.dtype.model, prop.dtype.model.backend, id_=_id),  #"""select id"""
+                value=lambda _id: commands.getone(self.context, prop.dtype.model, prop.dtype.model.backend, id_=_id),
             )]
         if isinstance(prop.dtype, URI):
             rows = [ManifestRow(

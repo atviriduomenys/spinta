@@ -30,7 +30,6 @@ class Manifest:
     rows: Sequence[ManifestRow]
 
 
-
 @dataclass
 class Model(Component):
     """Domain representation of model data."""

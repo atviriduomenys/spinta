@@ -11,7 +11,7 @@ class XmlModel(DataModel):
     """XML Model Component"""
     data: dict[str, object]
     manifest: Manifest
-    metadata_loader: Optional[DataAdapter] #data loder for metadata
+    metadata_loader: Optional[DataAdapter]
 
     def __init__(
             self,
@@ -51,8 +51,6 @@ class XmlModel(DataModel):
                 path = str(manifest_row.path)
             if path in data_keys and manifest_row.type != ManifestHeader and manifest_row.type != ManifestRef:
                 yield path, self.data[manifest_row.path]
-            # if manifest_row.value is not None:
-            #     yield path, str(manifest_row.value)
 
     def __getattribute__(self, name: str) -> Any:
         return super().__getattribute__(name)
