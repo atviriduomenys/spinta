@@ -70,6 +70,7 @@ def sqlite():
 def _prepare_postgresql(dsn: str) -> None:
     engine = sa.create_engine(dsn)
     with engine.connect() as conn:
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
@@ -302,6 +303,7 @@ def _prepare_migration_postgresql(dsn: URL) -> None:
     with engine.connect() as conn:
         conn.execute(sa.text("DROP SCHEMA public CASCADE"))
         conn.execute(sa.text("CREATE SCHEMA public"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
