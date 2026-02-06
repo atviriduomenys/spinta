@@ -44,6 +44,14 @@ class ExampleValues:
     values: dict[str, Any] = field(default_factory=lambda: PROPERTY_EXAMPLE)
 
 
+def _get_schema_name(model) -> str:
+    """Convert model name to unique OpenAPI schema name.
+
+    e.g. 'datasets/gov/vssa/demo/Municipality' -> 'datasets_gov_vssa_demo_Municipality'
+    """
+    return model.name.replace("/", "_")
+
+
 class OpenAPISchemaRegistry:
     """Central registry for OpenAPI schema definitions and type mappings"""
 
@@ -108,7 +116,7 @@ class DataTypeHandler:
 
         if self.is_reference_type(dtype):
             return {
-                "$ref": f"#/components/schemas/{dtype.model.basename}",
+                "$ref": f"#/components/schemas/{_get_schema_name(dtype.model)}",
                 "example": {"_type": dtype.model.basename, "_id": "12345678-1234-5678-9abc-123456789012"},
             }
 
@@ -174,15 +182,15 @@ class PathGenerator:
         self,
         path_key: str,
         path_config: dict,
-        model_name: str,
+        model: "Model",
         path_type: str = "collection",
         model_property: tuple | None = None,
     ) -> dict[str, Any]:
         """Model-specific path creation with schema references"""
-        return self.create_path(path_config, model_name=model_name, path_type=path_type, model_property=model_property)
+        return self.create_path(path_config, model=model, path_type=path_type, model_property=model_property)
 
     def create_path(
-        self, path_config: dict, model_name: str = None, path_type: str = None, model_property: tuple | None = None
+        self, path_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
     ) -> dict[str, Any]:
         """Generic path creation for both utility and model endpoints"""
         operations = {}
@@ -195,19 +203,19 @@ class PathGenerator:
                 continue
 
             operations[method_name] = self._build_operation(
-                method_config, model_name=model_name, path_type=path_type, model_property=model_property
+                method_config, model=model, path_type=path_type, model_property=model_property
             )
 
         return operations
 
     def _build_operation(
-        self, method_config: dict, model_name: str = None, path_type: str = None, model_property: tuple | None = None
+        self, method_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
     ) -> dict[str, Any]:
         """Build a single operation (get, head, etc.)"""
         operation = {}
 
-        if model_name:
-            operation["tags"] = [model_name]
+        if model:
+            operation["tags"] = [model.basename]
         elif "tags" in method_config:
             operation["tags"] = method_config["tags"]
 
@@ -219,15 +227,16 @@ class PathGenerator:
                 operation[spec_field] = method_config[spec_field]
 
         if "operationId" in method_config:
+            model_name = model.basename if model else None
             operation["operationId"] = self._build_operation_id(
-                method_config["operationId"], model_name, model_property
+                method_config["operationId"], model_name=model_name, model_property=model_property
             )
 
         if "parameters" in method_config:
             operation["parameters"] = self._build_parameter_refs(method_config["parameters"])
 
         operation["responses"] = self._build_responses(
-            method_config.get("responses", {}), model_name, path_type, model_property
+            method_config.get("responses", {}), model, path_type, model_property
         )
 
         return operation
@@ -243,13 +252,13 @@ class PathGenerator:
         return [{"$ref": f"#/components/parameters/{param}"} for param in parameters]
 
     def _build_responses(
-        self, responses_config: dict, model_name: str = None, path_type: str = None, model_property: tuple | None = None
+        self, responses_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
     ) -> dict[str, Any]:
         """Build all responses for an operation"""
         responses = {}
         for status_code, response_config in responses_config.items():
             responses[status_code] = self._build_response(
-                status_code, response_config, model_name, path_type, model_property
+                status_code, response_config, model, path_type, model_property
             )
         return responses
 
@@ -257,7 +266,7 @@ class PathGenerator:
         self,
         status_code: str,
         response_config: dict,
-        model_name: str = None,
+        model=None,
         path_type: str = None,
         model_property: tuple | None = None,
     ) -> dict[str, Any]:
@@ -278,19 +287,19 @@ class PathGenerator:
 
         if "content" in response_config and status_code == "200":
             response["content"] = self._build_response_content(
-                response_config["content"], model_name, path_type, model_property
+                response_config["content"], model, path_type, model_property
             )
 
         return response
 
     def _build_response_content(
-        self, content_config: dict, model_name: str = None, path_type: str = None, model_property: tuple | None = None
+        self, content_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
     ) -> dict[str, Any]:
         """Build response content with schema references"""
         content = {}
 
         for media_type, media_config in content_config.items():
-            schema_ref = self._resolve_schema_ref(media_config.get("schema"), model_name, path_type, model_property)
+            schema_ref = self._resolve_schema_ref(media_config.get("schema"), model, path_type, model_property)
             content[media_type] = {"schema": {"$ref": schema_ref}}
 
         return content
@@ -298,32 +307,32 @@ class PathGenerator:
     def _resolve_schema_ref(
         self,
         schema_name: str = None,
-        model_name: str = None,
+        model=None,
         path_type: str = None,
         model_property: tuple | None = None,
     ) -> str:
         """Resolve the appropriate schema reference"""
-
-        if model_name and path_type:
-            return self._get_model_schema_ref(model_name, path_type, model_property)
+        model_schema_name = _get_schema_name(model) if model else None
+        if model_schema_name and path_type:
+            return self._get_model_schema_ref(model_schema_name, path_type, model_property)
 
         if schema_name:
             return f"#/components/schemas/{schema_name}"
 
-        return f"#/components/schemas/{model_name or 'object'}"
+        return f"#/components/schemas/{model_schema_name or 'object'}"
 
-    def _get_model_schema_ref(self, model_name: str, path_type: str, model_property: tuple | None) -> str:
+    def _get_model_schema_ref(self, model_schema_name: str, path_type: str, model_property: tuple | None) -> str:
         """Get schema reference for model endpoints based on path type"""
         if path_type == "collection":
-            return f"#/components/schemas/{model_name}Collection"
+            return f"#/components/schemas/{model_schema_name}Collection"
         elif path_type == "changes":
-            return f"#/components/schemas/{model_name}Changes"
+            return f"#/components/schemas/{model_schema_name}Changes"
         elif path_type == "property" and model_property:
             property_dtype = model_property[1].dtype
             base_type = self.dtype_handler.get_dtype_name(property_dtype)
             return f"#/components/schemas/{base_type}"
         else:
-            return f"#/components/schemas/{model_name}"
+            return f"#/components/schemas/{model_schema_name}"
 
 
 class SchemaGenerator:
@@ -365,17 +374,17 @@ class SchemaGenerator:
         """Create model-specific schemas based on path type"""
 
         schemas = self._ensure_components_path(spec, "components", "schemas")
-        model_name = model.basename
+        model_schema_name = _get_schema_name(model)
 
-        if path_type in ("collection", "single", "changes") and model_name not in schemas:
-            schemas[model_name] = self.create_model_schema(model)
+        if path_type in ("collection", "single", "changes") and model_schema_name not in schemas:
+            schemas[model_schema_name] = self.create_model_schema(model)
 
         if path_type == "collection":
-            schemas[f"{model_name}Collection"] = self.create_collection_schema(model)
+            schemas[f"{model_schema_name}Collection"] = self.create_collection_schema(model)
 
         elif path_type == "changes":
-            schemas[f"{model_name}Changes"] = self.create_changes_schema(model)
-            schemas[f"{model_name}Change"] = self.create_change_schema(model)
+            schemas[f"{model_schema_name}Changes"] = self.create_changes_schema(model)
+            schemas[f"{model_schema_name}Change"] = self.create_change_schema(model)
 
     def create_path_component_schemas(self, spec: dict, path_config: dict, component_type: str):
         """Generic method to create component schemas from path config"""
@@ -523,7 +532,7 @@ class SchemaGenerator:
             "type": "object",
             "properties": {
                 "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{model.basename}"}},
+                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{_get_schema_name(model)}"}},
             },
         }
 
@@ -546,7 +555,7 @@ class SchemaGenerator:
             "type": "object",
             "properties": {
                 "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{model.basename}Change"}},
+                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{_get_schema_name(model)}Change"}},
             },
         }
 
@@ -570,7 +579,7 @@ class OpenAPIGenerator:
 
     def __init__(self, main_dataset_name: str | None = None):
         self.main_dataset_name = main_dataset_name
-        
+
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry)
 
@@ -617,11 +626,7 @@ class OpenAPIGenerator:
     def _filter_by_main_dataset(self, datasets: Any, models: dict) -> tuple[list, dict]:
         """Filter datasets and models to only those belonging to main_dataset_name."""
         datasets_list = list(datasets)
-        filtered_datasets = [
-            (name, dataset)
-            for name, dataset in datasets_list
-            if name == self.main_dataset_name
-        ]
+        filtered_datasets = [(name, dataset) for name, dataset in datasets_list if name == self.main_dataset_name]
         if not filtered_datasets:
             raise ValueError(
                 f"Dataset {self.main_dataset_name!r} not found in manifest. "
@@ -715,7 +720,7 @@ class OpenAPIGenerator:
                 raise ValueError(f"No config found for path: {path_key}")
 
             updated_operations = self.path_generator.create_model_path(
-                path_key, path_config, model.basename, path_type, model_property
+                path_key, path_config, model, path_type, model_property
             )
             paths[actual_path] = updated_operations
             self.schema_generator.create_model_schemas(spec, path_config, model, path_type)
