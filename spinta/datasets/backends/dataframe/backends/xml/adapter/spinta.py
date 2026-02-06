@@ -2,11 +2,18 @@ from typing import List, Sequence
 from spinta import commands
 from spinta.components import Context, Model
 
+from spinta.core.enums import Level
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.xml.domain.adapter import ManifestAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestHeader, ManifestRef, ManifestRow
 from spinta.types.datatype import URI, Ref
 from spinta.types.text.components import Text
+
+class SpintaManifestRef(ManifestRef):
+    maturity: Level
+
+    def __init__(self, maturity: Level):
+        self.maturity = maturity
 
 
 class Spinta(ManifestAdapter):
@@ -55,21 +62,20 @@ class Spinta(ManifestAdapter):
                 rows.append(row)
 
         if isinstance(prop.dtype, Ref):
-            ast = {
-                'name': 'select',
-                'args': [{'name': 'bind', 'args': ['_id'] }]
-            }
-    
-            query = asttoexpr(ast)
-            rows = [ManifestRow(
-                path=(prop_name,),
-                property=prop_name,
-                type=ManifestRef,
-                ref=prop.dtype.model.name,
-                source=prop.external.name,
-                access=prop.access if hasattr(prop, "access") else None,
-                value=lambda _id: commands.getone(self.context, prop.dtype.model, prop.dtype.model.backend, id_=_id),
-            )]
+            pkeys = prop.dtype.model.external.pkeys
+            rows = []
+            for pkey in pkeys:
+                row = ManifestRow(
+                    path=(prop_name,),
+                    property=prop_name,
+                    type=SpintaManifestRef(maturity=prop.level),
+                    ref=pkey.name,
+                    source=prop.external.name,
+                    access=prop.access if hasattr(prop, "access") else None,
+                    maturity=prop.level,
+                    value=lambda query: commands.getone(self.context, prop.dtype.model, prop.dtype.model.backend, query=query),
+                )
+                rows.append(row)
         if isinstance(prop.dtype, URI):
             rows = [ManifestRow(
                 path=(prop_name,),

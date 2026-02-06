@@ -34,11 +34,12 @@ class ManifestRow:
 
     path: Tuple[str, ...]
     property: str
-    type: str
+    type: str | ManifestMeta
     ref: str
     source: Optional[str] = None
     value: Optional[str] = None
     access: Optional[enum.IntEnum] = None
+    maturity: Optional[enum.IntEnum] = None
 
 
 @dataclass

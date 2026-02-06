@@ -141,8 +141,8 @@ def test_xml_read_refs_level_3(rc: RawConfig, tmp_path: Path):
     app.authmodel("example/xml", ["getall"])
 
     resp = app.get("/example/xml/City")
-    # here is it code if its a ref?
-    assert listdata(resp, "code.country", "name", sort=False) == [
+
+    assert listdata(resp, "code", "name", sort=False) == [
         ("lt", "Vilnius"),
         ("lv", "Ryga"),
         ("ee", "Talin"),
@@ -203,7 +203,7 @@ def test_xml_read_refs_level_4(rc: RawConfig, tmp_path: Path):
     assert sorted(countries) == ["ee", "lt", "lv"]
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, "code._id", "name", sort=False) == [
+    assert listdata(resp, "code", "name", sort=False) == [
         (countries["lt"], "Vilnius"),
         (countries["lv"], "Ryga"),
         (countries["ee"], "Talin"),

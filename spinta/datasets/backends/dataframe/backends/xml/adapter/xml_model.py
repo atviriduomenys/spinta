@@ -1,6 +1,6 @@
 from typing import Any, Iterator, Optional, cast
 
-from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef
+from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import ManifestHeader, ManifestRef, SpintaManifestRef
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import DataModel, Manifest
 
@@ -49,7 +49,11 @@ class XmlModel(DataModel):
                 path = ".".join(map(str, manifest_row.path))
             else:
                 path = str(manifest_row.path)
-            if path in data_keys and manifest_row.type != ManifestHeader and manifest_row.type != ManifestRef:
+            if (path in data_keys
+                and manifest_row.type != ManifestHeader
+                and manifest_row.type != ManifestRef
+                and not isinstance(manifest_row.type, SpintaManifestRef)
+                and not isinstance(manifest_row.type, ManifestRef)):
                 yield path, self.data[manifest_row.path]
 
     def __getattribute__(self, name: str) -> Any:

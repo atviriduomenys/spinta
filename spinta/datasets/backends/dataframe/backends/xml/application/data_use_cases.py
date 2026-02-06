@@ -7,7 +7,6 @@ from typing import Callable, Iterable, TypeVar
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.adapter import ManifestAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest
-from spinta.datasets.backends.dataframe.backends.xml.domain.services import SelectorError
 
 T = TypeVar('T')
 

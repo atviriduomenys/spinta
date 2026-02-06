@@ -8,7 +8,7 @@ from lxml import etree
 
 from spinta import commands
 from spinta.components import Context, Model, Property
-from spinta.core.ufuncs import Expr, asttoexpr, asttoexpr
+from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.xml.adapter.meta_xml import MetaXml
 from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import Spinta
 from spinta.datasets.backends.dataframe.backends.xml.adapter.dask_xml import DaskXml
@@ -18,7 +18,6 @@ from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     get_dask_dataframe_meta,
-    dask_get_all,
     get_pkeys_if_ref,
 )
 from spinta.datasets.backends.helpers import is_file_path
@@ -164,9 +163,9 @@ def _gather_namespaces_from_model(context: Context, model: Model) -> dict:
             result[key] = prefix.uri
     return result
 
-def _get_dask_dataframe_mask(query: Expr, props: dict, model: Model) -> Dict[str, Dict[str, Any]]:
+def _get_dask_dataframe_mask(query: Expr, props: dict, model: Model, keymap: KeyMap) -> Dict[str, Dict[str, Any]]:
     df_mask = {}
-    property_keys = props.keys()
+    prop_keys = props.keys()
     query_dict = query.todict() if query is not None else None
     if query_dict and 'args' in query_dict and query_dict['args'] and query_dict['name'] == 'and':
         for arg in query_dict['args']:
@@ -174,14 +173,26 @@ def _get_dask_dataframe_mask(query: Expr, props: dict, model: Model) -> Dict[str
             if op in {'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'startswith', 'contains'}:
                 left = arg['args'][0]
                 right = arg['args'][1]
-                if left['name'] == 'bind' and left['args'][0] in property_keys:
+                if left['name'] == 'bind' and left['args'][0] in prop_keys:
                     df_mask[left['args'][0]] = {"op": op, "value": right}
     if query_dict and 'args' in query_dict and query_dict['args'] and query_dict['name'] == 'eq':
         left = query_dict['args'][0]
         right = query_dict['args'][1]
-        if left['name'] == 'bind' and left['args'][0] in property_keys:
+        if left['name'] == 'bind' and left['args'][0] in prop_keys:
             df_mask[left['args'][0]] = {"op": 'eq', "value": right}
 
+    if query_dict and 'args' in query_dict and query_dict['args'] and query_dict['name'] == 'eq':
+        left = query_dict['args'][0]
+        right = query_dict['args'][1]
+        if left['name'] == 'bind' and left['args'][0] == '_id':
+            pkey_props = [pkey.name for pkey in model.external.pkeys]
+            if len(pkey_props) == 1:
+                decoded = keymap.decode(pkey_props[0], right)
+                prop = model.properties[pkey_props[0]]
+                name = prop.external.name
+                df_mask[name] = {"op": 'eq', "value": decoded}
+            else:
+                pass
     return df_mask
 
 @commands.getall.register(Context, Model, Xml)
@@ -211,7 +222,7 @@ def getall(
                     props[f"{prop.name}@{lang}"] = {"source": lang_prop.external.name, "pkeys": get_pkeys_if_ref(lang_prop)}
 
     manifest_paths = _get_query_selected_properties(query, props, model)
-    df_mask = _get_dask_dataframe_mask(query, props, model)
+    df_mask = _get_dask_dataframe_mask(query, props, model, keymap)
     meta = get_dask_dataframe_meta(model)
 
     if resource.external:
@@ -231,7 +242,7 @@ def getall(
         )
         .flatten()
         .to_dataframe(meta=meta)
-    )    
+    )
 
     yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df, df_mask=df_mask), MetaXml(key_map=keymap), XmlModel.to_object_data)
 
@@ -241,19 +252,10 @@ def getone(
     context: Context,
     model: Model,
     backend: Xml,
-    id_: str,
+    query: Expr,
 ):
-    private_keynames = []
-    for private_key in model.external.pkeys:
-        private_keynames.append(private_key.name)
-    ast = {
-        'name': 'select',
-        'args': [{ 'name': 'bind', 'args': ['_id'] }] + [{'name': 'getattr', 'args': [ {'name': 'bind', 'args': [pk]} ]} for pk in private_keynames]
-    }
+    get_all = commands.getall(context, model, backend, query=query)
 
-    get_all = commands.getall(context, model, backend, query=asttoexpr(ast))
-
-    for item in get_all:
-        if dict(item).get('_id') == id_:
-            return dict(item)
-    raise UnknownMethod(f"Object with id '{id_}' not found.")
+    if obj := next(get_all, None):
+        return obj
+    raise UnknownMethod(f"Object not found.")

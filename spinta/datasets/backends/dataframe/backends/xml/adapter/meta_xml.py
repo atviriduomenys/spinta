@@ -3,6 +3,9 @@ from typing import Iterable
 
 from pandas import NA
 
+from spinta.core.enums import Level
+from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import SpintaManifestRef
 from spinta.datasets.backends.dataframe.backends.xml.domain.data_adapter import DataAdapter
 from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestHeader, ManifestRef
 from spinta.datasets.keymaps.components import KeyMap
@@ -29,10 +32,30 @@ class MetaXml(DataAdapter):
                     id = self.key_map.encode(row.property, val)
                     yield '_id', id
                     yield '_type', row.property
-            if row.type == ManifestRef:
+            if row.type == ManifestRef or isinstance(row.type, SpintaManifestRef):
                 val = data[row.path]
                 id = self.key_map.encode(row.ref, val)
                 if callable(row.value):
-                    val = row.value(id)
+                    # check the ref type maturity level and build ast
+                    # if maturity level is 3, then we the value it is refering to
+                    # if maturity level is 4, then we bind the private key
+
+                    # ast = {}
+                    # if prop.level == Level.open: # level 3
+                    # select_ast = {
+                    #         'name': 'select',
+                    #         'args': [{'name': 'bind', 'args': ['country'] }] #country here is the private key of the referenced model of level 4
+                    #     }
+                    where_query = {
+                        'name': 'eq',
+                        'args': [{ 'name': 'bind', 'args': ['_id'] }, id]
+                    }
+
+                    query = asttoexpr(where_query)
+                    val = row.value(query)
+                    if row.maturity == Level.open:
+                        val = dict(val).get(row.ref)
+                    else:
+                        val = dict(val).get('_id')
                 yield ".".join(map(str, row.path)), val
 
