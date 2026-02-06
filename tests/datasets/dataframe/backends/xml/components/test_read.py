@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import pytest
 
 from responses import RequestsMock, POST
 
@@ -726,6 +727,13 @@ xml_cities = """
                             <id>4</id>
                             <streets>
                                 <street name="Gedimino pr." />
+                                <street name="Geležinio vilko pr." />
+                            </streets>
+                        </city>
+                        <city name="Kaunas">
+                            <id>8</id>
+                            <streets>
+                                <street name="Laisvės alėja" />
                             </streets>
                         </city>
                     </cities>
@@ -779,7 +787,7 @@ def test_xml_read_many_refs_0(rc: RawConfig, tmp_path: Path):
       |   |   |   | name     | string   |         | name                                                             |                  | open
       |   |                  |          |         |                                                                  |                  |
       |   |   | Country      |          | id      | /planets/planet/countries/country                                |                  |
-      |   |   |   | id       | string   |         | id                                                               |                  | open      
+      |   |   |   | id       | string   |         | id                                                               |                  | open
       |   |   |   | code     | string   |         |                                                                  |                  | open
       |   |   |   | name     | string   |         | name                                                             |                  | open
       |   |   |   | planet   | ref      | Planet  | ../../id                                                         |                  | open
@@ -806,3 +814,72 @@ def test_xml_read_many_refs_0(rc: RawConfig, tmp_path: Path):
 
     resp = app.get("/example/xml/Street")
     assert resp.status_code == 200
+    assert listdata(resp, "name", sort=False) == [
+        "Gedimino pr.",
+        "Geležinio vilko pr.",
+        "Laisvės alėja",
+        "Elizabetes",
+        "Narva",
+    ]
+
+    resp = app.get("/example/xml/City")
+    assert resp.status_code == 200
+    assert listdata(resp, "name", sort=False) == [
+        "Vilnius",
+        "Kaunas",
+        "Ryga",
+        "Talin",
+    ]
+
+
+# skip test with ref filters for now, as it is not supported in dask backend and would require significant changes to support it
+@pytest.mark.skip(reason="Ref filters are not supported in dask backend")
+def test_xml_read_many_refs_1(rc: RawConfig, tmp_path: Path):
+    path = tmp_path / "cities.xml"
+    path.write_text(xml_cities)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type     | ref     | source                                                           | prepare          | access
+    example/xml              |          |         |                                                                  |                  |
+      | data                 | dask/xml |         | {path}                                                           |                  |
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | Planet       |          | id      | /planets/planet                                                  |                  |
+      |   |   |   | id       | string   |         | id                                                               |                  | open
+      |   |   |   | code     | string   |         | code                                                             |                  | open
+      |   |   |   | name     | string   |         | name                                                             |                  | open
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | Country      |          | id      | /planets/planet/countries/country                                | code='lt'          |
+      |   |   |   | id       | string   |         | id                                                               |                  | open
+      |   |   |   | code     | string   |         |                                                                  |                  | open
+      |   |   |   | name     | string   |         | name                                                             |                  | open
+      |   |   |   | planet   | ref      | Planet  | ../../id                                                         |                  | open
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | City         |          | id      | /planets/planet/countries/country/cities/city                    | name='Vilnius'   |
+      |   |   |   | id       | string   |         | id                                                               |                  | open
+      |   |   |   | name     | string   |         | @name                                                            |                  | open
+      |   |   |   | country  | ref      | Country | ../../id                                                         |                  | open
+      |   |   |   | planet   | ref      | Planet  | ../../../../id                                                   |                  | open
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | Street       |          | name    | /planets/planet/countries/country/cities/city/streets/street     |                  |
+      |   |   |   | name     | string   |         | @name                                                            |                  | open
+      |   |   |   | city     | ref      | City    | ../../id                                                         |                  | open
+      |   |   |   | country  | ref      | Country | ../../../../id                                                   |                  | open
+      |   |   |   | planet   | ref      | Planet  | /planets/planet/id                                               |                  | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    config = context.get("config")
+    assert config.check_ref_filters is True
+    app = create_test_client(context)
+    app.authmodel("example/xml", ["getall"])
+
+    resp = app.get("/example/xml/Street")
+    assert resp.status_code == 200
+    assert listdata(resp, "name", sort=False) == ["Gedimino pr.", "Geležinio vilko pr."]
+
+    resp = app.get("/example/xml/City")
+    assert resp.status_code == 200
+    assert listdata(resp, "name", sort=False) == ["Vilnius"]
