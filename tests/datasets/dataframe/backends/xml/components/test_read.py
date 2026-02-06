@@ -885,5 +885,4 @@ def test_xml_read_bool(rc: RawConfig, tmp_path: Path):
     assert listdata(resp, sort=False) == [
         (False, "Kaunas"),
         (True, "Vilnius"),
-
     ]
