@@ -54,15 +54,15 @@ def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> Li
                         ):
                             prop = arg['args'][0]['args'][0]
                             lang = arg['args'][1]['args'][0]
-                            canidate_prop = f"{arg['args'][0]['args'][0]}@{lang}"
-                            if canidate_prop in props.keys():
+                            candidate_prop = f"{arg['args'][0]['args'][0]}@{lang}"
+                            if candidate_prop in props.keys():
                                 prop_def = model.properties.get(prop)
                                 if (
                                     prop_def
                                     and isinstance(prop_def.dtype, Text)
                                     and lang in prop_def.dtype.langs
                                 ):
-                                    manifest_paths.append(str(canidate_prop))
+                                    manifest_paths.append(str(candidate_prop))
     else:
         for prop in model.properties.values():
             manifest_paths.append(prop.name)

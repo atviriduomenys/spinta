@@ -29,26 +29,16 @@ class MetaXml(DataAdapter):
                     yield '_id', None
                     yield '_type', row.property
                 else:
-                    id = self.key_map.encode(row.property, val)
-                    yield '_id', id
+                    object_id = self.key_map.encode(row.property, val)
+                    yield '_id', object_id
                     yield '_type', row.property
             if row.type == ManifestRef or isinstance(row.type, SpintaManifestRef):
                 val = data[row.path]
-                id = self.key_map.encode(row.ref, val)
+                object_id = self.key_map.encode(row.ref, val)
                 if callable(row.value):
-                    # check the ref type maturity level and build ast
-                    # if maturity level is 3, then we the value it is refering to
-                    # if maturity level is 4, then we bind the private key
-
-                    # ast = {}
-                    # if prop.level == Level.open: # level 3
-                    # select_ast = {
-                    #         'name': 'select',
-                    #         'args': [{'name': 'bind', 'args': ['country'] }] #country here is the private key of the referenced model of level 4
-                    #     }
                     where_query = {
                         'name': 'eq',
-                        'args': [{ 'name': 'bind', 'args': ['_id'] }, id]
+                        'args': [{ 'name': 'bind', 'args': ['_id'] }, object_id]
                     }
 
                     query = asttoexpr(where_query)
