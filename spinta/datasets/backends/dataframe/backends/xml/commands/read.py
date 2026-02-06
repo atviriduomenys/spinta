@@ -24,24 +24,17 @@ from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
 
-def _change_xml_bool_to_python(value):
+def _change_xml_bool_to_python(value: bool | int | str | None) -> bool | int | str | None:
     if value is None:
         return None
     if isinstance(value, bool):
         return value
-    if isinstance(value, int):
-        if value == 1:
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str) and (lowered_value := value.strip().lower()):
+        if lowered_value in ["true", "1", "1.0"]:
             return True
-        if value == 0:
-            return False
-        return value
-    if isinstance(value, str):
-        lowered_value = value.strip().lower()
-        true_vals = ["true", "1"]
-        false_vals = ["false", "0"]
-        if lowered_value in true_vals:
-            return True
-        if lowered_value in false_vals:
+        if lowered_value in ["false", "0", "0.0"]:
             return False
     return value
 

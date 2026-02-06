@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-
+import pytest
 from responses import RequestsMock, POST
 
 from spinta.core.config import RawConfig
@@ -808,93 +808,87 @@ def test_xml_read_many_refs_0(rc: RawConfig, tmp_path: Path):
     assert resp.status_code == 200
 
 
-def test_xml_read_bool_enum(rc: RawConfig, tmp_path: Path):
-    test_cases = [
-        ("false", "true"),
-        ("False", "True"),
-        ("0", "1"),
+@pytest.mark.parametrize(
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), ("0.0", "1.0"), (0, 1), (0.0, 1.0)]
+)
+def test_xml_read_bool_enum(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
+    xml = f"""
+        <cities>
+            <city>
+                <is_capital>{first_val}</is_capital>
+                <name>Kaunas</name>
+            </city>
+            <city>
+                <is_capital>{second_val}</is_capital>
+                <name>Vilnius</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type     | ref  | source       | access
+    example/xml                |          |      |              |
+      | xml                    | dask/xml |      | {path}       |
+      |   |   | City           |          | name | /cities/city |
+      |   |   |   | name       | string   |      | name         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   | open
+      |   |   |   |            | enum     |      | True         | open
+      |   |   |   |            | enum     |      | False        | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        (False, "Kaunas"),
+        (True, "Vilnius"),
     ]
-    for first_val, second_val in test_cases:
-        xml = f"""
-            <cities>
-                <city>
-                    <is_capital>{first_val}</is_capital>
-                    <name>Kaunas</name>
-                </city>
-                <city>
-                    <is_capital>{second_val}</is_capital>
-                    <name>Vilnius</name>
-                </city>
-            </cities>
-        """
-        path = tmp_path / "cities.xml"
-        path.write_text(xml)
-
-        context, manifest = prepare_manifest(
-            rc,
-            f"""
-        d | r | b | m | property   | type     | ref  | source       | access
-        example/xml                |          |      |              |
-          | xml                    | dask/xml |      | {path}       |
-          |   |   | City           |          | name | /cities/city |
-          |   |   |   | name       | string   |      | name         | open
-          |   |   |   | is_capital | boolean  |      | is_capital   | open
-          |   |   |   |            | enum     |      | True         | open
-          |   |   |   |            | enum     |      | False        | open
-        """,
-            mode=Mode.external,
-        )
-        context.loaded = True
-        app = create_test_client(context)
-        app.authmodel("example/xml/City", ["getall"])
-
-        resp = app.get("/example/xml/City")
-        assert listdata(resp, sort=False) == [
-            (False, "Kaunas"),
-            (True, "Vilnius"),
-        ]
 
 
-def test_xml_read_bool(rc: RawConfig, tmp_path: Path):
-    test_cases = [
-        ("false", "true"),
-        ("False", "True"),
-        ("0", "1"),
+@pytest.mark.parametrize(
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), ("0.0", "1.0"), (0, 1), (0.0, 1.0)]
+)
+def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
+    xml = f"""
+        <cities>
+            <city>
+                <is_capital>{first_val}</is_capital>
+                <name>Kaunas</name>
+            </city>
+            <city>
+                <is_capital>{second_val}</is_capital>
+                <name>Vilnius</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type     | ref  | source       | access
+    example/xml                |          |      |              |
+      | xml                    | dask/xml |      | {path}       |
+      |   |   | City           |          | name | /cities/city |
+      |   |   |   | name       | string   |      | name         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        (False, "Kaunas"),
+        (True, "Vilnius"),
     ]
-    for first_val, second_val in test_cases:
-        xml = f"""
-            <cities>
-                <city>
-                    <is_capital>{first_val}</is_capital>
-                    <name>Kaunas</name>
-                </city>
-                <city>
-                    <is_capital>{second_val}</is_capital>
-                    <name>Vilnius</name>
-                </city>
-            </cities>
-        """
-        path = tmp_path / "cities.xml"
-        path.write_text(xml)
-
-        context, manifest = prepare_manifest(
-            rc,
-            f"""
-        d | r | b | m | property   | type     | ref  | source       | access
-        example/xml                |          |      |              |
-          | xml                    | dask/xml |      | {path}       |
-          |   |   | City           |          | name | /cities/city |
-          |   |   |   | name       | string   |      | name         | open
-          |   |   |   | is_capital | boolean  |      | is_capital   | open
-        """,
-            mode=Mode.external,
-        )
-        context.loaded = True
-        app = create_test_client(context)
-        app.authmodel("example/xml/City", ["getall"])
-
-        resp = app.get("/example/xml/City")
-        assert listdata(resp, sort=False) == [
-            (False, "Kaunas"),
-            (True, "Vilnius"),
-        ]
