@@ -19,8 +19,31 @@ from spinta.datasets.backends.dataframe.commands.read import (
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
+from spinta.types.datatype import Boolean
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
+
+
+def _change_xml_bool_to_python(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+        return value
+    if isinstance(value, str):
+        lowered_value = value.strip().lower()
+        true_vals = ["true", "1"]
+        false_vals = ["false", "0"]
+        if lowered_value in true_vals:
+            return True
+        if lowered_value in false_vals:
+            return False
+    return value
 
 
 def _parse_xml_loop_model_properties(
@@ -70,6 +93,8 @@ def _parse_xml_loop_model_properties(
                 new_value = str(v)
             else:
                 new_value = None
+        if prop.get("is_bool"):
+            new_value = _change_xml_bool_to_python(new_value)
         new_dict[prop["source"]] = new_value
 
     added_root_elements.append(value)
@@ -134,7 +159,11 @@ def getall(
     props = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
-            props[prop.name] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
+            props[prop.name] = {
+                "source": prop.external.name,
+                "pkeys": get_pkeys_if_ref(prop),
+                "is_bool": isinstance(prop.dtype, Boolean),
+            }
 
     meta = get_dask_dataframe_meta(model)
 
