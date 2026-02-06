@@ -245,17 +245,3 @@ def getall(
     )
 
     yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df, df_mask=df_mask), MetaXml(key_map=keymap), XmlModel.to_object_data)
-
-
-@commands.getone.register(Context, Model, Xml)
-def getone(
-    context: Context,
-    model: Model,
-    backend: Xml,
-    query: Expr,
-):
-    get_all = commands.getall(context, model, backend, query=query)
-
-    if obj := next(get_all, None):
-        return obj
-    raise UnknownMethod(f"Object not found.")

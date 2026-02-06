@@ -73,7 +73,10 @@ class Spinta(ManifestAdapter):
                     source=prop.external.name,
                     access=prop.access if hasattr(prop, "access") else None,
                     maturity=prop.level,
-                    value=lambda query: commands.getone(self.context, prop.dtype.model, prop.dtype.model.backend, query=query),
+                    value=lambda query: next(
+                        commands.getall(self.context, prop.dtype.model, prop.dtype.model.backend, query=query),
+                        None,
+                    ),
                 )
                 rows.append(row)
         if isinstance(prop.dtype, URI):

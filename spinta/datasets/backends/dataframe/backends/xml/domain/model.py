@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import enum
 
+from collections.abc import Callable
 from typing import Any, Optional, Sequence, Tuple
 
 from spinta.components import Component
@@ -37,7 +38,7 @@ class ManifestRow:
     type: str | ManifestMeta
     ref: str
     source: Optional[str] = None
-    value: Optional[str] = None
+    value: str | Callable[[Any], Any] | None = None
     access: Optional[enum.IntEnum] = None
     maturity: Optional[enum.IntEnum] = None
 
