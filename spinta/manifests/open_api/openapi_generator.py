@@ -568,7 +568,9 @@ class SchemaGenerator:
 class OpenAPIGenerator:
     """Generate OpenAPI specs using manifest data"""
 
-    def __init__(self):
+    def __init__(self, main_dataset_name: str | None = None):
+        self.main_dataset_name = main_dataset_name
+        
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry)
 
@@ -589,6 +591,9 @@ class OpenAPIGenerator:
 
         datasets, models = self._extract_manifest_data(manifest)
 
+        if self.main_dataset_name is not None:
+            datasets, models = self._filter_by_main_dataset(datasets, models)
+
         self._override_info(spec, datasets)
         self._set_tags(spec, models)
         self.create_paths(spec, datasets, models)
@@ -608,6 +613,30 @@ class OpenAPIGenerator:
         models = rows.get_objects()["model"]
 
         return datasets, models
+
+    def _filter_by_main_dataset(self, datasets: Any, models: dict) -> tuple[list, dict]:
+        """Filter datasets and models to only those belonging to main_dataset_name."""
+        datasets_list = list(datasets)
+        filtered_datasets = [
+            (name, dataset)
+            for name, dataset in datasets_list
+            if name == self.main_dataset_name
+        ]
+        if not filtered_datasets:
+            raise ValueError(
+                f"Dataset {self.main_dataset_name!r} not found in manifest. "
+                f"Available: {[name for name, _ in datasets_list]}"
+            )
+        filtered_models = {
+            key: model
+            for key, model in models.items()
+            if (
+                hasattr(model, "external")
+                and hasattr(model.external, "dataset")
+                and model.external.dataset.name == self.main_dataset_name
+            )
+        }
+        return filtered_datasets, filtered_models
 
     def _override_info(self, spec: dict[str, Any], datasets: dict):
         """Override info section with dataset information"""
