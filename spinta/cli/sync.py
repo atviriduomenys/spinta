@@ -4,8 +4,8 @@ from typer import echo, Context as TyperContext
 
 from spinta.cli.helpers.sync.api_helpers import get_base_path_and_headers
 from spinta.cli.helpers.sync.controllers.data_service import get_data_service_children_dataset_ids
-from spinta.cli.helpers.sync.controllers.synchronization.catalog_to_agent import (
-    execute_synchronization_catalog_to_agent,
+from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
+    execute_manifest_synchronization_catalog_to_agent,
 )
 from spinta.cli.helpers.sync.helpers import (
     get_configuration_credentials,
@@ -44,7 +44,9 @@ def sync(ctx: TyperContext) -> None:
     base_path, headers, agent_name = prepare_api_context(context)
 
     dataset_ids = get_data_service_children_dataset_ids(base_path, headers, agent_name)
-    manifest = execute_synchronization_catalog_to_agent(context, base_path, headers, manifest_path, dataset_ids)
+    manifest = execute_manifest_synchronization_catalog_to_agent(
+        context, base_path, headers, manifest_path, dataset_ids
+    )
     echo(render_tabular_manifest(context, manifest))
 
     # TODO: Part 2: Source -> Agent: https://github.com/atviriduomenys/spinta/issues/1489.

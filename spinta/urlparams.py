@@ -31,7 +31,7 @@ from spinta.utils.encoding import is_url_safe_base64
 @prepare.register(Context, UrlParams, Version, Request)
 def prepare(context: Context, params: UrlParams, version: Version, request: Request, **kwargs) -> UrlParams:
     params.parsetree = urlutil.parse_url_path(request.path_params["path"].strip("/")) + parse_url_query(
-        urllib.parse.unquote(request.url.query)
+        urllib.parse.unquote_plus(request.url.query)
     )
     prepare_urlparams(context, params, request)
     params.head = request.method == "HEAD"
