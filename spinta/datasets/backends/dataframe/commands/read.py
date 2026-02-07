@@ -195,6 +195,9 @@ def get_dask_dataframe_meta(model: Model):
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
+        elif prop.dtype.name == "text":
+            for lang in prop.dtype.langs.values():
+                dask_meta[lang.external.name] = spinta_to_np_dtype(prop.dtype)
     return dask_meta
 
 
@@ -263,7 +266,7 @@ def dask_get_all(
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
-
+    # temp name nėra queryje
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {

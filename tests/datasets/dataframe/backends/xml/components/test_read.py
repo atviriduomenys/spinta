@@ -740,12 +740,13 @@ def test_xml_read_text_lang_get_all(rc: RawConfig, tmp_path: Path):
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property | type     | ref  | source            | access
-    example/xml              |          |      |                   |
-      | xml                  | dask/xml |      | {path}            |
-      |   |   | City         |          | code | /miestai/miestas  |
-      |   |   |   | name@lt  | string   |      | pavadinimas/text()| open
-      |   |   |   | code     | string   |      | kodas/text()      | open
+    d | r | b | m | property   | type     | ref  | source            | access
+    example/xml                |          |      |                   |
+      | xml                    | dask/xml |      | {path}            |
+      |   |   | City           |          | code | /miestai/miestas  |
+      |   |   |   | name@lt    | string   |      | pavadinimas/text()| open
+      |   |   |   | code       | string   |      | kodas/text()      | open
+      |   |   |   | population | integer  |      | popul/text()      | open      
     """,
         mode=Mode.external,
     )
@@ -754,12 +755,12 @@ def test_xml_read_text_lang_get_all(rc: RawConfig, tmp_path: Path):
     app.authmodel("example/xml/City", ["getall"])
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, "code", "name", "name@lt", sort=False) == [
-        ("KNS", "Kaunas", "Kaunas"),
-        ("VNO", "Vilnius", "Vilnius"),
-        ("KLJ", "Klaipėda", "Klaipėda"),
-        ("SQQ", "Šiauliai", "Šiauliai"),
-        ("PNV", "Panevėžys", "Panevėžys"),
+    assert listdata(resp, "code", "name", sort=False) == [
+        ("KNS", "Kaunas"),
+        ("VNO", "Vilnius"),
+        ("KLJ", "Klaipėda"),
+        ("SQQ", "Šiauliai"),
+        ("PNV", "Panevėžys"),
     ]
 
 
@@ -876,12 +877,12 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
         <miestai>
             <miestas>
                 <pavadinimas_lt>Kaunas</pavadinimas_lt>
-                <pavadinimas_en>Kaunas</pavadinimas_en>
+                <pavadinimas_en>Kaunas_en</pavadinimas_en>
                 <kodas>KNS</kodas>
             </miestas>
             <miestas>
                 <pavadinimas_lt>Vilnius</pavadinimas_lt>
-                <pavadinimas_en>Vilnius</pavadinimas_en>
+                <pavadinimas_en>Vilnius_en</pavadinimas_en>
                 <kodas>VNO</kodas>
             </miestas>
         </miestai>
@@ -906,9 +907,25 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
     app.authmodel("example/xml/City", ["getall"])
 
     resp = app.get("/example/xml/City")
-    assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
-        ("KNS", "Kaunas", "Kaunas", "Kaunas"),
-        ("VNO", "Vilnius", "Vilnius", "Vilnius"),
+
+    data = resp.json()["_data"]
+
+    for item in data:
+        item.pop("_id")
+
+    assert data == [
+        {
+            "_type": "example/xml/City",
+            "_revision": None,
+            "name": {"lt": "Kaunas", "en": "Kaunas_en"},
+            "code": "KNS",
+        },
+        {
+            "_type": "example/xml/City",
+            "_revision": None,
+            "name": {"lt": "Vilnius", "en": "Vilnius_en"},
+            "code": "VNO",
+        },
     ]
 
 
