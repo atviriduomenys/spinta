@@ -76,8 +76,9 @@ id | d | r | b | m | property         | type     | ref                          
    |                                  |          |                                            |        |         |       |        |                |
    | datasets/gov/vssa/demo           |          |                                            |        |         |       |        | Demo           | Demo dataset
    |   | test                         | memory   |                                            |        |         |       |        |                |
-   |   |   |   | Municipality         |          | id                                         |        |         |       |        |                |
+   |   |   |   | Municipality         |          | id, area                                   |        |         |       |        |                |
    |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | area             | ref      |  datasets/gov/giscentras/grpk/Plotas       |        |         | 4     | open   |                |
    |   |   |   |   | name             | string   |                                            |        |         | 4     | open   |                |
    |                                  |          |                                            |        |         |       |        |                |
    |   |   |   | County               |          | id, title                                  |        |         |       |        |                |
