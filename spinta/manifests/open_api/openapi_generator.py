@@ -341,7 +341,6 @@ class SchemaGenerator:
     def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry):
         self.dtype_handler = dtype_handler
         self.schema_registry = schema_registry
-        self.main_dataset_schema_names: set[str] | None = None
 
     def _ensure_components_path(self, spec: dict, *path: str):
         """Ensure nested components path exists in spec"""
@@ -371,7 +370,14 @@ class SchemaGenerator:
 
         return schema
 
-    def create_model_schemas(self, spec, config: dict, model, path_type):
+    def create_model_schemas(
+        self,
+        spec,
+        config: dict,
+        model,
+        path_type,
+        main_dataset_schema_names: set[str] | None = None,
+    ):
         """Create model-specific schemas based on path type"""
 
         schemas = self._ensure_components_path(spec, "components", "schemas")
@@ -379,7 +385,7 @@ class SchemaGenerator:
 
         if path_type in ("collection", "single", "changes") and model_schema_name not in schemas:
             schemas[model_schema_name] = self.create_model_schema(model)
-            self._create_referenced_model_schemas(schemas, model)
+            self._create_referenced_model_schemas(schemas, model, main_dataset_schema_names)
 
         if path_type == "collection":
             schemas[f"{model_schema_name}Collection"] = self.create_collection_schema(model)
@@ -388,7 +394,12 @@ class SchemaGenerator:
             schemas[f"{model_schema_name}Changes"] = self.create_changes_schema(model)
             schemas[f"{model_schema_name}Change"] = self.create_change_schema(model)
 
-    def _create_referenced_model_schemas(self, schemas: dict, model) -> None:
+    def _create_referenced_model_schemas(
+        self,
+        schemas: dict,
+        model,
+        main_dataset_schema_names: set[str] | None,
+    ) -> None:
         for _prop_name, model_property in model.get_given_properties().items():
             dtype = model_property.dtype
 
@@ -409,13 +420,38 @@ class SchemaGenerator:
                 schemas,
                 ref_model,
                 refprops,
+                main_dataset_schema_names,
             )
+
+    def _resolve_nested_ref_schema_name(
+        self,
+        schemas: dict,
+        nested_ref_model,
+        nested_refprops: list,
+        main_dataset_schema_names: set[str] | None,
+    ) -> str:
+        base_name = _get_schema_name(nested_ref_model)
+        is_main_dataset_model = base_name in schemas and (
+            main_dataset_schema_names is None or base_name in main_dataset_schema_names
+        )
+        schema_name = f"{base_name}_Ref" if is_main_dataset_model else base_name
+
+        if schema_name not in schemas:
+            schemas[schema_name] = self._build_ref_model_schema(
+                schemas,
+                nested_ref_model,
+                nested_refprops,
+                main_dataset_schema_names,
+            )
+
+        return schema_name
 
     def _build_ref_model_schema(
         self,
         schemas: dict,
         model,
         refprops: list,
+        main_dataset_schema_names: set[str] | None,
     ) -> dict[str, Any]:
         properties = self.schema_registry.standard_object_properties.copy()
         required_fields = []
@@ -432,40 +468,22 @@ class SchemaGenerator:
                 inner_dtype = inner_dtype.items.dtype if hasattr(inner_dtype, "items") else inner_dtype
 
             if self.dtype_handler.is_reference_type(inner_dtype):
-                nested_ref_model = inner_dtype.model
                 nested_refprops = getattr(inner_dtype, "refprops", None) or []
-                nested_base_name = _get_schema_name(nested_ref_model)
-                # Only use "_Ref" for main dataset models that are fully present in export; use base name for dependants
-                is_main_dataset_model = nested_base_name in schemas and (
-                    self.main_dataset_schema_names is None or nested_base_name in self.main_dataset_schema_names
+                schema_name = self._resolve_nested_ref_schema_name(
+                    schemas,
+                    inner_dtype.model,
+                    nested_refprops,
+                    main_dataset_schema_names,
                 )
-
-                if is_main_dataset_model:
-                    nested_ref_schema_name = f"{nested_base_name}_Ref"
-                    if nested_ref_schema_name not in schemas:
-                        schemas[nested_ref_schema_name] = self._build_ref_model_schema(
-                            schemas,
-                            nested_ref_model,
-                            nested_refprops,
-                        )
-                else:
-                    nested_ref_schema_name = nested_base_name
-                    if nested_ref_schema_name not in schemas:
-                        schemas[nested_ref_schema_name] = self._build_ref_model_schema(
-                            schemas,
-                            nested_ref_model,
-                            nested_refprops,
-                        )
-
-                ref_schema = schemas.get(nested_ref_schema_name)
+                ref_schema = schemas.get(schema_name)
                 example = ref_schema.get("example") if ref_schema else None
                 if example is None:
                     example = {
-                        "_type": nested_ref_model.basename,
+                        "_type": inner_dtype.model.basename,
                         "_id": "12345678-1234-5678-9abc-123456789012",
                     }
                 prop_schema = {
-                    "$ref": f"#/components/schemas/{nested_ref_schema_name}",
+                    "$ref": f"#/components/schemas/{schema_name}",
                     "example": example,
                 }
             else:
@@ -712,8 +730,8 @@ class OpenAPIGenerator:
 
         self._override_info(spec, datasets)
         self._set_tags(spec, models)
-        self.schema_generator.main_dataset_schema_names = {_get_schema_name(m) for m in models.values()}
-        self.create_paths(spec, datasets, models)
+        main_dataset_schema_names = {_get_schema_name(m) for m in models.values()}
+        self.create_paths(spec, datasets, models, main_dataset_schema_names)
         self.schema_generator.create_common_schemas(spec)
 
         return spec
@@ -787,7 +805,13 @@ class OpenAPIGenerator:
             change_schema = self.schema_generator.create_change_schema(model)
             existing_schemas[f"{model_schema_name}Change"] = change_schema
 
-    def create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
+    def create_paths(
+        self,
+        spec: dict[str, Any],
+        datasets: Any,
+        models: dict,
+        main_dataset_schema_names: set[str] | None = None,
+    ):
         paths = {}
         utility_paths = ["/version", "/health"]
 
@@ -803,7 +827,7 @@ class OpenAPIGenerator:
             dataset_models = self._get_dataset_models(dataset_name, models)
 
             for model in dataset_models:
-                self._create_model_paths(spec, paths, model, dataset_name)
+                self._create_model_paths(spec, paths, model, dataset_name, main_dataset_schema_names)
 
         spec["paths"] = paths
 
@@ -819,7 +843,14 @@ class OpenAPIGenerator:
             )
         ]
 
-    def _create_model_paths(self, spec: dict[str, Any], paths: dict[str, Any], model, dataset_name: str):
+    def _create_model_paths(
+        self,
+        spec: dict[str, Any],
+        paths: dict[str, Any],
+        model,
+        dataset_name: str,
+        main_dataset_schema_names: set[str] | None = None,
+    ):
         path_mappings = self.path_generator.create_path_mappings(model, dataset_name)
 
         for path_key, actual_path, path_type, model_property in path_mappings:
@@ -831,7 +862,7 @@ class OpenAPIGenerator:
                 path_key, path_config, model, path_type, model_property
             )
             paths[actual_path] = updated_operations
-            self.schema_generator.create_model_schemas(spec, path_config, model, path_type)
+            self.schema_generator.create_model_schemas(spec, path_config, model, path_type, main_dataset_schema_names)
             self.schema_generator.create_path_response_schemas(spec, path_config)
             self.schema_generator.create_path_parameters_schemas(spec, path_config)
             self.schema_generator.create_path_header_schemas(spec, path_config)
