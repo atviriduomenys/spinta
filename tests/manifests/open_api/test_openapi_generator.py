@@ -514,7 +514,7 @@ def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
     assert "datasets_gov_vssa_demo_County" in schemas
 
 
-def test_cross_dataset_ref_schemas_have_correct_properties(open_manifest_path_factory):
+def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_CROSS_DATASET_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
 
@@ -522,13 +522,28 @@ def test_cross_dataset_ref_schemas_have_correct_properties(open_manifest_path_fa
 
     municipality_schema = schemas["datasets_gov_vssa_demo_Municipality"]
     assert municipality_schema["type"] == "object"
-    assert "id" in municipality_schema["properties"]
-    assert "name" in municipality_schema["properties"]
+    municipality_props = municipality_schema["properties"]
+    assert "id" in municipality_props
+    assert "name" not in municipality_props
+    assert "_type" in municipality_props
+    assert "_id" in municipality_props
+    assert "_revision" in municipality_props
 
     county_schema = schemas["datasets_gov_vssa_demo_County"]
     assert county_schema["type"] == "object"
-    assert "id" in county_schema["properties"]
-    assert "title" in county_schema["properties"]
+    county_props = county_schema["properties"]
+    assert "id" in county_props
+    assert "title" in county_props
+    assert "population" not in county_props
+
+    municipality_example = municipality_schema["example"]
+    assert "id" in municipality_example
+    assert "name" not in municipality_example
+
+    county_example = county_schema["example"]
+    assert "id" in county_example
+    assert "title" in county_example
+    assert "population" not in county_example
 
 
 def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path_factory):
