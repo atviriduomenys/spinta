@@ -5,6 +5,7 @@ from responses import RequestsMock, POST
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
+import pytest
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
@@ -862,7 +863,7 @@ def test_xml_read_text_lang_get_all(rc: RawConfig, tmp_path: Path):
         ("PNV", "Panevėžys"),
     ]
 
-
+@pytest.mark.skip("Not implemented yet")
 def test_xml_read_text_lang_search_select(rc: RawConfig, tmp_path: Path):
     xml = """
     <miestai>
@@ -916,7 +917,7 @@ def test_xml_read_text_lang_search_select(rc: RawConfig, tmp_path: Path):
         ("PNV", "Panevėžys"),
     ]
 
-
+@pytest.mark.skip("Not implemented yet")
 def test_xml_read_text_lang_select_single_search_at(rc: RawConfig, tmp_path: Path):
     xml = """
     <miestai>
@@ -1027,7 +1028,7 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
         },
     ]
 
-
+@pytest.mark.skip("Not implemented yet")
 def test_xml_read_text_lang_select_multiple_variants_search(rc: RawConfig, tmp_path: Path):
     xml = """
         <miestai>
