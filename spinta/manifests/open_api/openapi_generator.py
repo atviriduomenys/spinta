@@ -404,10 +404,18 @@ class SchemaGenerator:
                 continue
 
             refprops = getattr(dtype, "refprops", None) or []
-            schemas[ref_schema_name] = self.create_ref_model_schema(ref_model, refprops)
-            self._create_referenced_model_schemas(schemas, ref_model)
+            schemas[ref_schema_name] = self._build_ref_model_schema(
+                schemas,
+                ref_model,
+                refprops,
+            )
 
-    def create_ref_model_schema(self, model, refprops: list) -> dict[str, Any]:
+    def _build_ref_model_schema(
+        self,
+        schemas: dict,
+        model,
+        refprops: list,
+    ) -> dict[str, Any]:
         properties = self.schema_registry.standard_object_properties.copy()
         required_fields = []
 
@@ -417,7 +425,42 @@ class SchemaGenerator:
             if refprop_names and prop_name not in refprop_names:
                 continue
 
-            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property)
+            dtype = model_property.dtype
+            inner_dtype = dtype
+            if self.dtype_handler.is_array_type(inner_dtype):
+                inner_dtype = inner_dtype.items.dtype if hasattr(inner_dtype, "items") else inner_dtype
+
+            if self.dtype_handler.is_reference_type(inner_dtype):
+                nested_ref_model = inner_dtype.model
+                nested_refprops = getattr(inner_dtype, "refprops", None) or []
+                nested_base_name = _get_schema_name(nested_ref_model)
+
+                if nested_base_name in schemas:
+                    nested_ref_schema_name = f"{nested_base_name}_Ref"
+                    if nested_ref_schema_name not in schemas:
+                        schemas[nested_ref_schema_name] = self._build_ref_model_schema(
+                            schemas,
+                            nested_ref_model,
+                            nested_refprops,
+                        )
+                else:
+                    nested_ref_schema_name = nested_base_name
+                    schemas[nested_ref_schema_name] = self._build_ref_model_schema(
+                        schemas,
+                        nested_ref_model,
+                        nested_refprops,
+                    )
+
+                prop_schema = {
+                    "$ref": f"#/components/schemas/{nested_ref_schema_name}",
+                    "example": {
+                        "_type": nested_ref_model.basename,
+                        "_id": "12345678-1234-5678-9abc-123456789012",
+                    },
+                }
+            else:
+                prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property)
+
             properties[prop_name] = prop_schema
 
             if hasattr(model_property.dtype, "required") and model_property.dtype.required:
