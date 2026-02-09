@@ -2,7 +2,11 @@ import pytest
 from spinta.manifests.components import ManifestPath
 
 from spinta.manifests.open_api.helpers import create_openapi_manifest
-from tests.manifests.open_api.conftest import MANIFEST, MANIFEST_WITH_SOAP_PREPARE, MANIFEST_WITH_CROSS_DATASET_REFS
+from tests.manifests.open_api.conftest import (
+    MANIFEST,
+    MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_REFS,
+)
 
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
@@ -503,7 +507,7 @@ def test_version_schema_structure(open_manifest_path: ManifestPath):
 
 
 def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_CROSS_DATASET_REFS)
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
 
     schemas = open_api_spec["components"]["schemas"]
@@ -515,7 +519,7 @@ def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
 
 
 def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_factory):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_CROSS_DATASET_REFS)
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
 
     schemas = open_api_spec["components"]["schemas"]
@@ -547,7 +551,7 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
 
 
 def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path_factory):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_CROSS_DATASET_REFS)
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
 
     schemas = open_api_spec["components"]["schemas"]
@@ -559,7 +563,7 @@ def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path
 
 
 def test_cross_dataset_ref_no_paths_for_referenced_models(open_manifest_path_factory):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_CROSS_DATASET_REFS)
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
 
     paths = open_api_spec["paths"]
@@ -572,7 +576,7 @@ def test_cross_dataset_ref_no_paths_for_referenced_models(open_manifest_path_fac
 
 
 def test_cross_dataset_ref_without_filter_all_schemas_exist(open_manifest_path_factory):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_CROSS_DATASET_REFS)
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     schemas = open_api_spec["components"]["schemas"]
@@ -580,3 +584,58 @@ def test_cross_dataset_ref_without_filter_all_schemas_exist(open_manifest_path_f
     assert "datasets_gov_kapines_Teritorija" in schemas
     assert "datasets_gov_vssa_demo_Municipality" in schemas
     assert "datasets_gov_vssa_demo_County" in schemas
+
+
+def test_circular_ref_creates_ref_only_schema_for_back_reference(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+
+    schemas = open_api_spec["components"]["schemas"]
+
+    assert "datasets_gov_kapines_Teritorija" in schemas
+    full_schema = schemas["datasets_gov_kapines_Teritorija"]
+    assert "vda_id" in full_schema["properties"]
+    assert "kapines" in full_schema["properties"]
+    assert "miestas" in full_schema["properties"]
+    assert "geometrija" in full_schema["properties"]
+
+    assert "datasets_gov_kapines_Teritorija_Ref" in schemas
+    ref_schema = schemas["datasets_gov_kapines_Teritorija_Ref"]
+    assert "vda_id" in ref_schema["properties"]
+    assert "kapines" not in ref_schema["properties"]
+    assert "miestas" not in ref_schema["properties"]
+    assert "geometrija" not in ref_schema["properties"]
+
+
+def test_circular_ref_plotas_schema_points_to_ref_variant(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+
+    schemas = open_api_spec["components"]["schemas"]
+
+    plotas_schema = schemas["datasets_gov_giscentras_grpk_Plotas"]
+    plotas_props = plotas_schema["properties"]
+
+    assert "top_id" in plotas_props
+    assert "info" in plotas_props
+    assert "area" not in plotas_props
+    assert plotas_props["info"]["$ref"] == "#/components/schemas/datasets_gov_kapines_Teritorija_Ref"
+
+
+def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+
+    schemas = open_api_spec["components"]["schemas"]
+    model_schema_names = [key for key in schemas if key.startswith("datasets_")]
+    expected = {
+        "datasets_gov_kapines_Teritorija",
+        "datasets_gov_kapines_TeritorijaCollection",
+        "datasets_gov_kapines_TeritorijaChanges",
+        "datasets_gov_kapines_TeritorijaChange",
+        "datasets_gov_kapines_Teritorija_Ref",
+        "datasets_gov_vssa_demo_County",
+        "datasets_gov_giscentras_grpk_Plotas",
+        "datasets_gov_vssa_demo_Municipality",
+    }
+    assert set(model_schema_names) == expected

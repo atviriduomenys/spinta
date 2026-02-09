@@ -65,8 +65,15 @@ id | d | r | b | m | property             | type                  | ref | source
     """)
 
 
-MANIFEST_WITH_CROSS_DATASET_REFS = striptable("""
+MANIFEST_WITH_REFS = striptable("""
 id | d | r | b | m | property         | type     | ref                                        | source | prepare | level | access | title          | description
+   | datasets/gov/giscentras/grpk     |          |                                            |        |         |       |        | GRPK           | GRPK dataset
+   |   | test                         | memory   |                                            |        |         |       |        |                |
+   |   |   |   | Plotas               |          | top_id, info                               |        |         |       |        |                |
+   |   |   |   |   | top_id           | string   |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | info             | ref      | datasets/gov/kapines/Teritorija            |        |         | 4     | open   |                |
+   |   |   |   |   | area             | number   |                                            |        |         | 4     | open   |                |
+   |                                  |          |                                            |        |         |       |        |                |
    | datasets/gov/vssa/demo           |          |                                            |        |         |       |        | Demo           | Demo dataset
    |   | test                         | memory   |                                            |        |         |       |        |                |
    |   |   |   | Municipality         |          | id                                         |        |         |       |        |                |
@@ -85,6 +92,7 @@ id | d | r | b | m | property         | type     | ref                          
    |   |   |   |   | kapines          | string   |                                            |        |         | 4     | open   |                |
    |   |   |   |   | miestas          | ref      | datasets/gov/vssa/demo/Municipality        |        |         | 4     | open   |                |
    |   |   |   |   | regionas         | ref      | datasets/gov/vssa/demo/County              |        |         | 4     | open   |                |
+   |   |   |   |   | geometrija       | ref      | datasets/gov/giscentras/grpk/Plotas        |        |         | 4     | open   |                |
     """)
 
 
