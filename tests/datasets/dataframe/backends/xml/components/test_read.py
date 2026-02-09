@@ -863,29 +863,19 @@ def test_xml_read_text_lang_get_all(rc: RawConfig, tmp_path: Path):
         ("PNV", "Panevėžys"),
     ]
 
-@pytest.mark.skip("Not implemented yet")
+# @pytest.mark.skip("Not implemented yet")
 def test_xml_read_text_lang_search_select(rc: RawConfig, tmp_path: Path):
     xml = """
     <miestai>
         <miestas>
             <pavadinimas>Kaunas</pavadinimas>
+            <pavadinimas_en>Kaunas</pavadinimas_en>
             <kodas>KNS</kodas>
         </miestas>
         <miestas>
             <pavadinimas>Vilnius</pavadinimas>
+            <pavadinimas>Kaunas</pavadinimas>
             <kodas>VNO</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Klaipėda</pavadinimas>
-            <kodas>KLJ</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Šiauliai</pavadinimas>
-            <kodas>SQQ</kodas>
-        </miestas>
-        <miestas>
-            <pavadinimas>Panevėžys</pavadinimas>
-            <kodas>PNV</kodas>
         </miestas>
     </miestai>
     """
@@ -900,6 +890,7 @@ def test_xml_read_text_lang_search_select(rc: RawConfig, tmp_path: Path):
       | xml                  | dask/xml |      | {path}            |
       |   |   | City         |          | code | /miestai/miestas  |
       |   |   |   | name@lt  | string   |      | pavadinimas/text()| open
+      |   |   |   | name@en  | string   |      | pavadinimas/text()| open
       |   |   |   | code     | string   |      | kodas/text()      | open
     """,
         mode=Mode.external,
@@ -908,8 +899,8 @@ def test_xml_read_text_lang_search_select(rc: RawConfig, tmp_path: Path):
     app = create_test_client(context)
     app.authmodel("example/xml/City", ["getall", "search"])
 
-    resp = app.get("/example/xml/City?select(code,name@lt)")
-    assert listdata(resp, "code", "name@lt", sort=False) == [
+    resp = app.get("/example/xml/City?_select=name@en,name@lt")
+    assert listdata(resp, "code", "name", sort=False) == [
         ("KNS", "Kaunas"),
         ("VNO", "Vilnius"),
         ("KLJ", "Klaipėda"),

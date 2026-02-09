@@ -292,6 +292,8 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 def select(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Selected:
     """For things like select(foo.bar.baz)."""
 
+    # temp Rasti, kodėl čia neveikia, ir ko trūksta
+
     fpr: ForeignProperty = env.call("_resolve_getattr", attr)
     raise NotImplementedFeature(fpr.left.prop.model, feature="Ability to use foreign properties")
     return Selected(
@@ -434,6 +436,11 @@ COMPARE = [
     "contains",
 ]
 
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, field: Bind, attr: Bind):
+    return GetAttr(field.name, attr)
+
+# temp gal pataisyti, kad veiktų su 'getattr_' with args getattr_(GetAttr(obj='name', name=en))
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)
 def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any):
