@@ -457,12 +457,16 @@ class SchemaGenerator:
                             nested_refprops,
                         )
 
-                prop_schema = {
-                    "$ref": f"#/components/schemas/{nested_ref_schema_name}",
-                    "example": {
+                ref_schema = schemas.get(nested_ref_schema_name)
+                example = ref_schema.get("example") if ref_schema else None
+                if example is None:
+                    example = {
                         "_type": nested_ref_model.basename,
                         "_id": "12345678-1234-5678-9abc-123456789012",
-                    },
+                    }
+                prop_schema = {
+                    "$ref": f"#/components/schemas/{nested_ref_schema_name}",
+                    "example": example,
                 }
             else:
                 prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property)
