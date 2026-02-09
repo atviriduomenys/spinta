@@ -73,9 +73,10 @@ id | d | r | b | m | property         | type     | ref                          
    |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
    |   |   |   |   | name             | string   |                                            |        |         | 4     | open   |                |
    |                                  |          |                                            |        |         |       |        |                |
-   |   |   |   | County               |          | id                                         |        |         |       |        |                |
+   |   |   |   | County               |          | id, title                                  |        |         |       |        |                |
    |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
    |   |   |   |   | title            | string   |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | population       | integer  |                                            |        |         | 4     | open   |                |
    |                                  |          |                                            |        |         |       |        |                |
    | datasets/gov/kapines             |          |                                            |        |         |       |        | Kapines        | Kapines dataset
    |   | test                         | memory   |                                            |        |         |       |        |                |
