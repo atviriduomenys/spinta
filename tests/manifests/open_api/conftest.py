@@ -65,6 +65,28 @@ id | d | r | b | m | property             | type                  | ref | source
     """)
 
 
+MANIFEST_WITH_CROSS_DATASET_REFS = striptable("""
+id | d | r | b | m | property         | type     | ref                                        | source | prepare | level | access | title          | description
+   | datasets/gov/vssa/demo           |          |                                            |        |         |       |        | Demo           | Demo dataset
+   |   | test                         | memory   |                                            |        |         |       |        |                |
+   |   |   |   | Municipality         |          | id                                         |        |         |       |        |                |
+   |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | name             | string   |                                            |        |         | 4     | open   |                |
+   |                                  |          |                                            |        |         |       |        |                |
+   |   |   |   | County               |          | id                                         |        |         |       |        |                |
+   |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | title            | string   |                                            |        |         | 4     | open   |                |
+   |                                  |          |                                            |        |         |       |        |                |
+   | datasets/gov/kapines             |          |                                            |        |         |       |        | Kapines        | Kapines dataset
+   |   | test                         | memory   |                                            |        |         |       |        |                |
+   |   |   |   | Teritorija           |          | vda_id                                     |        |         |       |        |                |
+   |   |   |   |   | vda_id           | string   |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | kapines          | string   |                                            |        |         | 4     | open   |                |
+   |   |   |   |   | miestas          | ref      | datasets/gov/vssa/demo/Municipality        |        |         | 4     | open   |                |
+   |   |   |   |   | regionas         | ref      | datasets/gov/vssa/demo/County              |        |         | 4     | open   |                |
+    """)
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
