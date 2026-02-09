@@ -130,8 +130,8 @@ class DataTypeHandler:
             dtype_name, {"type": "string", "example": "Example value"}
         )
 
-    def get_example_value(self, model_property) -> Any:
-        """Generate example values for properties"""
+    def get_example_value(self, model_property, schemas: dict | None = None) -> Any:
+        """Generate example values for properties. When schemas is provided, use ref schema example for reference types."""
         dtype = model_property.dtype
 
         if self.is_enum_property(model_property):
@@ -139,10 +139,14 @@ class DataTypeHandler:
             return enum_values[0] if enum_values else "UNKNOWN"
 
         if self.is_reference_type(dtype):
+            if schemas:
+                ref_schema = schemas.get(_get_schema_name(dtype.model))
+                if ref_schema and "example" in ref_schema:
+                    return ref_schema["example"]
             return {"_type": dtype.model.basename, "_id": "12345678-1234-5678-9abc-123456789012"}
 
         if self.is_array_type(dtype):
-            item_example = self.get_example_value(dtype.items)
+            item_example = self.get_example_value(dtype.items, schemas=schemas)
             return [item_example]
 
         dtype_name = self.get_dtype_name(dtype)
@@ -502,7 +506,7 @@ class SchemaGenerator:
         for prop_name, model_property in model.get_given_properties().items():
             if refprop_names and prop_name not in refprop_names:
                 continue
-            example[prop_name] = self.dtype_handler.get_example_value(model_property)
+            example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
 
         schema = {"type": "object", "properties": properties, "example": example}
 
