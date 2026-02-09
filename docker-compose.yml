@@ -23,7 +23,7 @@ services:
       - mongo:/data/db
   app:
     volumes:
-      - ./entrypoint-internal.sh:/app/entrypoint.sh
+      - ./entrypoint.sh:/app/entrypoint.sh
     image: spinta:local
     build:
       context: .
