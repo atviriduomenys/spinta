@@ -341,6 +341,7 @@ class SchemaGenerator:
     def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry):
         self.dtype_handler = dtype_handler
         self.schema_registry = schema_registry
+        self.main_dataset_schema_names: set[str] | None = None
 
     def _ensure_components_path(self, spec: dict, *path: str):
         """Ensure nested components path exists in spec"""
@@ -434,8 +435,12 @@ class SchemaGenerator:
                 nested_ref_model = inner_dtype.model
                 nested_refprops = getattr(inner_dtype, "refprops", None) or []
                 nested_base_name = _get_schema_name(nested_ref_model)
+                # Only use "_Ref" for main dataset models that are fully present in export; use base name for dependants
+                is_main_dataset_model = nested_base_name in schemas and (
+                    self.main_dataset_schema_names is None or nested_base_name in self.main_dataset_schema_names
+                )
 
-                if nested_base_name in schemas:
+                if is_main_dataset_model:
                     nested_ref_schema_name = f"{nested_base_name}_Ref"
                     if nested_ref_schema_name not in schemas:
                         schemas[nested_ref_schema_name] = self._build_ref_model_schema(
@@ -445,11 +450,12 @@ class SchemaGenerator:
                         )
                 else:
                     nested_ref_schema_name = nested_base_name
-                    schemas[nested_ref_schema_name] = self._build_ref_model_schema(
-                        schemas,
-                        nested_ref_model,
-                        nested_refprops,
-                    )
+                    if nested_ref_schema_name not in schemas:
+                        schemas[nested_ref_schema_name] = self._build_ref_model_schema(
+                            schemas,
+                            nested_ref_model,
+                            nested_refprops,
+                        )
 
                 prop_schema = {
                     "$ref": f"#/components/schemas/{nested_ref_schema_name}",
@@ -702,6 +708,7 @@ class OpenAPIGenerator:
 
         self._override_info(spec, datasets)
         self._set_tags(spec, models)
+        self.schema_generator.main_dataset_schema_names = {_get_schema_name(m) for m in models.values()}
         self.create_paths(spec, datasets, models)
         self.schema_generator.create_common_schemas(spec)
 
