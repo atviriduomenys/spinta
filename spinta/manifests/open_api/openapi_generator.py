@@ -182,7 +182,7 @@ class PathGenerator:
         self,
         path_key: str,
         path_config: dict,
-        model: "Model",
+        model,
         path_type: str = "collection",
         model_property: tuple | None = None,
     ) -> dict[str, Any]:
@@ -378,6 +378,7 @@ class SchemaGenerator:
 
         if path_type in ("collection", "single", "changes") and model_schema_name not in schemas:
             schemas[model_schema_name] = self.create_model_schema(model)
+            self._create_referenced_model_schemas(schemas, model)
 
         if path_type == "collection":
             schemas[f"{model_schema_name}Collection"] = self.create_collection_schema(model)
@@ -385,6 +386,25 @@ class SchemaGenerator:
         elif path_type == "changes":
             schemas[f"{model_schema_name}Changes"] = self.create_changes_schema(model)
             schemas[f"{model_schema_name}Change"] = self.create_change_schema(model)
+
+    def _create_referenced_model_schemas(self, schemas: dict, model) -> None:
+        for _prop_name, model_property in model.get_given_properties().items():
+            dtype = model_property.dtype
+
+            if self.dtype_handler.is_array_type(dtype):
+                dtype = dtype.items.dtype if hasattr(dtype, "items") else dtype
+
+            if not self.dtype_handler.is_reference_type(dtype):
+                continue
+
+            ref_model = dtype.model
+            ref_schema_name = _get_schema_name(ref_model)
+
+            if ref_schema_name in schemas:
+                continue
+
+            schemas[ref_schema_name] = self.create_model_schema(ref_model)
+            self._create_referenced_model_schemas(schemas, ref_model)
 
     def create_path_component_schemas(self, spec: dict, path_config: dict, component_type: str):
         """Generic method to create component schemas from path config"""
