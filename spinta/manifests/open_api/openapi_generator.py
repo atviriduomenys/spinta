@@ -403,8 +403,42 @@ class SchemaGenerator:
             if ref_schema_name in schemas:
                 continue
 
-            schemas[ref_schema_name] = self.create_model_schema(ref_model)
+            refprops = getattr(dtype, "refprops", None) or []
+            schemas[ref_schema_name] = self.create_ref_model_schema(ref_model, refprops)
             self._create_referenced_model_schemas(schemas, ref_model)
+
+    def create_ref_model_schema(self, model, refprops: list) -> dict[str, Any]:
+        properties = self.schema_registry.standard_object_properties.copy()
+        required_fields = []
+
+        refprop_names = {prop.name for prop in refprops if hasattr(prop, "name")}
+
+        for prop_name, model_property in model.get_given_properties().items():
+            if refprop_names and prop_name not in refprop_names:
+                continue
+
+            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property)
+            properties[prop_name] = prop_schema
+
+            if hasattr(model_property.dtype, "required") and model_property.dtype.required:
+                required_fields.append(prop_name)
+
+        example = {
+            "_type": model.basename,
+            "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
+            "_revision": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
+        }
+        for prop_name, model_property in model.get_given_properties().items():
+            if refprop_names and prop_name not in refprop_names:
+                continue
+            example[prop_name] = self.dtype_handler.get_example_value(model_property)
+
+        schema = {"type": "object", "properties": properties, "example": example}
+
+        if required_fields:
+            schema["required"] = required_fields
+
+        return schema
 
     def create_path_component_schemas(self, spec: dict, path_config: dict, component_type: str):
         """Generic method to create component schemas from path config"""
