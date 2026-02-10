@@ -4,6 +4,12 @@ Changes
 0.2dev17 (unreleased)
 =====================
 
+New Features:
+
+- Generate OpenAPI schemas for dependant ref models  (`#Katalogas2299`_).
+
+.. _#Katalogas2299: https://github.com/atviriduomenys/katalogas/issues/2299
+
 Bug fixes:
 
 - Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
