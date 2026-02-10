@@ -19,8 +19,12 @@ class DaskXml(DataAdapter):
         columns = {}
         for row in row_list.rows:
             if not isinstance(row.type, ModelHeader) and row.property in properties:
-                if row_properties.get(row.source) is not NA:
-                    columns[row.path] = row_properties[row.source]
+                if row_properties.get(row.source) is not NA or row.source != '':
+                    try:
+                        columns[row.path] = row_properties[row.source]
+                    except KeyError:
+                        path = ".".join(map(str, row.path)) if isinstance(row.path, (list, tuple)) else str(row.path)
+                        raise DataAdapterError(f"Column '{row.source}' not found in DataFrame row for path '{path}'.") from None
 
         return columns
 

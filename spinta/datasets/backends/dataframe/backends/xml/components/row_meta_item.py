@@ -17,7 +17,7 @@ class RowMetaItem(DataAdapter):
     key_map: KeyMap
 
     def load(self, model: RowList, data: dict[str | tuple, object]) -> Iterable[tuple[str, None | object]]:
-        """Load and resolve model metadata based on the manifest."""
+        """Load and resolve model metadata based on the RowList."""
 
         for row in model.rows:
             if isinstance(row.type, ModelHeader):
