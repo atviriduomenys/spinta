@@ -18,7 +18,7 @@ class ModelAdapter:
 
         * Interpret ``model`` as a hierarchical structure whose leaves correspond to
             manifest properties and whose internal nodes represent non-leaf paths.
-        * Produce one logical manifest row for each property, including properties on
+        * Produce one logical model for each property, including properties on
             nested objects, so that each row can be converted into a :class:`ManifestRow`
             via :meth:`_to_manifest_row`.
         * Preserve property naming conventions for language variants (for example
