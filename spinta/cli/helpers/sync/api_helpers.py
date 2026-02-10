@@ -9,7 +9,7 @@ from spinta.client import get_access_token, RemoteClientCredentials
 from spinta.exceptions import UnexpectedAPIResponse, UnexpectedAPIResponseData
 
 
-STATIC_BASE_PATH_TAIL = "/uapi/datasets/org/vssa/isris/dcat"
+STATIC_BASE_PATH_TAIL = "/uapi/datasets/gov/vssa/ror/dcat"
 
 
 def validate_api_response(response: Response, expected_status_codes: set[HTTPStatus], operation: str) -> None:

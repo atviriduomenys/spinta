@@ -2266,13 +2266,17 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, "inspect_schema").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/test_schema").resources["resource1"].external = "postgresql"
     a, b = compare_manifest(
         manifest,
         """
-       d | r | m | property  | type    | ref       | source     | prepare | access  | title
-       inspect_schema        |         |           |            |         |         |
-         | resource1         | sql     |           | postgresql |         |         |
+       d | r | m | property       | type    | ref       | source             | prepare | access  | title
+       inspect_schema/test_schema |         |           |                    |         |         |
+         | resource1              | sql     |           | postgresql         |         |         |
+                                  |         |           |                    |         |         |
+         |   | Cities             |         |           | test_schema.cities |         |         |
+         |   |   | id             | integer |           | id                 |         |         |
+         |   |   | name           | string  |           | name               |         |         |
 """,
         context,
     )
@@ -2311,6 +2315,75 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     assert a == b
 
+    if su.database_exists(db):
+        su.drop_database(db)
+
+
+def test_inspect_with_postgresql_multi_schema_references(
+    rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: Path, postgresql
+):
+    db = f"{postgresql}/inspect_schema"
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        engine.execute(sa.schema.CreateSchema("users"))
+        engine.execute(sa.schema.CreateSchema("finances"))
+        meta = sa.MetaData(conn)
+        sa.Table(
+            "Client", meta, sa.Column("id", sa.Integer, primary_key=True), sa.Column("name", sa.Text), schema="users"
+        )
+        sa.Table(
+            "Record",
+            meta,
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.Text),
+            sa.Column("client", sa.Integer),
+            sa.ForeignKeyConstraint(["client"], ["users.Client.id"]),
+            schema="finances",
+        )
+        meta.create_all()
+
+    result_file_path = tmp_path / "result.csv"
+    # Configure Spinta.
+    # Default schema
+    cli.invoke(
+        rc_new,
+        [
+            "inspect",
+            "-r",
+            "sql",
+            db,
+            "-o",
+            tmp_path / "result.csv",
+        ],
+    )
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, "inspect_schema/users").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/finances").resources["resource1"].external = "postgresql"
+    a, b = compare_manifest(
+        manifest,
+        """
+        d | r | m | property    | type    | ref                          | source          | prepare | access  | title
+        inspect_schema/finances |         |                              |                 |         |         |
+          | resource1           | sql     |                              | postgresql      |         |         |
+                                |         |                              |                 |         |         |
+          |   | Record          |         | id                           | finances.Record |         |         |
+          |   |   | client      | ref     | /inspect_schema/users/Client | client          |         |         |
+          |   |   | id          | integer |                              | id              |         |         |
+          |   |   | name        | string  |                              | name            |         |         |
+        inspect_schema/users    |         |                              |                 |         |         |
+          | resource1           | sql     |                              | postgresql      |         |         |
+                                |         |                              |                 |         |         |
+          |   | Client          |         | id                           | users.Client    |         |         |
+          |   |   | id          | integer |                              | id              |         |         |
+          |   |   | name        | string  |                              | name            |         |         |
+""",
+        context,
+    )
+    assert a == b
     if su.database_exists(db):
         su.drop_database(db)
 

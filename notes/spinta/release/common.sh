@@ -132,6 +132,7 @@ accesslog:
   type: file
   file: $BASEDIR/accesslog.json
 EOF
+
 export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
@@ -198,6 +199,7 @@ datasets/gov/rc/jar/iregistruoti    |         |                                 
   |   |   |   | forma               | ref     | /datasets/gov/rc/jar/formos_statusai/Forma    | forma_id       |         | 4     | open
   |   |   |   | statusas            | ref     | /datasets/gov/rc/jar/formos_statusai/Statusas | statusas_id    |         | 4     | open
 EOF
+
 spinta check "$BASEDIR"/sdsa.txt
 
 # Run migrations
@@ -219,21 +221,34 @@ http :8000/version
 http :8000/datasets/gov | jq -c '._data[]'
 
 # Setup INTERNAL server data
-SERVER=:8000
+SERVER=http://localhost:8000
 CLIENT=test
 SECRET=secret
 SCOPES="
-    uapi:/:set_meta_fields
-    uapi:/:getone
-    uapi:/:getall
-    uapi:/:search
-    uapi:/:changes
-    uapi:/:create
-    uapi:/:update
-    uapi:/:patch
-    uapi:/:delete
-    uapi:/:wipe
+  spinta_set_meta_fields
+  spinta_getone
+  spinta_getall
+  spinta_search
+  spinta_changes
+  spinta_insert
+  spinta_upsert
+  spinta_update
+  spinta_patch
+  spinta_delete
+  spinta_wipe
+  uapi:/:set_meta_fields
+  uapi:/:getone
+  uapi:/:getall
+  uapi:/:search
+  uapi:/:changes
+  uapi:/:create
+  uapi:/:upsert
+  uapi:/:update
+  uapi:/:patch
+  uapi:/:delete
+  uapi:/:wipe
 "
+
 TOKEN=$(
     http \
         -a $CLIENT:$SECRET \

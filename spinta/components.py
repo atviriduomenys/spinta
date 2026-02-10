@@ -732,6 +732,19 @@ class Model(MetaData):
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith("_")}
 
+    def get_namespaces(self, include_self: bool = True) -> set[str]:
+        namespaces = []
+        if include_self:
+            namespaces.append(self.name)
+
+        if self.ns:
+            namespaces.append(self.ns.name)
+            namespaces.extend(
+                [parent_namespace.name for parent_namespace in self.ns.parents() if parent_namespace.name]
+            )
+
+        return set(namespaces)
+
 
 class PropertyGiven:
     access: str | None = None
@@ -1080,6 +1093,7 @@ class Config:
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
     scope_log: bool
+    check_contract_scopes: bool
     default_auth_client: str
     http_basic_auth: bool
     token_validation_key: dict | None = None
@@ -1113,6 +1127,10 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    log_level: str
+    file_log_level: str
+    file_log_path: pathlib.Path
 
     def __init__(self):
         self.commands = _CommandsConfig()

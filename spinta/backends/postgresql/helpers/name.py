@@ -39,6 +39,11 @@ def name_changed(old_table_name: str, new_table_name: str, old_property_name: st
     return old_table_name != new_table_name or old_property_name != new_property_name
 
 
+@dispatch(str, TableType, type(None))
+def get_pg_table_name(table_name: str, ttype: TableType, arg: type(None)) -> str:
+    return get_pg_table_name(table_name, ttype)
+
+
 @dispatch(str, TableType, str)
 def get_pg_table_name(table_name: str, ttype: TableType, arg: str) -> str:
     args_str = arg or ""
@@ -81,19 +86,38 @@ def get_pg_constraint_name(table_name: str, columns: Any) -> str:
     return PG_NAMING_CONVENTION[Convention.UQ] % {"table_name": table_name, "column_0_N_name": "_".join(column_names)}
 
 
-def get_pg_removed_name(name: str) -> str:
-    new_name = name.split("/")
-    if not new_name[-1].startswith("__"):
-        new_name[-1] = f"__{new_name[-1]}"
-    new_name = "/".join(new_name)
-    new_name = get_pg_name(new_name)
+def get_removed_name(name: str, remove_model_only: bool = False) -> str:
+    # Check if it is a special table
+    special_table = "/:" in name
+
+    split = name.split("/")
+    place = -1
+    node = split[place]
+    if special_table:
+        if node.startswith(":"):
+            # datasets/data/Model/:redirect <- -2 is Model
+            place = -2
+            node = split[place]
+        elif remove_model_only:
+            # dataset/data/Model/:file/new <- -3 is Model
+            place = -3
+            node = split[place]
+
+    if not node.startswith("__"):
+        node = f"__{node}"
+    split[place] = node
+    new_name = "/".join(split)
     return new_name
+
+
+def get_pg_removed_name(name: str, remove_model_only: bool = False) -> str:
+    return get_pg_name(get_removed_name(name, remove_model_only))
 
 
 def get_pg_foreign_key_name(table_name: str, column_name: str) -> str:
     return PG_NAMING_CONVENTION[Convention.FK] % {
         "table_name": table_name,
-        "column_0_N_name": column_name.removeprefix("_"),
+        "column_0_N_name": column_name,
     }
 
 

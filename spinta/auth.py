@@ -12,6 +12,7 @@ import time
 import uuid
 from collections import defaultdict
 from functools import cached_property
+from itertools import chain
 from threading import Lock
 from typing import Set, Any, TypedDict, Literal
 from typing import Type
@@ -26,7 +27,7 @@ from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
-from authlib.oauth2.rfc6749 import grants, OAuth2Payload, scope_to_list, list_to_scope
+from authlib.oauth2.rfc6749 import grants, OAuth2Payload, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.util import scope_to_list
@@ -40,11 +41,12 @@ from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
+from spinta import commands
 from spinta.components import Config
 from spinta.components import Context, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access, Action
-from spinta.exceptions import AuthorizedClientsOnly
+from spinta.exceptions import AuthorizedClientsOnly, NoScopesForNamespaces, InvalidExtraScopes
 from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import (
     InvalidToken,
@@ -69,6 +71,11 @@ yml = ruamel.yaml.YAML()
 yml.indent(mapping=2, sequence=4, offset=2)
 yml.width = 80
 yml.explicit_start = False
+
+# File permission constants for sensitive authentication files
+OWNER_READABLE_FILE = 0o600  # rw------- (owner read/write only)
+OWNER_READABLE_DIR = 0o700  # rwx------ (owner read/write/execute only)
+WORLD_READABLE_FILE = 0o644  # rw-r--r-- (owner read/write, others read)
 
 # Cache limits
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
@@ -292,6 +299,7 @@ class Client(rfc6749.ClientMixin):
     secret_hash: str
     scopes: Set[str]
     backends: dict[str, dict[str, Any]]
+    contract_scopes: dict[str, list[str]]
 
     def __init__(
         self,
@@ -301,12 +309,14 @@ class Client(rfc6749.ClientMixin):
         secret_hash: str,
         scopes: list[str],
         backends: dict[str, dict[str, Any]],
+        contract_scopes: dict[str, list[str]],
     ) -> None:
         self.id = id_
         self.name = name_
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
         self.backends = backends
+        self.contract_scopes = contract_scopes
 
         # Auth method used for token endpoint.
         # More info: token_endpoint_auth_method https://datatracker.ietf.org/doc/html/rfc7591#autoid-5
@@ -355,6 +365,9 @@ class Client(rfc6749.ClientMixin):
         else:
             return True
 
+    def get_all_contract_scopes(self) -> set[str]:
+        return set(chain.from_iterable(self.contract_scopes.values()))
+
 
 def decode_unverified_header(token: str) -> dict[str, Any]:
     try:
@@ -394,33 +407,34 @@ class Token(rfc6749.TokenMixin):
         required_scopes = scope_to_list(scope)
         return not self._validator.scope_insufficient(self.get_scope(), required_scopes)
 
-    def check_scope(self, scope: SCOPE_TYPE):
+    def check_scope(self, scope: SCOPE_TYPE) -> bool:
         token_scopes = set(scope_to_list(self._token.get("scope", "")))
         if any(token_scope for token_scope in token_scopes if token_scope.startswith(DEPRECATED_SCOPE_PREFIX)):
             log.warning(
                 "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
             )
 
-        if not self.valid_scope(scope):
-            client_id = self._token["aud"]
+        if self.valid_scope(scope):
+            return True
 
-            operator = "OR"
-            if isinstance(scope, str):
-                operator = "AND"
-                scope = [scope]
-            missing_scopes = ", ".join(
-                sorted([single_scope for single_scope in scope if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX)])
-            )
+        # Scope is not valid. Raise an exception
+        client_id = self._token["aud"]
 
-            # FIXME: this should be wrapped into UserError.
-            if operator == "AND":
-                log.error(f"client {client_id!r} is missing required scopes: %s", missing_scopes)
-                raise InsufficientScopeError(description=f"Missing scopes: {missing_scopes}")
-            elif operator == "OR":
-                log.error(f"client {client_id!r} is missing one of required scopes: %s", missing_scopes)
-                raise InsufficientScopeError(description=f"Missing one of scopes: {missing_scopes}")
-            else:
-                raise Exception(f"Unknown operator {operator}.")
+        require_all_scopes = isinstance(scope, str)
+        scope_list = [scope] if require_all_scopes else scope
+
+        missing_scopes = ", ".join(
+            sorted(single_scope for single_scope in scope_list if not single_scope.startswith(DEPRECATED_SCOPE_PREFIX))
+        )
+
+        if require_all_scopes:
+            message = f"Missing required scopes: {missing_scopes}"
+            log.error(f"client {client_id!r} is missing required scopes: %s", missing_scopes)
+        else:
+            message = f"Missing one of required scopes: {missing_scopes}"
+            log.error(f"client {client_id!r} is missing one of required scopes: %s", missing_scopes)
+
+        raise InsufficientScopeError(description=message)
 
     # No longer mandatory, but will keep it, since it is used in other places.
     def get_client_id(self) -> str:
@@ -453,12 +467,82 @@ class Token(rfc6749.TokenMixin):
     def is_expired(self) -> bool:
         return time.time() > self._token["exp"]
 
+    @staticmethod
+    def _collect_available_namespaces(context: Context) -> set[str]:
+        """Collects all scopes that can be used to get data from currently loaded manifest"""
+
+        manifest = context.get("store").manifest
+        model_namespaces = chain.from_iterable(
+            model.get_namespaces()
+            for model in commands.get_models(context, manifest).values()
+            if not model.name.startswith("_")
+        )
+
+        return set(model_namespaces)
+
+    @staticmethod
+    def _get_scope_namespace(single_scope: str, scope_prefixes: list[str]) -> str:
+        """Removes spinta prefixes and action suffixes, leaving only namespace part of scope"""
+        for prefix in scope_prefixes:
+            if single_scope.startswith(prefix):
+                single_scope = single_scope.removeprefix(prefix)
+
+        for action in Action.scope_action_values():
+            if single_scope.endswith(action):
+                single_scope = single_scope.removesuffix(action)
+
+        return single_scope
+
+    def _get_namespace_scope_map(self, scope_prefixes: list[str]) -> dict[str, set[str]]:
+        """
+        Splits JWT scope into separate scopes and build a mapping of namespaces to their corresponding scopes
+        """
+        scope_dict = defaultdict(set)
+        for scope in scope_to_list(self.get_scope()):
+            if namespace := self._get_scope_namespace(scope, scope_prefixes):
+                scope_dict[namespace].add(scope)
+
+        return dict(scope_dict)
+
+    def _get_scopes_from_model_namespaces(self, model_namespaces: set[str], scope_prefixes: list[str]) -> set[str]:
+        """Returns only JWT scopes that match any namespaces from manifest"""
+        scope_namespace_map = self._get_namespace_scope_map(scope_prefixes)
+
+        return {
+            scope
+            for namespace, scopes in scope_namespace_map.items()
+            if namespace in model_namespaces
+            for scope in scopes
+        }
+
+    def check_contract_scopes(self, context: Context) -> None:
+        """
+        Checks if there are no extra JWT scopes from manifest namespaces comparing to contract scopes saved
+        in client's file.
+        """
+
+        if not (model_namespaces := self._collect_available_namespaces(context)):
+            raise NoScopesForNamespaces(namespaces=[])
+
+        config = context.get("config")
+        client = query_client(get_clients_path(config), self.get_client_id())
+
+        contract_scopes = client.get_all_contract_scopes()
+        filtered_jwt_scopes = self._get_scopes_from_model_namespaces(
+            model_namespaces, [config.scope_prefix, config.scope_prefix_udts]
+        )
+
+        if not filtered_jwt_scopes:
+            raise NoScopesForNamespaces(namespaces=", ".join(sorted(model_namespaces)))
+        elif not contract_scopes.issuperset(filtered_jwt_scopes):
+            raise InvalidExtraScopes(extra_scopes=", ".join(sorted(filtered_jwt_scopes - contract_scopes)))
+
 
 class AdminToken(rfc6749.TokenMixin):
     def valid_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
         return True
 
-    def check_scope(self, scope: SCOPE_TYPE, **kwargs):
+    def check_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
         pass
 
     def get_sub(self) -> str:  # User.
@@ -472,6 +556,9 @@ class AdminToken(rfc6749.TokenMixin):
 
     def get_client_id(self) -> str:
         return self.get_aud()
+
+    def check_contract_scopes(self, context: Context) -> None:
+        pass
 
 
 @dataclasses.dataclass
@@ -551,6 +638,7 @@ def get_auth_token(context: Context) -> Token:
         token = resource_protector.validate_request(scope, request)
     except JoseError as e:
         raise HTTPException(status_code=400, detail=e.error)
+
     return token
 
 
@@ -616,7 +704,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> R
 
     if isinstance(key, dict) and "keys" in key:
         # Left for backwards compatibility in case private/public file has multiple keys.
-        keys = [k for k in key["keys"] if k["alg"] == "RS512"]
+        keys = [k for k in key["keys"] if k.get("alg") == "RS512"]
         if keys:
             key = keys[0]
         elif key != default_key:
@@ -682,14 +770,14 @@ def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     return client_file
 
 
-def check_scope(context: Context, scope: Union[Scopes, str]):
+def check_scope(context: Context, scope: Union[Scopes, str]) -> bool:
     config = context.get("config")
     token = context.get("auth.token")
 
     if isinstance(scope, Scopes):
         scope = scope.value
 
-    token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"])
+    return token.check_scope([f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"])
 
 
 def has_scope(context: Context, scope: Scopes | str, raise_error: bool = True) -> bool:
@@ -814,9 +902,15 @@ def authorized(
     ]
     # Check if client has at least one of required scopes.
     if throw:
-        token.check_scope(scopes)
+        is_token_valid = token.check_scope(scopes)
     else:
-        return token.valid_scope(scopes)
+        is_token_valid = token.valid_scope(scopes)
+
+    # Contract scopes are only checked for non-open nodes and when check_contract_scopes is enabled
+    if config.check_contract_scopes and node.access < Access.open:
+        token.check_contract_scopes(context)
+
+    return is_token_valid
 
 
 def auth_server_keys_exists(path: pathlib.Path):
@@ -831,6 +925,7 @@ def gen_auth_server_keys(
 ) -> Tuple[pathlib.Path, pathlib.Path]:
     path = path / "keys"
     path.mkdir(exist_ok=True)
+    os.chmod(path, OWNER_READABLE_DIR)
 
     files = (
         path / "private.json",
@@ -855,10 +950,12 @@ def gen_auth_server_keys(
         with files[0].open("w") as f:
             result = JsonWebKey.import_key(private_key, {"kty": "RSA"})
             json.dump(result.as_dict(is_private=True), f, indent=4, ensure_ascii=False)
+        os.chmod(files[0], OWNER_READABLE_FILE)
 
         with files[1].open("w") as f:
             result = JsonWebKey.import_key(public_key, {"kty": "RSA"})
             json.dump(result.as_dict(), f, indent=4, ensure_ascii=False)
+        os.chmod(files[1], WORLD_READABLE_FILE)
 
     return files
 
@@ -897,6 +994,7 @@ def create_client_file(
     secret: str | None = None,
     scopes: List[str] | None = None,
     backends: dict[str, dict[str, str]] | None = None,
+    contract_scopes: dict[str, list[str]] | None = None,
     *,
     add_secret: bool = False,
 ) -> tuple[pathlib.Path, dict]:
@@ -916,6 +1014,8 @@ def create_client_file(
         raise ClientWithNameAlreadyExists(client_name=name)
 
     os.makedirs(id_path / client_id[:2] / client_id[2:4], exist_ok=True)
+    os.chmod(id_path / client_id[:2], OWNER_READABLE_DIR)
+    os.chmod(id_path / client_id[:2] / client_id[2:4], OWNER_READABLE_DIR)
 
     secret = secret or passwords.gensecret(32)
     secret_hash = passwords.crypt(secret)
@@ -927,6 +1027,7 @@ def create_client_file(
         "client_secret_hash": secret_hash,
         "scopes": scopes or [],
         "backends": backends or {},
+        "contract_scopes": contract_scopes or {},
     }
     keymap[name] = client_id
 
@@ -934,7 +1035,9 @@ def create_client_file(
         write = data.copy()
         del write["client_secret"]
     yml.dump(write, client_file)
+    os.chmod(client_file, OWNER_READABLE_FILE)
     yml.dump(keymap, keymap_path)
+    os.chmod(keymap_path, OWNER_READABLE_FILE)
 
     return client_file, data
 
@@ -977,6 +1080,7 @@ def update_client_file(
     secret: str | None,
     scopes: list | None,
     backends: dict[str, dict[str, str]] | None,
+    contract_scopes: dict[str, list[str]] | None = None,
 ) -> dict:
     if client_exists(path, client_id):
         config = context.get("config")
@@ -988,6 +1092,7 @@ def update_client_file(
         new_secret_hash = passwords.crypt(secret) if secret else client.secret_hash
         new_scopes = scopes if scopes is not None else client.scopes
         new_backends = backends if backends is not None else client.backends
+        new_contract_scopes = contract_scopes if contract_scopes is not None else client.contract_scopes
 
         client_path = get_client_file_path(path, client_id)
         keymap = _load_keymap_data(keymap_path)
@@ -1001,9 +1106,11 @@ def update_client_file(
             "client_secret_hash": new_secret_hash,
             "scopes": list(new_scopes),
             "backends": new_backends,
+            "contract_scopes": new_contract_scopes,
         }
 
         yml.dump(new_data, client_path)
+        os.chmod(client_path, OWNER_READABLE_FILE)
         if keymap:
             changed = False
             # Check if client changed name
@@ -1014,6 +1121,7 @@ def update_client_file(
 
             if changed:
                 yml.dump(keymap, keymap_path)
+                os.chmod(keymap_path, OWNER_READABLE_FILE)
         return new_data
     else:
         raise InvalidClientError(description="Invalid client id or secret")
@@ -1042,18 +1150,22 @@ def validate_id_path(id_path: pathlib.Path):
 def ensure_client_folders_exist(clients_path: pathlib.Path):
     # Ensure clients folder exist
     clients_path.mkdir(parents=True, exist_ok=True)
+    os.chmod(clients_path, OWNER_READABLE_DIR)
 
     # Ensure clients/helpers directory
     helpers_path = get_helpers_path(clients_path)
     helpers_path.mkdir(parents=True, exist_ok=True)
+    os.chmod(helpers_path, OWNER_READABLE_DIR)
 
     # Ensure clients/helpers/keymap.yml exists
     keymap_path = get_keymap_path(clients_path)
     keymap_path.touch(exist_ok=True)
+    os.chmod(keymap_path, OWNER_READABLE_FILE)
 
     # Ensure clients/id directory
     id_path = get_id_path(clients_path)
     id_path.mkdir(parents=True, exist_ok=True)
+    os.chmod(id_path, OWNER_READABLE_DIR)
 
 
 def _keymap_file_cache_key(path: pathlib.Path, *args, **kwargs):
@@ -1155,6 +1267,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
         name_=client_name,
         secret_hash=data["client_secret_hash"],
         scopes=data["scopes"],
-        backends=data["backends"] if data.get("backends") else {},
+        backends=data.get("backends", {}),
+        contract_scopes=data.get("contract_scopes", {}),
     )
     return client

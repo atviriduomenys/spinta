@@ -6,6 +6,7 @@ from typing import Any
 
 from spinta.core.context import configure_context, create_context
 from spinta.cli.manifest import _read_and_return_manifest
+from spinta.dimensions.enum.components import EnumItem
 from spinta.manifests.open_api.openapi_config import (
     BASE_TAGS,
     COMMON_SCHEMAS,
@@ -23,6 +24,8 @@ from spinta.manifests.open_api.openapi_config import (
     SERVERS,
     VERSION,
 )
+from spinta.types.datatype import DataType
+from spinta.utils.schema import NA
 
 
 @dataclass
@@ -74,6 +77,11 @@ class DataTypeHandler:
         """Check if property has enum values"""
         return hasattr(model_property, "enum") and model_property.enum
 
+    def get_enum_value(self, dtype: DataType, enum_item: EnumItem) -> Any:
+        """Converts enum value to property type"""
+        value = enum_item.prepare if enum_item.prepare and enum_item.prepare is not NA else enum_item.source
+        return dtype.load(value)
+
     def get_enum_values(self, model_property) -> list[str]:
         """Extract enum values from property"""
         if not self.is_enum_property(model_property):
@@ -81,7 +89,7 @@ class DataTypeHandler:
 
         enum = model_property.enum
         if isinstance(enum, dict):
-            return list(enum.keys())
+            return [self.get_enum_value(model_property.dtype, enum_value) for enum_value in enum.values()]
         else:
             return [enum_prop.strip('"') for enum_prop in enum]
 
@@ -92,7 +100,11 @@ class DataTypeHandler:
 
         if self.is_enum_property(model_property):
             enum_values = self.get_enum_values(model_property)
-            return {"type": "string", "enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"}
+            dtype_name = self.get_dtype_name(dtype)
+            return {
+                **copy.deepcopy(self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string"})),
+                **{"enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"},
+            }
 
         if self.is_reference_type(dtype):
             return {
@@ -568,10 +580,10 @@ class OpenAPIGenerator:
 
         spec = {
             "openapi": VERSION,
-            "info": INFO,
-            "externalDocs": EXTERNAL_DOCS,
-            "servers": SERVERS,
-            "tags": BASE_TAGS,
+            "info": copy.deepcopy(INFO),
+            "externalDocs": copy.deepcopy(EXTERNAL_DOCS),
+            "servers": copy.deepcopy(SERVERS),
+            "tags": copy.deepcopy(BASE_TAGS),
             "components": {},
         }
 
@@ -590,7 +602,7 @@ class OpenAPIGenerator:
         context = create_context()
         manifests = [manifest]
         context = configure_context(context, manifests)
-        rows = _read_and_return_manifest(context, manifests, check_config=False, load_backends=False)
+        rows = _read_and_return_manifest(context, manifests, check_config=False, ensure_backends=False)
 
         datasets = rows.get_objects()["dataset"].items()
         models = rows.get_objects()["model"]

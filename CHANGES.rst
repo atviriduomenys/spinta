@@ -1,17 +1,158 @@
 Changes
 #######
 
-0.2dev9 (unreleased)
+
+0.2dev15 (unreleased)
+=====================
+
+Bug fixes:
+
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+
+.. _#963: https://github.com/atviriduomenys/spinta/issues/963
+
+
+0.2dev14 (2026-02-03)
+=====================
+
+New Features:
+
+- Change URL for calls to Data Catalog. Changed the organization type and information system name
+  (from ISRIS to ROR) (`#Katalogas2273`_).
+- Add a script for file having multiple XML defitinions splitting to multiple files (`#dvms428`_).
+
+.. _#Katalogas2273: https://github.com/atviriduomenys/katalogas/issues/2273
+.. _#dvms428: https://github.com/atviriduomenys/dvms/issues/428
+
+Improvements:
+
+- New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. (`#1659`_).
+- Property `backref` no longer requires a corresponding `ref` entry (`#1314`_).
+
+.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
+Bug Fixes:
+
+- Adjusting a bug where tags would be duplicated, due to list mutability (`#Katalogas2291`_).
+- Added `dsa` and `uapi` properties to version endpoint in OpenAPI schema (`#Katalogas2315`_).
+- Added `Boolean` filter support to `postgresql` backend (`#1700`_).
+
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
+.. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
+.. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
+
+
+..
+
+0.2dev13 (2026-01-14)
+=====================
+
+New Features:
+
+- Added support for Oracle SDO_GEOMETRY data type in the SQL backend. The Oracle backend now properly
+  decodes geometry data using SDO_GEOMETRY format (`#1645`_).
+
+.. _#1645: https://github.com/atviriduomenys/spinta/issues/1645
+
+Bug fixes:
+
+- Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
+- Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
+  (using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+  log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+
+
+.. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
+.. _#1649: https://github.com/atviriduomenys/spinta/pull/1649
+.. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
+
+
+0.2dev12 (2025-12-18)
+=====================
+
+New Features:
+
+- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
+  `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+
+.. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
+
+Improvements:
+
+- `spinta migrate` now supports `Array` datatype migrations (`#1501`_)
+- Added new config `check_contract_scopes` that enables additional scope checks on each request. This check
+  compares `contract_scopes` saved in client's file with scopes from JWT token. Fails if JWT token has more
+  scopes with currently loaded manifest namespaces than `contract_scopes`. (`#1598`_)
+
+.. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
+.. _#1598: https://github.com/atviriduomenys/spinta/issues/1598
+
+Bug fixes:
+
+- Added try except block which offers a fallback to `immutables`
+  sqlalchemy python libraries instead of C libraries if those don't exist (`#1637`_).
+
+.. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
+
+
+0.2dev11 (2025-12-03)
+=====================
+
+New Features:
+
+- Added support for URL-friendly query syntax with operators `_or.` and `_and.` as alternatives to `|` and `&`,
+  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`,
+  `._ge`, `._lt=`, `._le`, `._sw=` (starts with), and `._co=` (contains). This makes it easier to construct queries in URL query
+  strings without requiring special character encoding (`#1615`_).
+
+.. _#1615: https://github.com/atviriduomenys/spinta/issues/1615
+
+Improvements:
+
+- `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
+- Added ability to customize models and their properties inside config. You can now specify custom type implementation
+  with: `models.<model_name>.properties.<property_name>.type`. It accepts python import path to the implementation (`#599`_).
+
+.. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
+.. _#599: https://github.com/atviriduomenys/spinta/issues/599
+
+0.2dev10 (2025-11-27)
+=====================
+
+Backwards incompatible:
+
+- `spinta migrate` with the `postgresql` backend now requires all tables and columns to have up-to-date comments with
+  their full uncompressed names. Migrations are likely to fail or be incorrect if comments are missing or
+  outdated. Use the `spinta upgrade postgresql_comments` script to validate and update all required comments (`#1579`_).
+
+Improvements:
+
+- `spinta migrate` now uses PostgreSQL comments to map tables and models together (`#1579`_).
+- The `internal` `postgresql` backend now adds full name comments to all its tables and columns. To migrate to the new
+  changes, the `spinta upgrade postgresql_comments` script was added (`#1579`_).
+
+Bug fixes:
+
+- Fixed an issue where `spinta migrate` incorrectly created table drop scripts for `changelog` and `redirect` tables (`#1579`_).
+
+  .. _#1579: https://github.com/atviriduomenys/spinta/issues/1579
+
+0.2dev9 (2025-11-21)
 ====================
 
 New Features:
 
 - Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
-also known as well-known, jwk.
+  also known as well-known, jwk.
 - Spinta as Agent:
     - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
       algorithm (`alg` & `kty`).
-      This unlocks using auth servers with public key rotation, like gravitee.
+      This unlocks using auth servers with public key rotation, like Gravitee.
     - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
       verification.
     - move existing `spinta genkeys` command to `spinta key generate`.
@@ -36,12 +177,9 @@ Improvements:
 
 Bug fixes:
 
-- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
-  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
-  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
 
-  .. _#963: https://github.com/atviriduomenys/spinta/issues/963
-
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
 
 0.2dev8 (2025-11-06)
 ====================
@@ -54,7 +192,6 @@ Bug fixes:
 
   .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
   .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
-  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 0.2dev7 (2025-10-23)
 ====================
@@ -79,6 +216,12 @@ Bug fixes:
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
   .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
+
+Security:
+
+- Private keys and client credential files are now created with restrictive permissions (600 for files, 700 for directories) to prevent unauthorized access by other users on the same system. (`APL-1`_)
+
+  .. _APL-1: https://github.com/atviriduomenys/spinta/pull/1573
 
 Improvements:
 

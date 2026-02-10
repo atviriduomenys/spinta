@@ -466,6 +466,28 @@ test_dataset                    |         |                    |
     )
 
 
+def test_check_backref_only(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property                   | type    | ref       | source            | prepare | access | level
+    datasets/gov/example                       |         |           |                   |         |        |
+      | data                                   | sql     |           |                   |         |        |
+                                               |         |           |                   |         |        |
+      |   |   | Continent                      |         | code      | salis             |         |        | 
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
+      |   |   |   | country[]                  | backref | Country   |                   |         | open   | 2
+      |   |   | Country                        |         | code      | salis             |         |        |    
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1 
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
+    """),
+    )
+
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+
+
 def test_check_prop_underscore_ok_1(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     # happy path 1:  allowed _* property names and "--check-names" flag
     create_tabular_manifest(

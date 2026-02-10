@@ -104,7 +104,7 @@ def _get_data_xml(data_source: str, source: str, model_props: dict, namespaces: 
             yield from _parse_xml(file, source, model_props, namespaces)
 
     else:
-        yield from _parse_xml(io.BytesIO(data_source.encode("ascii")), source, model_props, namespaces)
+        yield from _parse_xml(io.BytesIO(data_source.encode("utf-8")), source, model_props, namespaces)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model) -> dict:

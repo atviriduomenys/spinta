@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2dev9"
+version = "0.2dev15"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -34,7 +34,8 @@ spinta = "spinta.cli.main:app"
 
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
+pandas = ">=2.3.3,<3"
 aiofiles = "*"
 # https://github.com/atviriduomenys/spinta/issues/675
 # 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
