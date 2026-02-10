@@ -892,3 +892,48 @@ def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val
         (False, "Kaunas"),
         (True, "Vilnius"),
     ]
+
+
+def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <ResultData>
+                <DocumentKindID>401</DocumentKindID>
+                <IdentCode>6666000000</IdentCode>
+            </ResultData>
+            <ResultData>
+                <DocumentKindID>402</DocumentKindID>
+                <IdentCode>7777000000</IdentCode>
+            </ResultData>
+        </r>
+    """
+    path = tmp_path / "ref_bug_data.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access
+    example/xml                        |                  |              |                         |
+      | xml                            | dask/xml         |              | {path}                  |
+      |   |   | ContractType           |                  | id           |                         |
+      |   |   |   | id                 | integer required |              | DocumentKindID/text()   | open
+      |   |   |   |                    | enum             |              | 35                      | open
+      |   |   |   |                    |                  |              | 40                      | open
+      
+      |   |   | Details                |                  | ident_code   | /r/ResultData           |
+      |   |   |   | contract_type      | ref              | ContractType | DocumentKindID/text()   | open
+      |   |   |   | contract_type.code | integer required |              | DocumentKindID/text()   | open
+      |   |   |   | ident_code         | string           |              | IdentCode/text()        | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    # The contract_type.code does not appear
+    assert [(second_val) for first_val, second_val in listdata(resp, sort=False)] == [
+        ("6666000000"),
+        ("7777000000"),
+    ]
