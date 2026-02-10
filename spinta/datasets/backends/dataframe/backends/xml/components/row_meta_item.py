@@ -6,7 +6,7 @@ from pandas import NA
 from spinta.adapters.loaders import DataAdapter
 from spinta.core.enums import Level
 from spinta.core.ufuncs import asttoexpr
-from spinta.datasets.backends.dataframe.backends.xml.components.row import RowList
+from spinta.datasets.backends.dataframe.backends.xml.components import RowList
 from spinta.datasets.backends.dataframe.backends.xml.model import ModelHeader, ModelRef
 from spinta.datasets.keymaps.components import KeyMap
 

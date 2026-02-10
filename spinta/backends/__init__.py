@@ -30,7 +30,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import select_keys
 from spinta.backends.helpers import select_model_props
 from spinta.backends.helpers import select_props
-from spinta.datasets.backends.dataframe.backends.xml.components.row_formatter import RowFormatter
+from spinta.datasets.backends.dataframe.backends.xml.components import RowFormatter
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value

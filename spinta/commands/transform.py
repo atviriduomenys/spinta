@@ -4,10 +4,11 @@ from typing import TypeVar
 from spinta import commands
 from spinta.adapters.loaders import DataAdapter, ModelAdapter
 from spinta.components import Model
-from spinta.datasets.backends.dataframe.backends.xml.components.dask_xml import DaskXml
-from spinta.datasets.backends.dataframe.backends.xml.components.row import Row
-from spinta.datasets.backends.dataframe.backends.xml.components.row_meta_item import RowMetaItem
-
+from spinta.datasets.backends.dataframe.backends.xml.components import (
+    DaskXml,
+    Row,
+    RowMetaItem,
+)
 
 T = TypeVar('T')
 
