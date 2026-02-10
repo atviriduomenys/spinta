@@ -7,8 +7,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL
-from spinta.cli.helpers.sync.controllers.synchronization.catalog_to_agent import (
-    execute_synchronization_catalog_to_agent,
+from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
+    execute_manifest_synchronization_catalog_to_agent,
 )
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
@@ -85,17 +85,17 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 1}]},
         )
         mock_data_service_dataset_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 2}]},
         )
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/2/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/2/dsa",
             status_code=HTTPStatus.OK,
             text=(
                 "id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,"
@@ -119,7 +119,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -127,7 +127,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_dataset_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
                 "params": {"parent_id": ["1"]},
                 "data": {},
             }
@@ -135,7 +135,7 @@ class TestSynchronization:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/2/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/2/dsa",
                 "params": {},
                 "data": {},
             }
@@ -202,7 +202,7 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.NOT_FOUND,
             json={"error": "data_service_not_found"},
         )
@@ -227,7 +227,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -246,12 +246,12 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 1}]},
         )
         mock_data_service_dataset_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
             status_code=HTTPStatus.OK,
             json={"_data": []},
         )
@@ -269,7 +269,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -277,7 +277,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_dataset_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/?parent_id=1",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
                 "params": {"parent_id": ["1"]},
                 "data": {},
             }
@@ -304,7 +304,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -313,7 +313,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -331,7 +331,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -357,7 +357,7 @@ class TestSynchronizationPathCatalogToAgent:
         dataset_id = "2"
 
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -366,7 +366,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -384,7 +384,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -419,7 +419,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -428,7 +428,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -447,7 +447,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -480,7 +480,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -489,7 +489,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -507,7 +507,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -548,7 +548,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -557,7 +557,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -575,7 +575,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -616,7 +616,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -625,7 +625,7 @@ class TestSynchronizationPathCatalogToAgent:
         context, _ = ensure_temp_context_and_app(rc, tmp_path)
 
         # Do;
-        execute_synchronization_catalog_to_agent(
+        execute_manifest_synchronization_catalog_to_agent(
             context, base_api_path, {"Authorization": "Bearer <token>"}, str(local_manifest_path), [dataset_id]
         )
 
@@ -643,7 +643,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/org/vssa/isris/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }

@@ -1,11 +1,6 @@
 #!/bin/bash
 set -x
 
-if [ "${SPINTA_INTERNAL}" = 'true' ]; then
-    bash ./entrypoint-internal.sh
-    exit
-fi
-
 export SPINTA_CONFIG=$PWD/config.yml
 if [ ! -f "$SPINTA_CONFIG" ]; then
     cat > "$SPINTA_CONFIG" <<EOF

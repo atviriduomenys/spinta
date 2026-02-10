@@ -1127,6 +1127,10 @@ class Config:
     # Cache-Control header
     cache_control: str = ""
 
+    log_level: str
+    file_log_level: str
+    file_log_path: pathlib.Path
+
     def __init__(self):
         self.commands = _CommandsConfig()
         self.components = {}

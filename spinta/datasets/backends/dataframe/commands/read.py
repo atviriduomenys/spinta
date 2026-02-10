@@ -263,7 +263,8 @@ def dask_get_all(
 
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
-    query = merge_formulas(query, get_ref_filters(context, model))
+    if context.get("config").check_ref_filters:
+        query = merge_formulas(query, get_ref_filters(context, model))
     env = env.init(backend, df, params)
     expr = env.resolve(query)
     where = env.execute(expr)
