@@ -1,13 +1,14 @@
 from typing import Any, Iterator, Optional, cast
 
-from spinta.datasets.backends.dataframe.backends.xml.components import (RowList, RowMetaItem)
 from spinta.datasets.backends.dataframe.backends.xml.model import DataModel, ModelRef
-
 from spinta.typing import ObjectData
+
+from .row import RowList
+from .row_meta_item import RowMetaItem
 
 
 class RowFormatter(DataModel):
-    """XML Model Component"""
+    """Formats a row of data according to the provided model and metadata loader."""
     data: dict[str, object]
     model: RowList
     metadata_loader: Optional[RowMetaItem]

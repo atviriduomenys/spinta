@@ -1,5 +1,5 @@
-from .row import Row, RowList, RowModelRef
 from .dask_xml import DaskXml
+from .row import Row, RowList, RowModelRef
 from .row_formatter import RowFormatter
 from .row_meta_item import RowMetaItem
 from .xml import Xml

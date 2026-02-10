@@ -10,8 +10,9 @@ from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.xml.components import (
-    RowMetaItem,
     Row,
+    RowFormatter,
+    RowMetaItem,
     DaskXml,
     Xml,
 )
