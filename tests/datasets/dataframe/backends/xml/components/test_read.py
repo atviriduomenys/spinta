@@ -782,7 +782,7 @@ def test_xml_read_many_refs_0(rc: RawConfig, tmp_path: Path):
       |   |                  |          |         |                                                                  |                  |
       |   |   | Country      |          | id      | /planets/planet/countries/country                                |                  |
       |   |   |   | id       | string   |         | id                                                               |                  | open      
-      |   |   |   | code     | string   |         |                                                                  |                  | open
+      |   |   |   | code     | string   |         | code                                                                 |                  | open
       |   |   |   | name     | string   |         | name                                                             |                  | open
       |   |   |   | planet   | ref      | Planet  | ../../id                                                         |                  | open
       |   |                  |          |         |                                                                  |                  |
