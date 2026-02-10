@@ -9,11 +9,10 @@ from lxml import etree
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.backends.xml.adapter.meta_xml import MetaXml
-from spinta.datasets.backends.dataframe.backends.xml.adapter.spinta import Spinta
+from spinta.datasets.backends.dataframe.backends.xml.adapter.row_meta_item import RowMetaItem
+from spinta.datasets.backends.dataframe.backends.xml.adapter.row import Row
 from spinta.datasets.backends.dataframe.backends.xml.adapter.dask_xml import DaskXml
-from spinta.datasets.backends.dataframe.backends.xml.adapter.xml_model import XmlModel
-from spinta.datasets.backends.dataframe.backends.xml.application.data_use_cases import stream_model_data
+from spinta.datasets.backends.dataframe.backends.xml.adapter.row_formatter import RowFormatter
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
@@ -28,6 +27,7 @@ from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
+
 def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> List[str]:
     query_dict = query.todict() if query is not None else None
     manifest_paths = []
@@ -36,21 +36,21 @@ def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> Li
             if key == 'name' and value == "select" and query_dict['args']:
                 for arg in query_dict['args']:
                     if arg['name'] == 'bind' and arg['args'][0] in props.keys():
-                        manifest_paths.append(arg['args'][0])  
+                        manifest_paths.append(arg['args'][0])
                     if arg['name'] == 'getattr':
                         if (
-                            isinstance(arg.get('args'), list)
-                            and len(arg['args']) > 1
-                            and isinstance(arg['args'][0], dict)
-                            and isinstance(arg['args'][1], dict)
-                            and isinstance(arg['args'][0].get('args'), list)
-                            and len(arg['args'][0]['args']) > 0
-                            and isinstance(arg['args'][1].get('args'), list)
-                            and len(arg['args'][1]['args']) > 0
-                            and len(arg['args']) > 1
-                            and arg['args'][1]['name'] == 'bind'
-                            and arg['args'][1]['args']
-                            and arg['args'][0]['name'] == 'bind'
+                            isinstance(arg.get('args'), list) and
+                            len(arg['args']) > 1 and
+                            isinstance(arg['args'][0], dict) and
+                            isinstance(arg['args'][1], dict) and
+                            isinstance(arg['args'][0].get('args'), list) and
+                            len(arg['args'][0]['args']) > 0 and
+                            isinstance(arg['args'][1].get('args'), list) and
+                            len(arg['args'][1]['args']) > 0 and
+                            len(arg['args']) > 1 and
+                            arg['args'][1]['name'] == 'bind' and
+                            arg['args'][1]['args'] and
+                            arg['args'][0]['name'] == 'bind'
                         ):
                             prop = arg['args'][0]['args'][0]
                             lang = arg['args'][1]['args'][0]
@@ -58,9 +58,9 @@ def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> Li
                             if candidate_prop in props.keys():
                                 prop_def = model.properties.get(prop)
                                 if (
-                                    prop_def
-                                    and isinstance(prop_def.dtype, Text)
-                                    and lang in prop_def.dtype.langs
+                                    prop_def and
+                                    isinstance(prop_def.dtype, Text) and
+                                    lang in prop_def.dtype.langs
                                 ):
                                     manifest_paths.append(str(candidate_prop))
     else:
@@ -71,6 +71,7 @@ def _get_query_selected_properties(query: Expr, props: dict, model: Model) -> Li
                     manifest_paths.append(f"{prop.name}@{lang}")
 
     return manifest_paths
+
 
 def _parse_xml_loop_model_properties(
     value, added_root_elements: list, model_props: dict, namespaces: dict
@@ -163,6 +164,7 @@ def _gather_namespaces_from_model(context: Context, model: Model) -> dict:
             result[key] = prefix.uri
     return result
 
+
 def _get_dask_dataframe_mask(query: Expr, props: dict, model: Model, keymap: KeyMap) -> Dict[str, Dict[str, Any]]:
     df_mask = {}
     prop_keys = props.keys()
@@ -195,6 +197,7 @@ def _get_dask_dataframe_mask(query: Expr, props: dict, model: Model, keymap: Key
                 pass
     return df_mask
 
+
 @commands.getall.register(Context, Model, Xml)
 def getall(
     context: Context,
@@ -208,7 +211,7 @@ def getall(
 ) -> Iterator[ObjectData]:
     resource = model.external.resource
     keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
-    
+
     builder = backend.query_builder_class(context)
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
@@ -244,4 +247,11 @@ def getall(
         .to_dataframe(meta=meta)
     )
 
-    yield from stream_model_data(model, Spinta(manifest_paths=manifest_paths, context=context), DaskXml(df=df, df_mask=df_mask), MetaXml(key_map=keymap), XmlModel.to_object_data)
+    yield from commands.stream_model_data(
+        model,
+        Row(manifest_paths=manifest_paths,
+            context=context),
+        DaskXml(df=df, df_mask=df_mask),
+        RowMetaItem(key_map=keymap),
+        transformation_adapter=RowFormatter.to_object_data
+    )

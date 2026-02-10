@@ -6,9 +6,10 @@ from dataclasses import dataclass
 import enum
 
 from collections.abc import Callable
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Optional, Tuple
 
 from spinta.components import Component
+
 
 class DataModel(Component):
     """Data model component"""
@@ -20,22 +21,30 @@ class DataModel(Component):
     def __dict__(self):
         return self.data
 
-class ManifestMeta():
-    pass
-    
-class ManifestHeader(ManifestMeta):
+
+class MetaItem():
     pass
 
-class ManifestRef(ManifestMeta):
+
+class ModelHeader(MetaItem):
     pass
 
-@dataclass(frozen=True)
-class ManifestRow:
+
+class ModelRef(MetaItem):
+    pass
+
+
+class TransformationModel():
+    pass
+
+
+@dataclass
+class ModelItem:
     """Represents a row in a manifest after adapter normalization."""
 
     path: Tuple[str, ...]
     property: str
-    type: str | ManifestMeta
+    type: str | MetaItem
     ref: str
     source: Optional[str] = None
     value: str | Callable[[Any], Any] | None = None
@@ -44,27 +53,23 @@ class ManifestRow:
 
 
 @dataclass
-class Manifest:
-    """Domain representation of a manifest."""
-
-    rows: Sequence[ManifestRow]
-
-
-@dataclass
 class Model(Component):
     """Domain representation of model data."""
-    manifest: Manifest
+    manifest: TransformationModel
     data: dict[str, object]
 
-    def __init__(self, manifest: Manifest, data: dict[str, object]) -> None:
+    def __init__(self, manifest: TransformationModel, data: dict[str, object]) -> None:
         self.manifest = manifest
         self.data = data
 
     def __call__(self, data, manifest) -> Model:
         return Model(data=data, manifest=manifest)
 
+
 __all__ = [
-    "ManifestRow",
-    "Manifest",
     "Model",
+    "DataModel",
+    "ModelHeader",
+    "ModelRef",
+    "TransformationModel",
 ]

@@ -30,7 +30,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import select_keys
 from spinta.backends.helpers import select_model_props
 from spinta.backends.helpers import select_props
-from spinta.datasets.backends.dataframe.backends.xml.adapter.xml_model import XmlModel
+from spinta.datasets.backends.dataframe.backends.xml.adapter.row_formatter import RowFormatter
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
@@ -614,18 +614,20 @@ def is_object_id(context: Context, backend: type(None), model: Namespace, value:
     # Namespaces do not have object id.
     return False
 
-@commands.prepare_data_for_response.register(Context, Model, Format, XmlModel)
+
+@commands.prepare_data_for_response.register(Context, Model, Format, RowFormatter)
 def prepare_data_for_response(
     context: Context,
     model: Model,
     fmt: Format,
-    value: XmlModel,
+    value: RowFormatter,
     *,
     action: Action,
     select: SelectTree,
     prop_names: List[str],
 ) -> dict:
     return dict(value)
+
 
 @commands.prepare_data_for_response.register(Context, Namespace, Format, dict)
 def prepare_data_for_response(

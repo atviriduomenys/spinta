@@ -3,24 +3,25 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 
 import dask.dataframe as dd
 
-from spinta.datasets.backends.dataframe.backends.xml.domain import DataAdapter, DataAdapterError
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import Manifest, ManifestHeader
+from spinta.datasets.backends.dataframe.backends.xml.adapter.row import RowList
+from spinta.datasets.backends.dataframe.backends.xml.domain.model import DataAdapter, DataAdapterError, ModelHeader
 from spinta.utils.schema import NA
+
 
 @dataclass
 class DaskXml(DataAdapter):
     df: dd.DataFrame
     df_mask: Optional[Dict[str, Dict[str, Any]]] = None
 
-    def _resolve_dataframe_row(self, manifest: Manifest, properties: list[str], row_properties: Mapping[str, object]) -> Mapping[str, object]:
+    def _resolve_dataframe_row(self, row_list: RowList, properties: list[str], row_properties: Mapping[str | tuple | None, object]) -> Mapping[str, object]:
         columns = {}
-        for row in manifest.rows:
-            if row.type != ManifestHeader and row.property in properties:
+        for row in row_list.rows:
+            if not isinstance(row.type, ModelHeader) and row.property in properties:
                 if row_properties.get(row.source) is not NA:
                     columns[row.path] = row_properties[row.source]
 
         return columns
-    
+
     def _compute_df_mask(self, partition_df: dd.DataFrame) -> Optional[dd.Series]:
         if not self.df_mask:
             return None
@@ -53,10 +54,10 @@ class DaskXml(DataAdapter):
 
     def load(
         self,
-        manifest: Manifest,
+        row_list: RowList,
     ) -> Iterable[Mapping[str, object]]:
-        columns = [row.source for row in manifest.rows if row.source and not row.type == ManifestHeader]
-        properties = [row.property for row in manifest.rows if row.property and not row.type == ManifestHeader]
+        columns = [row.source for row in row_list.rows if row.source and not isinstance(row.type, ModelHeader)]
+        properties = [row.property for row in row_list.rows if row.property and not isinstance(row.type, ModelHeader)]
         unique_columns = list(set(columns))
         for partition in self.df.to_delayed():
             partition_df = dd.from_delayed(partition)
@@ -66,6 +67,6 @@ class DaskXml(DataAdapter):
                 partition_df = partition_df[mask]
             for _, df_row in partition_df.iterrows():
                 try:
-                    yield self._resolve_dataframe_row(manifest, properties, df_row)
+                    yield self._resolve_dataframe_row(row_list, properties, df_row)
                 except Exception as e:
                     raise DataAdapterError(f"Error processing row: {e}") from e

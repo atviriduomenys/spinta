@@ -1,21 +1,11 @@
-"""Domain adapter contracts for manifest construction."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-
-from .model import Manifest
-
-
-class ManifestAdapterError(ValueError):
+class ModelAdapterError(ValueError):
     """Raised when adapter input cannot be converted into a Manifest."""
 
 
-@dataclass
-class ManifestAdapter:
+class ModelAdapter:
     """Base adapter that normalizes client manifest rows into domain manifests."""
 
-    def from_model(self, model: object) -> Manifest:
+    def from_model(self, model: object):
         """
         Build a :class:`Manifest` from a higher-level in-memory model representation.
 
@@ -43,8 +33,18 @@ class ManifestAdapter:
         :raises ManifestAdapterError: If the adapter does not support mapping from
             model objects or if the input cannot be converted into a manifest.
         """
-        raise ManifestAdapterError(
+        raise ModelAdapterError(
             "Parsing deferred: model mapping must be implemented by client adapter"
         )
 
-__all__ = ["ManifestAdapter", "ManifestAdapterError"]
+
+class DataAdapterError(ValueError):
+    """Raised when adapter input cannot be converted into data rows."""
+
+
+class DataAdapter:
+    """Protocol for client-provided data parsing adapters."""
+
+    def load(self, **kwargs: object):
+        """Return row mappings aligned to manifest properties."""
+        raise DataAdapterError("Parsing deferred: data parsing must be implemented by client adapter")

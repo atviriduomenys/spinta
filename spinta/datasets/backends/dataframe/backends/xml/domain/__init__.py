@@ -1,12 +1,11 @@
-"""Domain layer for ftree."""
-
-from .adapter import ManifestAdapter, ManifestAdapterError
-from .data_adapter import BaseDataAdapter, DataAdapter, DataAdapterError
+from .model import DataModel, Model, ModelHeader, MetaItem, ModelRef, TransformationModel, ModelItem
 
 __all__ = [
-	"ManifestAdapter",
-	"ManifestAdapterError",
-	"DataAdapter",
-	"BaseDataAdapter",
-	"DataAdapterError",
+    "Model",
+    "DataModel",
+    "MetaItem",
+    "ModelHeader",
+    "ModelRef",
+    "TransformationModel",
+    "ModelItem",
 ]
