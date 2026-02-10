@@ -562,6 +562,28 @@ def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path
     assert properties["regionas"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
 
 
+def test_main_model_ref_properties_have_proper_examples(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+
+    schemas = open_api_spec["components"]["schemas"]
+    teritorija_schema = schemas["datasets_gov_kapines_Teritorija"]
+
+    miestas_example = teritorija_schema["properties"]["miestas"]["example"]
+    assert "id" in miestas_example, "miestas example should contain Municipality's ref field 'id'"
+
+    regionas_example = teritorija_schema["properties"]["regionas"]["example"]
+    assert "id" in regionas_example, "regionas example should contain County's ref field 'id'"
+    assert "title" in regionas_example, "regionas example should contain County's ref field 'title'"
+
+    schema_example = teritorija_schema["example"]
+    assert isinstance(schema_example["miestas"], dict)
+    assert "id" in schema_example["miestas"]
+    assert isinstance(schema_example["regionas"], dict)
+    assert "id" in schema_example["regionas"]
+    assert "title" in schema_example["regionas"]
+
+
 def test_cross_dataset_ref_no_paths_for_referenced_models(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
     open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
