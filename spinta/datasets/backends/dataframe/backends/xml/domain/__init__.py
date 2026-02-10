@@ -1,7 +1,6 @@
-from .model import DataModel, Model, ModelHeader, MetaItem, ModelRef, TransformationModel, ModelItem
+from .model import DataModel, ModelHeader, MetaItem, ModelRef, TransformationModel, ModelItem
 
 __all__ = [
-    "Model",
     "DataModel",
     "MetaItem",
     "ModelHeader",

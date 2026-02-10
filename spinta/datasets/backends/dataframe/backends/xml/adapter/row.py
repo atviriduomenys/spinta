@@ -12,7 +12,7 @@ from spinta.types.datatype import URI, Ref
 from spinta.types.text.components import Text
 
 
-class SpintaModelRef(ModelRef):
+class RowModelRef(ModelRef):
     maturity: Level
 
     def __init__(self, maturity: Level):
@@ -78,7 +78,7 @@ class Row(ModelAdapter):
                 row = ModelItem(
                     path=(prop_name,),
                     property=prop_name,
-                    type=SpintaModelRef(maturity=prop.level),
+                    type=RowModelRef(maturity=prop.level),
                     ref=pkey.name,
                     source=prop.external.name,
                     access=prop.access if hasattr(prop, "access") else None,

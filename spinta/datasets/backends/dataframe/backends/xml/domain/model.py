@@ -40,7 +40,7 @@ class TransformationModel():
 
 @dataclass
 class ModelItem:
-    """Represents a row in a manifest after adapter normalization."""
+    """Represents an item in a models after normalization."""
 
     path: Tuple[str, ...]
     property: str
@@ -52,22 +52,7 @@ class ModelItem:
     maturity: Optional[enum.IntEnum] = None
 
 
-@dataclass
-class Model(Component):
-    """Domain representation of model data."""
-    manifest: TransformationModel
-    data: dict[str, object]
-
-    def __init__(self, manifest: TransformationModel, data: dict[str, object]) -> None:
-        self.manifest = manifest
-        self.data = data
-
-    def __call__(self, data, manifest) -> Model:
-        return Model(data=data, manifest=manifest)
-
-
 __all__ = [
-    "Model",
     "DataModel",
     "ModelHeader",
     "ModelRef",

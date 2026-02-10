@@ -1,13 +1,16 @@
+from typing import Iterable, Mapping
+
+
 class ModelAdapterError(ValueError):
-    """Raised when adapter input cannot be converted into a Manifest."""
+    """Raised when adapter input cannot be converted into a Model."""
 
 
 class ModelAdapter:
-    """Base adapter that normalizes client manifest rows into domain manifests."""
+    """Base adapter that normalizes client model rows into domain models."""
 
     def from_model(self, model: object):
         """
-        Build a :class:`Manifest` from a higher-level in-memory model representation.
+        Build a :class:`Model` from a higher-level in-memory model representation.
 
         This method is intended for clients that already have a parsed or constructed
         domain model (for example, a nested mapping / object graph that mirrors the
@@ -45,6 +48,6 @@ class DataAdapterError(ValueError):
 class DataAdapter:
     """Protocol for client-provided data parsing adapters."""
 
-    def load(self, **kwargs: object):
+    def load(self, *args, **kwargs: object) -> Iterable[Mapping[str, object]]:
         """Return row mappings aligned to manifest properties."""
         raise DataAdapterError("Parsing deferred: data parsing must be implemented by client adapter")

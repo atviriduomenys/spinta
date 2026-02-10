@@ -2,11 +2,11 @@ from collections.abc import Callable, Iterable
 from typing import TypeVar
 
 from spinta import commands
+from spinta.adapters.loaders import DataAdapter, ModelAdapter
 from spinta.components import Model
 from spinta.datasets.backends.dataframe.backends.xml.adapter.dask_xml import DaskXml
 from spinta.datasets.backends.dataframe.backends.xml.adapter.row import Row
 from spinta.datasets.backends.dataframe.backends.xml.adapter.row_meta_item import RowMetaItem
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import DataAdapter, ModelAdapter
 
 
 T = TypeVar('T')
