@@ -9,10 +9,10 @@ from lxml import etree
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.backends.xml.adapter.row_meta_item import RowMetaItem
-from spinta.datasets.backends.dataframe.backends.xml.adapter.row import Row
-from spinta.datasets.backends.dataframe.backends.xml.adapter.dask_xml import DaskXml
-from spinta.datasets.backends.dataframe.backends.xml.adapter.row_formatter import RowFormatter
+from spinta.datasets.backends.dataframe.backends.xml.components.row_meta_item import RowMetaItem
+from spinta.datasets.backends.dataframe.backends.xml.components.row import Row
+from spinta.datasets.backends.dataframe.backends.xml.components.dask_xml import DaskXml
+from spinta.datasets.backends.dataframe.backends.xml.components.row_formatter import RowFormatter
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,

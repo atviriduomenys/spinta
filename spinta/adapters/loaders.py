@@ -1,6 +1,10 @@
 from typing import Iterable, Mapping
 
 
+class TransformationModel():
+    pass
+
+
 class ModelAdapterError(ValueError):
     """Raised when adapter input cannot be converted into a Model."""
 

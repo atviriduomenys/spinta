@@ -2,12 +2,12 @@ from dataclasses import dataclass
 
 from typing import List, Sequence
 from spinta import commands
-from spinta.adapters.loaders import ModelAdapter
+from spinta.adapters.loaders import ModelAdapter, TransformationModel
 from spinta.components import Context, Model
 
 from spinta.core.enums import Level
 
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import ModelHeader, ModelItem, ModelRef, ModelRef, TransformationModel
+from spinta.datasets.backends.dataframe.backends.xml.model import ModelHeader, ModelItem, ModelRef, ModelRef
 from spinta.types.datatype import URI, Ref
 from spinta.types.text.components import Text
 

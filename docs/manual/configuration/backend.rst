@@ -31,7 +31,7 @@ supported backends are defined in `components.backends`. You can look it up::
     spinta  components.backends.sqldump         spinta.datasets.backends.sqldump.components:SqlDump
     spinta  components.backends.dask            spinta.datasets.backends.dataframe.components:DaskBackend
     spinta  components.backends.dask/csv        spinta.datasets.backends.dataframe.backends.csv.components:Csv
-    spinta  components.backends.dask/xml        spinta.datasets.backends.dataframe.backends.xml.components:Xml
+    spinta  components.backends.dask/xml        spinta.datasets.backends.dataframe.backends.xml.components.xml:Xml
     spinta  components.backends.dask/json       spinta.datasets.backends.dataframe.backends.json.components:Json
     spinta  components.backends.xlsx            spinta.datasets.backends.notimpl.components:BackendNotImplemented
     spinta  components.backends.geojson         spinta.datasets.backends.notimpl.components:BackendNotImplemented

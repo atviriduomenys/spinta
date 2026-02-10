@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
 from spinta.datasets.backends.dataframe.backends.json.components import Json
-from spinta.datasets.backends.dataframe.backends.xml.components import Xml
+from spinta.datasets.backends.dataframe.backends.xml.components.xml import Xml
 
 if TYPE_CHECKING:
     from spinta.components import UrlParams

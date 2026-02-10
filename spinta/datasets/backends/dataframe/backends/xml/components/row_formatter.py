@@ -1,8 +1,8 @@
 from typing import Any, Iterator, Optional, cast
 
-from spinta.datasets.backends.dataframe.backends.xml.adapter.row import RowList
-from spinta.datasets.backends.dataframe.backends.xml.adapter.row_meta_item import RowMetaItem
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import DataModel, ModelRef
+from spinta.datasets.backends.dataframe.backends.xml.components.row import RowList
+from spinta.datasets.backends.dataframe.backends.xml.components.row_meta_item import RowMetaItem
+from spinta.datasets.backends.dataframe.backends.xml.model import DataModel, ModelRef
 
 from spinta.typing import ObjectData
 

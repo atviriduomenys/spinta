@@ -34,10 +34,6 @@ class ModelRef(MetaItem):
     pass
 
 
-class TransformationModel():
-    pass
-
-
 @dataclass
 class ModelItem:
     """Represents an item in a models after normalization."""
@@ -56,5 +52,4 @@ __all__ = [
     "DataModel",
     "ModelHeader",
     "ModelRef",
-    "TransformationModel",
 ]

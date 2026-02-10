@@ -9,7 +9,7 @@ from spinta.components import Model
 from spinta.core.ufuncs import Bind, Expr
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.dataframe.backends.xml.adapter.row_formatter import RowFormatter
+from spinta.datasets.backends.dataframe.backends.xml.components.row_formatter import RowFormatter
 from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder, ParamLoader
 from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource

@@ -13,12 +13,11 @@ from typing import overload
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta.adapters.loaders import DataAdapter, ModelAdapter
+from spinta.adapters.loaders import DataAdapter, ModelAdapter, TransformationModel
 from spinta.components import Namespace
 from spinta.components import Node, DataItem, PageInfo, Page, Base
 from spinta.components import UrlParams
 from spinta.components import Version
-from spinta.datasets.backends.dataframe.backends.xml.domain.model import TransformationModel
 from spinta.dispatcher import command
 from spinta.exceptions import BaseError
 from spinta.manifests.components import ManifestSchema
