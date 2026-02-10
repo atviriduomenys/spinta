@@ -339,24 +339,147 @@ class PathGenerator:
             return f"#/components/schemas/{model_schema_name}"
 
 
-class SchemaGenerator:
-    """Handles OpenAPI schema generation for models"""
-
-    def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry):
-        self.dtype_handler = dtype_handler
-        self.schema_registry = schema_registry
+class ComponentSchemaBuilder:
+    """Creates OpenAPI component schemas (parameters, responses, headers) from path configs."""
 
     def _ensure_components_path(self, spec: dict, *path: str):
-        """Ensure nested components path exists in spec"""
-
         current = spec
         for key in path:
             current = current.setdefault(key, {})
         return current
 
-    def create_model_schema(self, model) -> dict[str, Any]:
-        """Create OpenAPI schema for a model"""
+    def create_components_for_path(self, spec: dict, path_config: dict):
+        """Create all component schemas (parameters, responses, headers) for a path config."""
+        self._create_component_schemas(spec, path_config, "parameters")
+        self._create_component_schemas(spec, path_config, "responses")
+        self._create_component_schemas(spec, path_config, "headers")
 
+    def _create_component_schemas(self, spec: dict, path_config: dict, component_type: str):
+        components = self._ensure_components_path(spec, "components", component_type)
+
+        type_map = {
+            "parameters": (PARAMETER_COMPONENTS, self._create_parameter, self._collect_parameter_refs),
+            "responses": (RESPONSE_COMPONENTS, self._create_response, self._collect_response_refs),
+            "headers": (HEADER_COMPONENTS, self._create_header, self._collect_header_refs),
+        }
+
+        config_source, creator_func, collector_func = type_map[component_type]
+
+        for ref_key in collector_func(path_config):
+            if ref_key in components:
+                continue
+
+            config = config_source.get(ref_key)
+            if not config:
+                raise ValueError(f"No config found for {component_type[:-1]}: {ref_key}")
+
+            components[ref_key] = creator_func(config)
+
+    def _collect_parameter_refs(self, path_config: dict) -> set:
+        refs = set()
+        if "parameters" in path_config:
+            refs.update(path_config["parameters"])
+        for method, method_config in path_config.items():
+            if method == "parameters" or not isinstance(method_config, dict):
+                continue
+            if "parameters" in method_config:
+                refs.update(method_config["parameters"])
+        return refs
+
+    def _collect_response_refs(self, path_config: dict) -> set:
+        refs = set()
+        for method, method_config in path_config.items():
+            if method == "parameters" or not isinstance(method_config, dict):
+                continue
+            for _, response_config in method_config.get("responses", {}).items():
+                if isinstance(response_config, dict) and "$ref" in response_config:
+                    refs.add(response_config["$ref"])
+        return refs
+
+    def _collect_header_refs(self, path_config: dict) -> set:
+        refs = set()
+        for method, method_config in path_config.items():
+            if method == "parameters" or not isinstance(method_config, dict):
+                continue
+            for _, response_config in method_config.get("responses", {}).items():
+                if isinstance(response_config, dict) and "$ref" not in response_config:
+                    if "headers" in response_config:
+                        refs.update(response_config["headers"])
+        return refs
+
+    def _create_from_config(self, config: dict, field_mapping: dict) -> dict[str, Any]:
+        component = {}
+        for config_key, component_key in field_mapping.items():
+            if config_key in config:
+                component[component_key] = config[config_key]
+        return component
+
+    def _create_parameter(self, config: dict) -> dict[str, Any]:
+        return self._create_from_config(
+            config,
+            {"name": "name", "in": "in", "description": "description", "required": "required", "schema": "schema"},
+        )
+
+    def _create_header(self, config: dict) -> dict[str, Any]:
+        return self._create_from_config(
+            config, {"description": "description", "required": "required", "schema": "schema"}
+        )
+
+    def _create_response(self, config: dict) -> dict[str, Any]:
+        response = {}
+
+        if "description" in config:
+            response["description"] = config["description"]
+
+        if "headers" in config:
+            response["headers"] = {header: {"$ref": f"#/components/headers/{header}"} for header in config["headers"]}
+
+        if "content" in config:
+            response["content"] = {}
+            for media_type, content_config in config["content"].items():
+                schema_config = content_config.get("schema")
+                if schema_config:
+                    response["content"][media_type] = {"schema": self._build_schema_ref(schema_config)}
+
+        return response
+
+    def _build_schema_ref(self, schema_config) -> dict[str, Any]:
+        if isinstance(schema_config, str):
+            return {"$ref": f"#/components/schemas/{schema_config}"}
+        elif isinstance(schema_config, dict) and "oneOf" in schema_config:
+            return {"oneOf": [{"$ref": f"#/components/schemas/{schema}"} for schema in schema_config["oneOf"]]}
+        return schema_config
+
+
+class SchemaGenerator:
+    """Handles OpenAPI schema generation for models."""
+
+    def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry):
+        self.dtype_handler = dtype_handler
+        self.schema_registry = schema_registry
+
+    def create_all_model_schemas(
+        self,
+        models: dict,
+        main_dataset_schema_names: set[str] | None = None,
+    ) -> dict[str, Any]:
+        """Build all model schemas (main + collection + changes + refs) in one pass.
+
+        Returns the complete schemas dict for components/schemas.
+        """
+        schemas = {}
+
+        for model in models.values():
+            schema_name = _get_schema_name(model)
+            schemas[schema_name] = self._create_model_schema(model)
+            schemas[f"{schema_name}Collection"] = self._create_collection_schema(model)
+            schemas[f"{schema_name}Changes"] = self._create_changes_schema(model)
+            schemas[f"{schema_name}Change"] = self._create_change_schema(model)
+            self._create_referenced_model_schemas(schemas, model, main_dataset_schema_names)
+
+        return schemas
+
+    def _create_model_schema(self, model) -> dict[str, Any]:
         properties = self.schema_registry.standard_object_properties.copy()
         required_fields = []
 
@@ -367,36 +490,55 @@ class SchemaGenerator:
             if hasattr(model_property.dtype, "required") and model_property.dtype.required:
                 required_fields.append(prop_name)
 
-        schema = {"type": "object", "properties": properties, "example": self.create_example_object(model)}
+        schema = {"type": "object", "properties": properties, "example": self._create_example(model)}
 
         if required_fields:
             schema["required"] = required_fields
 
         return schema
 
-    def create_model_schemas(
-        self,
-        spec,
-        config: dict,
-        model,
-        path_type,
-        main_dataset_schema_names: set[str] | None = None,
-    ):
-        """Create model-specific schemas based on path type"""
+    def _create_example(self, model, property_filter: set[str] | None = None) -> dict[str, Any]:
+        example = {
+            "_type": model.basename,
+            "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
+            "_revision": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
+        }
+        for prop_name, model_property in model.get_given_properties().items():
+            if property_filter and prop_name not in property_filter:
+                continue
+            example[prop_name] = self.dtype_handler.get_example_value(model_property)
+        return example
 
-        schemas = self._ensure_components_path(spec, "components", "schemas")
-        model_schema_name = _get_schema_name(model)
+    def _create_collection_schema(self, model) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "_type": {"type": "string"},
+                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{_get_schema_name(model)}"}},
+            },
+        }
 
-        if path_type in ("collection", "single", "changes") and model_schema_name not in schemas:
-            schemas[model_schema_name] = self.create_model_schema(model)
-            self._create_referenced_model_schemas(schemas, model, main_dataset_schema_names)
+    def _create_changes_schema(self, model) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "_type": {"type": "string"},
+                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{_get_schema_name(model)}Change"}},
+            },
+        }
 
-        if path_type == "collection":
-            schemas[f"{model_schema_name}Collection"] = self.create_collection_schema(model)
+    def _create_change_schema(self, model) -> dict[str, Any]:
+        properties = copy.deepcopy(CHANGE_SCHEMA_EXAMPLE)
+        properties["_objectType"]["example"] = model.basename
 
-        elif path_type == "changes":
-            schemas[f"{model_schema_name}Changes"] = self.create_changes_schema(model)
-            schemas[f"{model_schema_name}Change"] = self.create_change_schema(model)
+        for prop_name, model_property in model.get_given_properties().items():
+            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property)
+
+            if "required" in prop_schema:
+                del prop_schema["required"]
+            properties[prop_name] = prop_schema
+
+        return {"type": "object", "properties": properties, "additionalProperties": False}
 
     def _create_referenced_model_schemas(
         self,
@@ -515,193 +657,6 @@ class SchemaGenerator:
 
         return schema
 
-    def create_path_component_schemas(self, spec: dict, path_config: dict, component_type: str):
-        """Generic method to create component schemas from path config"""
-
-        components = self._ensure_components_path(spec, "components", component_type)
-
-        type_map = {
-            "parameters": (PARAMETER_COMPONENTS, self.create_parameter_component, self._collect_parameter_refs),
-            "responses": (RESPONSE_COMPONENTS, self.create_response_component, self._collect_response_refs),
-            "headers": (HEADER_COMPONENTS, self.create_header_component, self._collect_header_refs),
-        }
-
-        if component_type not in type_map:
-            raise ValueError(f"Unknown component type: {component_type}")
-
-        config_source, creator_func, collector_func = type_map[component_type]
-
-        refs = collector_func(path_config)
-
-        for ref_key in refs:
-            if ref_key in components:
-                continue
-
-            config = config_source.get(ref_key)
-            if not config:
-                raise ValueError(f"No config found for {component_type[:-1]}: {ref_key}")
-
-            components[ref_key] = creator_func(config)
-
-    def _collect_parameter_refs(self, path_config: dict) -> set:
-        """Collect parameter references from path config"""
-        refs = set()
-
-        if "parameters" in path_config:
-            refs.update(path_config["parameters"])
-
-        for method, method_config in path_config.items():
-            if method == "parameters" or not isinstance(method_config, dict):
-                continue
-            if "parameters" in method_config:
-                refs.update(method_config["parameters"])
-
-        return refs
-
-    def _collect_response_refs(self, path_config: dict) -> set:
-        """Collect response references from path config"""
-        refs = set()
-
-        for method, method_config in path_config.items():
-            if method == "parameters" or not isinstance(method_config, dict):
-                continue
-
-            for status_code, response_config in method_config.get("responses", {}).items():
-                if isinstance(response_config, dict) and "$ref" in response_config:
-                    refs.add(response_config["$ref"])
-
-        return refs
-
-    def _collect_header_refs(self, path_config: dict) -> set:
-        """Collect header references from path config"""
-        refs = set()
-
-        for method, method_config in path_config.items():
-            if method == "parameters" or not isinstance(method_config, dict):
-                continue
-
-            for status_code, response_config in method_config.get("responses", {}).items():
-                if isinstance(response_config, dict) and "$ref" not in response_config:
-                    if "headers" in response_config:
-                        refs.update(response_config["headers"])
-
-        return refs
-
-    def create_path_parameters_schemas(self, spec: dict, path_config: dict):
-        """Create parameter components from path configuration"""
-        self.create_path_component_schemas(spec, path_config, "parameters")
-
-    def create_path_response_schemas(self, spec: dict, path_config: dict):
-        """Create response components from path configuration"""
-        self.create_path_component_schemas(spec, path_config, "responses")
-
-    def create_path_header_schemas(self, spec: dict, path_config: dict):
-        """Create header components from path configuration"""
-        self.create_path_component_schemas(spec, path_config, "headers")
-
-    def create_common_schemas(self, spec: dict):
-        """Create common error and type schemas"""
-        schemas = self._ensure_components_path(spec, "components", "schemas")
-
-        for schema_name, schema_config in COMMON_SCHEMAS.items():
-            if schema_name not in schemas:
-                schemas[schema_name] = schema_config
-
-    def create_component_from_config(self, config: dict, field_mapping: dict) -> dict[str, Any]:
-        """Generic method to create a component from config based on field mapping"""
-        component = {}
-        for config_key, component_key in field_mapping.items():
-            if config_key in config:
-                component[component_key] = config[config_key]
-        return component
-
-    def create_parameter_component(self, config: dict) -> dict[str, Any]:
-        """Create a parameter component from config"""
-        return self.create_component_from_config(
-            config,
-            {"name": "name", "in": "in", "description": "description", "required": "required", "schema": "schema"},
-        )
-
-    def create_header_component(self, config: dict) -> dict[str, Any]:
-        """Create a header component from config"""
-        return self.create_component_from_config(
-            config, {"description": "description", "required": "required", "schema": "schema"}
-        )
-
-    def create_response_component(self, config: dict) -> dict[str, Any]:
-        """Create a response component from config"""
-        response = {}
-
-        if "description" in config:
-            response["description"] = config["description"]
-
-        if "headers" in config:
-            response["headers"] = {header: {"$ref": f"#/components/headers/{header}"} for header in config["headers"]}
-
-        if "content" in config:
-            response["content"] = {}
-            for media_type, content_config in config["content"].items():
-                schema_config = content_config.get("schema")
-                if schema_config:
-                    response["content"][media_type] = {"schema": self._build_schema_ref(schema_config)}
-
-        return response
-
-    def _build_schema_ref(self, schema_config) -> dict[str, Any]:
-        """Convert schema config to proper $ref format"""
-        if isinstance(schema_config, str):
-            return {"$ref": f"#/components/schemas/{schema_config}"}
-        elif isinstance(schema_config, dict) and "oneOf" in schema_config:
-            return {"oneOf": [{"$ref": f"#/components/schemas/{schema}"} for schema in schema_config["oneOf"]]}
-        return schema_config
-
-    def create_collection_schema(self, model) -> dict[str, Any]:
-        """Create collection schema for a model"""
-        return {
-            "type": "object",
-            "properties": {
-                "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{_get_schema_name(model)}"}},
-            },
-        }
-
-    def create_example_object(self, model) -> dict[str, Any]:
-        """Create example object for a model"""
-        example = {
-            "_type": model.basename,
-            "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
-            "_revision": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
-        }
-
-        for prop_name, model_property in model.get_given_properties().items():
-            example[prop_name] = self.dtype_handler.get_example_value(model_property)
-
-        return example
-
-    def create_changes_schema(self, model) -> dict[str, Any]:
-        """Create changes schema for a model"""
-        return {
-            "type": "object",
-            "properties": {
-                "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{_get_schema_name(model)}Change"}},
-            },
-        }
-
-    def create_change_schema(self, model) -> dict[str, Any]:
-        """Create change schema for a model with actual model properties"""
-        properties = copy.deepcopy(CHANGE_SCHEMA_EXAMPLE)
-        properties["_objectType"]["example"] = model.basename
-
-        for prop_name, model_property in model.get_given_properties().items():
-            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property)
-
-            if "required" in prop_schema:
-                del prop_schema["required"]
-            properties[prop_name] = prop_schema
-
-        return {"type": "object", "properties": properties, "additionalProperties": False}
-
 
 class OpenAPIGenerator:
     """Generate OpenAPI specs using manifest data"""
@@ -714,10 +669,10 @@ class OpenAPIGenerator:
 
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry)
         self.path_generator = PathGenerator(self.dtype_handler)
+        self.component_builder = ComponentSchemaBuilder()
 
     def generate_spec(self, manifest) -> dict[str, Any]:
-        """Generate complete OpenAPI specification"""
-
+        """Generate complete OpenAPI specification."""
         spec = {
             "openapi": VERSION,
             "info": copy.deepcopy(INFO),
@@ -734,15 +689,19 @@ class OpenAPIGenerator:
 
         self._override_info(spec, datasets)
         self._set_tags(spec, models)
+
         main_dataset_schema_names = {_get_schema_name(m) for m in models.values()}
-        self.create_paths(spec, datasets, models, main_dataset_schema_names)
-        self.schema_generator.create_common_schemas(spec)
+        model_schemas = self.schema_generator.create_all_model_schemas(models, main_dataset_schema_names)
+        spec.setdefault("components", {}).setdefault("schemas", {}).update(model_schemas)
+
+        self._create_paths(spec, datasets, models)
+
+        self._create_component_schemas(spec)
+        self._add_common_schemas(spec)
 
         return spec
 
     def _extract_manifest_data(self, manifest) -> tuple[Any, dict]:
-        """Extract datasets and models from manifest"""
-
         context = create_context()
         manifests = [manifest]
         context = configure_context(context, manifests)
@@ -754,7 +713,6 @@ class OpenAPIGenerator:
         return datasets, models
 
     def _filter_by_main_dataset(self, datasets: Any, models: dict) -> tuple[list, dict]:
-        """Filter datasets and models to only those belonging to main_dataset_name."""
         datasets_list = list(datasets)
         filtered_datasets = [(name, dataset) for name, dataset in datasets_list if name == self.main_dataset_name]
         if not filtered_datasets:
@@ -774,69 +732,57 @@ class OpenAPIGenerator:
         return filtered_datasets, filtered_models
 
     def _override_info(self, spec: dict[str, Any], datasets: dict):
-        """Override info section with dataset information"""
-
         _, dataset = next(iter(datasets))
         spec["info"]["summary"] = dataset.title
         spec["info"]["description"] = dataset.description
 
     def _set_tags(self, spec: dict[str, Any], models: dict):
-        """Override tags with model names"""
-
         description = "Operations with"
-
         for model in models.values():
             model_schema_name = model.basename
             spec["tags"].append({"name": model_schema_name, "description": f"{description} {model_schema_name}"})
 
-    def _override_schemas_section(self, spec: dict[str, Any], models: dict):
-        """Override schemas section with model schemas"""
-
-        existing_schemas = spec["components"]["schemas"]
-
-        for model in models.values():
-            model_schema_name = model.basename
-
-            model_schema = self.schema_generator.create_model_schema(model, models)
-            existing_schemas[model_schema_name] = model_schema
-
-            collection_schema = self.schema_generator.create_collection_schema(model)
-            existing_schemas[f"{model_schema_name}Collection"] = collection_schema
-
-            changes_schema = self.schema_generator.create_changes_schema(model)
-            existing_schemas[f"{model_schema_name}Changes"] = changes_schema
-
-            change_schema = self.schema_generator.create_change_schema(model)
-            existing_schemas[f"{model_schema_name}Change"] = change_schema
-
-    def create_paths(
-        self,
-        spec: dict[str, Any],
-        datasets: Any,
-        models: dict,
-        main_dataset_schema_names: set[str] | None = None,
-    ):
+    def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
         paths = {}
-        utility_paths = ["/version", "/health"]
 
-        for path in utility_paths:
+        for path in ["/version", "/health"]:
             path_config = PATHS_CONFIG.get(path)
-
             if not path_config:
                 raise ValueError(f"No config found for path: {path}")
-
             paths[path] = self.path_generator.create_path(path_config)
 
         for dataset_name, _ in datasets:
-            dataset_models = self._get_dataset_models(dataset_name, models)
+            for model in self._get_dataset_models(dataset_name, models):
+                for path_key, actual_path, path_type, model_property in self.path_generator.create_path_mappings(
+                    model,
+                    dataset_name,
+                ):
+                    path_config = PATHS_CONFIG.get(path_key)
+                    if not path_config:
+                        raise ValueError(f"No config found for path: {path_key}")
 
-            for model in dataset_models:
-                self._create_model_paths(spec, paths, model, dataset_name, main_dataset_schema_names)
+                    paths[actual_path] = self.path_generator.create_model_path(
+                        path_key,
+                        path_config,
+                        model,
+                        path_type,
+                        model_property,
+                    )
 
         spec["paths"] = paths
 
+    def _create_component_schemas(self, spec: dict[str, Any]):
+        """Build all component schemas (parameters, responses, headers) from all path configs."""
+        for path_config in PATHS_CONFIG.values():
+            self.component_builder.create_components_for_path(spec, path_config)
+
+    def _add_common_schemas(self, spec: dict[str, Any]):
+        schemas = spec.setdefault("components", {}).setdefault("schemas", {})
+        for schema_name, schema_config in COMMON_SCHEMAS.items():
+            if schema_name not in schemas:
+                schemas[schema_name] = schema_config
+
     def _get_dataset_models(self, dataset_name: str, models: dict) -> list:
-        """Get all models belonging to a specific dataset"""
         return [
             model
             for model in models.values()
@@ -846,27 +792,3 @@ class OpenAPIGenerator:
                 and model.external.dataset.name == dataset_name
             )
         ]
-
-    def _create_model_paths(
-        self,
-        spec: dict[str, Any],
-        paths: dict[str, Any],
-        model,
-        dataset_name: str,
-        main_dataset_schema_names: set[str] | None = None,
-    ):
-        path_mappings = self.path_generator.create_path_mappings(model, dataset_name)
-
-        for path_key, actual_path, path_type, model_property in path_mappings:
-            path_config = PATHS_CONFIG.get(path_key)
-            if not path_config:
-                raise ValueError(f"No config found for path: {path_key}")
-
-            updated_operations = self.path_generator.create_model_path(
-                path_key, path_config, model, path_type, model_property
-            )
-            paths[actual_path] = updated_operations
-            self.schema_generator.create_model_schemas(spec, path_config, model, path_type, main_dataset_schema_names)
-            self.schema_generator.create_path_response_schemas(spec, path_config)
-            self.schema_generator.create_path_parameters_schemas(spec, path_config)
-            self.schema_generator.create_path_header_schemas(spec, path_config)
