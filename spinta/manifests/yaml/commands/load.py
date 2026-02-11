@@ -107,6 +107,7 @@ def load(
 
     for source in manifest.sync:
         manager.current_file = source.path
+        # breakpoint()
         commands.load(
             context,
             source,
