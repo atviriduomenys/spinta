@@ -508,11 +508,11 @@ def test_version_schema_structure(open_manifest_path: ManifestPath):
 
 def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
 
-    assert "datasets_gov_kapines_Teritorija" in schemas
+    assert "datasets_gov_cemetery_Territory" in schemas
 
     assert "datasets_gov_vssa_demo_Municipality" in schemas
     assert "datasets_gov_vssa_demo_County" in schemas
@@ -520,7 +520,7 @@ def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
 
 def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
 
@@ -552,45 +552,45 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
 
 def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
-    teritorija_schema = schemas["datasets_gov_kapines_Teritorija"]
-    properties = teritorija_schema["properties"]
+    territory_schema = schemas["datasets_gov_cemetery_Territory"]
+    properties = territory_schema["properties"]
 
-    assert properties["miestas"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_Municipality"
-    assert properties["regionas"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
+    assert properties["city"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_Municipality"
+    assert properties["region"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
 
 
 def test_main_model_ref_properties_have_proper_examples(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
-    teritorija_schema = schemas["datasets_gov_kapines_Teritorija"]
+    territory_schema = schemas["datasets_gov_cemetery_Territory"]
 
-    miestas_example = teritorija_schema["properties"]["miestas"]["example"]
-    assert "id" in miestas_example, "miestas example should contain Municipality's ref field 'id'"
+    city_example = territory_schema["properties"]["city"]["example"]
+    assert "id" in city_example, "city example should contain Municipality's ref field 'id'"
 
-    regionas_example = teritorija_schema["properties"]["regionas"]["example"]
-    assert "id" in regionas_example, "regionas example should contain County's ref field 'id'"
-    assert "title" in regionas_example, "regionas example should contain County's ref field 'title'"
+    region_example = territory_schema["properties"]["region"]["example"]
+    assert "id" in region_example, "region example should contain County's ref field 'id'"
+    assert "title" in region_example, "region example should contain County's ref field 'title'"
 
-    schema_example = teritorija_schema["example"]
-    assert isinstance(schema_example["miestas"], dict)
-    assert "id" in schema_example["miestas"]
-    assert isinstance(schema_example["regionas"], dict)
-    assert "id" in schema_example["regionas"]
-    assert "title" in schema_example["regionas"]
+    schema_example = territory_schema["example"]
+    assert isinstance(schema_example["city"], dict)
+    assert "id" in schema_example["city"]
+    assert isinstance(schema_example["region"], dict)
+    assert "id" in schema_example["region"]
+    assert "title" in schema_example["region"]
 
 
 def test_cross_dataset_ref_no_paths_for_referenced_models(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     paths = open_api_spec["paths"]
 
-    assert "/datasets/gov/kapines/Teritorija" in paths
+    assert "/datasets/gov/cemetery/Territory" in paths
 
     for path in paths:
         assert "Municipality" not in path, f"Unexpected path for referenced model: {path}"
@@ -603,61 +603,61 @@ def test_cross_dataset_ref_without_filter_all_schemas_exist(open_manifest_path_f
 
     schemas = open_api_spec["components"]["schemas"]
 
-    assert "datasets_gov_kapines_Teritorija" in schemas
+    assert "datasets_gov_cemetery_Territory" in schemas
     assert "datasets_gov_vssa_demo_Municipality" in schemas
     assert "datasets_gov_vssa_demo_County" in schemas
 
 
 def test_circular_ref_creates_ref_only_schema_for_back_reference(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
 
-    assert "datasets_gov_kapines_Teritorija" in schemas
-    full_schema = schemas["datasets_gov_kapines_Teritorija"]
+    assert "datasets_gov_cemetery_Territory" in schemas
+    full_schema = schemas["datasets_gov_cemetery_Territory"]
     assert "vda_id" in full_schema["properties"]
-    assert "kapines" in full_schema["properties"]
-    assert "miestas" in full_schema["properties"]
-    assert "geometrija" in full_schema["properties"]
+    assert "cemetery" in full_schema["properties"]
+    assert "city" in full_schema["properties"]
+    assert "geometry" in full_schema["properties"]
 
-    assert "datasets_gov_kapines_Teritorija_Ref" in schemas
-    ref_schema = schemas["datasets_gov_kapines_Teritorija_Ref"]
+    assert "datasets_gov_cemetery_Territory_Ref" in schemas
+    ref_schema = schemas["datasets_gov_cemetery_Territory_Ref"]
     assert "vda_id" in ref_schema["properties"]
-    assert "kapines" not in ref_schema["properties"]
-    assert "miestas" not in ref_schema["properties"]
-    assert "geometrija" not in ref_schema["properties"]
+    assert "cemetery" not in ref_schema["properties"]
+    assert "city" not in ref_schema["properties"]
+    assert "geometry" not in ref_schema["properties"]
 
 
 def test_circular_ref_plotas_schema_points_to_ref_variant(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
 
-    plotas_schema = schemas["datasets_gov_giscentras_grpk_Plotas"]
-    plotas_props = plotas_schema["properties"]
+    area_schema = schemas["datasets_gov_giscenter_grpk_Area"]
+    area_props = area_schema["properties"]
 
-    assert "top_id" in plotas_props
-    assert "info" in plotas_props
-    assert "area" not in plotas_props
-    assert plotas_props["info"]["$ref"] == "#/components/schemas/datasets_gov_kapines_Teritorija_Ref"
+    assert "top_id" in area_props
+    assert "info" in area_props
+    assert "area" not in area_props
+    assert area_props["info"]["$ref"] == "#/components/schemas/datasets_gov_cemetery_Territory_Ref"
 
 
 def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/kapines")
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
 
     schemas = open_api_spec["components"]["schemas"]
     model_schema_names = [key for key in schemas if key.startswith("datasets_")]
     expected = {
-        "datasets_gov_kapines_Teritorija",
-        "datasets_gov_kapines_TeritorijaCollection",
-        "datasets_gov_kapines_TeritorijaChanges",
-        "datasets_gov_kapines_TeritorijaChange",
-        "datasets_gov_kapines_Teritorija_Ref",
+        "datasets_gov_cemetery_Territory",
+        "datasets_gov_cemetery_TerritoryCollection",
+        "datasets_gov_cemetery_TerritoryChanges",
+        "datasets_gov_cemetery_TerritoryChange",
+        "datasets_gov_cemetery_Territory_Ref",
         "datasets_gov_vssa_demo_County",
-        "datasets_gov_giscentras_grpk_Plotas",
+        "datasets_gov_giscenter_grpk_Area",
         "datasets_gov_vssa_demo_Municipality",
     }
     assert set(model_schema_names) == expected
