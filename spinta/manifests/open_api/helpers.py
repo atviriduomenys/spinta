@@ -355,6 +355,11 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
 
 def create_openapi_manifest(manifest: ManifestPath, **kwargs: Any) -> dict:
     """Create OpenAPI manifest from manifest data"""
+
     main_dataset_name = kwargs.get("main_dataset_name")
-    generator = OpenAPIGenerator(main_dataset_name=main_dataset_name)
+    api_version = kwargs.get("api_version")
+    generator = OpenAPIGenerator(
+        main_dataset_name=main_dataset_name,
+        api_version=api_version,
+    )
     return generator.generate_spec(manifest)

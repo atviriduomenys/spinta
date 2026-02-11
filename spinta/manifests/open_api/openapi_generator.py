@@ -681,8 +681,9 @@ class SchemaGenerator:
 class OpenAPIGenerator:
     """Generate OpenAPI specs using manifest data"""
 
-    def __init__(self, main_dataset_name: str | None = None):
+    def __init__(self, main_dataset_name: str | None = None, api_version: str | None = None):
         self.main_dataset_name = main_dataset_name
+        self.api_version = api_version if api_version is not None else ""
 
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry)
@@ -701,6 +702,7 @@ class OpenAPIGenerator:
             "tags": copy.deepcopy(BASE_TAGS),
             "components": {},
         }
+        specification["info"]["version"] = self.api_version
 
         datasets, models = self._extract_manifest_data(manifest)
 
