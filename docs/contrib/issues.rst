@@ -22,6 +22,10 @@ An issue is considered done when all of the following tasks are done:
 - Automated tests covers new functionality or reproduces a bug, that was fixed.
   See :ref:`writing-tests`.
 
+- Change is added to `CHANGES.rst`_ file.
+
+  .. _CHANGES.rst: https://github.com/atviriduomenys/spinta/blob/master/CHANGES.rst
+
 - Documentation is up to date, we have following documentation pages:
 
   - `Spinta documentaiton`_ - technical documentation abould Spinta.
@@ -52,40 +56,38 @@ Types
 
 There are following task types:
 
-- `epic` - large part of a project usually project can be divided into several
+- `Epic` - large part of a project usually project can be divided into several
   half year or so large task grups or stages, thos should be labed as `epic`.
   An `epic` is diveded into smaller `feature` tasks.
 
-- `feature` - high level feature description, usually comes from a technical
+- `Feature` - high level feature description, usually comes from a technical
   specification, shouch tasks are oriented for wider audience ans should not be
   too technical and detailed. A `feature` is diveded into smaller `story`
   tasks.
 
-- `story` - user story, a task from user perspectives, does not go into
+- `Story` - user story, a task from user perspectives, does not go into
   technical implementation detais, only describes how things should work from
   user perspective. `story` is divided into smaller `task` tasks.
 
-- `task` - smallest type of a task, describing implementation, who a specific
+- `Task` - smallest type of a task, describing implementation, who a specific
   `story` will be implemented.
 
-On GitHub, issue types should be provided as labels, all excep `task`. For
-`task` issues, label is not needed.
+- `Analysis` - a separate task, used for analysis, if needed.
+
 
 
 Links
 =====
 
-Always provide link to the upper level task.
+Always provide link to the upper level task, by adding sub-issue to the upper task.
+
+Always provide link to specification task if change is related to specification changes.
 
 Also provide related issues and resources if any.
 
 Example for a `story`:
 
 .. code-block:: plain
-
-    ### Feature
-
-    - #42
 
     ### Related
 
@@ -95,8 +97,6 @@ Example for a `story`:
     ### Resources
 
     - https://example.com/docs.html
-    
-Upper level task, could be proveded using GitHub's sub-task functionality.
 
 
 Minimal reproducible example
@@ -156,6 +156,10 @@ When issue is related with API, provide HTTP examples or requests and response, 
     ```
 
 If issue is related with command line, provide command line examples.
+
+See examples in notes_ directory, for inspiration on how to privide inputs, outputs and other things, like configuration in order to reproduce the issue.
+
+.. _notes: https://github.com/atviriduomenys/spinta/tree/master/notes
 
 
 Tracebacks
