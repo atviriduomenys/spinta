@@ -5,10 +5,16 @@ Changes
 0.2dev15 (unreleased)
 =====================
 
+New Features:
+
+- Generate OpenAPI schemas for dependant ref models  (`#Katalogas2299`_).
+
+.. _#Katalogas2299: https://github.com/atviriduomenys/katalogas/issues/2299
+
 Bug fixes:
 
-- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
-  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`,
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
 
 .. _#963: https://github.com/atviriduomenys/spinta/issues/963
