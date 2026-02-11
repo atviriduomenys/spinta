@@ -35,7 +35,7 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Component, Context
+from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
 from spinta.components import Namespace
