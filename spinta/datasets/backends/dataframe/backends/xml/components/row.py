@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import Callable, List, Sequence
 
 from spinta import commands
 from spinta.adapters.loaders import ModelAdapter, TransformationModel
@@ -30,11 +30,11 @@ class RowList(TransformationModel):
 
 class Row(ModelAdapter):
     manifest_paths: List[str]
-    context: Context
+    ref_resolver: Callable
 
-    def __init__(self, context: Context, manifest_paths: List[str] = None):
-        self.context = context
+    def __init__(self, manifest_paths: List[str] = None, ref_resolver: Callable = None):
         self.manifest_paths = manifest_paths or []
+        self.ref_resolver = ref_resolver
 
     def _resolve_properties(self, prop_name: str, prop) -> Sequence[ModelItem]:
         """Resolve properties from a given model.
@@ -85,8 +85,8 @@ class Row(ModelAdapter):
                     source=prop.external.name,
                     access=prop.access if hasattr(prop, "access") else None,
                     maturity=prop.level,
-                    value=lambda query: next(
-                        commands.getall(self.context, prop.dtype.model, prop.dtype.model.backend, query=query),
+                    value=lambda query, model_dtype=prop.dtype.model, backend=prop.dtype.model.backend: next(
+                        self.ref_resolver(query, model_dtype, backend),
                         None,
                     ),
                 )

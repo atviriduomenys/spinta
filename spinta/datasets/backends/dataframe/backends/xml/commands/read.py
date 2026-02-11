@@ -249,10 +249,12 @@ def getall(
         .to_dataframe(meta=meta)
     )
 
+    def ref_resolver(query, model_dtype, backend):
+        return commands.getall(context, model_dtype, backend, query=query)
+
     yield from commands.stream_model_data(
         model,
-        Row(manifest_paths=manifest_paths,
-            context=context),
+        Row(manifest_paths=manifest_paths, ref_resolver=ref_resolver),
         DaskXml(df=df, df_mask=df_mask),
         RowMetaItem(key_map=keymap),
         transformation_adapter=RowFormatter.to_object_data
