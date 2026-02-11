@@ -26,6 +26,13 @@ from spinta.manifests.open_api.openapi_config import (
 )
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NA
+from spinta.components import Model
+
+UTILITY_PATHS = ["/version", "/health"]
+
+EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
+EXAMPLE_UUID_OBJECT_ID = "abdd1245-bbf9-4085-9366-f11c0f737c1d"
+EXAMPLE_UUID_REVISION = "16dabe62-61e9-4549-a6bd-07cecfbc3508"
 
 
 @dataclass
@@ -44,7 +51,7 @@ class ExampleValues:
     values: dict[str, Any] = field(default_factory=lambda: PROPERTY_EXAMPLE)
 
 
-def _get_schema_name(model) -> str:
+def _get_schema_name(model: Model) -> str:
     """Convert model name to unique OpenAPI schema name.
 
     e.g. 'datasets/gov/vssa/demo/Municipality' -> 'datasets_gov_vssa_demo_Municipality'
@@ -116,11 +123,9 @@ class DataTypeHandler:
 
         if self.is_reference_type(dtype):
             ref_schema_name = _get_schema_name(dtype.model)
-            example = {"_type": dtype.model.basename, "_id": "12345678-1234-5678-9abc-123456789012"}
-            if schemas:
-                ref_schema = schemas.get(ref_schema_name)
-                if ref_schema and "example" in ref_schema:
-                    example = ref_schema["example"]
+            example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
+            if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
+                example = ref_schema["example"]
             return {
                 "$ref": f"#/components/schemas/{ref_schema_name}",
                 "example": example,
@@ -145,11 +150,9 @@ class DataTypeHandler:
             return enum_values[0] if enum_values else "UNKNOWN"
 
         if self.is_reference_type(dtype):
-            if schemas:
-                ref_schema = schemas.get(_get_schema_name(dtype.model))
-                if ref_schema and "example" in ref_schema:
-                    return ref_schema["example"]
-            return {"_type": dtype.model.basename, "_id": "12345678-1234-5678-9abc-123456789012"}
+            if schemas and (ref_schema := schemas.get(_get_schema_name(dtype.model))) and "example" in ref_schema:
+                return ref_schema["example"]
+            return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
 
         if self.is_array_type(dtype):
             item_example = self.get_example_value(dtype.items, schemas=schemas)
@@ -170,7 +173,7 @@ class PathGenerator:
         dtype_name = self.dtype_handler.get_dtype_name(model_property.dtype)
         return dtype_name in PROPERTY_TYPES_IN_PATHS
 
-    def create_path_mappings(self, model, dataset_name: str) -> list[tuple[str, str, str, tuple | None]]:
+    def create_path_mappings(self, model: Model, dataset_name: str) -> list[tuple[str, str, str, tuple | None]]:
         """Create path mappings for a model"""
         actual_model_name = model.basename
 
@@ -192,7 +195,7 @@ class PathGenerator:
         self,
         path_key: str,
         path_config: dict,
-        model,
+        model: Model,
         path_type: str = "collection",
         model_property: tuple | None = None,
     ) -> dict[str, Any]:
@@ -516,8 +519,8 @@ class SchemaGenerator:
     ) -> dict[str, Any]:
         example = {
             "_type": model.basename,
-            "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
-            "_revision": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
+            "_id": EXAMPLE_UUID_OBJECT_ID,
+            "_revision": EXAMPLE_UUID_REVISION,
         }
         for prop_name, model_property in model.get_given_properties().items():
             if property_filter and prop_name not in property_filter:
@@ -591,7 +594,7 @@ class SchemaGenerator:
     def _resolve_nested_ref_schema_name(
         self,
         schemas: dict,
-        nested_ref_model,
+        nested_ref_model: Model,
         nested_refprops: list,
         main_dataset_schema_names: set[str] | None,
     ) -> str:
@@ -643,7 +646,7 @@ class SchemaGenerator:
                 if example is None:
                     example = {
                         "_type": inner_dtype.model.basename,
-                        "_id": "12345678-1234-5678-9abc-123456789012",
+                        "_id": EXAMPLE_UUID_REF_ID,
                     }
                 prop_schema = {
                     "$ref": f"#/components/schemas/{schema_name}",
@@ -659,8 +662,8 @@ class SchemaGenerator:
 
         example = {
             "_type": model.basename,
-            "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
-            "_revision": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
+            "_id": EXAMPLE_UUID_OBJECT_ID,
+            "_revision": EXAMPLE_UUID_REVISION,
         }
         for prop_name, model_property in model.get_given_properties().items():
             if refprop_names and prop_name not in refprop_names:
@@ -690,7 +693,7 @@ class OpenAPIGenerator:
 
     def generate_spec(self, manifest) -> dict[str, Any]:
         """Generate complete OpenAPI specification."""
-        spec = {
+        specification = {
             "openapi": VERSION,
             "info": copy.deepcopy(INFO),
             "externalDocs": copy.deepcopy(EXTERNAL_DOCS),
@@ -704,19 +707,19 @@ class OpenAPIGenerator:
         if self.main_dataset_name is not None:
             datasets, models = self._filter_by_main_dataset(datasets, models)
 
-        self._override_info(spec, datasets)
-        self._set_tags(spec, models)
+        self._override_info(specification, datasets)
+        self._set_tags(specification, models)
 
         main_dataset_schema_names = {_get_schema_name(m) for m in models.values()}
         model_schemas = self.schema_generator.create_all_model_schemas(models, main_dataset_schema_names)
-        spec.setdefault("components", {}).setdefault("schemas", {}).update(model_schemas)
+        specification.setdefault("components", {}).setdefault("schemas", {}).update(model_schemas)
 
-        self._create_paths(spec, datasets, models)
+        self._create_paths(specification, datasets, models)
 
-        self._create_component_schemas(spec)
-        self._add_common_schemas(spec)
+        self._create_component_schemas(specification)
+        self._add_common_schemas(specification)
 
-        return spec
+        return specification
 
     def _extract_manifest_data(self, manifest) -> tuple[Any, dict]:
         context = create_context()
@@ -762,7 +765,7 @@ class OpenAPIGenerator:
     def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
         paths = {}
 
-        for path in ["/version", "/health"]:
+        for path in UTILITY_PATHS:
             path_config = PATHS_CONFIG.get(path)
             if not path_config:
                 raise ValueError(f"No config found for path: {path}")
@@ -793,7 +796,7 @@ class OpenAPIGenerator:
         for path_config in PATHS_CONFIG.values():
             self.component_builder.create_components_for_path(spec, path_config)
 
-    def _add_common_schemas(self, spec: dict[str, Any]):
+    def _add_common_schemas(self, spec: dict[str, Any]) -> None:
         schemas = spec.setdefault("components", {}).setdefault("schemas", {})
         for schema_name, schema_config in COMMON_SCHEMAS.items():
             if schema_name not in schemas:
