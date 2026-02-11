@@ -1,7 +1,54 @@
 Changes
 #######
 
-0.2dev13 (unreleased)
+
+0.2dev15 (unreleased)
+=====================
+
+Bug fixes:
+
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+
+.. _#963: https://github.com/atviriduomenys/spinta/issues/963
+
+
+0.2dev14 (2026-02-03)
+=====================
+
+New Features:
+
+- Change URL for calls to Data Catalog. Changed the organization type and information system name
+  (from ISRIS to ROR) (`#Katalogas2273`_).
+- Add a script for file having multiple XML defitinions splitting to multiple files (`#dvms428`_).
+
+.. _#Katalogas2273: https://github.com/atviriduomenys/katalogas/issues/2273
+.. _#dvms428: https://github.com/atviriduomenys/dvms/issues/428
+
+Improvements:
+
+- New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. (`#1659`_).
+- Property `backref` no longer requires a corresponding `ref` entry (`#1314`_).
+
+.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
+Bug Fixes:
+
+- Adjusting a bug where tags would be duplicated, due to list mutability (`#Katalogas2291`_).
+- Added `dsa` and `uapi` properties to version endpoint in OpenAPI schema (`#Katalogas2315`_).
+- Added `Boolean` filter support to `postgresql` backend (`#1700`_).
+
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
+.. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
+.. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
+
+
+..
+
+0.2dev13 (2026-01-14)
 =====================
 
 New Features:
@@ -13,9 +60,17 @@ New Features:
 
 Bug fixes:
 
-- fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
+- Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
+  (using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+  log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+
 
 .. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
+.. _#1649: https://github.com/atviriduomenys/spinta/pull/1649
+.. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
+
 
 0.2dev12 (2025-12-18)
 =====================
@@ -23,13 +78,13 @@ Bug fixes:
 New Features:
 
 - Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
-`spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+  `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
 
 .. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
 
 Improvements:
 
-- `spinta migrate` now supports `Array` datatype migrations (`#1501`_).
+- `spinta migrate` now supports `Array` datatype migrations (`#1501`_)
 - Added new config `check_contract_scopes` that enables additional scope checks on each request. This check
   compares `contract_scopes` saved in client's file with scopes from JWT token. Fails if JWT token has more
   scopes with currently loaded manifest namespaces than `contract_scopes`. (`#1598`_)
@@ -39,10 +94,11 @@ Improvements:
 
 Bug fixes:
 
-Added try except block which offers a fallback to `immutables` sqlalchemy python libraries instead of C
-libraries if those don't exist (`#1637`_).
+- Added try except block which offers a fallback to `immutables`
+  sqlalchemy python libraries instead of C libraries if those don't exist (`#1637`_).
 
 .. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
+
 
 0.2dev11 (2025-12-03)
 =====================
@@ -206,9 +262,7 @@ Improvements:
 Bug fixes:
 
 - Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
-
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
-
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
   .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
@@ -223,7 +277,9 @@ Bug fixes:
   .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 Other:
+
 - Removed dependency `mypy`
+
 
 
 0.2dev5 (2025-09-03)

@@ -7,9 +7,9 @@ test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
 export MAJOR=0
-export MINOR=2dev12
-export OLD_MINOR=2dev11
-export FUTURE_MINOR=2dev13
+export MINOR=2dev14
+export OLD_MINOR=2dev13
+export FUTURE_MINOR=2dev15
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -107,32 +107,18 @@ unset SPINTA_CONFIG
 
 # notes/docker.sh                   Shutdown docker compose
 
-# Update project version in pyproject.toml
-cd ~/dev/data/spinta
+# Create pull request for release version in github and check if all tests run
 
-ed pyproject.toml <<EOF
-/^version = /c
-version = "$NEW_VERSION"
-.
-wq
-EOF
 
 # Update version release date in CHANGES.rst
 ed CHANGES.rst <<EOF
-/unreleased/c
+/$NEW_VERSION (unreleased)/c
 $NEW_VERSION ($(date +%Y-%m-%d))
 .
 wq
 EOF
-git diff
-
-git commit -a -m "Releasing version $NEW_VERSION"
-git push origin HEAD
-
-# Create pull request for release version in github and check if all tests run
 
 # notes/spinta/release/common.sh    Publish version to PyPI
-
 
 # generate hashed requirements file
 
@@ -141,7 +127,7 @@ poetry export -f requirements.txt \
 
 # get hashes to spinta itself
 
-echo "spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\" > spinta-header.txt
+echo 'spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\' > spinta-header.txt
 
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
@@ -156,18 +142,19 @@ git add requirements/spinta-${NEW_VERSION}.txt
 git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
 git push
 
-
-
-# Prepare pyproject.toml and CHANGES.rst for future versions
+# tag the release
 git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
 
+
+# prepare for the future version
 ed pyproject.toml <<EOF
 /^version = /c
 version = "$FUTURE_VERSION"
 .
 wq
 EOF
+
 ed CHANGES.rst <<EOF
 /^###/a
 
@@ -183,41 +170,3 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Merge pull request with release branch
-
-# Prepare master branch post release
-git status
-git checkout master
-git pull
-
-export POST_RELEASE_BRANCH=post-release_${NEW_VERSION}
-git branch $POST_RELEASE_BRANCH
-git checkout $POST_RELEASE_BRANCH
-git status
-
-
-# Update version release date in CHANGES.rst
-ed CHANGES.rst <<EOF
-/$NEW_VERSION (unreleased)/c
-$NEW_VERSION ($(date +%Y-%m-%d))
-.
-wq
-EOF
-
-ed CHANGES.rst <<EOF
-/$NEW_VERSION ($(date +%Y-%m-%d))/i
-$FUTURE_VERSION (unreleased)
-===================
-
-
-.
-wq
-EOF
-head CHANGES.rst
-
-git diff
-git commit -a -m "Post-release changes for $NEW_VERSION release"
-git push origin HEAD
-git log -n3
-
-# Create PR for master and merge it if all tests pass

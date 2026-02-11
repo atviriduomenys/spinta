@@ -6,7 +6,7 @@
 #
 alabaster==1.0.0
     # via sphinx
-anyio==4.12.0
+anyio==4.12.1
     # via
     #   starlette
     #   watchfiles
@@ -96,19 +96,21 @@ sphinxcontrib-qthelp==2.0.0
     # via sphinx
 sphinxcontrib-serializinghtml==2.0.0
     # via sphinx
-starlette==0.50.0
+starlette==0.52.1
     # via sphinx-autobuild
+tomli==2.4.0
+    # via sphinx
 typing-extensions==4.15.0
     # via
     #   anyio
     #   starlette
 urllib3==2.6.2
     # via requests
-uvicorn==0.38.0
+uvicorn==0.40.0
     # via sphinx-autobuild
 watchfiles==1.1.1
     # via sphinx-autobuild
-websockets==15.0.1
+websockets==16.0
     # via sphinx-autobuild
 
 # The following packages are considered to be unsafe in a requirements file:

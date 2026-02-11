@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from spinta.components import Context
-from spinta.exceptions import InvalidValue, InvalidManifestFile
+from spinta.exceptions import InvalidValue, InvalidManifestFile, InvalidName
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
@@ -464,3 +464,158 @@ test_dataset                    |         |                    |
             tmp_path / "manifest.csv",
         ],
     )
+
+
+def test_check_backref_only(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property                   | type    | ref       | source            | prepare | access | level
+    datasets/gov/example                       |         |           |                   |         |        |
+      | data                                   | sql     |           |                   |         |        |
+                                               |         |           |                   |         |        |
+      |   |   | Continent                      |         | code      | salis             |         |        | 
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
+      |   |   |   | country[]                  | backref | Country   |                   |         | open   | 2
+      |   |   | Country                        |         | code      | salis             |         |        |    
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1 
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
+    """),
+    )
+
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+
+
+def test_check_prop_underscore_ok_1(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # happy path 1:  allowed _* property names and "--check-names" flag
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access | status
+    datasets/gov/example      |        |         |             |         |        |
+      | data                  | sql    |         |             |         |        |
+                              |        |         |             |         |        |
+      |   |   | Country       |        | code    | salis       |         |        | develop
+      |   |   |   | code      | string |         | kodas       |         | public | develop
+      |   |   |   | name      | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _label    | string |         | zyme        |         | open   | develop
+      |   |   |   | _created  | string |         | sukurta     |         | open   | discont
+                              |        |         |             |         |        |
+      |   |   | City          |        | name    | miestas     |         |        | completed
+      |   |   |   | name      | string |         | pavadinimas |         | open   | deprecated
+      |   |   |   | country   | ref    | Country | salis       |         | open   | withdrawn
+      |   |   |   | _revision | string |         | versija     |         | open   | discont
+      |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
+      |   |   |   | _id       | uuid   |         | id          |         | open   | develop
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+
+def test_check_prop_underscore_ok_2(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # happy path 2:  no "--check-names" flag and all possible _* property names
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access | status
+    datasets/gov/example      |        |         |             |         |        |
+      | data                  | sql    |         |             |         |        |
+                              |        |         |             |         |        |
+      |   |   | Country       |        | code    | salis       |         |        | develop
+      |   |   |   | code      | string |         | kodas       |         | public | develop
+      |   |   |   | name      | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _label    | string |         | zyme        |         | open   | develop
+      |   |   |   | _created  | string |         | sukurta     |         | open   | discont
+      |   |   |   | _revision | string |         | versija     |         | open   | discont
+      |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
+      |   |   |   | _id       | uuid   |         | id          |         | open   | develop
+      |   |   |   | _op       | string |         | op          |         | open   | develop
+      |   |   |   | _test123  | string |         | test123     |         | open   | develop
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+
+def test_check_prop_underscore_err_1(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # error path 1:  reserved property name and "--check-names" flag
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _created | string |         | sukurta     |         | open   | discont
+      |   |   |   | _op      | string |         | veiksmas    |         | open   | develop
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidName
+    assert "_op" in str(result.exception)
+
+
+def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # error path 2:  property name starts with _* and "--check-names" flag
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _created | string |         | sukurta     |         | open   | discont
+      |   |   |   | _test123 | string |         | test123     |         | open   | develop
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidName
+    assert "_test123" in str(result.exception)

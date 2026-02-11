@@ -573,17 +573,17 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property  | type   | ref     | source       | access
-    datasets/gov/exampleRes   |        |         |              |
-      | data                  | sql    |         |              |
-      |   |   | CountryRes    |        | code    | salis        |
-      |   |   |   | code      | string |         | kodas        | open
-      |   |   |   | name      | string |         | pavadinimas  | open
-      |   |                   |        |         |              |
-    datasets/gov/exampleNoRes |        |         |              |
-      |   |   | CountryNoRes  |        |         |              |
-      |   |   |   | code      | string |         |              | open
-      |   |   |   | name      | string |         |              | open
+    d | r | b | m | property    | type   | ref     | source       | access
+    datasets/gov/example_res    |        |         |              |
+      | data                    | sql    |         |              |
+      |   |   | CountryRes      |        | code    | salis        |
+      |   |   |   | code        | string |         | kodas        | open
+      |   |   |   | name        | string |         | pavadinimas  | open
+      |   |                     |        |         |              |
+    datasets/gov/example_no_res |        |         |              |
+      |   |   | CountryNoRes    |        |         |              |
+      |   |   |   | code        | string |         |              | open
+      |   |   |   | name        | string |         |              | open
     """),
     )
 
@@ -601,7 +601,7 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         [
             "push",
             "-d",
-            "datasets/gov/exampleRes",
+            "datasets/gov/example_res",
             "-o",
             remote.url,
             "--credentials",
@@ -616,7 +616,7 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         [
             "push",
             "-d",
-            "datasets/gov/exampleNoRes",
+            "datasets/gov/example_no_res",
             "-o",
             remote.url,
             "--credentials",
@@ -626,12 +626,12 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
     )
     assert result.exit_code == 0
 
-    remote.app.authmodel("datasets/gov/exampleRes/CountryRes", ["getall"])
-    resp_res = remote.app.get("/datasets/gov/exampleRes/CountryRes")
+    remote.app.authmodel("datasets/gov/example_res/CountryRes", ["getall"])
+    resp_res = remote.app.get("/datasets/gov/example_res/CountryRes")
     assert len(listdata(resp_res)) == 3
 
-    remote.app.authmodel("datasets/gov/exampleNoRes/CountryNoRes", ["getall"])
-    resp_no_res = remote.app.get("/datasets/gov/exampleNoRes/CountryNoRes")
+    remote.app.authmodel("datasets/gov/example_no_res/CountryNoRes", ["getall"])
+    resp_no_res = remote.app.get("/datasets/gov/example_no_res/CountryNoRes")
     assert len(listdata(resp_no_res)) == 0
 
 

@@ -3,6 +3,7 @@ from pathlib import Path
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.exceptions import InvalidName
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
@@ -1117,3 +1118,119 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
       |   |   |   | driving  | string |         | vairavimas
     """
     )
+
+
+def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _id, _created, _updated, _label, _revision are allowed property names
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access
+    datasets/gov/example      |        |         |             |         |
+      | data                  | sql    |         |             |         |
+                              |        |         |             |         |
+      |   |   | Country       |        | code    | salis       |         |
+      |   |   |   | _id       | uuid   |         | miesto_id   |         | open
+      |   |   |   | code      | string |         | kodas       |         | public
+      |   |   |   | name      | string |         | pavadinimas |         | open
+      |   |   |   | _updated  | string |         | atnaujinta  |         | open
+      |   |   |   | _created  | string |         | sukurta     |         | open
+      |   |   |   | _label    | string |         | zyme        |         | public
+      |   |   |   | _revision | string |         | versija     |         | public
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property  | type   | ref     | source | prepare | access
+    datasets/gov/example      |        |         |        |         |
+                              |        |         |        |         |
+      |   |   | Country       |        |         |        |         |
+      |   |   |   | _id       | uuid   |         |        |         | open
+      |   |   |   | _revision | string |         |        |         | public
+      |   |   |   | _created  | string |         |        |         | open
+      |   |   |   | code      | string |         |        |         | public
+      |   |   |   | name      | string |         |        |         | open
+      |   |   |   | _updated  | string |         |        |         | open
+      |   |   |   | _label    | string |         |        |         | public
+    """
+    )
+
+
+def test_copy_property_with_underscore_reserved(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _op is a reserved property name for internal use only
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property   | type   | source | access
+    datasets/gov/example       |        |        |
+      |   |   | Country        |        | salis  |
+      |   |   |   | code       | string | kodas  | public
+      |   |   |   | _label     | string | zyme   | public
+      |   |   |   | _op        | string | op     | public
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert "_op" in str(result.exception)
+
+
+def test_copy_property_with_underscore_wrong(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _* property names are not allowed in the manifest except for the allowed ones
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property   | type   | source | access
+    datasets/gov/example       |        |        |
+      |   |   | Country        |        | salis  |
+      |   |   |   | code       | string | kodas  | public
+      |   |   |   | _test123   | string | test   | public
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert "_test" in str(result.exception)

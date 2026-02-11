@@ -81,6 +81,56 @@ def test_model_path_contents(open_manifest_path: ManifestPath):
             _test_property_path_content(paths, dataset_name, model_name, prop_name)
 
 
+def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_path_factory):
+    """During subsequent runs, specification generation should not duplicate values."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST)
+    create_openapi_manifest(open_manifest_path)
+    open_manifest_path.file.seek(0)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    open_api_spec.pop("components")  # Components do not have a default initial value.
+    open_api_spec.pop("paths")  # Paths are not part of the generated specification
+    assert open_api_spec == {
+        "openapi": "3.1.0",
+        "info": {
+            "version": "1.0.0",
+            "title": "Universal application programming interface",
+            "contact": {
+                "email": "info@vssa.lt",
+                "name": "VSSA",
+                "url": "https://vssa.lrv.lt/",
+            },
+            "license": {
+                "name": "CC-BY 4.0",
+                "url": "https://creativecommons.org/licenses/by/4.0/",
+            },
+            "summary": "Test title",
+            "description": "Test description",
+        },
+        "externalDocs": {"url": "https://ivpk.github.io/uapi"},
+        "servers": [
+            {
+                "description": "Data access server",
+                "url": "get.data.gov.lt",
+            }
+        ],
+        "tags": [  # Utility is a default tag, others are generated from models. Should not be duplicated.
+            {
+                "name": "utility",
+                "description": "Utility operations performed on the API itself",
+            },
+            {
+                "name": "Organization",
+                "description": "Operations with Organization",
+            },
+            {
+                "name": "ProcessingUnit",
+                "description": "Operations with ProcessingUnit",
+            },
+        ],
+    }
+
+
 def _validate_operation_id_contains(operation_id: str, path: str, *required_terms):
     """Validate that operation ID contains all required terms."""
     for term in required_terms:
@@ -385,10 +435,19 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     properties = pu_schema["properties"]
 
     assert properties["unit_name"]["type"] == "string"
+
     assert properties["unit_type"]["type"] == "string"
     assert "enum" in properties["unit_type"]
     expected_enum = ["FAC", "TRT", "OUT", "OTH"]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
+
+    assert properties["unit_version"]["type"] == "integer"
+    assert "enum" in properties["unit_version"]
+    assert set(properties["unit_version"]["enum"]) == {1, 2}
+
+    assert properties["unit_kind"]["type"] == "string"
+    assert "enum" in properties["unit_kind"]
+    assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
 
     assert properties["efficiency_rate"]["type"] == "number"
     assert properties["capacity"]["type"] == "integer"
@@ -400,3 +459,28 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     unit_type_change = change_properties["unit_type"]
     assert "enum" in unit_type_change
     assert set(unit_type_change["enum"]) == set(expected_enum)
+
+
+def test_version_schema_structure(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+    version_schema = open_api_spec["components"]["schemas"]["version"]
+
+    properties = version_schema["properties"]
+
+    assert set(properties.keys()) == {
+        "api",
+        "implementation",
+        "dsa",
+        "uapi",
+        "build",
+    }
+
+    assert properties["api"]["properties"]["version"]["type"] == "string"
+
+    implementation = properties["implementation"]["properties"]
+
+    assert implementation["name"]["type"] == "string"
+    assert implementation["version"]["type"] == "string"
+    assert properties["dsa"]["properties"]["version"]["type"] == "string"
+    assert properties["uapi"]["properties"]["version"]["type"] == "string"
+    assert properties["build"]["properties"]["version"]["type"] == "string"

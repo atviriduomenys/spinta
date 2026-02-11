@@ -18,12 +18,21 @@ def test_sort(model, app):
     )
     assert resp.status_code == 200, resp.json()
 
+    # Sorts ascending
+    resp = app.get(f"/{model}?select(count)&sort(count)")
+    assert resp.json()["_data"] == [
+        {"count": 9},
+        {"count": 10},
+    ]
+
+    # Sorts ascending
     resp = app.get(f"/{model}?select(count)&sort(+count)")
     assert resp.json()["_data"] == [
         {"count": 9},
         {"count": 10},
     ]
 
+    # Sorts descending
     resp = app.get(f"/{model}?select(count)&sort(-count)")
     assert resp.json()["_data"] == [
         {"count": 10},
@@ -53,12 +62,21 @@ def test_sort_with_nested_prop(model, app):
     )
     assert resp.status_code == 200, resp.json()
 
+    # Sorts ascending
+    resp = app.get(f"/{model}?select(notes.note)&sort(notes.note)")
+    assert resp.json()["_data"] == [
+        {"notes": [{"note": "01"}]},
+        {"notes": [{"note": "02"}]},
+    ]
+
+    # Sorts ascending
     resp = app.get(f"/{model}?select(notes.note)&sort(+notes.note)")
     assert resp.json()["_data"] == [
         {"notes": [{"note": "01"}]},
         {"notes": [{"note": "02"}]},
     ]
 
+    # Sorts descending
     resp = app.get(f"/{model}?select(notes.note)&sort(-notes.note)")
     assert resp.json()["_data"] == [
         {"notes": [{"note": "02"}]},

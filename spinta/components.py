@@ -1115,6 +1115,7 @@ class Config:
     sync_retry_count: int
     sync_retry_delay_range: tuple[float]
     languages: List[str]
+    # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
     # MB
     max_api_file_size: int
@@ -1126,6 +1127,10 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    log_level: str
+    file_log_level: str
+    file_log_path: pathlib.Path
 
     def __init__(self):
         self.commands = _CommandsConfig()
