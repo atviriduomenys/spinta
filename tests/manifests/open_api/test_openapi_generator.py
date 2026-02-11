@@ -92,7 +92,7 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
     open_manifest_path = open_manifest_path_factory(MANIFEST)
     create_openapi_manifest(open_manifest_path)
     open_manifest_path.file.seek(0)
-    open_api_spec = create_openapi_manifest(open_manifest_path)
+    open_api_spec = create_openapi_manifest(open_manifest_path, api_version="1.0.0")
 
     open_api_spec.pop("components")  # Components do not have a default initial value.
     open_api_spec.pop("paths")  # Paths are not part of the generated specification
@@ -661,3 +661,9 @@ def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factor
         "datasets_gov_vssa_demo_Municipality",
     }
     assert set(model_schema_names) == expected
+
+
+def test_api_version(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST)
+    open_api_spec = create_openapi_manifest(open_manifest_path, api_version="2.1.8")
+    assert open_api_spec["info"]["version"] == "2.1.8"
