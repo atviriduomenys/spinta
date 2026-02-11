@@ -24,7 +24,7 @@ from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import URI, PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
 from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import Selected

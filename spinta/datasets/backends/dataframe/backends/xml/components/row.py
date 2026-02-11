@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, List, Sequence
 
-from spinta import commands
 from spinta.adapters.loaders import ModelAdapter, TransformationModel
-from spinta.components import Context, Model
+from spinta.components import Model
 from spinta.core.enums import Level
 from spinta.datasets.backends.dataframe.backends.xml.model import (
     ModelHeader,
