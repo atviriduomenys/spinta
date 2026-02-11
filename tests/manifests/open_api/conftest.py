@@ -66,34 +66,34 @@ id | d | r | b | m | property             | type                  | ref | source
 
 
 MANIFEST_WITH_REFS = striptable("""
-id | d | r | b | m | property         | type     | ref                                        | source | prepare | level | access | title          | description
-   | datasets/gov/giscentras/grpk     |          |                                            |        |         |       |        | GRPK           | GRPK dataset
-   |   | test                         | memory   |                                            |        |         |       |        |                |
-   |   |   |   | Plotas               |          | top_id, info                               |        |         |       |        |                |
-   |   |   |   |   | top_id           | string   |                                            |        |         | 4     | open   |                |
-   |   |   |   |   | info             | ref      | datasets/gov/kapines/Teritorija            |        |         | 4     | open   |                |
-   |   |   |   |   | area             | number   |                                            |        |         | 4     | open   |                |
-   |                                  |          |                                            |        |         |       |        |                |
-   | datasets/gov/vssa/demo           |          |                                            |        |         |       |        | Demo           | Demo dataset
-   |   | test                         | memory   |                                            |        |         |       |        |                |
-   |   |   |   | Municipality         |          | id, area                                   |        |         |       |        |                |
-   |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
-   |   |   |   |   | area             | ref      |  datasets/gov/giscentras/grpk/Plotas       |        |         | 4     | open   |                |
-   |   |   |   |   | name             | string   |                                            |        |         | 4     | open   |                |
-   |                                  |          |                                            |        |         |       |        |                |
-   |   |   |   | County               |          | id, title                                  |        |         |       |        |                |
-   |   |   |   |   | id               | integer  |                                            |        |         | 4     | open   |                |
-   |   |   |   |   | title            | string   |                                            |        |         | 4     | open   |                |
-   |   |   |   |   | population       | integer  |                                            |        |         | 4     | open   |                |
-   |                                  |          |                                            |        |         |       |        |                |
-   | datasets/gov/kapines             |          |                                            |        |         |       |        | Kapines        | Kapines dataset
-   |   | test                         | memory   |                                            |        |         |       |        |                |
-   |   |   |   | Teritorija           |          | vda_id                                     |        |         |       |        |                |
-   |   |   |   |   | vda_id           | string   |                                            |        |         | 4     | open   |                |
-   |   |   |   |   | kapines          | string   |                                            |        |         | 4     | open   |                |
-   |   |   |   |   | miestas          | ref      | datasets/gov/vssa/demo/Municipality        |        |         | 4     | open   |                |
-   |   |   |   |   | regionas         | ref      | datasets/gov/vssa/demo/County              |        |         | 4     | open   |                |
-   |   |   |   |   | geometrija       | ref      | datasets/gov/giscentras/grpk/Plotas        |        |         | 4     | open   |                |
+id | d | r | b | m | property         | type     | ref                                        | level | access | title          | description
+   | datasets/gov/giscenter/grpk      |          |                                            |       |        | GRPK           | GRPK dataset
+   |   | test                         | memory   |                                            |       |        |                |
+   |   |   |   | Area                 |          | top_id, info                               |       |        |                |
+   |   |   |   |   | top_id           | string   |                                            | 4     | open   |                |
+   |   |   |   |   | info             | ref      | datasets/gov/cemetery/Territory            | 4     | open   |                |
+   |   |   |   |   | area             | number   |                                            | 4     | open   |                |
+   |                                  |          |                                            |       |        |                |
+   | datasets/gov/vssa/demo           |          |                                            |       |        | Demo           | Demo dataset
+   |   | test                         | memory   |                                            |       |        |                |
+   |   |   |   | Municipality         |          | id, area                                   |       |        |                |
+   |   |   |   |   | id               | integer  |                                            | 4     | open   |                |
+   |   |   |   |   | area             | ref      |  datasets/gov/giscenter/grpk/Area          | 4     | open   |                |
+   |   |   |   |   | name             | string   |                                            | 4     | open   |                |
+   |                                  |          |                                            |       |        |                |
+   |   |   |   | County               |          | id, title                                  |       |        |                |
+   |   |   |   |   | id               | integer  |                                            | 4     | open   |                |
+   |   |   |   |   | title            | string   |                                            | 4     | open   |                |
+   |   |   |   |   | population       | integer  |                                            | 4     | open   |                |
+   |                                  |          |                                            |       |        |                |
+   | datasets/gov/cemetery            |          |                                            |       |        | Cemetery        | Cemetery dataset
+   |   | test                         | memory   |                                            |       |        |                |
+   |   |   |   | Territory            |          | vda_id                                     |       |        |                |
+   |   |   |   |   | vda_id           | string   |                                            | 4     | open   |                |
+   |   |   |   |   | cemetery         | string   |                                            | 4     | open   |                |
+   |   |   |   |   | city             | ref      | datasets/gov/vssa/demo/Municipality        | 4     | open   |                |
+   |   |   |   |   | region           | ref      | datasets/gov/vssa/demo/County              | 4     | open   |                |
+   |   |   |   |   | geometry         | ref      | datasets/gov/giscenter/grpk/Area           | 4     | open   |                |
     """)
 
 
