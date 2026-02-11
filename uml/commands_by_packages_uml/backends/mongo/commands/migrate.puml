@@ -1,0 +1,14 @@
+@startuml
+package migrate <<Rectangle>> {
+
+    object migrate {
+        +context: Context,
+        +manifest: Manifest,
+        +config: Dict[str, Any],
+
+    }
+}
+
+migrate *-- Context
+migrate *-- Manifest
+@enduml

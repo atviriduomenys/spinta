@@ -1,0 +1,13 @@
+@startuml
+package configure <<Rectangle>> {
+
+    object configure {
+        +context: Context,
+        +manifest: TabularManifest,
+
+    }
+}
+
+configure *-- Context
+configure *-- TabularManifest
+@enduml

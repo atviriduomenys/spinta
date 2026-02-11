@@ -1,0 +1,66 @@
+@startuml
+package write <<Rectangle>> {
+
+    object insert {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo,
+        +*,
+        +dstream: DataStream,
+        +stop_on_error: bool = True,
+    }
+
+    object update {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo,
+        +*,
+        +dstream: dict,
+        +stop_on_error: bool = True,
+    }
+
+    object delete {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo,
+        +*,
+        +dstream: dict,
+        +stop_on_error: bool = True,
+    }
+
+    object before_write {
+        context: Context,
+        model: Model,
+        backend: Mongo,
+        *,
+        data: DataType,
+    }
+
+    object after_write {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo,
+        +*,
+        +data: DataType,
+    }
+}
+
+insert *-- Context
+insert *-- Model
+insert *-- Mongo
+insert *-- DataStream
+update *-- Context
+update *-- Model
+update *-- Mongo
+delete *-- Context
+delete *-- Model
+delete *-- Mongo
+before_write *-- Context
+before_write *-- Model
+before_write *-- Mongo
+before_write *-- DataType
+after_write *-- Context
+after_write *-- Model
+after_write *-- Mongo
+after_write *-- DataType
+@enduml

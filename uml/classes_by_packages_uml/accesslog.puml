@@ -1,0 +1,30 @@
+@startuml
+package accesslog <<Rectangle>> {
+    object Accesslog {
+        +client: str = None
+        +method: str = None
+        +reason: str = None
+        +url: str = None
+        +buffer_size: int = 100
+        +format: str = None
+        +content_type: str = None
+        +agent: str = None
+        +txn: str = None
+        +start: float = None
+        +memory: int = None
+    }
+
+    object FileAccess {
+        +file: Union[TextIO, pathlib.Path] = None
+        +_file: TextIO = None
+        +_closed: bool = True
+    }
+
+    object PythonAccessLog {
+        +stream: list
+    }
+}
+
+Accesslog <|-- FileAccess
+Accesslog <|-- PythonAccessLog
+@enduml

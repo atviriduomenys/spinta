@@ -1,0 +1,14 @@
+@startuml
+package check <<Rectangle>> {
+
+    object check {
+        +context: Context,
+        +dataset: DataSet
+    }
+}
+
+check *-- Context
+check *-- DataSet
+
+
+@enduml

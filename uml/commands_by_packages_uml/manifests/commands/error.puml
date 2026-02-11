@@ -1,0 +1,20 @@
+@startuml
+package error <<Rectangle>> {
+
+    object error {
+        +config: Config
+        + *,
+        +prefix='this'
+        +manifest: Manifest
+        +node: type(None)
+        +node: Node
+
+    }
+}
+
+error *-- Config
+error *-- Manifest
+error *-- Node
+
+
+@enduml

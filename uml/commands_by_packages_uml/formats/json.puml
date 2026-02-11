@@ -1,0 +1,22 @@
+@startuml
+package commands <<Rectangle>> {
+
+    object render {
+        +context: Context,
+        +request: Request,
+        +fmt: Json,
+        +action: Action,
+        +params: UrlParams,
+        +data,
+        +status_code: int,
+        +headers: dict,
+    }
+}
+
+render *-- Context
+render *-- Request
+render *-- Json
+render *-- Action
+render *-- UrlParams
+
+@enduml

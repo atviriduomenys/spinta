@@ -1,0 +1,14 @@
+@startuml
+package configure <<Rectangle>> {
+
+    object configure {
+        +context: Context
+        +manifest: BackendManifest
+    }
+}
+
+configure *-- Context
+configure *-- BackendManifest
+
+
+@enduml

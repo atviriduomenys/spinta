@@ -1,0 +1,8 @@
+@startuml
+package naming <<Rectangle>> {
+    object NameFormatter {
+        +model: Model
+        +prop: Property
+    }
+}
+@enduml

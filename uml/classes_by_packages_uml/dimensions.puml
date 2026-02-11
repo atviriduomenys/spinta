@@ -1,0 +1,77 @@
+@startuml
+package dimensions <<Rectangle>> {
+    package comments <<Rectangle>> {
+        object CommentGiven {
+                +access: str = None
+        }
+
+        object Comment {
+                +id: str
+                +parent: str
+                +author: str
+                +access: Access
+                +created: str
+                +comment: str
+                +given: CommentGiven
+        }
+    }
+
+    package emun <<>Rectangle>> {
+
+        object EnumFormula {
+            +model: Model
+        }
+
+        object EnumValueGiven {
+            +access: str = None
+        }
+
+        object EnumItem {
+            +source: str
+            +prepare: Expr
+            +access: Access = None
+            +title: str
+            +description: str
+            +given: EnumValueGiven
+            +lang: LangData
+        }
+
+    }
+
+    package lang <<>Rectangle>> {
+        object Lang {
+            title: str
+            description: str
+        }
+    }
+
+    package param <<>Rectangle>> {
+        object ParamBuilder {
+
+        }
+    }
+
+    package prefix <<>Rectangle>> {
+        object Dimension {
+
+        }
+
+        object UriPrefix {
+            +type: str = 'prefix'
+            +id: str = None
+            +eid: str = None
+            +name: str = None
+            +uri: str = None
+            +title: str = None
+            +description: str = None
+        }
+
+    }
+
+}
+
+Dimension <|-- UriPrefix
+
+
+
+@enduml

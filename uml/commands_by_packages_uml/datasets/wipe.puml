@@ -1,0 +1,15 @@
+@startuml
+package wipe <<Rectangle>> {
+
+    object wipe {
+        +context: Context,
+        +entity: Entity,
+        +backend: ExternalBackend
+    }
+}
+
+wipe *-- Context
+wipe *-- Entity
+wipe *-- ExternalBackend
+
+@enduml

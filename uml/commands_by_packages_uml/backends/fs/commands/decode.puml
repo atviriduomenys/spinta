@@ -1,0 +1,18 @@
+@startuml
+package decode <<Rectangle>> {
+
+    object decode {
+        +context: Context,
+        +source: Format,
+        +target: FileSystem,
+        +dtype: File,
+        +value: dict
+
+    }
+}
+
+decode *-- Context
+decode *-- Format
+decode *-- FileSystem
+decode *-- File
+@enduml

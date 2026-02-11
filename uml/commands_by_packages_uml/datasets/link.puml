@@ -1,0 +1,20 @@
+@startuml
+package link <<Rectangle>> {
+
+    object link {
+        +context: Context,
+        +dataset: Dataset,
+        +resource: Resource,
+        +entity: Entity,
+        +attribute: Attribute
+    }
+}
+
+link *-- Context
+link *-- Dataset
+link *-- Resource
+link *-- Entity
+link *-- Attribute
+
+
+@enduml

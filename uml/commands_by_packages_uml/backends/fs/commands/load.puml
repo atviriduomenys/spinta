@@ -1,0 +1,14 @@
+@startuml
+package load <<Rectangle>> {
+
+    object load {
+        +context: Context,
+        +backend: FileSystem,
+        +config: Dict[str, Any],
+
+    }
+}
+
+load *-- Context
+load *-- FileSystem
+@enduml

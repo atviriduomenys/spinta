@@ -1,0 +1,10 @@
+@startuml
+package version <<Rectangle>> {
+
+    object get_version {
+        +context: Context
+    }
+}
+
+get_version *-- Context
+@enduml

@@ -1,0 +1,79 @@
+@startuml
+package backends <<Rectangle>> {
+    package fs <<Rectangle>> {
+        object FileSystem {
+            +path: pathlib.Path
+        }
+    }
+    package memory <<Rectangle>> {
+        object Memory {
+            +data: Dict[str, Dict[str, ObjectData]]
+        }
+
+        object ReadTransaction {
+            +id: str
+            +errors: int
+            +connection: Memory
+        }
+
+        object WriteTransaction {
+        }
+    }
+
+    package mongo <<Rectangle>> {
+        object Mongo {
+        }
+        object mongo.ReadTransaction {
+        }
+
+        object mongo.WriteTransaction {
+        }
+    }
+
+    package postgresql <<Rectangle>> {
+        object PostgreSQL {
+            +engine: Engine = None
+            +schema: sa.MetaData = None
+            +tables: Dict[str, sa.Table] = None
+        }
+        object postgresql.ReadTransaction {
+        }
+
+        object postgresql.WriteTransaction {
+        }
+        object DatabaseFile {
+            +conn
+            +table: sa.Table
+            +size: int = 0
+            +blocks: Optional[List[str]] = None
+            +bsize: int = DEFAULT_BLOCK_SIZE
+            +mode: str = 'r'
+        }
+        object utcnow {
+            +type = sa.DateTime()
+        }
+    }
+    object Backend {
+        +type: str
+        +name: str
+        +origin: BackendOrigin
+        +features: Set[BackendFeatures] = set()
+    }
+
+    object BackendOrigin {
+    }
+
+    object BackendFeatures {
+    }
+
+}
+ReadTransaction <|-- WriteTransaction
+mongo.ReadTransaction <|-- mongo.WriteTransaction
+postgresql.ReadTransaction <|-- postgresql.WriteTransaction
+Backend <|-- PostgreSQL
+Backend <|-- Mongo
+Backend <|-- Memory
+Backend *-- BackendOrigin
+Backend *-- BackendFeatures
+
+@enduml

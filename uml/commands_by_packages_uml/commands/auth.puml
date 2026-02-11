@@ -1,0 +1,12 @@
+@startuml
+package Auth <<Rectangle>> {
+    object get_model_scopes {
+        +context: Context
+        +model: str
+        +actions: List[str]
+    }
+}
+
+Auth *-- FileAccess
+Auth *-- PythonAccessLog
+@enduml

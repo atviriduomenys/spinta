@@ -1,0 +1,57 @@
+@startuml
+package commands <<Rectangle>> {
+
+    object render {
+        +context: Context,
+        +request: Request,
+        +ns: Namespace,
+        +fmt: Html,
+        +*,
+        +action: Action,
+        +params: UrlParams,
+        +data,
+        +status_code: int = 200,
+        +headers: Optional[dict] = None,
+    }
+
+    object prepare_data_for_response {
+        +context: Context,
+        +model: Model,
+        +fmt: Html,
+        +value: dict,
+        +*,
+        +action: Action,
+        +select: SelectTree,
+        +prop_names: List[str],
+    }
+
+    object prepare_dtype_for_response {
+        +context: Context,
+        +fmt: Html,
+        +dtype: String,
+        +value: _NamespaceName,
+        +*,
+        +data: Dict[str, Any],
+        +action: Action,
+        +select: dict = None,
+    }
+}
+
+render *-- Context
+render *-- Model
+render *-- Html
+render *-- Action
+render *-- SelectTree
+prepare_data_for_response *-- Context
+prepare_data_for_response *-- Model
+prepare_data_for_response *-- Html
+prepare_data_for_response *-- Action
+prepare_data_for_response *-- SelectTree
+prepare_dtype_for_response *-- Context
+prepare_dtype_for_response *-- Html
+prepare_dtype_for_response *-- DataType
+prepare_dtype_for_response *-- _NamespaceName
+prepare_dtype_for_response *-- Action
+prepare_dtype_for_response *-- _ModelName
+
+@enduml
