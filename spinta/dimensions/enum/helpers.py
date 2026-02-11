@@ -35,17 +35,19 @@ def _load_enum_item(
     parent = parents[0]
     item = load_node(context, item, data, parent=parent)
     item = cast(EnumItem, item)
-    if item.prepare is not NA:
-        ast = item.prepare
-        expr = asttoexpr(ast)
-        env = EnumFormula(
-            context,
-            scope={
-                "this": item.source,
-                "node": parent,
-            },
-        )
-        item.prepare = env.resolve(expr)
+    # if item.prepare is NA:
+    #     raise ValueError(f"Enum item {item.source} must have prepare formula.")
+    ast = item.prepare
+    expr = asttoexpr(ast)
+    env = EnumFormula(
+        context,
+        scope={
+            "this": item.source,
+            "node": parent,
+        },
+    )
+    breakpoint()
+    item.prepare = env.resolve(expr)
 
     load_access_param(item, data.get("access"), parents)
     load_level(context, item, data.get("level"))
@@ -61,6 +63,8 @@ def load_enums(
 ) -> Optional[Enums]:
     if enums is None:
         return
+    breakpoint()
+
     return {
         name: {source: _load_enum_item(context, parents, item) for source, item in enum.items()}
         for name, enum in enums.items()

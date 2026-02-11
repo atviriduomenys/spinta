@@ -18,25 +18,11 @@ from spinta.datasets.backends.dataframe.commands.read import (
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
+from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData, PassedValueNotABoolean
 from spinta.types.datatype import Boolean
 from spinta.typing import ObjectData
+from spinta.utils.config import asbool
 from spinta.utils.schema import NA
-
-
-def _change_xml_bool_to_python(value: bool | int | str | None) -> bool | int | str | None:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)) and value in (0, 1):
-        return bool(value)
-    if isinstance(value, str) and (lowered_value := value.strip().lower()):
-        if lowered_value in ["true", "1", "1.0"]:
-            return True
-        if lowered_value in ["false", "0", "0.0"]:
-            return False
-    return value
 
 
 def _parse_xml_loop_model_properties(
@@ -87,7 +73,10 @@ def _parse_xml_loop_model_properties(
             else:
                 new_value = None
         if prop.get("is_bool"):
-            new_value = _change_xml_bool_to_python(new_value)
+            try:
+                new_value = asbool(new_value)
+            except ValueError:
+                raise PassedValueNotABoolean(passed_value=new_value)
         new_dict[prop["source"]] = new_value
 
     added_root_elements.append(value)
@@ -150,6 +139,7 @@ def getall(
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
+
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             props[prop.name] = {
@@ -166,7 +156,7 @@ def getall(
         data_source = builder.resolve(resource.prepare)
     else:
         raise CannotReadResource(resource)
-
+    # breakpoint()
     df = (
         from_sequence(data_source)
         .map(
