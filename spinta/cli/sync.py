@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def validate_connection(base_path: str, headers: dict[str, str]) -> None:
     connection_check(base_path, headers, data={"spinta_version": spinta.__version__})
-    echo("Connection with Catalog established successfully!")
+    echo("✓ Connection with Catalog established successfully!")
     return None
 
 

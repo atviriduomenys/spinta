@@ -21,7 +21,7 @@ from requests.models import Response
 
 from spinta.cli.helpers.sync.enum import ResourceType
 from spinta.cli.helpers.sync.api_helpers import validate_api_response
-
+from spinta.cli import REQUEST_TIMEOUT
 
 DEFAULT_RESOURCE = ResourceType.DATASET
 RESOURCE_TYPE_MAPPER = {
@@ -43,6 +43,7 @@ def get_resources(
         f"{base_path}/Dataset/",
         headers=headers,
         params=query_parameters,
+        timeout=REQUEST_TIMEOUT,
     )
     if validate_response:
         validate_api_response(response, {HTTPStatus.OK, HTTPStatus.NOT_FOUND}, "Get resource")
@@ -71,6 +72,7 @@ def create_resource(
         f"{base_path}/Dataset/",
         headers=headers,
         data=data,
+        timeout=REQUEST_TIMEOUT,
     )
     if validate_response:
         validate_api_response(response, {HTTPStatus.CREATED}, "Create resource")
