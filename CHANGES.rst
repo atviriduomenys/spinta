@@ -10,9 +10,10 @@ Bug fixes:
 - Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
   were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+- Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
 
 .. _#963: https://github.com/atviriduomenys/spinta/issues/963
-
+.. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
 
 0.2dev14 (2026-02-03)
 =====================
