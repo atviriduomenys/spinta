@@ -356,7 +356,6 @@ def load(
         )
     )
     load_access_param(prop, prop.access, parents)
-    prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
     if prop.prepare_given:
@@ -416,6 +415,7 @@ def load(
         prop.given.enum = unit
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     prop.given.name = prop.given_name
+    prop.enums = load_enums(context, [prop] + parents, prop.enums)
     return prop
 
 

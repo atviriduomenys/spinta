@@ -72,11 +72,11 @@ def _parse_xml_loop_model_properties(
                 new_value = str(v)
             else:
                 new_value = None
-        if prop.get("is_bool"):
-            try:
-                new_value = asbool(new_value)
-            except ValueError:
-                raise PassedValueNotABoolean(passed_value=new_value)
+        # if prop.get("is_bool"):
+        #     try:
+        #         new_value = asbool(new_value)
+        #     except ValueError:
+        #         raise PassedValueNotABoolean(passed_value=new_value)
         new_dict[prop["source"]] = new_value
 
     added_root_elements.append(value)
@@ -148,7 +148,7 @@ def getall(
                 "is_bool": isinstance(prop.dtype, Boolean),
             }
 
-    meta = get_dask_dataframe_meta(model)
+    # meta = get_dask_dataframe_meta(model)
 
     if resource.external:
         data_source = parametrize_bases(context, model, model.external.resource, resolved_params)
@@ -156,7 +156,7 @@ def getall(
         data_source = builder.resolve(resource.prepare)
     else:
         raise CannotReadResource(resource)
-    # breakpoint()
+
     df = (
         from_sequence(data_source)
         .map(
@@ -166,6 +166,6 @@ def getall(
             model_props=props,
         )
         .flatten()
-        .to_dataframe(meta=meta)
+        .to_dataframe(meta=None)
     )
     yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)

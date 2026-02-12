@@ -129,7 +129,7 @@ def getall(
 
     http_headers = _get_soap_http_headers(resource, builder)
 
-    meta = get_dask_dataframe_meta(model)
+    # meta = get_dask_dataframe_meta(model)
     df = (
         dask.bag.from_sequence(bases)
         .map(
@@ -139,7 +139,7 @@ def getall(
             extra_headers=http_headers,
         )
         .flatten()
-        .to_dataframe(meta=meta)
+        .to_dataframe(meta=None)
     )
 
     dask_dataframe_query_builder = DaskDataFrameQueryBuilder(context)
