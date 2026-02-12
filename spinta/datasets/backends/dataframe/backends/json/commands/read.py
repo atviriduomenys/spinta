@@ -14,7 +14,6 @@ from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     get_pkeys_if_ref,
-    get_dask_dataframe_meta,
     dask_get_all,
 )
 from spinta.datasets.backends.helpers import is_file_path

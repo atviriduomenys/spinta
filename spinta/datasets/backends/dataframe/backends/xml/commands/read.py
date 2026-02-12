@@ -12,16 +12,14 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
-    get_dask_dataframe_meta,
     dask_get_all,
     get_pkeys_if_ref,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData, PassedValueNotABoolean
+from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
 from spinta.types.datatype import Boolean
 from spinta.typing import ObjectData
-from spinta.utils.config import asbool
 from spinta.utils.schema import NA
 
 
