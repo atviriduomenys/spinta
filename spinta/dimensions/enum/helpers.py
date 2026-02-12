@@ -23,7 +23,6 @@ from spinta.exceptions import ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
-from spinta.utils.schema import NA
 
 
 def _load_enum_item(
