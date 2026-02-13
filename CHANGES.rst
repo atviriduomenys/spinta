@@ -5,6 +5,12 @@ Changes
 0.2dev15 (unreleased)
 =====================
 
+New Features:
+
+- Added a call to connection-check endpoint to ensure the connection `Agent -> Catalog` was successful (`#Katalogas2378`_).
+
+.. _#Katalogas2378: https://github.com/atviriduomenys/katalogas/issues/2378
+
 Bug fixes:
 
 - Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
