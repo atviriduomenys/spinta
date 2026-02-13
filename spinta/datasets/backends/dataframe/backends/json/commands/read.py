@@ -15,6 +15,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     get_pkeys_if_ref,
     dask_get_all,
+    get_dask_dataframe_meta,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
@@ -172,7 +173,7 @@ def getall(
                 "pkeys": get_pkeys_if_ref(prop),
             }
 
-    # meta = get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
 
     if resource.external:
         data_source = parametrize_bases(context, model, model.external.resource, resolved_params)
@@ -185,6 +186,6 @@ def getall(
         from_sequence(data_source)
         .map(_get_data_json, source=model.external.name, model_props=props)
         .flatten()
-        .to_dataframe(meta=None)
+        .to_dataframe(meta=meta)
     )
     yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)

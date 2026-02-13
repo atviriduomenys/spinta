@@ -14,11 +14,11 @@ from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     dask_get_all,
     get_pkeys_if_ref,
+    get_dask_dataframe_meta,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
-from spinta.types.datatype import Boolean
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
@@ -70,11 +70,6 @@ def _parse_xml_loop_model_properties(
                 new_value = str(v)
             else:
                 new_value = None
-        # if prop.get("is_bool"):
-        #     try:
-        #         new_value = asbool(new_value)
-        #     except ValueError:
-        #         raise PassedValueNotABoolean(passed_value=new_value)
         new_dict[prop["source"]] = new_value
 
     added_root_elements.append(value)
@@ -143,10 +138,9 @@ def getall(
             props[prop.name] = {
                 "source": prop.external.name,
                 "pkeys": get_pkeys_if_ref(prop),
-                "is_bool": isinstance(prop.dtype, Boolean),
             }
 
-    # meta = get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
 
     if resource.external:
         data_source = parametrize_bases(context, model, model.external.resource, resolved_params)
@@ -164,6 +158,6 @@ def getall(
             model_props=props,
         )
         .flatten()
-        .to_dataframe(meta=None)
+        .to_dataframe(meta=meta)
     )
     yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)

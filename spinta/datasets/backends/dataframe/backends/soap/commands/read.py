@@ -12,7 +12,7 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.soap.components import Soap
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs import MakeCDATA
-from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, dask_get_all
+from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, dask_get_all, get_dask_dataframe_meta
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.components import Resource
 from spinta.dimensions.param.components import ResolvedParams
@@ -129,7 +129,7 @@ def getall(
 
     http_headers = _get_soap_http_headers(resource, builder)
 
-    # meta = get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = (
         dask.bag.from_sequence(bases)
         .map(
@@ -139,7 +139,7 @@ def getall(
             extra_headers=http_headers,
         )
         .flatten()
-        .to_dataframe(meta=None)
+        .to_dataframe(meta=meta)
     )
 
     dask_dataframe_query_builder = DaskDataFrameQueryBuilder(context)
