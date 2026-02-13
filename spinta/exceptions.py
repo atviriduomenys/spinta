@@ -1209,3 +1209,9 @@ class UnsupportedDataTypeConfiguration(UserError):
     template = """
         DataType {data_type!r} currently does not support custom type assignment in configuration.
     """
+
+
+class PassedValueNotABoolean(UserError):
+    template = """
+        Passed value {passed_value!r} is not a boolean.
+    """
