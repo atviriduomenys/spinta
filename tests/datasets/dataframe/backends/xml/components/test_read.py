@@ -830,14 +830,14 @@ def test_xml_read_bool_enum(rc: RawConfig, tmp_path: Path, first_val: str, secon
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property   | type     | ref  | source       | access
-    example/xml                |          |      |              |
-      | xml                    | dask/xml |      | {path}       |
-      |   |   | City           |          | name | /cities/city |
-      |   |   |   | name       | string   |      | name         | open
-      |   |   |   | is_capital | boolean  |      | is_capital   | open
-      |   |   |   |            | enum     |      | True         | open
-      |   |   |   |            | enum     |      | False        | open
+    d | r | b | m | property   | type     | ref  | source       | prepare | access
+    example/xml                |          |      |              |         |
+      | xml                    | dask/xml |      | {path}       |         |
+      |   |   | City           |          | name | /cities/city |         |
+      |   |   |   | name       | string   |      | name         |         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   |         | open
+      |   |   |   |            | enum     |      | {first_val}  | false   | open
+      |   |   |   |            | enum     |      | {second_val} | true    | open
     """,
         mode=Mode.external,
     )
