@@ -32,11 +32,45 @@ class SqlFrom:
     backend: Sql
     joins: Dict[str, sa.Table]
     from_: sa.Table
+    model_joins: Dict[str, str]  # Maps model name to fpr.name of first join
+    model_tables: Dict[str, sa.Table]  # Maps model name to aliased table
+    model_conditions: Dict[str, List]  # Maps model name to list of join conditions
+    join_order: List[str]  # Track order of model joins for rebuild
 
     def __init__(self, backend: Sql, table: sa.Table):
         self.backend = backend
         self.joins = {}
+        self.model_joins = {}
+        self.model_tables = {}
+        self.model_conditions = {}
+        self.join_order = []
         self.from_ = table
+
+    def _rebuild_from_clause(self, base_table: sa.Table):
+        """Rebuild the FROM clause with all joins and merged conditions."""
+        from_clause = base_table
+        for model_name in self.join_order:
+            rtable = self.model_tables[model_name]
+            conditions = self.model_conditions[model_name]
+
+            # Deduplicate conditions by converting to strings and back
+            unique_conditions = []
+            seen_conditions = set()
+            for cond in conditions:
+                cond_str = str(cond)
+                if cond_str not in seen_conditions:
+                    seen_conditions.add(cond_str)
+                    unique_conditions.append(cond)
+
+            # Combine all conditions for this model with OR
+            if len(unique_conditions) == 1:
+                combined_condition = unique_conditions[0]
+            else:
+                combined_condition = sa.or_(*unique_conditions)
+
+            from_clause = from_clause.outerjoin(rtable, combined_condition)
+
+        return from_clause
 
     def get_table(
         self,
@@ -44,6 +78,8 @@ class SqlFrom:
         prop: ForeignProperty,
     ) -> sa.Table:
         fpr: Optional[ForeignProperty] = None
+        base_table = self.from_ if not self.join_order else self.backend.get_table(prop.chain[0].left.prop.model)
+
         for fpr in prop.chain:
             if fpr.name in self.joins:
                 continue
@@ -55,14 +91,16 @@ class SqlFrom:
                 ltable = self.joins[fpr.chain[-2].name]
             else:
                 # Use the main table, without alias.
-                ltable = self.backend.get_table(lmodel)
+                ltable = base_table
             lenv = env(model=lmodel, table=ltable)
             lfkeys = lenv.call("join_table_on", fpr.left.prop)
             lfkeys = ensure_list(lfkeys)
 
             # Right table primary keys
-            rpkeys = []
             rmodel = fpr.right.prop.model
+            rmodel_name = rmodel.name
+
+            rpkeys = []
             rtable = self.backend.get_table(rmodel).alias()
             renv = env(model=rmodel, table=rtable)
             for rpk in fpr.left.refprops:
@@ -81,7 +119,55 @@ class SqlFrom:
             else:
                 condition = sa.and_(*condition)
 
+            # Only merge joins that don't have bind parameters (literals)
+            # This allows merging pure FK=PK joins while keeping separate joins with different literals
+            condition_str = str(condition)
+            has_bind_params = ':' in condition_str  # Bind parameters look like :NAME_1
+
+            right_cols = [rpk.key for rpk in rpkeys]
+            if has_bind_params:
+                # Don't merge joins with literals - use unique key per join
+                join_key = f"{fpr.name}"  # Each property chain gets its own join
+            else:
+                # Merge joins without literals - normalize and group by model/columns
+                import re
+                # Normalize table names (both aliased like PLANET_1 and non-aliased like STREET)
+                normalized = re.sub(r'"[A-Z_]+(_\d+)?"', '"TABLE"', condition_str)
+                join_key = f"{rmodel_name}:{':'.join(sorted(right_cols))}:{normalized}"
+
+            # Check if we've already created this exact join
+            if not has_bind_params and join_key in self.model_joins:
+                # Reuse the existing join alias instead of creating a new one
+                existing_fpr_name = self.model_joins[join_key]
+                existing_table = self.joins[existing_fpr_name]
+                self.joins[fpr.name] = existing_table
+
+                # Rebuild the condition with the existing table alias
+                rpkeys_reused = []
+                renv_reused = env(model=rmodel, table=existing_table)
+                for rpk in fpr.left.refprops:
+                    rpkeys_reused += ensure_list(renv_reused.call("join_table_on", rpk))
+
+                reused_condition = []
+                for lfk, rpk in zip(lfkeys, rpkeys_reused):
+                    reused_condition += [lfk == rpk]
+
+                if len(reused_condition) == 1:
+                    reused_condition = reused_condition[0]
+                else:
+                    reused_condition = sa.and_(*reused_condition)
+
+                # Add the reused condition to merge list
+                self.model_conditions[join_key].append(reused_condition)
+                # Rebuild FROM clause with merged conditions
+                self.from_ = self._rebuild_from_clause(base_table)
+                continue
+
             self.joins[fpr.name] = rtable
+            self.model_joins[join_key] = fpr.name
+            self.model_tables[join_key] = rtable
+            self.model_conditions[join_key] = [condition]
+            self.join_order.append(join_key)
             self.from_ = self.from_.outerjoin(rtable, condition)
 
         return self.joins[fpr.name]
