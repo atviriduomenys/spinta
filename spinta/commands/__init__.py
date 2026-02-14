@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Type
+from typing import Any, Callable, Iterable, Type
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -13,6 +13,7 @@ from typing import overload
 from starlette.requests import Request
 from starlette.responses import Response
 
+from spinta.adapters.loaders import DataAdapter, ModelAdapter, TransformationModel
 from spinta.components import Namespace
 from spinta.components import Node, DataItem, PageInfo, Page, Base
 from spinta.components import UrlParams
@@ -588,6 +589,30 @@ def getfile():
     This command is used for file property, to read while file content into
     `_content` property if explicitly requested. For small files this is OK, but
     for larger files direct file access via subresource API should be used.
+    """
+
+
+@overload
+def stream_model_data(
+    model: Model,
+    model_adapter: ModelAdapter,
+    data_adapter: DataAdapter,
+    metadata_adapter: DataAdapter,
+    *,
+    transformation_adapter: Callable[[TransformationModel, dict[str, object]], T],
+) -> Iterable[T]:
+    """Stream model data from the source."""
+    pass
+
+
+@command()
+def stream_model_data(*args, **kwargs):
+    """Stream model data from the source.
+
+    This is used for streaming large data sets, for example when exporting data
+    into a file. This is used in export command, when exporting data into a
+    file, to stream data directly from database to the file, without loading
+    whole data set into memory.
     """
 
 
