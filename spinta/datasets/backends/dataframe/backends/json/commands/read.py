@@ -172,6 +172,14 @@ def getall(
                 "root_source": root_source.split(".") if root_source != "." else ["."],
                 "pkeys": get_pkeys_if_ref(prop),
             }
+        elif prop.dtype.name == "text":
+            for lang in prop.dtype.langs.values():
+                root_source = _get_prop_full_source(model.external.name, lang.external.name)
+                props[lang.external.name] = {
+                    "source": lang.external.name,
+                    "root_source": root_source.split(".") if root_source != "." else ["."],
+                    "pkeys": [],
+                }
 
     meta = get_dask_dataframe_meta(model)
 
