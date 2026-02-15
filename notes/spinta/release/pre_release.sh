@@ -160,7 +160,7 @@ ed CHANGES.rst <<EOF
 /^###/a
 
 $FUTURE_VERSION (unreleased)
-===================
+=====================
 
 .
 wq
