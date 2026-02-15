@@ -128,7 +128,7 @@ poetry export -f requirements.txt \
 
 # get hashes to spinta itself
 
-echo 'spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\' > spinta-header.txt
+echo "spinta==${NEW_VERSION}; python_version >= \"3.10\" and python_version < \"4.0\" \\" > spinta-header.txt
 
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
