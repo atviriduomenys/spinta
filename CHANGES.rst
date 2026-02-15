@@ -4,6 +4,21 @@ Changes
 0.2dev16 (unreleased)
 =====================
 
+New Features:
+
+- Added a call to connection-check endpoint to ensure the connection `Agent -> Catalog` was successful (`#Katalogas2378`_).
+
+.. _#Katalogas2378: https://github.com/atviriduomenys/katalogas/issues/2378
+
+Bug fixes:
+
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+- Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
+
+.. _#963: https://github.com/atviriduomenys/spinta/issues/963
+.. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
 
 
 0.2dev15 (2026-02-15)
@@ -267,9 +282,7 @@ Improvements:
 Bug fixes:
 
 - Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
-
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
-
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
   .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
@@ -284,7 +297,9 @@ Bug fixes:
   .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
 
 Other:
+
 - Removed dependency `mypy`
+
 
 
 0.2dev5 (2025-09-03)

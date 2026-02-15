@@ -6,6 +6,7 @@ import requests
 
 from spinta.cli.helpers.sync import CONTENT_TYPE_TEXT_CSV
 from spinta.cli.helpers.sync.api_helpers import validate_api_response
+from spinta.cli import REQUEST_TIMEOUT
 
 
 def create_distribution(
@@ -23,5 +24,6 @@ def create_distribution(
             "title": distribution_name,
         },
         files={"file": (f"{distribution_name}.csv", BytesIO(file_bytes), CONTENT_TYPE_TEXT_CSV)},
+        timeout=REQUEST_TIMEOUT,
     )
     validate_api_response(response, {HTTPStatus.CREATED}, "Create distribution")
