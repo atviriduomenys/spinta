@@ -137,6 +137,7 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
+# switch to a different tab. Export the BASEDIR there. Activate the environment.
 # this is a directory to which manifest data will be downloaded.
 # If you don't have one, create an empty directory and cs into it.
 # If you create a new directory, do this:
@@ -152,6 +153,7 @@ git pull
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
+# go back to previous tab
 spinta check
 
 spinta show \

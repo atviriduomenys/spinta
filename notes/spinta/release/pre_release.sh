@@ -6,10 +6,11 @@ unset SPINTA_CONFIG_PATH
 test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
+# Change version numbers here
 export MAJOR=0
-export MINOR=2dev14
-export OLD_MINOR=2dev13
-export FUTURE_MINOR=2dev15
+export MINOR=2dev15
+export OLD_MINOR=2dev14
+export FUTURE_MINOR=2dev16
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -127,7 +128,7 @@ poetry export -f requirements.txt \
 
 # get hashes to spinta itself
 
-echo 'spinta==${NEW_VERSION} ; python_version >= "3.10" and python_version < "4.0" \\' > spinta-header.txt
+echo "spinta==${NEW_VERSION}; python_version >= \"3.10\" and python_version < \"4.0\" \\" > spinta-header.txt
 
 curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
   jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
@@ -159,11 +160,12 @@ ed CHANGES.rst <<EOF
 /^###/a
 
 $FUTURE_VERSION (unreleased)
-===================
+=====================
 
 .
 wq
 EOF
+
 head CHANGES.rst
 git diff
 git commit -a -m "Prepare for the next $FUTURE_VERSION release"
