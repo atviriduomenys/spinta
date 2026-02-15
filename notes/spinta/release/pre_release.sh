@@ -165,6 +165,7 @@ $FUTURE_VERSION (unreleased)
 .
 wq
 EOF
+
 head CHANGES.rst
 git diff
 git commit -a -m "Prepare for the next $FUTURE_VERSION release"
