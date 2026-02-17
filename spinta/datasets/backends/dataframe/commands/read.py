@@ -283,12 +283,15 @@ def dask_get_all(
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 elif sel.prep:
                     prep_dtype = getattr(sel.prep, "dtype", None)
+                    if isinstance(sel.prop.dtype, Text):
+                        val = {}
+                        for lang_key, lang in sel.prop.dtype.langs.items():
+                            val[lang_key] = row[lang.external.name]
+
                     if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
                         key = sel.prop.place
                         val = row[sel.item]
-                    # if isinstance(sel.prop.dtype, Text):
-                    #     val = row[sel.item]
-                    #     # val = _get_row_value(context, row, sel, env.params)
+
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
