@@ -4,7 +4,15 @@ Changes
 0.2dev17 (unreleased)
 =====================
 
+Bug fixes:
 
+- Fixes  Text data type handling for `dask/xml` backends.
+
+.. _#1658: https://github.com/atviriduomenys/spinta/issues/1658
+
+
+
+..
 
 0.2dev16 (2026-02-17)
 =====================
