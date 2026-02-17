@@ -1,6 +1,6 @@
 import io
 import pathlib
-from typing import Iterator, Any
+from typing import Iterator, Any, Text
 
 import requests
 from dask.bag import from_sequence
@@ -135,7 +135,7 @@ def getall(
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             props[prop.name] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
-        if prop.dtype.name == "text":
+        if isinstance(prop.dtype, Text):
             for lang in prop.dtype.langs.values():
                 props[lang.place] = {"source": lang.external.name, "pkeys": []}
 

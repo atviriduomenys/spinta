@@ -281,7 +281,7 @@ def dask_get_all(
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
-                elif sel.prep and isinstance(sel.prep.dtype, Text):
+                elif sel.prep and sel.prep.dtype and isinstance(sel.prep.dtype, Text):
                     key = sel.prop.place
                     val = row[sel.item]
             res[key] = val
