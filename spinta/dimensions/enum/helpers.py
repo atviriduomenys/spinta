@@ -19,10 +19,11 @@ from spinta.dimensions.enum.components import EnumFormula
 from spinta.dimensions.enum.components import EnumItem
 from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
-from spinta.exceptions import ValueNotInEnum
+from spinta.exceptions import ValueNotInEnum, EnumPrepareMissing
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
+from spinta.utils.schema import NA
 
 
 def _load_enum_item(
@@ -34,18 +35,21 @@ def _load_enum_item(
     parent = parents[0]
     item = load_node(context, item, data, parent=parent)
     item = cast(EnumItem, item)
-    # if item.prepare is NA and parent.dtype.name != "string":
-    #     raise ValueError(f"Enum item {item.source} must have prepare formula.")
-    ast = item.prepare
-    expr = asttoexpr(ast)
-    env = EnumFormula(
-        context,
-        scope={
-            "this": item.source,
-            "node": parent,
-        },
-    )
-    item.prepare = env.resolve(expr)
+
+    if item.prepare is NA:
+        if parent.dtype.name != "string":
+            raise EnumPrepareMissing(enum=item.source)
+    else:
+        ast = item.prepare
+        expr = asttoexpr(ast)
+        env = EnumFormula(
+            context,
+            scope={
+                "this": item.source,
+                "node": parent,
+            },
+        )
+        item.prepare = env.resolve(expr)
 
     load_access_param(item, data.get("access"), parents)
     load_level(context, item, data.get("level"))

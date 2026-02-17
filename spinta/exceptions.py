@@ -1211,7 +1211,7 @@ class UnsupportedDataTypeConfiguration(UserError):
     """
 
 
-class PassedValueNotABoolean(UserError):
+class EnumPrepareMissing(UserError):
     template = """
-        Passed value {passed_value!r} is not a boolean.
+        Enum {enum} is missing a required value in the prepare column.
     """
