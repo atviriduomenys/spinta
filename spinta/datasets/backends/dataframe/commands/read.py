@@ -196,7 +196,7 @@ def get_dask_dataframe_meta(model: Model):
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
-        if prop.dtype.name == "text":
+        if isinstance(prop.dtype, Text):
             for lang in prop.dtype.langs.values():
                 dask_meta[lang.external.name] = spinta_to_np_dtype(lang.dtype)
     return dask_meta
@@ -282,7 +282,8 @@ def dask_get_all(
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 elif sel.prep:
-                    if not isinstance(sel.prep, Expr) and sel.prep.dtype and isinstance(sel.prep.dtype, Text):
+                    prep_dtype = getattr(sel.prep, "dtype", None)
+                    if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
                         key = sel.prop.place
                         val = row[sel.item]
             res[key] = val
