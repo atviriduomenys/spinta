@@ -1278,4 +1278,4 @@ def test_get_enums():
     xsd = XSDReader("test.xsd", "dataset1")
     model = XSDModel(xsd, schema)
     result = model._get_enums(element)
-    assert result == {"": {"202": {"source": "202"}, "203": {"source": "203"}}}
+    assert result == {"": {"202": {"source": "202", "prepare": "202"}, "203": {"source": "203", "prepare": "203"}}}
