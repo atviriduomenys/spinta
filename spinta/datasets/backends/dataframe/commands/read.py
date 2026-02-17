@@ -286,6 +286,9 @@ def dask_get_all(
                     if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
                         key = sel.prop.place
                         val = row[sel.item]
+                    # if isinstance(sel.prop.dtype, Text):
+                    #     val = row[sel.item]
+                    #     # val = _get_row_value(context, row, sel, env.params)
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res

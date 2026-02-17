@@ -1,6 +1,6 @@
 import io
 import pathlib
-from typing import Iterator, Any, Text
+from typing import Iterator, Any
 
 import requests
 from dask.bag import from_sequence
@@ -19,6 +19,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
+from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
