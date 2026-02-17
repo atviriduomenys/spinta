@@ -25,6 +25,7 @@ from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
@@ -280,6 +281,9 @@ def dask_get_all(
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
+                elif sel.prep and isinstance(sel.prep.dtype, Text):
+                    key = sel.prop.place
+                    val = row[sel.item]
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res

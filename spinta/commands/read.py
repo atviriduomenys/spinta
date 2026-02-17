@@ -145,8 +145,8 @@ def prepare_data_for_response(
     prop_select = params.select_props
     func_select = params.select_funcs
 
-    prop_select_tree = get_select_tree(context, action, prop_select)
-    func_select_tree = get_select_tree(context, action, func_select)
+    prop_select_tree = get_select_tree(context, model, action, prop_select)
+    func_select_tree = get_select_tree(context, model, action, func_select)
 
     if reserved is None:
         if action == Action.SEARCH:
@@ -158,7 +158,7 @@ def prepare_data_for_response(
     prop_names = get_select_prop_names(
         context,
         model,
-        model.properties,
+        model.flatprops,
         action,
         prop_select_tree,
         reserved=reserved,
@@ -393,9 +393,9 @@ async def getone(
                 ptree = params.changed_parsetree(
                     {
                         "path": (
-                            model.name.split("/")
-                            + [redirect_id]
-                            + ([params.prop.place] if params.prop is not None else [])
+                            model.name.split("/") +
+                            [redirect_id] +
+                            ([params.prop.place] if params.prop is not None else [])
                         )
                     }
                 )
