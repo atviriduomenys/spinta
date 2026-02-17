@@ -32,6 +32,8 @@ from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 
+OBJECT_DTYPE = "object"
+
 
 def _resolve_expr(context: Context, row: Any, sel: Selected, params: dict) -> Any:
     if sel.item is None:
@@ -194,7 +196,7 @@ def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
-            dask_meta[prop.external.name] = "object"
+            dask_meta[prop.external.name] = OBJECT_DTYPE
     return dask_meta
 
 

@@ -25,6 +25,8 @@ from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
 from spinta.utils.schema import NA
 
+STRING_DTYPE = "string"
+
 
 def _load_enum_item(
     context: Context,
@@ -37,7 +39,7 @@ def _load_enum_item(
     item = cast(EnumItem, item)
 
     if item.prepare is NA:
-        if parent.dtype.name != "string":
+        if hasattr(parent, "dtype") and parent.dtype.name != STRING_DTYPE:
             raise EnumPrepareMissing(enum=item.source)
     else:
         ast = item.prepare
