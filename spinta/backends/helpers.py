@@ -78,6 +78,21 @@ def load_backend(
 
 def get_select_tree(
     context: Context,
+    action: Action,
+    select: Optional[List[str]],
+) -> SelectTree:
+    if isinstance(select, dict):
+        select = list(select.keys())
+
+    select = _apply_always_show_id(context, action, select)
+    if select is None and action in (Action.GETALL, Action.SEARCH):
+        # If select is not given, select everything.
+        select = {"*": {}}
+    return flat_select_to_nested(select)
+
+
+def get_model_select_tree(
+    context: Context,
     model: Model,
     action: Action,
     select: Optional[List[str]],

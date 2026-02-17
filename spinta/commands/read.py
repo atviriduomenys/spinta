@@ -11,7 +11,7 @@ from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
 from spinta.backends.components import Backend
-from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_model_select_tree, get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
@@ -145,8 +145,8 @@ def prepare_data_for_response(
     prop_select = params.select_props
     func_select = params.select_funcs
 
-    prop_select_tree = get_select_tree(context, model, action, prop_select)
-    func_select_tree = get_select_tree(context, model, action, func_select)
+    prop_select_tree = get_model_select_tree(context, model, action, prop_select)
+    func_select_tree = get_select_tree(context, action, func_select)
 
     if reserved is None:
         if action == Action.SEARCH:
