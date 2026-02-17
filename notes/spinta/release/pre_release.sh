@@ -8,9 +8,9 @@ test -n "$PID" && kill "$PID"
 # Setup versions and create prepare branch
 # Change version numbers here
 export MAJOR=0
-export MINOR=2dev15
-export OLD_MINOR=2dev14
-export FUTURE_MINOR=2dev16
+export MINOR=2dev16
+export OLD_MINOR=2dev15
+export FUTURE_MINOR=2dev17
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -172,3 +172,4 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
+git checkout master

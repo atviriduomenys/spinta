@@ -137,7 +137,8 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
-# switch to a different tab. Export the BASEDIR there. Activate the environment.
+# switch to a different tab. Export the BASEDIR there and SPINTA_CONFIG.
+# Activate the environment.
 # this is a directory to which manifest data will be downloaded.
 # If you don't have one, create an empty directory and cs into it.
 # If you create a new directory, do this:
