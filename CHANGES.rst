@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev16 (unreleased)
+0.2dev16 (2026-02-17)
 =====================
 
 New Features:
