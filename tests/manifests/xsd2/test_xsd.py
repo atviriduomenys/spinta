@@ -318,8 +318,8 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     |                                      |                  |     |                             |         |       |        |     |       |
     |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum             |     | 1                           |         |       |        |     |       |
-    |                                      |                  |     | 2                           |         |       |        |     |       |
+    |                                      | enum             |     | 1                           | '1'     |       |        |     |       |
+    |                                      |                  |     | 2                           | '2'     |       |        |     |       |
     |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
 
 """
@@ -377,8 +377,8 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     |   |   |   | Parcel                     |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel_unique_number[] | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | sign_of_change[]       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                        | enum             |     | 1                           |         |       |        |     |       |
-    |                                        |                  |     | 2                           |         |       |        |     |       |
+    |                                        | enum             |     | 1                           | '1'     |       |        |     |       |
+    |                                        |                  |     | 2                           | '2'     |       |        |     |       |
     |   |   |   |   | text                   | string           |     | text()                      |         |       |        |     |       |
 
 """
