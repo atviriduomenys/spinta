@@ -137,7 +137,8 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
-# switch to a different tab. Export the BASEDIR there. Activate the environment.
+# switch to a different tab. Export the BASEDIR there and SPINTA_CONFIG.
+# Activate the environment.
 # this is a directory to which manifest data will be downloaded.
 # If you don't have one, create an empty directory and cs into it.
 # If you create a new directory, do this:
@@ -153,13 +154,15 @@ git pull
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
-# go back to previous tab
-spinta check
 
 spinta show \
     datasets/gov/rc/ar/adresai.csv \
     datasets/gov/rc/jar/formos_statusai.csv \
     datasets/gov/rc/jar/iregistruoti.csv
+
+# go back to previous tab
+spinta check
+
 
 cat > "$BASEDIR"/sdsa.txt <<EOF
 d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access

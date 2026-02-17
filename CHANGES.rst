@@ -1,7 +1,12 @@
 Changes
 #######
 
-0.2dev16 (unreleased)
+0.2dev17 (unreleased)
+=====================
+
+
+
+0.2dev16 (2026-02-17)
 =====================
 
 New Features:
@@ -23,16 +28,6 @@ Bug fixes:
 
 0.2dev15 (2026-02-15)
 =====================
-
-New Features:
-
-    Added a call to connection-check endpoint to ensure the connection Agent -> Catalog was successful (#Katalogas2378).
-
-Bug fixes:
-
-    Fixed bugs in the spinta copy and spinta check commands where properties starting with an underscore were either omitted or caused errors. When the --format-names or --rename-duplicates options are used with spinta copy, strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (#963).
-    Added predefined administrative schema list fallback to sql manifest's oracle dialect is_internal_schema check (#1767).
-
 
 0.2dev14 (2026-02-03)
 =====================
