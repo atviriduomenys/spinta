@@ -9,6 +9,7 @@ from typing import Optional
 import requests
 
 from spinta.auth import OWNER_READABLE_FILE
+from spinta.cli import REQUEST_TIMEOUT
 from spinta.exceptions import RemoteClientCredentialsNotFound
 from spinta.exceptions import RemoteClientCredentialsNotGiven
 from spinta.exceptions import RemoteClientScopesNotGiven
@@ -164,6 +165,7 @@ def get_access_token(creds: RemoteClientCredentials) -> str:
             "grant_type": "client_credentials",
             "scope": creds.scopes,
         },
+        timeout=REQUEST_TIMEOUT,
     )
     resp.raise_for_status()
     return resp.json()["access_token"]

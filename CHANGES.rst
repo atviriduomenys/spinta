@@ -1,9 +1,19 @@
 Changes
 #######
 
-
-0.2dev15 (unreleased)
+0.2dev17 (unreleased)
 =====================
+
+
+
+0.2dev16 (2026-02-17)
+=====================
+
+New Features:
+
+- Added a call to connection-check endpoint to ensure the connection `Agent -> Catalog` was successful (`#Katalogas2378`_).
+
+.. _#Katalogas2378: https://github.com/atviriduomenys/katalogas/issues/2378
 
 Bug fixes:
 
@@ -14,6 +24,10 @@ Bug fixes:
 
 .. _#963: https://github.com/atviriduomenys/spinta/issues/963
 .. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
+
+
+0.2dev15 (2026-02-15)
+=====================
 
 0.2dev14 (2026-02-03)
 =====================
