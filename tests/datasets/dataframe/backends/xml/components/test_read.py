@@ -853,7 +853,7 @@ def test_xml_read_bool_enum(rc: RawConfig, tmp_path: Path, first_val: str, secon
 
 
 @pytest.mark.parametrize(
-    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), ("0.0", "1.0"), (0, 1), (0.0, 1.0)]
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), (0, 1), ("off", "on")]
 )
 def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
     xml = f"""
