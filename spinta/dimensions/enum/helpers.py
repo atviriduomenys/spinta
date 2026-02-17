@@ -23,9 +23,8 @@ from spinta.exceptions import ValueNotInEnum, EnumPrepareMissing
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
+from spinta.types.datatype import String
 from spinta.utils.schema import NA
-
-STRING_DTYPE = "string"
 
 
 def _load_enum_item(
@@ -39,7 +38,7 @@ def _load_enum_item(
     item = cast(EnumItem, item)
 
     if item.prepare is NA:
-        if hasattr(parent, "dtype") and parent.dtype.name != STRING_DTYPE:
+        if hasattr(parent, "dtype") and not isinstance(parent.dtype, String):
             raise EnumPrepareMissing(enum=item.source)
     else:
         ast = item.prepare
