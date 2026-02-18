@@ -9,6 +9,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
+from unittest.mock import ANY
 
 
 def test_xml_read(rc: RawConfig, tmp_path: Path):
@@ -932,10 +933,22 @@ def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
     app = create_test_client(context)
     app.authmodel("example/xml/Details", ["getall"])
     resp = app.get("/example/xml/Details")
-    # The ref data does not appear
-    assert [(first_val) for first_val, second_val in listdata(resp, sort=False)] == [
-        ("6666000000"),
-        ("7777000000"),
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
     ]
 
 
@@ -975,8 +988,20 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
     app = create_test_client(context)
     app.authmodel("example/xml/Details", ["getall"])
     resp = app.get("/example/xml/Details")
-    # The ref data does not appear
-    assert [(first_val) for first_val, second_val in listdata(resp, sort=False)] == [
-        ("6666000000"),
-        ("7777000000"),
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
     ]
