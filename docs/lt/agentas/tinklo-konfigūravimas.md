@@ -52,8 +52,18 @@ kuriame deklaruojami visi Spinta Agento teikiami duomenų endpoint'ai, jų param
 ir autorizacijos reikalavimai. Gravitee vartai naudoja šį aprašą API valdymui —
 maršrutizavimui, prieigos kontrolei ir dokumentacijai.
 
-OAS generuojamas **Katalogo** — Spinta siunčia manifest (sDSA) į Katalogą, o
-Katalogas iš jo sugeneruoja OAS ir pateikia VSSA diegimui į vartus.
+Dabartinė OAS diegimo eiga yra rankinė:
+
+1. **DSA → Katalogas** — institucija įkelia DSA į duomenų Katalogą
+2. **Katalogas → Failas** — Katalogas iš DSA sugeneruoja OAS failą
+3. **Failas → VSSA** — institucija perduoda OAS failą VSSA
+4. **VSSA → Gravitee** — VSSA sukonfigūruoja Gravitee vartus pagal OAS
+
+:::{note}
+Ateityje šis procesas bus automatizuotas: Spinta sinchronizuos DSA su Katalogu,
+Katalogas eksportuos OAS į GitHub, o Gravitee nuskaitys ir susikonfigūruos
+automatiškai.
+:::
 
 Spinta Agento paslauga pasiekiama per Gravitee vartus. Institucija turi nuspręsti,
 per kokius vartus bus teikiami duomenys.
