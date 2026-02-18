@@ -70,19 +70,28 @@ Planuojama, kad:
 <!-- TODO: pridėti nuorodas į GitHub issues kai bus sukurti -->
 :::
 
-Spinta Agento paslauga pasiekiama per Gravitee vartus. Institucija turi nuspręsti,
-per kokius vartus bus teikiami duomenys.
+Spinta Agento paslauga pasiekiama per Gravitee vartus. Vartų tipas priklauso nuo
+to, kur yra talpinama institucijos informacinė sistema.
 
 ### Vartų tipai
 
-| Vartų tipas | Paskirtis | Prieiga |
-|-------------|-----------|---------|
-| **Vidiniai vartai** | Duomenys tik tarp valdžios institucijų | Tik SVDPT tinkle |
-| **Išoriniai vartai** | Duomenys viešai arba autorizuotiems išoriniams gavėjams | Internetas |
+:::{important}
+**Numatyta: vidiniai vartai.** Institucijos, kurių informacinė sistema yra
+valstybiniame duomenų centre arba SVDPT tinkle, turi naudoti **vidinius vartus**.
+
+**Išimtis: išoriniai vartai.** Jei institucijos informacinė sistema yra talpinam
+ne valstybiniame duomenų centre (pvz., komerciniame debesyje ar išorinio teikėjo
+infrastruktūroje), naudojami **išoriniai vartai**. Tokiu atveju papildomos
+KVTC/SVDPT tinklo konfigūracijos nereikia.
+:::
+
+| Vartų tipas | Kada naudojama | Prieiga |
+|-------------|----------------|---------|
+| **Vidiniai vartai** (numatyta) | IS valstybiniame DC arba SVDPT tinkle | Tik SVDPT tinkle |
+| **Išoriniai vartai** (išimtis) | IS ne valstybiniame DC (komercinis debesis, išorinis teikėjas) | Internetas |
 
 :::{note}
-Sprendimą dėl vartų tipo priima institucija kartu su VSSA, atsižvelgiant į
-duomenų jautrumo lygį ir gavėjų ratą.
+Jei nesate tikri, kurie vartai taikomi jūsų institucijai, kreipkitės į VSSA.
 :::
 
 <!-- TODO: papildyti OAS diegimo į vartus instrukcijomis -->
