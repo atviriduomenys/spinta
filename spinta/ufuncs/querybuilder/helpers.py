@@ -102,7 +102,6 @@ def _create_or_condition(condition_info: list):
                 {"name": "eq" if or_null == 1 else "ne", "args": [{"name": "bind", "args": [page_by.prop.name]}, None]},
             ],
         }
-    breakpoint()
     return result
 
 

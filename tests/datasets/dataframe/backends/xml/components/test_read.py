@@ -897,34 +897,34 @@ def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val
 def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
     xml = """
         <r>
-            <ResultData>
-                <DocumentKindID>401</DocumentKindID>
-                <IdentCode>6666000000</IdentCode>
-            </ResultData>
-            <ResultData>
-                <DocumentKindID>402</DocumentKindID>
-                <IdentCode>7777000000</IdentCode>
-            </ResultData>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
         </r>
     """
-    path = tmp_path / "ref_bug_data.xml"
+    path = tmp_path / "cities.xml"
     path.write_text(xml)
 
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property           | type             | ref          | source                  | access
-    example/xml                        |                  |              |                         |
-      | xml                            | dask/xml         |              | {path}                  |
-      |   |   | ContractType           |                  | id           |                         |
-      |   |   |   | id                 | integer required |              | DocumentKindID/text()   | open
-      |   |   |   |                    | enum             |              | 35                      | open
-      |   |   |   |                    |                  |              | 40                      | open
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+      |   |   |   |                    | enum             |              | 35                      | open   | 35
+      |   |   |   |                    |                  |              | 40                      | open   | 40
       
-      |   |   | Details                |                  | ident_code   | /r/ResultData           |
-      |   |   |   | contract_type      | ref              | ContractType | DocumentKindID/text()   | open
-      |   |   |   | contract_type.code | integer required |              | DocumentKindID/text()   | open
-      |   |   |   | ident_code         | string           |              | IdentCode/text()        | open
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
     """,
         mode=Mode.external,
     )
@@ -932,8 +932,51 @@ def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
     app = create_test_client(context)
     app.authmodel("example/xml/Details", ["getall"])
     resp = app.get("/example/xml/Details")
-    # The contract_type.code does not appear
-    assert [(second_val) for first_val, second_val in listdata(resp, sort=False)] == [
+    # The ref data does not appear
+    assert [(first_val) for first_val, second_val in listdata(resp, sort=False)] == [
+        ("6666000000"),
+        ("7777000000"),
+    ]
+
+
+def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    # The ref data does not appear
+    assert [(first_val) for first_val, second_val in listdata(resp, sort=False)] == [
         ("6666000000"),
         ("7777000000"),
     ]

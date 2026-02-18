@@ -263,7 +263,6 @@ def dask_get_all(
     if context.get("config").check_ref_filters:
         query = merge_formulas(query, get_ref_filters(context, model))
     env = env.init(backend, df, params)
-    breakpoint()
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
