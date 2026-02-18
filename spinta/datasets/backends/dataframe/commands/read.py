@@ -81,6 +81,13 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, row, sel, params)
+        elif isinstance(sel.prop.dtype, PrimaryKey) and isinstance(sel.prep, Selected):
+            val = {}
+            prep_item = sel.prep.prep
+            for item in prep_item.values():
+                if item.item in row.keys():
+                    val = row[item.item]
+                    break
         elif sel.prep is not NA:
             val = _get_row_value(context, row, sel.prep, params)
         else:
