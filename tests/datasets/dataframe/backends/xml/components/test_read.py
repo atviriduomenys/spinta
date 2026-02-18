@@ -9,6 +9,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
+from unittest.mock import ANY
 
 
 def test_xml_read(rc: RawConfig, tmp_path: Path):
@@ -891,4 +892,116 @@ def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val
     assert listdata(resp, sort=False) == [
         (False, "Kaunas"),
         (True, "Vilnius"),
+    ]
+
+
+def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+      |   |   |   |                    | enum             |              | 35                      | open   | 35
+      |   |   |   |                    |                  |              | 40                      | open   | 40
+      
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
+    ]
+
+
+def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
     ]
