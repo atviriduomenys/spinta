@@ -5,7 +5,7 @@
 :::{important}
 Spinta Agentas veikia tik SSL ryšiu, tačiau jo užtikrinimu turi rūpintis institucijos sistemų administratoriai. Žemiau pateikiame tik bendrojo pobūdžio aprašą.
 
-Nginx siūlomas tik kai vienas iš variantų, galima turėti ir kitą priemonę, pavyzdžiui WAF.
+Nginx siūlomas tik kaip vienas iš variantų, galima turėti ir kitą priemonę, pavyzdžiui WAF.
 :::
 
 Įdiekite pasirinktą Web serverio paketą, šiuo atveju pavyzdys pateiktas [Nginx](https://nginx.org/en/ "Nginx"):
