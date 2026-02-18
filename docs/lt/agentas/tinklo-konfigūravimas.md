@@ -59,10 +59,15 @@ Dabartinė OAS diegimo eiga yra rankinė:
 3. **Failas → VSSA** — institucija perduoda OAS failą VSSA
 4. **VSSA → Gravitee** — VSSA sukonfigūruoja Gravitee vartus pagal OAS
 
-:::{note}
-Ateityje šis procesas bus automatizuotas: Spinta sinchronizuos DSA su Katalogu,
-Katalogas eksportuos OAS į GitHub, o Gravitee nuskaitys ir susikonfigūruos
-automatiškai.
+:::{important}
+**Planuojamas automatizavimas:** Dabartinis rankinis procesas yra laikinas.
+Planuojama, kad:
+
+- Spinta automatiškai sinchronizuos DSA su Katalogu
+- Katalogas automatiškai eksportuos OAS į GitHub repozitoriją
+- Gravitee nuskaitys OAS iš GitHub ir susikonfigūruos automatiškai
+
+<!-- TODO: pridėti nuorodas į GitHub issues kai bus sukurti -->
 :::
 
 Spinta Agento paslauga pasiekiama per Gravitee vartus. Institucija turi nuspręsti,
