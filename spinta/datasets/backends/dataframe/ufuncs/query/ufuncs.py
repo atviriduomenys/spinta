@@ -446,7 +446,7 @@ def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any)
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object, name="eq")
 def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object) -> Series:
     name = dtype.prop.external.name
-    return env.dataframe[name] == obj
+    return env.dataframe[name] == str(obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Param, name="eval")
