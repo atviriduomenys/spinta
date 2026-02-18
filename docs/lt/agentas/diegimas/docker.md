@@ -12,7 +12,7 @@ VSSA palaikomą oficialią Docker image galima parsisiųsti iš Docker hub: [Spi
 
 ## Spinta Agento konfigūracijos failų paruošimas
 
-Visu pirma pasikeiskite aktyvų naudotoją ir katalogą:
+Visų pirma pasikeiskite aktyvų naudotoją ir katalogą:
 
 ```bash
 sudo -Hsu spinta
