@@ -126,7 +126,7 @@ export SPINTA_CONFIG=/opt/spinta/config.yml
 EOF
 ```
 
-Kadangi Spinta konfiguracinis failas neegzistuoja, reikia jį sukurti:
+Kadangi Spintos konfigūracijos failas neegzistuoja, reikia jį sukurti:
 
 ```bash
 cat > config.yml <<'EOF'
