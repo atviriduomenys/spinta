@@ -17,10 +17,33 @@ pakankamas funkcionalumo patikrinimui prieš jungiantis prie SVDPT.
 ## Registracija kataloge
 
 Kai lokalus testavimas sėkmingas, agentas registruojamas duomenų kataloge.
+Registracija vykdoma organizacijos, kuriai priklauso naudotojas, puslapyje.
 
-<!-- TODO: papildyti registracijos kataloge instrukcijomis -->
+1. Prisijunkite prie [duomenų Katalogo](https://data.gov.lt).
+2. Viršutiniame dešiniajame kampe užveskite pelę ant savo naudotojo vardo ir
+   pasirinkite **„Mano organizacijos duomenų ištekliai"**.
+3. Atverkite skirtuką **„Agentai"**.
+4. Spauskite **„Pridėti Agentą"**.
+5. Užpildykite formos laukus ir spauskite **„Sukurti"**:
 
-Dėl registracijos kataloge instrukcijų kreipkitės į VSSA.
+| Laukas | Aprašas |
+|--------|---------|
+| **Pavadinimas** | Vartotojui matomas agento pavadinimas |
+| **Rūšis** | Pasirinkite **Spinta** — bus sugeneruotos `credentials.cfg` ir `config.yml` konfigūracijos |
+| **Duomenų paslauga** | Duomenų paslauga, kuriai agentas bus priskirtas (jei nenurodyta — sukuriama automatiškai) |
+| **Aplinka** | `Testavimo` arba `Gamybinė` |
+| **Agento adresas** | Vidinis agento adresas, kurį mato API vartai; jei vartai nenurodyti — išorinis adresas |
+| **Autorizacijos serverio adresas** | AM serverio adresas metaduomenų sinchronizacijai |
+| **API vartų serverio adresas** | Gravitee vartų adresas |
+
+6. Atlikus registraciją, pateikiamos dvi konfigūracijos (Spinta rūšiai):
+   - `credentials.cfg` — prisijungimui prie Katalogo (Spinta → Katalogas)
+   - `config.yml` — agento konfigūracijos šablonas (Spinta → Duomenų šaltinis)
+
+:::{caution}
+Sukūrus agentą, pateikiamas slaptas prisijungimo raktas. **Dėl saugumo jis rodomas
+tik vieną kartą — būtinai išsaugokite.**
+:::
 
 ## OAS diegimas į vartus
 
