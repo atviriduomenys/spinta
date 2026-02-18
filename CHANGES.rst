@@ -4,7 +4,11 @@ Changes
 0.2dev17 (unreleased)
 =====================
 
+Bug fixes:
 
+- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
+
+.. _#1698: https://github.com/atviriduomenys/spinta/issues/1698
 
 0.2dev16 (2026-02-17)
 =====================
