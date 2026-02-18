@@ -110,11 +110,16 @@ REGISTRACIJA IR PALEIDIMAS
 ├─► 9. Registracija kataloge
 │
 ├─► 10. OAS diegimas į vartus
-│        • Vidiniai arba išoriniai vartai
+│        • Sprendimas: vidiniai ar išoriniai vartai? (su VSSA)
+│        │
+│        ├─► [Vidiniai vartai] → 11. Tinklo konfigūracija (KVTC/SVDPT)
+│        │       • Papildomas tinklo sujungimas per SVDPT
+│        │       • KVTC forma → VSSA
+│        │
+│        └─► [Išoriniai vartai] → diegimas baigtas
+│                • Papildomos tinklo konfigūracijos nereikia
 │
-└─► 11. Tinklo konfigūracija (jei reikalinga)
-         • KVTC/SVDPT sujungimas
-         • Kreiptis į atsakingą asmenį
+└─► ✅ Agentas veikia per Gravitee vartus
 ```
 
 ## Apie manifestą (sDSA)
