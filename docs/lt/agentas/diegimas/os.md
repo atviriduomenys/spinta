@@ -262,7 +262,9 @@ Keymap (Redis) yra kritinis elementas, tad privalote užtikrinti, kad duomenys n
 ## Spinta Agento web serverio serviso konfigūravimas
 
 :::{note}
-Jei nėra, reikia sudiegti uvicorn tools biblioteką.
+`uvicorn`, `uvloop` ir `httptools` bibliotekos yra įtrauktos į standartinį Spinta
+requirements failą, todėl papildomai jų diegti nereikia. Šios komandos reikalingos
+tik tuo atveju, jei Spintą diegėte ne iš `spinta-latest-pre.txt` failo:
 
 ```bash
 env/bin/pip install uvicorn uvloop httptools
@@ -319,6 +321,22 @@ Patikrinkite servisą:
 ```bash
 sudo systemctl status spinta
 ```
+
+:::{note}
+Net kai `systemctl status` rodo `active (running)`, Spinta web serveris gali dar kelias sekundes inicializuotis. Norėdami įsitikinti, kad servisas tikrai pasiruošęs priimti užklausas, galite patikrinti `/version` endpoint:
+
+```bash
+curl -s http://127.0.0.1:8000/version
+```
+
+Jei servisas veikia, gausite atsakymą su versijos informacija, pvz.:
+
+```json
+{"implementation":{"name":"Spinta","version":"0.2.dev16"},"uapi":{"version":"0.1.0"},"dsa":{"version":"0.1.0"}}
+```
+
+Jei gausite klaidą arba jokio atsakymo — patikrinkite žurnalus: `sudo journalctl -u spinta -xe`
+:::
 
 ## Kliento sukūrimas
 

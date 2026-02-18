@@ -6,8 +6,8 @@
 
 ```bash
 SERVER=http://localhost:8000
-CLIENT=test
-SECRET=secret # pakeiskite į jūsų turimą secret
+CLIENT=test      # kliento PAVADINIMAS (nurodytas su -n flag), NE UUID
+SECRET=secret    # pakeiskite į jūsų turimą secret (rodomas kuriant klientą)
 SCOPES="
   uapi:/:getone
   uapi:/:getall
