@@ -76,7 +76,7 @@ html_theme_options = {
 html_static_path = ["static"]
 
 
-master_doc = "agentas/įvadas"
+master_doc = "index"
 
 
 autodoc_typehints = "description"

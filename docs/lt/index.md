@@ -22,7 +22,7 @@ duomenų vartų (Gravitee).
 <!-- TODO: pakeisti į infrastruktūros diagramą (Agent A/B, Redis, Reverse proxy, Vartai) -->
 
 <p align="center">
-  <img src="../_static/docker-pavyzdys.png" alt="Spinta infrastruktūros schema">
+  <img src="_static/docker-pavyzdys.png" alt="Spinta infrastruktūros schema">
   <br>
   <em>Spinta infrastruktūros komponentai (placeholder — bus pakeista)</em>
 </p>
@@ -146,19 +146,19 @@ Spinta Agentas palaiko šiuos duomenų šaltinių tipus:
 - **JSON** — JSON formato failai arba REST API
 
 Plačiau apie kiekvieno šaltinio konfigūravimą žr. skyriuje
-[Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
+[Šaltinių konfigūravimas](agentas/šaltinių-konfigūravimas.md).
 
 ```{toctree}
 :maxdepth: 2
 :hidden:
 :caption: Agentas
 
-agento-paruošimas
-šaltinių-konfigūravimas
-diegimas/index
-web-serverio-konfigūravimas
-autentifikacija
-duomenų-gavimo-testavimas
-tinklo-konfigūravimas
-papildoma-informacija
+agentas/agento-paruošimas
+agentas/šaltinių-konfigūravimas
+agentas/diegimas/index
+agentas/web-serverio-konfigūravimas
+agentas/autentifikacija
+agentas/duomenų-gavimo-testavimas
+agentas/tinklo-konfigūravimas
+agentas/papildoma-informacija
 ```
