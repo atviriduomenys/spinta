@@ -33,7 +33,7 @@ Agento veikimas turėtu būti nuolat stebimas ir reikiami resursai didinami, pag
 ### Papildomų OS paketų diegimas
 
 :::{note}
-Docker yra reikalingas tiek diegiant Spintą virtualioja mašinoje, tiek ir naudojant patį dockerį.
+Docker yra reikalingas tiek diegiant Spintą virtualioje mašinoje, tiek ir naudojant patį dockerį.
 :::
 
 ```bash
