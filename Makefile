@@ -35,3 +35,7 @@ run: env
 .PHONY: psql
 psql:
 	PGPASSWORD=admin123 psql -h localhost -p 54321 -U admin -d spinta
+
+format:
+	ruff check .
+	ruff format .

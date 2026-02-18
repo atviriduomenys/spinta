@@ -6,6 +6,7 @@ from responses import RequestsMock, POST
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
+from spinta.exceptions import SourceOrPrepareNotAllowed
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
@@ -1062,3 +1063,38 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
             "code": "VNO",
         },
     ]
+
+
+def test_xml_fails_on_composite_prepare(rc: RawConfig, tmp_path: Path):
+    xml = """
+	<israsas>
+        <akciju_klases_tipas>
+            <kodas>110</kodas>
+            <pavadinimas>Vardinių paprastųjų akcijų skaičius</pavadinimas>
+        </akciju_klases_tipas>
+	</israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    with pytest.raises(SourceOrPrepareNotAllowed):
+        prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property                | type            | ref        | source              | prepare                 | access
+            example/xml                             |                 |            |                     |                         |
+              | resource                            | dask/xml        |            | {path}              |                         |
+              |   |   | Event                       |                 |            | israsas             |                         |
+              |   |   |   | type                    | ref required    | AssetType  | akciju_klases_tipas | type_attribute.title_lt | open
+              |   |   |   | type_attribute          | ref required    | AssetType  | akciju_klases_tipas |                         | open
+              |   |   |   | type_attribute.code     | string required |            | kodas               |                         | open
+              |   |   |   | type_attribute.title_lt | string required |            | pavadinimas         |                         | open
+              |   |   | EntityAttribute             |                 |            | israsas             |                         |
+              |   |   |   | code                    | string          |            | kodas               |                         | open
+              |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+              |   |   | AssetType                   |                 |            | israsas             |                         | open
+              |   |   |   | code                    | string          |            | kodas               |                         | open
+              |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+            """,
+            mode=Mode.external,
+        )

@@ -51,7 +51,7 @@ from spinta.exceptions import (
     DataTypeCannotBeUsedForNesting,
     NestedDataTypeMismatch,
     NoModelDefined,
-    PropertyNotFound,
+    PropertyNotFound, SourceOrPrepareNotAllowed,
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -687,6 +687,11 @@ class PropertyReader(TabularReader):
     def _parse_prepare(self):
         if "prepare" in self.data:
             self.data["prepare"] = _parse_spyna(self, self.data["prepare"])
+            prepare = self.data["prepare"]
+            if prepare is not NA and isinstance(prepare, dict) and prepare.get("name") == "getattr":
+                external_name = self.data.get("external", {}).get("name")
+                if external_name:
+                    raise SourceOrPrepareNotAllowed(source=external_name)
 
     def _append_prepare(self, row: Dict[str, str], prepare: str):
         if "prepare" in self.data:
