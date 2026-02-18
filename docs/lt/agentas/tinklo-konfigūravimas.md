@@ -50,8 +50,10 @@ tik vieną kartą — būtinai išsaugokite.**
 **OAS** (OpenAPI Specification) — tai standartinis API aprašo formatas (JSON/YAML),
 kuriame deklaruojami visi Spinta Agento teikiami duomenų endpoint'ai, jų parametrai
 ir autorizacijos reikalavimai. Gravitee vartai naudoja šį aprašą API valdymui —
-maršrutizavimui, prieigos kontrolei ir dokumentacijai. Spinta automatiškai generuoja
-OAS aprašą pagal manifest (sDSA) failą.
+maršrutizavimui, prieigos kontrolei ir dokumentacijai.
+
+OAS generuojamas **Katalogo** — Spinta siunčia manifest (sDSA) į Katalogą, o
+Katalogas iš jo sugeneruoja OAS ir pateikia VSSA diegimui į vartus.
 
 Spinta Agento paslauga pasiekiama per Gravitee vartus. Institucija turi nuspręsti,
 per kokius vartus bus teikiami duomenys.
