@@ -50,8 +50,9 @@ nustatoma manifesto faile (DSA). Agentų skaičius priklauso nuo:
 - Apkrovos ir našumo reikalavimų
 - Administravimo sudėtingumo
 
-Dažniausiai rekomenduojama: **vienas agentas vienai atsakomybei** (pvz., vienas SOAP
-šaltinis — vienas agentas), tačiau galimas ir kelių šaltinių grupavimas viename agente.
+Dažniausiai rekomenduojama: **vienas agentas vienam šaltiniui** (šaltinis — tai
+informacinė sistema arba duomenų bazė), tačiau galimas ir kelių šaltinių grupavimas
+viename agente.
 
 ## Diegimo eiga
 
