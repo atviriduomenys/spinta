@@ -12,9 +12,9 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
-    get_dask_dataframe_meta,
     dask_get_all,
     get_pkeys_if_ref,
+    get_dask_dataframe_meta,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
@@ -132,9 +132,13 @@ def getall(
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
+
     for prop in model.properties.values():
         if prop.external and prop.external.name:
-            props[prop.name] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
+            props[prop.name] = {
+                "source": prop.external.name,
+                "pkeys": get_pkeys_if_ref(prop),
+            }
 
     meta = get_dask_dataframe_meta(model)
 
