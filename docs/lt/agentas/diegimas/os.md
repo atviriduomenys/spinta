@@ -46,7 +46,7 @@ sudo apt install python3.13 python3.13-venv python3.13-dev build-essential
 ## Spinta diegimas
 
 :::{note}
-Atkreipkite dėmesį, kad visos komandos diegiant Spinta turi būti vykdoma spinta naudotojo teisėmis ir iš spinta naudotojo namų katalogo /opt/spinta.
+Atkreipkite dėmesį, kad visos komandos diegiant Spintą turi būti vykdomos Spintos naudotojo teisėmis ir iš Spintos naudotojo namų katalogo /opt/spinta.
 :::
 
 Aktyvų naudotoją ir katalogą galite pasikeisti taip:
@@ -64,7 +64,7 @@ python3 -m venv env
 
 ### Pyenv
 
-Jei diegėte Python versiją **Pyenv** metodu - nepamirškite nurodyti jūsų naudojamos Python versijos numerį, kuris gali skirtis:
+Jei diegėte Python versiją **Pyenv** metodu - nepamirškite nurodyti jūsų naudojamos Python versijos numerio, kuris gali skirtis:
 
 ```bash
 /opt/pyenv/versions/3.13.9/bin/python -m venv env
@@ -78,7 +78,7 @@ Jei diegėte python versiją deadsnake/ppa metodu:
 python3.13 -m venv env
 ```
 
-Toliau diekite spinta.
+Toliau diekite Spintą.
 
 DVMS partneriams projekto vystymo metu reikia diegti naujausią pre-release versiją, kadangi joje yra naujausi projekto vystymui ir partnerių darbui atlikti pakeitimai. Spintą diegti rekomenduojama su VSSA patvirtintais paketais:
 
@@ -86,13 +86,13 @@ DVMS partneriams projekto vystymo metu reikia diegti naujausią pre-release vers
 env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest-pre.txt
 ```
 
-Sudiegę, galite patikrinti sudiegtą Spinta versiją:
+Sudiegę, galite patikrinti sudiegtą Spintos versiją:
 
 ```bash
 env/bin/spinta --version
 ```
 
-## Spinta Agento konfigūracijos failų paruošimas
+## Spintos Agento konfigūracijos failų paruošimas
 
 <p align="center">
   <img src="../../_static/SOAP-šaltinio-generavimas.png" alt="SOAP šaltinio konfigūravimo pavyzdys">
@@ -101,7 +101,7 @@ env/bin/spinta --version
 </p>
 
 :::{note}
-Spinta Agentą galima konfigūruoti ne vienu būdu ir žemiau pateiktos instrukcijos yra bazinės, kai Agentas konfigūruojamas darbui su SOAP/WSDL šaltiniu (paveikslėlyje atitinka Agentą B).
+Spintos Agentą galima konfigūruoti ne vienu būdu ir žemiau pateiktos instrukcijos yra bazinės, kai Agentas konfigūruojamas darbui su SOAP/WSDL šaltiniu (paveikslėlyje atitinka Agentą B).
 :::
 
 Spinta yra konfigūruojama konfigūracijos failo pagalba, kurio, pagal nutylėjimą ieškoma aktyviame kataloge. Kur Spinta ieško konfigūracijos failo, galima patikrinti taip:
@@ -116,7 +116,7 @@ Konfigūracijos failą galima nustatyti aplinkos parametro pagalba:
 export SPINTA_CONFIG=/opt/spinta/config.yml
 ```
 
-Konfigūracijos failą taip pat galim nurodyti ir Bash konfigūraciniame faile:
+Konfigūracijos failą taip pat galima nurodyti ir Bash konfigūraciniame faile:
 
 ```bash
 cat >> .bashrc << 'EOF'
@@ -197,7 +197,7 @@ Pagal numatytuosius nustatymus naudojama SQLite, tačiau būtina pakeisti į Red
 
 Keymap naudojamas susieti išorinius identifikatorius su vidiniais identifikatoriais. Gali būti konfigūruojama.
 
-SPINTA agentui nurodome kokį keymap komponentą naudoti ir kaip jį pasiektį per config.yml failą. Pateikiame config.yml failo fragmentą:
+Spintos agentui nurodome kokį keymap komponentą naudoti ir kaip jį pasiektį per config.yml failą. Pateikiame config.yml failo fragmentą:
 
 ```
 keymaps:
@@ -231,7 +231,7 @@ EOF
 ```
 
 :::{caution}
-**SVARBU! Redis turi būti būtinai leidžiamas persistent režimu (appendonly:yes ir appendfsync:always parametrai)**
+**SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always parametrai)**
 
 Yra keli persistent režimai (žr. Redis/Valkey dokumentaciją). Numatytasis režimas (appendonly:yes ir appendfsync:always) užtikrina didžiausią duomenų nepraradimo patikimumą, tačiau turi mažiausią greitį naujo rakto kūrimo metu, lyginant su kitais režimais.
 :::
@@ -256,7 +256,7 @@ env/bin/spinta check
 ```
 
 :::{warning}
-Keymap (Redis) yra kritinis elementas, tad privalote užtikrinti, kad duomenys nebūtų prarasti as sugadinti, nes tokiu atveju bus pažeistas perduodamų duomenų integralumas.
+Keymap (Redis) yra kritinis elementas, tad privalote užtikrinti, kad duomenys nebūtų prarasti ar sugadinti, nes tokiu atveju bus pažeistas perduodamų duomenų integralumas.
 :::
 
 ## Spinta Agento web serverio serviso konfigūravimas
@@ -270,7 +270,7 @@ env/bin/pip install uvicorn uvloop httptools
 
 :::
 
-Atsijunkite nuo spinta vartotojo
+Atsijunkite nuo Spintos vartotojo
 
 ```bash
 exit

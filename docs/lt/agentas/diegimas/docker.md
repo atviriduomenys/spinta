@@ -8,7 +8,7 @@ Norint naudoti Spinta Agentą kaip konteinerį galima konteinerį kurtis patiems
   <em>Docker pavyzdys</em>
 </p>
 
-VSSA palaikomą oficialią Docker image galima parsisiųsti iš Docker hub: [Spinta Docker image](https://hub.docker.com/r/vssadevops/spinta/tags "Spinta Docker image")
+VSSA palaikomą oficialų Docker image galima parsisiųsti iš Docker hub: [Spinta Docker image](https://hub.docker.com/r/vssadevops/spinta/tags "Spinta Docker image")
 
 ## Spinta Agento konfigūracijos failų paruošimas
 
@@ -29,7 +29,7 @@ PASTABA: Ši komanda neveiks, kol nebus paleistas Spinta konteineris
 docker exec spinta poetry run spinta config config
 ```
 
-Kadangi Spinta konfiguracinis failas neegzistuoja, reikia jį sukurti:
+Kadangi Spintos konfigūracijos failas neegzistuoja, reikia jį sukurti:
 
 ```bash
 cat > config.yml << 'EOF'
@@ -83,7 +83,7 @@ Pagal numatytuosius nustatymus naudojama SQLite, tačiau būtina pakeisti į Red
 
 Keymap naudojamas susieti išorinius identifikatorius su vidiniais identifikatoriais. Gali būti konfigūruojama.
 
-Spinta Agentui nurodome kokį keymap komponentą naudoti ir kaip jį pasiektį per config.yml failą. Pateikiame config.yml failo fragmentą:
+Spintos Agentui nurodome kokį keymap komponentą naudoti ir kaip jį pasiektį per config.yml failą. Pateikiame config.yml failo fragmentą:
 
 ```
 keymaps:
@@ -98,7 +98,7 @@ Jei neturite `Redis` serviso, rekomenduojame diegti Docker konteineryje.
 
 ## Docker konteinerio paleidimas
 
-Norint paleisti Spinta docker konteinerį, reikia sukūrti paleidimo scriptą, tai galite padaryti taip:
+Norint paleisti Spintos docker konteinerį, reikia sukurti paleidimo scriptą. Tai galite padaryti taip:
 
 ```bash
 cat > startup.sh << 'EOF'
@@ -126,7 +126,7 @@ Rezultato pavyzdys
 uid=997(spinta) gid=33(www-data) groups=33(www-data),124(docker)
 ```
 
-Sukūrkite docker-compose.yml konfigūraciją:
+Sukurkite docker-compose.yml konfigūraciją:
 
 :::{note}
 Aplinkos parametrus patartina apsirašyti atskirame aplinkai skirtame faile.
@@ -164,7 +164,7 @@ EOF
 ```
 
 :::{caution}
-**SVARBU! Redis turi būti būtinai leidžiamas persistent režimu (appendonly:yes ir appendfsync:always parametrai)**
+**SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always parametrai)**
 
 Yra keli persistent režimai (žr. Redis/Valkey dokumentaciją). Numatytasis režimas (appendonly:yes ir appendfsync:always) užtikrina didžiausią duomenų nepraradimo patikimumą, tačiau turi mažiausią greitį naujo rakto kūrimo metu, lyginant su kitais režimais.
 :::
@@ -181,7 +181,7 @@ Patikrinkite Docker būseną:
 docker ps -a
 ```
 
-Patikrinkite Docker logus:
+Patikrinkite Docker žurnalą:
 
 ```bash
 docker logs spinta
