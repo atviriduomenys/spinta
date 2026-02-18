@@ -3,16 +3,18 @@
 :::{note}
 Spinta įrankis naudojamas ir atvirų duomenų srityje (duomenų katalogui, metaduomenų
 valdymui). Ši dokumentacija skirta išskirtinai **Spinta Agento** komponentui, kurio
-paskirtis — implementuoti UDTS (Unifikuoto Duomenų Teikimo Standarto) specifikaciją
+paskirtis — implementuoti [UAPI](https://ivpk.github.io/uapi/ "UAPI specifikacija")
+(dar žinomą kaip UDTS — Unifikuoto Duomenų Teikimo Standartas) specifikaciją
 duomenų teikėjų pusėje.
 :::
 
 ## Kas yra Spinta Agentas?
 
 Spinta Agentas yra programinė įranga, kuri leidžia institucijai publikuoti duomenis
-iš esamų sistemų (SOAP/WSDL paslaugų, duomenų bazių, XML/JSON šaltinių) UDTS formatu
-— be poreikio keisti pačią sistemą. Agentas veikia kaip tarpininkas tarp jūsų duomenų
-šaltinio ir duomenų vartų (Gravitee).
+iš esamų sistemų (SOAP/WSDL paslaugų, duomenų bazių, XML/JSON šaltinių)
+[UAPI](https://ivpk.github.io/uapi/ "UAPI specifikacija") formatu — be poreikio
+keisti pačią sistemą. Agentas veikia kaip tarpininkas tarp jūsų duomenų šaltinio ir
+duomenų vartų (Gravitee).
 
 ## Infrastruktūros schema
 
