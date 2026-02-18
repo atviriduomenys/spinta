@@ -25,6 +25,7 @@ from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
@@ -195,6 +196,10 @@ def get_dask_dataframe_meta(model: Model):
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
+        if isinstance(prop.dtype, Text):
+            for _, lang_prop in prop.dtype.langs.items():
+                if lang_prop.external and lang_prop.external.name:
+                    dask_meta[lang_prop.external.name] = spinta_to_np_dtype(lang_prop.dtype)
     return dask_meta
 
 
