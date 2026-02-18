@@ -120,21 +120,25 @@ nukreipia tik pagal DNS vardus. Todėl Spinta VM mašinoje **privaloma** sukonfi
 sudo tee -a /etc/hosts << 'EOF'
 
 # TEST vartai
-10.246.4.181 test-apigw.gov.lt
-10.246.4.181 am.test-apigw.gov.lt
+<TEST_GATEWAY_IP> test-apigw.gov.lt
+<TEST_GATEWAY_IP> am.test-apigw.gov.lt
 
 # PROD vartai
-10.246.4.182 apigw.gov.lt
-10.246.4.182 am.apigw.gov.lt
+<PROD_GATEWAY_IP> apigw.gov.lt
+<PROD_GATEWAY_IP> am.apigw.gov.lt
 EOF
 ```
 
 | IP adresas | Hostname | Aplinka |
 |------------|----------|---------|
-| 10.246.4.181 | test-apigw.gov.lt | Testiniai vartai |
-| 10.246.4.181 | am.test-apigw.gov.lt | Testinis Access Manager |
-| 10.246.4.182 | apigw.gov.lt | Produkciniai vartai |
-| 10.246.4.182 | am.apigw.gov.lt | Produkcinis Access Manager |
+| `<TEST_GATEWAY_IP>` | test-apigw.gov.lt | Testiniai vartai |
+| `<TEST_GATEWAY_IP>` | am.test-apigw.gov.lt | Testinis Access Manager |
+| `<PROD_GATEWAY_IP>` | apigw.gov.lt | Produkciniai vartai |
+| `<PROD_GATEWAY_IP>` | am.apigw.gov.lt | Produkcinis Access Manager |
+
+:::{note}
+Konkrečius IP adresus (`<TEST_GATEWAY_IP>`, `<PROD_GATEWAY_IP>`) pateikia VSSA.
+:::
 
 ### KVTC sujungimo užsakymas
 
@@ -145,7 +149,7 @@ Formą galima gauti kreipiantis į VSSA. Formoje pildoma:
 
 **Institucijos pusė (2 skyrius)** — institucija nurodo:
 - Savo vidinį Spinta agento VM IP adresą (`10.10.X.X`)
-- Poreikį pasiekti VSSA vartus (TEST: `10.246.4.181`, PROD: `10.246.4.182`)
+- Poreikį pasiekti VSSA vartus (TEST ir PROD gateway IP — gauti iš VSSA)
 
 **Institucijos pusė (3 skyrius)** — institucija deklaruoja savo resursą:
 - Informacinio ištekliaus pavadinimas: `SPINTA AGENTAS X` arba `INSTITUCIJA LB`
