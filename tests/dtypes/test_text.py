@@ -47,7 +47,7 @@ def test_text(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@en, name@lt)")
-    assert listdata(resp, full=True) == [{"name.en": "Lithuania", "name.lt": "Lietuva"}]
+    assert listdata(resp, full=True) == [{"name@en": "Lithuania", "name@lt": "Lietuva"}]
 
     listdata(resp, full=True)
 
@@ -96,7 +96,7 @@ def test_text_patch(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@lt, name@en)")
-    assert listdata(resp, full=True) == [{"name.lt": "Latvija", "name.en": "Latvia"}]
+    assert listdata(resp, full=True) == [{"name@lt": "Latvija", "name@en": "Latvia"}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")

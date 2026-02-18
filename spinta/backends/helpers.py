@@ -22,8 +22,10 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
+from spinta.core.ufuncs import GetAttr
 from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import DataType, Denorm
+from spinta.types.text.components import Text
 from spinta.utils.data import take
 from spinta.backends.constants import TableType, BackendOrigin
 
@@ -89,6 +91,36 @@ def get_select_tree(
     return flat_select_to_nested(select)
 
 
+def get_model_select_tree(
+    context: Context,
+    model: Model,
+    action: Action,
+    select: Optional[List[str]],
+) -> SelectTree:
+    if select is not None and isinstance(select, dict):
+        _select = []
+        for key, value in select.items():
+            _select.append(key)
+            if isinstance(value, GetAttr):
+                obj = value.obj
+                name = value.name
+                if obj in model.properties:
+                    prop = model.properties[obj]
+                    if prop.dtype and isinstance(prop.dtype, Text) and prop.dtype.langs:
+                        lang = prop.dtype.langs.get(str(name))
+                        if lang:
+                            _select.append(lang.place)
+        select = _select
+    if isinstance(select, dict):
+        select = list(select.keys())
+
+    select = _apply_always_show_id(context, action, select)
+    if select is None and action in (Action.GETALL, Action.SEARCH):
+        # If select is not given, select everything.
+        select = {"*": {}}
+    return flat_select_to_nested(select)
+
+
 def _apply_always_show_id(
     context: Context,
     action: Action,
@@ -126,10 +158,10 @@ def get_select_prop_names(
             p.name
             for p in props.values()
             if (
-                not p.name.startswith("_")
-                and not p.hidden
-                and (not auth or authorized(context, p, action))
-                and (include_denorm_props or not isinstance(p.dtype, Denorm))
+                not p.name.startswith("_") and
+                not p.hidden and
+                (not auth or authorized(context, p, action)) and
+                (include_denorm_props or not isinstance(p.dtype, Denorm))
             )
         ]
     else:
@@ -214,6 +246,14 @@ def _select_prop(
     props: Dict[str, Property],
     node: Union[Namespace, Model, Property],
 ) -> Optional[Property]:
+    text_props = {p for p in props.values() if isinstance(p.dtype, Text) and p.dtype.langs}
+    if text_props:
+        for prop in text_props:
+            langs = prop.dtype.langs.values()
+            for lang in langs:
+                if lang.place == key:
+                    return lang
+
     if not (prop := props.get(key)) or prop.hidden:
         return None
 

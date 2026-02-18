@@ -210,6 +210,12 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType)
 def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
+    if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
+        return Selected(
+            item=dtype.prop.external.name,
+            prop=dtype.prop,
+            prep=dtype.prop.parent,
+        )
     return Selected(
         item=dtype.prop.external.name,
         prop=dtype.prop,
@@ -286,6 +292,12 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
         prop=dtype.prop,
         prep=env.call("select", fpr, fpr.right.prop),
     )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Text, object)
+def select(env: DaskDataFrameQueryBuilder, dtype: Text, prep: Any) -> Selected:
+    prep = {lang: env.call("select", prop, prep) for lang, prop in dtype.langs.items()}
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
@@ -433,6 +445,20 @@ COMPARE = [
     "startswith",
     "contains",
 ]
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> GetAttr:
+    model = env.model
+    if obj.name in model.properties:
+        prop = model.properties[obj.name]
+        if isinstance(prop.dtype, Text):
+            if attr.name in prop.dtype.langs:
+                return prop.dtype.langs[attr.name]
+            else:
+                raise PropertyNotFound(model, property=obj, lang=attr)
+
+    return GetAttr(obj=obj, attr=attr)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)

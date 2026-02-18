@@ -25,6 +25,7 @@ from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
@@ -80,6 +81,13 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, row, sel, params)
+        elif isinstance(sel.prop.dtype, PrimaryKey) and isinstance(sel.prep, Selected) and isinstance(sel.prep.prep, dict):
+            val = {}
+            prep_item = sel.prep.prep
+            for item in prep_item.values():
+                if item.item in row.keys():
+                    val = row[item.item]
+                    break
         elif sel.prep is not NA:
             val = _get_row_value(context, row, sel.prep, params)
         else:
@@ -195,6 +203,9 @@ def get_dask_dataframe_meta(model: Model):
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
+        if isinstance(prop.dtype, Text):
+            for lang in prop.dtype.langs.values():
+                dask_meta[lang.external.name] = spinta_to_np_dtype(lang.dtype)
     return dask_meta
 
 
@@ -277,6 +288,17 @@ def dask_get_all(
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
+                elif sel.prep:
+                    prep_dtype = getattr(sel.prep, "dtype", None)
+                    if isinstance(sel.prop.dtype, Text):
+                        val = {}
+                        for lang_key, lang in sel.prop.dtype.langs.items():
+                            val[lang_key] = row[lang.external.name]
+
+                    if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
+                        key = sel.prop.place
+                        val = row[sel.item]
+
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res

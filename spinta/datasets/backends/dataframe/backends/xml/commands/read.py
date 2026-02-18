@@ -19,6 +19,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
+from spinta.types.text.components import Text
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
@@ -135,6 +136,9 @@ def getall(
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             props[prop.name] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
+        if isinstance(prop.dtype, Text):
+            for lang in prop.dtype.langs.values():
+                props[lang.place] = {"source": lang.external.name, "pkeys": []}
 
     meta = get_dask_dataframe_meta(model)
 
