@@ -2,10 +2,11 @@
 
 :::{note}
 Spinta įrankis naudojamas ir atvirų duomenų srityje (duomenų katalogui, metaduomenų
-valdymui). Ši dokumentacija skirta išskirtinai **Spinta Agento** komponentui, kurio
-paskirtis — implementuoti [UAPI](https://ivpk.github.io/uapi/ "UAPI specifikacija")
-(dar žinomą kaip UDTS — Unifikuoto Duomenų Teikimo Standartas) specifikaciją
-duomenų teikėjų pusėje.
+valdymui — žr. [Atvirų duomenų dokumentacija](https://atviriduomenys.readthedocs.io/latest/ "Atvirų duomenų dokumentacija")).
+Ši dokumentacija skirta išskirtinai **Spinta Agento** komponentui, kurio paskirtis —
+implementuoti [UAPI](https://ivpk.github.io/uapi/ "UAPI specifikacija") (dar žinomą
+kaip UDTS — Unifikuoto Duomenų Teikimo Standartas) specifikaciją duomenų teikėjų
+pusėje.
 :::
 
 ## Kas yra Spinta Agentas?
