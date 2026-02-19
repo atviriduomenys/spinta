@@ -6,10 +6,9 @@ Changes
 
 Bug fixes:
 
-- Fixes  Text data type handling for `dask/xml` backends.
+- Fixes issue for properties with Text data type handling for `dask/xml` backends.
 
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
-
 
 
 0.2dev16 (2026-02-17)
