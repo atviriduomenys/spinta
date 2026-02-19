@@ -315,7 +315,7 @@ def prepare_data_for_response(
     prop_names: List[str],
 ) -> dict:
     value = value.copy()
-    reserved = get_model_reserved_props(action, page_in_data(value))
+    reserved = get_model_reserved_props(model, action, page_in_data(value))
 
     available_prefixes = _get_available_prefixes(context, model)
 

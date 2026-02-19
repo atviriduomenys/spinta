@@ -316,19 +316,24 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     return res
 
 
-def get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
+def get_model_reserved_props(model: Model, action: Action, include_page: bool) -> list[str]:
     if action == Action.GETALL:
-        reserved = ["_type", "_id", "_revision"]
+        reserved = ["_type", "_revision"]
     elif action == Action.SEARCH:
-        reserved = ["_type", "_id", "_revision", "_base"]
+        reserved = ["_type", "_revision", "_base"]
+    # TODO: Should CHANGES and MOVE still return _id or no?
     elif action == Action.CHANGES:
         return ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as"]
     elif action == Action.MOVE:
         return ["_type", "_revision", "_id", "_same_as"]
     else:
-        reserved = ["_type", "_id", "_revision"]
+        reserved = ["_type", "_revision"]
+
+    if commands.identifiable(model):
+        reserved.insert(1, "_id")
     if include_page:
         reserved.append("_page")
+
     return reserved
 
 

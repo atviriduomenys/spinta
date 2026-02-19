@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 import uuid
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from starlette.datastructures import Headers
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.core.enums import Action
+from spinta.core.enums import Action, Mode
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Namespace
@@ -1328,3 +1329,257 @@ def test_html_changes_corrupt_data(
     }
     assert value["country.test"] == {"color": Color.null.value, "value": ""}
     assert value["obj.test"] == {"value": "t_obj_updated"}
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["name", "code"]),
+        ("1", ["name", "code"]),
+        ("2", ["name", "code"]),
+        ("3", ["name", "code"]),
+        ("4", ["_id", "name", "code"]),
+        ("5", ["_id", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_getall_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+
+    response = app.get("example/html/Country", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert response.context["header"] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["name", "code"]),
+        ("1", ["name", "code"]),
+        ("2", ["name", "code"]),
+        ("3", ["name", "code"]),
+        ("4", ["_id", "name", "code"]),
+        ("5", ["_id", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_search_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall", "search"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+    pushdata(app, "example/html/Country", {"name": "Latvija", "code": "lv"})
+
+    response = app.get('example/html/Country?code="lt"', headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert response.context["header"] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_type", "_revision", "name", "code"]),
+        ("1", ["_type", "_revision", "name", "code"]),
+        ("2", ["_type", "_revision", "name", "code"]),
+        ("3", ["_type", "_revision", "name", "code"]),
+        ("4", ["_type", "_id", "_revision", "name", "code"]),
+        ("5", ["_type", "_id", "_revision", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_getone_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context, scope=["spinta_set_meta_fields"])
+    app.authmodel("example/html", ["insert", "getall", "getone"])
+
+    row_id = str(uuid.uuid4())
+    pushdata(app, "example/html/Country", {"_id": row_id, "name": "Lietuva", "code": "lt"})
+
+    response = app.get(f"example/html/Country/{row_id}", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert response.context["header"] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("1", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("2", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("3", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("4", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("5", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_changes_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "changes"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+
+    response = app.get("example/html/Country/:changes", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert response.context["header"] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["name", "code"]),
+        ("1", ["name", "code"]),
+        ("2", ["name", "code"]),
+        ("3", ["name", "code"]),
+        ("4", ["_id", "name", "code"]),
+        ("5", ["_id", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_external_json_getall(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    json_data = {
+        "countries": [
+            {
+                "name": "Lietuva",
+                "code": "lt",
+            },
+        ],
+    }
+    path = tmp_path / "countries.json"
+    path.write_text(json.dumps(json_data))
+
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | source    | access | level
+        example/html             |           |           |        |
+          | resource             | dask/json | {path}    |        |
+          |   |   | Country      |           | countries |        | {level}
+          |   |   |   | name     | string    | name      | open   |
+          |   |   |   | code     | string    | code      | open   |
+        """,
+        tmp_path=tmp_path,
+        mode=Mode.external,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["getall"])
+
+    response = app.get("example/html/Country", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert response.context["header"] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["name", "code"]),
+        ("1", ["name", "code"]),
+        ("2", ["name", "code"]),
+        ("3", ["name", "code"]),
+        ("4", ["_id", "name", "code"]),
+        ("5", ["_id", "name", "code"]),
+    ],
+)
+def test_return_correct_columns_for_external_json_search(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    json_data = {
+        "countries": [
+            {
+                "name": "Lietuva",
+                "code": "lt",
+            },
+            {
+                "name": "Latvia",
+                "code": "lv",
+            },
+        ],
+    }
+    path = tmp_path / "countries.json"
+    path.write_text(json.dumps(json_data))
+
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | source    | access | level
+        example/html             |           |           |        |
+          | resource             | dask/json | {path}    |        |
+          |   |   | Country      |           | countries |        | {level}
+          |   |   |   | name     | string    | name      | open   |
+          |   |   |   | code     | string    | code      | open   |
+        """,
+        tmp_path=tmp_path,
+        mode=Mode.external,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["getall", "search"])
+
+    response = app.get('example/html/Country?code="lt"', headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert response.context["header"] == columns

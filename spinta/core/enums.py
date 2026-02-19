@@ -144,18 +144,20 @@ class Mode(enum.Enum):
     external = "external"
 
 
-def load_level(context: Context, component: Component, given_level: Level | int | str) -> None:
-    if given_level:
-        if isinstance(given_level, Level):
-            level = given_level
-        else:
-            if isinstance(given_level, str) and given_level.isdigit():
-                given_level = int(given_level)
-            if not isinstance(given_level, int):
-                raise InvalidLevel(component, level=given_level)
-            level = enum_by_value(context, component, "level", Level, given_level)
-    else:
+def load_level(context: Context, component: Component, given_level: Level | int | str | None) -> None:
+    if given_level is None:
         level = None
+    elif isinstance(given_level, Level):
+        level = given_level
+    elif isinstance(given_level, str) and not given_level:
+        level = None
+    elif isinstance(given_level, str) and given_level.isdigit():
+        level = enum_by_value(context, component, "level", Level, int(given_level))
+    elif isinstance(given_level, int):
+        level = enum_by_value(context, component, "level", Level, given_level)
+    else:
+        raise InvalidLevel(component, level=given_level)
+
     component.level = level
 
 

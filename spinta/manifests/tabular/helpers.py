@@ -39,7 +39,7 @@ from spinta.dimensions.enum.components import EnumItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Level
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
@@ -2507,7 +2507,7 @@ def _model_to_tabular(
     data = {
         "id": model.id,
         "model": model.name,
-        "level": model.level.value if model.level else "",
+        "level": model.level.value if isinstance(model.level, Level) else "",
         "access": model.given.access,
         "title": model.title,
         "description": model.description,

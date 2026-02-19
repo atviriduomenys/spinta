@@ -612,3 +612,157 @@ def test_csv_changes_corrupt_data(
         ["_id", "id", "name", "country._id", "country.test", "obj.test"],
         [city_id, "0", "Vilnius", country_id, "", "t_obj_updated"],
     ]
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("1", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("2", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("3", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("4", ["_type", "_id", "_revision", "_page.next", "name", "code"]),
+        ("5", ["_type", "_id", "_revision", "_page.next", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_getall_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+
+    response = app.get("example/html/Country/:format/csv")
+
+    assert response.status_code == 200
+    assert parse_csv(response)[0] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_type", "_revision", "_base", "_page.next", "name", "code"]),
+        ("1", ["_type", "_revision", "_base", "_page.next", "name", "code"]),
+        ("2", ["_type", "_revision", "_base", "_page.next", "name", "code"]),
+        ("3", ["_type", "_revision", "_base", "_page.next", "name", "code"]),
+        ("4", ["_type", "_id", "_revision", "_base", "_page.next", "name", "code"]),
+        ("5", ["_type", "_id", "_revision", "_base", "_page.next", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_search_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall", "search"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+    pushdata(app, "example/html/Country", {"name": "Latvija", "code": "lv"})
+
+    response = app.get('example/html/Country/:format/csv?code="lt"', headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert parse_csv(response)[0] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("1", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("2", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("3", ["_type", "_revision", "_page.next", "name", "code"]),
+        ("4", ["_type", "_id", "_revision", "_page.next", "name", "code"]),
+        ("5", ["_type", "_id", "_revision", "_page.next", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_getone_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context, scope=["spinta_set_meta_fields"])
+    app.authmodel("example/html", ["insert", "getall", "getone"])
+
+    row_id = str(uuid.uuid4())
+    pushdata(app, "example/html/Country", {"_id": row_id, "name": "Lietuva", "code": "lt"})
+
+    response = app.get(f"example/html/Country/{row_id}/:format/csv", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert parse_csv(response)[0] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("1", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("2", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("3", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("4", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+        ("5", ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_changes_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "changes"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+
+    response = app.get("example/html/Country/:changes/:format/csv", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert parse_csv(response)[0] == columns

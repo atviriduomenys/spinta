@@ -11,7 +11,7 @@ from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
 from spinta.backends.components import Backend
-from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_prop_names, get_model_reserved_props
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
@@ -149,12 +149,8 @@ def prepare_data_for_response(
     func_select_tree = get_select_tree(context, action, func_select)
 
     if reserved is None:
-        if action == Action.SEARCH:
-            reserved = ["_type", "_id", "_revision", "_base"]
-        else:
-            reserved = ["_type", "_id", "_revision"]
-        if pagination_enabled(model, params):
-            reserved.append("_page")
+        reserved = get_model_reserved_props(model, action, pagination_enabled(model, params))
+
     prop_names = get_select_prop_names(
         context,
         model,

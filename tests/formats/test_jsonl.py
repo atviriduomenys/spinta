@@ -13,6 +13,7 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
+from spinta.core.enums import Mode
 from spinta.testing.client import create_test_client
 from spinta.testing.data import pushdata, encode_page_values_manually
 from spinta.testing.manifest import bootstrap_manifest
@@ -498,3 +499,103 @@ def test_jsonl_changes_corrupt_data(
     assert value["name"] == "Vilnius"
     assert value["country"] == {"_id": country_id}
     assert value["obj"] == {"test": "t_obj_updated"}
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_type", "_revision", "name", "code"]),
+        ("1", ["_type", "_revision", "name", "code"]),
+        ("2", ["_type", "_revision", "name", "code"]),
+        ("3", ["_type", "_revision", "name", "code"]),
+        ("4", ["_type", "_id", "_revision", "name", "code"]),
+        ("5", ["_type", "_id", "_revision", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_external_json_getall(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    json_data = {
+        "countries": [
+            {
+                "name": "Lietuva",
+                "code": "lt",
+            },
+        ],
+    }
+    path = tmp_path / "countries.json"
+    path.write_text(json.dumps(json_data))
+
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | source    | access | level
+        example/html             |           |           |        |
+          | resource             | dask/json | {path}    |        |
+          |   |   | Country      |           | countries |        | {level}
+          |   |   |   | name     | string    | name      | open   |
+          |   |   |   | code     | string    | code      | open   |
+        """,
+        tmp_path=tmp_path,
+        mode=Mode.external,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["getall"])
+
+    response = app.get("example/html/Country/:format/jsonl")
+
+    assert response.status_code == 200
+    assert list(json.loads(response.text.splitlines()[0]).keys()) == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_type", "_revision", "_base", "name", "code"]),
+        ("1", ["_type", "_revision", "_base", "name", "code"]),
+        ("2", ["_type", "_revision", "_base", "name", "code"]),
+        ("3", ["_type", "_revision", "_base", "name", "code"]),
+        ("4", ["_type", "_id", "_revision", "_base", "name", "code"]),
+        ("5", ["_type", "_id", "_revision", "_base", "name", "code"]),
+    ],
+)
+def test_return_correct_columns_for_external_json_search(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    json_data = {
+        "countries": [
+            {
+                "name": "Lietuva",
+                "code": "lt",
+            },
+            {
+                "name": "Latvia",
+                "code": "lv",
+            },
+        ],
+    }
+    path = tmp_path / "countries.json"
+    path.write_text(json.dumps(json_data))
+
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | source    | access | level
+        example/html             |           |           |        |
+          | resource             | dask/json | {path}    |        |
+          |   |   | Country      |           | countries |        | {level}
+          |   |   |   | name     | string    | name      | open   |
+          |   |   |   | code     | string    | code      | open   |
+        """,
+        tmp_path=tmp_path,
+        mode=Mode.external,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["getall", "search"])
+
+    response = app.get('example/html/Country/:format/jsonl?code="lt"')
+
+    assert response.status_code == 200
+    assert list(json.loads(response.text.splitlines()[0]).keys()) == columns

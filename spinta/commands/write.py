@@ -1347,7 +1347,9 @@ async def wipe(  # noqa
 
 def prepare_headers(context: Context, node: Node, resp: dict, action: Action, is_batch: Optional[bool] = False):
     headers = {}
-    if action == Action.INSERT and not is_batch:
+    # TODO: if "_id" not in response, that means model.level < 4.
+    #  In this case, maybe have location as getall + filter for ref fields?
+    if action == Action.INSERT and not is_batch and "_id" in resp:
         server_url = context.get("config").server_url
         headers["location"] = f"{server_url}{node.name}/{resp['_id']}"
     return headers

@@ -62,13 +62,13 @@ from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
 
-def _get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
-    if action in [Action.GETALL, Action.SEARCH]:
-        reserved = ["_id"]
-    else:
-        return get_model_reserved_props(action, include_page)
-    if include_page:
-        reserved.append("_page")
+def _get_model_reserved_props_for_html(model: Model, action: Action, include_page: bool) -> list[str]:
+    """HTML returns less reserved_props for getall and search actions"""
+    reserved = get_model_reserved_props(model, action, include_page)
+
+    if action in (Action.GETALL, Action.SEARCH):
+        reserved = [prop for prop in reserved if prop not in ("_type", "_revision", "_base")]
+
     return reserved
 
 
@@ -212,7 +212,7 @@ def _get_model_tabular_header(
     if model.name == "_ns":
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action, pagination_enabled(model, params))
+        reserved = _get_model_reserved_props_for_html(model, action, pagination_enabled(model, params))
     return get_model_tabular_header(
         context,
         model,
@@ -320,7 +320,7 @@ def prepare_data_for_response(
         else:
             value["name"] = _ModelName(value["name"])
 
-    reserved = _get_model_reserved_props(action, page_in_data(value))
+    reserved = _get_model_reserved_props_for_html(model, action, page_in_data(value))
 
     data = {
         prop.name: commands.prepare_dtype_for_response(

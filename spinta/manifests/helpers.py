@@ -27,7 +27,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.internal.components import InternalManifest
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.enums import enum_by_name
-from spinta.core.enums import Access, Mode
+from spinta.core.enums import Access, Mode, Level
 from spinta.utils.imports import importstr
 
 
@@ -246,7 +246,7 @@ def model_to_schema(model: Optional[Model]) -> ManifestSchema:
         return model.eid, {
             "type": "model",
             "name": model.name,
-            "level": model.level.name if model.level else None,
+            "level": model.level.name if isinstance(model.level, Level) else None,
             "access": model.given.access,
             "title": model.title,
             "description": model.description,

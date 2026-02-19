@@ -9,7 +9,7 @@ from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
 from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData
-from spinta.core.enums import Access, Action
+from spinta.core.enums import Access, Action, Level
 from spinta.core.ufuncs import Expr, NoOp
 from spinta.datasets.components import Dataset, Resource, Param
 from spinta.dimensions.comments.components import Comment
@@ -953,7 +953,7 @@ def _model_to_sql(
         "mpath": new_mpath,
         "dim": "model",
         "name": name,
-        "level": model.level.value if model.level else None,
+        "level": model.level.value if isinstance(model.level, Level) else None,
         "access": model.given.access,
         "title": model.title,
         "description": model.description,

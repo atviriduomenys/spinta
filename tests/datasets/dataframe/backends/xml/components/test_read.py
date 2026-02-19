@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+from unittest.mock import ANY
+
 import pytest
 from responses import RequestsMock, POST
 
@@ -9,7 +11,6 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
-from unittest.mock import ANY
 
 
 def test_xml_read(rc: RawConfig, tmp_path: Path):
@@ -89,6 +90,112 @@ def test_xml_read_with_attributes(rc: RawConfig, tmp_path: Path):
         ("lv", "Ryga"),
         ("ee", "Talin"),
     ]
+
+
+@pytest.mark.parametrize("level", [0, 1, 2, 3])
+def test_xml_read_no_primary_key_level_0_1_2_3_should_not_return__id(rc: RawConfig, tmp_path: Path, level: int):
+    xml = """
+        <cities>
+            <city>
+                <code>lt</code>
+                <name>Vilnius</name>
+            </city>
+            <city>
+                <code>lv</code>
+                <name>Ryga</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type     | ref  | source       | access | level
+        example/xml              |          |      |              |        |
+          | xml                  | dask/xml |      | {path}       |        |
+          |   |   | City         |          |      | /cities/city |        | {level}
+          |   |   |   | name     | string   |      | name         | open   |
+          |   |   |   | code     | string   |      | code         | open   |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    response = app.get("/example/xml/City")
+    assert response.json() == {
+        "_data": [
+            {
+                "_revision": None,
+                "_type": "example/xml/City",
+                "name": "Vilnius",
+                "code": "lt",
+            },
+            {
+                "_revision": None,
+                "_type": "example/xml/City",
+                "name": "Ryga",
+                "code": "lv",
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize("level", [4, 5])
+def test_xml_read_no_primary_key_level_4_5_should_return_id(rc: RawConfig, tmp_path: Path, level: int):
+    xml = """
+        <cities>
+            <city>
+                <code>lt</code>
+                <name>Vilnius</name>
+            </city>
+            <city>
+                <code>lv</code>
+                <name>Ryga</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type     | ref  | source       | access | level
+        example/xml              |          |      |              |        |
+          | xml                  | dask/xml |      | {path}       |        |
+          |   |   | City         |          |      | /cities/city |        | {level}
+          |   |   |   | name     | string   |      | name         | open   |
+          |   |   |   | code     | string   |      | code         | open   |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    response = app.get("/example/xml/City")
+    assert response.json() == {
+        "_data": [
+            {
+                "_id": ANY,
+                "_revision": None,
+                "_type": "example/xml/City",
+                "name": "Vilnius",
+                "code": "lt",
+            },
+            {
+                "_id": ANY,
+                "_revision": None,
+                "_type": "example/xml/City",
+                "name": "Ryga",
+                "code": "lv",
+            },
+        ],
+    }
 
 
 def test_xml_read_refs_level_3(rc: RawConfig, tmp_path: Path):

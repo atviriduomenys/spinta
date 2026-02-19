@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 from _pytest.fixtures import FixtureRequest
+from lxml import etree
 
 from spinta import commands
 from spinta.backends.constants import TableType
@@ -1077,3 +1078,181 @@ def test_rdf_changes_corrupt_data(
         f"</rdf:Description>\n"
         f"</rdf:RDF>\n"
     )
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_page", "name", "code"]),
+        ("1", ["_page", "name", "code"]),
+        ("2", ["_page", "name", "code"]),
+        ("3", ["_page", "name", "code"]),
+        ("4", ["_page", "name", "code"]),
+        ("5", ["_page", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_getall_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+
+    response = app.get("example/html/Country/:format/rdf")
+
+    assert response.status_code == 200
+
+    root = etree.fromstring(response.text.encode())
+    description_element = root.find(
+        "rdf:Description",
+        namespaces={"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "default": "https://testserver/"},
+    )
+    assert [etree.QName(child).localname for child in description_element] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_page", "name", "code"]),
+        ("1", ["_page", "name", "code"]),
+        ("2", ["_page", "name", "code"]),
+        ("3", ["_page", "name", "code"]),
+        ("4", ["_page", "name", "code"]),
+        ("5", ["_page", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_search_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall", "search"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+    pushdata(app, "example/html/Country", {"name": "Latvija", "code": "lv"})
+
+    response = app.get('example/html/Country/:format/rdf?code="lt"')
+
+    assert response.status_code == 200
+
+    root = etree.fromstring(response.text.encode())
+    description_element = root.find(
+        "rdf:Description",
+        namespaces={"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "default": "https://testserver/"},
+    )
+    assert [etree.QName(child).localname for child in description_element] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["name", "code"]),
+        ("1", ["name", "code"]),
+        ("2", ["name", "code"]),
+        ("3", ["name", "code"]),
+        ("4", ["name", "code"]),
+        ("5", ["name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_getone_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context, scope=["spinta_set_meta_fields"])
+    app.authmodel("example/html", ["insert", "getall", "getone"])
+
+    row_id = str(uuid.uuid4())
+    pushdata(app, "example/html/Country", {"_id": row_id, "name": "Lietuva", "code": "lt"})
+
+    response = app.get(f"example/html/Country/{row_id}/:format/rdf")
+
+    assert response.status_code == 200
+
+    root = etree.fromstring(response.text.encode())
+    description_element = root.find(
+        "rdf:Description",
+        namespaces={"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "default": "https://testserver/"},
+    )
+    assert [etree.QName(child).localname for child in description_element] == columns
+
+
+@pytest.mark.parametrize(
+    "level,columns",
+    [
+        ("0", ["_cid", "_created", "_op", "_txn", "name", "code"]),
+        ("1", ["_cid", "_created", "_op", "_txn", "name", "code"]),
+        ("2", ["_cid", "_created", "_op", "_txn", "name", "code"]),
+        ("3", ["_cid", "_created", "_op", "_txn", "name", "code"]),
+        ("4", ["_cid", "_created", "_op", "_txn", "name", "code"]),
+        ("5", ["_cid", "_created", "_op", "_txn", "name", "code"]),
+    ],
+)
+def test_returns_correct_columns_for_internal_changes_action(
+    tmp_path: Path, rc: RawConfig, postgresql: str, level: str, columns: list[str]
+):
+    context = bootstrap_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type   | access | level
+        example/html             |        |        |
+          | resource             |        |        |
+          |   |   | Country      |        |        | {level}
+          |   |   |   | name     | string | open   |
+          |   |   |   | code     | string | open   |
+        """,
+        tmp_path=tmp_path,
+    )
+
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "changes"])
+
+    pushdata(app, "example/html/Country", {"name": "Lietuva", "code": "lt"})
+
+    response = app.get("example/html/Country/:changes/:format/rdf")
+
+    assert response.status_code == 200
+
+    root = etree.fromstring(response.text.encode())
+    description_element = root.find(
+        "rdf:Description",
+        namespaces={"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "default": "https://testserver/"},
+    )
+    assert [etree.QName(child).localname for child in description_element] == columns
