@@ -192,12 +192,9 @@ def get_pkeys_if_ref(prop: Property) -> list[str]:
 
 def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
-    for prop in model.properties.values():
+    for prop in model.flatprops.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
-        if prop.dtype.name == "text":
-            for lang in prop.dtype.langs.values():
-                dask_meta[lang.external.name] = spinta_to_np_dtype(lang.dtype)
     return dask_meta
 
 

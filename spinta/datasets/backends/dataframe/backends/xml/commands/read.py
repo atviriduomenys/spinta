@@ -132,12 +132,9 @@ def getall(
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
-    for prop in model.properties.values():
+    for prop in model.flatprops.values():
         if prop.external and prop.external.name:
             props[prop.name] = {"source": prop.external.name, "pkeys": get_pkeys_if_ref(prop)}
-        if prop.dtype.name == "text":
-            for lang in prop.dtype.langs.values():
-                props[lang.place] = {"source": lang.external.name, "pkeys": []}
 
     meta = get_dask_dataframe_meta(model)
 

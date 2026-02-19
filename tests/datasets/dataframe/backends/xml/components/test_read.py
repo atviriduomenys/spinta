@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import ANY
 
 from responses import RequestsMock, POST
 
@@ -846,17 +847,16 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
 
     data = resp.json()["_data"]
 
-    for item in data:
-        item.pop("_id")
-
     assert data == [
         {
+            "_id": ANY, 
             "_type": "example/xml/City",
             "_revision": None,
             "name": {"lt": "Kaunas", "en": "Kaunas_en"},
             "code": "KNS",
         },
         {
+            "_id": ANY,
             "_type": "example/xml/City",
             "_revision": None,
             "name": {"lt": "Vilnius", "en": "Vilnius_en"},
