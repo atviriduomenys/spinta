@@ -16,6 +16,7 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
+from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
@@ -42,6 +43,7 @@ from spinta.exceptions import (
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
     MissingConfigurationParameter,
+    NotImplementedFeature,
 )
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UndefinedEnum
@@ -55,6 +57,7 @@ from spinta.nodes import load_node
 from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
+from spinta.types.datatype import Ref
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
@@ -545,6 +548,15 @@ def check(context: Context, model: Model):
     for prop in model.properties.values():
         commands.check(context, prop)
 
+    if (
+        context.has("strict_check")
+        and context.get("strict_check")
+        and model.external
+        and model.external.resource
+        and isinstance(model.external.resource.backend, DaskBackend)
+    ):
+        _check_ref_filters_on_dask_backend(model)
+
     # Check if the model configuration does not contain unknown properties
     rc: RawConfig = context.get("rc")
     model_config = rc.to_dict("models", model.name)
@@ -556,6 +568,20 @@ def check(context: Context, model: Model):
         for prop in properties:
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
+
+
+def _check_ref_filters_on_dask_backend(model: Model):
+    for prop in model.properties.values():
+        if not isinstance(prop.dtype, Ref):
+            continue
+        if not prop.external or not prop.external.name:
+            continue
+        ref_model = prop.dtype.model
+        if ref_model and ref_model.external and ref_model.external.prepare is not NA:
+            raise NotImplementedFeature(
+                prop,
+                feature="Reference filters on Dask backend",
+            )
 
 
 @check.register(Context, Property)
