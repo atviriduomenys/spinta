@@ -179,7 +179,7 @@ def get_model_tabular_header(
         if model.name == "_ns":
             reserved = get_ns_reserved_props(action)
         else:
-            reserved = get_model_reserved_props(action, pagination_enabled(model, params))
+            reserved = get_model_reserved_props(model, action, pagination_enabled(model, params))
 
     prop_select = params.select_props
     func_select = params.select_funcs

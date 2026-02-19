@@ -671,7 +671,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action, page_in_data(value)),
+            get_model_reserved_props(model, action, page_in_data(value)),
         )
     }
 
