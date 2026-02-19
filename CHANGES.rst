@@ -8,11 +8,9 @@ Bug fixes:
 
 - Fixes  Text data type handling for `dask/xml` backends.
 
-.. _#1658: https://github.com/atviriduomenys/spinta/issues/1658
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 
 
-
-..
 
 0.2dev16 (2026-02-17)
 =====================
@@ -29,7 +27,9 @@ Bug fixes:
   were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
 - Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
+- Fixed a bug where data for properties with language tags was not being returned (without `select` or other queries) (`#1776`_).
 
+.. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
 .. _#963: https://github.com/atviriduomenys/spinta/issues/963
 .. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
 
