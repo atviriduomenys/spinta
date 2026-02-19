@@ -119,6 +119,38 @@ kaip originalus VM IP, ar kaip tinklo įrenginio IP. Nesutapus adresams, užklau
 bus atmetamos.
 :::
 
+### Kelių agentų topologija
+
+Jei institucijoje yra **keli Spinta agentai** (pvz., kiekvienam šaltiniui atskiras
+agentas), jie gali dalintis vienu išoriniu SVDPT IP adresu per centrinį Reverse
+Proxy (ugniasienę, WAF arba F5).
+
+```
+SVDPT ──► Firewall / LB (vienas išorinis IP)
+               │
+               ├──► Reverse Proxy
+               │         ├──► Spinta A (spinta-a.institucija.lt → VM1:8000)
+               │         ├──► Spinta B (spinta-b.institucija.lt → VM2:8000)
+               │         └──► Spinta C (spinta-c.institucija.lt → VM3:8000)
+```
+
+Gravitee vartai kiekvieną Spinta agentą pasiekia pagal **DNS vardą** (ne IP
+adresą). Todėl kiekvienas agentas turi turėti unikalų hostname, kurį Reverse
+Proxy nukreipia į tinkamą VM.
+
+**Ką reikia pateikti VSSA** (kreipiantis dėl DNS konfigūravimo vartuose):
+
+| Informacija | Pavyzdys |
+|-------------|---------|
+| Išorinis (SVDPT) IP adresas | `<INSTITUTION_LB_IP>` |
+| Kiekvieno agento DNS vardas | `spinta-a.institucija.lt` |
+| Kiekvieno agento paskirtis | Šaltinis X, Šaltinis Y |
+
+:::{note}
+DNS vardus pasirenka institucija. Vardai turi atitikti Reverse Proxy konfigūraciją —
+t.y. Reverse Proxy turi maršrutizuoti pagal `Host` antraštę į atitinkamą Spinta VM.
+:::
+
 ### DNS konfigūravimas (/etc/hosts)
 
 SVDPT tinkle viešieji DNS įrašai neregistruojami, tačiau VSSA Load Balancer srautą
