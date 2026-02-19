@@ -60,7 +60,7 @@ tiesiogiai iš šaltinio — realiu laiku.
 
 ### Režimas B — Duomenų publikavimas (`spinta push`)
 
-Duomenys iš izoliuotų sistemų periodiškai **stumiami** į centrinį DVMS/ADP mazgą.
+Duomenys iš izoliuotų sistemų periodiškai **Publikuojami** į centrinį DVMS/ADP mazgą.
 Spinta atlieka griežtą duomenų validaciją pagal Manifestą prieš įrašydama į saugyklą.
 
 **Naudojama:** atvirų duomenų publikavimui į ADP portalą.
@@ -68,9 +68,17 @@ Spinta atlieka griežtą duomenų validaciją pagal Manifestą prieš įrašydam
 *Dokumentacija ruošiama.*
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 1
 :hidden:
 :caption: Agentas
 
 agentas/index
+agentas/agento-paruošimas
+agentas/šaltinių-konfigūravimas
+agentas/diegimas/index
+agentas/web-serverio-konfigūravimas
+agentas/autentifikacija
+agentas/duomenų-gavimo-testavimas
+agentas/tinklo-konfigūravimas
+agentas/papildoma-informacija
 ```

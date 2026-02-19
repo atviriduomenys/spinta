@@ -153,17 +153,3 @@ Spinta Agentas palaiko šiuos duomenų šaltinių tipus:
 
 Plačiau apie kiekvieno šaltinio konfigūravimą žr. skyriuje
 [Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
-
-```{toctree}
-:maxdepth: 2
-:hidden:
-
-agento-paruošimas
-šaltinių-konfigūravimas
-diegimas/index
-web-serverio-konfigūravimas
-autentifikacija
-duomenų-gavimo-testavimas
-tinklo-konfigūravimas
-papildoma-informacija
-```
