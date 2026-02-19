@@ -12,19 +12,24 @@ Spinta yra sukurta naudojant Python programavimo kalbą ir veikia su Python vers
 
 Dėl serverio resursų, tokių kaip CPU, RAM ir HDD, reikalingi resursai tiesiogiai priklauso nuo publikuojamų duomenų kiekio ir naudotojų srauto, kurie naudosis duomenų publikavimo paslauga.
 
-Minimalūs Agento reikalavimai:
+**Rekomenduojami reikalavimai** (CCT standartinė VM konfigūracija):
+
+- 2 vCPU
+- 4 GB RAM
+- 40 GB laisvos vietos diske
+- Interneto prieiga (443 portas į `data.gov.lt`)
+
+**Minimalūs reikalavimai** (testavimui / nedidelei apkrovai):
 
 - 1 CPU
 - 1 GB RAM
-- 5 GB laisvos vietos diske
+- 10 GB laisvos vietos diske
 
 _Aplinka:_ pilnai įdiegta operacinė sistema su visomis būtinomis priklausomybėmis, be duomenų, iki 5 vienu metu besinaudojančių vartotojų.
 
 :::{note}
-Taip pat rekomenduojama bent 10 GB HDD laisvos vietos, kuri lieka pilnai įdiegus operacinę sistemą ir visas reikalingas priklausomybes. Ši vieta gali būti reikalinga log’ų įrašams.
+Pats Agentas su visomis Python priklausomybėmis diske užima apie 2 GB vietos. Likusi vieta reikalinga OS, log'ams ir laikiems failams.
 :::
-
-Pats savaime Agentas su visomis Python priklausomybėmis diske užima apie 2 GB vietos, tačiau sunaudojamos vietos skaičius gali skirtis, skirtingose distribucijose.
 
 Agento veikimas turėtu būti nuolat stebimas ir reikiami resursai didinami, pagal poreikį.
 
