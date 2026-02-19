@@ -869,7 +869,7 @@ class XSDReader:
 
     def process_enumeration(self, node: _Element, state: State) -> dict[str, dict[str, str]]:
         enum_value = node.attrib.get("value")
-        enum_item = {enum_value: {"source": enum_value}}
+        enum_item = {enum_value: {"source": enum_value, "prepare": enum_value}}
         return enum_item
 
     def process_simple_type(self, node: _Element, state: State) -> XSDType:

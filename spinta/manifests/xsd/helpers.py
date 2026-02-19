@@ -330,7 +330,7 @@ class XSDReader:
             # can be enum
             enumerations = restrictions[0].xpath('./*[local-name() = "enumeration"]')
             for enumeration in enumerations:
-                enum_item = {"source": enumeration.get("value")}
+                enum_item = {"source": enumeration.get("value"), "prepare": enumeration.get("value")}
                 enum_value.update({enumeration.get("value"): enum_item})
             enums[""] = enum_value
 

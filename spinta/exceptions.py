@@ -1209,3 +1209,9 @@ class UnsupportedDataTypeConfiguration(UserError):
     template = """
         DataType {data_type!r} currently does not support custom type assignment in configuration.
     """
+
+
+class EnumPrepareMissing(UserError):
+    template = """
+        Enum {enum} is missing a required value in the prepare column.
+    """

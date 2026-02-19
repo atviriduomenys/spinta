@@ -1,8 +1,16 @@
 Changes
 #######
 
+0.2dev17 (unreleased)
+=====================
 
-0.2dev15 (unreleased)
+Bug fixes:
+
+- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
+
+.. _#1698: https://github.com/atviriduomenys/spinta/issues/1698
+
+0.2dev16 (2026-02-17)
 =====================
 
 New Features:
@@ -22,6 +30,10 @@ Bug fixes:
 .. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
 .. _#963: https://github.com/atviriduomenys/spinta/issues/963
 .. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
+
+
+0.2dev15 (2026-02-15)
+=====================
 
 0.2dev14 (2026-02-03)
 =====================

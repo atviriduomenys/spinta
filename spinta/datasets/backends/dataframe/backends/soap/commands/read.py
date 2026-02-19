@@ -12,7 +12,7 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.soap.components import Soap
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs import MakeCDATA
-from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, get_dask_dataframe_meta, dask_get_all
+from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, dask_get_all, get_dask_dataframe_meta
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.components import Resource
 from spinta.dimensions.param.components import ResolvedParams
