@@ -97,7 +97,7 @@
 
         <!-- Resource 1 row (amber) -->
         <mxCell id="r1-dataset"  value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="160" y="142" width="150" height="36" as="geometry" /></mxCell>
-        <mxCell id="r1-res"      value="myapp_db" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;fontSize=10;fontFamily=Courier New;fontColor=#92400E;" vertex="1" parent="1"><mxGeometry x="312" y="142" width="110" height="36" as="geometry" /></mxCell>
+        <mxCell id="r1-res"      value="myapp" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;fontSize=10;fontFamily=Courier New;" vertex="1" parent="1"><mxGeometry x="312" y="142" width="110" height="36" as="geometry" /></mxCell>
         <mxCell id="r1-mdl"      value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="424" y="142" width="100" height="36" as="geometry" /></mxCell>
         <mxCell id="r1-prp"      value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="526" y="142" width="100" height="36" as="geometry" /></mxCell>
         <mxCell id="r1-typ"      value="sql" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;fontSize=10;fontFamily=Courier New;" vertex="1" parent="1"><mxGeometry x="628" y="142" width="90"  height="36" as="geometry" /></mxCell>
@@ -151,7 +151,7 @@
 
         <!-- Resource 2 row -->
         <mxCell id="r2-dataset"  value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="160" y="376" width="150" height="36" as="geometry" /></mxCell>
-        <mxCell id="r2-res"      value="products_db" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;fontSize=10;fontFamily=Courier New;fontColor=#92400E;" vertex="1" parent="1"><mxGeometry x="312" y="376" width="110" height="36" as="geometry" /></mxCell>
+        <mxCell id="r2-res"      value="produktai" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;fontSize=10;fontFamily=Courier New;" vertex="1" parent="1"><mxGeometry x="312" y="376" width="110" height="36" as="geometry" /></mxCell>
         <mxCell id="r2-mdl"      value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="424" y="376" width="100" height="36" as="geometry" /></mxCell>
         <mxCell id="r2-prp"      value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="526" y="376" width="100" height="36" as="geometry" /></mxCell>
         <mxCell id="r2-typ"      value="sql" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;fontSize=10;fontFamily=Courier New;" vertex="1" parent="1"><mxGeometry x="628" y="376" width="90"  height="36" as="geometry" /></mxCell>
@@ -185,12 +185,22 @@
         <mxCell id="p2c-rest" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="720" y="556" width="376" height="36" as="geometry" /></mxCell>
 
         <!-- ═══════════════════════════════════════════════════════
-             ANNOTATION: Resource eilutė → config.yml
+             ANNOTATIONS: Resource eilutė — resource vs ref stulpeliai
         ══════════════════════════════════════════════════════════ -->
-        <mxCell id="annot-box" value="backend pavadinimas iš config.yml&#xa;(ne slaptažodis — jis tik config faile)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F59E0B;strokeWidth=1.5;fontSize=10;fontColor=#92400E;align=left;spacingLeft=8;" vertex="1" parent="1">
-          <mxGeometry x="340" y="195" width="260" height="44" as="geometry" />
+
+        <!-- Annotation for "resource" column -->
+        <mxCell id="annot-res-box" value="resource stulpelis:&#xa;šaltinio pavadinimas (jūsų pasirinktas)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#93C5FD;strokeWidth=1.5;fontSize=10;fontColor=#1D4ED8;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="250" y="198" width="240" height="44" as="geometry" />
         </mxCell>
-        <mxCell id="annot-arr1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#F59E0B;strokeWidth=1.5;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="annot-box" target="r1-res">
+        <mxCell id="annot-res-arr" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#93C5FD;strokeWidth=1.5;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="annot-res-box" target="r1-res">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Annotation for "ref" column -->
+        <mxCell id="annot-ref-box" value="ref stulpelis:&#xa;backend pavadinimas iš config.yml&#xa;(ne slaptažodis — jis tik config faile)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F59E0B;strokeWidth=1.5;fontSize=10;fontColor=#92400E;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="640" y="198" width="270" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="annot-ref-arr" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#F59E0B;strokeWidth=1.5;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="annot-ref-box" target="r1-ref">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
@@ -203,7 +213,7 @@
         <mxCell id="leg-d" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="1120" y="110" width="30" height="30" as="geometry" /></mxCell>
         <mxCell id="leg-d-txt" value="① Dataset (vardų erdvė)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1160" y="110" width="200" height="30" as="geometry" /></mxCell>
         <mxCell id="leg-r" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="1120" y="150" width="30" height="30" as="geometry" /></mxCell>
-        <mxCell id="leg-r-txt" value="② Resource (šaltinis + backend)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1160" y="150" width="200" height="30" as="geometry" /></mxCell>
+        <mxCell id="leg-r-txt" value="② Resource: resource = šaltinio pav., ref = backend" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1160" y="150" width="220" height="30" as="geometry" /></mxCell>
         <mxCell id="leg-m" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="1120" y="190" width="30" height="30" as="geometry" /></mxCell>
         <mxCell id="leg-m-txt" value="③ Model (duomenų objektas)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1160" y="190" width="200" height="30" as="geometry" /></mxCell>
         <mxCell id="leg-p" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#CBD5E1;" vertex="1" parent="1"><mxGeometry x="1120" y="230" width="30" height="30" as="geometry" /></mxCell>

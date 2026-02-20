@@ -49,9 +49,9 @@ manifests:
 **manifest.csv** (veiklos žmonės gali matyti ir redaguoti — jokių slaptažodžių):
 
 ```
-id,dataset,...,source,...
-,datasets/gov/lt/myapp,,,,,,,,,,,,,,,,,,,, ← vardų erdvė
-,,myapp_db,,,,sql,myapp_db,,,,,,,,,,,,,,   ← nuoroda į backend pavadinimą
+id,dataset,...,type,ref,...
+,datasets/gov/lt/myapp,,,,,,,,,,,,,,,,,,,,  ← vardų erdvė [dataset stulpelis]
+,,saltinis_1,,,,sql,myapp_db,,,,,,,,,,,,,  ← resource eilutė: resource = šaltinio pavadinimas, ref = backend iš config.yml
 ```
 
 ### Keli duomenų šaltiniai viename manifest faile
@@ -69,12 +69,24 @@ manifest.csv su dviem šaltiniais viename faile (spustelėkite norėdami padidin
 Manifest faile kiekvienas šaltinis turi savo blokų seką:
 
 ```
-dataset eilutė  → vardų erdvė (pvz. datasets/gov/lt/myapp)
-resource eilutė → backend pavadinimas (pvz. myapp_db) + šaltinio tipas (sql/wsdl/xml/json)
-(tuščia eilutė) → vizualinis atskyriklis
-model eilutė    → duomenų objektas (lentelė/klasė)
+dataset eilutė   → vardų erdvė (pvz. datasets/gov/lt/myapp)       [dataset stulpelis]
+resource eilutė  → šaltinio pavadinimas (jūsų pasirinktas)        [resource stulpelis]
+                   duomenų šaltinio tipas (sql/wsdl/xml/json)      [type stulpelis]
+                   backend pavadinimas iš config.yml               [ref stulpelis]
+(tuščia eilutė)  → vizualinis atskyriklis
+model eilutė     → duomenų objektas (lentelė/klasė)
 property eilutės → laukai (stulpeliai)
 ```
+
+**`ref` stulpelio reikšmė skiriasi priklausomai nuo eilutės lygio** — tas pats stulpelis reiškia skirtingus dalykus:
+
+| Eilutės tipas | `ref` reikšmė |
+|--------------|---------------|
+| `resource` eilutė | backend pavadinimas iš `config.yml` (pvz. `myapp_db`) |
+| `model` eilutė | pirminio rakto laukų sąrašas (pvz. `id` arba `id,code`) |
+| `property` eilutė | nurodomos modelio arba enum pavadinimas (ref tipo laukams) |
+
+Tą patį principą taiko ir kiti stulpeliai (`source`, `prepare` ir kt.) — jų prasmė priklauso nuo eilutės tipo (`dataset` / `resource` / `model` / `property`).
 
 Jei norite pridėti antrą šaltinį — tiesiog tęskite tą patį failą nauju dataset/resource bloku.
 
