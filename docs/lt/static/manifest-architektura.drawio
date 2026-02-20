@@ -1,0 +1,140 @@
+<mxfile host="app.diagrams.net" modified="2026-02-20" version="24.0.0">
+  <diagram name="manifest-architektura" id="arch-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══════════════════════════════════════════════════════
+             TITLE
+        ══════════════════════════════════════════════════════════ -->
+        <mxCell id="title" value="config.yml ir manifest.csv: slaptažodžiai atskirti nuo DSA struktūros (backend&#x27;ų skaičius — neribojamas)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="1280" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════
+             config.yml BOX (left, amber/orange)
+        ══════════════════════════════════════════════════════════ -->
+        <mxCell id="cfg-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F59E0B;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="20" y="80" width="360" height="620" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cfg-title" value="config.yml  [tik admin]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#92400E;" vertex="1" parent="1">
+          <mxGeometry x="20" y="90" width="360" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cfg-code" value="backends:&#xa;&#xa;  myapp_db:&#xa;    type: sql&#xa;    dsn: postgresql+psycopg2://&#xa;      user:secret1@host1/myapp&#xa;&#xa;  products_db:&#xa;    type: sql&#xa;    dsn: postgresql+psycopg2://&#xa;      user:secret2@host2/products&#xa;&#xa;  archive_db:&#xa;    type: sql&#xa;    dsn: postgresql+psycopg2://&#xa;      user:secret3@host3/archive&#xa;&#xa;manifests:&#xa;  default:&#xa;    type: csv&#xa;    path: /opt/spinta/manifest.csv&#xa;    mode: external" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#92400E;" vertex="1" parent="1">
+          <mxGeometry x="25" y="130" width="350" height="530" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cfg-note" value="Slaptažodžiai — TIK čia.&#xa;Mato tik administratorius." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#92400E;" vertex="1" parent="1">
+          <mxGeometry x="20" y="700" width="360" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════
+             manifest.csv BOX (middle, green)
+        ══════════════════════════════════════════════════════════ -->
+        <mxCell id="mfst-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="480" y="80" width="420" height="620" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mfst-title" value="manifest.csv" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#14532D;" vertex="1" parent="1">
+          <mxGeometry x="480" y="90" width="420" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Dataset 1 sub-section -->
+        <mxCell id="mfst-d1" value="datasets/gov/lt/myapp" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#14532D;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="485" y="130" width="405" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mfst-r1" value="  resource: myapp_db  ──────────────" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#92400E;" vertex="1" parent="1">
+          <mxGeometry x="485" y="154" width="405" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mfst-m1" value="  Country&#xa;    id      integer&#xa;    name    string" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#14532D;" vertex="1" parent="1">
+          <mxGeometry x="485" y="178" width="405" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Divider 1 -->
+        <mxCell id="div1" value="" style="line;strokeColor=#CBD5E1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="490" y="248" width="400" height="10" as="geometry" />
+        </mxCell>
+
+        <!-- Dataset 2 sub-section -->
+        <mxCell id="mfst-d2" value="datasets/gov/lt/products" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#14532D;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="485" y="268" width="405" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mfst-r2" value="  resource: products_db  ───────────" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#92400E;" vertex="1" parent="1">
+          <mxGeometry x="485" y="292" width="405" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mfst-m2" value="  Product&#xa;    id      integer&#xa;    name    string&#xa;    price   number" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#14532D;" vertex="1" parent="1">
+          <mxGeometry x="485" y="316" width="405" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Divider 2 -->
+        <mxCell id="div2" value="" style="line;strokeColor=#CBD5E1;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="490" y="406" width="400" height="10" as="geometry" />
+        </mxCell>
+
+        <!-- Dataset 3 sub-section -->
+        <mxCell id="mfst-d3" value="datasets/gov/lt/archive" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#14532D;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="485" y="426" width="405" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mfst-r3" value="  resource: archive_db  ────────────" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#92400E;" vertex="1" parent="1">
+          <mxGeometry x="485" y="450" width="405" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mfst-m3" value="  Document&#xa;    id      integer&#xa;    title   string" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#14532D;" vertex="1" parent="1">
+          <mxGeometry x="485" y="474" width="405" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mfst-note" value="DSA struktūra — gali matyti veiklos žmonės. Jokių slaptažodžių." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#14532D;" vertex="1" parent="1">
+          <mxGeometry x="480" y="700" width="420" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════
+             ARROWS: config.yml → manifest.csv (backend names)
+        ══════════════════════════════════════════════════════════ -->
+        <mxCell id="arr1" value="myapp_db" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#F59E0B;strokeWidth=2;fillColor=#F59E0B;fontStyle=1;fontSize=10;fontColor=#92400E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="cfg-box" target="mfst-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr2" value="products_db" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#F59E0B;strokeWidth=2;fillColor=#F59E0B;fontStyle=1;fontSize=10;fontColor=#92400E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="cfg-box" target="mfst-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr3" value="archive_db" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#F59E0B;strokeWidth=2;fillColor=#F59E0B;fontStyle=1;fontSize=10;fontColor=#92400E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="cfg-box" target="mfst-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════
+             API ENDPOINTS BOX (right, blue)
+        ══════════════════════════════════════════════════════════ -->
+        <mxCell id="api-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#93C5FD;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="180" width="300" height="340" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api-title" value="API endpoints" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#1D4ED8;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="190" width="300" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api-e1" value="/datasets/gov/lt/myapp/Country" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#1D4ED8;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="240" width="290" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="api-e2" value="/datasets/gov/lt/products/Product" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#1D4ED8;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="310" width="290" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="api-e3" value="/datasets/gov/lt/archive/Document" style="text;html=0;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=10;fontSize=11;fontFamily=Courier New;fontColor=#1D4ED8;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="380" width="290" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ARROWS: manifest → API -->
+        <mxCell id="arr-api1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="mfst-box" target="api-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-api2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mfst-box" target="api-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-api3" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="mfst-box" target="api-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

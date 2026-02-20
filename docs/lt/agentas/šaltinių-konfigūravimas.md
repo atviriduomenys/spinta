@@ -118,7 +118,18 @@ Kiekviena eilutė privalo turėti **lygiai tiek reikšmių** kiek yra antraštė
 
 WSDL ir SOAP šaltinio struktūros parengimas aprašytas čia:
 
-[Duomenų šaltiniai - DSA](https://ivpk.github.io/dsa/draft/saltiniai.html#wsdl "Duomenų šaltiniai - DSA")
+[Duomenų šaltiniai - DSA](https://ivpk.github.io/dsa/1.1/saltiniai.html#wsdl "Duomenų šaltiniai - DSA 1.1")
+
+:::{note}
+**Žemiau pateiktas manifest pavyzdys yra skirtas pradiniam testavimui** — jis naudoja
+viešai prieinamą demo WSDL paslaugą, kurią galima pasiekti be kredencialų. Jis
+leidžia patikrinti ar agentas apskritai veikia teisingai dar prieš jungiantis prie
+realaus šaltinio.
+
+Kai testavimas sėkmingas — šį manifestą reikia **pakeisti** savo institucijos
+realiuoju sDSA (sugeneruotu su `spinta inspect` iš jūsų šaltinio). Kaip tai padaryti
+aprašyta skyriuje [Agento paruošimas](agento-paruošimas.md).
+:::
 
 Pasikeiskite aktyvų naudotoją ir katalogą:
 
