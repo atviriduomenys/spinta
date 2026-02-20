@@ -1,4 +1,4 @@
-# Agento paruošimas
+# Aplinkos paruošimas
 
 ## Techniniai reikalavimai
 

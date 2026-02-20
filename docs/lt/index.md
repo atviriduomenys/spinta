@@ -2,8 +2,7 @@
 
 :::{note}
 Ši dokumentacija yra rengiama (draft). Šiuo metu prioritetas — **Spinta Agento**
-diegimo instrukcijos, skirtos institucijoms, pradedančioms teikti duomenis per
-Gravitee vartus. Kitos dalys bus papildomos vėliau.
+diegimo instrukcijos, skirtos institucijoms, pradedančioms diegiančioms SPINTA agentą UDTS duomenų paslaugų publikavimui vartuose. Kitos dalys bus papildomos vėliau.
 :::
 
 ## Kas yra Spinta?
@@ -70,14 +69,14 @@ Spinta atlieka griežtą duomenų validaciją pagal Manifestą prieš įrašydam
 ```{toctree}
 :maxdepth: 1
 :hidden:
-:caption: Agentas
+:caption: SPINTA Agentas
 
-agentas/index
-agentas/agento-paruošimas
-agentas/šaltinių-konfigūravimas
-agentas/diegimas/index
-agentas/web-serverio-konfigūravimas
+Apie SPINTA agentą <agentas/index>
+Aplinkos paruošimas <agentas/agento-paruošimas>
+Manifest parengimas <agentas/šaltinių-konfigūravimas>
+Agento diegimas <agentas/diegimas/index>
 agentas/autentifikacija
+agentas/web-serverio-konfigūravimas
 agentas/duomenų-gavimo-testavimas
 agentas/tinklo-konfigūravimas
 agentas/papildoma-informacija
