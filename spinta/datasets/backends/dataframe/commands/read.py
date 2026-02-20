@@ -194,7 +194,7 @@ def get_pkeys_if_ref(prop: Property) -> list[str]:
 
 def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
-    for prop in model.properties.values():
+    for prop in model.flatprops.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = OBJECT_DTYPE
     return dask_meta
