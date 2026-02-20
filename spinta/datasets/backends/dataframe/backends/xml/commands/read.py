@@ -135,7 +135,7 @@ def getall(
 
     for prop in model.flatprops.values():
         if prop.external and prop.external.name:
-            props[prop.name] = {
+            props[prop.place] = {
                 "source": prop.external.name,
                 "pkeys": get_pkeys_if_ref(prop),
             }
