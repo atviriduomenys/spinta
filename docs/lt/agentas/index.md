@@ -179,11 +179,13 @@ Manifesto kūrimas aprašytas skyriuje [Šaltinių konfigūravimas](šaltinių-k
 
 Žemiau pateikta aukšto lygio schema, kaip sDSA kuriamas ir keliauja iki API vartų:
 
-<p align="center">
-  <img src="../_static/dsa-ciklas.png" alt="DSA gyvavimo ciklo schema">
-  <br>
-  <em>DSA gyvavimo ciklas — nuo generavimo iki API vartų</em>
-</p>
+```{figure} ../static/dsa-ciklas.png
+:width: 100%
+:alt: DSA gyvavimo ciklo schema
+:target: ../_static/dsa-ciklas.png
+
+DSA gyvavimo ciklas — nuo generavimo iki API vartų (spustelėkite norėdami padidinti)
+```
 
 | # | Etapas | Atlikėjas | Įrankis / komanda | Rezultatas |
 |---|--------|-----------|-------------------|------------|
