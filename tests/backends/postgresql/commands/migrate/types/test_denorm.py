@@ -3,8 +3,9 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import Engine
 
+from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
@@ -17,7 +18,6 @@ from spinta.testing.migration import (
     drop_constraint,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    cleanup_tables,
     configure_migrate,
     override_manifest,
     cleanup_table_list,
@@ -25,10 +25,7 @@ from tests.backends.postgresql.commands.migrate.test_migrations import (
 )
 
 
-def test_migrate_do_nothing_ref_4_denorm(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_do_nothing_ref_4_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -44,18 +41,18 @@ def test_migrate_do_nothing_ref_4_denorm(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -103,18 +100,18 @@ def test_migrate_do_nothing_ref_4_denorm(
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.name"}.issubset(columns.keys())
         assert not {"__country._id"}.issubset(columns.keys())
@@ -135,10 +132,7 @@ def test_migrate_do_nothing_ref_4_denorm(
         )
 
 
-def test_migrate_do_nothing_ref_3_denorm(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_do_nothing_ref_3_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -154,18 +148,18 @@ def test_migrate_do_nothing_ref_3_denorm(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country.id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -208,18 +202,18 @@ def test_migrate_do_nothing_ref_3_denorm(
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country.id", "country.name"}.issubset(columns.keys())
         assert not {"__country.id"}.issubset(columns.keys())
@@ -241,9 +235,8 @@ def test_migrate_do_nothing_ref_3_denorm(
 
 
 def test_migrate_adjust_ref_levels_with_denorm(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m      | property            | type          | ref                  | level
      migrate/example |   |   |        |                     |               |                      |
@@ -289,11 +282,11 @@ def test_migrate_adjust_ref_levels_with_denorm(
         },
     ]
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         for item in insert_values:
             conn.execute(table.insert().values(item))
 
@@ -306,15 +299,15 @@ def test_migrate_adjust_ref_levels_with_denorm(
             assert item["someNumber"] == insert_values[i]["someNumber"]
 
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Ref",
-            "migrate/example/Ref/:changelog",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Ref",
+            "migrate/example.Ref/:changelog",
         }.issubset(tables.keys())
         columns = table.columns
         assert {"someText", "someNumber", "someInteger"}.issubset(columns.keys())
 
-        table = tables["migrate/example/Ref"]
+        table = tables["migrate/example.Ref"]
         for item in ref_insert:
             conn.execute(table.insert().values(item))
 
@@ -355,30 +348,31 @@ def test_migrate_adjust_ref_levels_with_denorm(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/Ref")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/Ref', column='someRef.someText', column_type='TEXT')}"
-        f"{add_column(table='migrate/example/Ref', column='someRef.someNumber', column_type='FLOAT')}"
-        'UPDATE "migrate/example/Ref" SET '
-        '"someRef.someText"="migrate/example/Test"."someText", '
-        '"someRef.someNumber"="migrate/example/Test"."someNumber" FROM '
-        '"migrate/example/Test" WHERE "migrate/example/Ref"."someRef._id" = '
-        '"migrate/example/Test"._id;\n'
+        f"{add_column(table_identifier=table_identifier, column='someRef.someText', column_type='TEXT')}"
+        f"{add_column(table_identifier=table_identifier, column='someRef.someNumber', column_type='FLOAT')}"
+        'UPDATE "migrate/example"."Ref" SET '
+        '"someRef.someText"="migrate/example"."Test"."someText", '
+        '"someRef.someNumber"="migrate/example"."Test"."someNumber" FROM '
+        '"migrate/example"."Test" WHERE "migrate/example"."Ref"."someRef._id" = '
+        '"migrate/example"."Test"._id;\n'
         "\n"
-        f"{drop_column(table='migrate/example/Ref', column='someRef._id')}"
-        f"{drop_index(index_name='ix_migrate/example/Ref_someRef._id')}"
-        f"{drop_constraint(constraint_name='fk_migrate/example/Ref_someRef._id', table='migrate/example/Ref')}"
+        f"{drop_column(table_identifier=table_identifier, column='someRef._id')}"
+        f"{drop_index(table_identifier=table_identifier, index_name='ix_Ref_someRef._id')}"
+        f"{drop_constraint(table_identifier=table_identifier, constraint_name='fk_Ref_someRef._id_Test')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        table = tables["migrate/example/Ref"]
+        table = tables["migrate/example.Ref"]
         columns = table.columns
         assert {
             "someText",
@@ -434,33 +428,33 @@ def test_migrate_adjust_ref_levels_with_denorm(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
+        'ALTER TABLE "migrate/example"."Ref" ADD COLUMN "someRef._id" UUID;\n'
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Ref_someRef._id', table='migrate/example/Ref', columns=['someRef._id'])}"
-        f"{add_column_comment(table='migrate/example/Ref', column='someRef._id')}"
-        'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
-        'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
-        '"migrate/example/Test"."someText" AND '
-        '"migrate/example/Ref"."someRef.someNumber" = '
-        '"migrate/example/Test"."someNumber";\n'
+        f"{add_index(table_identifier=table_identifier, index_name='ix_Ref_someRef._id', columns=['someRef._id'])}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someRef._id')}"
+        'UPDATE "migrate/example"."Ref" SET "someRef._id"="migrate/example"."Test"._id '
+        'FROM "migrate/example"."Test" WHERE "migrate/example"."Ref"."someRef.someText" = '
+        '"migrate/example"."Test"."someText" AND '
+        '"migrate/example"."Ref"."someRef.someNumber" = '
+        '"migrate/example"."Test"."someNumber";\n'
         "\n"
-        f"{drop_column(table='migrate/example/Ref', column='someRef.someText')}"
-        f"{drop_column(table='migrate/example/Ref', column='someRef.someNumber')}"
-        'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
-        '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
-        '"migrate/example/Test" (_id);\n'
+        f"{drop_column(table_identifier=table_identifier, column='someRef.someText')}"
+        f"{drop_column(table_identifier=table_identifier, column='someRef.someNumber')}"
+        'ALTER TABLE "migrate/example"."Ref" ADD CONSTRAINT '
+        '"fk_Ref_someRef._id_Test" FOREIGN KEY("someRef._id") REFERENCES '
+        '"migrate/example"."Test" (_id);\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Ref"]
+        table = tables["migrate/example.Ref"]
         columns = table.columns
         assert {
             "someText",
@@ -498,8 +492,7 @@ def test_migrate_adjust_ref_levels_with_denorm(
         )
 
 
-def test_migrate_ref_4_add_denorm(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_4_add_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -514,18 +507,18 @@ def test_migrate_ref_4_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -563,8 +556,9 @@ def test_migrate_ref_4_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{add_column(table='migrate/example/City', column='country.name', column_type='TEXT')}COMMIT;\n\n"
+        f"BEGIN;\n\n{add_column(table_identifier=table_identifier, column='country.name', column_type='TEXT')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -574,18 +568,18 @@ def test_migrate_ref_4_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.name"}.issubset(columns.keys())
         assert not {"__country._id"}.issubset(columns.keys())
@@ -606,8 +600,7 @@ def test_migrate_ref_4_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
         )
 
 
-def test_migrate_ref_4_remove_denorm(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_4_remove_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -623,18 +616,18 @@ def test_migrate_ref_4_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -672,8 +665,9 @@ def test_migrate_ref_4_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{drop_column(table='migrate/example/City', column='country.name')}COMMIT;\n\n"
+        f"BEGIN;\n\n{drop_column(table_identifier=table_identifier, column='country.name')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -683,18 +677,18 @@ def test_migrate_ref_4_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "__country.name"}.issubset(columns.keys())
         assert not {"__country._id", "country.name"}.issubset(columns.keys())
@@ -715,8 +709,7 @@ def test_migrate_ref_4_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
         )
 
 
-def test_migrate_ref_4_rename_denorm(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_4_rename_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -732,18 +725,18 @@ def test_migrate_ref_4_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -790,23 +783,24 @@ def test_migrate_ref_4_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.name', new_name='country.test')}COMMIT;\n\n"
+        f"BEGIN;\n\n{rename_column(table_identifier=table_identifier, column='country.name', new_name='country.test')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.test"}.issubset(columns.keys())
         assert not {"__country._id", "country.name"}.issubset(columns.keys())
@@ -827,8 +821,7 @@ def test_migrate_ref_4_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
         )
 
 
-def test_migrate_ref_nesting_do_nothing(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_nesting_do_nothing(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -845,18 +838,18 @@ def test_migrate_ref_nesting_do_nothing(postgresql_migration: URL, rc: RawConfig
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.ctr._id", "country.ctr.id"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -900,18 +893,18 @@ def test_migrate_ref_nesting_do_nothing(postgresql_migration: URL, rc: RawConfig
     assert result.output.endswith("BEGIN;\n\nCOMMIT;\n\n")
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.ctr._id", "country.ctr.id"}.issubset(columns.keys())
         assert not {"__country._id", "__country.ctr._id", "__country.ctr.id"}.issubset(columns.keys())
@@ -933,8 +926,7 @@ def test_migrate_ref_nesting_do_nothing(postgresql_migration: URL, rc: RawConfig
         )
 
 
-def test_migrate_ref_nested_update(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_nested_update(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -951,18 +943,18 @@ def test_migrate_ref_nested_update(postgresql_migration: URL, rc: RawConfig, cli
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.ctr._id", "country.ctr.id"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1006,26 +998,26 @@ def test_migrate_ref_nested_update(postgresql_migration: URL, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/City" ALTER COLUMN "country.ctr.id" TYPE TEXT '
-        'USING CAST("migrate/example/City"."country.ctr.id" AS TEXT);\n'
+        'ALTER TABLE "migrate/example"."City" ALTER COLUMN "country.ctr.id" TYPE TEXT '
+        'USING CAST("migrate/example"."City"."country.ctr.id" AS TEXT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.ctr._id", "country.ctr.id"}.issubset(columns.keys())
         assert not {"__country._id", "__country.ctr._id", "__country.ctr.id"}.issubset(columns.keys())
@@ -1047,10 +1039,7 @@ def test_migrate_ref_nested_update(postgresql_migration: URL, rc: RawConfig, cli
         )
 
 
-def test_migrate_ref_nested_ref_to_scalar(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_nested_ref_to_scalar(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -1066,18 +1055,18 @@ def test_migrate_ref_nested_ref_to_scalar(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.ctr._id"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1116,34 +1105,35 @@ def test_migrate_ref_nested_ref_to_scalar(
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/City', column='country.ctr', column_type='INTEGER')}"
-        'UPDATE "migrate/example/City" SET "country.ctr"="migrate/example/Country".id '
-        'FROM "migrate/example/Country" WHERE '
-        '"migrate/example/City"."country.ctr._id" = "migrate/example/Country"._id;\n'
+        f"{add_column(table_identifier=table_identifier, column='country.ctr', column_type='INTEGER')}"
+        'UPDATE "migrate/example"."City" SET "country.ctr"="migrate/example"."Country".id '
+        'FROM "migrate/example"."Country" WHERE '
+        '"migrate/example"."City"."country.ctr._id" = "migrate/example"."Country"._id;\n'
         "\n"
-        f"{drop_column(table='migrate/example/City', column='country.ctr._id')}"
-        f"{drop_index(index_name='ix_migrate/example/City_country.ctr._id')}"
-        f"{drop_constraint(constraint_name='fk_migrate/example/City_country.ctr._id', table='migrate/example/City')}"
+        f"{drop_column(table_identifier=table_identifier, column='country.ctr._id')}"
+        f"{drop_index(table_identifier=table_identifier, index_name='ix_City_country.ctr._id')}"
+        f"{drop_constraint(table_identifier=table_identifier, constraint_name='fk_City_country.ctr._id_Country')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.ctr", "__country.ctr._id"}.issubset(columns.keys())
         assert not {"__country._id", "country.ctr._id"}.issubset(columns.keys())
@@ -1165,8 +1155,7 @@ def test_migrate_ref_nested_ref_to_scalar(
 
 
 @pytest.mark.skip("Text does not support nesting (in manifest creation)")
-def test_migrate_ref_nested_text(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_nested_text(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property            | type     | ref      | level
      migrate/example |   |      |         |                     |          |          |
@@ -1184,18 +1173,18 @@ def test_migrate_ref_nested_text(postgresql_migration: URL, rc: RawConfig, cli: 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country._id", "country.ctr.id", "country.ctr.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1237,34 +1226,35 @@ def test_migrate_ref_nested_text(postgresql_migration: URL, rc: RawConfig, cli: 
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/City', column='country.ctr', column_type='INTEGER')}"
-        'UPDATE "migrate/example/City" SET "country.ctr"="migrate/example/Country".id '
-        'FROM "migrate/example/Country" WHERE '
-        '"migrate/example/City"."country.ctr._id" = "migrate/example/Country"._id;\n'
+        f"{add_column(table_identifier=table_identifier, column='country.ctr', column_type='INTEGER')}"
+        'UPDATE "migrate/example"."City" SET "country.ctr"="migrate/example"."Country".id '
+        'FROM "migrate/example"."Country" WHERE '
+        '"migrate/example"."City"."country.ctr._id" = "migrate/example"."Country"._id;\n'
         "\n"
-        f"{drop_column(table='migrate/example/City', column='country.ctr._id')}"
-        f"{drop_index(index_name='ix_migrate/example/City_country.ctr._id')}"
-        f"{drop_constraint(constraint_name='fk_migrate/example/City_country.ctr._id', table='migrate/example/City')}"
+        f"{drop_column(table_identifier=table_identifier, column='country.ctr._id')}"
+        f"{drop_index(table_identifier=table_identifier, index_name='ix_City_country.ctr._id')}"
+        f"{drop_constraint(table_identifier=table_identifier, constraint_name='fk_City_country.ctr._id_Country')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country._id", "country.ctr", "__country.ctr._id"}.issubset(columns.keys())
         assert not {"__country._id", "country.ctr._id"}.issubset(columns.keys())
@@ -1285,8 +1275,7 @@ def test_migrate_ref_nested_text(postgresql_migration: URL, rc: RawConfig, cli: 
         )
 
 
-def test_migrate_ref_3_add_denorm(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_3_add_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -1301,18 +1290,18 @@ def test_migrate_ref_3_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country.id"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1350,8 +1339,9 @@ def test_migrate_ref_3_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{add_column(table='migrate/example/City', column='country.name', column_type='TEXT')}COMMIT;\n\n"
+        f"BEGIN;\n\n{add_column(table_identifier=table_identifier, column='country.name', column_type='TEXT')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -1361,18 +1351,18 @@ def test_migrate_ref_3_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country.id", "country.name"}.issubset(columns.keys())
         assert not {"__country.id"}.issubset(columns.keys())
@@ -1393,8 +1383,7 @@ def test_migrate_ref_3_add_denorm(postgresql_migration: URL, rc: RawConfig, cli:
         )
 
 
-def test_migrate_ref_3_remove_denorm(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_3_remove_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -1410,18 +1399,18 @@ def test_migrate_ref_3_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country.id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1454,8 +1443,9 @@ def test_migrate_ref_3_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{drop_column(table='migrate/example/City', column='country.name')}COMMIT;\n\n"
+        f"BEGIN;\n\n{drop_column(table_identifier=table_identifier, column='country.name')}COMMIT;\n\n"
     )
 
     cli.invoke(
@@ -1465,18 +1455,18 @@ def test_migrate_ref_3_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country.id", "__country.name"}.issubset(columns.keys())
         assert not {"__country.id", "country.name"}.issubset(columns.keys())
@@ -1497,8 +1487,7 @@ def test_migrate_ref_3_remove_denorm(postgresql_migration: URL, rc: RawConfig, c
         )
 
 
-def test_migrate_ref_3_rename_denorm(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_ref_3_rename_denorm(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -1514,18 +1503,18 @@ def test_migrate_ref_3_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country.id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1567,23 +1556,24 @@ def test_migrate_ref_3_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.name', new_name='country.test')}COMMIT;\n\n"
+        f"BEGIN;\n\n{rename_column(table_identifier=table_identifier, column='country.name', new_name='country.test')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country.id", "country.test"}.issubset(columns.keys())
         assert not {"__country.id", "country.name"}.issubset(columns.keys())
@@ -1604,8 +1594,7 @@ def test_migrate_ref_3_rename_denorm(postgresql_migration: URL, rc: RawConfig, c
         )
 
 
-def test_migrate_object(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_object(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m       | property       | type     | ref      | level
      migrate/example |   |      |         |                |          |          |
@@ -1621,18 +1610,18 @@ def test_migrate_object(postgresql_migration: URL, rc: RawConfig, cli: SpintaCli
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
-        city = tables["migrate/example/City"]
-        country = tables["migrate/example/Country"]
+        city = tables["migrate/example.City"]
+        country = tables["migrate/example.Country"]
         assert {"id", "country.name"}.issubset(city.columns.keys())
         assert {"id"}.issubset(country.columns.keys())
         conn.execute(
@@ -1672,23 +1661,24 @@ def test_migrate_object(postgresql_migration: URL, rc: RawConfig, cli: SpintaCli
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/City")
     assert result.output.endswith(
-        f"BEGIN;\n\n{rename_column(table='migrate/example/City', column='country.name', new_name='country.test')}COMMIT;\n\n"
+        f"BEGIN;\n\n{rename_column(table_identifier=table_identifier, column='country.name', new_name='country.test')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/City",
-            "migrate/example/City/:changelog",
-            "migrate/example/Country",
-            "migrate/example/Country/:changelog",
+            "migrate/example.City",
+            "migrate/example.City/:changelog",
+            "migrate/example.Country",
+            "migrate/example.Country/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/City"]
+        table = tables["migrate/example.City"]
         columns = table.columns
         assert {"id", "country.test"}.issubset(columns.keys())
         assert not {"country.name"}.issubset(columns.keys())

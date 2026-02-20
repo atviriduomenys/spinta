@@ -451,6 +451,11 @@ def is_internal_schema(engine: Engine, schema: str) -> bool:
             return True
         if schema.startswith("pg_"):
             return True
+
+        # Extension schemas
+        if schema in ("tiger", "tiger_data", "topology"):
+            return True
+
         return False
 
     elif isinstance(dialect, mysql.dialect):

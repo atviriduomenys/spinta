@@ -4,9 +4,11 @@ import sqlalchemy as sa
 from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_identifier, TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
-from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_table_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_foreign_key_name
 from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context, Property
 from spinta.types.datatype import Ref
@@ -19,13 +21,17 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref, propagate: bool =
     columns = []
 
     if not dtype.inherited:
+        table_type = TableType.MAIN
+        if dtype.prop.list:
+            table_type = TableType.LIST
+        table_identifier = get_table_identifier(dtype.prop, table_type)
+        referenced_table_identifier = get_table_identifier(dtype.model)
         columns = get_pg_foreign_key(
             dtype.prop,
-            table_name=get_pg_table_name(dtype.model),
-            model_name=dtype.prop.model.name,
+            table_identifier=table_identifier,
+            referenced_table_identifier=referenced_table_identifier,
             column_type=pkey_type,
         )
-
     if not propagate:
         return columns
 
@@ -40,7 +46,11 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref, propagate: bool =
 
 
 def get_pg_foreign_key(
-    prop: Property, *, table_name: str, model_name: str, column_type: TypeEngine
+    prop: Property,
+    *,
+    column_type: TypeEngine,
+    table_identifier: TableIdentifier,
+    referenced_table_identifier: TableIdentifier,
 ) -> List[Union[sa.Column, sa.Constraint]]:
     column_name = "_id" if prop.list and prop.place == prop.list.place else get_column_name(prop) + "._id"
     nullable = not prop.dtype.required
@@ -57,9 +67,14 @@ def get_pg_foreign_key(
         ),
         sa.ForeignKeyConstraint(
             [pg_column_name],
-            [f"{table_name}._id"],
+            [f"{referenced_table_identifier.pg_qualified_name}._id"],
             ondelete="CASCADE" if prop.list else None,
             onupdate="CASCADE" if prop.list else None,
+            name=get_pg_foreign_key_name(
+                table_identifier=table_identifier,
+                referred_table_identifier=referenced_table_identifier,
+                column_name=pg_column_name,
+            ),
         ),
     ]
     return columns

@@ -8,9 +8,8 @@ from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.datatype import Array
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
 
 
 @commands.prepare.register(Context, PostgreSQL, Array)
@@ -37,11 +36,12 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
     #             f'{parent_list_table_name}._id', ondelete='CASCADE',
     #         )),
     #     ]
-    name = get_table_name(prop, TableType.LIST)
-    main_table_name = get_pg_name(get_table_name(prop.model))
-    if name not in backend.tables:
+
+    list_table_identifier = get_table_identifier(prop, TableType.LIST)
+    main_table_identifier = get_table_identifier(prop.model)
+    if list_table_identifier.logical_qualified_name not in backend.tables:
         table = sa.Table(
-            get_pg_name(name),
+            list_table_identifier.pg_table_name,
             backend.schema,
             # TODO: List tables eventually will have _id in order to uniquelly
             #       identify list item.
@@ -51,13 +51,14 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
                 get_pg_column_name("_rid"),
                 pkey_type,
                 sa.ForeignKey(
-                    f"{main_table_name}._id",
+                    f"{main_table_identifier.pg_qualified_name}._id",
                     ondelete="CASCADE",
                 ),
                 comment="_rid",
             ),
             *columns,
-            comment=name,
+            schema=list_table_identifier.pg_schema_name,
+            comment=list_table_identifier.logical_qualified_name,
         )
         backend.add_table(table, prop, TableType.LIST)
 

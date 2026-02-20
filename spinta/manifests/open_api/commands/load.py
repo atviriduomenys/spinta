@@ -14,7 +14,6 @@ def load(
     manifest: OpenAPIManifest,
     *,
     into: Manifest | None = None,
-    freezed: bool = False,
     rename_duplicates: bool = False,
     load_internal: bool = True,
     full_load: bool = False,
@@ -41,7 +40,6 @@ def load(
             context,
             source,
             into=into or manifest,
-            freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
         )

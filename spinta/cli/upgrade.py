@@ -6,6 +6,7 @@ from typer import Context as TyperContext, Argument
 from typer import Option
 from typer import echo
 
+from spinta.cli.helpers.script.components import ScriptStatusCache
 from spinta.cli.helpers.script.core import run_all_scripts, run_specific_script
 from spinta.cli.helpers.script.helpers import sort_scripts_by_required
 from spinta.cli.helpers.store import load_config
@@ -62,6 +63,7 @@ def upgrade(
         # Ignore UpgradeErrors, since this functions handles them
         pass
 
+    status_cache = ScriptStatusCache()
     if not scripts:
         run_all_scripts(
             context=context,
@@ -69,6 +71,7 @@ def upgrade(
             destructive=destructive,
             force=force,
             check_only=check_only,
+            status_cache=status_cache,
         )
         return
 
@@ -87,4 +90,5 @@ def upgrade(
             force=force,
             script_name=script,
             check_only=check_only,
+            status_cache=status_cache,
         )

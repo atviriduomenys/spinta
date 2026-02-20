@@ -5,21 +5,20 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 from psycopg2.errors import StringDataRightTruncation
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
+from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import add_column, drop_column
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    cleanup_tables,
     override_manifest,
     cleanup_table_list,
     configure_migrate,
 )
 
 
-def test_migrate_text_to_string_simple(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_text_to_string_simple(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -32,12 +31,12 @@ def test_migrate_text_to_string_simple(postgresql_migration: URL, rc: RawConfig,
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "other"}.issubset(columns.keys())
 
@@ -70,32 +69,32 @@ def test_migrate_text_to_string_simple(postgresql_migration: URL, rc: RawConfig,
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
-
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='text_lt', column_type='TEXT')}"
-        'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
+        f"{add_column(table_identifier=table_identifier, column='text_lt', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET text_lt=("migrate/example"."Test".text ->> '
         "'lt');\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='other_lt', column_type='TEXT')}"
-        'UPDATE "migrate/example/Test" SET other_lt=("migrate/example/Test".other ->> '
+        f"{add_column(table_identifier=table_identifier, column='other_lt', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET other_lt=("migrate/example"."Test".other ->> '
         "'lt');\n"
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text')}"
-        f"{drop_column(table='migrate/example/Test', column='other')}"
+        f"{drop_column(table_identifier=table_identifier, column='text')}"
+        f"{drop_column(table_identifier=table_identifier, column='other')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "__text", "other_lt", "__other"}.issubset(columns.keys())
         assert not {"text", "other"}.issubset(columns.keys())
@@ -109,8 +108,7 @@ def test_migrate_text_to_string_simple(postgresql_migration: URL, rc: RawConfig,
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_text_to_string_direct(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_text_to_string_direct(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -121,12 +119,12 @@ def test_migrate_text_to_string_direct(postgresql_migration: URL, rc: RawConfig,
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -157,25 +155,26 @@ def test_migrate_text_to_string_direct(postgresql_migration: URL, rc: RawConfig,
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text')}"
-        f"{add_column(table='migrate/example/Test', column='text', column_type='TEXT')}"
-        "UPDATE \"migrate/example/Test\" SET text=(__text ->> 'lt');\n"
+        f"{drop_column(table_identifier=table_identifier, column='text')}"
+        f"{add_column(table_identifier=table_identifier, column='text', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET text=(__text ->> \'lt\');\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "__text"}.issubset(columns.keys())
 
@@ -186,8 +185,7 @@ def test_migrate_text_to_string_direct(postgresql_migration: URL, rc: RawConfig,
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_text_to_string_multi(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_text_to_string_multi(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -200,12 +198,12 @@ def test_migrate_text_to_string_multi(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -242,34 +240,35 @@ def test_migrate_text_to_string_multi(postgresql_migration: URL, rc: RawConfig, 
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='text_lt', column_type='TEXT')}"
-        'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
+        f"{add_column(table_identifier=table_identifier, column='text_lt', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET text_lt=("migrate/example"."Test".text ->> '
         "'lt');\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='text_en', column_type='TEXT')}"
-        'UPDATE "migrate/example/Test" SET text_en=("migrate/example/Test".text ->> '
+        f"{add_column(table_identifier=table_identifier, column='text_en', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET text_en=("migrate/example"."Test".text ->> '
         "'en');\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='text_lv', column_type='TEXT')}"
-        'UPDATE "migrate/example/Test" SET text_lv=("migrate/example/Test".text ->> '
+        f"{add_column(table_identifier=table_identifier, column='text_lv', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET text_lv=("migrate/example"."Test".text ->> '
         "'lv');\n"
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='text')}"
+        f"{drop_column(table_identifier=table_identifier, column='text')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "text_en", "text_lv", "__text"}.issubset(columns.keys())
         assert not {"text"}.issubset(columns.keys())
@@ -284,9 +283,8 @@ def test_migrate_text_to_string_multi(postgresql_migration: URL, rc: RawConfig, 
 
 
 def test_migrate_text_to_string_multi_individual(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -299,12 +297,12 @@ def test_migrate_text_to_string_multi_individual(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text"}.issubset(columns.keys())
 
@@ -339,29 +337,30 @@ def test_migrate_text_to_string_multi_individual(
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    table_identifier = get_table_identifier("migrate/example/Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='text_lt', column_type='TEXT')}"
-        'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
+        f"{add_column(table_identifier=table_identifier, column='text_lt', column_type='TEXT')}"
+        'UPDATE "migrate/example"."Test" SET text_lt=("migrate/example"."Test".text ->> '
         "'lt');\n"
         "\n"
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lt\' '
-        "|| jsonb_build_object('__lt', (\"migrate/example/Test\".text -> 'lt'))) "
-        "WHERE \"migrate/example/Test\".text ? 'lt';\n"
+        'UPDATE "migrate/example"."Test" SET text=("migrate/example"."Test".text - \'lt\' '
+        "|| jsonb_build_object('__lt', (\"migrate/example\".\"Test\".text -> 'lt'))) "
+        'WHERE "migrate/example"."Test".text ? \'lt\';\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text_lt", "text"}.issubset(columns.keys())
         assert not {"__text"}.issubset(columns.keys())
@@ -373,9 +372,7 @@ def test_migrate_text_to_string_multi_individual(
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_string_custom_length(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
-
+def test_migrate_string_custom_length(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property | type   | ref      | level
      migrate/example |   |      |      |          |        |          |
@@ -387,12 +384,12 @@ def test_migrate_string_custom_length(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "other"}.issubset(columns.keys())
 
@@ -426,21 +423,21 @@ def test_migrate_string_custom_length(postgresql_migration: URL, rc: RawConfig, 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN text TYPE VARCHAR(10) USING '
-        'CAST("migrate/example/Test".text AS VARCHAR(10));\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN text TYPE VARCHAR(10) USING '
+        'CAST("migrate/example"."Test".text AS VARCHAR(10));\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc_updated, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "other"}.issubset(columns.keys())
 
