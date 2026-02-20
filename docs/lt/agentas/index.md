@@ -17,29 +17,34 @@ iš esamų sistemų (SOAP/WSDL paslaugų, duomenų bazių, XML/JSON šaltinių)
 keisti pačią sistemą. Agentas veikia kaip tarpininkas tarp jūsų duomenų šaltinio ir
 duomenų vartų (Gravitee).
 
-## Infrastruktūros schema
+## Palaikomi šaltiniai
 
-<!-- TODO: pakeisti į infrastruktūros diagramą (Agent A/B, Redis, Reverse proxy, Vartai) -->
+Spinta Agentas palaiko šiuos duomenų šaltinių tipus:
 
-<p align="center">
-  <img src="../_static/docker-pavyzdys.png" alt="Spinta infrastruktūros schema">
-  <br>
-  <em>Spinta infrastruktūros komponentai (placeholder — bus pakeista)</em>
-</p>
+- **WSDL/SOAP** — dažniausiai naudojamas valstybės institucijų paslaugoms
+- **SQL** — reliacinės duomenų bazės (PostgreSQL, MySQL, MSSQL ir kt.)
+- **XML** — XML formato failai arba paslaugos
+- **JSON** — JSON formato failai arba REST API
 
-Pagrindiniai infrastruktūros komponentai:
+## UDTS duomenų paslauga
 
-| Komponentas | Paskirtis | Kas atsakingas |
-|-------------|-----------|----------------|
-| **Spinta Agentas** | Konvertuoja šaltinio duomenis į UDTS formatą | Institucija |
-| **Redis** | Saugo raktų žemėlapį (keymap) — susiejimą tarp vidinių ir išorinių ID. Gali būti dalinamas tarp kelių agentų | Institucija |
-| **Reverse proxy** (nginx) | HTTPS užtikrinimas, viešas prieigos taškas | Institucija |
-| **Vartai** (Gravitee) | Duomenų paslaugų valdymas ir prieiga | VSSA |
+Spinta Agentas leidžia institucijai iš esamų duomenų šaltinių sukurti standartizuotą
+**UDTS duomenų paslaugą** — be jokių pakeitimų šaltinio sistemoje. Duomenų vartotojas
+(kita institucija ar sistema) gauna prieigą per API vartus (Gravitee) naudodamas
+UDTS standartą.
 
-:::{note}
-Viena institucija gali turėti kelis Spinta agentus — kiekvienam šaltiniui arba
-šaltinių grupei. Visi agentai gali naudoti bendrą Redis instanciją.
-:::
+```{figure} ../static/udts-paslauga.png
+:width: 100%
+:alt: UDTS duomenų paslaugos kūrimas naudojant SPINTA agentą
+:target: ../_static/udts-paslauga.png
+
+UDTS duomenų paslauga — nuo šaltinio iki duomenų vartotojo (spustelėkite norėdami padidinti)
+```
+
+Institucija valdo savo infrastruktūrą (Spinta agentus, Redis, Reverse proxy), o
+VSSA valdo Gravitee vartus ir Access Manager. Techniniai diegimo reikalavimai
+aprašyti skyriuose [Agento paruošimas](agento-paruošimas.md) ir
+[Agento diegimas](diegimas/index.md).
 
 ## Kiek agentų reikia?
 
@@ -60,13 +65,13 @@ viename agente.
 aprašytas atskiruose skyriuose.
 
 ```
-PARENGIAMIEJI DARBAI (prieš techninį diegimą)
+PARENGIAMIEJI DARBAI 
 │
 ├─► 1. Paruošiamas manifest (sDSA)
 │       • Generuojamas su: spinta inspect <šaltinis>
 │       • Tikslinamas ir pildomas veiklos žmonių
 │       • Suderinamas su UDTS standartu
-│       • ⚠️  Be patvirtinto manifesto negalima tęsti
+│       • ⚠️  Be  manifesto SPINTA agentas neveiks
 │
 └─► 2. Priimami infrastruktūros sprendimai
         • Diegimo būdas: OS arba Docker
@@ -78,7 +83,7 @@ PARENGIAMIEJI DARBAI (prieš techninį diegimą)
 TECHNINIS DIEGIMAS
 │
 ├─► 3. Aplinkos paruošimas
-│       • OS paketų diegimas (Docker, curl ir kt.)
+│       • OS paketų diegimas (Docker, Redis, nginx*, curl ir kt.)
 │       • Spinta sisteminių naudotojo sukūrimas
 │
 ├─► 4. Spinta diegimas
@@ -93,10 +98,10 @@ TECHNINIS DIEGIMAS
 ├─► 6. Serviso paleidimas
 │       • SystemD serviso konfigūravimas (OS diegimas)
 │       • arba Docker Compose paleidimas
-│       • Reverse proxy (nginx) konfigūravimas
+│       • Reverse proxy (nginx) konfigūravimas(jei nenaudojami kiti sprendimai)
 │
 ├─► 7. Autentifikacija
-│       • OAuth kliento sukūrimas testavimui
+│       • OAuth kliento sukūrimas testavimui arba prijungimas prie nutolusio authorizacijos serverio
 │
 └─► 8. Lokalus testavimas
         • Token gavimas
@@ -127,7 +132,7 @@ REGISTRACIJA IR PALEIDIMAS
 
 :::{important}
 Manifesto failas (sDSA — Šaltinio Duomenų Struktūros Aprašas) yra **privaloma
-prielaida** prieš pradedant techninį agento diegimą. Tai CSV formato failas,
+prielaida** prieš pradedantspinta agento testavimą. Tai CSV formato failas,
 kuriame aprašyta, kokius duomenis agentas teiks ir kaip juos pasiekti.
 :::
 
@@ -135,21 +140,18 @@ sDSA paruošimo eiga:
 
 1. **Generavimas** — `spinta inspect` komanda automatiškai nuskaito šaltinio struktūrą
    ir sukuria pradinį sDSA
-2. **Tikslinimas** — veiklos žmonės patikrina ir papildo duomenų semantiką
+2. **Tikslinimas** — veiklos žmonės patikrina ir papildo sugeneruotus failus
    (pavadinimai, tipai, ryšiai tarp modelių)
-3. **Suderinimas** — sDSA suderinamas su UDTS standartu ir patvirtinamas
+3. **Techninis tikrinimas** — sDSA konvertuojamas į manifest, atliekami lokalūs duomenų gavimo testai. 
+4. **DSA Publikavimas** — įsitikinus, kad DSA suderinamas su agentu (įmanoma teikti duomenis UDTS formatu), failas teikiamas VSSA tikrinimui/tvirtinimui. Gavus patvirtinimą DSA keliamas i kataloga, generuojami OAS ir Gravitee config. 
+4. **Duomenų paslaugos publikavimas** — Iš katalogo generuojami OAS ir Gravitee config. Jie perduodami VSSA administratoriams, kurie naudodamiesi failais sukonfioguruoja duomenų paslaugas vartuose.
+
+
 
 Daugiau informacijos apie sDSA ruošimą:
 [Duomenų šaltiniai — DSA 1.1](https://ivpk.github.io/dsa/1.1/saltiniai.html "DSA 1.1 specifikacija")
 
-## Palaikomi šaltiniai
 
-Spinta Agentas palaiko šiuos duomenų šaltinių tipus:
-
-- **WSDL/SOAP** — dažniausiai naudojamas valstybės institucijų paslaugoms
-- **SQL** — reliacinės duomenų bazės (PostgreSQL, MySQL, MSSQL ir kt.)
-- **XML** — XML formato failai arba paslaugos
-- **JSON** — JSON formato failai arba REST API
 
 Plačiau apie kiekvieno šaltinio konfigūravimą žr. skyriuje
 [Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
@@ -158,7 +160,7 @@ Plačiau apie kiekvieno šaltinio konfigūravimą žr. skyriuje
 
 DSA (Duomenų Struktūros Aprašas) yra pagrindinis artefaktas, kuriuo grindžiamas
 visas Spinta Agento darbas. Jis kuriamas, tobulinamas, testuojamas ir galiausiai
-keliamas į Katalogą — iš kurio generuojami API vartų konfigūracijos failai.
+keliamas į Katalogą — iš kurio generuojami API vartų konfigūracijos failai. 
 
 Vienas agentas gali aptarnauti kelis sDSA failus. Vėliau jie apjungiami į vieną
 **manifestą** (nurodytas `config.yml` faile):
@@ -168,7 +170,7 @@ Vienas agentas gali aptarnauti kelis sDSA failus. Vėliau jie apjungiami į vien
 
 - **sDSA** (Šaltinio DSA) — vieno duomenų šaltinio struktūros aprašas (CSV failas).
   Generuojamas su `spinta inspect`, tikslinamas veiklos žmonių.
-- **Manifest** — apjungtas DSA failas, sudarytas iš kelių sDSA. Tai vis dar DSA
+- **Manifest** — apjungtas DSA failas, sudarytas iš vieno arba kelių sDSA naudojamas SPINTA agento. Tai vis dar DSA
   formatu, bet apimantis kelis šaltinius. Dėl planuojamos sinchronizacijos su
   Katalogu, manifestas turi būti **vienas** (ne keli).
 - **config.yml** — Spinta agento konfigūracijos failas. Jame, be kita ko, nurodomas
@@ -189,13 +191,12 @@ DSA gyvavimo ciklas — nuo generavimo iki API vartų (spustelėkite norėdami p
 
 | # | Etapas | Atlikėjas | Įrankis / komanda | Rezultatas |
 |---|--------|-----------|-------------------|------------|
-| 1 | **sDSA generavimas** | Administratorius | `spinta inspect` | Pradinis sDSA failas su šaltinio struktūra |
-| 2 | **sDSA tikslinimas** | Veiklos žmonės + Admin | Rankinis redagavimas | Patikslintas sDSA: pavadinimai, tipai, prieinamumo lygiai |
-| 3 | **Testavimas su agentu** | Administratorius | `spinta run`, `spinta copy` | Veikiantis sDSA — duomenys grąžinami teisingai |
-| 4 | **Rengimas publikavimui** | Administratorius | Rankinis redagavimas | Išvalytas sDSA: pašalinti connection string'ai ir šaltinio duomenys |
-| 5 | **Patikrinimas** | Atsakingas asmuo | Peržiūra | Patvirtintas sDSA — paruoštas dalinimuisi |
-| 6 | **Kėlimas į Katalogą** | Administratorius | Katalogas (data.gov.lt) | sDSA Kataloge — generuojamas OAS ir Gravitee config |
-| 7 | **API diegimas vartuose** | VSSA (Gravitee admin) | Gravitee | Veikianti duomenų paslauga per API vartus |
+| 1 | **sDSA generavimas** | Institucijos administratorius | `spinta inspect` | Pradinis sDSA failas su šaltinio struktūra |
+| 2 | **sDSA tikslinimas** | Veiklos žmonės  | Rankinis redagavimas | Patikslintas sDSA: pavadinimai, tipai, prieinamumo lygiai |
+| 3 | **Testavimas su agentu** | Institucijos administratorius | `spinta run`, `spinta copy` | Veikiantis sDSA — duomenys grąžinami teisingai |
+| 4 | **Rengimas publikavimui** |  Veiklos žmonės + Admin | Rankinis redagavimas | Išvalytas sDSA: pašalinti connection string'ai ir šaltinio duomenys |
+| 5 | **Kėlimas į Katalogą** | Administratorius | Katalogas (data.gov.lt) | sDSA Kataloge — generuojamas OAS ir Gravitee config |
+| 6 | **API diegimas vartuose** | VSSA (Gravitee admin) | Gravitee | Veikianti duomenų paslauga per API vartus |
 
 **Susijusios nuorodos:**
 
