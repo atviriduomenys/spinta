@@ -202,6 +202,3 @@ docker exec spinta poetry run spinta wait 1
 
 :::
 
-## Kliento sukūrimas
-
-Testo kliento sukūrimas aprašytas skyriuje [Autentifikacija ir autorizacija](../autentifikacija.md#testo-kliento-sukūrimas).

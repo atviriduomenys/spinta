@@ -338,6 +338,3 @@ Jei servisas veikia, gausite atsakymą su versijos informacija, pvz.:
 Jei gausite klaidą arba jokio atsakymo — patikrinkite žurnalus: `sudo journalctl -u spinta -xe`
 :::
 
-## Kliento sukūrimas
-
-Testo kliento sukūrimas aprašytas skyriuje [Autentifikacija ir autorizacija](../autentifikacija.md#testo-kliento-sukūrimas).
