@@ -11,6 +11,109 @@ Spinta palaikomi šaltiniai:
 - XML
 - JSON
 
+## Manifest konfigūravimas
+
+Manifest — tai CSV formato failas, kuriame aprašyta, **kokius duomenis** agentas teiks ir **kaip juos pasiekti**. Jis atitinka [DSA 1.1 specifikaciją](https://ivpk.github.io/dsa/1.1/ "DSA 1.1 specifikacija").
+
+### Prisijungimo duomenys saugomi config.yml, ne manifest faile
+
+Prisijungimo duomenys (DSN su slaptažodžiu) **niekada nerašomi į manifest.csv**. Manifest faile nurodomas tik backend'o **pavadinimas** — nuoroda į `config.yml`, kurį mato tik sistemos administratorius.
+
+```{figure} ../static/manifest-architektura.png
+:width: 100%
+:alt: config.yml ir manifest.csv ryšys — slaptažodžiai atskirti nuo DSA struktūros
+:target: ../_static/manifest-architektura.png
+
+config.yml ir manifest.csv ryšys (spustelėkite norėdami padidinti)
+```
+
+**config.yml** (tik administratorius):
+
+```yaml
+backends:
+  myapp_db:
+    type: sql
+    dsn: postgresql+psycopg2://user:slaptazodis@localhost:5432/myapp
+  products_db:
+    type: sql
+    dsn: postgresql+psycopg2://user:slaptazodis@localhost:5433/products
+
+manifests:
+  default:
+    type: csv
+    path: /opt/spinta/manifest.csv
+    backend: myapp_db
+    mode: external
+```
+
+**manifest.csv** (veiklos žmonės gali matyti ir redaguoti — jokių slaptažodžių):
+
+```
+id,dataset,...,source,...
+,datasets/gov/lt/myapp,,,,,,,,,,,,,,,,,,,, ← vardų erdvė
+,,myapp_db,,,,sql,myapp_db,,,,,,,,,,,,,,   ← nuoroda į backend pavadinimą
+```
+
+### Keli duomenų šaltiniai viename manifest faile
+
+Vienas agentas gali teikti duomenis iš **kelių šaltinių** — jų skaičius neribojamas. Kiekvienas šaltinis aprašomas atskira `resource` eilute su savo backend'o pavadinimu. Visi backend'ų pavadinimai ir jų DSN yra `config.yml` faile.
+
+```{figure} ../static/manifest-struktura.png
+:width: 100%
+:alt: manifest.csv su dviem backend'ais — eilučių struktūra
+:target: ../_static/manifest-struktura.png
+
+manifest.csv su dviem šaltiniais viename faile (spustelėkite norėdami padidinti)
+```
+
+Manifest faile kiekvienas šaltinis turi savo blokų seką:
+
+```
+dataset eilutė  → vardų erdvė (pvz. datasets/gov/lt/myapp)
+resource eilutė → backend pavadinimas (pvz. myapp_db) + šaltinio tipas (sql/wsdl/xml/json)
+(tuščia eilutė) → vizualinis atskyriklis
+model eilutė    → duomenų objektas (lentelė/klasė)
+property eilutės → laukai (stulpeliai)
+```
+
+Jei norite pridėti antrą šaltinį — tiesiog tęskite tą patį failą nauju dataset/resource bloku.
+
+### Manifest CSV stulpelių struktūra
+
+Manifest CSV turi tiksliai **21 stulpelį** pagal DSA 1.1 specifikaciją:
+
+```
+id, dataset, resource, base, model, property, type, ref, source, source.type,
+prepare, origin, count, level, status, visibility, access, uri, eli, title, description
+```
+
+**Stulpelių eilės tvarka** — nesvarbi. Spinta skaito pagal stulpelio **pavadinimą**, ne poziciją.
+
+**Praleisti stulpeliai** — leidžiama. Stulpeliai, kurių nėra antraštėje, automatiškai gauna tuščią reikšmę `""`. Jūs neprivalote įtraukti visų 21 stulpelio — tik tuos, kuriuos naudojate.
+
+**Papildomi (savi) stulpeliai pastaboms** — leidžiama, bet tik jei antraštėje yra **visi 21 standartiniai stulpeliai**, o savas stulpelis eina **22 pozicijoje ar vėliau**. Spinta tokį stulpelį ignoruos — jis skirtas tik žmonėms (pvz. audito žymoms, komentarams):
+
+```
+id,...,description,original_access  ← 22-as stulpelis, Spinta neskaitys
+```
+
+:::{important}
+Kiekviena eilutė privalo turėti **lygiai tiek reikšmių** kiek yra antraštėje — net jei reikšmė tuščia. Jei antraštė turi 22 stulpelius, kiekvienoje eilutėje turi būti 22 kableliais atskirtos reikšmės.
+:::
+
+**Sutrumpinti stulpelių pavadinimai** — Spinta priima trumpinius:
+
+| Trumpinys | Pilnas pavadinimas |
+|-----------|-------------------|
+| `d` | `dataset` |
+| `r` | `resource` |
+| `b` | `base` |
+| `m` | `model` |
+| `p` | `property` |
+| `t` | `type` |
+
+---
+
 ## WSDL ir SOAP šaltiniai
 
 WSDL ir SOAP šaltinio struktūros parengimas aprašytas čia:
