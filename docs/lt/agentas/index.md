@@ -140,7 +140,7 @@ sDSA paruošimo eiga:
 3. **Suderinimas** — sDSA suderinamas su UDTS standartu ir patvirtinamas
 
 Daugiau informacijos apie sDSA ruošimą:
-[Duomenų šaltiniai — DSA](https://ivpk.github.io/dsa/draft/saltiniai.html "DSA dokumentacija")
+[Duomenų šaltiniai — DSA 1.1](https://ivpk.github.io/dsa/1.1/saltiniai.html "DSA 1.1 specifikacija")
 
 ## Palaikomi šaltiniai
 
@@ -196,3 +196,9 @@ DSA gyvavimo ciklas — nuo generavimo iki API vartų (spustelėkite norėdami p
 | 5 | **Patikrinimas** | Atsakingas asmuo | Peržiūra | Patvirtintas sDSA — paruoštas dalinimuisi |
 | 6 | **Kėlimas į Katalogą** | Administratorius | Katalogas (data.gov.lt) | sDSA Kataloge — generuojamas OAS ir Gravitee config |
 | 7 | **API diegimas vartuose** | VSSA (Gravitee admin) | Gravitee | Veikianti duomenų paslauga per API vartus |
+
+**Susijusios nuorodos:**
+
+- [DSA 1.1 specifikacija](https://ivpk.github.io/dsa/1.1/ "Duomenų struktūros aprašas — oficiali specifikacija") — pilnas DSA formato aprašas
+- [DSA šaltiniai](https://ivpk.github.io/dsa/1.1/saltiniai.html "DSA šaltinių aprašas") — kaip aprašyti duomenų šaltinius DSA faile
+- [UAPI/UDTS specifikacija](https://ivpk.github.io/uapi/ "UAPI specifikacija") — duomenų teikimo sąsajos standartas
