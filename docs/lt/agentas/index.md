@@ -168,9 +168,13 @@ Vienas agentas gali aptarnauti kelis sDSA failus. Vėliau jie apjungiami į vien
 
 - **sDSA** (Šaltinio DSA) — vieno duomenų šaltinio struktūros aprašas (CSV failas).
   Generuojamas su `spinta inspect`, tikslinamas veiklos žmonių.
-- **Manifest** — `config.yml` konfigūracija, nurodanti vieną ar kelis sDSA failus,
-  kuriuos agentas teikia. Manifesto kūrimas aprašytas skyriuje
-  [Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
+- **Manifest** — apjungtas DSA failas, sudarytas iš kelių sDSA. Tai vis dar DSA
+  formatu, bet apimantis kelis šaltinius. Dėl planuojamos sinchronizacijos su
+  Katalogu, manifestas turi būti **vienas** (ne keli).
+- **config.yml** — Spinta agento konfigūracijos failas. Jame, be kita ko, nurodomas
+  kelias į manifestą.
+
+Manifesto kūrimas aprašytas skyriuje [Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
 :::
 
 Žemiau pateikta aukšto lygio schema, kaip sDSA kuriamas ir keliauja iki API vartų:
