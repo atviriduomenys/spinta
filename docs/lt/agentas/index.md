@@ -153,3 +153,40 @@ Spinta Agentas palaiko šiuos duomenų šaltinių tipus:
 
 Plačiau apie kiekvieno šaltinio konfigūravimą žr. skyriuje
 [Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
+
+## DSA kūrimas ir kelionė
+
+DSA (Duomenų Struktūros Aprašas) yra pagrindinis artefaktas, kuriuo grindžiamas
+visas Spinta Agento darbas. Jis kuriamas, tobulinamas, testuojamas ir galiausiai
+keliamas į Katalogą — iš kurio generuojami API vartų konfigūracijos failai.
+
+Vienas agentas gali aptarnauti kelis sDSA failus. Vėliau jie apjungiami į vieną
+**manifestą** (nurodytas `config.yml` faile):
+
+:::{note}
+**sDSA vs Manifest**
+
+- **sDSA** (Šaltinio DSA) — vieno duomenų šaltinio struktūros aprašas (CSV failas).
+  Generuojamas su `spinta inspect`, tikslinamas veiklos žmonių.
+- **Manifest** — `config.yml` konfigūracija, nurodanti vieną ar kelis sDSA failus,
+  kuriuos agentas teikia. Manifesto kūrimas aprašytas skyriuje
+  [Šaltinių konfigūravimas](šaltinių-konfigūravimas.md).
+:::
+
+Žemiau pateikta aukšto lygio schema, kaip sDSA kuriamas ir keliauja iki API vartų:
+
+<p align="center">
+  <img src="../_static/dsa-ciklas.png" alt="DSA gyvavimo ciklo schema">
+  <br>
+  <em>DSA gyvavimo ciklas — nuo generavimo iki API vartų</em>
+</p>
+
+| # | Etapas | Atlikėjas | Įrankis / komanda | Rezultatas |
+|---|--------|-----------|-------------------|------------|
+| 1 | **sDSA generavimas** | Administratorius | `spinta inspect` | Pradinis sDSA failas su šaltinio struktūra |
+| 2 | **sDSA tikslinimas** | Veiklos žmonės + Admin | Rankinis redagavimas | Patikslintas sDSA: pavadinimai, tipai, prieinamumo lygiai |
+| 3 | **Testavimas su agentu** | Administratorius | `spinta run`, `spinta copy` | Veikiantis sDSA — duomenys grąžinami teisingai |
+| 4 | **Rengimas publikavimui** | Administratorius | Rankinis redagavimas | Išvalytas sDSA: pašalinti connection string'ai ir šaltinio duomenys |
+| 5 | **Patikrinimas** | Atsakingas asmuo | Peržiūra | Patvirtintas sDSA — paruoštas dalinimuisi |
+| 6 | **Kėlimas į Katalogą** | Administratorius | Katalogas (data.gov.lt) | sDSA Kataloge — generuojamas OAS ir Gravitee config |
+| 7 | **API diegimas vartuose** | VSSA (Gravitee admin) | Gravitee | Veikianti duomenų paslauga per API vartus |
