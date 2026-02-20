@@ -3,28 +3,37 @@
 Spinta Agentas naudoja [OAuth 2.0 Client Credentials](https://ivpk.github.io/uapi/#section/Authorization "UAPI autorizacija")
 srautą prieigos kontrolei — tas pats standartas, kurį nustato UAPI specifikacija.
 
-## Autorizacijos valdymo pasirinkimas
-
-Yra du būdai valdyti autorizaciją:
-
-| Būdas | Kada naudoti | Kas valdo |
-|-------|-------------|-----------|
-| **Vidinis AM** (integruotas į Spintą) | Lokalus testavimas | Institucija |
-| **Išorinis AM** (Gravitee Access Manager) | Produkcinė aplinka | VSSA |
-
 :::{note}
 Testavimo metu pakanka vidinio AM. Į produkcinę aplinką pereinant, autentifikacija
 bus valdoma per Gravitee — institucija nebeturi kurti ar valdyti klientų pati.
 :::
 
-## Vidinis autorizacijos valdymas (testavimui)
+## Testo kliento sukūrimas
 
-Spinta turi integruotą OAuth serverį, kuris leidžia sukurti klientus lokaliam
-testavimui. Šie klientai saugomi kaip YAML failai agento konfigūracijos kataloge.
+Norint ištestuoti duomenų gavimą, reikia sukurti OAuth klientą su reikalingais leidimais.
+Komandos skiriasi priklausomai nuo diegimo būdo:
 
-### Kliento sukūrimas
+**Docker diegimas:**
 
-Kliento sukūrimas atliekamas `spinta` naudotojo teisėmis:
+```bash
+OUTPUT=$(docker exec -i spinta poetry run spinta client add -n test --scope - << 'EOF'
+uapi:/:getone
+uapi:/:getall
+uapi:/:search
+uapi:/:changes
+EOF
+) && \
+FILE_PATH=$(echo "$OUTPUT" | grep -A2 "saved to:" | tail -1 | xargs) && \
+SECRET=$(echo "$OUTPUT" | grep -A2 "Client secret:" | tail -1 | xargs)
+```
+
+Patikrinkite gautą atsakymą:
+
+```bash
+echo "$OUTPUT"
+```
+
+**OS diegimas:**
 
 ```bash
 sudo -Hsu spinta
@@ -33,7 +42,7 @@ export SPINTA_CONFIG=/opt/spinta/config.yml
 ```
 
 ```bash
-env/bin/spinta client add -n <kliento-pavadinimas> --scope - << 'EOF'
+env/bin/spinta client add -n test --scope - << 'EOF'
 uapi:/:getone
 uapi:/:getall
 uapi:/:search
@@ -41,7 +50,7 @@ uapi:/:changes
 EOF
 ```
 
-Gautas atsakymas:
+Gautas atsakymas turėtų atrodyti panašiai į:
 
 ```
 New client created and saved to:
@@ -59,7 +68,28 @@ client secret will be stored in the config file.
 :::{caution}
 Išsisaugokite gautą `secret` — daugiau jo pamatyti nebegalėsite. Jis saugomas
 tik kaip hash'as konfigūracijos faile.
+
+Docker diegimo atveju išsaugotą `secret` galite patikrinti:
+
+```bash
+echo $SECRET
+```
+
 :::
+
+## Autorizacijos valdymo pasirinkimas
+
+Yra du būdai valdyti autorizaciją:
+
+| Būdas | Kada naudoti | Kas valdo |
+|-------|-------------|-----------|
+| **Vidinis AM** (integruotas į Spintą) | Lokalus testavimas | Institucija |
+| **Išorinis AM** (Gravitee Access Manager) | Produkcinė aplinka | VSSA |
+
+## Vidinis autorizacijos valdymas (testavimui)
+
+Spinta turi integruotą OAuth serverį, kuris leidžia sukurti klientus lokaliam
+testavimui. Šie klientai saugomi kaip YAML failai agento konfigūracijos kataloge.
 
 ### Kliento pavadinimas ir UUID
 
@@ -88,11 +118,25 @@ Naudojant UUID gausite klaidą: `{"error": "invalid_client"}`
 ### Kliento siejimas su šaltiniu
 
 Jei klientas turi turėti prieigą prie konkretaus šaltinio (pvz., SOAP paslaugos
-reikalaujančios autentifikacijos), kliento faile reikia nurodyti `backends` sekciją:
+reikalaujančios autentifikacijos), kliento faile reikia nurodyti `backends` sekciją.
+
+**Docker diegimas:**
+
+```bash
+docker exec spinta cat $FILE_PATH
+```
+
+```bash
+docker exec -i spinta bash -c "sed -i 's/backends: {}/backends:\n  get_data:\n    sub: MTAwMQ==/' $FILE_PATH"
+```
+
+**OS diegimas:**
 
 ```bash
 cat /opt/spinta/config/clients/id/f4/0e/76b7-f3f4-4a4c-b2e9-c03a147d65f9.yml
 ```
+
+Kliento faile pridėkite `backends` sekciją:
 
 ```yaml
 client_id: f40e76b7-f3f4-4a4c-b2e9-c03a147d65f9
