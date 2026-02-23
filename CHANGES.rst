@@ -7,9 +7,10 @@ Changes
 Bug fixes:
 
 - Fixes issue for properties with Text data type handling for `dask/xml` backends.
+- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
 
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
-
+.. _#1698: https://github.com/atviriduomenys/spinta/issues/1698
 
 0.2dev16 (2026-02-17)
 =====================

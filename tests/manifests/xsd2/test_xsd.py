@@ -318,8 +318,8 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     |                                      |                  |     |                             |         |       |        |     |       |
     |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum             |     | 1                           |         |       |        |     |       |
-    |                                      |                  |     | 2                           |         |       |        |     |       |
+    |                                      | enum             |     | 1                           | '1'     |       |        |     |       |
+    |                                      |                  |     | 2                           | '2'     |       |        |     |       |
     |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
 
 """
@@ -377,8 +377,8 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     |   |   |   | Parcel                     |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel_unique_number[] | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | sign_of_change[]       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                        | enum             |     | 1                           |         |       |        |     |       |
-    |                                        |                  |     | 2                           |         |       |        |     |       |
+    |                                        | enum             |     | 1                           | '1'     |       |        |     |       |
+    |                                        |                  |     | 2                           | '2'     |       |        |     |       |
     |   |   |   |   | text                   | string           |     | text()                      |         |       |        |     |       |
 
 """
@@ -691,18 +691,18 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property           | type            | ref    | source                    | prepare  | level | access | uri | title | description
-    | manifest                           |                 |        |                           |          |       |        |     |       |
-    |   | resource1                      | dask/xml        |        |                           |          |       |        |     |       |
-    |                                    |                 |        |                           |          |       |        |     |       |
-    |   |   |   | Action/:part           |                 |        |                           |          |       |        |     |       |
-    |   |   |   |   | who_may_constitute | string required |        | who_may_constitute/text() |          |       |        |     |       |
-    |                                    | enum            |        | fiz                       |          |       |        |     |       |
-    |                                    |                 |        | fiz-notarial              |          |       |        |     |       |
-    |                                    |                 |        |                           |          |       |        |     |       |
-    |   |   |   | Data                   |                 |        | /data                     |          |       |        |     |       |
-    |   |   |   |   | response_data      | ref             | Action | responseData              | expand() |       |        |     |       |
-    |   |   |   |   | response_message   | string          |        | responseMessage/text()    |          |       |        |     |       |
+ id | d | r | b | m | property           | type            | ref    | source                    | prepare        | level | access | uri | title | description
+    | manifest                           |                 |        |                           |                |       |        |     |       |
+    |   | resource1                      | dask/xml        |        |                           |                |       |        |     |       |
+    |                                    |                 |        |                           |                |       |        |     |       |
+    |   |   |   | Action/:part           |                 |        |                           |                |       |        |     |       |
+    |   |   |   |   | who_may_constitute | string required |        | who_may_constitute/text() |                |       |        |     |       |
+    |                                    | enum            |        | fiz                       | 'fiz'          |       |        |     |       |
+    |                                    |                 |        | fiz-notarial              | 'fiz-notarial' |       |        |     |       |
+    |                                    |                 |        |                           |                |       |        |     |       |
+    |   |   |   | Data                   |                 |        | /data                     |                |       |        |     |       |
+    |   |   |   |   | response_data      | ref             | Action | responseData              | expand()       |       |        |     |       |
+    |   |   |   |   | response_message   | string          |        | responseMessage/text()    |                |       |        |     |       |
 """
     path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
