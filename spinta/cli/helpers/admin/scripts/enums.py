@@ -1,8 +1,10 @@
+import csv
 import dataclasses
-import json
+import pathlib
+import sys
+from contextlib import nullcontext
 from typing import Iterator
 
-from click import echo
 from multipledispatch import dispatch
 
 from spinta import commands
@@ -65,7 +67,7 @@ class InvalidEnumModel:
         return self.enum_props[prop.place]
 
 
-def gather_distinct_values(context: Context, destructive: bool, **kwargs):
+def gather_distinct_values(context: Context, output_path: pathlib.Path | None = None, **kwargs):
     store = ensure_store_is_loaded(context)
     manifest = store.manifest
     invalid_models = {}
@@ -90,7 +92,20 @@ def gather_distinct_values(context: Context, destructive: bool, **kwargs):
             if enum_model.enum_props:
                 invalid_models[model.model_type()] = enum_model
 
-    output = {}
-    for key, model in sorted(invalid_models.items()):
-        output[key] = {key: prop.invalid_values for key, prop in model.enum_props.items()}
-    echo(json.dumps(output))
+    output_invalid_enums_to_csv(invalid_models, output_path)
+
+
+def output_invalid_enums_to_csv(invalid_models: dict, output_path: pathlib.Path | None = None):
+    stream_ctx = open(output_path, "w") if output_path else nullcontext(sys.stdout)
+    with stream_ctx as stream:
+        writer = csv.DictWriter(stream, fieldnames=["model", "property", "invalid_value"], lineterminator="\n")
+        writer.writeheader()
+        for key, model in sorted(invalid_models.items()):
+            for prop_name, prop in model.enum_props.items():
+                for value in prop.invalid_values:
+                    writer.writerow({"model": key, "property": prop_name, "invalid_value": value})
+
+                    if prop_name:
+                        prop_name = ""
+                    if key:
+                        key = ""

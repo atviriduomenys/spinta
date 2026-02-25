@@ -54,6 +54,12 @@ def admin(
         "--input",
         help="Path to input file (some scripts might require extra data). If not given, script will read from stdin.",
     ),
+    output_path: Optional[pathlib.Path] = Option(
+        None,
+        "-o",
+        "--output",
+        help="Path to output file (some scripts might write extra data). If not given, script will write to stdout.",
+    ),
 ):
     context = configure_context(ctx.obj)
 
@@ -81,4 +87,5 @@ def admin(
             script_name=script,
             check_only=check_only,
             input_path=input_path,
+            output_path=output_path,
         )
