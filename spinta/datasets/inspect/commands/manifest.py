@@ -4,7 +4,7 @@ from spinta.components import Context, Config
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
-from spinta.datasets.backends.dataframe.backends.xml import Xml
+from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.sql.components import Sql
 from spinta.manifests.dict.components import JsonManifest, XmlManifest
 from spinta.manifests.memory.components import MemoryManifest

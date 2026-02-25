@@ -15,8 +15,8 @@ from spinta.datasets.backends.dataframe.backends.xml.components import (
     RowFormatter,
     RowMetaItem,
     DaskXml,
+    Xml
 )
-from spinta.datasets.backends.dataframe.backends.xml import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     get_dask_dataframe_meta,

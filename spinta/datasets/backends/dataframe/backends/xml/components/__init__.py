@@ -3,6 +3,7 @@ from .row import Row, RowList, RowModelRef
 from .row_formatter import RowFormatter
 from .row_meta_item import RowMetaItem
 from .app import stream_model_data
+from .xml import Xml
 
 __all__ = [
     "DaskXml",
@@ -12,4 +13,5 @@ __all__ = [
     "RowMetaItem",
     "RowFormatter",
     "stream_model_data",
+    "Xml",
 ]
