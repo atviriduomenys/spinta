@@ -12,9 +12,12 @@ from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model, Property
+from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
 
 import sqlalchemy as sa
+
+from spinta.ufuncs.resultbuilder.components import EnumResultBuilder
 
 
 @dispatch(Backend, Property)
@@ -78,6 +81,7 @@ def gather_distinct_values(context: Context, output_path: pathlib.Path | None = 
                 if not prop.enum:
                     continue
 
+                enum_contains_expr = any(isinstance(enum.prepare, Expr) for enum in prop.enum.values())
                 values = gather_unique_property_values(prop)
                 for value in values:
                     if value is None and not prop.dtype.required:
@@ -86,7 +90,19 @@ def gather_distinct_values(context: Context, output_path: pathlib.Path | None = 
                         enum_model.add_invalid_value(prop, value)
                         continue
 
-                    if str(value) not in prop.enum:
+                    if str(value) in prop.enum:
+                        continue
+
+                    check_value = value
+                    if enum_contains_expr:
+                        for enum in prop.enum.values():
+                            env = EnumResultBuilder(context).init(value)
+                            val = env.resolve(enum.prepare)
+                            if env.has_value_changed:
+                                check_value = val
+                                break
+
+                    if str(check_value) not in prop.enum:
                         enum_model.add_invalid_value(prop, value)
 
             if enum_model.enum_props:
