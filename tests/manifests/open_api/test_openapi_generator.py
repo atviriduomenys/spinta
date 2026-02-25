@@ -42,7 +42,9 @@ def test_components_schemas(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
     expected_models = ["Organization", "ProcessingUnit"]
     expected_schemas = ["", "Collection", "Changes", "Change"]
-    all_model_schemas = [f"{dataset_name}/{model}{schema}" for model in expected_models for schema in expected_schemas]
+    all_model_schemas = [
+        f"{dataset_name.replace('/', '_')}_{model}{schema}" for model in expected_models for schema in expected_schemas
+    ]
     open_api_spec = create_openapi_manifest(open_manifest_path)
     assert set(all_model_schemas).issubset(set(open_api_spec["components"]["schemas"].keys()))
 
@@ -191,21 +193,21 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
 
 def _test_collection_path_content(paths: dict, dataset_name: str, model_name: str):
     api_path = f"/{dataset_name}/{model_name}"
-    model_schema_name = f"{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}Collection"
     _test_api_path(paths, api_path, expected_ref, model_name)
 
 
 def _test_changes_path_content(paths: dict, dataset_name: str, model_name: str):
     api_path = f"/{dataset_name}/{model_name}/:changes/{{cid}}"
-    model_schema_name = f"{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}Changes"
     _test_api_path(paths, api_path, expected_ref, model_name)
 
 
 def _test_single_item_path_content(paths: dict, dataset_name: str, model_name: str):
     api_path = f"/{dataset_name}/{model_name}/{{id}}"
-    model_schema_name = f"{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}"
     _test_api_path(paths, api_path, expected_ref, model_name)
 
@@ -324,7 +326,7 @@ def test_model_schema_content(open_manifest_path: ManifestPath):
 
 
 def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, expected_properties):
-    model_schema_name = f"{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     schema = schemas[model_schema_name]
 
     assert schema["type"] == "object"
@@ -353,7 +355,7 @@ def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, e
 
 
 def _test_collection_schema(schemas: dict, dataset_name: str, model_name: str):
-    model_schema_name = f"{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     collection_schema_name = f"{model_schema_name}Collection"
     schema = schemas[collection_schema_name]
 
@@ -371,7 +373,7 @@ def _test_collection_schema(schemas: dict, dataset_name: str, model_name: str):
 
 
 def _test_changes_schema(schemas: dict, dataset_name: str, model_name: str):
-    model_schema_name = f"{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     changes_schema_name = f"{model_schema_name}Changes"
     change_schema_name = f"{model_schema_name}Change"
     schema = schemas[changes_schema_name]
@@ -390,7 +392,7 @@ def _test_changes_schema(schemas: dict, dataset_name: str, model_name: str):
 
 
 def _test_change_schema(schemas: dict, dataset_name: str, model_name: str, expected_properties):
-    change_schema_name = f"{dataset_name}/{model_name}Change"
+    change_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}Change"
     schema = schemas[change_schema_name]
 
     assert schema["type"] == "object"
@@ -418,7 +420,7 @@ def _test_change_schema(schemas: dict, dataset_name: str, model_name: str, expec
 
 def test_organization_schema_details(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
-    model_schema_name = f"{dataset_name}/Organization"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_Organization"
 
     open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
@@ -444,7 +446,7 @@ def test_organization_schema_details(open_manifest_path: ManifestPath):
 
 def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
-    model_schema_name = f"{dataset_name}/ProcessingUnit"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_ProcessingUnit"
 
     open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
@@ -512,8 +514,8 @@ def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
 
     assert "Territory" in schemas
 
-    assert "datasets/gov/vssa/demo/Municipality" in schemas
-    assert "datasets/gov/vssa/demo/County" in schemas
+    assert "datasets_gov_vssa_demo_Municipality" in schemas
+    assert "datasets_gov_vssa_demo_County" in schemas
 
 
 def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_factory):
@@ -522,7 +524,7 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
 
     schemas = open_api_spec["components"]["schemas"]
 
-    municipality_schema = schemas["datasets/gov/vssa/demo/Municipality"]
+    municipality_schema = schemas["datasets_gov_vssa_demo_Municipality"]
     assert municipality_schema["type"] == "object"
     municipality_props = municipality_schema["properties"]
     assert "id" in municipality_props
@@ -531,7 +533,7 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
     assert "_id" in municipality_props
     assert "_revision" in municipality_props
 
-    county_schema = schemas["datasets/gov/vssa/demo/County"]
+    county_schema = schemas["datasets_gov_vssa_demo_County"]
     assert county_schema["type"] == "object"
     county_props = county_schema["properties"]
     assert "id" in county_props
@@ -556,8 +558,8 @@ def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path
     territory_schema = schemas["Territory"]
     properties = territory_schema["properties"]
 
-    assert properties["city"]["$ref"] == "#/components/schemas/datasets/gov/vssa/demo/Municipality"
-    assert properties["region"]["$ref"] == "#/components/schemas/datasets/gov/vssa/demo/County"
+    assert properties["city"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_Municipality"
+    assert properties["region"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
 
 
 def test_main_model_ref_properties_have_proper_examples(open_manifest_path_factory):
@@ -601,9 +603,9 @@ def test_cross_dataset_ref_without_filter_all_schemas_exist(open_manifest_path_f
 
     schemas = open_api_spec["components"]["schemas"]
 
-    assert "datasets/gov/cemetery/Territory" in schemas
-    assert "datasets/gov/vssa/demo/Municipality" in schemas
-    assert "datasets/gov/vssa/demo/County" in schemas
+    assert "datasets_gov_cemetery_Territory" in schemas
+    assert "datasets_gov_vssa_demo_Municipality" in schemas
+    assert "datasets_gov_vssa_demo_County" in schemas
 
 
 def test_circular_ref_creates_ref_only_schema_for_back_reference(open_manifest_path_factory):
@@ -633,7 +635,7 @@ def test_circular_ref_plotas_schema_points_to_ref_variant(open_manifest_path_fac
 
     schemas = open_api_spec["components"]["schemas"]
 
-    area_schema = schemas["datasets/gov/giscenter/grpk/Area"]
+    area_schema = schemas["datasets_gov_giscenter_grpk_Area"]
     area_props = area_schema["properties"]
 
     assert "top_id" in area_props
@@ -650,7 +652,7 @@ def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factor
     model_schema_names = [
         key
         for key in schemas
-        if key.startswith("datasets/")
+        if key.startswith("datasets_")
         or key in ("Territory", "TerritoryCollection", "TerritoryChanges", "TerritoryChange", "Territory_Ref")
     ]
     expected = {
@@ -659,9 +661,9 @@ def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factor
         "TerritoryChanges",
         "TerritoryChange",
         "Territory_Ref",
-        "datasets/gov/vssa/demo/County",
-        "datasets/gov/giscenter/grpk/Area",
-        "datasets/gov/vssa/demo/Municipality",
+        "datasets_gov_vssa_demo_County",
+        "datasets_gov_giscenter_grpk_Area",
+        "datasets_gov_vssa_demo_Municipality",
     }
     assert set(model_schema_names) == expected
 

@@ -52,11 +52,11 @@ class ExampleValues:
 
 
 def _get_schema_name(model: Model) -> str:
-    """Return OpenAPI schema name for model (full path with slashes).
+    """Convert model name to unique OpenAPI schema name.
 
-    e.g. 'datasets/gov/vssa/demo/Municipality' -> 'datasets/gov/vssa/demo/Municipality'
+    e.g. 'datasets/gov/vssa/demo/Municipality' -> 'datasets_gov_vssa_demo_Municipality'
     """
-    return model.name
+    return model.name.replace("/", "_")
 
 
 class OpenAPISchemaRegistry:
