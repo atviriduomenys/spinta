@@ -16,7 +16,7 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.types.datatype import DataType, PrimaryKey, Ref, String
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -209,6 +209,14 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType)
+def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
+    return Selected(
+        item=dtype.prop.external.name,
+        prop=dtype.prop,
+    )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, String)
 def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
     if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
         return Selected(
