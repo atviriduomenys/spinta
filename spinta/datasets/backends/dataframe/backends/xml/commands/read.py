@@ -9,7 +9,7 @@ from lxml import etree
 from components.app import stream_model_data
 from spinta import commands
 from spinta.components import Context, Model, Property
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.backends.dataframe.backends.xml.components import (
     Row,
     RowFormatter,
@@ -266,6 +266,6 @@ def getall(
         model,
         Row(manifest_paths=manifest_paths, ref_resolver=ref_resolver, is_text_prop=is_text_prop, is_ref_prop=is_ref_prop, is_uri_prop=is_uri_prop),
         DaskXml(df=df, df_mask=df_mask),
-        RowMetaItem(key_map=keymap),
+        RowMetaItem(key_map=keymap, asttoexpr=asttoexpr),
         transformation_adapter=RowFormatter.to_object_data
     )
