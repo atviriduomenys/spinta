@@ -1,20 +1,19 @@
 from dataclasses import dataclass
 from typing import Iterable
 
-from pandas import NA
+from .enums import Level
+from .model import ModelHeader, ModelRef
+from .components import KeyMap
 
-from spinta.adapters.loaders import DataAdapter
-from spinta.core.enums import Level
-from spinta.core.ufuncs import asttoexpr
-from spinta.datasets.backends.dataframe.backends.xml.model import ModelHeader, ModelRef
-from spinta.datasets.keymaps.components import KeyMap
-
+from .schema import NA
 from .row import RowList
+from .adapters.loaders import DataAdapter
 
 
 @dataclass
 class RowMetaItem(DataAdapter):
     key_map: KeyMap
+    asttoexpr: callable
 
     def load(self, model: RowList, data: dict[str | tuple, object]) -> Iterable[tuple[str, None | object]]:
         """Load and resolve model metadata based on the RowList."""
@@ -42,7 +41,7 @@ class RowMetaItem(DataAdapter):
                         'args': [{'name': 'bind', 'args': ['_id']}, object_id]
                     }
 
-                    query = asttoexpr(where_query)
+                    query = self.asttoexpr(where_query)
                     val = row.value(query)
                     if row.maturity == Level.open:
                         val = dict(val).get(row.ref)

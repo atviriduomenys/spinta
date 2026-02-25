@@ -3,9 +3,9 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 
 import dask.dataframe as dd
 
-from spinta.adapters.loaders import DataAdapter, DataAdapterError
-from spinta.datasets.backends.dataframe.backends.xml.model import ModelHeader
-from spinta.utils.schema import NA
+from .adapters.loaders import DataAdapter, DataAdapterError
+from .model import ModelHeader
+from .schema import NA
 
 from .row import RowList
 

@@ -6,6 +6,7 @@ import requests
 from dask.bag import from_sequence
 from lxml import etree
 
+from components.app import stream_model_data
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
@@ -14,8 +15,8 @@ from spinta.datasets.backends.dataframe.backends.xml.components import (
     RowFormatter,
     RowMetaItem,
     DaskXml,
-    Xml,
 )
+from spinta.datasets.backends.dataframe.backends.xml import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     get_dask_dataframe_meta,
@@ -252,9 +253,18 @@ def getall(
     def ref_resolver(query, model_dtype, backend):
         return commands.getall(context, model_dtype, backend, query=query)
 
-    yield from commands.stream_model_data(
+    def is_text_prop(prop):
+        return isinstance(prop.dtype, Text)
+    
+    def is_ref_prop(prop):
+        return prop.external and prop.external.model and prop.external.model.external and prop.external.model.external.dataset
+    
+    def is_uri_prop(prop):
+        return prop.external and prop.external.uri
+
+    yield from stream_model_data(
         model,
-        Row(manifest_paths=manifest_paths, ref_resolver=ref_resolver),
+        Row(manifest_paths=manifest_paths, ref_resolver=ref_resolver, is_text_prop=is_text_prop, is_ref_prop=is_ref_prop, is_uri_prop=is_uri_prop),
         DaskXml(df=df, df_mask=df_mask),
         RowMetaItem(key_map=keymap),
         transformation_adapter=RowFormatter.to_object_data

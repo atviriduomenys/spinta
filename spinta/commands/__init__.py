@@ -593,30 +593,6 @@ def getfile():
 
 
 @overload
-def stream_model_data(
-    model: Model,
-    model_adapter: ModelAdapter,
-    data_adapter: DataAdapter,
-    metadata_adapter: DataAdapter,
-    *,
-    transformation_adapter: Callable[[TransformationModel, dict[str, object]], T],
-) -> Iterable[T]:
-    """Stream model data from the source."""
-    pass
-
-
-@command()
-def stream_model_data(*args, **kwargs):
-    """Stream model data from the source.
-
-    This is used for streaming large data sets, for example when exporting data
-    into a file. This is used in export command, when exporting data into a
-    file, to stream data directly from database to the file, without loading
-    whole data set into memory.
-    """
-
-
-@overload
 def getall(
     context: Context,
     model: Union[Model, Namespace],

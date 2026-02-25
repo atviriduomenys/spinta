@@ -1,16 +1,14 @@
 from dataclasses import dataclass
 from typing import Callable, List, Sequence
 
-from spinta.adapters.loaders import ModelAdapter, TransformationModel
-from spinta.components import Model
-from spinta.core.enums import Level
-from spinta.datasets.backends.dataframe.backends.xml.model import (
+from adapters.loaders import ModelAdapter, TransformationModel
+from .enums import Level
+from .model import (
     ModelHeader,
     ModelItem,
-    ModelRef
+    ModelRef,
+    NormalizedModel
 )
-from spinta.types.datatype import URI, Ref
-from spinta.types.text.components import Text
 
 
 class RowModelRef(ModelRef):
@@ -30,6 +28,10 @@ class RowList(TransformationModel):
 class Row(ModelAdapter):
     manifest_paths: List[str]
     ref_resolver: Callable
+    is_text_prop: Callable
+    is_ref_prop: Callable
+    is_uri_prop: Callable
+
 
     def __init__(self, manifest_paths: List[str] = None, ref_resolver: Callable = None):
         self.manifest_paths = manifest_paths or []
@@ -57,7 +59,7 @@ class Row(ModelAdapter):
             access=prop.access if hasattr(prop, "access") else None,
         )]
 
-        if isinstance(prop.dtype, Text):
+        if self.is_text_prop(prop):
             rows = []
             for lang, lang_prop in prop.dtype.langs.items():
                 path = f"{prop_name}@{lang}"
@@ -72,7 +74,7 @@ class Row(ModelAdapter):
                 )
                 rows.append(row)
 
-        if isinstance(prop.dtype, Ref):
+        if self.is_ref_prop(prop):
             pkeys = prop.dtype.model.external.pkeys
             rows = []
             for pkey in pkeys:
@@ -90,7 +92,7 @@ class Row(ModelAdapter):
                     ),
                 )
                 rows.append(row)
-        if isinstance(prop.dtype, URI):
+        if self.is_uri_prop(prop):
             rows = [ModelItem(
                 path=(prop_name,),
                 property=prop_name,
@@ -104,7 +106,7 @@ class Row(ModelAdapter):
             rows = [row for row in rows if ".".join(row.path) in self.manifest_paths]
         return rows
 
-    def _resolve_model_metadata(self, model: Model) -> Sequence[ModelItem]:
+    def _resolve_model_metadata(self, model: NormalizedModel) -> Sequence[ModelItem]:
         rows = []
         for pkey in model.external.pkeys:
             rows.append(ModelItem(
@@ -118,7 +120,7 @@ class Row(ModelAdapter):
 
         return rows
 
-    def from_model(self, model: Model) -> TransformationModel:
+    def from_model(self, model: NormalizedModel) -> TransformationModel:
         rows = []
         for key, value in model.properties.items():
             _rows = self._resolve_properties(key, value)

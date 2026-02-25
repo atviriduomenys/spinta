@@ -1,21 +1,15 @@
 from collections.abc import Callable, Iterable
 from typing import TypeVar
 
-from spinta import commands
-from spinta.adapters.loaders import DataAdapter, ModelAdapter
-from spinta.components import Model
-from spinta.datasets.backends.dataframe.backends.xml.components import (
-    DaskXml,
-    Row,
-    RowMetaItem,
-)
+from .adapters.loaders import DataAdapter, ModelAdapter
+from .model import NormalizedModel
+
 
 T = TypeVar('T')
 
 
-@commands.stream_model_data.register(Model, Row, DaskXml, RowMetaItem)
 def stream_model_data(
-    model: Model,
+    model: NormalizedModel,
     model_adapter: ModelAdapter,
     data_adapter: DataAdapter,
     metadata_adapter: DataAdapter,

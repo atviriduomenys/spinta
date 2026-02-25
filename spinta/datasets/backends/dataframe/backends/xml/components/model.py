@@ -8,8 +8,10 @@ import enum
 from collections.abc import Callable
 from typing import Any, Optional, Tuple
 
-from spinta.components import Component
+from .components import Component
 
+class NormalizedModel():
+    pass
 
 class DataModel(Component):
     """Data model component"""

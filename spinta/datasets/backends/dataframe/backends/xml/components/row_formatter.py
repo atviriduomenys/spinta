@@ -1,14 +1,30 @@
 from typing import Any, Iterator, Optional, cast
 
-from spinta.datasets.backends.dataframe.backends.xml.model import DataModel, ModelRef
-from spinta.typing import ObjectData
-
+from .schema import ObjectData
+from .model import DataModel, ModelRef
 from .row import RowList
 from .row_meta_item import RowMetaItem
+
+class DataModel():
+    """Data model component"""
+    schema = {
+        "data": {"type": "dict", "required": True}
+    }
+    data: dict[str, Any]
+
+    def __dict__(self):
+        return self.data
 
 
 class RowFormatter(DataModel):
     """Formats a row of data according to the provided model and metadata loader."""
+    schema = {
+        "data": {"type": "dict", "required": True}
+    }
+    data: dict[str, Any]
+
+    def __dict__(self):
+        return self.data
     data: dict[str, object]
     model: RowList
     metadata_loader: Optional[RowMetaItem]
