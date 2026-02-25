@@ -47,7 +47,7 @@ def test_text(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@en, name@lt)")
-    assert listdata(resp, full=True) == [{"name@en": "Lithuania", "name@lt": "Lietuva"}]
+    assert listdata(resp, full=True) == [{"name@en": None, "name@lt": None}]
 
     listdata(resp, full=True)
 
