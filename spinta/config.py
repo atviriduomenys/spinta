@@ -3,10 +3,6 @@ import pathlib
 
 CONFIG = {
     "config": [],
-    "plugins": {
-        "paths": [],
-        "modules": [],
-    },
     "commands": {
         "modules": [
             "spinta.cli",
