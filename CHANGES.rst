@@ -4,6 +4,16 @@ Changes
 0.2dev17 (unreleased)
 =====================
 
+New Features:
+
+- Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
+
+.. _#1790: https://github.com/atviriduomenys/spinta/issues/1790
+
+Improvements:
+
+- Added support for `spinta admin` `-o` (`--output`) argument, that can be used for scripts to specify output path (`#1790`_).
+
 Bug fixes:
 
 - Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
