@@ -51,7 +51,8 @@ from spinta.exceptions import (
     DataTypeCannotBeUsedForNesting,
     NestedDataTypeMismatch,
     NoModelDefined,
-    PropertyNotFound, SourceOrPrepareNotAllowed,
+    PropertyNotFound,
+    SourceOrPrepareNotAllowed,
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
