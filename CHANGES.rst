@@ -1,13 +1,16 @@
 Changes
 #######
 
-0.2dev17 (unreleased)
+0.2dev17 (2026-02-26)
 =====================
 
 Bug fixes:
 
-- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
+- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors (`#1698`_).
+- Fixed a bug where data for properties with language tags was not being returned (without `select` or other queries) (`#1776`_).
 
+
+.. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
 .. _#1698: https://github.com/atviriduomenys/spinta/issues/1698
 
 0.2dev16 (2026-02-17)
@@ -25,9 +28,7 @@ Bug fixes:
   were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
 - Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
-- Fixed a bug where data for properties with language tags was not being returned (without `select` or other queries) (`#1776`_).
 
-.. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
 .. _#963: https://github.com/atviriduomenys/spinta/issues/963
 .. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
 
