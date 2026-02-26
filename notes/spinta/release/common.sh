@@ -337,8 +337,6 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 
 
-# change the version number in pyproject.toml
-
 # Publish project to PyPI
 # If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04
 

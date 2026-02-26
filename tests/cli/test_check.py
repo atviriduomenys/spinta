@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from pytest import mark
 from spinta.components import Context
 from spinta.exceptions import InvalidValue, InvalidManifestFile, InvalidName
 from spinta.testing.cli import SpintaCliRunner
@@ -619,3 +619,68 @@ def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner,
     assert result.exit_code != 0
     assert result.exc_info[0] is InvalidName
     assert "_test123" in str(result.exception)
+
+
+@mark.parametrize("type", ["dask/xml", "dask/json", "dask/csv"])
+def test_check_dask_backend_property_prepare_compare_error(rc, cli: SpintaCliRunner, tmp_path, type: str):
+    create_tabular_manifest(
+        None,
+        tmp_path / "manifest.csv",
+        striptable(f"""
+    d | r | b | m | property | type     | ref  | source      | prepare                 | access
+    datasets/gov/example     |          |      |             |                         |
+      | data                 | {type}   |      |             |                         |
+      |   |   | Country      |          | code | salis       | or(code>'lt',code<'pl') | open
+      |   |   |   | code     | string   |      | kodas       |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+      |   |   | City         |          | code | miestas     | code='Vilnius'          | open   
+      |   |   |   | code     | string   |      | kodas       |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+      |   |   | Street       |          | id   | gatve       | startswith(name,'V')    | open
+      |   |   |   | id       | integer  |      | id          |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code == 0
+    assert "Dask backend does not support comparison operators in prepare formula." in result.stdout
+    assert "operators: gt, lt" in result.stdout
+    assert "model: datasets/gov/example/Country" in result.stdout
+    assert "entity: salis" in result.stdout
+    assert "entity: miestas" in result.stdout
+    assert "entity: gatve" in result.stdout
+    assert "Total errors: 3" in result.stdout
+
+
+def test_check_sql_backend_model_prepare_compare_not_affected(rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        None,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
+    d | r | b | m | property | type   | ref  | source      | prepare                            | access
+    datasets/gov/example     |        |      |             |                                    |
+      | data                 | sql    |      |             |                                    |
+      |   |   | Country      |        | code | salis       | or(code='lt',startswith(name,'V')) |
+      |   |   |   | code     | string |      | kodas       |                                    | public
+      |   |   |   | name     | string |      | pavadinimas |                                    | open
+    """
+        ),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert "Dask backend does not support" not in result.stdout
