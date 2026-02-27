@@ -692,7 +692,7 @@ class PropertyReader(TabularReader):
             if prepare is not NA and isinstance(prepare, dict) and prepare.get("name") == "getattr":
                 external_name = self.data.get("external", {}).get("name")
                 if external_name:
-                    raise SourceOrPrepareNotAllowed(source=external_name)
+                    prepare["args"].insert(0, {'name': 'bind', 'args': [external_name]})
 
     def _append_prepare(self, row: Dict[str, str], prepare: str):
         if "prepare" in self.data:
