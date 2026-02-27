@@ -1103,4 +1103,7 @@ def test_xml_fails_on_composite_prepare(rc: RawConfig, tmp_path: Path):
     resp = app.get("/example/xml/Event")
     assert resp.status_code == 400
     assert resp.json()["errors"][0]["code"] == "SourceOrPrepareNotAllowed"
-    assert resp.json()["errors"][0]["message"].strip() == "The source akciju_klases_tipas was not expected. Delete it from the manifest or update the prepare function to allow it."
+    assert (
+        resp.json()["errors"][0]["message"].strip()
+        == "The source akciju_klases_tipas was not expected. Delete it from the manifest or update the prepare function to allow it."
+    )
