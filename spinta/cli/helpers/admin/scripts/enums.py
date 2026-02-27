@@ -1,11 +1,11 @@
 import csv
-import dataclasses
 import pathlib
 import sys
 from contextlib import nullcontext
 from typing import Iterator
 
 from multipledispatch import dispatch
+from dataclasses import dataclass, field
 
 from spinta import commands
 from spinta.backends import Backend
@@ -21,12 +21,12 @@ from spinta.ufuncs.resultbuilder.components import EnumResultBuilder
 
 
 @dispatch(Backend, Property)
-def gather_unique_property_values():
+def gather_unique_property_values() -> list:
     raise NotImplementedError
 
 
 @dispatch(PostgreSQL, Property)
-def gather_unique_property_values(backend: PostgreSQL, prop: Property):
+def gather_unique_property_values(backend: PostgreSQL, prop: Property) -> list:
     table = backend.get_table(prop)
     column = backend.get_column(table, prop)
     result = backend.engine.execute(sa.select(column).distinct()).scalars().all()
@@ -34,7 +34,7 @@ def gather_unique_property_values(backend: PostgreSQL, prop: Property):
 
 
 @dispatch(Property)
-def gather_unique_property_values(prop: Property):
+def gather_unique_property_values(prop: Property) -> list:
     return gather_unique_property_values(prop.dtype.backend, prop)
 
 
@@ -46,20 +46,20 @@ def get_models_with_enums(context: Context, manifest: Manifest) -> Iterator[Mode
                 break
 
 
-@dataclasses.dataclass
+@dataclass
 class InvalidEnumProperty:
     prop: Property
-    invalid_values: list = dataclasses.field(default_factory=list)
+    invalid_values: list = field(default_factory=list)
 
     def add_invalid_value(self, value: object):
         if value not in self.invalid_values:
             self.invalid_values.append(value)
 
 
-@dataclasses.dataclass
+@dataclass
 class InvalidEnumModel:
     model: Model
-    enum_props: dict[str, InvalidEnumProperty] = dataclasses.field(default_factory=dict)
+    enum_props: dict[str, InvalidEnumProperty] = field(default_factory=dict)
 
     def add_invalid_value(self, prop: Property, value: object):
         self.get_prop(prop).add_invalid_value(value)
@@ -70,7 +70,7 @@ class InvalidEnumModel:
         return self.enum_props[prop.place]
 
 
-def gather_distinct_values(context: Context, output_path: pathlib.Path | None = None, **kwargs):
+def gather_invalid_enum_values(context: Context, output_path: pathlib.Path | None = None, **kwargs):
     store = ensure_store_is_loaded(context)
     manifest = store.manifest
     invalid_models = {}
@@ -116,12 +116,33 @@ def output_invalid_enums_to_csv(invalid_models: dict, output_path: pathlib.Path 
     with stream_ctx as stream:
         writer = csv.DictWriter(stream, fieldnames=["model", "property", "invalid_value"], lineterminator="\n")
         writer.writeheader()
-        for key, model in sorted(invalid_models.items()):
-            for prop_name, prop in model.enum_props.items():
-                for value in prop.invalid_values:
-                    writer.writerow({"model": key, "property": prop_name, "invalid_value": value})
+        for model_key, model in sorted(invalid_models.items()):
+            model_written = False
 
-                    if prop_name:
-                        prop_name = ""
-                    if key:
-                        key = ""
+            for prop_name, prop in model.enum_props.items():
+                it = iter(prop.invalid_values)
+                first = next(it, None)
+                if first is None:
+                    continue
+
+                model_name = ""
+                if not model_written:
+                    model_name = model_key
+                    model_written = True
+
+                writer.writerow(
+                    {
+                        "model": model_name,
+                        "property": prop_name,
+                        "invalid_value": first,
+                    }
+                )
+
+                for value in it:
+                    writer.writerow(
+                        {
+                            "model": "",
+                            "property": "",
+                            "invalid_value": value,
+                        }
+                    )
