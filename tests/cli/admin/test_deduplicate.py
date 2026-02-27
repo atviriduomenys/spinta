@@ -72,7 +72,7 @@ def test_admin_deduplicate_missing_redirect(
     assert not insp.has_table(random_redirect)
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.SKIPPED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.SKIPPED) in result.stderr
 
     assert not insp.has_table(country_redirect)
     assert not insp.has_table(city_redirect)
@@ -80,7 +80,7 @@ def test_admin_deduplicate_missing_redirect(
 
     result = cli.invoke(context.get("rc"), ["upgrade", UpgradeScript.REDIRECT.value])
     assert result.exit_code == 0
-    assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stderr
 
     assert insp.has_table(country_redirect)
     assert insp.has_table(city_redirect)
@@ -88,7 +88,7 @@ def test_admin_deduplicate_missing_redirect(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value, "-c"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED) in result.stderr
 
 
 def test_admin_deduplicate_missing_constraint(
@@ -143,7 +143,7 @@ def test_admin_deduplicate_missing_constraint(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stderr
 
     insp = sa.inspect(backend.engine)
     assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
@@ -273,7 +273,7 @@ def test_admin_deduplicate_requires_destructive(
         ],
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stderr
     assert (
         '"datasets/deduplicate/rand/Random" contains duplicate values, use --destructive to migrate them'
         in result.stdout
@@ -286,7 +286,7 @@ def test_admin_deduplicate_requires_destructive(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value, "-d"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stderr
     assert (
         '"datasets/deduplicate/rand/Random" contains duplicate values, use --destructive to migrate them'
         not in result.stdout
@@ -490,7 +490,7 @@ def test_admin_deduplicate_simple(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value, "-d"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stderr
 
     insp = sa.inspect(backend.engine)
     assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))
@@ -725,7 +725,7 @@ def test_admin_deduplicate_referenced(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value, "-d"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stderr
 
     insp = sa.inspect(backend.engine)
     assert any(uq_random_constraint == constraint["name"] for constraint in insp.get_unique_constraints(random_name))

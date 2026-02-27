@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from click import echo
 
+from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.components import ScriptStatus, ScriptBase
 from spinta.cli.helpers.script.helpers import sort_scripts_by_required, script_check_status_message
 from spinta.cli.helpers.script.registry import script_registry
@@ -45,7 +45,7 @@ def run_specific_script(
     if force:
         status = ScriptStatus.FORCED
 
-    echo(script_check_status_message(script_name, status))
+    cli_message(script_check_status_message(script_name, status))
     if status in (ScriptStatus.FORCED, ScriptStatus.REQUIRED) and not check_only:
         script.run(context, destructive=destructive, **kwargs)
 
@@ -56,7 +56,7 @@ def check_script(context: Context, script_type: str, script: str | Script | Scri
             script = script.value
 
         if not script_registry.contains(script_type, script):
-            echo(f"Warning: {script_type!r} script {script!r} was not found", err=True)
+            cli_message(f"Warning: {script_type!r} script {script!r} was not found")
             return ScriptStatus.SKIPPED
 
         script = script_registry.get(script_type, script)
@@ -71,9 +71,8 @@ def check_script(context: Context, script_type: str, script: str | Script | Scri
                 ScriptStatus.REQUIRED,
                 ScriptStatus.SKIPPED,
             ):
-                echo(
+                cli_message(
                     f"Warning: {script_type!r} script {required_script!r} requirement is not met for {script.name!r} script",
-                    err=True,
                 )
                 return ScriptStatus.SKIPPED
 

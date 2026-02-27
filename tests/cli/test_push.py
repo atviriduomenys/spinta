@@ -2677,7 +2677,7 @@ def test_push_sync_state_skip_no_auth(
         ],
     )
     assert result.exit_code == 0
-    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stdout
+    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stderr
 
     compare_push_state_rows(
         engine,
