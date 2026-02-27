@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from spinta.core.context import configure_context, create_context
+from spinta.core.enums import Level
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.dimensions.enum.components import EnumItem
 from spinta.manifests.open_api.openapi_config import (
@@ -29,6 +30,8 @@ from spinta.utils.schema import NA
 from spinta.components import Model
 
 UTILITY_PATHS = ["/version", "/health"]
+
+GLOBAL_ID_LEVEL_THRESHOLD = 4
 
 EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
 EXAMPLE_UUID_OBJECT_ID = "abdd1245-bbf9-4085-9366-f11c0f737c1d"
@@ -57,6 +60,45 @@ def _get_schema_name(model: Model) -> str:
     e.g. 'datasets/gov/vssa/demo/Municipality' -> 'datasets_gov_vssa_demo_Municipality'
     """
     return model.name.replace("/", "_")
+
+
+def _get_main_schema_name(model: Model, use_basename_for_schema_names: bool) -> str:
+    """Get primary schema name for a model, depending on mode."""
+    return model.basename if use_basename_for_schema_names else _get_schema_name(model)
+
+
+def _get_main_membership_key(model: Model, use_basename_for_schema_names: bool) -> str:
+    """Key used for membership checks in main_dataset_schema_names."""
+    return _get_main_schema_name(model, use_basename_for_schema_names)
+
+
+def _resolve_ref_schema_name_for_model(
+    ref_model: Model,
+    main_dataset_schema_names: set[str] | None,
+    use_basename_for_schema_names: bool,
+) -> str:
+    """Resolve schema name for a referenced model, honoring main dataset overrides."""
+    main_key = _get_main_membership_key(ref_model, use_basename_for_schema_names)
+    if main_dataset_schema_names and main_key in main_dataset_schema_names:
+        return main_key
+    return _get_schema_name(ref_model)
+
+
+def _normalize_level(ref_level: Level | int | None) -> int | None:
+    """Convert Level or int to plain int, or None."""
+    if ref_level is None:
+        return None
+    return ref_level.value if isinstance(ref_level, Level) else int(ref_level)
+
+
+def _is_global_ref_level(level_value: int | None) -> bool:
+    """Whether given level means global-id reference."""
+    return level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
+
+
+def _should_strip_global_id(level_value: int | None) -> bool:
+    """Whether we should remove _id from ref schemas for this level."""
+    return level_value is not None and level_value < GLOBAL_ID_LEVEL_THRESHOLD
 
 
 class OpenAPISchemaRegistry:
@@ -128,19 +170,15 @@ class DataTypeHandler:
             }
 
         if self.is_reference_type(dtype):
-            ref_main_key = dtype.model.basename if use_basename_for_schema_names else _get_schema_name(dtype.model)
-            ref_schema_name = (
-                ref_main_key
-                if main_dataset_schema_names and ref_main_key in main_dataset_schema_names
-                else _get_schema_name(dtype.model)
+            ref_schema_name = _resolve_ref_schema_name_for_model(
+                dtype.model,
+                main_dataset_schema_names,
+                use_basename_for_schema_names,
             )
             example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = ref_schema["example"]
-            return {
-                "$ref": f"#/components/schemas/{ref_schema_name}",
-                "example": example,
-            }
+            return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
 
         if self.is_array_type(dtype):
             items_schema = self.convert_to_openapi_schema(
@@ -172,11 +210,10 @@ class DataTypeHandler:
             return enum_values[0] if enum_values else "UNKNOWN"
 
         if self.is_reference_type(dtype):
-            ref_main_key = dtype.model.basename if use_basename_for_schema_names else _get_schema_name(dtype.model)
-            ref_schema_name = (
-                ref_main_key
-                if main_dataset_schema_names and ref_main_key in main_dataset_schema_names
-                else _get_schema_name(dtype.model)
+            ref_schema_name = _resolve_ref_schema_name_for_model(
+                dtype.model,
+                main_dataset_schema_names,
+                use_basename_for_schema_names,
             )
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return ref_schema["example"]
@@ -359,11 +396,7 @@ class PathGenerator:
         model_property: tuple | None = None,
     ) -> str:
         """Resolve the appropriate schema reference"""
-        model_schema_name = (
-            model.basename
-            if (model and self.use_basename_for_schema_names)
-            else (_get_schema_name(model) if model else None)
-        )
+        model_schema_name = _get_main_schema_name(model, self.use_basename_for_schema_names) if model else None
         if model_schema_name and path_type:
             return self._get_model_schema_ref(model_schema_name, path_type, model_property)
 
@@ -522,11 +555,14 @@ class SchemaGenerator:
 
         for model in models.values():
             self._create_referenced_model_schemas(
-                schemas, model, main_dataset_schema_names, use_basename_for_schema_names
+                schemas,
+                model,
+                main_dataset_schema_names,
+                use_basename_for_schema_names,
             )
 
         for model in models.values():
-            schema_name = model.basename if use_basename_for_schema_names else _get_schema_name(model)
+            schema_name = _get_main_schema_name(model, use_basename_for_schema_names)
             schemas[schema_name] = self._create_model_schema(
                 model, schemas, main_dataset_schema_names, use_basename_for_schema_names
             )
@@ -660,13 +696,14 @@ class SchemaGenerator:
 
             ref_model = dtype.model
             ref_schema_name = _get_schema_name(ref_model)
-            ref_main_key = ref_model.basename if use_basename_for_schema_names else ref_schema_name
+            ref_main_key = _get_main_membership_key(ref_model, use_basename_for_schema_names)
 
-            # Skip if already created or if this is a main dataset model (gets full schema later)
             if ref_schema_name in schemas:
                 continue
             if main_dataset_schema_names is not None and ref_main_key in main_dataset_schema_names:
                 continue
+
+            ref_level = getattr(model_property, "level", None)
 
             refprops = getattr(dtype, "refprops", None) or []
             schemas[ref_schema_name] = self._build_ref_model_schema(
@@ -675,6 +712,7 @@ class SchemaGenerator:
                 refprops,
                 main_dataset_schema_names,
                 use_basename_for_schema_names,
+                ref_level,
             )
 
     def _resolve_nested_ref_schema_name(
@@ -684,6 +722,7 @@ class SchemaGenerator:
         nested_refprops: list,
         main_dataset_schema_names: set[str] | None,
         use_basename_for_schema_names: bool = False,
+        ref_level: Level | None = None,
     ) -> str:
         nested_main_key = (
             nested_ref_model.basename if use_basename_for_schema_names else _get_schema_name(nested_ref_model)
@@ -699,6 +738,7 @@ class SchemaGenerator:
                 nested_refprops,
                 main_dataset_schema_names,
                 use_basename_for_schema_names,
+                ref_level,
             )
 
         return schema_name
@@ -710,7 +750,23 @@ class SchemaGenerator:
         refprops: list,
         main_dataset_schema_names: set[str] | None,
         use_basename_for_schema_names: bool = False,
+        ref_level: Level | int | None = None,
     ) -> dict[str, Any]:
+        level_value: int | None = None
+        if ref_level is not None:
+            level_value = ref_level.value if isinstance(ref_level, Level) else int(ref_level)
+
+        is_global_ref = level_value is not None and level_value >= 4
+
+        if is_global_ref:
+            properties = self.schema_registry.standard_object_properties.copy()
+            example = {
+                "_type": model.basename,
+                "_id": EXAMPLE_UUID_OBJECT_ID,
+                "_revision": EXAMPLE_UUID_REVISION,
+            }
+            return {"type": "object", "properties": properties, "example": example}
+
         properties = self.schema_registry.standard_object_properties.copy()
         required_fields = []
 
@@ -733,6 +789,7 @@ class SchemaGenerator:
                     nested_refprops,
                     main_dataset_schema_names,
                     use_basename_for_schema_names,
+                    ref_level,
                 )
                 ref_schema = schemas.get(schema_name)
                 example = ref_schema.get("example") if ref_schema else None
@@ -772,6 +829,10 @@ class SchemaGenerator:
                 main_dataset_schema_names=main_dataset_schema_names,
                 use_basename_for_schema_names=use_basename_for_schema_names,
             )
+
+        if level_value is not None and level_value < 4:
+            properties.pop("_id", None)
+            example.pop("_id", None)
 
         schema = {"type": "object", "properties": properties, "example": example}
 
