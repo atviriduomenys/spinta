@@ -408,31 +408,10 @@ COMMON_SCHEMAS = {
         "description": "For objects that have been deleted during change, `type` value is changed to `absent`",
         "properties": {"type": {"type": "string", "enum": ["absent"]}},
     },
-    "boolean": {
-        "oneOf": [
-            {"type": "string", "description": "Maturity level < 3", "examples": [True, 1, "taip"]},
-            {"type": "boolean", "description": "Maturity level >= 3"},
-        ],
-        "description": "Logical value of true or false, depending on maturity level this value can be expressed in a non standard true/false values if maturity level is lower than 3",
-    },
-    "integer": {
-        "type": "integer",
-        "description": "A value of a whole number",
-        "minimum": -2147483648,
-        "maximum": 2147483647,
-    },
-    "number": {
-        "type": "number",
-        "description": "A value of a real number, based on Floating-Point Arithmetic (IEEE 754), with a decimal point marked with `.`. Whole number can be up to 6 characters in length.",
-    },
     "binary": {
         "type": "string",
         "description": "Binary string of data. A single set should not exceed 1G",
         "pattern": "^[0-1]+$",
-    },
-    "string": {
-        "type": "string",
-        "description": "Non natural language strings of characters. Should be provided based on UTF-8 encoding and should not exceed 1G",
     },
     "text": {"type": "string", "description": "Natural language text."},
     "datetime": {
@@ -507,10 +486,6 @@ COMMON_SCHEMAS = {
     "uri": {
         "type": "string",
         "description": "Uniform Resource Identifier. Used to provide an identifier of an external resource, in an RDF data model it is subject identifier.",
-    },
-    "array": {
-        "type": "array",
-        "description": "Array of data. It is recommended to avoid this type and instead use `backref`",
     },
     "backref": {
         "type": "string",
