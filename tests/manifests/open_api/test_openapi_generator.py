@@ -527,8 +527,7 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
     municipality_schema = schemas["datasets_gov_vssa_demo_Municipality"]
     assert municipality_schema["type"] == "object"
     municipality_props = municipality_schema["properties"]
-    assert "id" in municipality_props
-    assert "name" not in municipality_props
+    assert "id" not in municipality_props
     assert "_type" in municipality_props
     assert "_id" in municipality_props
     assert "_revision" in municipality_props
@@ -536,18 +535,18 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
     county_schema = schemas["datasets_gov_vssa_demo_County"]
     assert county_schema["type"] == "object"
     county_props = county_schema["properties"]
-    assert "id" in county_props
-    assert "title" in county_props
+    assert "id" not in county_props
+    assert "title" not in county_props
     assert "population" not in county_props
+    assert "_id" in county_props
 
     municipality_example = municipality_schema["example"]
-    assert "id" in municipality_example
-    assert "name" not in municipality_example
+    assert "_id" in municipality_example
+    assert "id" not in municipality_example
 
     county_example = county_schema["example"]
-    assert "id" in county_example
-    assert "title" in county_example
-    assert "population" not in county_example
+    assert "_id" in county_example
+    assert "id" not in county_example
 
 
 def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path_factory):
@@ -570,18 +569,21 @@ def test_main_model_ref_properties_have_proper_examples(open_manifest_path_facto
     territory_schema = schemas["Territory"]
 
     city_example = territory_schema["properties"]["city"]["example"]
-    assert "id" in city_example, "city example should contain Municipality's ref field 'id'"
+    assert "_id" in city_example, "city example should contain global '_id' field"
+    assert "id" not in city_example
 
     region_example = territory_schema["properties"]["region"]["example"]
-    assert "id" in region_example, "region example should contain County's ref field 'id'"
-    assert "title" in region_example, "region example should contain County's ref field 'title'"
+    assert "_id" in region_example, "region example should contain global '_id' field"
+    assert "id" not in region_example
+    assert "title" not in region_example
 
     schema_example = territory_schema["example"]
     assert isinstance(schema_example["city"], dict)
-    assert "id" in schema_example["city"]
+    assert "_id" in schema_example["city"]
+    assert "id" not in schema_example["city"]
     assert isinstance(schema_example["region"], dict)
-    assert "id" in schema_example["region"]
-    assert "title" in schema_example["region"]
+    assert "_id" in schema_example["region"]
+    assert "id" not in schema_example["region"]
 
 
 def test_cross_dataset_ref_no_paths_for_referenced_models(open_manifest_path_factory):
@@ -621,28 +623,6 @@ def test_circular_ref_creates_ref_only_schema_for_back_reference(open_manifest_p
     assert "city" in full_schema["properties"]
     assert "geometry" in full_schema["properties"]
 
-    assert "Territory_Ref" in schemas
-    ref_schema = schemas["Territory_Ref"]
-    assert "vda_id" in ref_schema["properties"]
-    assert "cemetery" not in ref_schema["properties"]
-    assert "city" not in ref_schema["properties"]
-    assert "geometry" not in ref_schema["properties"]
-
-
-def test_circular_ref_plotas_schema_points_to_ref_variant(open_manifest_path_factory):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
-    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
-
-    schemas = open_api_spec["components"]["schemas"]
-
-    area_schema = schemas["datasets_gov_giscenter_grpk_Area"]
-    area_props = area_schema["properties"]
-
-    assert "top_id" in area_props
-    assert "info" in area_props
-    assert "area" not in area_props
-    assert area_props["info"]["$ref"] == "#/components/schemas/Territory_Ref"
-
 
 def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
@@ -660,7 +640,6 @@ def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factor
         "TerritoryCollection",
         "TerritoryChanges",
         "TerritoryChange",
-        "Territory_Ref",
         "datasets_gov_vssa_demo_County",
         "datasets_gov_giscenter_grpk_Area",
         "datasets_gov_vssa_demo_Municipality",
