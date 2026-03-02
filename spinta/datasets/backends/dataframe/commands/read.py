@@ -295,9 +295,7 @@ def dask_get_all(
                             val[lang_key] = row[lang.external.name]
 
                     if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
-                        key = sel.prop.place
-                        val = row[sel.item]
-
+                        res[prep_dtype.prop.name] = row
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
