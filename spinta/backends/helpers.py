@@ -91,36 +91,6 @@ def get_select_tree(
     return flat_select_to_nested(select)
 
 
-def get_model_select_tree(
-    context: Context,
-    model: Model,
-    action: Action,
-    select: Optional[List[str]],
-) -> SelectTree:
-    if select is not None and isinstance(select, dict):
-        _select = []
-        for key, value in select.items():
-            _select.append(key)
-            if isinstance(value, GetAttr):
-                obj = value.obj
-                name = value.name
-                if obj in model.properties:
-                    prop = model.properties[obj]
-                    if prop.dtype and isinstance(prop.dtype, Text) and prop.dtype.langs:
-                        lang = prop.dtype.langs.get(str(name))
-                        if lang:
-                            _select.append(lang.place)
-        select = _select
-    if isinstance(select, dict):
-        select = list(select.keys())
-
-    select = _apply_always_show_id(context, action, select)
-    if select is None and action in (Action.GETALL, Action.SEARCH):
-        # If select is not given, select everything.
-        select = {"*": {}}
-    return flat_select_to_nested(select)
-
-
 def _apply_always_show_id(
     context: Context,
     action: Action,
