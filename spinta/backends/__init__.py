@@ -1767,19 +1767,18 @@ def cast_backend_to_python(
 
 @commands.cast_backend_to_python.register(Context, Text, Backend, dict)
 def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
-    row = data
-    lang_external_names = row.keys()
+    lang_external_names = data.keys()
 
     def iter_lang_values():
         for lang_key, lang in dtype.langs.items():
             external_name = lang.external.name
             if external_name not in lang_external_names:
                 continue
-            yield lang.place, commands.cast_backend_to_python(
+            yield lang_key, commands.cast_backend_to_python(
                 context,
                 dtype.langs.get(lang_key),
                 backend,
-                row[external_name],
+                data[external_name],
                 **kwargs,
             )
 
