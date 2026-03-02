@@ -158,7 +158,7 @@ def prepare_data_for_response(
     prop_names = get_select_prop_names(
         context,
         model,
-        model.flatprops,
+        model.properties,
         action,
         prop_select_tree,
         reserved=reserved,

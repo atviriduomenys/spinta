@@ -1008,7 +1008,7 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
     ]
 
 
-def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: Path):
+def test_xml_read_text_lang_getall(rc: RawConfig, tmp_path: Path):
     xml = """
         <miestai>
             <miestas>
@@ -1064,74 +1064,26 @@ def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: P
     ]
 
 
-def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: Path):
-    xml = """
-        <miestai>
-            <miestas>
-                <pavadinimas_lt>Kaunas</pavadinimas_lt>
-                <pavadinimas_en>Kaunas_en</pavadinimas_en>
-                <kodas>KNS</kodas>
-            </miestas>
-            <miestas>
-                <pavadinimas_lt>Vilnius</pavadinimas_lt>
-                <pavadinimas_en>Vilnius_en</pavadinimas_en>
-                <kodas>VNO</kodas>
-            </miestas>
-        </miestai>
-    """
-    path = tmp_path / "miestai.xml"
-    path.write_text(xml)
-    context, manifest = prepare_manifest(
-        rc,
-        f"""
-    d | r | b | m | property | type     | ref  | source               | access
-    example/xml              |          |      |                      |
-      | xml                  | dask/xml |      | {path}               |
-      |   |   | City         |          | code | /miestai/miestas      |
-      |   |   |   | name@lt  | string   |      | pavadinimas_lt/text() | open
-      |   |   |   | name@en  | string   |      | pavadinimas_en/text() | open
-      |   |   |   | code     | string   |      | kodas/text()          | open
-    """,
-        mode=Mode.external,
-    )
-    context.loaded = True
-    app = create_test_client(context)
-    app.authmodel("example/xml/City", ["getall"])
-
-    resp = app.get("/example/xml/City")
-
-    data = resp.json()["_data"]
-
-    assert data == [
-        {
-            "_id": ANY,
-            "_type": "example/xml/City",
-            "_revision": None,
-            "name": {"lt": "Kaunas", "en": "Kaunas_en"},
-            "code": "KNS",
-        },
-        {
-            "_id": ANY,
-            "_type": "example/xml/City",
-            "_revision": None,
-            "name": {"lt": "Vilnius", "en": "Vilnius_en"},
-            "code": "VNO",
-        },
-    ]
-
-    assert listdata(resp, "code", "name@lt", "name@en", "name", sort=False) == [
-        ("KNS", NA, NA, {
-            'en': 'Kaunas_en',
-            'lt': 'Kaunas',
-        },),
-        ("VNO", NA, NA, {
-            'en': 'Vilnius_en',
-            'lt': 'Vilnius',
-        }),
-    ]
-
-
-def test_xml_read_text_lang_select_multiple_variants_search(rc: RawConfig, tmp_path: Path):
+@pytest.mark.parametrize(
+    "select,expected_name",
+    [
+        (
+            "code,name@lt,name@en",
+            [
+                {"lt": "Kaunas", "en": "Kaunas_en"},
+                {"lt": "Vilnius", "en": "Vilnius_en"},
+            ],
+        ),
+        (
+            "code,name@lt",
+            [
+                {"lt": "Kaunas"},
+                {"lt": "Vilnius"},
+            ],
+        ),
+    ],
+)
+def test_xml_read_text_lang_select(rc: RawConfig, tmp_path: Path, select: str, expected_name: list[dict[str, str]]):
     xml = """
         <miestai>
             <miestas>
@@ -1165,49 +1117,8 @@ def test_xml_read_text_lang_select_multiple_variants_search(rc: RawConfig, tmp_p
     app = create_test_client(context)
     app.authmodel("example/xml/City", ["getall", "search"])
 
-    resp = app.get("/example/xml/City?select(code,name@lt,name@en)")
+    resp = app.get(f"/example/xml/City?select({select})")
     assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
-        ("KNS", {"lt": "Kaunas", "en": "Kaunas_en"}, NA, NA),
-        ("VNO", {"lt": "Vilnius", "en": "Vilnius_en"}, NA, NA),
-    ]
-
-
-def test_xml_read_text_lang_select_multiple_variants_search_variant(rc: RawConfig, tmp_path: Path):
-    xml = """
-        <miestai>
-            <miestas>
-                <pavadinimas_lt>Kaunas</pavadinimas_lt>
-                <pavadinimas_en>Kaunas_en</pavadinimas_en>
-                <kodas>KNS</kodas>
-            </miestas>
-            <miestas>
-                <pavadinimas_lt>Vilnius</pavadinimas_lt>
-                <pavadinimas_en>Vilnius_en</pavadinimas_en>
-                <kodas>VNO</kodas>
-            </miestas>
-        </miestai>
-    """
-    path = tmp_path / "miestai.xml"
-    path.write_text(xml)
-    context, manifest = prepare_manifest(
-        rc,
-        f"""
-    d | r | b | m | property | type     | ref  | source               | access
-    example/xml              |          |      |                      |
-      | xml                  | dask/xml |      | {path}               |
-      |   |   | City         |          | code | /miestai/miestas      |
-      |   |   |   | name@lt  | string   |      | pavadinimas_lt/text() | open
-      |   |   |   | name@en  | string   |      | pavadinimas_en/text() | open
-      |   |   |   | code     | string   |      | kodas/text()          | open
-    """,
-        mode=Mode.external,
-    )
-    context.loaded = True
-    app = create_test_client(context)
-    app.authmodel("example/xml/City", ["getall", "search"])
-
-    resp = app.get("/example/xml/City?select(code,name@lt)")
-    assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
-        ("KNS", {"lt": "Kaunas"}, NA, NA),
-        ("VNO", {"lt": "Vilnius"}, NA, NA),
+        ("KNS", expected_name[0], NA, NA),
+        ("VNO", expected_name[1], NA, NA),
     ]
