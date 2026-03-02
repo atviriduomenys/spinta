@@ -96,7 +96,7 @@ def test_text_patch(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@lt, name@en)")
-    assert listdata(resp, full=True) == [{"name@lt": "Latvija", "name@en": "Latvia"}]
+    assert listdata(resp, full=True) == [{"name.en": "Latvia", "name.lt": "Latvija"}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
