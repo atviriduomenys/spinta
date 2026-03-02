@@ -1,6 +1,8 @@
 import binascii
+from spinta.components import Property
+from spinta.types.datatype import DataType, String, PrimaryKey, Denorm, Ref
 
-from spinta.core.ufuncs import ufunc, Expr
+from spinta.core.ufuncs import ufunc, Expr,  Negative, Bind, GetAttr
 from spinta.exceptions import InvalidBase64String, NotImplementedFeature
 from spinta.types.datatype import String, Binary
 from spinta.types.geometry.components import Geometry
@@ -98,3 +100,39 @@ def base64(env: ResultBuilder, dtype: Binary) -> bytes:
         return env.call("base64", env.this)
     except (binascii.Error, ValueError):
         raise InvalidBase64String(env.prop.model, property=env.prop.name, value=env.this)
+
+#
+# @ufunc.resolver(ResultBuilder, Bind, Bind, name="getattr")
+# def getattr_(env: ResultBuilder, field: Bind, attr: Bind):
+#     breakpoint()
+#     prop = env.prop.model.properties[field.name]
+#     return env.call("getattr", prop, attr)
+#
+#
+# @ufunc.resolver(ResultBuilder, Property, Bind, name="getattr")
+# def getattr_(env: ResultBuilder, prop: Property, attr: Bind):
+#     return env.call("getattr", prop.dtype, attr)
+#
+#
+# @ufunc.resolver(ResultBuilder, DataType, Bind, name="getattr")
+# def getattr_(env: ResultBuilder, dtype: DataType, attr: Bind):
+#     raise ValueError
+#
+#
+# @ufunc.resolver(ResultBuilder, Ref, Bind, name="getattr")
+# def getattr_(env: ResultBuilder, dtype: Ref, attr: Bind):
+#     breakpoint()
+#     # handle error
+#     return GetAttr(obj.name, attr)
+
+# @ufunc.resolver(ResultBuilder, Bind, Bind, name="getattr")
+# def getattr_(env: ResultBuilder, field: Bind, attr: Bind):
+#     key = f"{field.name}.{attr.name}"
+#     prop = env.prop.model.flatprops.get(key)
+#     if prop and prop.external and prop.external.name:
+#         return env.data.get(prop.external.name)
+#     return None
+#
+# @ufunc.resolver(ResultBuilder, Bind, Bind, Bind, name="getattr")
+# def getattr_(env: ResultBuilder, source: Bind, obj: Bind, attr: Bind):
+#     raise SourceOrPrepareNotAllowed(source=str(source))

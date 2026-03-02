@@ -220,6 +220,7 @@ class Env:
             return expr
 
         if expr.name in self._resolvers:
+            # breakpoint()
             ufunc = self._resolvers[expr.name]
         else:
             args, kwargs = expr.resolve(self)
@@ -229,6 +230,7 @@ class Env:
             # Resolve arguments automatically.
             args, kwargs = expr.resolve(self)
             try:
+                breakpoint()
                 return ufunc(self, *args, **kwargs)
             except NotImplementedError:
                 return self.default_resolver(expr, *args, **kwargs)

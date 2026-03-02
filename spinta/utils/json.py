@@ -28,4 +28,5 @@ def fix_data_for_json(data):
         return data.wkt
     if isinstance(data, uuid.UUID):
         return data.hex
+    breakpoint()
     raise TypeError(f"{type(data)} probably won't serialize to JSON.")

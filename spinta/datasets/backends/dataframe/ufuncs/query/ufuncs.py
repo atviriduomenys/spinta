@@ -461,10 +461,24 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
-    return GetAttr(obj, attr)
+def getattr_(env: DaskDataFrameQueryBuilder, field: Bind, attr: Bind):
+    breakpoint()
+    prop = env.prop.model.properties[field.name]
+    return env.call("getattr", prop, attr)
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
-    raise SourceOrPrepareNotAllowed(source=str(source))
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, prop: Property, attr: Bind):
+    return env.call("getattr", prop.dtype, attr)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, dtype: DataType, attr: Bind):
+    raise ValueError
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, dtype: Ref, attr: Bind):
+    breakpoint()
+    # handle error
+    return dtype.properties[attr.name]

@@ -7,7 +7,7 @@ from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
-from spinta.types.datatype import DataType, String, PrimaryKey, Denorm
+from spinta.types.datatype import DataType, String, PrimaryKey, Denorm, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import (
@@ -59,7 +59,24 @@ def _denorm_to_foreign_property(env: QueryBuilder, dtype: Denorm):
 
 @ufunc.resolver(QueryBuilder, Bind, Bind, name="getattr")
 def getattr_(env: QueryBuilder, field: Bind, attr: Bind):
-    return GetAttr(field.name, attr)
+    prop = env.model.properties[field.name]
+    return env.call("getattr", prop, attr)
+
+
+@ufunc.resolver(QueryBuilder, Property, Bind, name="getattr")
+def getattr_(env: QueryBuilder, prop: Property, attr: Bind):
+    return env.call("getattr", prop.dtype, attr)
+
+
+@ufunc.resolver(QueryBuilder, DataType, Bind, name="getattr")
+def getattr_(env: QueryBuilder, dtype: DataType, attr: Bind):
+    raise ValueError
+
+
+@ufunc.resolver(QueryBuilder, Ref, Bind, name="getattr")
+def getattr_(env: QueryBuilder, dtype: Ref, attr: Bind):
+    # handle error
+    return dtype.properties[attr.name]
 
 
 @ufunc.resolver(QueryBuilder, Bind, GetAttr, name="getattr")
