@@ -1166,7 +1166,7 @@ def test_xml_read_text_lang_select_multiple_variants_search(rc: RawConfig, tmp_p
     app.authmodel("example/xml/City", ["getall", "search"])
 
     resp = app.get("/example/xml/City?select(code,name@lt,name@en)")
-    assert listdata(resp, "code", "name", sort=False) == [
-        ("KNS", {"lt": "Kaunas", "en": "Kaunas_en"}),
-        ("VNO", {"lt": "Vilnius", "en": "Vilnius_en"}),
+    assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
+        ("KNS", {"lt": "Kaunas", "en": "Kaunas_en"}, None, None),
+        ("VNO", {"lt": "Vilnius", "en": "Vilnius_en"}, None, None),
     ]
