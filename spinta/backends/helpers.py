@@ -22,10 +22,8 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
-from spinta.core.ufuncs import GetAttr
 from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import DataType, Denorm
-from spinta.types.text.components import Text
 from spinta.utils.data import take
 from spinta.backends.constants import TableType, BackendOrigin
 
