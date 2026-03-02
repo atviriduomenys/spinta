@@ -667,7 +667,7 @@ def prepare_data_for_response(
 
     response = {}
     for prop, val, sel in selected_props:
-        response[prop.place] = commands.prepare_dtype_for_response(
+        response[prop.name] = commands.prepare_dtype_for_response(
             context,
             fmt,
             prop.dtype,
@@ -1567,6 +1567,29 @@ def prepare_dtype_for_response(
             if key not in select.keys():
                 return data
     return value
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Text, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Text,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    prop_name = dtype.prop.name
+    prop_lang_keys = dtype.langs.keys()
+    result = {}
+    if data is not None and select is not None:
+        for key, item_value in data.items():
+            if key.startswith(prop_name):
+                for prop_lang_key in prop_lang_keys:
+                    if key.endswith(f"@{prop_lang_key}") and prop_lang_key in select.keys():
+                        result[prop_lang_key] = item_value
+    return result
 
 
 def get_property_base_model(model: Model, name: str):

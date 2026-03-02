@@ -1167,6 +1167,47 @@ def test_xml_read_text_lang_select_multiple_variants_search(rc: RawConfig, tmp_p
 
     resp = app.get("/example/xml/City?select(code,name@lt,name@en)")
     assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
-        ("KNS", {"lt": "Kaunas", "en": "Kaunas_en"}, None, None),
-        ("VNO", {"lt": "Vilnius", "en": "Vilnius_en"}, None, None),
+        ("KNS", {"lt": "Kaunas", "en": "Kaunas_en"}, NA, NA),
+        ("VNO", {"lt": "Vilnius", "en": "Vilnius_en"}, NA, NA),
+    ]
+
+
+def test_xml_read_text_lang_select_multiple_variants_search_variant(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <miestai>
+            <miestas>
+                <pavadinimas_lt>Kaunas</pavadinimas_lt>
+                <pavadinimas_en>Kaunas_en</pavadinimas_en>
+                <kodas>KNS</kodas>
+            </miestas>
+            <miestas>
+                <pavadinimas_lt>Vilnius</pavadinimas_lt>
+                <pavadinimas_en>Vilnius_en</pavadinimas_en>
+                <kodas>VNO</kodas>
+            </miestas>
+        </miestai>
+    """
+    path = tmp_path / "miestai.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type     | ref  | source               | access
+    example/xml              |          |      |                      |
+      | xml                  | dask/xml |      | {path}               |
+      |   |   | City         |          | code | /miestai/miestas      |
+      |   |   |   | name@lt  | string   |      | pavadinimas_lt/text() | open
+      |   |   |   | name@en  | string   |      | pavadinimas_en/text() | open
+      |   |   |   | code     | string   |      | kodas/text()          | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall", "search"])
+
+    resp = app.get("/example/xml/City?select(code,name@lt)")
+    assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
+        ("KNS", {"lt": "Kaunas"}, NA, NA),
+        ("VNO", {"lt": "Vilnius"}, NA, NA),
     ]

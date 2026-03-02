@@ -246,14 +246,6 @@ def _select_prop(
     props: Dict[str, Property],
     node: Union[Namespace, Model, Property],
 ) -> Optional[Property]:
-    text_props = {p for p in props.values() if isinstance(p.dtype, Text) and p.dtype.langs}
-    if text_props:
-        for prop in text_props:
-            langs = prop.dtype.langs.values()
-            for lang in langs:
-                if lang.place == key:
-                    return lang
-
     if not (prop := props.get(key)) or prop.hidden:
         return None
 
