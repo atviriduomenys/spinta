@@ -42,7 +42,7 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.components import UrlParams, page_in_data
 from spinta.core.enums import Action
-from spinta.core.ufuncs import asttoexpr
+from spinta.core.ufuncs import asttoexpr, Expr
 from spinta.exceptions import (
     ConflictingValue,
     RequiredProperty,
@@ -54,6 +54,7 @@ from spinta.exceptions import (
     SRIDNotSetForGeometry,
     InvalidUuidValue,
     DirectRefValueUnassignment,
+    ValueNotInEnum,
 )
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
@@ -75,6 +76,7 @@ from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
+from spinta.ufuncs.resultbuilder.components import EnumResultBuilder
 from spinta.utils.types import is_nan
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
@@ -220,6 +222,7 @@ def simple_data_check(
     model: Model,
     backend: Backend,
 ) -> None:
+    simple_revision_check(context, data, model, backend)
     simple_model_properties_check(context, data, model, backend)
 
 
@@ -230,6 +233,7 @@ def simple_data_check(
     prop: Property,
     backend: Backend,
 ) -> None:
+    simple_revision_check(context, data, prop, backend)
     simple_data_check(
         context,
         data,
@@ -257,6 +261,53 @@ def simple_model_properties_check(
         )
 
 
+def simple_revision_check(
+    context: Context,
+    data: DataItem,
+    node: Node,
+    backend: Backend,
+) -> None:
+    # Action.DELETE is ignore for qvarn compatibility reasons.
+    # XXX: make `spinta` check for revision on Action.DELETE,
+    #      implementers can override this command as they please.
+    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
+    if updating and "_revision" not in data.given:
+        raise NoItemRevision(node)
+
+
+def simple_enum_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if not prop.enum:
+        return
+
+    if value is None and not dtype.required:
+        return
+    elif value is None:
+        raise ValueNotInEnum(prop, value=value)
+
+    if str(value) in prop.enum:
+        return
+
+    check_value = value
+    enum_contains_expr = any(isinstance(enum.prepare, Expr) for enum in prop.enum.values())
+    if enum_contains_expr:
+        for enum in prop.enum.values():
+            env = EnumResultBuilder(context).init(value)
+            val = env.resolve(enum.prepare)
+            if env.has_value_changed:
+                check_value = val
+                break
+
+    if str(check_value) not in prop.enum:
+        raise ValueNotInEnum(prop, value=value)
+
+
 @commands.simple_data_check.register(Context, DataItem, DataType, Property, Backend, object)
 def simple_data_check(
     context: Context,
@@ -269,12 +320,7 @@ def simple_data_check(
     if data.action in (Action.UPDATE, Action.INSERT, Action.PATCH, Action.UPSERT):
         check_type_value(dtype, value, data.action)
 
-    # Action.DELETE is ignore for qvarn compatibility reasons.
-    # XXX: make `spinta` check for revision on Action.DELETE,
-    #      implementers can override this command as they please.
-    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
-    if updating and "_revision" not in data.given:
-        raise NoItemRevision(prop)
+    simple_enum_check(context, data, dtype, prop, backend, value)
 
 
 @commands.simple_data_check.register(Context, DataItem, UUID, Property, Backend, str)
@@ -286,25 +332,14 @@ def simple_data_check(
     backend: Backend,
     value: str,
 ) -> None:
+    base_check = commands.simple_data_check[Context, DataItem, DataType, Property, Backend, object]
+    base_check(context, data, dtype, prop, backend, value)
+
     if not isinstance(value, uuid.UUID):
         try:
             uuid.UUID(str(value))
         except ValueError:
             raise InvalidUuidValue(prop, value=value)
-
-
-@commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
-def simple_data_check(
-    context: Context,
-    data: DataItem,
-    dtype: Object,
-    prop: Property,
-    backend: Backend,
-    value: Dict[str, Any],
-) -> None:
-    for prop in dtype.properties.values():
-        v = value.get(prop.name, NA)
-        simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
 
 
 @commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
@@ -336,6 +371,8 @@ def simple_data_check(
             if lang == "" and "C" in langs:
                 continue
             raise LangNotDeclared(dtype, lang=lang)
+
+        simple_data_check(context, data, dtype.langs[lang].dtype, dtype.langs[lang], backend, val)
 
 
 @commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
@@ -425,21 +462,26 @@ def simple_data_check(
     backend: Backend,
     value: str,
 ) -> None:
-    if value:
-        if ";" in value:
-            shape = shapely.wkt.loads(value.split(";", 1)[1])
-        else:
-            shape = shapely.wkt.loads(value)
+    base_check = commands.simple_data_check[Context, DataItem, DataType, Property, Backend, object]
+    base_check(context, data, dtype, prop, backend, value)
 
-        srid = dtype.srid
+    if not value:
+        return
 
-        if srid is None:
-            raise SRIDNotSetForGeometry(dtype, property=prop)
+    if ";" in value:
+        shape = shapely.wkt.loads(value.split(";", 1)[1])
+    else:
+        shape = shapely.wkt.loads(value)
 
-        bounding_area = get_crs_bounding_area(srid)
+    srid = dtype.srid
 
-        if not bounding_area.contains(shape):
-            raise CoordinatesOutOfRange(dtype, given=value, srid=srid, bounds=bounding_area.bounds)
+    if srid is None:
+        raise SRIDNotSetForGeometry(dtype, property=prop)
+
+    bounding_area = get_crs_bounding_area(srid)
+
+    if not bounding_area.contains(shape):
+        raise CoordinatesOutOfRange(dtype, given=value, srid=srid, bounds=bounding_area.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
