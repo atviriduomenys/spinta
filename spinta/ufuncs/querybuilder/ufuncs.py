@@ -320,7 +320,9 @@ def select(env: QueryBuilder, dtype: Denorm, flip_: Flip):
 def select(env: QueryBuilder, fpr: ForeignProperty, dtype: DataType, flip_: Flip):
     return env.call("select", fpr, dtype, Expr("flip"))
 
+
 # Pasirašyti select su expr.
+
 
 @ufunc.resolver(QueryBuilder, GetAttr)
 def sort(env, field):
