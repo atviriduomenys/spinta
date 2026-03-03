@@ -1,10 +1,28 @@
-from spinta import commands
+from typing import Any, List
+
+from spinta import commands, exceptions
 from spinta.components import Context
 from spinta.core.access import link_access_param
+from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
 from spinta.dimensions.param.helpers import link_params
 from spinta.exceptions import MissingReference
 from spinta.ufuncs.linkbuilder.components import LinkBuilder
+from spinta.utils.schema import NA
+
+
+def _get_compare_operators(expr: Any) -> List[str]:
+    from spinta.core.ufuncs import Expr
+    from spinta.datasets.backends.dataframe.ufuncs.query.ufuncs import COMPARE
+
+    if not isinstance(expr, Expr):
+        return []
+    found = [expr.name] if expr.name in COMPARE else []
+    for arg in expr.args:
+        found.extend(_get_compare_operators(arg))
+    for value in expr.kwargs.values():
+        found.extend(_get_compare_operators(value))
+    return list(dict.fromkeys(found))
 
 
 @commands.link.register(Context, Dataset)
@@ -49,6 +67,18 @@ def link(context: Context, entity: Entity):
             # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
             resource: str = entity.resource
             entity.resource = resources[resource]
+
+            if (
+                context.has("strict_check")
+                and context.get("strict_check")
+                and isinstance(entity.resource.backend, DaskBackend)
+                and entity.prepare is not NA
+            ):
+                ops = _get_compare_operators(entity.prepare)
+                if ops:
+                    context.get("error_manager").handle_error(
+                        exceptions.DaskBackendCompareNotSupported(entity.model, operators=", ".join(ops))
+                    )
 
             assert entity.model.name not in entity.resource.models
             entity.resource.models[entity.model.name] = entity.model

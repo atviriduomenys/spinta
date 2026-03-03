@@ -971,6 +971,10 @@ class InvalidClientBackend(UserError):
     template = """Backend "{backend_name}" is not defined in the client file."""
 
 
+class DaskBackendCompareNotSupported(UserError):
+    template = "Dask backend does not support comparison operators in prepare formula. Found: {operators}."
+
+
 class InvalidClientBackendCredentials(UserError):
     template = """Credential "{key}" is not defined in the client's file's "{backend_name}" backends variable."""
 
