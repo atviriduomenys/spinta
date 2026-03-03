@@ -290,10 +290,7 @@ def dask_get_all(
                 elif sel.prep:
                     prep_dtype = getattr(sel.prep, "dtype", None)
                     if isinstance(sel.prop.dtype, Text):
-                        val = {}
-                        for lang_key, lang in sel.prop.dtype.langs.items():
-                            val[lang_key] = row[lang.external.name]
-
+                        val[sel.prop.name] = row
                     if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
                         res[prep_dtype.prop.name] = row
             res[key] = val

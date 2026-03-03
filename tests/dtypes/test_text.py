@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import ANY
 
 from pytest import FixtureRequest
 import pytest
@@ -47,9 +48,8 @@ def test_text(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@en, name@lt)")
-    assert listdata(resp, full=True) == [{"name.en": "Lithuania", "name.lt": "Lietuva"}]
-
-    listdata(resp, full=True)
+    data = resp.json()["_data"]
+    assert data == [{"name": {"lt": "Lietuva", "en": "Lithuania"}}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
