@@ -1,8 +1,7 @@
 import binascii
-from spinta.components import Property
-from spinta.types.datatype import DataType, String, PrimaryKey, Denorm, Ref
+from spinta.types.datatype import String
 
-from spinta.core.ufuncs import ufunc, Expr,  Negative, Bind, GetAttr
+from spinta.core.ufuncs import ufunc, Expr
 from spinta.exceptions import InvalidBase64String, NotImplementedFeature
 from spinta.types.datatype import String, Binary
 from spinta.types.geometry.components import Geometry
