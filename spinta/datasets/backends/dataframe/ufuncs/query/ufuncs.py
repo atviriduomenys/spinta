@@ -466,6 +466,7 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
 def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
+    breakpoint()
     return GetAttr(obj, attr)
 
 
