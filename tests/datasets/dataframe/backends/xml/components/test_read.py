@@ -1146,4 +1146,4 @@ def test_xml_passes_on_composite_prepare_if_no_soucre(rc: RawConfig, tmp_path: P
     app.authmodel("example/xml/Event", ["getall"])
     # Should not throw error, after code fix alter test
     with pytest.raises(TypeError, match="<class 'spinta.core.ufuncs.Expr'> probably won't serialize to JSON."):
-        resp = app.get("/example/xml/Event")
+        app.get("/example/xml/Event")
