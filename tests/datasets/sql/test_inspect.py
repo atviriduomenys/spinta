@@ -36,3 +36,10 @@ def test_longblob_type():
     table = "test"
 
     assert _get_column_type(column, table) == "binary"
+
+
+def test_json_type():
+    column = {"name": "test", "type": mysql.JSON()}
+    table = "test"
+
+    assert _get_column_type(column, table) == "object"
