@@ -286,9 +286,10 @@ def simple_enum_check(
     if not prop.enum:
         return
 
-    if value is None and not dtype.required:
+    value_not_given = value is None or value is NA
+    if value_not_given and not dtype.required:
         return
-    elif value is None:
+    elif value_not_given:
         raise ValueNotInEnum(prop, value=value)
 
     if str(value) in prop.enum:

@@ -128,7 +128,7 @@ def summary(context: Context, dtype: String, backend: PostgreSQL, **kwargs):
         )
     enum_list = []
     for key, value in dtype.prop.enum.items():
-        enum_list.append(value.prepare)
+        enum_list.append(key)
     try:
         prop = get_pg_column_name(dtype.prop.place)
         model = get_pg_table_name(get_table_name(dtype.prop))
@@ -154,6 +154,9 @@ def summary(context: Context, dtype: String, backend: PostgreSQL, **kwargs):
             if data["count"] != 1:
                 del data["_id"]
             data["_type"] = model_type
+            enum_value = dtype.prop.enum.get(str(data["bin"]))
+            if enum_value and enum_value.prepare:
+                data["bin"] = enum_value.prepare
             yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
