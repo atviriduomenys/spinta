@@ -190,7 +190,9 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         elif prop.external.prepare is not NA:
             # property without external name and with `prepare` is already evaluated
             # so just use evaluated value
-            result = Selected(prop=prop, prep=prop.external.prepare)
+            result = prop.external.prepare
+            result = env.call("select", prop.dtype, result)
+            # result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
@@ -460,25 +462,6 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     return resolved_values
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, field: Bind, attr: Bind):
-    breakpoint()
-    prop = env.prop.model.properties[field.name]
-    return env.call("getattr", prop, attr)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Property, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, prop: Property, attr: Bind):
-    return env.call("getattr", prop.dtype, attr)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, dtype: DataType, attr: Bind):
-    raise ValueError
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, dtype: Ref, attr: Bind):
-    breakpoint()
-    # handle error
-    return dtype.properties[attr.name]
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
+    raise SourceOrPrepareNotAllowed(source=str(source))

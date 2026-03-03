@@ -230,7 +230,6 @@ class Env:
             # Resolve arguments automatically.
             args, kwargs = expr.resolve(self)
             try:
-                breakpoint()
                 return ufunc(self, *args, **kwargs)
             except NotImplementedError:
                 return self.default_resolver(expr, *args, **kwargs)

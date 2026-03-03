@@ -35,6 +35,7 @@ class DaskDataFrameQueryBuilder(Env):
 
     def build(self, where):
         if self.selected is None:
+            # Expr("select") keistas - patikrinti.
             self.call("select", Expr("select"))
         df = self.dataframe
 
