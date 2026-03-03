@@ -59,24 +59,7 @@ def _denorm_to_foreign_property(env: QueryBuilder, dtype: Denorm):
 
 @ufunc.resolver(QueryBuilder, Bind, Bind, name="getattr")
 def getattr_(env: QueryBuilder, field: Bind, attr: Bind):
-    prop = env.model.properties[field.name]
-    return env.call("getattr", prop, attr)
-
-
-@ufunc.resolver(QueryBuilder, Property, Bind, name="getattr")
-def getattr_(env: QueryBuilder, prop: Property, attr: Bind):
-    return env.call("getattr", prop.dtype, attr)
-
-
-@ufunc.resolver(QueryBuilder, DataType, Bind, name="getattr")
-def getattr_(env: QueryBuilder, dtype: DataType, attr: Bind):
-    raise ValueError
-
-
-@ufunc.resolver(QueryBuilder, Ref, Bind, name="getattr")
-def getattr_(env: QueryBuilder, dtype: Ref, attr: Bind):
-    # handle error
-    return dtype.properties[attr.name]
+    return GetAttr(field.name, attr)
 
 
 @ufunc.resolver(QueryBuilder, Bind, GetAttr, name="getattr")
