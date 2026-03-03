@@ -282,18 +282,26 @@ def dask_get_all(
         }
         for key, sel in env.selected.items():
             val = _get_row_value(context, row, sel, env.params)
+            sel_prop_parent = getattr(sel.prop, "parent", None)
+            sel_prop_parent_dtype = getattr(sel_prop_parent, "dtype", None)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
-                elif sel.prep:
-                    prep_dtype = getattr(sel.prep, "dtype", None)
-                    if isinstance(sel.prop.dtype, Text):
-                        val[sel.prop.name] = row
-                    if not isinstance(sel.prep, Expr) and isinstance(prep_dtype, Text):
-                        res[prep_dtype.prop.name] = row
-            res[key] = val
+
+            if not isinstance(sel_prop_parent_dtype, Text):
+                res[key] = val
+            elif isinstance(sel_prop_parent_dtype, Text) and isinstance(val, str):
+                existing = res.get(sel.prop.parent.name)
+                if isinstance(existing, dict) and "args" in existing:
+                    value = existing.get("args") or {}
+                elif isinstance(existing, dict):
+                    value = existing
+                else:
+                    value = {}
+                value = {**value, key: val}
+                res[sel.prop.parent.name] = {"data": row, "args": value}
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
 

@@ -128,11 +128,43 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
     env.selected = {}
     if args:
         for key, arg in args:
-            env.selected[key] = env.call("select", arg)
+            parent = getattr(arg, "parent", None)
+            if parent and isinstance(parent.dtype, Text):
+                result = env.call("select", arg, expr)
+                env.selected[key] = env.call("select", arg, expr)
+                env.resolved[arg.place] = result
+            else:
+                env.selected[key] = env.call("select", arg)
     else:
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
-                env.selected[prop.place] = env.call("select", prop)
+                if isinstance(prop.dtype, Text):
+                    for lang, lang_prop in prop.dtype.langs.items():
+                        result = env.call("select", lang_prop)
+                        env.selected[lang_prop.place] = result
+                else:
+                    env.selected[prop.place] = env.call("select", prop)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property, Expr)
+def select(env: DaskDataFrameQueryBuilder, prop: Property, expr: Expr):
+    parent_name = prop.parent.name if prop.parent else None
+    name = prop.name
+
+    if expr.name == "select":
+        for expr_arg in expr.args:
+            expr_arg_name = getattr(expr_arg, "name", None)
+            if expr_arg_name == "getattr":
+                getattr_args = getattr(expr_arg, "args", [])
+                if len(getattr_args) != 2:
+                    return env.call("select", prop)
+                for index, getattr_arg in enumerate(getattr_args):
+                    getattr_arg_name = getattr(getattr_arg, "name", None)
+                    if index == 0 and getattr_arg_name == "bind":
+                        getattr_arg_args = getattr(getattr_arg, "args", [])
+                        getattr_arg_other_args = getattr(getattr_args[1], "args", [])
+                        if getattr_arg_args[0] == parent_name and getattr_arg_other_args[0] == name:
+                            return Selected(item=prop.external.name, prop=prop)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
@@ -218,24 +250,10 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, String)
 def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
-    if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
-        return Selected(
-            item=dtype.prop.external.name,
-            prop=dtype.prop,
-            prep=dtype.prop.parent,
-        )
     return Selected(
         item=dtype.prop.external.name,
         prop=dtype.prop,
     )
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Text)
-def select(env: DaskDataFrameQueryBuilder, dtype: Text) -> Selected:
-    prep = {}
-    for lang, prop in dtype.langs.items():
-        prep[lang] = env.call("select", prop)
-    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)
@@ -300,12 +318,6 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
         prop=dtype.prop,
         prep=env.call("select", fpr, fpr.right.prop),
     )
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Text, object)
-def select(env: DaskDataFrameQueryBuilder, dtype: Text, prep: Any) -> Selected:
-    prep = {lang: env.call("select", prop, prep) for lang, prop in dtype.langs.items()}
-    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)

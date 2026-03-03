@@ -1763,39 +1763,43 @@ def cast_backend_to_python(
 
 @commands.cast_backend_to_python.register(Context, Text, Backend, dict)
 def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
-    lang_external_names = data.keys()
+    lang_external = data.get("data", {})
+    lang_values = data.get("args", {}).values()
+    lang_external_names = lang_external.keys()
+    lang_keys = []
+
+    for external_name, value in lang_external.items():
+        if value in lang_values:
+            lang_keys.append(external_name)
+
+    if not lang_keys:
+        return {
+            k: commands.cast_backend_to_python(
+                context,
+                dtype,
+                backend,
+                v,
+                **kwargs,
+            ) if k in dtype.langs else v
+            for k, v in lang_external.items()
+        }
 
     def iter_lang_values():
-        for lang_key, lang in dtype.langs.items():
+        for dtype_lang_key, lang in dtype.langs.items():
             external_name = lang.external.name
             prop_name = dtype.prop.name
-            if prop_name in data and isinstance(data[prop_name], dict) and external_name in data[prop_name]:
-                yield lang_key, commands.cast_backend_to_python(
+            if external_name not in lang_keys:
+                continue
+
+            if prop_name not in lang_external_names and external_name in lang_external:
+                yield dtype_lang_key, commands.cast_backend_to_python(
                     context,
-                    dtype.langs.get(lang_key),
+                    dtype.langs.get(dtype_lang_key),
                     backend,
-                    data[prop_name][external_name],
+                    lang_external[external_name],
                     **kwargs,
                 )
                 continue
-            if prop_name not in data and lang_key in data:
-                yield lang_key, commands.cast_backend_to_python(
-                    context,
-                    dtype.langs.get(lang_key),
-                    backend,
-                    data[lang_key],
-                    **kwargs,
-                )
-                continue
-            if external_name not in lang_external_names:
-                continue
-            yield lang_key, commands.cast_backend_to_python(
-                context,
-                dtype.langs.get(lang_key),
-                backend,
-                data[external_name],
-                **kwargs,
-            )
 
     return dict(iter_lang_values())
 
