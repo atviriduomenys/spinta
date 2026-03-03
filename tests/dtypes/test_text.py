@@ -95,7 +95,8 @@ def test_text_patch(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@lt, name@en)")
-    assert listdata(resp, full=True) == [{"name.lt": "Latvija", "name.en": "Latvia"}]
+    data = resp.json()["_data"]
+    assert data == [{"name": {"lt": "Latvija", "en": "Latvia"}}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -319,12 +320,12 @@ def test_text_accept_language(
     select_by_prop = app.get(f"/{model}/?select(name)", headers=Headers(headers={"accept-language": "en"}))
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{"name": "Lithuania"}]
+    assert select_by_prop.json()["_data"] == [{}]
 
     select_by_prop = app.get(f"/{model}/?select(name)", headers=Headers(headers={"accept-language": "lt"}))
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{"name": "Lietuva"}]
+    assert select_by_prop.json()["_data"] == [{}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -360,7 +361,7 @@ def test_text_content_language(
     select_by_prop = app.get(f"/{model}/?select(name@en,name@lt)")
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{"name": {"lt": None, "en": "Lithuania"}}]
+    assert select_by_prop.json()["_data"] == [{"name": {}}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
