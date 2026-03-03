@@ -1791,6 +1791,15 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
             if external_name not in lang_keys:
                 continue
 
+            if prop_name in lang_external and isinstance(lang_external[prop_name], dict) and external_name in lang_external[prop_name]:
+                yield dtype_lang_key, commands.cast_backend_to_python(
+                    context,
+                    dtype.langs.get(dtype_lang_key),
+                    backend,
+                    lang_external[prop_name][external_name],
+                    **kwargs,
+                )
+                continue
             if prop_name not in lang_external_names and external_name in lang_external:
                 yield dtype_lang_key, commands.cast_backend_to_python(
                     context,
@@ -1800,6 +1809,15 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
                     **kwargs,
                 )
                 continue
+            if external_name not in lang_external_names:
+                continue
+            yield dtype_lang_key, commands.cast_backend_to_python(
+                context,
+                dtype.langs.get(dtype_lang_key),
+                backend,
+                lang_external[external_name],
+                **kwargs,
+            )
 
     return dict(iter_lang_values())
 

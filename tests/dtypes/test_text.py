@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest.mock import ANY
 
 from pytest import FixtureRequest
 import pytest
