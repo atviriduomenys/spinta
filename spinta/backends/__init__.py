@@ -656,18 +656,8 @@ def prepare_data_for_response(
     select: SelectTree,
     prop_names: List[str],
 ) -> dict:
-    reserved_props = get_model_reserved_props(action, page_in_data(value))
-    selected_props = select_model_props(
-        model,
-        prop_names,
-        value,
-        select,
-        reserved_props,
-    )
-
-    response = {}
-    for prop, val, sel in selected_props:
-        response[prop.name] = commands.prepare_dtype_for_response(
+    return {
+        prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
             prop.dtype,
@@ -676,8 +666,14 @@ def prepare_data_for_response(
             action=action,
             select=sel,
         )
-
-    return response
+        for prop, val, sel in select_model_props(
+            model,
+            prop_names,
+            value,
+            select,
+            get_model_reserved_props(action, page_in_data(value)),
+        )
+    }
 
 
 @commands.prepare_data_for_response.register(Context, Object, Format, dict)

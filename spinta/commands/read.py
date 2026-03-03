@@ -393,9 +393,9 @@ async def getone(
                 ptree = params.changed_parsetree(
                     {
                         "path": (
-                            model.name.split("/") +
-                            [redirect_id] +
-                            ([params.prop.place] if params.prop is not None else [])
+                            model.name.split("/")
+                            + [redirect_id]
+                            + ([params.prop.place] if params.prop is not None else [])
                         )
                     }
                 )
