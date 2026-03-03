@@ -7,7 +7,7 @@ from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
-from spinta.types.datatype import DataType, String, PrimaryKey, Denorm, Ref
+from spinta.types.datatype import DataType, String, PrimaryKey, Denorm
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import (

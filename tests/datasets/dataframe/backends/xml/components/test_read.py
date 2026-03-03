@@ -1140,4 +1140,3 @@ def test_xml_passes_on_composite_prepare_if_no_source(rc: RawConfig, tmp_path: P
     app = create_test_client(context)
     app.authmodel("example/xml/Event", ["getall"])
     # Should not throw error, after code fix alter test
-
