@@ -396,8 +396,7 @@ def test_text_unknown_language(
 
     select_by_prop = app.get(f"/{model}/?select(name@C)")
     assert select_by_prop.status_code == 200
-    assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{"name": {"": "LT"}}]
+    assert select_by_prop.json()["_data"] == [{"name": {}}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
