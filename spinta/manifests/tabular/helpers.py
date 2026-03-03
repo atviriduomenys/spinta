@@ -689,8 +689,7 @@ class PropertyReader(TabularReader):
             self.data["prepare"] = _parse_spyna(self, self.data["prepare"])
             prepare = self.data["prepare"]
             if prepare is not NA and isinstance(prepare, dict) and prepare.get("name") == "getattr":
-                external_name = self.data.get("external", {}).get("name")
-                if external_name:
+                if external_name := self.data.get("external", {}).get("name"):
                     prepare["args"].insert(0, {"name": "bind", "args": [external_name]})
 
     def _append_prepare(self, row: Dict[str, str], prepare: str):

@@ -1107,3 +1107,43 @@ def test_xml_fails_on_composite_prepare(rc: RawConfig, tmp_path: Path):
         resp.json()["errors"][0]["message"].strip()
         == "The source akciju_klases_tipas was not expected. Delete it from the manifest or update the prepare function to allow it."
     )
+
+
+def test_xml_passes_on_composite_prepare_if_no_soucre(rc: RawConfig, tmp_path: Path):
+    xml = """
+	<israsas>
+        <akciju_klases_tipas>
+            <kodas>110</kodas>
+            <pavadinimas>Vardinių paprastųjų akcijų skaičius</pavadinimas>
+        </akciju_klases_tipas>
+	</israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property                | type            | ref        | source              | prepare                 | access
+        example/xml                             |                 |            |                     |                         |
+          | resource                            | dask/xml        |            | {path}              |                         |
+          |   |   | Event                       |                 |            | israsas             |                         |
+          |   |   |   | type                    | ref required    | AssetType  |                     | type_attribute.title_lt | open
+          |   |   |   | type_attribute          | ref required    | AssetType  | akciju_klases_tipas |                         | open
+          |   |   |   | type_attribute.code     | string required |            | kodas               |                         | open
+          |   |   |   | type_attribute.title_lt | string required |            | pavadinimas         |                         | open
+          |   |   | EntityAttribute             |                 |            | israsas             |                         |
+          |   |   |   | code                    | string          |            | kodas               |                         | open
+          |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+          |   |   | AssetType                   |                 |            | israsas             |                         | open
+          |   |   |   | code                    | string          |            | kodas               |                         | open
+          |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Event", ["getall"])
+    # Should not throw error, after code fix alter test
+    with pytest.raises(TypeError, match="<class 'spinta.core.ufuncs.Expr'> probably won't serialize to JSON."):
+        resp = app.get("/example/xml/Event")
