@@ -216,6 +216,14 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property, expr: Expr):
                             return Selected(item=prop.external.name, prop=prop)
 
 
+@ufunc.resolver(DaskDataFrameQueryBuilder, Text)
+def select(env: DaskDataFrameQueryBuilder, dtype: Text) -> Selected:
+    prep = {}
+    for lang, prop in dtype.langs.items():
+        prep[lang] = env.call("select", prop)
+    return Selected(prop=dtype.prop, prep=prep)
+
+
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
 def select(env: DaskDataFrameQueryBuilder, item: Bind, *, nested: bool = False):
     prop = _get_property_for_select(env, item.name, nested=nested)

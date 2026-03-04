@@ -303,7 +303,7 @@ def dask_get_all(
                 else:
                     value = {}
                 value = {**value, key: val}
-                res[sel.prop.parent.name] = {"data": row, "args": value}
+                res[sel.prop.parent.name] = {"_data": row, "_args": value}
             else:
                 res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)

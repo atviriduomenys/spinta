@@ -1765,8 +1765,8 @@ def cast_backend_to_python(
 
 @commands.cast_backend_to_python.register(Context, Text, Xml, dict)
 def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
-    lang_external = data.get("data", {})
-    lang_values = data.get("args", {}).values()
+    lang_external = data.get("_data", {})
+    lang_values = data.get("_args", {}).values()
     lang_external_names = lang_external.keys()
     lang_keys = []
 
@@ -1784,7 +1784,7 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
             )
             if k in dtype.langs
             else v
-            for k, v in lang_external.items()
+            for k, v in data.items()
         }
 
     def iter_lang_values():
@@ -1811,8 +1811,8 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, Text, Csv, dict)
 def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
-    lang_external = data.get("data", {})
-    lang_values = data.get("args", {}).values()
+    lang_external = data.get("_data", {})
+    lang_values = data.get("_args", {}).values()
     lang_external_names = lang_external.keys()
     lang_keys = []
 
@@ -1828,9 +1828,9 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
                 v,
                 **kwargs,
             )
-            if k in dtype.properties
+            if k in dtype.langs
             else v
-            for k, v in lang_external.items()
+            for k, v in data.items()
         }
 
     def iter_lang_values():
