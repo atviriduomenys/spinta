@@ -319,12 +319,12 @@ def test_text_accept_language(
     select_by_prop = app.get(f"/{model}/?select(name)", headers=Headers(headers={"accept-language": "en"}))
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{'name': 'Lithuania'}]
+    assert select_by_prop.json()["_data"] == [{"name": "Lithuania"}]
 
     select_by_prop = app.get(f"/{model}/?select(name)", headers=Headers(headers={"accept-language": "lt"}))
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{'name': 'Lietuva'}]
+    assert select_by_prop.json()["_data"] == [{"name": "Lietuva"}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")

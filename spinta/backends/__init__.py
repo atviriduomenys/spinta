@@ -1781,7 +1781,9 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
                 backend,
                 v,
                 **kwargs,
-            ) if k in dtype.langs else v
+            )
+            if k in dtype.langs
+            else v
             for k, v in lang_external.items()
         }
 

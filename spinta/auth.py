@@ -863,7 +863,7 @@ def authorized(
     unauthorized = token.get_client_id() == get_default_auth_client_id(context)
     open_node = False
     if node.access is None:
-        if node.parent and node.parent.dtype and node.parent.dtype.name == 'text':
+        if node.parent and node.parent.dtype and node.parent.dtype.name == "text":
             open_node = node.parent.access >= Access.protected
     else:
         open_node = node.access >= Access.open
