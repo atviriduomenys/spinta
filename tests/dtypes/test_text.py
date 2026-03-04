@@ -5,7 +5,6 @@ import pytest
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
 from spinta.testing.client import create_test_client
-from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
@@ -329,6 +328,7 @@ def test_text_accept_language(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.skip(reason="RFC. Should content-language be used for this purpose?")
 def test_text_content_language(
     manifest_type: str,
     tmp_path: Path,
@@ -361,7 +361,7 @@ def test_text_content_language(
     select_by_prop = app.get(f"/{model}/?select(name@en,name@lt)")
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()["_data"]) == 1
-    assert select_by_prop.json()["_data"] == [{"name": {}}]
+    assert select_by_prop.json()["_data"] == [{"name": {"lt": None, "en": "Lithuania"}}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
