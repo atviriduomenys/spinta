@@ -149,5 +149,7 @@ def get_enum_value(
         return prepare_value
 
     if validate:
+        if value_not_given and not prop.dtype.required:
+            return check_value
         raise ValueNotInEnum(prop, value=value)
     return check_value
