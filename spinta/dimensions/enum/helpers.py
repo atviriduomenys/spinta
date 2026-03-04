@@ -123,12 +123,7 @@ def get_enum_value(
         return value
 
     value_not_given = value is None or value is NA
-    if value_not_given and (not validate or not prop.dtype.required):
-        return value
-    elif value_not_given:
-        raise ValueNotInEnum(prop, value=value)
-
-    if str(value) in enum_options:
+    if not value_not_given and str(value) in enum_options:
         prepare_value = enum_options[str(value)].prepare
         if prepare_value is NA:
             return value
@@ -155,5 +150,4 @@ def get_enum_value(
 
     if validate:
         raise ValueNotInEnum(prop, value=value)
-    else:
-        return check_value
+    return check_value
