@@ -151,7 +151,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                         env.selected[lang_prop.place] = result
                 else:
                     if (
-                        isinstance(prop.dtype, Text) 
+                        isinstance(prop.dtype, Text)
                         and isinstance(prop_model_external_pkeys, list)
                         and prop in prop_model_external_pkeys
                     ):
