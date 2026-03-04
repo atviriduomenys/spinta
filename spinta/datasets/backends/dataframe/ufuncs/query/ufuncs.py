@@ -128,18 +128,24 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
     env.selected = {}
     if args:
         for key, arg in args:
+            model = env.model
+            prop = model.properties.get(key)
             parent = getattr(arg, "parent", None)
             if parent and isinstance(parent.dtype, Text):
                 result = env.call("select", arg, expr)
                 env.selected[key] = env.call("select", arg, expr)
                 env.resolved[arg.place] = result
+            elif prop is not None and isinstance(prop.dtype, Text) and authorized(env.context, prop, Action.GETALL):
+                for lang_prop in prop.dtype.langs.values():
+                    result = env.call("select", lang_prop)
+                    env.selected[lang_prop.place] = result
             else:
                 env.selected[key] = env.call("select", arg)
     else:
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 if isinstance(prop.dtype, Text):
-                    for lang, lang_prop in prop.dtype.langs.items():
+                    for lang_prop in prop.dtype.langs.values():
                         result = env.call("select", lang_prop)
                         env.selected[lang_prop.place] = result
                 else:

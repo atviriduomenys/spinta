@@ -1081,6 +1081,13 @@ def test_xml_read_text_lang_getall(rc: RawConfig, tmp_path: Path):
                 {"lt": "Vilnius"},
             ],
         ),
+        (
+            "code,name",
+            [
+                {"lt": "Kaunas", "en": "Kaunas_en"},
+                {"lt": "Vilnius", "en": "Vilnius_en"},
+            ],
+        ),
     ],
 )
 def test_xml_read_text_lang_select(rc: RawConfig, tmp_path: Path, select: str, expected_name: list[dict[str, str]]):
