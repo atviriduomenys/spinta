@@ -144,12 +144,50 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
     else:
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
-                if isinstance(prop.dtype, Text):
+                prop_model_external_pkeys = prop.model.external.pkeys if prop.model.external else None
+                if isinstance(prop.dtype, Text) and not isinstance(prop.model.external.pkeys, list):
                     for lang_prop in prop.dtype.langs.values():
                         result = env.call("select", lang_prop)
                         env.selected[lang_prop.place] = result
                 else:
-                    env.selected[prop.place] = env.call("select", prop)
+                    if (
+                        isinstance(prop.dtype, Text) and
+                        isinstance(prop_model_external_pkeys, list) and
+                        prop in prop_model_external_pkeys
+                    ):
+                        for lang_prop in prop.dtype.langs.values():
+                            result = env.call("select", lang_prop)
+                            env.resolved[lang_prop.place] = result
+                        for prop_external_pkey in prop_model_external_pkeys:
+                            resolved_primary_external_lang = None
+                            for lang_prop in prop_external_pkey.dtype.langs.values():
+                                for resolved_key, resolved in env.resolved.items():
+                                    if resolved_key == lang_prop.place:
+                                        resolved_primary_external_lang = resolved
+                                        break
+                            if resolved_primary_external_lang is None:
+                                raise RuntimeError(f"Primary external key {prop_external_pkey} is not resolved.")
+                            if (
+                                resolved_primary_external_lang.prop and
+                                resolved_primary_external_lang.prop.parent
+                            ):
+                                env.selected[prop.place] = env.call("select", resolved_primary_external_lang)
+                        else:
+                            selected = True if prop.place in env.selected else False
+                            resolved = False
+                            if selected:
+                                dtype = prop.dtype
+                                is_text = isinstance(dtype, Text)
+                                if is_text:
+                                    prop.dtype.langs
+                                    for resolved_key, resolved in env.resolved.items():
+                                        for lang_prop in prop.dtype.langs.values():
+                                            if resolved_key == lang_prop.place:
+                                                resolved = True
+                                                break
+                            if selected and resolved:
+                                continue
+                            env.selected[prop.place] = env.call("select", prop)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property, Expr)
@@ -208,6 +246,7 @@ def _get_property_for_select(
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
 def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
+    # external_prop = prop.model.external.prop
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
@@ -254,12 +293,12 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
     )
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, String)
-def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
-    return Selected(
-        item=dtype.prop.external.name,
-        prop=dtype.prop,
-    )
+# @ufunc.resolver(DaskDataFrameQueryBuilder, String)
+# def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
+#     return Selected(
+#         item=dtype.prop.external.name,
+#         prop=dtype.prop,
+#     )
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)

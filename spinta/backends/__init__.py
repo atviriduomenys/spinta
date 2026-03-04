@@ -43,6 +43,7 @@ from spinta.components import Property
 from spinta.components import UrlParams, page_in_data
 from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.dataframe.backends.csv.components import Csv
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.exceptions import (
     ConflictingValue,
@@ -1772,7 +1773,6 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
     for external_name, value in lang_external.items():
         if value in lang_values:
             lang_keys.append(external_name)
-
     if not lang_keys:
         return {
             k: commands.cast_backend_to_python(
@@ -1793,7 +1793,6 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
             prop_name = dtype.prop.name
             if external_name not in lang_keys:
                 continue
-
             if prop_name not in lang_external_names and external_name in lang_external:
                 yield dtype_lang_key, commands.cast_backend_to_python(
                     context,
@@ -1804,6 +1803,46 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
                 )
                 continue
 
+    return dict(iter_lang_values())
+
+
+@commands.cast_backend_to_python.register(Context, Object, Csv, dict)
+def cast_backend_to_python(context: Context, dtype: Object, backend: Backend, data: dict, **kwargs) -> dict:
+    lang_external = data.get("data", {})
+    lang_values = data.get("args", {}).values()
+    lang_external_names = lang_external.keys()
+    lang_keys = []
+
+    for external_name, value in lang_external.items():
+        if value in lang_values:
+            lang_keys.append(external_name)
+    if not lang_keys:
+        return {
+            k: commands.cast_backend_to_python(
+                context,
+                dtype,
+                backend,
+                v,
+                **kwargs,
+            )
+            if k in dtype.properties
+            else v
+            for k, v in lang_external.items()
+        }
+
+    def iter_lang_values():
+        for prop_name, prop in dtype.properties.items():
+            external_name = prop.external.name
+            if external_name not in lang_keys:
+                continue
+            if prop_name not in lang_external_names and external_name in lang_external:
+                yield prop_name, commands.cast_backend_to_python(
+                    context,
+                    prop.dtype,
+                    backend,
+                    lang_external[external_name],
+                    **kwargs,
+                )
     return dict(iter_lang_values())
 
 
