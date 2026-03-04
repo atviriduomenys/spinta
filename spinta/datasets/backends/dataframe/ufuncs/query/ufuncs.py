@@ -243,7 +243,6 @@ def _get_property_for_select(
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
 def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
-    # external_prop = prop.model.external.prop
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
@@ -288,14 +287,6 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
         item=dtype.prop.external.name,
         prop=dtype.prop,
     )
-
-
-# @ufunc.resolver(DaskDataFrameQueryBuilder, String)
-# def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
-#     return Selected(
-#         item=dtype.prop.external.name,
-#         prop=dtype.prop,
-#     )
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)
