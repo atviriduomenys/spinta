@@ -151,9 +151,9 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                         env.selected[lang_prop.place] = result
                 else:
                     if (
-                        isinstance(prop.dtype, Text) and
-                        isinstance(prop_model_external_pkeys, list) and
-                        prop in prop_model_external_pkeys
+                        isinstance(prop.dtype, Text) 
+                        and isinstance(prop_model_external_pkeys, list)
+                        and prop in prop_model_external_pkeys
                     ):
                         for lang_prop in prop.dtype.langs.values():
                             result = env.call("select", lang_prop)
@@ -167,10 +167,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                                         break
                             if resolved_primary_external_lang is None:
                                 raise RuntimeError(f"Primary external key {prop_external_pkey} is not resolved.")
-                            if (
-                                resolved_primary_external_lang.prop and
-                                resolved_primary_external_lang.prop.parent
-                            ):
+                            if resolved_primary_external_lang.prop and resolved_primary_external_lang.prop.parent:
                                 env.selected[prop.place] = env.call("select", resolved_primary_external_lang)
                         else:
                             selected = True if prop.place in env.selected else False

@@ -84,9 +84,9 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, row, sel, params)
         elif (
-            isinstance(sel.prop.dtype, PrimaryKey) and
-            isinstance(sel.prep, Selected) and
-            isinstance(sel.prep.prep, dict)
+            isinstance(sel.prop.dtype, PrimaryKey) 
+            and isinstance(sel.prep, Selected)
+            and isinstance(sel.prep.prep, dict)
         ):
             val = {}
             prep_item = sel.prep.prep
