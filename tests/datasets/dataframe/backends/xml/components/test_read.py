@@ -6,6 +6,7 @@ from responses import RequestsMock, POST
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
+from spinta.exceptions import SourceOrPrepareNotAllowed
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
@@ -1076,37 +1077,31 @@ def test_xml_fails_on_composite_prepare(rc: RawConfig, tmp_path: Path):
 
     path = tmp_path / "example.xml"
     path.write_text(xml)
-    context, manifest = prepare_manifest(
-        rc,
-        f"""
-        d | r | b | m | property                | type            | ref        | source              | prepare                 | access
-        example/xml                             |                 |            |                     |                         |
-          | resource                            | dask/xml        |            | {path}              |                         |
-          |   |   | Event                       |                 |            | israsas             |                         |
-          |   |   |   | type                    | ref required    | AssetType  | akciju_klases_tipas | type_attribute.title_lt | open
-          |   |   |   | type_attribute          | ref required    | AssetType  | akciju_klases_tipas |                         | open
-          |   |   |   | type_attribute.code     | string required |            | kodas               |                         | open
-          |   |   |   | type_attribute.title_lt | string required |            | pavadinimas         |                         | open
-          |   |   | EntityAttribute             |                 |            | israsas             |                         |
-          |   |   |   | code                    | string          |            | kodas               |                         | open
-          |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
-          |   |   | AssetType                   |                 |            | israsas             |                         | open
-          |   |   |   | code                    | string          |            | kodas               |                         | open
-          |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
-        """,
-        mode=Mode.external,
-    )
-    context.loaded = True
-    app = create_test_client(context)
-    app.authmodel("example/xml/Event", ["getall"])
-
-    resp = app.get("/example/xml/Event")
-    assert resp.status_code == 400
-    assert resp.json()["errors"][0]["code"] == "SourceOrPrepareNotAllowed"
-    assert (
-        resp.json()["errors"][0]["message"].strip()
-        == "The source akciju_klases_tipas was not expected. Delete it from the manifest or update the prepare function to allow it."
-    )
+    with pytest.raises(SourceOrPrepareNotAllowed) as error:
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property                | type            | ref        | source              | prepare                 | access
+            example/xml                             |                 |            |                     |                         |
+              | resource                            | dask/xml        |            | {path}              |                         |
+              |   |   | Event                       |                 |            | israsas             |                         |
+              |   |   |   | type                    | ref required    | AssetType  | akciju_klases_tipas | type_attribute.title_lt | open
+              |   |   |   | type_attribute          | ref required    | AssetType  | akciju_klases_tipas |                         | open
+              |   |   |   | type_attribute.code     | string required |            | kodas               |                         | open
+              |   |   |   | type_attribute.title_lt | string required |            | pavadinimas         |                         | open
+              |   |   | EntityAttribute             |                 |            | israsas             |                         |
+              |   |   |   | code                    | string          |            | kodas               |                         | open
+              |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+              |   |   | AssetType                   |                 |            | israsas             |                         | open
+              |   |   |   | code                    | string          |            | kodas               |                         | open
+              |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+            """,
+            mode=Mode.external,
+        )
+        assert (
+            error.value.args[0]
+            == "The source akciju_klases_tipas was not expected. Delete it from the manifest or update the prepare function to allow it."
+        )
 
 
 def test_xml_passes_on_composite_prepare_if_no_soucre(rc: RawConfig, tmp_path: Path):
