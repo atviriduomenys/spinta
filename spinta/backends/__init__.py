@@ -1806,8 +1806,8 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
     return dict(iter_lang_values())
 
 
-@commands.cast_backend_to_python.register(Context, Object, Csv, dict)
-def cast_backend_to_python(context: Context, dtype: Object, backend: Backend, data: dict, **kwargs) -> dict:
+@commands.cast_backend_to_python.register(Context, Text, Csv, dict)
+def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
     lang_external = data.get("data", {})
     lang_values = data.get("args", {}).values()
     lang_external_names = lang_external.keys()
@@ -1831,14 +1831,14 @@ def cast_backend_to_python(context: Context, dtype: Object, backend: Backend, da
         }
 
     def iter_lang_values():
-        for prop_name, prop in dtype.properties.items():
-            external_name = prop.external.name
+        for dtype_lang_key, lang in dtype.langs.items():
+            external_name = lang.external.name
             if external_name not in lang_keys:
                 continue
-            if prop_name not in lang_external_names and external_name in lang_external:
-                yield prop_name, commands.cast_backend_to_python(
+            if dtype_lang_key not in lang_external_names and external_name in lang_external:
+                yield dtype_lang_key, commands.cast_backend_to_python(
                     context,
-                    prop.dtype,
+                    lang.dtype,
                     backend,
                     lang_external[external_name],
                     **kwargs,
