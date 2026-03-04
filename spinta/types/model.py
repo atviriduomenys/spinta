@@ -436,6 +436,7 @@ def _link_prop_enum(
             raise UndefinedEnum(prop, name=prop.given.enum)
     elif prop.enums:
         return prop.enums.get("")
+    return None
 
 
 @overload
