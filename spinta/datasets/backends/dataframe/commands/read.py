@@ -306,8 +306,8 @@ def dask_get_all(
                     value = {}
                 value = {**value, key: val}
                 res[sel.prop.parent.name] = {"data": row, "args": value}
-        res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
-        yield res
+    res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
+    yield res
 
 
 @commands.wait.register(Context, DaskBackend)
