@@ -42,7 +42,8 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.components import UrlParams, page_in_data
 from spinta.core.enums import Action
-from spinta.core.ufuncs import asttoexpr, Expr
+from spinta.core.ufuncs import asttoexpr
+from spinta.dimensions.enum.helpers import get_enum_value
 from spinta.exceptions import (
     ConflictingValue,
     RequiredProperty,
@@ -54,7 +55,6 @@ from spinta.exceptions import (
     SRIDNotSetForGeometry,
     InvalidUuidValue,
     DirectRefValueUnassignment,
-    ValueNotInEnum,
 )
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
@@ -76,12 +76,11 @@ from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
-from spinta.ufuncs.resultbuilder.components import EnumResultBuilder
-from spinta.utils.types import is_nan
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+from spinta.utils.types import is_nan
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -275,40 +274,6 @@ def simple_revision_check(
         raise NoItemRevision(node)
 
 
-def simple_enum_check(
-    context: Context,
-    data: DataItem,
-    dtype: DataType,
-    prop: Property,
-    backend: Backend,
-    value: object,
-) -> None:
-    if not prop.enum:
-        return
-
-    value_not_given = value is None or value is NA
-    if value_not_given and not dtype.required:
-        return
-    elif value_not_given:
-        raise ValueNotInEnum(prop, value=value)
-
-    if str(value) in prop.enum:
-        return
-
-    check_value = value
-    enum_contains_expr = any(isinstance(enum.prepare, Expr) for enum in prop.enum.values())
-    if enum_contains_expr:
-        for enum in prop.enum.values():
-            env = EnumResultBuilder(context).init(value)
-            val = env.resolve(enum.prepare)
-            if env.has_value_changed:
-                check_value = val
-                break
-
-    if str(check_value) not in prop.enum:
-        raise ValueNotInEnum(prop, value=value)
-
-
 @commands.simple_data_check.register(Context, DataItem, DataType, Property, Backend, object)
 def simple_data_check(
     context: Context,
@@ -321,7 +286,8 @@ def simple_data_check(
     if data.action in (Action.UPDATE, Action.INSERT, Action.PATCH, Action.UPSERT):
         check_type_value(dtype, value, data.action)
 
-    simple_enum_check(context, data, dtype, prop, backend, value)
+    # Attempt to get enum value with validations enabled
+    get_enum_value(context=context, prop=prop, value=value, validate=True)
 
 
 @commands.simple_data_check.register(Context, DataItem, UUID, Property, Backend, str)
