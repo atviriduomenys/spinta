@@ -2,7 +2,6 @@
 
 Kartais reikia, kad iš vieno XML lauko susikurtų du skirtingi modeliai arba dvi skirtingos properties. 
 
-skirtas identifikuoti užsienio šalių gyvventojus, panašiai, kaip asmens kodas skirtas Lietuvos gyventojus. 
 Pavyzdžiui - ILTU kodas, kuris kartais pateikiamas tame pačiame lauke, kaip ir asmens kodas. 
 ILTU kodas skirtas identifikuoti užsienio šalių gyvventojus, panašiai, kaip asmens kodas skirtas Lietuvos gyventojus. 
 
@@ -72,7 +71,7 @@ id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,orig
 
 1. Su dviem modeliais, paprašius duomenų, gaunamas toks rezultatas:
 
-Modelis Asmuo:
+Modelis `Asmuo`:
 
 ```json
 http http://localhost:8000/dataset/Asmuo
@@ -99,7 +98,7 @@ http http://localhost:8000/dataset/Asmuo
 }
 ```
 
-Modelis UzsienioAsmuo:
+Modelis `UzsienioAsmuo`:
 
 ```json
 http http://localhost:8000/dataset/UzsienioAsmuo
@@ -119,7 +118,7 @@ http http://localhost:8000/dataset/UzsienioAsmuo
 
 ```
 
-2. Su vienu modeliu:
+2. Su vienu modeliu, skirtingomis properties, gaunamas toks rezultatas:
 
 ```json
  http http://localhost:8000/dataset/Asmuo
