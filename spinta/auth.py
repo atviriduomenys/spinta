@@ -864,7 +864,7 @@ def authorized(
     open_node = False
     if node.access is None:
         if node.parent and node.parent.dtype and node.parent.dtype.name == "text":
-            open_node = node.parent.access >= Access.protected
+            open_node = node.parent.access >= Access.open
     else:
         open_node = node.access >= Access.open
     if unauthorized and not open_node:
