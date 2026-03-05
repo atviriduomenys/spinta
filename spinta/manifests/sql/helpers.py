@@ -254,6 +254,7 @@ TYPES = [
     (mysql.BIT, "string"),
     (mysql.VARBINARY, "string"),
     (mysql.VARCHAR, "string"),
+    (mysql.JSON, "object"),
     (postgresql.ARRAY, "array"),
     (postgresql.JSON, "object"),
     (postgresql.JSONB, "object"),
