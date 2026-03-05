@@ -505,7 +505,7 @@ def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> GetAttr:
         prop = model.properties[obj.name]
         if isinstance(prop.dtype, Text):
             if attr.name in prop.dtype.langs:
-                return GetAttr(name=prop.dtype.langs[attr.name], obj='lang')
+                return GetAttr(name=prop.dtype.langs[attr.name], obj="lang")
             else:
                 raise PropertyNotFound(model, property=obj, lang=attr)
 
