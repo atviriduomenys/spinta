@@ -190,6 +190,7 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         elif prop.external.prepare is not NA:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
+                breakpoint()
                 result = env.call("select", prop.dtype, result)
             else:
                 result = Selected(prop=prop, prep=prop.external.prepare)
@@ -207,6 +208,7 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
+        breakpoint()
         assert isinstance(result, Selected), prop
         env.resolved[prop.place] = result
     return env.resolved[prop.place]
