@@ -295,15 +295,15 @@ def dask_get_all(
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
 
             if isinstance(selected_prop_parent_dtype, Text) and isinstance(val, str):
-                existing = res.get(sel.prop.parent.name)
-                if isinstance(existing, dict) and "args" in existing:
-                    value = existing.get("args") or {}
+                existing = res.get(selected_prop_parent.name)
+                if isinstance(existing, dict) and "_args" in existing:
+                    value = existing.get("_args") or {}
                 elif isinstance(existing, dict):
                     value = existing
                 else:
                     value = {}
                 value = {**value, key: val}
-                res[sel.prop.parent.name] = {"_data": row, "_args": value}
+                res[selected_prop_parent.name] = {"_data": row, "_args": value}
             else:
                 res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)

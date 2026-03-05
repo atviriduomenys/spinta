@@ -1766,13 +1766,14 @@ def cast_backend_to_python(
 @commands.cast_backend_to_python.register(Context, Text, Xml, dict)
 def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
     lang_external = data.get("_data", {})
-    lang_values = data.get("_args", {}).values()
+    lang_dict_values = data.get("_args", {}).values()
     lang_external_names = lang_external.keys()
     lang_keys = []
 
     for external_name, value in lang_external.items():
-        if value in lang_values:
+        if value in lang_dict_values:
             lang_keys.append(external_name)
+
     if not lang_keys:
         return {
             k: commands.cast_backend_to_python(
@@ -1812,13 +1813,14 @@ def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data
 @commands.cast_backend_to_python.register(Context, Text, Csv, dict)
 def cast_backend_to_python(context: Context, dtype: Text, backend: Backend, data: dict, **kwargs) -> dict:
     lang_external = data.get("_data", {})
-    lang_values = data.get("_args", {}).values()
+    lang_dict_values = data.get("_args", {}).values()
     lang_external_names = lang_external.keys()
     lang_keys = []
 
     for external_name, value in lang_external.items():
-        if value in lang_values:
+        if value in lang_dict_values:
             lang_keys.append(external_name)
+
     if not lang_keys:
         return {
             k: commands.cast_backend_to_python(
