@@ -130,11 +130,12 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
         for key, arg in args:
             model = env.model
             prop = model.properties.get(key)
-            parent = getattr(arg, "parent", None)
+            arg_name = getattr(arg, "name", None)
+            parent = getattr(arg_name, "parent", None)
             if parent and isinstance(parent.dtype, Text):
-                result = env.call("select", arg, expr)
-                env.selected[key] = env.call("select", arg, expr)
-                env.resolved[arg.place] = result
+                result = env.call("select", arg_name, expr)
+                env.selected[key] = env.call("select", arg_name, expr)
+                env.resolved[arg_name.place] = result
             elif prop is not None and isinstance(prop.dtype, Text) and authorized(env.context, prop, Action.GETALL):
                 for lang_prop in prop.dtype.langs.values():
                     result = env.call("select", lang_prop)
@@ -504,7 +505,7 @@ def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> GetAttr:
         prop = model.properties[obj.name]
         if isinstance(prop.dtype, Text):
             if attr.name in prop.dtype.langs:
-                return prop.dtype.langs[attr.name]
+                return GetAttr(name=prop.dtype.langs[attr.name], obj='lang')
             else:
                 raise PropertyNotFound(model, property=obj, lang=attr)
 
