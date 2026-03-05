@@ -6,60 +6,79 @@
 #
 alabaster==1.0.0
     # via sphinx
-anyio==4.11.0
+anyio==4.12.1
     # via
     #   starlette
     #   watchfiles
-babel==2.17.0
-    # via sphinx
-certifi==2025.10.5
+babel==2.18.0
+    # via
+    #   sphinx
+    #   sphinx-intl
+certifi==2026.2.25
     # via requests
-charset-normalizer==3.4.3
+charset-normalizer==3.4.4
     # via requests
-click==8.3.0
-    # via uvicorn
+click==8.3.1
+    # via
+    #   sphinx-intl
+    #   uvicorn
 colorama==0.4.6
     # via sphinx-autobuild
 docutils==0.21.2
     # via
+    #   myst-parser
     #   sphinx
     #   sphinx-rtd-theme
-exceptiongroup==1.3.0
+exceptiongroup==1.3.1
     # via anyio
 h11==0.16.0
     # via uvicorn
-idna==3.10
+idna==3.11
     # via
     #   anyio
     #   requests
 imagesize==1.4.1
     # via sphinx
 jinja2==3.1.6
-    # via sphinx
+    # via
+    #   myst-parser
+    #   sphinx
+markdown-it-py==3.0.0
+    # via
+    #   mdit-py-plugins
+    #   myst-parser
 markupsafe==3.0.3
     # via jinja2
-packaging==25.0
+mdit-py-plugins==0.5.0
+    # via myst-parser
+mdurl==0.1.2
+    # via markdown-it-py
+myst-parser==4.0.1
+    # via -r requirements.in
+packaging==26.0
     # via sphinx
 pygments==2.19.2
     # via sphinx
+pyyaml==6.0.3
+    # via myst-parser
 requests==2.32.5
     # via sphinx
-six==1.17.0
-    # via sphinxcontrib-httpdomain
-sniffio==1.3.1
-    # via anyio
 snowballstemmer==3.0.1
     # via sphinx
 sphinx==8.1.3
     # via
     #   -r requirements.in
+    #   myst-parser
     #   sphinx-autobuild
+    #   sphinx-intl
     #   sphinx-rtd-theme
     #   sphinxcontrib-httpdomain
     #   sphinxcontrib-jquery
 sphinx-autobuild==2024.10.3
     # via -r requirements.in
-sphinx-rtd-theme==3.0.2
+sphinx-intl==2.3.2
+    # via -r requirements.in
+sphinx-rtd-theme==3.1.0
     # via -r requirements.in
 sphinxcontrib-applehelp==2.0.0
     # via sphinx
@@ -67,7 +86,7 @@ sphinxcontrib-devhelp==2.0.0
     # via sphinx
 sphinxcontrib-htmlhelp==2.1.0
     # via sphinx
-sphinxcontrib-httpdomain==1.8.1
+sphinxcontrib-httpdomain==2.0.0
     # via -r requirements.in
 sphinxcontrib-jquery==4.1
     # via sphinx-rtd-theme
@@ -77,9 +96,9 @@ sphinxcontrib-qthelp==2.0.0
     # via sphinx
 sphinxcontrib-serializinghtml==2.0.0
     # via sphinx
-starlette==0.48.0
+starlette==0.52.1
     # via sphinx-autobuild
-tomli==2.2.1
+tomli==2.4.0
     # via sphinx
 typing-extensions==4.15.0
     # via
@@ -87,11 +106,11 @@ typing-extensions==4.15.0
     #   exceptiongroup
     #   starlette
     #   uvicorn
-urllib3==2.5.0
+urllib3==2.6.3
     # via requests
-uvicorn==0.37.0
+uvicorn==0.41.0
     # via sphinx-autobuild
-watchfiles==1.1.0
+watchfiles==1.1.1
     # via sphinx-autobuild
-websockets==15.0.1
+websockets==16.0
     # via sphinx-autobuild

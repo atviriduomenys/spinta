@@ -11,7 +11,7 @@ from spinta import exceptions
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.commands.write import write
 from spinta.components import Context

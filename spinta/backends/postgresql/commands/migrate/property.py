@@ -11,15 +11,12 @@ from spinta.components import Context, Property
 from spinta.utils.schema import NotAvailable
 
 
-@commands.migrate.register(
-    Context, PostgreSQL, PostgresqlMigrationContext, ModelMigrationContext, sa.Table, list, Property
-)
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, ModelMigrationContext, list, Property)
 def migrate(
     context: Context,
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     model_ctx: ModelMigrationContext,
-    table: sa.Table,
     old: list,
     new: Property,
     **kwargs,
@@ -29,22 +26,18 @@ def migrate(
         backend,
         migration_ctx,
         PropertyMigrationContext(prop=new, model_context=model_ctx),
-        table,
         old,
         new.dtype,
         **kwargs,
     )
 
 
-@commands.migrate.register(
-    Context, PostgreSQL, PostgresqlMigrationContext, ModelMigrationContext, sa.Table, sa.Column, Property
-)
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, ModelMigrationContext, sa.Column, Property)
 def migrate(
     context: Context,
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     model_ctx: ModelMigrationContext,
-    table: sa.Table,
     old: sa.Column,
     new: Property,
     **kwargs,
@@ -54,7 +47,6 @@ def migrate(
         backend,
         migration_ctx,
         PropertyMigrationContext(prop=new, model_context=model_ctx),
-        table,
         old,
         new.dtype,
         **kwargs,
@@ -62,14 +54,13 @@ def migrate(
 
 
 @commands.migrate.register(
-    Context, PostgreSQL, PostgresqlMigrationContext, ModelMigrationContext, sa.Table, NotAvailable, Property
+    Context, PostgreSQL, PostgresqlMigrationContext, ModelMigrationContext, NotAvailable, Property
 )
 def migrate(
     context: Context,
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     model_ctx: ModelMigrationContext,
-    table: sa.Table,
     old: NotAvailable,
     new: Property,
     **kwargs,
@@ -79,7 +70,6 @@ def migrate(
         backend,
         migration_ctx,
         PropertyMigrationContext(prop=new, model_context=model_ctx),
-        table,
         old,
         new.dtype,
         **kwargs,

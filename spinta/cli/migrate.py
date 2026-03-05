@@ -9,7 +9,7 @@ from typer import Option
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.cli.helpers.store import load_store

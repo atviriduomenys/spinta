@@ -1,53 +1,16 @@
 import pytest
-
 from spinta.manifests.components import ManifestPath
-from spinta.manifests.tabular.helpers import striptable
+
 from spinta.manifests.open_api.helpers import create_openapi_manifest
-from spinta.testing.context import create_test_context
-from spinta.testing.tabular import create_tabular_manifest
+from tests.manifests.open_api.conftest import MANIFEST, MANIFEST_WITH_SOAP_PREPARE
+
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
 
-MANIFEST = striptable("""
-id | d | r | b | m | property         | type                  | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title                                                      | description
-   | datasets/demo/system_data        |                       |     |        |             |         |        |       |       |        |            |        |     |     | Test title                                                 | Test description
-   |   | test                         | memory                |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   |   |   | Organization         |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Reporting Organizations                                    |
-   |   |   |   |   | org_name         | string                |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization name                                          |
-   |   |   |   |   | annual_revenue   | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Annual revenue amount                                      |
-   |   |   |   |   | coordinates      | geometry(point, 3346) |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization coordinates                                   |
-   |   |   |   |   | established_date | date                  | D   |        |             |         |        |       | 4     |        |            | open   |     |     | Organization establishment date                            |
-   |   |   |   |   | org_logo         | image                 |     |        |             |         |        |       | 2     |        |            | open   |     |     | Organization logo image                                    |
-   |                                  |                       |     |        |             |         |        |       |       |        |            |        |     |     |                                                            |
-   |   |   |   | ProcessingUnit       |                       |     |        |             |         |        |       | 2     |        |            |        |     |     | Processing unit data with treatment methods and capacities |
-   |   |   |   |   | unit_name        | string                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing unit name                                       |
-   |   |   |   |   | unit_type        | string                |     |        |             |         |        |       | 4     |        |            | open   |     |     | Processing unit type                                       |
-   |                                  | enum                  |     |        |             | 'FAC'   |        |       |       |        |            |        |     |     | Processing Facility                                        |
-   |                                  |                       |     |        |             | 'TRT'   |        |       |       |        |            |        |     |     | Treatment Plant                                            |
-   |                                  |                       |     |        |             | 'OUT'   |        |       |       |        |            |        |     |     | Outlet Point                                               |
-   |                                  |                       |     |        |             | 'OTH'   |        |       |       |        |            |        |     |     | Other Equipment                                            |
-   |   |   |   |   | efficiency_rate  | number                |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing efficiency rate percentage                      |
-   |   |   |   |   | capacity         | integer               |     |        |             |         |        |       | 3     |        |            | open   |     |     | Processing capacity, units per day                         |
-   |   |   |   |   | technical_specs  | file                  |     |        |             |         |        |       | 3     |        |            | open   |     |     | Technical specifications document                          |
-    """)
 
-
-@pytest.fixture
-def open_manifest_path(tmp_path, rc):
-    path = f"{tmp_path}/manifest.csv"
-    context = create_test_context(rc)
-    create_tabular_manifest(
-        context,
-        path,
-        MANIFEST,
-    )
-    file_handle = open(path, "r")
-    yield ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
-    file_handle.close()
-
-
-def test_basic_structure(open_manifest_path: ManifestPath):
+@pytest.mark.parametrize("manifest_data", [MANIFEST, MANIFEST_WITH_SOAP_PREPARE])
+def test_basic_structure(open_manifest_path_factory, manifest_data):
+    open_manifest_path = open_manifest_path_factory(manifest_data)
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     expected_keys = {"openapi", "info", "servers", "tags", "externalDocs", "paths", "components"}
@@ -116,6 +79,56 @@ def test_model_path_contents(open_manifest_path: ManifestPath):
         _test_changes_path_content(paths, dataset_name, model_name)
         for prop_name in properties:
             _test_property_path_content(paths, dataset_name, model_name, prop_name)
+
+
+def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_path_factory):
+    """During subsequent runs, specification generation should not duplicate values."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST)
+    create_openapi_manifest(open_manifest_path)
+    open_manifest_path.file.seek(0)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    open_api_spec.pop("components")  # Components do not have a default initial value.
+    open_api_spec.pop("paths")  # Paths are not part of the generated specification
+    assert open_api_spec == {
+        "openapi": "3.1.0",
+        "info": {
+            "version": "1.0.0",
+            "title": "Universal application programming interface",
+            "contact": {
+                "email": "info@vssa.lt",
+                "name": "VSSA",
+                "url": "https://vssa.lrv.lt/",
+            },
+            "license": {
+                "name": "CC-BY 4.0",
+                "url": "https://creativecommons.org/licenses/by/4.0/",
+            },
+            "summary": "Test title",
+            "description": "Test description",
+        },
+        "externalDocs": {"url": "https://ivpk.github.io/uapi"},
+        "servers": [
+            {
+                "description": "Data access server",
+                "url": "get.data.gov.lt",
+            }
+        ],
+        "tags": [  # Utility is a default tag, others are generated from models. Should not be duplicated.
+            {
+                "name": "utility",
+                "description": "Utility operations performed on the API itself",
+            },
+            {
+                "name": "Organization",
+                "description": "Operations with Organization",
+            },
+            {
+                "name": "ProcessingUnit",
+                "description": "Operations with ProcessingUnit",
+            },
+        ],
+    }
 
 
 def _validate_operation_id_contains(operation_id: str, path: str, *required_terms):
@@ -422,10 +435,19 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     properties = pu_schema["properties"]
 
     assert properties["unit_name"]["type"] == "string"
+
     assert properties["unit_type"]["type"] == "string"
     assert "enum" in properties["unit_type"]
     expected_enum = ["FAC", "TRT", "OUT", "OTH"]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
+
+    assert properties["unit_version"]["type"] == "integer"
+    assert "enum" in properties["unit_version"]
+    assert set(properties["unit_version"]["enum"]) == {1, 2}
+
+    assert properties["unit_kind"]["type"] == "string"
+    assert "enum" in properties["unit_kind"]
+    assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
 
     assert properties["efficiency_rate"]["type"] == "number"
     assert properties["capacity"]["type"] == "integer"
@@ -437,3 +459,28 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     unit_type_change = change_properties["unit_type"]
     assert "enum" in unit_type_change
     assert set(unit_type_change["enum"]) == set(expected_enum)
+
+
+def test_version_schema_structure(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+    version_schema = open_api_spec["components"]["schemas"]["version"]
+
+    properties = version_schema["properties"]
+
+    assert set(properties.keys()) == {
+        "api",
+        "implementation",
+        "dsa",
+        "uapi",
+        "build",
+    }
+
+    assert properties["api"]["properties"]["version"]["type"] == "string"
+
+    implementation = properties["implementation"]["properties"]
+
+    assert implementation["name"]["type"] == "string"
+    assert implementation["version"]["type"] == "string"
+    assert properties["dsa"]["properties"]["version"]["type"] == "string"
+    assert properties["uapi"]["properties"]["version"]["type"] == "string"
+    assert properties["build"]["properties"]["version"]["type"] == "string"

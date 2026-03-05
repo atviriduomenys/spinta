@@ -14,20 +14,21 @@ from spinta import exceptions, commands
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.errors import ErrorCounter, cli_error
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.push.components import State
-from spinta.cli.helpers.push.write import push as push_
-from spinta.cli.helpers.push.utils import extract_dependant_nodes, load_initial_page_data
 from spinta.cli.helpers.push.read import read_rows
 from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.push.sync import sync_push_state
+from spinta.cli.helpers.push.utils import extract_dependant_nodes, load_initial_page_data
+from spinta.cli.helpers.push.write import push as push_
 from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
-from spinta.core.enums import Action, Mode
 from spinta.components import Config
 from spinta.core.context import configure_context
+from spinta.core.enums import Action, Mode
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.units import tobytes
@@ -137,6 +138,9 @@ def push(
     if page_model and page:
         override_page = {page_model: page}
 
+    max_retries = config.sync_retry_count
+    delay_range = config.sync_retry_delay_range
+
     with context:
         auth_client = auth or config.default_auth_client
         auth_client = get_client_id_from_name(get_clients_path(config), auth_client)
@@ -171,6 +175,8 @@ def push(
                 reset_cid=synchronize_keymap,
                 dry_run=dry_run,
                 timeout=(connect_timeout, read_timeout),
+                max_retries=max_retries,
+                delay_range=delay_range,
             )
 
         # Synchronize push state
@@ -184,6 +190,8 @@ def push(
                 no_progress_bar=no_progress_bar,
                 metadata=state.metadata,
                 timeout=(connect_timeout, read_timeout),
+                max_retries=max_retries,
+                delay_range=delay_range,
             )
 
         initial_page_data = load_initial_page_data(context, state.metadata, models, incremental, override_page)

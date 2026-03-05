@@ -732,6 +732,19 @@ class Model(MetaData):
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith("_")}
 
+    def get_namespaces(self, include_self: bool = True) -> set[str]:
+        namespaces = []
+        if include_self:
+            namespaces.append(self.name)
+
+        if self.ns:
+            namespaces.append(self.ns.name)
+            namespaces.extend(
+                [parent_namespace.name for parent_namespace in self.ns.parents() if parent_namespace.name]
+            )
+
+        return set(namespaces)
+
 
 class PropertyGiven:
     access: str | None = None
@@ -1051,6 +1064,16 @@ ScopeFormatterFunc = Callable[
 ]
 
 
+ScopeFormatterFuncUDTS = Callable[
+    [
+        Context,
+        Union[Namespace, Model, Property],
+        Action,
+    ],
+    str,
+]
+
+
 class Config:
     """Spinta configuration
 
@@ -1070,9 +1093,12 @@ class Config:
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
     scope_log: bool
+    check_contract_scopes: bool
     default_auth_client: str
     http_basic_auth: bool
-    token_validation_key: dict = None
+    token_validation_key: dict | None = None
+    token_validation_keys_download_url: str | None = None
+    downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str
     docs_path: pathlib.Path
@@ -1086,7 +1112,10 @@ class Config:
     default_page_size: int
     enable_pagination: bool
     sync_page_size: int = None
+    sync_retry_count: int
+    sync_retry_delay_range: tuple[float]
     languages: List[str]
+    # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
     # MB
     max_api_file_size: int
@@ -1098,6 +1127,10 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    log_level: str
+    file_log_level: str
+    file_log_path: pathlib.Path
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -6,6 +6,7 @@ from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import drop_index
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     configure_migrate,
     cleanup_tables,
@@ -179,8 +180,7 @@ def test_migrate_geometry_to_string_to_geometry(
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE TEXT USING '
         'CAST("migrate/example/Test"."someGeo" AS TEXT);\n'
         "\n"
-        'DROP INDEX "ix_migrate/example/Test_someGeo";\n'
-        "\n"
+        f"{drop_index(index_name='ix_migrate/example/Test_someGeo')}"
         "COMMIT;\n"
         "\n"
     )

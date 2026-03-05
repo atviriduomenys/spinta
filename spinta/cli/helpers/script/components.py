@@ -112,6 +112,7 @@ class ScriptTarget(enum.Enum):
     FS = "file_system"
     AUTH = "auth"
     BACKEND = "backend"
+    POSTGRESQL = "postgresql"
 
 
 @enum.unique

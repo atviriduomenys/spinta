@@ -19,6 +19,7 @@ xdg-open var/readme.html
 # Reset test database
 # password is in the docker-compose.yml file
 #If docker is not running, run `docker compose up`
+export PGPASSWORD=admin123
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin spinta_tests <<EOF
@@ -131,10 +132,13 @@ accesslog:
   type: file
   file: $BASEDIR/accesslog.json
 EOF
+
 export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
+# switch to a different tab. Export the BASEDIR there and SPINTA_CONFIG.
+# Activate the environment.
 # this is a directory to which manifest data will be downloaded.
 # If you don't have one, create an empty directory and cs into it.
 # If you create a new directory, do this:
@@ -150,12 +154,15 @@ git pull
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
-spinta check
 
 spinta show \
     datasets/gov/rc/ar/adresai.csv \
     datasets/gov/rc/jar/formos_statusai.csv \
     datasets/gov/rc/jar/iregistruoti.csv
+
+# go back to previous tab
+spinta check
+
 
 cat > "$BASEDIR"/sdsa.txt <<EOF
 d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access
@@ -197,6 +204,7 @@ datasets/gov/rc/jar/iregistruoti    |         |                                 
   |   |   |   | forma               | ref     | /datasets/gov/rc/jar/formos_statusai/Forma    | forma_id       |         | 4     | open
   |   |   |   | statusas            | ref     | /datasets/gov/rc/jar/formos_statusai/Statusas | statusas_id    |         | 4     | open
 EOF
+
 spinta check "$BASEDIR"/sdsa.txt
 
 # Run migrations
@@ -218,22 +226,34 @@ http :8000/version
 http :8000/datasets/gov | jq -c '._data[]'
 
 # Setup INTERNAL server data
-SERVER=:8000
+SERVER=http://localhost:8000
 CLIENT=test
 SECRET=secret
 SCOPES="
-    spinta_set_meta_fields
-    spinta_getone
-    spinta_getall
-    spinta_search
-    spinta_changes
-    spinta_insert
-    spinta_upsert
-    spinta_update
-    spinta_patch
-    spinta_delete
-    spinta_wipe
+  spinta_set_meta_fields
+  spinta_getone
+  spinta_getall
+  spinta_search
+  spinta_changes
+  spinta_insert
+  spinta_upsert
+  spinta_update
+  spinta_patch
+  spinta_delete
+  spinta_wipe
+  uapi:/:set_meta_fields
+  uapi:/:getone
+  uapi:/:getall
+  uapi:/:search
+  uapi:/:changes
+  uapi:/:create
+  uapi:/:upsert
+  uapi:/:update
+  uapi:/:patch
+  uapi:/:delete
+  uapi:/:wipe
 "
+
 TOKEN=$(
     http \
         -a $CLIENT:$SECRET \
@@ -288,17 +308,16 @@ test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 #client = client
 #secret = secret
 #scopes =
-#  spinta_set_meta_fields
-#  spinta_getone
-#  spinta_getall
-#  spinta_search
-#  spinta_changes
-#  spinta_insert
-#  spinta_upsert
-#  spinta_update
-#  spinta_patch
-#  spinta_delete
-#  spinta_wipe
+#  uapi:/:set_meta_fields
+#  uapi:/:getone
+#  uapi:/:getall
+#  uapi:/:search
+#  uapi:/:changes
+#  uapi:/:create
+#  uapi:/:update
+#  uapi:/:patch
+#  uapi:/:delete
+#  uapi:/:wipe
 
 
 spinta push "$BASEDIR"/sdsa.txt -o test@localhost
@@ -317,8 +336,6 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 
-
-# change the version number in pyproject.toml
 
 # Publish project to PyPI
 # If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04

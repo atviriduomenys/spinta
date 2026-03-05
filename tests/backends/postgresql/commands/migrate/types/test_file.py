@@ -5,6 +5,15 @@ from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import (
+    drop_column,
+    add_column_comment,
+    add_table_comment,
+    add_index,
+    add_changelog_table,
+    add_redirect_table,
+    drop_table,
+)
 from tests.backends.postgresql.commands.migrate.test_migrations import (
     cleanup_tables,
     override_manifest,
@@ -38,22 +47,9 @@ def test_migrate_create_models_with_file_type(
                      |   |      |      | new            | file    |                      | 
     """,
     )
-
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
         "BEGIN;\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:file/flag" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    _block BYTEA, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:file/flag" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:file/new" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    _block BYTEA, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:file/new" PRIMARY KEY (_id)\n'
-        ");\n"
         "\n"
         'CREATE TABLE "migrate/example/Test" (\n'
         "    _txn UUID, \n"
@@ -79,32 +75,44 @@ def test_migrate_create_models_with_file_type(
         '("someText", "someNumber")\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
+        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
+        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someInteger')}"
+        f"{add_column_comment(table='migrate/example/Test', column='someNumber')}"
+        f"{add_column_comment(table='migrate/example/Test', column='flag._id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='flag._content_type')}"
+        f"{add_column_comment(table='migrate/example/Test', column='flag._size')}"
+        f"{add_column_comment(table='migrate/example/Test', column='flag._bsize')}"
+        f"{add_column_comment(table='migrate/example/Test', column='flag._blocks')}"
+        f"{add_column_comment(table='migrate/example/Test', column='new._id')}"
+        f"{add_column_comment(table='migrate/example/Test', column='new._content_type')}"
+        f"{add_column_comment(table='migrate/example/Test', column='new._size')}"
+        f"{add_column_comment(table='migrate/example/Test', column='new._bsize')}"
+        f"{add_column_comment(table='migrate/example/Test', column='new._blocks')}"
+        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
+        'CREATE TABLE "migrate/example/Test/:file/flag" (\n'
         "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        "    _block BYTEA, \n"
+        '    CONSTRAINT "pk_migrate/example/Test/:file/flag" PRIMARY KEY (_id)\n'
+        ");\n\n"
+        f"{add_column_comment(table='migrate/example/Test/:file/flag', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test/:file/flag', column='_block')}"
+        f"{add_table_comment(table='migrate/example/Test/:file/flag', comment='migrate/example/Test/:file/flag')}"
+        'CREATE TABLE "migrate/example/Test/:file/new" (\n'
+        "    _id UUID NOT NULL, \n"
+        "    _block BYTEA, \n"
+        '    CONSTRAINT "pk_migrate/example/Test/:file/new" PRIMARY KEY (_id)\n'
+        ");\n\n"
+        f"{add_column_comment(table='migrate/example/Test/:file/new', column='_id')}"
+        f"{add_column_comment(table='migrate/example/Test/:file/new', column='_block')}"
+        f"{add_table_comment(table='migrate/example/Test/:file/new', comment='migrate/example/Test/:file/new')}"
+        f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
@@ -183,20 +191,12 @@ def test_migrate_remove_file_type(postgresql_migration: URL, rc: RawConfig, cli:
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._id" TO "__new._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._content_type" TO '
-        '"__new._content_type";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._size" TO "__new._size";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._bsize" TO "__new._bsize";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._blocks" TO "__new._blocks";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test/:file/new" RENAME TO '
-        '"migrate/example/Test/:file/__new";\n'
-        "\n"
+        f"{drop_column(table='migrate/example/Test', column='new._id')}"
+        f"{drop_column(table='migrate/example/Test', column='new._content_type')}"
+        f"{drop_column(table='migrate/example/Test', column='new._size')}"
+        f"{drop_column(table='migrate/example/Test', column='new._bsize')}"
+        f"{drop_column(table='migrate/example/Test', column='new._blocks')}"
+        f"{drop_table(table='migrate/example/Test/:file/new')}"
         "COMMIT;\n"
         "\n"
     )

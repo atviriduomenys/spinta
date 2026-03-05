@@ -336,6 +336,14 @@ class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 
 
+class ManifestFilePathNotGiven(BaseError):
+    template = "Manifest file path should be provided in `config.yml` file."
+
+
+class ManifestFileInvalidPath(BaseError):
+    template = "Cannot create manifest file at {manifest_path}."
+
+
 class UnknownProjectOwner(BaseError):
     template = "Unknown owner {owner}."
     context = {"owner": "this.owner"}
@@ -645,6 +653,11 @@ class InvalidResourceSource(UserError):
     template = "'{source}' is unacceptable resource source, it must be URL."
 
 
+class CannotReadResource(UserError):
+    status_code = 500
+    template = "Cannot read given resource. Neither source nor prepare function given"
+
+
 class UnknownManifestType(BaseError):
     template = "Can't find manifest component matching given type {type!r}."
 
@@ -946,12 +959,20 @@ class InvalidScopes(UserError):
     template = "Request contains invalid, unknown or malformed scopes: {scopes}."
 
 
+class NoScopesForNamespaces(UserError):
+    template = "Request contains no scopes from available namespaces: {namespaces}."
+
+
+class InvalidExtraScopes(UserError):
+    template = "Request contains extra scopes that are not defined in contract. Extra scopes: {extra_scopes}."
+
+
 class InvalidClientBackend(UserError):
-    template = """Backend "{backend_name}" does not exist in configured client's backends."""
+    template = """Backend "{backend_name}" is not defined in the client file."""
 
 
 class InvalidClientBackendCredentials(UserError):
-    template = """Credential "{key}" does not exist in client's backend "{backend_name}"."""
+    template = """Credential "{key}" is not defined in the client's file's "{backend_name}" backends variable."""
 
 
 class DirectRefValueUnassignment(UserError):
@@ -1137,4 +1158,60 @@ class InvalidCredentialsConfigurationException(UserError):
     template = """
         Credentials.cfg is missing required configuration credentials.
         Missing: {missing_credentials}.
+    """
+
+
+class AgentRelatedDataServiceDoesNotExist(UserError):
+    template = """
+        Data Service related to the Agent that is executing the synchronization request does not exist. 
+        Please re-create and re-configure the Agent, since the synchronization can not be executed without Data Service.
+    """
+
+
+class UnexpectedErrorReadingData(BaseError):
+    template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""
+
+
+class MissingPostgresqlComments(UpgradeError):
+    template = """
+        {table!r} does not have a comment.
+        Please run `spinta upgrade postgresql_comments` to update all comments.
+    """
+
+
+class InvalidCustomPropertyTypeConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+    """
+
+
+class InvalidCustomPropertyTypeWithArgsConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+        
+        Using args: {args}.
+    """
+
+
+class UnknownConfigurationParameters(UserError):
+    template = """
+        {config_type} {config_object!r} configuration contains unknown parameters: {unknown_params}.
+    """
+
+
+class MissingConfigurationParameter(UserError):
+    template = """
+        {config_type} {config_object!r} configuration is missing parameter: {missing_params!r}.
+    """
+
+
+class UnsupportedDataTypeConfiguration(UserError):
+    template = """
+        DataType {data_type!r} currently does not support custom type assignment in configuration.
+    """
+
+
+class EnumPrepareMissing(UserError):
+    template = """
+        Enum {enum} is missing a required value in the prepare column.
     """

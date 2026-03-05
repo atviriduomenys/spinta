@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import pytest
 import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
 
@@ -149,6 +149,33 @@ def test_admin_deduplicate_missing_constraint(
     assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
+        ],
+        [
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
+            "uapi:/:changes",
+        ],
+    ],
+)
 def test_admin_deduplicate_requires_destructive(
     context: Context,
     tmp_path: Path,
@@ -156,6 +183,7 @@ def test_admin_deduplicate_requires_destructive(
     postgresql: str,
     request: FixtureRequest,
     cli: SpintaCliRunner,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -176,19 +204,7 @@ def test_admin_deduplicate_requires_destructive(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
-            "spinta_changes",
-        ]
-    )
+    app.authorize(scope)
 
     data = {
         "datasets/deduplicate/rand/Random": [
@@ -316,6 +332,33 @@ def test_admin_deduplicate_requires_destructive(
     ]
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
+        ],
+        [
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
+            "uapi:/:changes",
+        ],
+    ],
+)
 def test_admin_deduplicate_simple(
     context: Context,
     tmp_path: Path,
@@ -323,6 +366,7 @@ def test_admin_deduplicate_simple(
     postgresql: str,
     request: FixtureRequest,
     cli: SpintaCliRunner,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -352,19 +396,7 @@ def test_admin_deduplicate_simple(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
-            "spinta_changes",
-        ]
-    )
+    app.authorize(scope)
 
     data = {
         "datasets/deduplicate/cli/Country": [
@@ -512,6 +544,33 @@ def test_admin_deduplicate_simple(
     ]
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
+        ],
+        [
+            "uapi:/:create",
+            "uapi:/:getone",
+            "uapi:/:delete",
+            "uapi:/:wipe",
+            "uapi:/:search",
+            "uapi:/:set_meta_fields",
+            "uapi:/:move",
+            "uapi:/:getall",
+            "uapi:/:changes",
+        ],
+    ],
+)
 def test_admin_deduplicate_referenced(
     context: Context,
     tmp_path: Path,
@@ -519,6 +578,7 @@ def test_admin_deduplicate_referenced(
     postgresql: str,
     request: FixtureRequest,
     cli: SpintaCliRunner,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -548,19 +608,7 @@ def test_admin_deduplicate_referenced(
     )
 
     app = create_test_client(context)
-    app.authorize(
-        [
-            "spinta_insert",
-            "spinta_getone",
-            "spinta_delete",
-            "spinta_wipe",
-            "spinta_search",
-            "spinta_set_meta_fields",
-            "spinta_move",
-            "spinta_getall",
-            "spinta_changes",
-        ]
-    )
+    app.authorize(scope)
 
     data = {
         "datasets/deduplicate/cli/Country": [

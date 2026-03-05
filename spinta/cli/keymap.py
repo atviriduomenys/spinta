@@ -10,7 +10,8 @@ from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 
-from spinta.cli.helpers.errors import ErrorCounter, cli_error
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.utils import extract_dependant_nodes
 
@@ -68,6 +69,9 @@ def keymap_sync(
     store = prepare_manifest(context, full_load=True)
     config: Config = context.get("config")
 
+    max_retries = config.sync_retry_count
+    delay_range = config.sync_retry_delay_range
+
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
@@ -118,6 +122,8 @@ def keymap_sync(
                 reset_cid=True,
                 dry_run=dry_run,
                 timeout=(connect_timeout, read_timeout),
+                max_retries=max_retries,
+                delay_range=delay_range,
             )
 
         if error_counter.has_errors():

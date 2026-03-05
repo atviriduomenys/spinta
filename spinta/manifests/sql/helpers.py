@@ -1,3 +1,4 @@
+import dataclasses
 from operator import itemgetter
 from typing import Any, TypedDict
 from typing import Dict
@@ -6,18 +7,18 @@ from typing import List
 from typing import NamedTuple
 from typing import Tuple
 
+import cachetools
 import sqlalchemy as sa
 from geoalchemy2.types import Geometry
-from sqlalchemy.dialects import mysql
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects import oracle
-from sqlalchemy.dialects import mssql
+from sqlalchemy.dialects import postgresql, mysql, sqlite, mssql, oracle
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.sql.sqltypes import _Binary
 from sqlalchemy.types import TypeEngine
 
 from spinta import spyna
 from spinta.components import Context
 from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.sql.backends.oracle.helpers import SDO_GEOMETRY
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
 from spinta.exceptions import UnexpectedFormulaResult
 from spinta.utils.imports import full_class_name
@@ -42,80 +43,76 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
                 expected=full_class_name(Engine),
                 received=full_class_name(engine),
             )
-
         schema = engine.schema
         engine = engine.create()
 
     url = sa.engine.make_url(path)
     dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else "dataset1"
     insp = sa.inspect(engine)
+    default_schema = schema or insp.default_schema_name
 
-    table_mapper = [
-        {
-            "dataset": dataset,
-            "dataset_given": dataset_name,
-            "resource": "resource1",
-            "mapping": _create_mapping(insp, insp.get_table_names(schema=schema), schema, dataset),
-        }
-    ]
+    schema_mapper: dict[str, _SchemaMapping] = {}
+    schemas = insp.get_schema_names() if schema is None else [schema]
+    for schema in schemas:
+        if is_internal_schema(engine, schema):
+            continue
 
-    get_view_names = getattr(insp, "get_view_names", None)
-    get_materialized_view_names = getattr(insp, "get_materialized_view_names", None)
-    views = []
-    if callable(get_view_names):
-        views += insp.get_view_names(schema=schema)
-    if callable(get_materialized_view_names):
-        views += insp.get_materialized_view_names(schema=schema)
+        include_schema_in_name = schema != default_schema
+        ds = (dataset + "/" + schema) if include_schema_in_name else dataset
+        table_mapping = _create_mapping(insp, insp.get_table_names(schema=schema), schema, ds)
 
-    if views:
-        dataset = f"{dataset}/views"
-        dataset_name = f"{dataset_name}/views"
-        table_mapper.append(
-            {
-                "dataset": dataset,
-                "dataset_given": dataset_name,
-                "resource": "resource1",
-                "mapping": _create_mapping(insp, views, schema, dataset),
-            }
-        )
+        get_view_names = getattr(insp, "get_view_names", None)
+        get_materialized_view_names = getattr(insp, "get_materialized_view_names", None)
+        views = []
+        if callable(get_view_names):
+            views += insp.get_view_names(schema=schema)
+        if callable(get_materialized_view_names):
+            views += insp.get_materialized_view_names(schema=schema)
 
-    for mapping_data in table_mapper:
-        yield (
-            None,
-            {
-                "type": "dataset",
-                "name": mapping_data["dataset"],
-                "resources": {
-                    mapping_data["resource"]: {
-                        "type": "sql",
-                        "external": str(url.set(password="")),
-                        "prepare": prepare,
-                    },
-                },
-                "given_name": mapping_data["dataset_given"],
-            },
-        )
+        views_mapping = {}
+        if views:
+            views_ds = f"{ds}/views"
+            views_mapping = _create_mapping(insp, views, schema, views_ds)
 
-        for table in sorted(mapping_data["mapping"]):
-            yield (
-                None,
-                {
-                    "type": "model",
-                    "name": mapping_data["mapping"][table].model,
-                    "external": {
-                        "dataset": mapping_data["dataset"],
-                        "resource": mapping_data["resource"],
-                        "name": table,
-                        "pk": _get_primary_key(insp, table, schema, mapping_data["mapping"]),
-                    },
-                    "description": _get_table_comment(insp, schema, table),
-                    "properties": dict(_read_props(insp, table, schema, mapping_data["mapping"])),
-                },
+        schema_map = _SchemaMapping(schema=schema, resource="resource1", dataset=ds)
+        schema_map.tables = table_mapping
+        schema_map.views = views_mapping
+        schema_mapper[schema] = schema_map
+
+    for mapping_data in schema_mapper.values():
+        include_schema_in_name = mapping_data.schema != default_schema
+        if mapping_data.tables:
+            yield from _create_dataset_for_schema(
+                schema=mapping_data.schema,
+                dataset=mapping_data.dataset,
+                dataset_given=mapping_data.dataset_given,
+                resource=mapping_data.resource,
+                tables=mapping_data.tables,
+                prepare=prepare,
+                url=url,
+                schema_mapper=schema_mapper,
+                insp=insp,
+                include_schema_in_name=include_schema_in_name,
+            )
+
+        if mapping_data.views:
+            yield from _create_dataset_for_schema(
+                schema=mapping_data.schema,
+                dataset=f"{mapping_data.dataset}/views",
+                dataset_given=f"{mapping_data.dataset_given}/views",
+                resource=mapping_data.resource,
+                tables=mapping_data.views,
+                prepare=prepare,
+                url=url,
+                schema_mapper=schema_mapper,
+                insp=insp,
+                include_schema_in_name=include_schema_in_name,
             )
 
 
 class _TableMapping(NamedTuple):
     model: str  # full model name
+    schema: str
     props: Dict[
         str,  # column
         str,  # property
@@ -126,6 +123,25 @@ _Mapping = Dict[
     str,  # table
     _TableMapping,
 ]
+
+
+@dataclasses.dataclass
+class _SchemaMapping:
+    schema: str
+    dataset: str
+    resource: str
+    dataset_given: str = None
+    tables: _Mapping = dataclasses.field(default_factory=dict)
+    views: _Mapping = dataclasses.field(default_factory=dict)
+
+    def get_table(self, table: str) -> _TableMapping:
+        if table in self.tables:
+            return self.tables[table]
+
+        if table in self.views:
+            return self.views[table]
+
+        raise KeyError(table)
 
 
 def _create_mapping(insp: Inspector, tables: list, schema: str, dataset: str) -> _Mapping:
@@ -142,6 +158,7 @@ def _create_mapping(insp: Inspector, tables: list, schema: str, dataset: str) ->
             props[col["name"]] = prop
         mapping[table] = _TableMapping(
             dataset + "/" + model,
+            schema,
             props,
         )
     return mapping
@@ -151,10 +168,10 @@ def _get_primary_key(
     insp: Inspector,
     table: str,
     schema: str,
-    mapping: _TableMapping,
+    mapping: dict[str, _SchemaMapping],
 ) -> List[str]:
     pk = insp.get_pk_constraint(table, schema=schema)
-    return [mapping[table].props[col] for col in pk["constrained_columns"]]
+    return [mapping[schema].get_table(table).props[col] for col in pk["constrained_columns"]]
 
 
 def _get_table_comment(insp: Inspector, schema: str, table: str) -> str:
@@ -168,7 +185,7 @@ def _read_props(
     insp: Inspector,
     table: str,
     schema: str,
-    mapping: _Mapping,
+    mapping: dict[str, _SchemaMapping],
 ) -> Iterator[
     Tuple[
         str,
@@ -181,7 +198,7 @@ def _read_props(
     cols = sorted(cols, key=itemgetter("name"))
     for col in cols:
         name = col["name"]
-        prop = mapping[table].props[name]
+        prop = mapping[schema].get_table(table).props[name]
         extra = {}
 
         if name in cfkeys:
@@ -228,7 +245,9 @@ TYPES = [
     (sa.Numeric, "number"),
     (sa.Text, "string"),
     (sa.Time, "time"),
-    (sa.LargeBinary, "binary"),
+    # Using _Binary (private class) to catch all binary types including:
+    # sa.LargeBinary, mysql.BLOB, mysql.LONGBLOB, oracle.RAW, etc.
+    (_Binary, "binary"),
     (sa.String, "string"),
     (sa.VARCHAR, "string"),
     (sa.CHAR, "string"),
@@ -242,8 +261,8 @@ TYPES = [
     (postgresql.INTERVAL, "integer"),  # total number of seconds
     (postgresql.OID, "integer"),  # four-byte integer, https://www.postgresql.org/docs/current/datatype-oid.html
     (Geometry, "geometry"),
+    (SDO_GEOMETRY, "geometry"),
     (oracle.ROWID, "string"),
-    (oracle.RAW, "binary"),
     (mssql.MONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.SMALLMONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.UNIQUEIDENTIFIER, "string"),  # Example: 6F9619FF-8B86-D011-B42D-00C04FC964FF
@@ -272,7 +291,7 @@ def _get_fkeys(
     insp: Inspector,
     table: str,
     schema: str,
-    mapping: _Mapping,
+    mapping: dict[str, _SchemaMapping],
 ) -> Tuple[
     Dict[  # foreign keys
         str,  # column (source)
@@ -291,17 +310,18 @@ def _get_fkeys(
         col = fk["constrained_columns"][0]
 
         rtable = fk["referred_table"]
+        rschema = fk["referred_schema"] or schema
 
         if composite:
-            name = "_".join([mapping[table].props[c] for c in fk["constrained_columns"]])
+            name = "_".join([mapping[schema].get_table(table).props[c] for c in fk["constrained_columns"]])
         else:
-            name = mapping[table].props[col]
+            name = mapping[schema].get_table(table).props[col]
 
-        referenced_model_pkeys = _get_primary_key(insp, rtable, schema, mapping)
-        refprops = [mapping[rtable].props[rcol] for rcol in fk["referred_columns"]]
+        referenced_model_pkeys = _get_primary_key(insp, rtable, rschema, mapping)
+        refprops = [mapping[rschema].get_table(rtable).props[rcol] for rcol in fk["referred_columns"]]
         ref = _Ref(
             name=name,
-            model=mapping[rtable].model,
+            model=mapping[rschema].get_table(rtable).model,
             props=[] if referenced_model_pkeys == refprops else refprops,
         )
 
@@ -311,3 +331,146 @@ def _get_fkeys(
             fkeys[col] = ref
 
     return fkeys, cfkeys
+
+
+def _create_dataset_for_schema(
+    schema: str,
+    dataset: str,
+    dataset_given: str | None,
+    resource: str,
+    tables: dict[str, _TableMapping],
+    prepare: str,
+    url: object,
+    schema_mapper: dict[str, _SchemaMapping],
+    insp: Inspector,
+    include_schema_in_name: bool,
+):
+    yield (
+        None,
+        {
+            "type": "dataset",
+            "name": dataset,
+            "resources": {
+                resource: {
+                    "type": "sql",
+                    "external": str(url.set(password="")),
+                    "prepare": prepare,
+                },
+            },
+            "given_name": dataset_given,
+        },
+    )
+
+    for table in sorted(tables):
+        table_data = tables[table]
+        schema = schema
+        yield (
+            None,
+            {
+                "type": "model",
+                "name": table_data.model,
+                "external": {
+                    "dataset": dataset,
+                    "resource": resource,
+                    "name": f"{schema}.{table}" if include_schema_in_name else table,
+                    "pk": _get_primary_key(insp, table, schema, schema_mapper),
+                },
+                "description": _get_table_comment(insp, schema, table),
+                "properties": dict(_read_props(insp, table, schema, schema_mapper)),
+            },
+        )
+
+
+@cachetools.cached(cache=cachetools.LRUCache(maxsize=1024))
+def oracle_maintained_schemas(engine: Engine) -> set[str]:
+    try:
+        query = sa.text("""
+            SELECT USERNAME 
+            FROM ALL_USERS
+            WHERE ORACLE_MAINTAINED = 'Y'
+        """)
+        with engine.connect() as conn:
+            rows = conn.execute(query).fetchall()
+            return {r[0].upper() for r in rows}
+    except sa.exc.DatabaseError as _:
+        # Fallback in case users do not have access to the ALL_USERS table or ORACLE_MAINTAINED column.
+
+        # https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_user_accounts.htm#BABJGDJF
+        predefined_admin_accounts = {
+            "ANONYMOUS",
+            "CTXSYS",
+            "DBSNMP",
+            "EXFSYS",
+            "LBACSYS",
+            "MDSYS",
+            "MGMT_VIEW",
+            "OLAPSYS",
+            "ORDDATA",
+            "OWBSYS",
+            "ORDPLUGINS",
+            "ORDSYS",
+            "OUTLN",
+            "SI_INFORMTN_SCHEMA",
+            "SYS",
+            "SYSMAN",
+            "SYSTEM",
+            "WK_TEST",
+            "WKSYS",
+            "WKPROXY",
+            "WMSYS",
+            "XDB",
+            "OPS$ORACLE",
+        }
+
+        # https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_user_accounts.htm#BABGJDJC
+        predefined_non_admin_accounts = {
+            "APEX_PUBLIC_USER",
+            "DIP",
+            "FLOWS_040100",
+            "FLOWS_FILES",
+            "MDDATA",
+            "ORACLE_OCM",
+            "SPATIAL_CSW_ADMIN_USR",
+            "SPATIAL_WFS_ADMIN_USR",
+            "XS$NULL",
+        }
+
+        # https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_user_accounts.htm#TDPSG20024
+        predefined_sample_accounts = {"BI", "HR", "OE", "PM", "IX", "SH"}
+
+        return predefined_admin_accounts | predefined_non_admin_accounts | predefined_sample_accounts
+
+
+def is_internal_schema(engine: Engine, schema: str) -> bool:
+    if schema is None:
+        return False
+
+    dialect = engine.dialect
+    if isinstance(dialect, postgresql.dialect):
+        if schema == "information_schema":
+            return True
+        if schema.startswith("pg_"):
+            return True
+        return False
+
+    elif isinstance(dialect, mysql.dialect):
+        return schema in {
+            "mysql",
+            "information_schema",
+            "performance_schema",
+            "sys",
+        }
+
+    elif isinstance(dialect, sqlite.dialect):
+        return schema == "temp"
+
+    elif isinstance(dialect, mssql.dialect):
+        return schema in {"sys", "INFORMATION_SCHEMA"}
+
+    elif isinstance(dialect, oracle.dialect):
+        schema_upper = schema.upper()
+        oracle_schemas = oracle_maintained_schemas(engine)
+        return schema_upper in oracle_schemas
+
+    # Fallback: nothing internal by default for unknown/other dialects
+    return False

@@ -1,4 +1,5 @@
 import json
+import pathlib
 from typing import Any
 
 from spinta import commands, spyna
@@ -168,3 +169,10 @@ def flatten_keymap_encoding_values(data: object):
     elif isinstance(data, (list, tuple)):
         return list(flatten_keymap_encoding_values(item) for item in data)
     return data
+
+
+def is_file_path(path: str) -> bool:
+    try:
+        return pathlib.Path(path).is_file()
+    except OSError:
+        return False

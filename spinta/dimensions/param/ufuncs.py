@@ -19,7 +19,7 @@ def param(env: Env, bind: Bind) -> Any:
 
 @ufunc.resolver(ParamBuilder, Model)
 def read(env: ParamBuilder, model: Model) -> Any:
-    return commands.getall(env.context, model, model.backend, resolved_params=env.params)
+    return commands.getall(env.context, model, model.backend, resolved_params=env.params, query=env.url_query_params)
 
 
 @ufunc.resolver(ParamBuilder, str)
@@ -72,16 +72,6 @@ def getattr_(env: ParamBuilder, data: dict, bind: Bind):
 @ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
 def getattr_(env: ParamBuilder, _: NotAvailable):
     return env.this
-
-
-# {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}
-# getattr [ loop(read()), bind(more) ]
-#  1 -> stack = [1]
-#  loop stack [1]
-#  read(1) -> 2
-#  pop(1) from stack
-#  2 -> stack
-#  loop until stack is empty
 
 
 @ufunc.executor(ParamBuilder, NotAvailable)

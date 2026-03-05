@@ -7,8 +7,8 @@ from geoalchemy2.shape import to_shape
 
 
 from spinta import commands
-from spinta.backends.postgresql.types.geometry.helpers import get_display_value
-from spinta.backends.postgresql.types.geometry.helpers import get_osm_link
+from spinta.types.geometry.helpers import get_display_value
+from spinta.types.geometry.helpers import get_osm_link
 from spinta.formats.components import Format
 from spinta.core.enums import Action
 from spinta.components import Context

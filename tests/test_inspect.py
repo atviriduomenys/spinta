@@ -2266,13 +2266,17 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, "inspect_schema").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/test_schema").resources["resource1"].external = "postgresql"
     a, b = compare_manifest(
         manifest,
         """
-       d | r | m | property  | type    | ref       | source     | prepare | access  | title
-       inspect_schema        |         |           |            |         |         |
-         | resource1         | sql     |           | postgresql |         |         |
+       d | r | m | property       | type    | ref       | source             | prepare | access  | title
+       inspect_schema/test_schema |         |           |                    |         |         |
+         | resource1              | sql     |           | postgresql         |         |         |
+                                  |         |           |                    |         |         |
+         |   | Cities             |         |           | test_schema.cities |         |         |
+         |   |   | id             | integer |           | id                 |         |         |
+         |   |   | name           | string  |           | name               |         |         |
 """,
         context,
     )
@@ -2311,6 +2315,75 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     assert a == b
 
+    if su.database_exists(db):
+        su.drop_database(db)
+
+
+def test_inspect_with_postgresql_multi_schema_references(
+    rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: Path, postgresql
+):
+    db = f"{postgresql}/inspect_schema"
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        engine.execute(sa.schema.CreateSchema("users"))
+        engine.execute(sa.schema.CreateSchema("finances"))
+        meta = sa.MetaData(conn)
+        sa.Table(
+            "Client", meta, sa.Column("id", sa.Integer, primary_key=True), sa.Column("name", sa.Text), schema="users"
+        )
+        sa.Table(
+            "Record",
+            meta,
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.Text),
+            sa.Column("client", sa.Integer),
+            sa.ForeignKeyConstraint(["client"], ["users.Client.id"]),
+            schema="finances",
+        )
+        meta.create_all()
+
+    result_file_path = tmp_path / "result.csv"
+    # Configure Spinta.
+    # Default schema
+    cli.invoke(
+        rc_new,
+        [
+            "inspect",
+            "-r",
+            "sql",
+            db,
+            "-o",
+            tmp_path / "result.csv",
+        ],
+    )
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, "inspect_schema/users").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/finances").resources["resource1"].external = "postgresql"
+    a, b = compare_manifest(
+        manifest,
+        """
+        d | r | m | property    | type    | ref                          | source          | prepare | access  | title
+        inspect_schema/finances |         |                              |                 |         |         |
+          | resource1           | sql     |                              | postgresql      |         |         |
+                                |         |                              |                 |         |         |
+          |   | Record          |         | id                           | finances.Record |         |         |
+          |   |   | client      | ref     | /inspect_schema/users/Client | client          |         |         |
+          |   |   | id          | integer |                              | id              |         |         |
+          |   |   | name        | string  |                              | name            |         |         |
+        inspect_schema/users    |         |                              |                 |         |         |
+          | resource1           | sql     |                              | postgresql      |         |         |
+                                |         |                              |                 |         |         |
+          |   | Client          |         | id                           | users.Client    |         |         |
+          |   |   | id          | integer |                              | id              |         |         |
+          |   |   | name        | string  |                              | name            |         |         |
+""",
+        context,
+    )
+    assert a == b
     if su.database_exists(db):
         su.drop_database(db)
 
@@ -2417,3 +2490,68 @@ def test_priority_key_eq():
     old = PriorityKey(source=("asd", "new"))
     new = PriorityKey(source=tuple(["asd"]))
     assert old in [new]
+
+
+def test_inspect_blob_types(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    """
+    Test binary/BLOB type inspection via CLI (issue #1484).
+
+    This functional test verifies the full inspect workflow generates
+    correct manifests with binary types. Unit tests in
+    tests/datasets/sql/test_inspect.py verify that MySQL-specific BLOB
+    types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) are correctly mapped.
+    """
+    # Setup database with binary columns and real binary data
+    sqlite.init(
+        {
+            "PROVIDERS": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("NAME", sa.Text),
+                sa.Column("LOGO", sa.LargeBinary),
+                sa.Column("ICON", sa.LargeBinary),
+                sa.Column("DOCUMENT", sa.LargeBinary),
+            ],
+        }
+    )
+
+    sqlite.write(
+        "PROVIDERS",
+        [
+            {
+                "ID": 1,
+                "NAME": "Test Provider",
+                "LOGO": b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR",
+                "ICON": b"\xff\xd8\xff",
+                "DOCUMENT": b"%PDF-1.4",
+            },
+        ],
+    )
+
+    # Run inspect via CLI
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Check what was detected
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    # Verify binary columns are correctly mapped
+    assert (
+        manifest
+        == """
+    id | d | r | b | m | property  | type    | ref | source    | source.type | prepare | origin | count | level | status  | visibility | access | uri | eli | title | description
+       | db_sqlite                 |         |     |           |             |         |        |       |       |         |            |        |     |     |       |
+       |   | resource1             | sql     |     | sqlite    |             |         |        |       |       |         |            |        |     |     |       |
+       |                           |         |     |           |             |         |        |       |       |         |            |        |     |     |       |
+       |   |   |   | Providers     |         | id  | PROVIDERS |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | document  | binary  |     | DOCUMENT  |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | icon      | binary  |     | ICON      |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | id        | integer |     | ID        |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | logo      | binary  |     | LOGO      |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | name      | string  |     | NAME      |             |         |        |       |       | develop | private    |        |     |     |       |
+    """
+    )

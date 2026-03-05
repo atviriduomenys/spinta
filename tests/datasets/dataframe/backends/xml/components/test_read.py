@@ -1,8 +1,16 @@
-from spinta.core.config import RawConfig, Path
+import json
+from pathlib import Path
+import pytest
+from unittest.mock import ANY
+from responses import RequestsMock, POST
+
+from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
+from spinta.testing.utils import get_error_codes, get_error_context
+from unittest.mock import ANY
 
 
 def test_xml_read(rc: RawConfig, tmp_path: Path):
@@ -380,4 +388,677 @@ def test_xml_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Path
         "Page 7",
         "Page 8",
         "Page 9",
+    ]
+
+
+def test_xml_read_from_different_resource_property(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>1</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><name>Vilnius</name><founded>1387</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>2</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><name>Kaunas</name><founded>1408</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type     | ref        | source                                          | access | prepare
+        example                  | dataset  |            |                                                 |        |
+          | wsdl_resource        | wsdl     |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap     |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param    | parameter1 | request_model/param1                            |        | input('default_val')
+          |   |   |   |          | param    | parameter2 | request_model/param2                            |        | input('default_val')
+          |   |   | City         |          |            | /                                               | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | p1       | integer  |            |                                                 |        | param(parameter1)
+          |   |   |   | p2       | integer  |            |                                                 |        | param(parameter2)
+          | xml_resource         | dask/xml |            |                                                 |        | eval(param(nested_xml))
+          |   |   |   |          | param    | nested_xml | City                                            |        | read().name
+          |   |   | Name         |          |            | names/nameData                                  | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | since    | integer  |            | founded                                         |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Name", ["getall"])
+    app.authmodel("example/City", ["getall"])
+
+    resp = app.get("/example/Name")
+    assert listdata(resp, sort=False) == [
+        ("Vilnius", 1387),
+        ("Kaunas", 1408),
+    ]
+
+
+def test_xml_read_from_different_dataset_resource(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>1</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><name>Vilnius</name><founded>1387</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>2</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><name>Kaunas</name><founded>1408</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type     | ref        | source                                          | access | prepare
+        example                  | dataset  |            |                                                 |        |
+          | wsdl_resource        | wsdl     |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap     |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param    | parameter1 | request_model/param1                            |        | input('default_val')
+          |   |   |   |          | param    | parameter2 | request_model/param2                            |        | input('default_val')
+          |   |   | City         |          |            | /                                               | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | p1       | integer  |            |                                                 |        | param(parameter1)
+          |   |   |   | p2       | integer  |            |                                                 |        | param(parameter2)
+        example2                 | dataset  |            |                                                 |        |
+          | xml_resource         | dask/xml |            |                                                 |        | eval(param(nested_xml))
+          |   |   |   |          | param    | nested_xml | example/City                                    |        | read().name
+          |   |   | Name         |          |            | names/nameData                                  | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | since    | integer  |            | founded                                         |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example2/Name", ["getall"])
+    app.authmodel("example/City", ["getall"])
+
+    resp = app.get("example2/Name")
+    assert listdata(resp, sort=False) == [
+        ("Vilnius", 1387),
+        ("Kaunas", 1408),
+    ]
+
+
+def test_xml_read_from_different_resource_property_can_use_same_url_parameters_on_both_reads(
+    rc: RawConfig, tmp_path: Path, responses: RequestsMock
+):
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>1</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><title>Vilnius</title><founded>1387</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>2</ns1:id>
+                        <ns1:name><![CDATA[<names><nameData><title>Kaunas</title><founded>1408</founded></nameData></names>]]></ns1:name>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    wsdl_file = "tests/datasets/backends/wsdl/data/required_param_wsdl.xml"
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type     | ref        | source                                          | access | prepare
+        example                  | dataset  |            |                                                 |        |
+          | wsdl_resource        | wsdl     |            | {wsdl_file}                                     |        |
+          | soap_resource        | soap     |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param    | parameter1 | request_model/param1                            |        | input()
+          |   |   |   |          | param    | parameter2 | request_model/param2                            |        | input()
+          |   |   | City         |          |            | /                                               | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | p1       | integer  |            |                                                 |        | param(parameter1)
+          |   |   |   | p2       | integer  |            |                                                 |        | param(parameter2)
+          | xml_resource         | dask/xml |            |                                                 |        | eval(param(nested_xml))
+          |   |   |   |          | param    | nested_xml | City                                            |        | read().name
+          |   |   | Name         |          |            | names/nameData                                  | open   |
+          |   |   |   | title    | string   |            | title                                           |        |
+          |   |   |   | since    | integer  |            | founded                                         |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Name", ["getall", "search"])
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/Name?p1='foo'&p2='bar'&title='Vilnius'")
+    assert listdata(resp, sort=False) == [(1387, "Vilnius")]
+
+
+def test_xml_read_raise_error_if_neither_resource_source_nor_prepare_given(rc: RawConfig, tmp_path: Path):
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type     | ref        | source                                          | access | prepare
+        example                  | dataset  |            |                                                 |        |
+          | wsdl_resource        | wsdl     |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap     |            | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param    | parameter1 | request_model/param1                            |        | input('default_val')
+          |   |   |   |          | param    | parameter2 | request_model/param2                            |        | input('default_val')
+          |   |   | City         |          |            | /                                               | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | p1       | integer  |            |                                                 |        | param(parameter1)
+          |   |   |   | p2       | integer  |            |                                                 |        | param(parameter2)
+          | xml_resource         | dask/xml |            |                                                 |        | 
+          |   |   |   |          | param    | nested_xml | City                                            |        | read().name
+          |   |   | Name         |          |            | names/nameData                                  | open   |
+          |   |   |   | name     | string   |            | name                                            |        |
+          |   |   |   | since    | integer  |            | founded                                         |        |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Name", ["getall"])
+    app.authmodel("example/City", ["getall"])
+
+    response = app.get("/example/Name")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["CannotReadResource"]
+    assert get_error_context(response.json(), "CannotReadResource", ["resource"]) == {"resource": "xml_resource"}
+
+
+def test_xml_read_from_different_resource_property_with_iterate_pages(rc: RawConfig, tmp_path: Path):
+    page1_file = tmp_path / "page1.json"
+    page1_file.write_text(
+        json.dumps(
+            {
+                "page": {
+                    "next": str(tmp_path / "page2.json"),
+                    "name": (
+                        "<names><nameData><name>Vilnius</name><founded>1387</founded></nameData>"
+                        "<nameData><name>Kaunas</name><founded>1408</founded></nameData></names>"
+                    ),
+                }
+            }
+        )
+    )
+    page2_file = tmp_path / "page2.json"
+    page2_file.write_text(
+        json.dumps(
+            {
+                "page": {
+                    "next": None,
+                    "name": (
+                        "<names><nameData><name>Vilnius</name><founded>1387</founded></nameData>"
+                        "<nameData><name>Kaunas</name><founded>1408</founded></nameData></names>"
+                    ),
+                }
+            }
+        )
+    )
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type      | ref        | source                    | prepare                 | access
+        example                  |           |            |                           |                         |
+          | json_resource        | dask/json |            | {{path}}                  |                         |
+          |   |   |              | param     | path       | {tmp_path / "page1.json"} |                         |
+          |   |   |              |           |            | Page                      | read().next             |
+          |   |   | Page         |           | name       | page                      |                         |
+          |   |   |   | name     | string    |            | name                      |                         | open
+          |   |   |   | next     | uri       |            | next                      |                         | open
+          | xml_resource         | dask/xml  |            |                           | eval(param(nested_xml)) | 
+          |   |   |   |          | param     | nested_xml | Page                      | read().name             | 
+          |   |   | Name         |           |            | names/nameData            |                         | open
+          |   |   |   | name     | string    |            | name                      |                         |
+          |   |   |   | since    | integer   |            | founded                   |                         |          
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Page", ["getall"])
+    app.authmodel("example/Name", ["getall"])
+
+    resp = app.get("/example/Name")
+    assert listdata(resp, sort=False) == [
+        ("Vilnius", 1387),
+        ("Kaunas", 1408),
+        ("Vilnius", 1387),
+        ("Kaunas", 1408),
+    ]
+
+
+def test_xml_read_filters_results_if_url_query_parameter_is_property_without_prepare(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <names>
+            <nameData>
+                <name>Vilnius</name>
+                <founded>1387</founded>
+            </nameData>
+            <nameData>
+                <name>Kaunas</name>
+                <founded>1408</founded>
+            </nameData>
+        </names>
+    """
+    path = tmp_path / "names.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type     | source
+        example/xml          |          |
+          | resource         | dask/xml | {path}
+          |   |              |          |
+          |   | Names        |          | /names/nameData
+          |   |   | name     | string   | name
+          |   |   | founded  | integer  | founded
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Names", ["getall", "search"])
+
+    resp = app.get("/example/xml/Names?name='Vilnius'")
+    assert listdata(resp, sort=False) == [(1387, "Vilnius")]
+
+
+def test_xml_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: Path):
+    path = tmp_path / "names.xml"
+    path.write_text('[{"name": "Vilnius", "founded": 1387},{"name": "Kaunas", "founded": 1408}]')
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | m | property | type     | source
+        example/xml          |          |
+          | resource         | dask/xml | {path}
+          |   |              |          |
+          |   | Names        |          | /names/nameData
+          |   |   | name     | string   | name
+          |   |   | founded  | integer  | founded
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Names", ["getall"])
+
+    response = app.get("/example/xml/Names")
+    assert response.status_code == 500
+    assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]
+
+
+# XML with planets, countries, cities and streets for testing multiple refs
+xml_cities = """
+    <planets>
+        <planet>
+            <id>1</id>
+            <code>er</code>
+            <name>Earth</name>
+            <countries>
+                <country>
+                    <id>2</id>
+                    <code>lt</code>
+                    <name>Lietuva</name>
+                    <cities>
+                        <city name="Vilnius">
+                            <id>4</id>
+                            <streets>
+                                <street name="Gedimino pr." />
+                            </streets>
+                        </city>
+                    </cities>
+                </country>
+                <country>
+                    <id>3</id>
+                    <code>lv</code>
+                    <name>Latvija</name>
+                    <cities>
+                        <city name="Ryga">
+                            <id>5</id>
+                            <streets>
+                                <street name="Elizabetes" />
+                            </streets>
+                        </city>
+                    </cities>
+                </country>
+                <country>
+                    <id>6</id>
+                    <code>ee</code>
+                    <name>Estija</name>
+                    <cities>
+                        <city name="Talin">
+                            <id>7</id>
+                            <streets>
+                                <street name="Narva" />
+                            </streets>
+                        </city>
+                    </cities>
+                </country>
+            </countries>
+        </planet>
+    </planets>
+"""
+
+
+def test_xml_read_many_refs_0(rc: RawConfig, tmp_path: Path):
+    path = tmp_path / "cities.xml"
+    path.write_text(xml_cities)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type     | ref     | source                                                           | prepare          | access
+    example/xml              |          |         |                                                                  |                  |
+      | data                 | dask/xml |         | {path}                                                           |                  |
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | Planet       |          | id      | /planets/planet                                                  |                  |
+      |   |   |   | id       | string   |         | id                                                               |                  | open
+      |   |   |   | code     | string   |         | code                                                             |                  | open
+      |   |   |   | name     | string   |         | name                                                             |                  | open
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | Country      |          | id      | /planets/planet/countries/country                                |                  |
+      |   |   |   | id       | string   |         | id                                                               |                  | open      
+      |   |   |   | code     | string   |         |                                                                  |                  | open
+      |   |   |   | name     | string   |         | name                                                             |                  | open
+      |   |   |   | planet   | ref      | Planet  | ../../id                                                         |                  | open
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | City         |          | id      | /planets/planet/countries/country/cities/city                    |                  |
+      |   |   |   | id       | string   |         | id                                                               |                  | open
+      |   |   |   | name     | string   |         | @name                                                            |                  | open
+      |   |   |   | country  | ref      | Country | ../../id                                                         |                  | open
+      |   |   |   | planet   | ref      | Planet  | ../../../../id                                                   |                  | open
+      |   |                  |          |         |                                                                  |                  |
+      |   |   | Street       |          | name    | /planets/planet/countries/country/cities/city/streets/street     |                  |
+      |   |   |   | name     | string   |         | @name                                                            |                  | open
+      |   |   |   | city     | ref      | City    | ../../id                                                         |                  | open
+      |   |   |   | country  | ref      | Country | ../../../../id                                                   |                  | open
+      |   |   |   | planet   | ref      | Planet  | /planets/planet/id                                               |                  | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    config = context.get("config")
+    assert config.check_ref_filters is True
+    app = create_test_client(context)
+    app.authmodel("example/xml", ["getall"])
+
+    resp = app.get("/example/xml/Street")
+    assert resp.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), ("0.0", "1.0"), (0, 1), (0.0, 1.0)]
+)
+def test_xml_read_bool_enum(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
+    xml = f"""
+        <cities>
+            <city>
+                <is_capital>{first_val}</is_capital>
+                <name>Kaunas</name>
+            </city>
+            <city>
+                <is_capital>{second_val}</is_capital>
+                <name>Vilnius</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type     | ref  | source       | prepare | access
+    example/xml                |          |      |              |         |
+      | xml                    | dask/xml |      | {path}       |         |
+      |   |   | City           |          | name | /cities/city |         |
+      |   |   |   | name       | string   |      | name         |         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   |         | open
+      |   |   |   |            | enum     |      | {first_val}  | false   | open
+      |   |   |   |            | enum     |      | {second_val} | true    | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        (False, "Kaunas"),
+        (True, "Vilnius"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), (0, 1), ("off", "on")]
+)
+def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
+    xml = f"""
+        <cities>
+            <city>
+                <is_capital>{first_val}</is_capital>
+                <name>Kaunas</name>
+            </city>
+            <city>
+                <is_capital>{second_val}</is_capital>
+                <name>Vilnius</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type     | ref  | source       | access
+    example/xml                |          |      |              |
+      | xml                    | dask/xml |      | {path}       |
+      |   |   | City           |          | name | /cities/city |
+      |   |   |   | name       | string   |      | name         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        (False, "Kaunas"),
+        (True, "Vilnius"),
+    ]
+
+
+def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+      |   |   |   |                    | enum             |              | 35                      | open   | 35
+      |   |   |   |                    |                  |              | 40                      | open   | 40
+      
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
+    ]
+
+
+def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
+    ]
+
+
+def test_xml_read_text_lang_multiple_variants_get_all(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <miestai>
+            <miestas>
+                <pavadinimas_lt>Kaunas</pavadinimas_lt>
+                <pavadinimas_en>Kaunas_en</pavadinimas_en>
+                <kodas>KNS</kodas>
+            </miestas>
+            <miestas>
+                <pavadinimas_lt>Vilnius</pavadinimas_lt>
+                <pavadinimas_en>Vilnius_en</pavadinimas_en>
+                <kodas>VNO</kodas>
+            </miestas>
+        </miestai>
+    """
+    path = tmp_path / "miestai.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type     | ref  | source               | access
+    example/xml              |          |      |                      |
+      | xml                  | dask/xml |      | {path}               |
+      |   |   | City         |          | code | /miestai/miestas      |
+      |   |   |   | name@lt  | string   |      | pavadinimas_lt/text() | open
+      |   |   |   | name@en  | string   |      | pavadinimas_en/text() | open
+      |   |   |   | code     | string   |      | kodas/text()          | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+
+    data = resp.json()["_data"]
+
+    assert data == [
+        {
+            "_id": ANY,
+            "_type": "example/xml/City",
+            "_revision": None,
+            "name": {"lt": "Kaunas", "en": "Kaunas_en"},
+            "code": "KNS",
+        },
+        {
+            "_id": ANY,
+            "_type": "example/xml/City",
+            "_revision": None,
+            "name": {"lt": "Vilnius", "en": "Vilnius_en"},
+            "code": "VNO",
+        },
     ]

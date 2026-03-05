@@ -406,8 +406,6 @@ class RawConfig:
                     break
             else:
                 default = schema.get("default", NA)
-            if default is NA:
-                default = None
         return default, None
 
     def get_source_names(self) -> List[str]:
@@ -574,7 +572,7 @@ def configure_rc(
     resources: List[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = "inline",
-    load_backends=True,
+    ensure_backends=True,
 ) -> RawConfig:
     config: Dict[str, Any] = {}
 
@@ -660,7 +658,7 @@ def configure_rc(
         if check_names is not None:
             config["check.names"] = check_names
 
-    config["load_backends"] = load_backends
+    config["ensure_backends"] = ensure_backends
 
     if config:
         rc = rc.fork(config)

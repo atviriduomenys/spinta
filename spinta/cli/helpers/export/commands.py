@@ -2,7 +2,7 @@ from typing import Optional, Union
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.components import Context, Model, DataSubItem, Property
 from spinta.core.enums import Access
 from spinta.formats.components import Format

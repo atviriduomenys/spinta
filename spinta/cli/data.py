@@ -15,7 +15,8 @@ from spinta.backends import Backend
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream, count_rows
-from spinta.cli.helpers.errors import cli_error, ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.cli.helpers.export.helpers import (
     validate_and_return_shallow_backend,
@@ -129,6 +130,9 @@ def export_(
     commands.validate_export_output(context, fmt or backend, output)
     access = get_enum_by_name(Access, access)
 
+    max_retries = config.sync_retry_count
+    delay_range = config.sync_retry_delay_range
+
     with context:
         require_auth(context)
         error_counter = ErrorCounter(max_count=max_error_count)
@@ -169,6 +173,8 @@ def export_(
                     no_progress_bar=no_progress_bar,
                     reset_cid=ignore_sync_cid,
                     timeout=(connect_timeout, read_timeout),
+                    max_retries=max_retries,
+                    delay_range=delay_range,
                 )
         else:
             dependant_models = extract_dependant_nodes(context, models, True)

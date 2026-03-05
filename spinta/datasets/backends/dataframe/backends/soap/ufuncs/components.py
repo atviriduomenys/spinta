@@ -15,7 +15,7 @@ class SoapQueryBuilder(QueryBuilder):
         self,
         backend: Soap,
         model: Model,
-        query_params: QueryParams,
+        query_params: QueryParams | None,
     ) -> SoapQueryBuilder:
         builder = self(
             backend=backend,

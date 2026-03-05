@@ -1182,6 +1182,18 @@ def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], *
 
 
 @command()
+def get_model_properties(context: Context, manifest: Manifest, model_name: str, **kwargs) -> dict[str, Property]:
+    """Get all properties of a specific model."""
+
+
+@command()
+def set_property(
+    context: Context, manifest: Manifest, model_name: str, property_name: str, property: Property, **kwargs
+):
+    """Add property to manifest, under a specific model."""
+
+
+@command()
 def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> bool:
     """Check if manifest has specified namespace"""
 
@@ -1222,8 +1234,30 @@ def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset
 
 
 @command()
+def get_dataset_resources(context: Context, manifest: Manifest, dataset_name: str, **kwargs):
+    """Get resources for a particular dataset."""
+
+
+@command()
+def get_resource(context: Context, manifest: Manifest, dataset_name: str, resource_name: str, **kwargs):
+    """Get resource of a specific dataset."""
+
+
+@command()
+def set_resource(
+    context: Context, manifest: Manifest, dataset_name: str, resource_name: str, resource: Resource, **kwargs
+):
+    """Add resource to manifest, under a specific dataset."""
+
+
+@command()
 def get_dataset_models(context: Context, manifest: Manifest, dataset_name: str, **kwargs):
     """Get all models that belong to the dataset"""
+
+
+@command()
+def get_dataset_model_properties(context: Context, manifest: Manifest, dataset_name: str, model_name: str, **kwargs):
+    """Get all model properties of a specific dataset."""
 
 
 @command()

@@ -1,20 +1,13 @@
-import logging
-
 from spinta.api import init
 from spinta.core.context import create_context
 from spinta import commands
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s",
-)
 
 context = create_context("asgi")
 
 rc = context.get("rc")
 config = context.get("config")
 commands.load(context, config)
+
 commands.check(context, config)
 
 store = context.get("store")

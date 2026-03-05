@@ -36,7 +36,7 @@ app = Typer()
 add(app, "config", config.config, short_help="Show current configuration values")
 add(app, "check", config.check, short_help="Check configuration and manifests")
 
-add(app, "genkeys", auth.genkeys, short_help="Generate client token validation keys")
+add(app, "key", auth.key, short_help="Manage client token validation keys")
 add(app, "token", auth.token, short_help="Tools for encoding/decode auth tokens")
 add(app, "client", auth.client, short_help="Manage auth clients")
 
@@ -77,15 +77,17 @@ def main(
     ),
     env_file: Optional[pathlib.Path] = Option(None, "--env-file", help=("Load configuration from a given .env file.")),
     version: bool = Option(False, help="Show version number."),
+    tb: Optional[str] = Option("pretty", "--tb", help=("Exception style: pretty, native.")),
+    # Deprecated. Use env file instead
     log_file: Optional[pathlib.Path] = Option(
         None, "--log-file", help=("Write log messages to a specified file, if not given, writes logs to STDERR.")
     ),
+    # Deprecated. Use env file instead
     log_level: Optional[str] = Option(
-        "warning",
+        None,
         "--log-level",
         help=("Log level. Possible levels: fatal, error, warning, info, debug. Default: warning."),
     ),
-    tb: Optional[str] = Option("pretty", "--tb", help=("Exception style: pretty, native.")),
 ):
     if tb == "pretty":
         app.pretty_exceptions_enable = True
@@ -94,15 +96,18 @@ def main(
     else:
         raise ValueError("Unknown value {tb!r} for --tb option. Possible values are: pretty, native.")
 
-    logging.basicConfig(
-        level=logging.getLevelName(log_level.upper()),
-        format="%(asctime)s %(levelname)s: %(message)s",
-        filename=log_file,
-    )
-
-    log.debug("log file set to: %s", log_file or "STDERR")
-    log.debug("log level set to: %s", log_level)
-
     ctx.obj = ctx.obj or create_context("cli", args=option, envfile=env_file)
+
+    if log_file:
+        log.warning(
+            "Deprecation warning: log_file option is deprecated and will be removed in a future version. "
+            "Set file_log_path via env file instead."
+        )
+    if log_level:
+        log.warning(
+            "Deprecation warning:log_level option is deprecated and will be removed in a future version. "
+            "Set log_level and file_log_level via env file instead."
+        )
+
     if version:
         echo(spinta.__version__)

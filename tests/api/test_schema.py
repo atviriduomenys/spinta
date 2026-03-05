@@ -2,7 +2,7 @@ import pathlib
 import uuid
 from pathlib import Path
 from typing import Union
-
+import pytest
 from pytest import FixtureRequest
 
 from spinta.api.schema import create_migrate_rename_mapping
@@ -82,11 +82,13 @@ def test_schema_invalid_auth_scope(
     assert error(resp, status=403) == "InsufficientScopeError"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_manifest_type(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -104,16 +106,18 @@ def test_schema_invalid_manifest_type(
         full_load=True,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
     resp = app.post("/api/schema/error/type/Country/:schema")
     assert error(resp, status=400) == "NotSupportedManifestType"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_path_model_and_ns(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -130,7 +134,7 @@ def test_schema_invalid_path_model_and_ns(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
     resp = app.post("/api/schema/error/path/Country/:schema")
     assert error(resp, status=400) == "InvalidSchemaUrlPath"
 
@@ -138,11 +142,13 @@ def test_schema_invalid_path_model_and_ns(
     assert error(resp, status=400) == "InvalidSchemaUrlPath"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_dataset_name(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -159,17 +165,19 @@ def test_schema_invalid_dataset_name(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     resp = app.post("/api/schema/error/1/:schema")
     assert error(resp, status=400) == "InvalidName"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_content_type(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -186,7 +194,7 @@ def test_schema_invalid_content_type(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     resp = app.post("/api/schema/error/content/:schema")
     assert error(resp, status=400) == "ModifySchemaRequiresFile"
@@ -195,11 +203,13 @@ def test_schema_invalid_content_type(
     assert error(resp, status=415) == "UnknownContentType"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_invalid_file_size(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -216,7 +226,7 @@ def test_schema_invalid_file_size(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     # push 150MB file
     resp = app.post(
@@ -225,11 +235,13 @@ def test_schema_invalid_file_size(
     assert error(resp, status=400) == "FileSizeTooLarge"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_empty_file(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -246,7 +258,7 @@ def test_schema_empty_file(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv("""
     id | d | r | b | m | property | type
@@ -256,11 +268,13 @@ def test_schema_empty_file(
     assert error(resp, status=400) == "ModifyOneDatasetSchema"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_dataset_missmatch(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -277,7 +291,7 @@ def test_schema_dataset_missmatch(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv("""
     d | r | b | m | property      | type    | ref
@@ -291,11 +305,13 @@ def test_schema_dataset_missmatch(
     assert error(resp, status=400) == "DatasetNameMissmatch"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_more_than_one_dataset(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -312,7 +328,7 @@ def test_schema_more_than_one_dataset(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv("""
     d | r | b | m | property      | type    | ref
@@ -330,11 +346,13 @@ def test_schema_more_than_one_dataset(
     assert error(resp, status=400) == "ModifyOneDatasetSchema"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write"], ["uapi:/:schema_write"]])
 def test_schema_requires_ids(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -351,7 +369,7 @@ def test_schema_requires_ids(
         request=request,
     )
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id | d | r | b | m | property      | type    | ref
@@ -365,11 +383,13 @@ def test_schema_requires_ids(
     assert error(resp, status=400) == "DatasetSchemaRequiresIds"
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_create_new_dataset(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = boostrap_manifest_with_drop(
         rc,
@@ -389,7 +409,7 @@ def test_schema_create_new_dataset(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall"])
+    app.authorize(scopes)
 
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -505,11 +525,13 @@ def test_schema_create_new_dataset(
         assert data.json()["_data"] == [{"description": "", "name": "api/schema/insert/Country", "title": ""}]
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_create_new_dataset_when_not_empty(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     context = boostrap_manifest_with_drop(
         rc,
@@ -533,7 +555,7 @@ def test_schema_create_new_dataset_when_not_empty(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall"])
+    app.authorize(scopes)
 
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -824,11 +846,13 @@ def test_schema_create_new_dataset_when_not_empty(
         ]
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_add_new_model(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -861,7 +885,7 @@ def test_schema_add_new_model(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -1151,11 +1175,13 @@ def test_schema_add_new_model(
         ]
 
 
+@pytest.mark.parametrize("scopes", [["spinta_schema_write", "spinta_getall"], ["uapi:/:schema_write", "uapi:/:getall"]])
 def test_schema_remove_model(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -1196,7 +1222,7 @@ def test_schema_remove_model(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -1482,11 +1508,19 @@ def test_schema_remove_model(
         ]
 
 
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        ["spinta_schema_write", "spinta_getall", "spinta_insert"],
+        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"],
+    ],
+)
 def test_schema_update_model(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -1516,7 +1550,7 @@ def test_schema_update_model(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -1737,11 +1771,19 @@ def test_schema_update_model(
         assert listdata(result, "id", "vardas", "code") == [(0, "Lietuva", None), (1, "Latvia", None)]
 
 
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        ["spinta_schema_write", "spinta_getall", "spinta_insert"],
+        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create"],
+    ],
+)
 def test_schema_update_model_multiple_times(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     dataset = uuid.uuid4()
     country_model = uuid.uuid4()
@@ -1781,7 +1823,7 @@ def test_schema_update_model_multiple_times(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                  | d | r | b | m | property      | type    | ref
@@ -2091,11 +2133,19 @@ def test_schema_update_model_multiple_times(
         assert listdata(result, "id", "code", "name") == [(0, "Lietuva", NA), (1, "Latvia", NA)]
 
 
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        ["spinta_schema_write", "spinta_getall", "spinta_insert", "spinta_set_meta_fields"],
+        ["uapi:/:schema_write", "uapi:/:getall", "uapi:/:create", "uapi:/:set_meta_fields"],
+    ],
+)
 def test_schema_advanced(
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
+    scopes: list,
 ):
     dataset = uuid.uuid4()
     place_model = uuid.uuid4()
@@ -2149,7 +2199,7 @@ def test_schema_advanced(
     engine = sa.create_engine(dsn)
 
     app = create_test_client(context)
-    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert", "spinta_set_meta_fields"])
+    app.authorize(scopes)
 
     csv_manifest = convert_ascii_manifest_to_csv(f"""
     id                         | d | r | base  | m | property      | type     | ref

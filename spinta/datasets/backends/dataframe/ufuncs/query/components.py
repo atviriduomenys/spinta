@@ -18,6 +18,7 @@ class DaskDataFrameQueryBuilder(Env):
     model: Model
     dataframe: DataFrame
     params: dict
+    url_query_params: Expr | None
 
     def init(self, backend: DaskBackend, dataframe: DataFrame, params: dict) -> DaskDataFrameQueryBuilder:
         return self(
@@ -29,6 +30,7 @@ class DaskDataFrameQueryBuilder(Env):
             limit=None,
             offset=None,
             params=params,
+            url_query=None,
         )
 
     def build(self, where):
