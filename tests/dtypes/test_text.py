@@ -5,6 +5,7 @@ import pytest
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
 from spinta.testing.client import create_test_client
+from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
@@ -46,8 +47,7 @@ def test_text(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@en, name@lt)")
-    data = resp.json()["_data"]
-    assert data == [{"name": {"lt": "Lietuva", "en": "Lithuania"}}]
+    assert listdata(resp, full=True) == [{"name.en": "Lithuania", "name.lt": "Lietuva"}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -94,8 +94,7 @@ def test_text_patch(
 
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@lt, name@en)")
-    data = resp.json()["_data"]
-    assert data == [{"name": {"lt": "Latvija", "en": "Latvia"}}]
+    assert listdata(resp, full=True) == [{"name.lt": "Latvija", "name.en": "Latvia"}]
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -328,7 +327,6 @@ def test_text_accept_language(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-# @pytest.mark.skip(reason="RFC. Should content-language be used for this purpose?")
 def test_text_content_language(
     manifest_type: str,
     tmp_path: Path,
@@ -397,6 +395,7 @@ def test_text_unknown_language(
 
     select_by_prop = app.get(f"/{model}/?select(name@C)")
     assert select_by_prop.status_code == 200
+    assert len(select_by_prop.json()["_data"]) == 1
     assert select_by_prop.json()["_data"] == [{"name": {"": "LT"}}]
 
 
