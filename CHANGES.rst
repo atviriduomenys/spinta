@@ -4,7 +4,7 @@ Changes
 0.2dev18 (unreleased)
 =====================
 
-- Fixed a bug where data for properties with language tags was not being returned (without `select` or other queries) (`#1776`_).
+- Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
 
 
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
@@ -14,8 +14,8 @@ Changes
 
 Bug fixes:
 
-- Fixes issue for properties with Text data type handling for `dask/xml` backends.
-- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors.
+- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors (`#1698`_).
+- Fixed a bug where data for properties with language tags was not being returned (without `select` or other queries) (`#1776`_).
 
 
 .. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
