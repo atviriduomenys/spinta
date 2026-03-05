@@ -1,4 +1,4 @@
-Docker-compose pakeistas taip, kad kiekvienam deploymentui naudotų atskirą duomenų bazę
+# Docker-compose pakeistas taip, kad kiekvienam deploymentui naudotų atskirą duomenų bazę
 
 # docker network create spinta
 # docker compose -f docker-compose.nginx.yml up -d
@@ -53,8 +53,8 @@ networks:
 
 
 
-config.yml failas, pakeistas taip, kad būtų naudojamos dvi duomenų bazės, viena - iš kurios imami duomenys,
-kita - į kurią pushinami
+# config.yml failas, pakeistas taip, kad būtų naudojamos dvi duomenų bazės, viena - iš kurios imami duomenys,
+# kita - į kurią pushinami
 
 env: production
 data_path: /home/karina/work/vssa/spinta/test1
@@ -96,4 +96,76 @@ accesslog:
   type: file
   file: test1/accesslog.json
 
+# paruošti dsa failai:
 
+# 1. internal DSA
+
+d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access
+datasets/gov/rc/ar/adresai          |         |                                               |                |         |       |
+  |   |   | Adresas                 |         | aob_kodas                                     |                |         | 4     |
+  |   |   |   | tipas               | integer |                                               |                |         | 4     | open
+  |   |   |   | aob_kodas           | integer |                                               |                |         | 4     | open
+  |   |   |   | aob_data_nuo        | date    | D                                             |                |         | 4     | open
+  |   |   |   | aob_data_iki        | date    | D                                             |                |         | 4     | open
+                                    |         |                                               |                |         |       |
+datasets/gov/rc/jar/formos_statusai |         |                                               |                |         |       |
+  | db                              | sql     | default                                       |                |         |       |
+  |   |   | Forma                   |         | id                                            | formos         |         | 4     |
+  |   |   |   | id                  | integer |                                               | id             |         | 4     | protected
+  |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
+  |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
+  |   |   |   | pav_ilgas           | string  |                                               | pav_ilgas      |         | 3     | open
+  |   |   |   | name                | string  |                                               | name           |         | 3     | open
+  |   |   |   | tipas               | string  |                                               | tipas          |         | 4     | open
+                                    | enum    |                                               | Privatus       |         |       |
+                                    |         |                                               | Viešasis       |         |       |
+  |   |   |   | type                | string  |                                               | type           |         | 4     | open
+                                    | enum    |                                               | Private        |         |       |
+                                    |         |                                               | Public         |         |       |
+                                    |         |                                               |                |         |       |
+  |   |   | Statusas                |         | kodas                                         | statusai       |         | 4     |
+  |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
+  |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
+  |   |   |   | name                | string  |                                               | name           |         | 3     | open
+                                    |         |                                               |                |         |       |
+datasets/gov/rc/jar/iregistruoti    |         |                                               |                |         |       |
+  | db                              | sql     | default                                       |                |         |       |
+  |   |   | JuridinisAsmuo          |         | ja_kodas                                      | iregistruoti   |         | 4     |
+  |   |   |   | ja_kodas            | integer |                                               | ja_kodas       |         | 4     | open
+  |   |   |   | ja_pavadinimas      | string  |                                               | ja_pavadinimas |         | 4     | open
+  |   |   |   | pilnas_adresas      | string  |                                               | pilnas_adresas |         | 1     | open
+  |   |   |   | adresas             | ref     | /datasets/gov/rc/ar/adresai/Adresas           | adreso_kodas   |         | 4     | open
+  |   |   |   | reg_data            | date    | D                                             | reg_data       |         | 4     | open
+  |   |   |   | forma               | ref     | /datasets/gov/rc/jar/formos_statusai/Forma    | forma_id       |         | 4     | open
+  |   |   |   | statusas            | ref     | /datasets/gov/rc/jar/formos_statusai/Statusas | statusas_id    |         | 4     | open
+
+
+# 2. external DSA
+
+id | d | r | b | m | property           | type    | ref      | source                                               | source.type | prepare | origin | count | level | status  | visibility | access | uri | eli | title | description
+   | datasets/gov/ivpk/test             |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   | resource1                      | sql     |          | postgresql+psycopg2://admin:@localhost:54321/spinta2 |             |         |        |       |       |         |            |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | Formos1                |         | id       | formos1                                              |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | id                 | integer |          | id                                                   |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | kodas              | integer |          | kodas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | name               | string  |          | name                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pav_ilgas          | string  |          | pav_ilgas                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pavadinimas        | string  |          | pavadinimas                                          |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | tipas              | string  |          | tipas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | type               | string  |          | type                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | Iregistruoti1          |         | ja_kodas | iregistruoti1                                        |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | adreso_kodas       | integer |          | adreso_kodas                                         |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | forma_id           | integer |          | forma_id                                             |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | ja_kodas           | integer |          | ja_kodas                                             |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | ja_pavadinimas     | string  |          | ja_pavadinimas                                       |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pilnas_adresas     | string  |          | pilnas_adresas                                       |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | reg_data           | string  |          | reg_data                                             |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | stat_data          | string  |          | stat_data                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | statusas_id        | integer |          | statusas_id                                          |             |         |        |       |       | develop | private    |        |     |     |       |
+   |                                    |         |          |                                                      |             |         |        |       |       |         |            |        |     |     |       |
+   |   |   |   | Statusai1              |         | kodas    | statusai1                                            |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | kodas              | integer |          | kodas                                                |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | name               | string  |          | name                                                 |             |         |        |       |       | develop | private    |        |     |     |       |
+   |   |   |   |   | pavadinimas        | string  |          | pavadinimas                                          |             |         |        |       |       | develop | private    |        |     |     |       |
