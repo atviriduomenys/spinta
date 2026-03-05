@@ -5,7 +5,7 @@ Kartais reikia, kad iš vieno XML lauko susikurtų du skirtingi modeliai arba dv
 Pavyzdžiui - ILTU kodas, kuris kartais pateikiamas tame pačiame lauke, kaip ir asmens kodas. 
 ILTU kodas skirtas identifikuoti užsienio šalių gyvventojus, panašiai, kaip asmens kodas skirtas Lietuvos gyventojus. 
 
-### XML pavyzdys
+## XML pavyzdys
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -28,12 +28,12 @@ ILTU kodas skirtas identifikuoti užsienio šalių gyvventojus, panašiai, kaip 
 </Asmenys>
 ```
 
-### DSA pavyzdžiai
+## DSA pavyzdžiai
 
 Tokiu atveju rekomenduojame atlikti filtravimą, naudojant skirtingus kondicinius XPath. 
 `source` reikia įrašyti XPath kelią iki elemento ir filtrą:
 
-1. Kai norima dviejų modelių, vieno - Lietuvos gyventojams, kito - užsienio šalių gyventojams. 
+### 1. Kai norima dviejų modelių, vieno - Lietuvos gyventojams, kito - užsienio šalių gyventojams. 
    XPath filtras rašomas prie modelio `source`:
 
 
@@ -52,7 +52,7 @@ id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,orig
 ,,,,,pavarde,string required unique,,Pavardė,,,,,,develop,private,open,,,,
 ```
 
-2. Kai norima tame pačiame modelyje turėti dvi properties, vieną asmens kodui, kitą - ILTU kodui.
+### 2. Kai norima tame pačiame modelyje turėti dvi properties, vieną asmens kodui, kitą - ILTU kodui.
    XPath filtras rašomas prie `property` `source`:
 
 ```csv
@@ -67,9 +67,9 @@ id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,orig
 ,,,,,pavarde,string required unique,,Pavardė,,,,,,develop,public,open,,,,
 ```
 
-### UDTS rezultatų pavyzdžiai
+## UDTS rezultatų pavyzdžiai
 
-1. Su dviem modeliais, paprašius duomenų, gaunamas toks rezultatas:
+### 1. Su dviem modeliais, paprašius duomenų, gaunamas toks rezultatas:
 
 Modelis `Asmuo`:
 
@@ -118,7 +118,7 @@ http http://localhost:8000/dataset/UzsienioAsmuo
 
 ```
 
-2. Su vienu modeliu, skirtingomis properties, gaunamas toks rezultatas:
+### 2. Su vienu modeliu, skirtingomis properties, gaunamas toks rezultatas:
 
 ```json
  http http://localhost:8000/dataset/Asmuo
