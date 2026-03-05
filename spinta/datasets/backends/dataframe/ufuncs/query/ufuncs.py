@@ -178,20 +178,6 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                             else:
                                 env.selected[prop.place] = env.call("select", prop)
                     else:
-                        selected = True if prop.place in env.selected else False
-                        resolved = False
-                        if selected:
-                            dtype = prop.dtype
-                            is_text = isinstance(dtype, Text)
-                            if is_text:
-                                prop.dtype.langs
-                                for resolved_key, resolved in env.resolved.items():
-                                    for lang_prop in prop.dtype.langs.values():
-                                        if resolved_key == lang_prop.place:
-                                            resolved = True
-                                            break
-                        if selected and resolved:
-                            continue
                         env.selected[prop.place] = env.call("select", prop)
 
 
