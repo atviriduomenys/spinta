@@ -145,40 +145,35 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 prop_model_external_pkeys = prop.model.external.pkeys if prop.model.external else None
-                if isinstance(prop.dtype, Text) and not isinstance(prop_model_external_pkeys, list):
+                if (
+                    isinstance(prop.dtype, Text)
+                    and isinstance(prop_model_external_pkeys, list)
+                    and prop in prop_model_external_pkeys
+                ):
                     for lang_prop in prop.dtype.langs.values():
                         result = env.call("select", lang_prop)
-                        env.selected[lang_prop.place] = result
-                else:
-                    if (
-                        isinstance(prop.dtype, Text)
-                        and isinstance(prop_model_external_pkeys, list)
-                        and prop in prop_model_external_pkeys
-                    ):
-                        for lang_prop in prop.dtype.langs.values():
-                            result = env.call("select", lang_prop)
-                            env.resolved[lang_prop.place] = result
-                        for prop_external_pkey in prop_model_external_pkeys:
-                            resolved_primary_external_lang = None
+                        env.resolved[lang_prop.place] = result
+                    for prop_external_pkey in prop_model_external_pkeys:
+                        resolved_primary_external_lang = None
+                        for lang_prop in prop_external_pkey.dtype.langs.values():
+                            for resolved_key, resolved in env.resolved.items():
+                                if resolved_key == lang_prop.place:
+                                    resolved_primary_external_lang = resolved
+                                    break
+                        if resolved_primary_external_lang is None:
+                            raise RuntimeError(f"Primary external key {prop_external_pkey} is not resolved.")
+                        if resolved_primary_external_lang.prop and resolved_primary_external_lang.prop.parent:
+                            env.selected[prop.place] = env.call("select", resolved_primary_external_lang)
+                elif prop_model_external_pkeys:
+                    for prop_external_pkey in prop_model_external_pkeys:
+                        if isinstance(prop_external_pkey.dtype, Text):
                             for lang_prop in prop_external_pkey.dtype.langs.values():
-                                for resolved_key, resolved in env.resolved.items():
-                                    if resolved_key == lang_prop.place:
-                                        resolved_primary_external_lang = resolved
-                                        break
-                            if resolved_primary_external_lang is None:
-                                raise RuntimeError(f"Primary external key {prop_external_pkey} is not resolved.")
-                            if resolved_primary_external_lang.prop and resolved_primary_external_lang.prop.parent:
-                                env.selected[prop.place] = env.call("select", resolved_primary_external_lang)
-                    elif prop_model_external_pkeys:
-                        for prop_external_pkey in prop_model_external_pkeys:
-                            if isinstance(prop_external_pkey.dtype, Text):
-                                for lang_prop in prop_external_pkey.dtype.langs.values():
-                                    result = env.call("select", lang_prop)
-                                    env.selected[lang_prop.name] = result
-                            else:
-                                env.selected[prop.place] = env.call("select", prop)
-                    else:
-                        env.selected[prop.place] = env.call("select", prop)
+                                result = env.call("select", lang_prop)
+                                env.selected[lang_prop.name] = result
+                        else:
+                            env.selected[prop.place] = env.call("select", prop)
+                else:
+                    env.selected[prop.place] = env.call("select", prop)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property, Expr)

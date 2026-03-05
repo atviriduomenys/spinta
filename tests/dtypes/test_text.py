@@ -328,7 +328,7 @@ def test_text_accept_language(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-@pytest.mark.skip(reason="RFC. Should content-language be used for this purpose?")
+# @pytest.mark.skip(reason="RFC. Should content-language be used for this purpose?")
 def test_text_content_language(
     manifest_type: str,
     tmp_path: Path,
@@ -365,7 +365,6 @@ def test_text_content_language(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
-@pytest.mark.skip(reason="RFC. Why would the assertion expect values?")
 def test_text_unknown_language(
     manifest_type: str,
     tmp_path: Path,
