@@ -1,4 +1,5 @@
 import binascii
+from spinta.types.datatype import String
 
 from spinta.core.ufuncs import ufunc, Expr
 from spinta.exceptions import InvalidBase64String, NotImplementedFeature

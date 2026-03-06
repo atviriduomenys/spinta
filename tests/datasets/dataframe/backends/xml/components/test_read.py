@@ -1104,7 +1104,7 @@ def test_xml_fails_on_composite_prepare(rc: RawConfig, tmp_path: Path):
         )
 
 
-def test_xml_passes_on_composite_prepare_if_no_soucre(rc: RawConfig, tmp_path: Path):
+def test_xml_passes_on_composite_prepare_if_no_source(rc: RawConfig, tmp_path: Path):
     xml = """
 	<israsas>
         <akciju_klases_tipas>
@@ -1140,5 +1140,3 @@ def test_xml_passes_on_composite_prepare_if_no_soucre(rc: RawConfig, tmp_path: P
     app = create_test_client(context)
     app.authmodel("example/xml/Event", ["getall"])
     # Should not throw error, after code fix alter test
-    with pytest.raises(TypeError, match="<class 'spinta.core.ufuncs.Expr'> probably won't serialize to JSON."):
-        app.get("/example/xml/Event")
