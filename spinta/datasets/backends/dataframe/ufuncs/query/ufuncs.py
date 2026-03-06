@@ -164,6 +164,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
 
+
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
 def select(env: DaskDataFrameQueryBuilder, prop: Property, languages: set) -> Selected:
     prep = {}
