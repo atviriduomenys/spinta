@@ -43,8 +43,6 @@ from spinta.components import Property
 from spinta.components import UrlParams, page_in_data
 from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
-from spinta.datasets.backends.dataframe.backends.csv.components import Csv
-from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.exceptions import (
     ConflictingValue,
     RequiredProperty,
