@@ -74,6 +74,13 @@ def offset(env: DaskDataFrameQueryBuilder, n: int):
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
 def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Property:
+    if str(attr.obj) in env.model.properties:
+        prop = env.model.properties.get(str(attr.obj))
+        dtype = getattr(prop, "dtype", None)
+        langs = getattr(dtype, "langs", None)
+        if isinstance(dtype, Text) and langs:
+            if str(attr.name) in langs:
+                return env.call("_resolve_property", langs[str(attr.name)])
     return env.call("_resolve_property", attr.obj)
 
 
@@ -127,12 +134,44 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
 
     env.selected = {}
     if args:
+        resolved = {}
+        selected_keys = set()
+        selected_languages = {}
         for key, arg in args:
-            env.selected[key] = env.call("select", arg)
+            resolved[key] = env.call("_resolve_property", arg)
+        for key, prop in resolved.items():
+            prop_parent = getattr(prop, "parent", None)
+            if prop_parent and isinstance(prop_parent.dtype, Text):
+                selected_keys.add(prop_parent.place)
+                selected_languages.setdefault(prop_parent.place, set()).add(prop.name)
+            else:
+                selected_keys.add(prop.name)
+        for selected_key in selected_keys:
+            prop = env.model.flatprops.get(selected_key)
+            if isinstance(prop.dtype, Text):
+                if not selected_languages.get(prop.place) and authorized(env.context, prop, Action.GETALL):
+                    env.selected[prop.place] = env.call("select", prop)
+                elif selected_languages.get(prop.place) and authorized(env.context, prop, Action.GETALL):
+                    env.selected[prop.place] = env.call("select", prop, selected_languages[prop.place])
+                else:
+                    raise PropertyNotFound(env.model, property=prop, lang=selected_languages[prop.place])
+            else:
+                env.selected[resolved[selected_key].place] = env.call("select", resolved[selected_key])
     else:
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
+def select(env: DaskDataFrameQueryBuilder, prop: Property, languages: set) -> Selected:
+    prep = {}
+    for lang in languages:
+        if lang in prop.dtype.langs:
+            prep[lang] = env.call("select", prop.dtype.langs[lang])
+        else:
+            raise PropertyNotFound(prop.model, property=prop, lang=lang)
+    return Selected(prop=prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)

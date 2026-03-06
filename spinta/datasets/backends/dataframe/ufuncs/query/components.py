@@ -5,15 +5,15 @@ from typing import Any
 from dask.dataframe import DataFrame
 
 from spinta.components import Model, Property
-from spinta.core.ufuncs import Env, Expr
+from spinta.core.ufuncs import Expr
 
 from spinta.exceptions import UnknownMethod
-from spinta.ufuncs.querybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import QueryBuilder, Selected
 from spinta.utils.schema import NA
 from spinta.datasets.backends.dataframe.components import DaskBackend
 
 
-class DaskDataFrameQueryBuilder(Env):
+class DaskDataFrameQueryBuilder(QueryBuilder):
     backend: DaskBackend
     model: Model
     dataframe: DataFrame

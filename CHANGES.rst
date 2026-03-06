@@ -4,8 +4,10 @@ Changes
 0.2dev18 (unreleased)
 =====================
 
+- Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
 - Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
 
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 
 0.2dev17 (2026-02-26)
