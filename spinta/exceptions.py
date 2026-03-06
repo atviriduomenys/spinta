@@ -1215,3 +1215,9 @@ class EnumPrepareMissing(UserError):
     template = """
         Enum {enum} is missing a required value in the prepare column.
     """
+
+
+class SourceOrPrepareNotAllowed(UserError):
+    template = """
+        The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
+    """
