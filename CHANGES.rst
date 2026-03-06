@@ -17,6 +17,10 @@ Bug fixes:
 .. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
 .. _#1698: https://github.com/atviriduomenys/spinta/issues/1698
 
+- Fixed a bug where having source and composite prepare was throwing errors, by adding error handling.
+
+.. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
+
 0.2dev16 (2026-02-17)
 =====================
 
