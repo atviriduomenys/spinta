@@ -497,3 +497,13 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     )
 
     return resolved_values
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
+    return GetAttr(obj, attr)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
+    raise SourceOrPrepareNotAllowed(source=str(source))
