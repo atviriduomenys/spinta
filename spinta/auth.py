@@ -861,12 +861,7 @@ def authorized(
     token = context.get("auth.token")
     # Unauthorized clients can only access open nodes.
     unauthorized = token.get_client_id() == get_default_auth_client_id(context)
-    open_node = False
-    if node.access is None:
-        if node.parent and node.parent.dtype and node.parent.dtype.name == "text":
-            open_node = node.parent.access >= Access.open
-    else:
-        open_node = node.access >= Access.open
+    if node.access > Access.private:
     if unauthorized and not open_node:
         if throw:
             raise AuthorizedClientsOnly()
@@ -877,8 +872,7 @@ def authorized(
     scopes = [node]
 
     # Protected and higher level nodes can be accessed with parent nodes scopes.
-    if node.parent.access > Access.private if node.access is None else node.access > Access.private:
-        ns = None
+    if node.parent.access > Access.private if node.access is None else node.access > Access.private:        ns = None
 
         if isinstance(node, Property):
             # Hidden nodes also require explicit scope.
