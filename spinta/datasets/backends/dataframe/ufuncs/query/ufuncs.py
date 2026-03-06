@@ -190,11 +190,10 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         elif prop.external.prepare is not NA:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
-                breakpoint()
                 result = env.call("select", prop.dtype, result)
             else:
                 result = Selected(prop=prop, prep=prop.external.prepare)
-            # property without external name and with `prepare` is already evaluated
+            # property without external name and with `prepare` is already evaluated <- untrue
             # so just use evaluated value
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
@@ -208,7 +207,6 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
-        breakpoint()
         assert isinstance(result, Selected), prop
         env.resolved[prop.place] = result
     return env.resolved[prop.place]
@@ -345,7 +343,7 @@ def select(
 ) -> Selected:
     # TODO need join for this to work
     return Selected(
-        item=dtype.prop.name,
+        item=dtype.prop.external.name,
         prop=dtype.prop,
     )
 
@@ -468,7 +466,6 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
 def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
-    breakpoint()
     return GetAttr(obj, attr)
 
 
