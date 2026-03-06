@@ -141,9 +141,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
             resolved[key] = env.call("_resolve_property", arg)
         for key, prop in resolved.items():
             prop_parent = getattr(prop, "parent", None)
-            prop_parent_dtype = getattr(prop_parent, "dtype", None)
-            prop_parent_langs = getattr(prop_parent_dtype, "langs", None)
-            if prop_parent and isinstance(prop_parent_dtype, Text) and prop_parent_langs:
+            if prop_parent and isinstance(prop_parent.dtype, Text):
                 selected_keys.add(prop_parent.place)
                 selected_languages.setdefault(prop_parent.place, set()).add(prop.name)
             else:
@@ -163,7 +161,6 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
-
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
@@ -500,13 +497,3 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     )
 
     return resolved_values
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
-    return GetAttr(obj, attr)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
-def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
-    raise SourceOrPrepareNotAllowed(source=str(source))
