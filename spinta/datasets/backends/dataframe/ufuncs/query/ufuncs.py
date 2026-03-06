@@ -149,7 +149,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
             else:
                 selected_keys.add(prop.name)
         for selected_key in selected_keys:
-            prop = env.model.flatprops[selected_key]
+            prop = env.model.flatprops.get(selected_key)
             if isinstance(prop.dtype, Text):
                 if not selected_languages.get(prop.name) and authorized(env.context, prop, Action.GETALL):
                     env.selected[prop.place] = env.call("select", prop)
