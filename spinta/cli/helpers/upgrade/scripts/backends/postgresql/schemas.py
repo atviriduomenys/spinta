@@ -148,10 +148,10 @@ def migrate_schemas(context: Context, **kwargs):
                 ctx = MigrationContext.configure(
                     connection,
                     # If uncommented, it will only generate SQL and output it to stdout
-                    opts={
-                        "as_sql": True,
-                        "literal_binds": True,
-                    },
+                    # opts={
+                    #     "as_sql": True,
+                    #     "literal_binds": True,
+                    # },
                 )
                 operations = Operations(ctx)
                 ops[backend_.name] = operations
