@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.constants import TableType
-from spinta.backends.postgresql.helpers.name import get_pg_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
@@ -53,9 +53,14 @@ def test_upgrade_redirect_pass(
     store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
-    assert insp.has_table(get_pg_table_name("datasets/redirect/cli/Country", TableType.REDIRECT))
-    assert insp.has_table(get_pg_table_name("datasets/redirect/cli/City", TableType.REDIRECT))
-    assert insp.has_table(get_pg_table_name("datasets/redirect/rand/Random", TableType.REDIRECT))
+
+    country_redirect = get_table_identifier(f"datasets/redirect/cli/Country{TableType.REDIRECT.value}")
+    city_redirect = get_table_identifier(f"datasets/redirect/cli/City{TableType.REDIRECT.value}")
+    random_redirect = get_table_identifier(f"datasets/redirect/rand/Random{TableType.REDIRECT.value}")
+
+    assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
 
     result = cli.invoke(rc, ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
@@ -99,24 +104,25 @@ def test_upgrade_redirect_required(
     store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
-    country_redirect = get_pg_table_name("datasets/redirect/cli/req/Country", TableType.REDIRECT)
-    city_redirect = get_pg_table_name("datasets/redirect/cli/req/City", TableType.REDIRECT)
-    random_redirect = get_pg_table_name("datasets/redirect/rand/req/Random", TableType.REDIRECT)
+
+    country_redirect = get_table_identifier(f"datasets/redirect/cli/req/Country{TableType.REDIRECT.value}")
+    city_redirect = get_table_identifier(f"datasets/redirect/cli/req/City{TableType.REDIRECT.value}")
+    random_redirect = get_table_identifier(f"datasets/redirect/rand/req/Random{TableType.REDIRECT.value}")
 
     with backend.begin() as conn:
-        conn.execute(f'''
-            DROP TABLE IF EXISTS "{country_redirect}";
-            DROP TABLE IF EXISTS "{city_redirect}";
-            DROP TABLE IF EXISTS "{random_redirect}";
-        ''')
+        conn.execute(f"""
+            DROP TABLE IF EXISTS {country_redirect.pg_escaped_qualified_name};
+            DROP TABLE IF EXISTS {city_redirect.pg_escaped_qualified_name};
+            DROP TABLE IF EXISTS {random_redirect.pg_escaped_qualified_name};
+        """)
 
-    assert not insp.has_table(country_redirect)
-    assert not insp.has_table(city_redirect)
-    assert not insp.has_table(random_redirect)
+    assert not insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert not insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
     result = cli.invoke(context.get("rc"), ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
 
-    assert insp.has_table(country_redirect)
-    assert insp.has_table(city_redirect)
-    assert insp.has_table(random_redirect)
+    assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
+    assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
+    assert insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)

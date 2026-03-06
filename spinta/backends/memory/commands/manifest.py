@@ -16,7 +16,6 @@ def load(
     backend: Memory,
     *,
     into: Manifest = None,
-    freezed: bool = True,
 ) -> None:
     for source in manifest.sync:
-        commands.load(context, source, into=into or manifest, freezed=freezed)
+        commands.load(context, source, into=into or manifest)

@@ -18,6 +18,7 @@ class Script(enum.Enum):
 
     # Internal postgresql migrations
     POSTGRESQL_COMMENTS = "postgresql_comments"
+    POSTGRESQL_SCHEMAS = "postgresql_schemas"
 
     # Sqlalchemy keymap migrations
     SQL_KEYMAP_INITIAL = "sqlalchemy_keymap_001_initial"
