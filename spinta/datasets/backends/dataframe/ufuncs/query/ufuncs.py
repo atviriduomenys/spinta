@@ -163,16 +163,6 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                 env.selected[prop.place] = env.call("select", prop)
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
-def select(env: DaskDataFrameQueryBuilder, prop: Property, languages: set) -> Selected:
-    prep = {}
-    for lang in languages:
-        if lang in prop.dtype.langs:
-            prep[lang] = env.call("select", prop.dtype.langs[lang])
-        else:
-            raise PropertyNotFound(prop.model, property=prop, lang=lang)
-    return Selected(prop=prop, prep=prep)
-
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
 def select(env: DaskDataFrameQueryBuilder, item: Bind, *, nested: bool = False):
@@ -261,6 +251,17 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Text) -> Selected:
     for lang, prop in dtype.langs.items():
         prep[lang] = env.call("select", prop)
     return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Text, set)
+def select(env: DaskDataFrameQueryBuilder, dtype: Text, languages: set) -> Selected:
+    prep = {}
+    for lang in languages:
+        if lang in dtype.dtype.langs:
+            prep[lang] = env.call("select", dtype.dtype.langs[lang])
+        else:
+            raise PropertyNotFound(dtype.model, property=dtype, lang=lang)
+    return Selected(prop=dtype, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)
