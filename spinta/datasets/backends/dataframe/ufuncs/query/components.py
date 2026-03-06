@@ -5,7 +5,7 @@ from typing import Any
 from dask.dataframe import DataFrame
 
 from spinta.components import Model, Property
-from spinta.core.ufuncs import Env, Expr
+from spinta.core.ufuncs import Expr
 
 from spinta.exceptions import UnknownMethod
 from spinta.ufuncs.querybuilder.components import QueryBuilder, Selected
