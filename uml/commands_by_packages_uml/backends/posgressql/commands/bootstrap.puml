@@ -1,0 +1,16 @@
+@startuml
+package bootstrap <<Rectangle>> {
+
+    object bootstrap {
+        +context: Context,
+        +backend: PostgreSQL
+    }
+
+
+}
+
+bootstrap *-- Context
+bootstrap *-- PostgreSQL
+@enduml
+
+
