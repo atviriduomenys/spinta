@@ -16,6 +16,8 @@
 ruff.toml
 config.yml
 manifest.*
+.DS_Store
+$BASEDIR/
 
 # pyenv
 .python-version
