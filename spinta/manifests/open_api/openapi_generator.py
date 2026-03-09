@@ -83,23 +83,6 @@ def _resolve_ref_schema_name_for_model(
     return _get_schema_name(ref_model)
 
 
-def _normalize_level(ref_level: Level | int | None) -> int | None:
-    """Convert Level or int to plain int, or None."""
-    if ref_level is None:
-        return None
-    return ref_level.value if isinstance(ref_level, Level) else int(ref_level)
-
-
-def _is_global_ref_level(level_value: int | None) -> bool:
-    """Whether given level means global-id reference."""
-    return level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
-
-
-def _should_strip_global_id(level_value: int | None) -> bool:
-    """Whether we should remove _id from ref schemas for this level."""
-    return level_value is not None and level_value < GLOBAL_ID_LEVEL_THRESHOLD
-
-
 class OpenAPISchemaRegistry:
     """Central registry for OpenAPI schema definitions and type mappings"""
 
@@ -715,7 +698,7 @@ class SchemaGenerator:
         if ref_level is not None:
             level_value = ref_level.value if isinstance(ref_level, Level) else int(ref_level)
 
-        is_global_ref = level_value is not None and level_value >= 4
+        is_global_ref = level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
 
         if is_global_ref:
             properties = self.schema_registry.standard_object_properties.copy()
@@ -789,7 +772,7 @@ class SchemaGenerator:
                 use_basename_for_schema_names=use_basename_for_schema_names,
             )
 
-        if level_value is not None and level_value < 4:
+        if level_value is not None and level_value < GLOBAL_ID_LEVEL_THRESHOLD:
             properties.pop("_id", None)
             example.pop("_id", None)
 
