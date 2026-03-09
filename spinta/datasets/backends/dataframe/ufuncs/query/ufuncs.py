@@ -102,14 +102,8 @@ def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property) -> Propert
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
-def select(env: DaskDataFrameQueryBuilder, prop: Property, languages: set) -> Selected:
-    prep = {}
-    for lang in languages:
-        if lang in prop.dtype.langs:
-            prep[lang] = env.call("select", prop.dtype.langs[lang])
-        else:
-            raise PropertyNotFound(prop.model, property=prop, lang=lang)
-    return Selected(prop=prop, prep=prep)
+def select(env: DaskDataFrameQueryBuilder, prop: Property, keys: set) -> Selected:
+    return env.call("select", prop.dtype, keys)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, object)
@@ -247,12 +241,28 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     return env.resolved[prop.place]
 
 
+@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, set)
+def select(env: DaskDataFrameQueryBuilder, dtype: DataType, keys: set) -> Selected:
+    raise NotImplementedFeature(dtype.prop.model, feature="Ability to select specific keys for DataType properties.")
+
+
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType)
 def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
     return Selected(
         item=dtype.prop.external.name,
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Text, set)
+def select(env: DaskDataFrameQueryBuilder, dtype: Text, languages: set) -> Selected:
+    prep = {}
+    for lang in languages:
+        if lang in dtype.langs:
+            prep[lang] = env.call("select", dtype.langs[lang])
+        else:
+            raise PropertyNotFound(dtype.prop.model, property=dtype.prop, lang=lang)
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Text)
