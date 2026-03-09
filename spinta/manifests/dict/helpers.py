@@ -12,6 +12,46 @@ from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
+class _MappedProperties(TypedDict):
+    name: str
+    source: str
+    extra: str
+    type_detector: TypeDetector
+
+
+class _MappedModels(TypedDict):
+    name: str
+    source: str
+    properties: Dict[str, _MappedProperties]
+
+
+class _MappedDataset(TypedDict):
+    dataset: str
+    resource: str
+    models: Dict[str, Dict[str, _MappedModels]]
+
+
+class _MappingMeta(TypedDict):
+    is_blank_node: bool
+    blank_node_name: str
+    blank_node_source: str
+    seperator: str
+    recursive_descent: str
+    remove_array_suffix: bool
+    model_source_prefix: str
+    check_namespace: bool
+    namespace_prefixes: dict
+    namespace_seperator: str
+    detect_model: Callable
+
+
+class _MappingScope(TypedDict):
+    parent_scope: str
+    model_scope: str
+    model_name: str
+    property_name: str
+
+
 def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
     if path.startswith(("http://", "https://")):
         value = requests.get(path).text
@@ -20,32 +60,12 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
             value = f.read()
 
     converted = {}
-    mapping_meta = _MappingMeta(
-        is_blank_node=False,
-        blank_node_name="model1",
-        blank_node_source=".",
-        seperator="",
-        recursive_descent="",
-        model_source_prefix="",
-        namespace_seperator=":",
-        remove_array_suffix=False,
-        check_namespace=False,
-        namespace_prefixes={},
-        detect_model=is_model,
-    )
+    mapping_meta = _get_mapping_meta(manifest_type)
+
     if manifest_type == DictFormat.JSON:
         converted = json.loads(value)
-        mapping_meta["seperator"] = "."
-        mapping_meta["recursive_descent"] = "."
-
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
         converted = xmltodict.parse(value, cdata_key="text()")
-        mapping_meta["seperator"] = "/"
-        mapping_meta["recursive_descent"] = "/.."
-        mapping_meta["model_source_prefix"] = "/"
-        mapping_meta["remove_array_suffix"] = True
-        mapping_meta["check_namespace"] = True
-        mapping_meta["namespace_prefixes"] = {"xmlns": ["xmlns", "@xmlns"]}
 
     namespaces = list(extract_namespaces(converted, mapping_meta))
     converted = _fix_for_blank_nodes(converted)
@@ -143,6 +163,34 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
             )
 
 
+def _get_mapping_meta(manifest_type: DictFormat) -> _MappingMeta:
+    mapping_meta = _MappingMeta(
+        is_blank_node=False,
+        blank_node_name="model1",
+        blank_node_source=".",
+        seperator="",
+        recursive_descent="",
+        model_source_prefix="",
+        namespace_seperator=":",
+        remove_array_suffix=False,
+        check_namespace=False,
+        namespace_prefixes={},
+        detect_model=is_model,
+    )
+    if manifest_type == DictFormat.JSON:
+        mapping_meta["seperator"] = "."
+        mapping_meta["recursive_descent"] = "."
+    elif manifest_type in (DictFormat.XML, DictFormat.HTML):
+        mapping_meta["seperator"] = "/"
+        mapping_meta["recursive_descent"] = "/.."
+        mapping_meta["model_source_prefix"] = "/"
+        mapping_meta["remove_array_suffix"] = True
+        mapping_meta["check_namespace"] = True
+        mapping_meta["namespace_prefixes"] = {"xmlns": ["xmlns", "@xmlns"]}
+
+    return mapping_meta
+
+
 def is_single_item_dict(value: dict) -> bool:
     return len(value) == 1
 
@@ -163,46 +211,6 @@ def _fix_for_blank_nodes(values: Any):
 
         return_values = result
     return return_values
-
-
-class _MappedProperties(TypedDict):
-    name: str
-    source: str
-    extra: str
-    type_detector: TypeDetector
-
-
-class _MappedModels(TypedDict):
-    name: str
-    source: str
-    properties: Dict[str, _MappedProperties]
-
-
-class _MappedDataset(TypedDict):
-    dataset: str
-    resource: str
-    models: Dict[str, Dict[str, _MappedModels]]
-
-
-class _MappingMeta(TypedDict):
-    is_blank_node: bool
-    blank_node_name: str
-    blank_node_source: str
-    seperator: str
-    recursive_descent: str
-    remove_array_suffix: bool
-    model_source_prefix: str
-    check_namespace: bool
-    namespace_prefixes: dict
-    namespace_seperator: str
-    detect_model: Callable
-
-
-class _MappingScope(TypedDict):
-    parent_scope: str
-    model_scope: str
-    model_name: str
-    property_name: str
 
 
 def _name_without_namespace(name: str, mapping_meta: _MappingMeta, prefixes: dict):
