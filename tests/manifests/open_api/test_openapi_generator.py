@@ -41,7 +41,7 @@ def test_info(open_manifest_path: ManifestPath):
 def test_components_schemas(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
     expected_models = ["Organization", "ProcessingUnit"]
-    expected_schemas = ["", "Collection", "Changes", "Change"]
+    expected_schemas = ["", "Collection"]
     all_model_schemas = [
         f"{dataset_name.replace('/', '_')}_{model}{schema}" for model in expected_models for schema in expected_schemas
     ]
@@ -51,7 +51,7 @@ def test_components_schemas(open_manifest_path: ManifestPath):
 
 def test_components_paths(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
-    expected_path_types = ["", "/{id}", "/:changes/{cid}"]
+    expected_path_types = ["", "/{id}"]
 
     dataset_name = "datasets/demo/system_data"
     all_model_paths = [
@@ -82,7 +82,6 @@ def test_model_path_contents(open_manifest_path: ManifestPath):
     for model_name, properties in model_properties.items():
         _test_collection_path_content(paths, dataset_name, model_name)
         _test_single_item_path_content(paths, dataset_name, model_name)
-        _test_changes_path_content(paths, dataset_name, model_name)
         for prop_name in properties:
             _test_property_path_content(paths, dataset_name, model_name, prop_name)
 
@@ -198,13 +197,6 @@ def _test_collection_path_content(paths: dict, dataset_name: str, model_name: st
     _test_api_path(paths, api_path, expected_ref, model_name)
 
 
-def _test_changes_path_content(paths: dict, dataset_name: str, model_name: str):
-    api_path = f"/{dataset_name}/{model_name}/:changes/{{cid}}"
-    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
-    expected_ref = f"#/components/schemas/{model_schema_name}Changes"
-    _test_api_path(paths, api_path, expected_ref, model_name)
-
-
 def _test_single_item_path_content(paths: dict, dataset_name: str, model_name: str):
     api_path = f"/{dataset_name}/{model_name}/{{id}}"
     model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
@@ -265,9 +257,8 @@ def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
 
 def test_components_paths_with_properties(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
-    expected_path_types = ["", "/{id}", "/:changes/{cid}"]
+    expected_path_types = ["", "/{id}"]
 
-    # image and file
     enabled_model_properties = {
         "Organization": ["org_logo"],
         "ProcessingUnit": ["technical_specs"],
@@ -321,8 +312,6 @@ def test_model_schema_content(open_manifest_path: ManifestPath):
     for model_name, properties in model_properties.items():
         _test_base_model_schema(schemas, dataset_name, model_name, properties)
         _test_collection_schema(schemas, dataset_name, model_name)
-        _test_changes_schema(schemas, dataset_name, model_name)
-        _test_change_schema(schemas, dataset_name, model_name, properties)
 
 
 def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, expected_properties):
@@ -372,52 +361,6 @@ def _test_collection_schema(schemas: dict, dataset_name: str, model_name: str):
     assert data_property["items"]["$ref"] == f"#/components/schemas/{model_schema_name}"
 
 
-def _test_changes_schema(schemas: dict, dataset_name: str, model_name: str):
-    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
-    changes_schema_name = f"{model_schema_name}Changes"
-    change_schema_name = f"{model_schema_name}Change"
-    schema = schemas[changes_schema_name]
-
-    assert schema["type"] == "object"
-    assert "properties" in schema
-
-    properties = schema["properties"]
-    assert "_type" in properties
-    assert "_data" in properties
-
-    data_property = properties["_data"]
-    assert data_property["type"] == "array"
-    assert "items" in data_property
-    assert data_property["items"]["$ref"] == f"#/components/schemas/{change_schema_name}"
-
-
-def _test_change_schema(schemas: dict, dataset_name: str, model_name: str, expected_properties):
-    change_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}Change"
-    schema = schemas[change_schema_name]
-
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert schema.get("additionalProperties") is False
-
-    properties = schema["properties"]
-
-    change_properties = ["_cid", "_id", "_rev", "_txn", "_created", "_op", "_objectType"]
-    for change_prop in change_properties:
-        assert change_prop in properties, f"Missing change property {change_prop} in {change_schema_name}"
-
-    op_property = properties["_op"]
-    assert op_property["type"] == "string"
-    assert "enum" in op_property
-    expected_ops = ["insert", "patch", "delete"]
-    assert set(op_property["enum"]) == set(expected_ops)
-
-    object_type_property = properties["_objectType"]
-    assert object_type_property["example"] == model_name
-
-    for prop_name in expected_properties:
-        assert prop_name in properties, f"Missing model property {prop_name} in {change_schema_name}"
-
-
 def test_organization_schema_details(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
     model_schema_name = f"{dataset_name.replace('/', '_')}_Organization"
@@ -432,16 +375,6 @@ def test_organization_schema_details(open_manifest_path: ManifestPath):
     assert properties["annual_revenue"]["type"] == "number"
     assert properties["coordinates"]["type"] == "string"
     assert properties["established_date"]["type"] == "string"
-
-    org_change_schema = schemas[f"{model_schema_name}Change"]
-    change_properties = org_change_schema["properties"]
-
-    assert "_cid" in change_properties
-    assert "_op" in change_properties
-    assert "org_name" in change_properties
-    assert "annual_revenue" in change_properties
-    assert "coordinates" in change_properties
-    assert "established_date" in change_properties
 
 
 def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
@@ -471,14 +404,6 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
 
     assert properties["efficiency_rate"]["type"] == "number"
     assert properties["capacity"]["type"] == "integer"
-
-    pu_change_schema = schemas[f"{model_schema_name}Change"]
-    change_properties = pu_change_schema["properties"]
-
-    assert "unit_type" in change_properties
-    unit_type_change = change_properties["unit_type"]
-    assert "enum" in unit_type_change
-    assert set(unit_type_change["enum"]) == set(expected_enum)
 
 
 def test_version_schema_structure(open_manifest_path: ManifestPath):
@@ -638,8 +563,6 @@ def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factor
     expected = {
         "Territory",
         "TerritoryCollection",
-        "TerritoryChanges",
-        "TerritoryChange",
         "datasets_gov_vssa_demo_County",
         "datasets_gov_giscenter_grpk_Area",
         "datasets_gov_vssa_demo_Municipality",

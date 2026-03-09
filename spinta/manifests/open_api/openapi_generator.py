@@ -15,7 +15,6 @@ from spinta.manifests.open_api.openapi_config import (
     INFO,
     EXTERNAL_DOCS,
     STANDARD_OBJECT_PROPERTIES,
-    CHANGE_SCHEMA_EXAMPLE,
     RESPONSE_COMPONENTS,
     PROPERTY_TYPES_IN_PATHS,
     PATHS_CONFIG,
@@ -251,7 +250,6 @@ class PathGenerator:
         path_mappings = [
             ("/{model_name}", f"/{dataset_name}/{actual_model_name}", "collection", None),
             ("/{model_name}/{id}", f"/{dataset_name}/{actual_model_name}/{{id}}", "single", None),
-            ("/{model_name}/:changes/{cid}", f"/{dataset_name}/{actual_model_name}/:changes/{{cid}}", "changes", None),
         ]
 
         for prop_name, model_property in model.get_given_properties().items():
@@ -409,8 +407,6 @@ class PathGenerator:
         """Get schema reference for model endpoints based on path type"""
         if path_type == "collection":
             return f"#/components/schemas/{model_schema_name}Collection"
-        elif path_type == "changes":
-            return f"#/components/schemas/{model_schema_name}Changes"
         elif path_type == "property" and model_property:
             property_dtype = model_property[1].dtype
             base_type = self.dtype_handler.get_dtype_name(property_dtype)
@@ -544,7 +540,7 @@ class SchemaGenerator:
         main_dataset_schema_names: set[str] | None = None,
         use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
-        """Build all model schemas (main + collection + changes + refs) in one pass.
+        """Build all model schemas (main + collection + refs) in one pass.
 
         Returns the complete schemas dict for components/schemas.
 
@@ -567,10 +563,6 @@ class SchemaGenerator:
                 model, schemas, main_dataset_schema_names, use_basename_for_schema_names
             )
             schemas[f"{schema_name}Collection"] = self._create_collection_schema(model, schema_name)
-            schemas[f"{schema_name}Changes"] = self._create_changes_schema(model, schema_name)
-            schemas[f"{schema_name}Change"] = self._create_change_schema(
-                model, schemas, main_dataset_schema_names, use_basename_for_schema_names
-            )
 
         return schemas
 
@@ -644,39 +636,6 @@ class SchemaGenerator:
                 "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{schema_name}"}},
             },
         }
-
-    def _create_changes_schema(self, model, schema_name: str) -> dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{schema_name}Change"}},
-            },
-        }
-
-    def _create_change_schema(
-        self,
-        model,
-        schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
-    ) -> dict[str, Any]:
-        properties = copy.deepcopy(CHANGE_SCHEMA_EXAMPLE)
-        properties["_objectType"]["example"] = model.basename
-
-        for prop_name, model_property in model.get_given_properties().items():
-            prop_schema = self.dtype_handler.convert_to_openapi_schema(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
-
-            if "required" in prop_schema:
-                del prop_schema["required"]
-            properties[prop_name] = prop_schema
-
-        return {"type": "object", "properties": properties, "additionalProperties": False}
 
     def _create_referenced_model_schemas(
         self,

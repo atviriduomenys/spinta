@@ -18,16 +18,6 @@ SERVERS = [
     {"url": "get.data.gov.lt", "description": "Data access server"},
 ]
 
-CHANGE_SCHEMA_EXAMPLE = {
-    "_cid": {"type": "integer", "example": 11},
-    "_id": {"type": "string", "format": "uuidv4", "example": "abdd1245-bbf9-4085-9366-f11c0f737c1d"},
-    "_rev": {"type": "string", "format": "uuidv4", "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508"},
-    "_txn": {"type": "string", "example": "792a5029-63c9-4c07-995c-cbc063aaac2c"},
-    "_created": {"type": "string", "format": "date-time", "example": "2021-07-30T14:03:14.645198"},
-    "_op": {"type": "string", "enum": ["insert", "patch", "delete"]},
-    "_objectType": {"type": "string", "example": "ExampleModel"},
-}
-
 PROPERTY_EXAMPLE = {
     "string": "Example string",
     "integer": 42,
@@ -223,22 +213,6 @@ PATHS_CONFIG = {
             },
         },
     },
-    "/{model_name}/:changes/{cid}": {
-        "parameters": ["cid", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
-        "get": {
-            "security": [{}],
-            "summary": "Get all object changes since given {cid} (change id).",
-            "description": "Get latest changes to a table.\n\nIf {cid} is not given, return changes, since very first available\nchange.\n\nIf {cid} is gven, return only changes, since given change id, including\nchange id itself.\n\nThis API can return changes, that were returned previously, client\nshould be responsible for checking if a change was received previously\nor not.\n\nLast change id is included in the request, in order for clients to check\nif last change id matches change received by client. If last change\ndoes not match, then client should do a full synce, because if last\nchange id does not match, that means, that a data migration or some\nother alterations to data were made, which requires to do a full sync.\n",
-            "operationId": "getChanges",
-            "responses": {
-                "200": {"description": "OK", "content": {"application/json": {"schema": "changes"}}},
-                "400": {"$ref": "error400"},
-                "404": {"$ref": "error404"},
-                "500": {"$ref": "error500"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
 }
 
 RESPONSE_COMPONENTS = {
@@ -392,13 +366,6 @@ PARAMETER_COMPONENTS = {
         "required": True,
         "description": "Subresource of an object.\n\nAll lower case, words separated with `_` symbol.",
         "schema": {"type": "string", "examples": ["cities"]},
-    },
-    "cid": {
-        "name": "cid",
-        "in": "path",
-        "required": True,
-        "description": "Change id.\n\nUsed for incremental changes API, to get next changes after given change id.",
-        "schema": {"type": "string"},
     },
 }
 
