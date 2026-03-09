@@ -153,15 +153,17 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                 selected_keys.add(prop.name)
         for selected_key in selected_keys:
             prop = env.model.flatprops.get(selected_key)
-            if isinstance(prop.dtype, Text):
-                if not selected_languages.get(prop.place) and authorized(env.context, prop, Action.GETALL):
+            if isinstance(prop.dtype, Text) and authorized(env.context, prop, Action.GETALL):
+                if not selected_languages.get(prop.place) :
                     env.selected[prop.place] = env.call("select", prop)
-                elif selected_languages.get(prop.place) and authorized(env.context, prop, Action.GETALL):
+                elif selected_languages.get(prop.place):
                     env.selected[prop.place] = env.call("select", prop, selected_languages[prop.place])
                 else:
                     raise PropertyNotFound(env.model, property=prop, lang=selected_languages[prop.place])
-            else:
+            elif authorized(env.context, prop, Action.GETALL):
                 env.selected[resolved[selected_key].place] = env.call("select", resolved[selected_key])
+            else:
+                raise PropertyNotFound(env.model, property=resolved[selected_key])
     else:
         for prop in take(["_id", all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
