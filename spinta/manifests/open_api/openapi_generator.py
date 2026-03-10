@@ -255,7 +255,7 @@ class PathGenerator:
         return self.create_path(path_config, model=model, path_type=path_type, model_property=model_property)
 
     def create_path(
-        self, path_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
+        self, path_config: dict, model: Model | None = None, path_type: str = None, model_property: tuple | None = None
     ) -> dict[str, Any]:
         """Generic path creation for both utility and model endpoints"""
         operations = {}
@@ -274,7 +274,11 @@ class PathGenerator:
         return operations
 
     def _build_operation(
-        self, method_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
+        self,
+        method_config: dict,
+        model: Model | None = None,
+        path_type: str = None,
+        model_property: tuple | None = None,
     ) -> dict[str, Any]:
         """Build a single operation (get, head, etc.)"""
         operation = {}
@@ -317,7 +321,11 @@ class PathGenerator:
         return [{"$ref": f"#/components/parameters/{param}"} for param in parameters]
 
     def _build_responses(
-        self, responses_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
+        self,
+        responses_config: dict,
+        model: Model | None = None,
+        path_type: str = None,
+        model_property: tuple | None = None,
     ) -> dict[str, Any]:
         """Build all responses for an operation"""
         responses = {}
@@ -331,7 +339,7 @@ class PathGenerator:
         self,
         status_code: str,
         response_config: dict,
-        model=None,
+        model: Model | None = None,
         path_type: str = None,
         model_property: tuple | None = None,
     ) -> dict[str, Any]:
@@ -358,7 +366,11 @@ class PathGenerator:
         return response
 
     def _build_response_content(
-        self, content_config: dict, model=None, path_type: str = None, model_property: tuple | None = None
+        self,
+        content_config: dict,
+        model: Model | None = None,
+        path_type: str = None,
+        model_property: tuple | None = None,
     ) -> dict[str, Any]:
         """Build response content with schema references"""
         content = {}
@@ -372,7 +384,7 @@ class PathGenerator:
     def _resolve_schema_ref(
         self,
         schema_name: str = None,
-        model=None,
+        model: Model | None = None,
         path_type: str = None,
         model_property: tuple | None = None,
     ) -> str:
@@ -407,7 +419,7 @@ class ComponentSchemaBuilder:
             current = current.setdefault(key, {})
         return current
 
-    def create_components_for_path(self, spec: dict, path_config: dict):
+    def create_components_for_path(self, spec: dict, path_config: dict) -> None:
         """Create all component schemas (parameters, responses, headers) for a path config."""
         self._create_component_schemas(spec, path_config, "parameters")
         self._create_component_schemas(spec, path_config, "responses")
@@ -623,11 +635,11 @@ class SchemaGenerator:
     def _create_referenced_model_schemas(
         self,
         schemas: dict,
-        model,
+        model: Model,
         main_dataset_schema_names: set[str] | None,
         use_basename_for_schema_names: bool = False,
     ) -> None:
-        for _, model_property in model.get_given_properties().items():
+        for model_property in model.get_given_properties().values():
             dtype = model_property.dtype
 
             if self.dtype_handler.is_array_type(dtype):
