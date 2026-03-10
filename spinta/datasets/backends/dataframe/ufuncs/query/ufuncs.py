@@ -223,9 +223,12 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call("select", prop.dtype, result)
         elif prop.external.prepare is not NA:
-            # property without external name and with `prepare` is already evaluated
-            # so just use evaluated value
-            result = Selected(prop=prop, prep=prop.external.prepare)
+            # property without external name may be evaluated already, if it is use the value
+            if isinstance(prop.external.prepare, Expr):
+                result = env(this=prop).resolve(prop.external.prepare)
+                result = env.call("select", prop.dtype, result)
+            else:
+                result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
@@ -390,7 +393,7 @@ def select(
 ) -> Selected:
     # TODO need join for this to work
     return Selected(
-        item=dtype.prop.name,
+        item=dtype.prop.external.name,
         prop=dtype.prop,
     )
 
