@@ -80,8 +80,8 @@ def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Property
         langs = getattr(dtype, "langs", None)
         if isinstance(dtype, Text) and langs:
             if str(attr.name) in langs:
-                return env.call("_resolve_property", langs[str(attr.name)])
-    return env.call("_resolve_property", attr.obj)
+                return env.resolve_property(langs[str(attr.name)])
+    return env.resolve_property(attr.obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
