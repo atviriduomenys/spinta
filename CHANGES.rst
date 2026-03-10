@@ -9,9 +9,6 @@ Changes
 
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 .. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
-- Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
-
-.. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 
 0.2dev17 (2026-02-26)
 =====================
