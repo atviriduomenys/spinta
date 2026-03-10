@@ -5,8 +5,10 @@ Changes
 =====================
 
 - Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
+- Fixed a bug where an expression in the prepare column was not being evaluated (`#2460`_).
 
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
+.. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
 
 0.2dev17 (2026-02-26)
 =====================
