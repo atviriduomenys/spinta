@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev18 (unreleased)
+0.2dev18 (2026-03-12)
 =====================
 
 Bug Fixes:
