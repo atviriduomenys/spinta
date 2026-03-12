@@ -28,7 +28,7 @@ The following assumptions underpin this analysis and the POC. If any of them cha
   - The development team **does not have** RC test environment access (IP allowlist, keys). Code is pushed to **DEV** and **VSSA (client) employees** perform tests against RC and report results. This feedback loop can add to completion time and limits our ability to quickly validate signature behaviour. (See §7.3.)
 
 - **POC scope (Mode 1 / 2, env-based key)**
-  - The POC implements **Mode 1 and Mode 2** only; **CallerSignature** (Mode 3) is not computed. Key material is supplied via **environment variable** (`RC_POC_PRIVATE_KEY_PATH`); config-driven key or `creds()` integration is design for later.
+  - The POC implements **Mode 1 and Mode 2** only; **CallerSignature** (Mode 3) is not computed. Key material is supplied via **config.yml** (`rc_signature.private_key_path`) or **environment variable** (`RC_POC_PRIVATE_KEY_PATH`); `creds()` integration is design for later.
 
 - **Official RC contract and legacy example are the normative spec**
   - For string-to-sign order, field names, algorithm (RSASSA-PKCS1-v1_5 + SHA-256, Base64, strip `\r`/`\n`), and Time constraint, the **official RC document** and the **legacy SOAP call example** are the normative references. Unit tests and the adapter logic are aligned to those; no independent verification against RC is assumed during development.
@@ -142,10 +142,10 @@ The POC does not add a separate adapter step in the SOAP command. Instead, the s
 | Area | Change | Intrusion |
 |------|--------|-----------|
 | **Manifest / DSA** | New prepare `rc_signature()` in param’s prepare column. | Declarative only. |
-| **Entry-point registration** | `spinta/adapters/soap_plugins.py`: loads `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers`; `register_soap_ufuncs(registry)` called from config load. Generic resolvers for (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) dispatch by name. | One module; config load calls it once. |
+| **Adapter registration** | `spinta/adapters/soap_plugins.py`: loads adapters from (1) entry points (`spinta.soap.deferred_prepares`, `spinta.soap.body_resolvers`) and (2) config-driven modules (`soap_adapter_modules` in config.yml). `register_soap_ufuncs(registry, rc)` called from config load. Generic resolvers for (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) dispatch by name. | One module; config load calls it once. |
 | **LoadBuilder** | No hardcoded `rc_signature`; deferred prepare names come from entry points. Generic resolver stores `Expr` in `param.soap_body` for any registered name. | Generic; no adapter names in core. |
 | **SoapQueryBuilder** | No hardcoded `rc_signature`; body resolvers come from entry points. Generic resolver looks up `expr.name` in registry; `_finalize` skips any Expr whose name is in deferred set. | Generic; no adapter names in core. |
-| **Adapters** (`spinta/adapters/rc_signature_adapter.py`) | `compute_rc_signature_from_body(soap_body)`, key from `RC_POC_PRIVATE_KEY_PATH`; `get_deferred_prepare_names()` and `get_body_resolvers()` exposed as entry points in `pyproject.toml`. | Isolated module; can move to separate package and ship its own entry points. |
+| **Adapters** (`spinta/adapters/rc_signature_adapter.py`) | `compute_rc_signature_from_body(soap_body, context)`, key from `rc_signature.private_key_path` (config.yml) or `RC_POC_PRIVATE_KEY_PATH` (env var); `get_deferred_prepare_names()` and `get_body_resolvers()` exposed as entry points in `pyproject.toml`. | Isolated module; can move to separate package and ship its own entry points. |
 | **SOAP command** | NA → `""` in `_get_data_soap`; envelope logging for POC. | No change to getall flow. |
 
 The SOAP backend stays **generic**: it builds the body from the manifest and resolves prepare expressions. It does not need to know about “RC” or “adapters”.
@@ -171,9 +171,11 @@ A **working POC** is in this repository. Signature is produced via **DSA prepare
 
 **Where it lives**
 
-- **Entry-point registration:** `spinta/adapters/soap_plugins.py`
-  - Loads `spinta.soap.deferred_prepares` (list of names to store as Expr and resolve at body build) and `spinta.soap.body_resolvers` (name → callable(env, expr) → value).
-  - `register_soap_ufuncs(registry)` is called from config load (`spinta/types/config.py`); it registers generic (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) resolvers for each name provided by adapters.
+- **Adapter registration:** `spinta/adapters/soap_plugins.py`
+  - Loads adapters from two sources:
+    1. **Entry points**: `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers` (for installed packages)
+    2. **Config-driven**: `soap_adapter_modules` list in config.yml (for local files without package install)
+  - `register_soap_ufuncs(registry, rc)` is called from config load (`spinta/types/config.py`); it registers generic (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) resolvers for each name provided by adapters.
   - `get_deferred_prepare_names()` returns the cached set used in `_finalize` to skip deferred Exprs until `_populate`.
 - **Adapter logic:** `spinta/adapters/rc_signature_adapter.py`
   - `compute_rc_signature_from_body(soap_body)` – builds string-to-sign from body, signs via OpenSSL, returns signature or None.
@@ -184,13 +186,17 @@ A **working POC** is in this repository. Signature is produced via **DSA prepare
 
 **Configuration**
 
-- Private key path: **environment variable `RC_POC_PRIVATE_KEY_PATH`**. If unset, the adapter returns None and the signature is empty; a WARNING is logged.
+- Private key path (in priority order):
+  1. **config.yml**: `rc_signature.private_key_path`
+  2. **environment variable**: `RC_POC_PRIVATE_KEY_PATH`
+  
+  If neither is set, the adapter returns None and the signature is empty; a WARNING is logged.
 - No `config.yml` or manifest adapter list; the signature is enabled purely by using **prepare `rc_signature()`** for the signature param in the manifest.
 
 **Evidence it works**
 
 - At WARNING level, logs show the SOAP request payload and an envelope fragment with `<apps:Signature>` populated (when the key is set).
-- Demo: `dsa.csv` (signature param has `rc_signature()`), `demo.md` for run steps and `RC_POC_PRIVATE_KEY_PATH`.
+- Demo: `dsa.csv` (signature param has `rc_signature()`), `demo.md` for run steps and key configuration.
 
 **POC limitations (reduce workload by not re-implementing these)**
 
@@ -357,46 +363,51 @@ In the POC, an adapter contributes **resolvers** (registered via entry points): 
 
 ## 5. Adapter Contract & Configuration
 
-**Status:** The POC uses **entry-point registration** only: adapters supply deferred-prepare names and body resolvers (§2.5, §4.2). Config-driven adapter list and manifest adapter column are **design for later**.
+**Status:** Adapters can be loaded via **entry points** (for packages) or **config-driven module loading** (for local files). This allows deploying adapters without updating Spinta's version.
 
 ### 5.1 Current contract: body resolvers
 
-Adapters register via entry points `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers`. A body resolver is a callable `(env, expr) -> value` where `env` is the SoapQueryBuilder (with `soap_request_body`, etc.) and the return value is injected for that Expr. Spinta does not depend on a specific implementation; it only calls whatever is registered for each name.
+Adapters provide two functions:
+- `get_deferred_prepare_names() -> list[str]` – names to defer until body build
+- `get_body_resolvers() -> dict[str, callable]` – name → resolver function
 
-### 5.2 Configuration model
+A body resolver is a callable `(env, expr) -> value` where `env` is the SoapQueryBuilder (with `soap_request_body`, etc.) and the return value is injected for that Expr. Spinta does not depend on a specific implementation; it only calls whatever is registered for each name.
 
-Two layers of configuration. **Design for later:** POC uses only `RC_POC_PRIVATE_KEY_PATH`; no YAML adapter mapping or manifest adapter column yet.
+### 5.2 Adapter loading methods
 
-- **Global mapping: logical name → Python import path**
+**Method 1: Entry points (for installed packages)**
 
-  Example (YAML or similar):
+Adapters declare entry points in their `pyproject.toml`:
+```toml
+[tool.poetry.plugins."spinta.soap.deferred_prepares"]
+rc = "my_adapter:get_deferred_prepare_names"
 
-  ```yaml
-  adapters:
-    rc_signature: "spinta_rc_adapter.signature:rc_signature_adapter"
-    some_other: "my_project.spinta_adapters:some_other_adapter"
-  ```
+[tool.poetry.plugins."spinta.soap.body_resolvers"]
+rc = "my_adapter:get_body_resolvers"
+```
 
-- **Per resource selection in manifest**
+**Method 2: Config-driven module loading (for local files)**
 
-  Conceptually, a resource row (or equivalent config) would specify which adapters to use, e.g.:
+Adapters can be loaded from local Python files without package install. In `config.yml`:
+```yaml
+soap_adapter_modules:
+  - /opt/spinta/adapters/rc_signature_adapter.py
+  - /opt/spinta/adapters/another_adapter.py
+```
 
-  ```csv
-  ... , adapters , rc_signature , ...
-  ```
+Each module should have `get_deferred_prepare_names()` and/or `get_body_resolvers()` functions. Spinta loads these modules at startup.
 
-  or, for multiple adapters:
+**Benefits of config-driven loading:**
+- No Spinta version update needed to add/change adapters
+- Config change + restart is all that's required
+- Local files work – admins can drop `.py` files and configure them
+- No package install (`pip install`) needed
 
-  ```csv
-  ... , adapters , rc_signature,other_adapter , ...
-  ```
+### 5.3 RC signature configuration
 
-Exact column name and format can be refined, but the pattern is:
+Key path can be set via `rc_signature.private_key_path` in config.yml or env var `RC_POC_PRIVATE_KEY_PATH`.
 
-- **Manifest**: selects logical adapter names to use.
-- **Spinta config**: maps logical names to fully qualified adapter callables.
-
-### 5.3 Error handling
+### 5.4 Error handling
 
 - If an adapter fails:
   - Log the error with dataset/resource/model identifiers.
@@ -453,7 +464,7 @@ The adapter package exposes **entry points**: `get_deferred_prepare_names()` and
 
 3. In the manifest, set **prepare** for the signature param to `rc_signature()` (e.g. in the param row that maps to `input/Signature`).
 
-4. Provide key material (e.g. env var `RC_POC_PRIVATE_KEY_PATH` or future config).
+4. Provide key material via `rc_signature.private_key_path` in config.yml or env var `RC_POC_PRIVATE_KEY_PATH`.
 
 ---
 
