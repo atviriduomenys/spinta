@@ -448,7 +448,10 @@ def link(context: Context, prop: Property):
                 model.ns.parents(),
             )
         )
-    link_access_param(prop, parents, use_given=not prop.name.startswith("_"))
+    config = context.get("config")
+    link_access_param(
+        prop, parents, use_given=not prop.name.startswith("_"), default_access=config.default_access_level
+    )
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
 

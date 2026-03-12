@@ -195,6 +195,9 @@ always_show_id:
 default_auth_client:
   type: string
 
+default_access_level:
+  type: string
+
 check:
   type: object
   items:
