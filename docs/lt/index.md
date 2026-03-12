@@ -77,6 +77,7 @@ Manifest parengimas <agentas/šaltinių-konfigūravimas>
 Agento diegimas <agentas/diegimas/index>
 agentas/autentifikacija
 agentas/web-serverio-konfigūravimas
+agentas/udts-suderinamumas
 agentas/duomenų-gavimo-testavimas
 agentas/tinklo-konfigūravimas
 agentas/papildoma-informacija
