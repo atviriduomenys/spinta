@@ -1,8 +1,6 @@
-from typing import Optional, Any, Dict, Iterable, Tuple
-
 import logging
 import re
-
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -972,7 +970,7 @@ class InvalidClientBackend(UserError):
 
 
 class DaskBackendCompareNotSupported(UserError):
-    template = "Dask backend does not support comparison operators in prepare formula. Found: {operators}."
+    template = "Dask backend does not support comparison (filter) operators in prepare formula. Found: {operators}."
 
 
 class InvalidClientBackendCredentials(UserError):

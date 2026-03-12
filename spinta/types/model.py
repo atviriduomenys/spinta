@@ -2,61 +2,41 @@ from __future__ import annotations
 
 import itertools
 import pydoc
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import TYPE_CHECKING
-from typing import Union
-from typing import cast
-from typing import overload
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast, overload
 
-from spinta import commands
-from spinta import exceptions
+from spinta import commands, exceptions
 from spinta.auth import authorized
+from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
-from spinta.commands import authorize
-from spinta.commands import check
-from spinta.commands import load
-from spinta.commands import configure
-from spinta.components import PageBy, Page, PageInfo, UrlParams, pagination_enabled
-from spinta.components import Base
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Property
-from spinta.core.access import link_access_param
-from spinta.core.access import load_access_param
+from spinta.commands import authorize, check, configure, load
+from spinta.components import Base, Context, Model, Page, PageBy, PageInfo, Property, UrlParams, pagination_enabled
+from spinta.core.access import link_access_param, load_access_param
 from spinta.core.config import RawConfig
-from spinta.core.enums import Level, load_level, load_status, load_visibility, Action, Mode
+from spinta.core.enums import Action, Level, Mode, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
-from spinta.dimensions.enum.components import EnumValue
-from spinta.dimensions.enum.components import Enums
-from spinta.dimensions.enum.helpers import link_enums
-from spinta.dimensions.enum.helpers import load_enums
+from spinta.dimensions.enum.components import Enums, EnumValue
+from spinta.dimensions.enum.helpers import link_enums, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.exceptions import (
-    KeymapNotSet,
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
+    KeymapNotSet,
     MissingConfigurationParameter,
+    PropertyNotFound,
+    UndefinedEnum,
+    UnknownPropertyType,
 )
-from spinta.exceptions import PropertyNotFound
-from spinta.exceptions import UndefinedEnum
-from spinta.exceptions import UnknownPropertyType
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
-from spinta.nodes import get_node
-from spinta.nodes import load_model_properties
-from spinta.nodes import load_node
-from spinta.types.helpers import check_model_name
-from spinta.types.helpers import check_property_name
+from spinta.nodes import get_node, load_model_properties, load_node
+from spinta.types.helpers import check_model_name, check_property_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
-from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
+from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
@@ -556,6 +536,11 @@ def check(context: Context, model: Model):
         for prop in properties:
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
+
+
+@check.register(Context, Model, Backend)
+def check(context: Context, model: Model, backend: Backend):
+    pass
 
 
 @check.register(Context, Property)

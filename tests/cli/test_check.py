@@ -1,9 +1,12 @@
 from pathlib import Path
-from pytest import mark
+
+import pytest
+
 from spinta.components import Context
-from spinta.exceptions import InvalidValue, InvalidManifestFile, InvalidName
-from spinta.testing.cli import SpintaCliRunner
+from spinta.core.config import RawConfig
+from spinta.exceptions import InvalidManifestFile, InvalidName, InvalidValue
 from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -621,12 +624,15 @@ def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner,
     assert "_test123" in str(result.exception)
 
 
-@mark.parametrize("type", ["dask/xml", "dask/json", "dask/csv"])
-def test_check_dask_backend_property_prepare_compare_error(rc, cli: SpintaCliRunner, tmp_path, type: str):
+@pytest.mark.parametrize("type", ["dask/xml", "dask/json", "dask/csv"])
+def test_spinta_check_message_no_filters_support_dask_backend(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path, type: str
+):
+    # Create a manifest (XML, CSV JSON type) using a Dask backend and unsupported comparison filters.
     create_tabular_manifest(
-        None,
+        context,
         tmp_path / "manifest.csv",
-        striptable(f"""
+        manifest=striptable(f"""
     d | r | b | m | property | type     | ref  | source      | prepare                 | access
     datasets/gov/example     |          |      |             |                         |
       | data                 | {type}   |      |             |                         |
@@ -642,40 +648,49 @@ def test_check_dask_backend_property_prepare_compare_error(rc, cli: SpintaCliRun
     """),
     )
 
+    # Run the check command and verify that warnings about unsupported Dask filters are displayed.
     result = cli.invoke(
         rc,
         [
             "check",
             tmp_path / "manifest.csv",
         ],
-        fail=False,
     )
     assert result.exit_code == 0
-    assert "Dask backend does not support comparison operators in prepare formula." in result.stdout
-    assert "operators: gt, lt" in result.stdout
-    assert "model: datasets/gov/example/Country" in result.stdout
-    assert "entity: salis" in result.stdout
-    assert "entity: miestas" in result.stdout
-    assert "entity: gatve" in result.stdout
-    assert "Total errors: 3" in result.stdout
+    assert "Dask backend does not support comparison (filter) operators in prepare formula." in result.output
+    assert "operators: ['gt', 'lt']" in result.output
+    assert "operators: ['eq']" in result.output
+    assert "operators: ['startswith']" in result.output
+    assert "model: datasets/gov/example/Country" in result.output
+    assert "model: datasets/gov/example/City" in result.output
+    assert "model: datasets/gov/example/Street" in result.output
+    assert "entity: salis" in result.output
+    assert "entity: miestas" in result.output
+    assert "entity: gatve" in result.output
+    # All models are checked and all problems are shown at once using the ErrorManager.
+    assert "Total errors: 3" in result.output
 
 
-def test_check_sql_backend_model_prepare_compare_not_affected(rc, cli: SpintaCliRunner, tmp_path):
+def test_spinta_check_no_message_filters_support_sql_backend(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path
+):
+    # Create a manifest using a SQL backend with filters.
     create_tabular_manifest(
-        None,
+        context,
         tmp_path / "manifest.csv",
         striptable(
             """
     d | r | b | m | property | type   | ref  | source      | prepare                            | access
     datasets/gov/example     |        |      |             |                                    |
       | data                 | sql    |      |             |                                    |
-      |   |   | Country      |        | code | salis       | or(code='lt',startswith(name,'V')) |
+      |   |   | Country      |        | code | salis       | or(code='lt',startswith(name,'L')) |
       |   |   |   | code     | string |      | kodas       |                                    | public
       |   |   |   | name     | string |      | pavadinimas |                                    | open
     """
         ),
     )
 
+    # Run the check command and verify that no Dask-specific messages are shown.
     result = cli.invoke(
         rc,
         [
@@ -683,4 +698,7 @@ def test_check_sql_backend_model_prepare_compare_not_affected(rc, cli: SpintaCli
             tmp_path / "manifest.csv",
         ],
     )
-    assert "Dask backend does not support" not in result.stdout
+    # Ensure the command succeeds.
+    assert result.exit_code == 0
+    # Verify that no Dask-related messages are issued.
+    assert "Dask backend does not support" not in result.output
