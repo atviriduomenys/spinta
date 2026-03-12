@@ -85,6 +85,10 @@ accesslog:
 # RC Broker signature adapter configuration (required for POC)
 rc_signature:
   private_key_path: $BASEDIR/raktas_priv.pem
+
+# SOAP adapter modules (load adapter from local file)
+soap_adapter_modules:
+  - $BASEDIR/spinta/adapters/rc_signature_adapter.py
 YAML
 ```
 
@@ -219,18 +223,20 @@ If neither is set, the adapter logs a warning and the signature will be empty (R
 
 For this demo, either add the `rc_signature` section to `config.yml` or set the env var.
 
-### 3b. (Optional) Load adapter from local file
+### 3b. Load adapter module
 
-If you want to load the adapter from a **local file** instead of the entry points in pyproject.toml (useful for deploying adapters without updating Spinta), add this to `config.yml`:
+The POC uses **config-driven adapter loading** via `soap_adapter_modules` in `config.yml`. This loads the adapter from a local file path at startup, without requiring a package install or entry points.
+
+The example `config.yml` above already includes:
 
 ```yaml
 soap_adapter_modules:
-  - /opt/spinta/adapters/rc_signature_adapter.py
+  - $BASEDIR/spinta/adapters/rc_signature_adapter.py
 ```
 
-This loads the adapter module from the specified path at startup. The module should have `get_deferred_prepare_names()` and `get_body_resolvers()` functions. This way, admins can drop adapter files and configure them without updating Spinta's version.
+The module must export `get_deferred_prepare_names()` and `get_body_resolvers()` functions. This approach lets admins deploy adapter files without updating Spinta's version.
 
-**Note:** For this POC, the adapter is included in the repo and registered via entry points, so you don't need to use `soap_adapter_modules` unless you want to test the config-driven loading.
+**Note:** For production releases, adapters can also be registered via Python entry points (`spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers` groups in `pyproject.toml`), which Spinta loads automatically at startup.
 
 ### 4. DSA: signature param uses `rc_signature()`
 
