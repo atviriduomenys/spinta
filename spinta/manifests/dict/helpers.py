@@ -4,8 +4,9 @@ from copy import deepcopy
 
 import requests
 import xmltodict
-from typing import List, Dict, Union, TypedDict, Any, Tuple
+from typing import TypedDict, Any, Iterator
 
+from spinta.manifests.components import ManifestSchema
 from spinta.manifests.dict.components import DictFormat
 from spinta.manifests.helpers import TypeDetector
 from spinta.utils.itertools import first_dict_value, first_dict_key
@@ -22,13 +23,13 @@ class _MappedProperties(TypedDict):
 class _MappedModels(TypedDict):
     name: str
     source: str
-    properties: Dict[str, _MappedProperties]
+    properties: dict[str, _MappedProperties]
 
 
 class _MappedDataset(TypedDict):
     dataset: str
     resource: str
-    models: Dict[str, Dict[str, _MappedModels]]
+    models: dict[str, dict[str, _MappedModels]]
 
 
 class _MappingMeta(TypedDict):
@@ -40,7 +41,7 @@ class _MappingMeta(TypedDict):
     remove_array_suffix: bool
     model_source_prefix: str
     check_namespace: bool
-    namespace_prefixes: dict
+    namespace_prefixes: dict[str, list[str]]
     namespace_seperator: str
 
 
@@ -51,7 +52,7 @@ class _MappingScope(TypedDict):
     property_name: str
 
 
-def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
+def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iterator[ManifestSchema]:
     if path.startswith(("http://", "https://")):
         value = requests.get(path).text
     else:
@@ -97,7 +98,7 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
 
     dedup_model = Deduplicator("{}")
     blank_model = ""
-    mapped_models: Dict[Tuple, str] = {}
+    mapped_models: dict[tuple, str] = {}
 
     for model in dataset_structure["models"].values():
         for model_source, m in model.items():
@@ -193,40 +194,43 @@ def is_single_item_dict(value: dict) -> bool:
     return len(value) == 1
 
 
-def _fix_for_blank_nodes(values: Any):
+def _fix_for_blank_nodes(values: Any) -> Any:
+    if not (isinstance(values, dict) and is_single_item_dict(values)):
+        return values
+
     return_values = values
-    if isinstance(values, dict) and is_single_item_dict(values):
-        result = {}
-        temp_dict = values
-        while is_single_item_dict(temp_dict):
-            first_key = first_dict_key(temp_dict)
-            temp_dict = temp_dict[first_key]
+    temp_dict = values
+    result = {}
 
-            if not isinstance(temp_dict, dict):
-                return return_values
+    while is_single_item_dict(temp_dict):
+        first_key = first_dict_key(temp_dict)
+        temp_dict = temp_dict[first_key]
 
-            result[first_key] = temp_dict if is_single_item_dict(temp_dict) else [temp_dict]
+        if not isinstance(temp_dict, dict):
+            return return_values
 
-        return_values = result
+        result[first_key] = temp_dict if is_single_item_dict(temp_dict) else [temp_dict]
+
+    return_values = result
     return return_values
 
 
-def _name_without_namespace(name: str, mapping_meta: _MappingMeta, prefixes: dict):
-    if mapping_meta["namespace_seperator"] in name:
-        for prefix in prefixes.keys():
-            namespace = f"{prefix}{mapping_meta['namespace_seperator']}"
-            if namespace in name:
-                return name.replace(namespace, "")
+def _name_without_namespace(name: str, mapping_meta: _MappingMeta, prefixes: dict) -> str:
+    if mapping_meta["namespace_seperator"] not in name:
+        return name
+
+    for prefix in prefixes.keys():
+        if (namespace := f"{prefix}{mapping_meta['namespace_seperator']}") in name:
+            return name.replace(namespace, "")
+
     return name
 
 
-def is_model(data):
-    if isinstance(data, list) and is_list_of_dicts(data):
-        return True
-    return False
+def is_model(data: Any) -> bool:
+    return isinstance(data, list) and is_list_of_dicts(data)
 
 
-def _find_parent_key(data, string):
+def _find_parent_key(data: dict[str, list[str]], string: str) -> str | None:
     for key, values in data.items():
         for value in values:
             if string.startswith(value):
@@ -234,29 +238,33 @@ def _find_parent_key(data, string):
     return None
 
 
-def extract_namespaces(data: Any, mapping_meta: _MappingMeta):
-    if mapping_meta["check_namespace"]:
-        if isinstance(data, dict):
-            keys_to_remove = {}
-            for key, value in data.items():
-                parent = _find_parent_key(mapping_meta["namespace_prefixes"], key)
-                if parent is not None:
-                    if key not in keys_to_remove.keys():
-                        return_key = key.split(mapping_meta["namespace_seperator"])
-                        if len(return_key) == 1:
-                            return_key = [parent]
-                        keys_to_remove[key] = (return_key[-1], value)
-            for key, value in keys_to_remove.items():
-                del data[key]
-                yield value
-            for value in data.values():
-                yield from extract_namespaces(value, mapping_meta)
-        elif isinstance(data, list):
-            for item in data:
-                yield from extract_namespaces(item, mapping_meta)
+def extract_namespaces(data: Any, mapping_meta: _MappingMeta) -> Iterator[Any]:
+    if not mapping_meta["check_namespace"]:
+        return
+
+    if isinstance(data, dict):
+        keys_to_remove = {}
+        for key, value in data.items():
+            parent = _find_parent_key(mapping_meta["namespace_prefixes"], key)
+            if parent is not None and key not in keys_to_remove.keys():
+                return_key = key.split(mapping_meta["namespace_seperator"])
+                if len(return_key) == 1:
+                    return_key = [parent]
+                keys_to_remove[key] = (return_key[-1], value)
+
+        for key, value in keys_to_remove.items():
+            del data[key]
+            yield value
+
+        for value in data.values():
+            yield from extract_namespaces(value, mapping_meta)
+
+    elif isinstance(data, list):
+        for item in data:
+            yield from extract_namespaces(item, mapping_meta)
 
 
-def nested_prop_names(new_values: list, values: dict, root: str, seperator: str):
+def nested_prop_names(new_values: list, values: dict, root: str, seperator: str) -> None:
     for key, value in values.items():
         if isinstance(value, dict):
             nested_prop_names(new_values, value, f"{root}{seperator}{key}", seperator)
@@ -269,35 +277,41 @@ def nested_prop_names(new_values: list, values: dict, root: str, seperator: str)
 
 def check_missing_prop_required(
     dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope, mapping_meta: _MappingMeta
-):
-    if mapping_scope["model_scope"] == "":
-        model_name = (
-            mapping_scope["model_name"] if mapping_scope["model_name"] != "" else first_dict_key(dataset["models"])
-        )
-        model_source = _create_name_with_prefix(mapping_scope["parent_scope"], mapping_meta["seperator"], model_name)
-        if mapping_scope["model_name"] == "" and mapping_meta["is_blank_node"]:
-            model_name = mapping_meta["blank_node_name"]
-            model_source = mapping_meta["blank_node_source"]
-        key_values = []
-        for k, v in values.items():
-            new_val = _create_name_with_prefix(mapping_scope["model_scope"], mapping_meta["seperator"], k)
-            if isinstance(v, dict):
-                nested_prop_names(key_values, v, new_val, mapping_meta["seperator"])
-            elif isinstance(v, list):
-                if not is_list_of_dicts(v):
-                    key_values.append(new_val)
-            else:
-                key_values.append(new_val)
-        if key_values:
-            filtered_models = dataset["models"][model_name][model_source]["properties"].keys()
-            subtracted = set(filtered_models) - set(key_values)
-            for prop in subtracted:
-                type_detector = dataset["models"][model_name][model_source]["properties"][prop]["type_detector"]
-                if type_detector.required and type_detector.type != "ref":
-                    type_detector.required = False
+) -> None:
+    if mapping_scope["model_scope"] != "":
+        return
+
+    model_name = mapping_scope["model_name"] if mapping_scope["model_name"] != "" else first_dict_key(dataset["models"])
+    model_source = _create_name_with_prefix(mapping_scope["parent_scope"], mapping_meta["seperator"], model_name)
+    if mapping_scope["model_name"] == "" and mapping_meta["is_blank_node"]:
+        model_name = mapping_meta["blank_node_name"]
+        model_source = mapping_meta["blank_node_source"]
+
+    key_values = []
+    for key, value in values.items():
+        new_value = _create_name_with_prefix(mapping_scope["model_scope"], mapping_meta["seperator"], key)
+        if isinstance(value, dict):
+            nested_prop_names(key_values, value, new_value, mapping_meta["seperator"])
+        elif isinstance(value, list):
+            if not is_list_of_dicts(value):
+                key_values.append(new_value)
+        else:
+            key_values.append(new_value)
+
+    if not key_values:
+        return
+
+    filtered_models = dataset["models"][model_name][model_source]["properties"].keys()
+    subtracted = set(filtered_models) - set(key_values)
+    for prop in subtracted:
+        type_detector = dataset["models"][model_name][model_source]["properties"][prop]["type_detector"]
+        if type_detector.required and type_detector.type != "ref":
+            type_detector.required = False
 
 
-def run_type_detectors(dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope, mapping_meta: _MappingMeta):
+def run_type_detectors(
+    dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope, mapping_meta: _MappingMeta
+) -> None:
     if isinstance(values, list):
         for item in values:
             run_type_detectors(dataset, item, mapping_scope, mapping_meta)
@@ -333,7 +347,7 @@ def run_type_detectors(dataset: _MappedDataset, values: dict, mapping_scope: _Ma
                     _detect_type(dataset, new_mapping_scope, mapping_meta, value)
 
 
-def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_meta: _MappingMeta, value: Any):
+def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_meta: _MappingMeta, value: Any) -> None:
     prop_name = _create_name_with_prefix(
         mapping_scope["model_scope"], mapping_meta["seperator"], mapping_scope["property_name"]
     )
@@ -347,19 +361,17 @@ def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_
     dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"].detect(value)
 
 
-def is_list_of_dicts(lst: List) -> bool:
-    for item in lst:
-        if not isinstance(item, dict):
-            return False
-    return True
+def is_list_of_dicts(data: list) -> bool:
+    return all(isinstance(item, dict) for item in data)
 
 
 def setup_model_type_detectors(
-    dataset: _MappedDataset, values: Union[dict, list], mapping_scope: _MappingScope, mapping_meta: _MappingMeta
-):
+    dataset: _MappedDataset, values: dict | list, mapping_scope: _MappingScope, mapping_meta: _MappingMeta
+) -> None:
     if isinstance(values, list):
         for item in values:
             setup_model_type_detectors(dataset, item, mapping_scope, mapping_meta)
+
     elif isinstance(values, dict):
         for key, value in values.items():
             new_mapping_scope = _MappingScope(
@@ -407,18 +419,22 @@ def setup_model_type_detectors(
 def _create_name_with_prefix(prefix: str, seperator: str, value: str) -> str:
     if value == "":
         return prefix
-    return value if prefix == "" else f"{prefix}{seperator}{value}"
+    if prefix == "":
+        return value
+
+    return f"{prefix}{seperator}{value}"
 
 
-def create_type_detectors(dataset: _MappedDataset, values: Any, mapping_meta: _MappingMeta):
+def create_type_detectors(dataset: _MappedDataset, values: Any, mapping_meta: _MappingMeta) -> None:
     mapping_scope = _MappingScope(parent_scope="", model_scope="", model_name="", property_name="")
     setup_model_type_detectors(dataset, values, mapping_scope, mapping_meta)
     run_type_detectors(dataset, values, mapping_scope, mapping_meta)
 
 
-def is_blank_node(values: Union[list, dict]) -> bool:
+def is_blank_node(values: list | dict) -> bool:
     if isinstance(values, list):
         return True
+
     if isinstance(values, dict):
         temp_dict = values
         first_value = first_dict_value(temp_dict)
@@ -435,6 +451,7 @@ def is_blank_node(values: Union[list, dict]) -> bool:
             for key, value in values.items():
                 if not isinstance(value, list):
                     return True
+
     return False
 
 
@@ -444,75 +461,76 @@ def set_type_detector(
     mapping_meta: _MappingMeta,
     is_ref: bool = False,
     is_array: bool = False,
-):
-    if mapping_scope["property_name"] != "":
-        model_name = mapping_scope["model_name"]
-        model_source = _create_name_with_prefix(mapping_scope["parent_scope"], mapping_meta["seperator"], model_name)
-        prop_name = _create_name_with_prefix(
-            mapping_scope["model_scope"], mapping_meta["seperator"], mapping_scope["property_name"]
-        )
-        prop_source = prop_name
-        if model_name == "" and mapping_meta["is_blank_node"]:
-            model_name = mapping_meta["blank_node_name"]
-            model_source = mapping_meta["blank_node_source"]
-        extra = ""
-        if is_ref:
-            extra = ""
-            split = mapping_scope["parent_scope"].split(mapping_meta["seperator"])
-            count = 0
-            for i in reversed(split):
-                if i.endswith("[]"):
-                    half = mapping_scope["parent_scope"].split(i)
-                    extra = i[:-2] if half[0] == "" else f"{half[0]}{i[:-2]}"
-                    break
-                elif i != "":
-                    count += 1
-            prop_source = f"..{mapping_meta['recursive_descent'] * count}"
+) -> None:
+    if mapping_scope["property_name"] == "":
+        return
 
-        if model_name in dataset["models"].keys():
-            if model_source in dataset["models"][model_name].keys():
-                if prop_name not in dataset["models"][model_name][model_source]["properties"].keys():
-                    dataset["models"][model_name][model_source]["properties"][prop_name] = {
+    model_name = mapping_scope["model_name"]
+    model_source = _create_name_with_prefix(mapping_scope["parent_scope"], mapping_meta["seperator"], model_name)
+    prop_name = _create_name_with_prefix(
+        mapping_scope["model_scope"], mapping_meta["seperator"], mapping_scope["property_name"]
+    )
+    prop_source = prop_name
+    if model_name == "" and mapping_meta["is_blank_node"]:
+        model_name = mapping_meta["blank_node_name"]
+        model_source = mapping_meta["blank_node_source"]
+    extra = ""
+    if is_ref:
+        split = mapping_scope["parent_scope"].split(mapping_meta["seperator"])
+        count = 0
+        for i in reversed(split):
+            if i.endswith("[]"):
+                half = mapping_scope["parent_scope"].split(i)
+                extra = i[:-2] if half[0] == "" else f"{half[0]}{i[:-2]}"
+                break
+            elif i != "":
+                count += 1
+        prop_source = f"..{mapping_meta['recursive_descent'] * count}"
+
+    if model_name in dataset["models"].keys():
+        if model_source in dataset["models"][model_name].keys():
+            if prop_name not in dataset["models"][model_name][model_source]["properties"].keys():
+                dataset["models"][model_name][model_source]["properties"][prop_name] = {
+                    "name": prop_name,
+                    "source": prop_source,
+                    "type_detector": TypeDetector(),
+                    "extra": extra,
+                }
+        else:
+            dataset["models"][model_name][model_source] = {
+                "name": model_name,
+                "source": model_source,
+                "properties": {
+                    prop_name: {
                         "name": prop_name,
                         "source": prop_source,
                         "type_detector": TypeDetector(),
                         "extra": extra,
                     }
-            else:
-                dataset["models"][model_name][model_source] = {
-                    "name": model_name,
-                    "source": model_source,
-                    "properties": {
-                        prop_name: {
-                            "name": prop_name,
-                            "source": prop_source,
-                            "type_detector": TypeDetector(),
-                            "extra": extra,
-                        }
-                    },
-                }
-        else:
-            dataset["models"][model_name] = {
-                model_source: {
-                    "name": model_name,
-                    "source": model_source,
-                    "properties": {
-                        prop_name: {
-                            "name": prop_name,
-                            "source": prop_source,
-                            "type_detector": TypeDetector(),
-                            "extra": extra,
-                        }
-                    },
-                }
+                },
             }
+    else:
+        dataset["models"][model_name] = {
+            model_source: {
+                "name": model_name,
+                "source": model_source,
+                "properties": {
+                    prop_name: {
+                        "name": prop_name,
+                        "source": prop_source,
+                        "type_detector": TypeDetector(),
+                        "extra": extra,
+                    }
+                },
+            }
+        }
 
-        type_detector = dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"]
-        if is_array:
-            type_detector.array = True
-            type_detector.unique = False
-            type_detector.required = False
-        if is_ref:
-            type_detector.type = "ref"
-            type_detector.unique = False
-            type_detector.required = False
+    type_detector = dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"]
+    if is_array:
+        type_detector.array = True
+        type_detector.unique = False
+        type_detector.required = False
+    if is_ref:
+        type_detector.type = "ref"
+        type_detector.unique = False
+        type_detector.required = False
