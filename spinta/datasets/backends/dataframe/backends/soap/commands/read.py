@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Iterator
 
+import logging
 import dask
 import zeep
 from zeep.helpers import serialize_object
@@ -19,17 +20,73 @@ from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import SoapRequestBodyParseError, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.utils.schema import NA
+
+
+log = logging.getLogger(__name__)
+
+_SOAP_ENV_NS = "http://schemas.xmlsoap.org/soap/envelope/"
+_GET_NS = "Get"
+_APPS_NS = "apps.address_registry.views.rc_broker_views"
+
+# TODO: remove all of this once POC is confirmed working
+def _escape_xml_text(value: str) -> str:
+    if not value:
+        return ""
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _log_soap_envelope_fragment(soap_request: dict) -> None:
+    """Log a minimal SOAP GetData envelope fragment."""
+    input_obj = soap_request.get("input")
+    if not input_obj or not isinstance(input_obj, dict):
+        return
+    parts = [
+        '<soapenv:Envelope xmlns:soapenv="%s" xmlns:get="%s" xmlns:apps="%s">' % (_SOAP_ENV_NS, _GET_NS, _APPS_NS),
+        "   <soapenv:Header/>",
+        "   <soapenv:Body>",
+        "      <get:GetData>",
+        "         <get:input>",
+    ]
+    for tag in ("ActionType", "CallerCode", "EndUserInfo", "Parameters", "Time", "Signature", "CallerSignature"):
+        val = input_obj.get(tag)
+        if val is None:
+            val = ""
+        else:
+            val = str(val).strip()
+        parts.append("            <apps:%s>%s</apps:%s>" % (tag, _escape_xml_text(val), tag))
+    parts.extend(
+        [
+            "         </get:input>",
+            "      </get:GetData>",
+            "   </soapenv:Body>",
+            "</soapenv:Envelope>",
+        ]
+    )
+    log.warning("RC POC SOAP envelope fragment (Signature/CallerSignature in body):\n%s", "\n".join(parts))
 
 
 def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_headers: dict) -> list[dict]:
     for key, value in soap_request_body.items():
         if isinstance(value, MakeCDATA):
             soap_request_body[key] = value()
+        elif value is NA:
+            soap_request_body[key] = ""
 
     try:
         soap_request = _expand_dict_keys(soap_request_body)
     except ValueError as err:
         raise SoapRequestBodyParseError(err)
+
+    log.warning("RC POC SOAP request payload: %r", soap_request)
+    _log_soap_envelope_fragment(soap_request)
 
     try:
         response_data = serialize_object(

@@ -15,6 +15,7 @@ from spinta.commands import load, check
 from spinta.components import Context, Config
 from spinta import components
 from spinta.core.ufuncs import ufunc
+from spinta.adapters.soap_plugins import register_soap_ufuncs
 
 yaml = YAML(typ="safe")
 
@@ -37,6 +38,7 @@ def load(context: Context, config: Config) -> Config:
 
     # Load ufuncs.
     ufunc.resolver.collect(rc.get("ufuncs"))
+    register_soap_ufuncs(ufunc.resolver, rc)
     config.resolvers = ufunc.resolver.ufuncs()
     config.executors = ufunc.executor.ufuncs()
 
