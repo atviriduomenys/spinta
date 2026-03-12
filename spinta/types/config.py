@@ -78,7 +78,7 @@ def load(context: Context, config: Config) -> Config:
     config.default_auth_client = rc.get("default_auth_client")
     config.default_access_level = rc.get(
         "default_access_level",
-        default=get_enum_by_name(Access, "private"),
+        default="private",
         cast=lambda name: get_enum_by_name(Access, name),
     )
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
