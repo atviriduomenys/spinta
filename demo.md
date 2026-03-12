@@ -81,6 +81,10 @@ keymaps:
 accesslog:
   type: file
   file: $BASEDIR/accesslog.json
+
+# RC Broker signature adapter configuration (required for POC)
+rc_signature:
+  private_key_path: $BASEDIR/raktas_priv.pem
 YAML
 ```
 
