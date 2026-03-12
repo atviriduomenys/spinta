@@ -315,32 +315,39 @@ def run_type_detectors(
     if isinstance(values, list):
         for item in values:
             run_type_detectors(dataset, item, mapping_scope, mapping_meta)
+
     elif isinstance(values, dict):
         check_missing_prop_required(dataset, values, mapping_scope, mapping_meta)
         for key, value in values.items():
-            new_mapping_scope = _MappingScope(
-                parent_scope=mapping_scope["parent_scope"],
-                model_name=mapping_scope["model_name"],
-                model_scope=mapping_scope["model_scope"],
-                property_name=key,
-            )
             if is_model(value):
-                new_mapping_scope["model_name"] = key
                 parent_scope = _create_name_with_prefix(
-                    new_mapping_scope["parent_scope"],
-                    mapping_meta["seperator"],
-                    "" if mapping_scope["model_name"] == "" else f"{mapping_scope['model_name']}[]",
+                    prefix=_create_name_with_prefix(
+                        prefix=mapping_scope["parent_scope"],
+                        seperator=mapping_meta["seperator"],
+                        value="" if mapping_scope["model_name"] == "" else f"{mapping_scope['model_name']}[]",
+                    ),
+                    seperator=mapping_meta["seperator"],
+                    value=mapping_scope["model_scope"],
                 )
-                parent_scope = _create_name_with_prefix(
-                    parent_scope, mapping_meta["seperator"], new_mapping_scope["model_scope"]
+                new_mapping_scope = _MappingScope(
+                    parent_scope=parent_scope,
+                    model_name=key,
+                    model_scope="",
+                    property_name=key,
                 )
-                new_mapping_scope["model_scope"] = ""
-                new_mapping_scope["parent_scope"] = parent_scope
                 run_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
             else:
+                new_mapping_scope = _MappingScope(
+                    parent_scope=mapping_scope["parent_scope"],
+                    model_name=mapping_scope["model_name"],
+                    model_scope=mapping_scope["model_scope"],
+                    property_name=key,
+                )
                 if isinstance(value, dict):
                     new_mapping_scope["model_scope"] = _create_name_with_prefix(
-                        new_mapping_scope["model_scope"], mapping_meta["seperator"], key
+                        prefix=new_mapping_scope["model_scope"],
+                        seperator=mapping_meta["seperator"],
+                        value=key,
                     )
                     run_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
                 else:
@@ -374,25 +381,23 @@ def setup_model_type_detectors(
 
     elif isinstance(values, dict):
         for key, value in values.items():
-            new_mapping_scope = _MappingScope(
-                parent_scope=mapping_scope["parent_scope"],
-                model_name=mapping_scope["model_name"],
-                model_scope=mapping_scope["model_scope"],
-                property_name=key,
-            )
             if is_model(value):
-                new_mapping_scope["model_name"] = key
                 parent_scope = _create_name_with_prefix(
-                    new_mapping_scope["parent_scope"],
-                    mapping_meta["seperator"],
-                    "" if mapping_scope["model_name"] == "" else f"{mapping_scope['model_name']}[]",
+                    prefix=_create_name_with_prefix(
+                        prefix=mapping_scope["parent_scope"],
+                        seperator=mapping_meta["seperator"],
+                        value="" if mapping_scope["model_name"] == "" else f"{mapping_scope['model_name']}[]",
+                    ),
+                    seperator=mapping_meta["seperator"],
+                    value=mapping_scope["model_scope"],
                 )
-                parent_scope = _create_name_with_prefix(
-                    parent_scope, mapping_meta["seperator"], new_mapping_scope["model_scope"]
-                )
-                new_mapping_scope["model_scope"] = ""
-                new_mapping_scope["parent_scope"] = parent_scope
 
+                new_mapping_scope = _MappingScope(
+                    parent_scope=parent_scope,
+                    model_name=key,
+                    model_scope="",
+                    property_name=key,
+                )
                 setup_model_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
 
                 old_mapping_scope = new_mapping_scope.copy()
@@ -403,7 +408,14 @@ def setup_model_type_detectors(
                     set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
                 elif old_mapping_scope["property_name"] != "":
                     set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
+
             else:
+                new_mapping_scope = _MappingScope(
+                    parent_scope=mapping_scope["parent_scope"],
+                    model_name=mapping_scope["model_name"],
+                    model_scope=mapping_scope["model_scope"],
+                    property_name=key,
+                )
                 if isinstance(value, list):
                     set_type_detector(dataset, new_mapping_scope, mapping_meta, is_array=True)
                 elif isinstance(value, dict):
