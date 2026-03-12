@@ -4,6 +4,8 @@ Changes
 0.2dev18 (unreleased)
 =====================
 
+Bug Fixes:
+
 - Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
 - Fixed a bug where an expression in the prepare column was not being evaluated (`#2460`_).
 
