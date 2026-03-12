@@ -15,7 +15,7 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
-from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
+from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList, SourceOrPrepareNotAllowed
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
@@ -188,9 +188,12 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call("select", prop.dtype, result)
         elif prop.external.prepare is not NA:
-            # property without external name and with `prepare` is already evaluated
-            # so just use evaluated value
-            result = Selected(prop=prop, prep=prop.external.prepare)
+            # property without external name may be evaluated already, if it is use the value
+            if isinstance(prop.external.prepare, Expr):
+                result = env(this=prop).resolve(prop.external.prepare)
+                result = env.call("select", prop.dtype, result)
+            else:
+                result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
@@ -339,7 +342,7 @@ def select(
 ) -> Selected:
     # TODO need join for this to work
     return Selected(
-        item=dtype.prop.name,
+        item=dtype.prop.external.name,
         prop=dtype.prop,
     )
 
@@ -458,3 +461,13 @@ def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     )
 
     return resolved_values
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
+    return GetAttr(obj, attr)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
+    raise SourceOrPrepareNotAllowed(source=str(source))
