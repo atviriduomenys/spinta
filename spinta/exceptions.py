@@ -972,7 +972,7 @@ class InvalidClientBackend(UserError):
 
 
 class DaskBackendCompareNotSupported(UserError):
-    template = "Dask backend does not support comparison operators in prepare formula. Found: {operators}."
+    template = "Dask backend does not support comparison (filter) operators in prepare formula. Found: {operators}."
 
 
 class InvalidClientBackendCredentials(UserError):
@@ -1218,4 +1218,10 @@ class UnsupportedDataTypeConfiguration(UserError):
 class EnumPrepareMissing(UserError):
     template = """
         Enum {enum} is missing a required value in the prepare column.
+    """
+
+
+class SourceOrPrepareNotAllowed(UserError):
+    template = """
+        The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
     """

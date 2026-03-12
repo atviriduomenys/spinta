@@ -9,7 +9,13 @@ New Features:
 - Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
   The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
 
-.. _#1790: https://github.com/atviriduomenys/spinta/issues/1788
+.. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
+
+Bug fixes:
+
+- Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
+
+.. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 
 
 0.2dev17 (2026-02-26)

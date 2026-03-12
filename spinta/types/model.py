@@ -25,6 +25,7 @@ from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
+from spinta.backends.components import Backend
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.core.config import RawConfig
@@ -556,6 +557,11 @@ def check(context: Context, model: Model):
         for prop in properties:
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
+
+
+@check.register(Context, Model, Backend)
+def check(context: Context, model: Model, backend: Backend):
+    pass
 
 
 @check.register(Context, Property)
