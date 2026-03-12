@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import requests
 import xmltodict
-from typing import List, Dict, Union, TypedDict, Any, Tuple, Callable
+from typing import List, Dict, Union, TypedDict, Any, Tuple
 
 from spinta.manifests.dict.components import DictFormat
 from spinta.manifests.helpers import TypeDetector
@@ -42,7 +42,6 @@ class _MappingMeta(TypedDict):
     check_namespace: bool
     namespace_prefixes: dict
     namespace_seperator: str
-    detect_model: Callable
 
 
 class _MappingScope(TypedDict):
@@ -175,7 +174,6 @@ def _get_mapping_meta(manifest_type: DictFormat) -> _MappingMeta:
         remove_array_suffix=False,
         check_namespace=False,
         namespace_prefixes={},
-        detect_model=is_model,
     )
     if manifest_type == DictFormat.JSON:
         mapping_meta["seperator"] = "."
@@ -312,7 +310,7 @@ def run_type_detectors(dataset: _MappedDataset, values: dict, mapping_scope: _Ma
                 model_scope=mapping_scope["model_scope"],
                 property_name=key,
             )
-            if mapping_meta["detect_model"](value):
+            if is_model(value):
                 new_mapping_scope["model_name"] = key
                 parent_scope = _create_name_with_prefix(
                     new_mapping_scope["parent_scope"],
@@ -370,7 +368,7 @@ def setup_model_type_detectors(
                 model_scope=mapping_scope["model_scope"],
                 property_name=key,
             )
-            if mapping_meta["detect_model"](value):
+            if is_model(value):
                 new_mapping_scope["model_name"] = key
                 parent_scope = _create_name_with_prefix(
                     new_mapping_scope["parent_scope"],
