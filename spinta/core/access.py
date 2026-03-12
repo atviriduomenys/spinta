@@ -73,6 +73,7 @@ def link_access_param(
     ] = (),
     *,
     use_given: bool = True,
+    default_access: Access = Access.private,
 ) -> None:
     if component.access is None:
         for parent in parents:
@@ -83,4 +84,4 @@ def link_access_param(
                 component.access = candidate
                 break
         else:
-            component.access = Access.protected
+            component.access = default_access
