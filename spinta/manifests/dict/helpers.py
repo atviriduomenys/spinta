@@ -49,6 +49,51 @@ class _MappingMeta:
     namespace_prefixes: dict[str, list[str]]
     namespace_seperator: str
 
+    @classmethod
+    def for_json(cls):
+        return cls(
+            is_blank_node=False,
+            blank_node_name="model1",
+            blank_node_source=".",
+            seperator=".",
+            recursive_descent=".",
+            model_source_prefix="",
+            namespace_seperator=":",
+            remove_array_suffix=False,
+            check_namespace=False,
+            namespace_prefixes={},
+        )
+
+    @classmethod
+    def for_xml(cls):
+        return cls(
+            is_blank_node=False,
+            blank_node_name="model1",
+            blank_node_source=".",
+            seperator="/",
+            recursive_descent="/..",
+            model_source_prefix="/",
+            namespace_seperator=":",
+            remove_array_suffix=True,
+            check_namespace=True,
+            namespace_prefixes={"xmlns": ["xmlns", "@xmlns"]},
+        )
+
+    @classmethod
+    def default(cls):
+        return cls(
+            is_blank_node=False,
+            blank_node_name="model1",
+            blank_node_source=".",
+            seperator="",
+            recursive_descent="",
+            model_source_prefix="",
+            namespace_seperator=":",
+            remove_array_suffix=False,
+            check_namespace=False,
+            namespace_prefixes={},
+        )
+
 
 @dataclasses.dataclass
 class _MappingScope:
@@ -170,28 +215,12 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
 
 
 def _get_mapping_meta(manifest_type: DictFormat) -> _MappingMeta:
-    mapping_meta = _MappingMeta(
-        is_blank_node=False,
-        blank_node_name="model1",
-        blank_node_source=".",
-        seperator="",
-        recursive_descent="",
-        model_source_prefix="",
-        namespace_seperator=":",
-        remove_array_suffix=False,
-        check_namespace=False,
-        namespace_prefixes={},
-    )
     if manifest_type == DictFormat.JSON:
-        mapping_meta.seperator = "."
-        mapping_meta.recursive_descent = "."
+        mapping_meta = _MappingMeta.for_json()
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-        mapping_meta.seperator = "/"
-        mapping_meta.recursive_descent = "/.."
-        mapping_meta.model_source_prefix = "/"
-        mapping_meta.remove_array_suffix = True
-        mapping_meta.check_namespace = True
-        mapping_meta.namespace_prefixes = {"xmlns": ["xmlns", "@xmlns"]}
+        mapping_meta = _MappingMeta.for_xml()
+    else:
+        mapping_meta = _MappingMeta.default()
 
     return mapping_meta
 
