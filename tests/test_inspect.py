@@ -2555,3 +2555,46 @@ def test_inspect_blob_types(
        |   |   |   |   | name      | string  |     | NAME      |             |         |        |       |       | develop | private    |        |     |     |       |
     """
     )
+
+
+def test_inspect_unrecognized_types_are_not_loaded_during_inspect(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    # Create a table with an unsupported column directly to skip SQLite's type affinity.
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID   INTEGER PRIMARY KEY,
+                CODE TEXT,
+                NAME TEXT,
+                "NULL" BLOB SUBTYPE UNKNOWN
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    # Reset resource.source to a specific value for evaluation.
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property   | type    | ref     | source     | prepare
+    db_sqlite                  |         |         |            |
+      | resource1              | sql     |         | sqlite     |
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | code       | string  |         | CODE       |
+      |   |   |   | id         | integer |         | ID         |
+      |   |   |   | name       | string  |         | NAME       |
+    """
+    )
