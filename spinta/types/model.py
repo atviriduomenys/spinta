@@ -539,7 +539,7 @@ def check(context: Context, model: Model):
 
 
 @check.register(Context, Model, Backend)
-def check(context: Context, model: Model, backend: Backend):
+def check(context: Context, model: Model, backend: Backend) -> None:
     pass
 
 
