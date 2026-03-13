@@ -1,14 +1,20 @@
 Changes
 #######
 
-0.2dev18 (unreleased)
+0.2dev19 (unreleased)
 =====================
 
 - Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
+
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
+
+0.2dev18 (2026-03-12)
+
+Bug Fixes:
+
 - Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
 - Fixed a bug where an expression in the prepare column was not being evaluated (`#2460`_).
 
-.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 .. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
 
