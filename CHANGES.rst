@@ -4,6 +4,12 @@ Changes
 0.2dev19 (unreleased)
 =====================
 
+New Features:
+
+- Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
+  The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
+
+.. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
 
 0.2dev18 (2026-03-12)
 =====================
@@ -15,6 +21,7 @@ Bug Fixes:
 
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 .. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
+
 
 0.2dev17 (2026-02-26)
 =====================
