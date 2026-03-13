@@ -41,7 +41,7 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.sync = []
     manifest.prefixes = {}
     manifest.enums = {}
-    manifest.access = Access.protected
+    manifest.access = config.default_access_level
     manifest.keymap = None
     manifest.backend = None
     manifest.mode = Mode.internal
