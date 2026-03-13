@@ -22,6 +22,22 @@ from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
 def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iterator[ManifestSchema]:
+    mapping_meta = _MappingMeta.get_for(manifest_type)
+    dataset_structure = _MappedDataset(
+        dataset=dataset_name if dataset_name else "dataset",
+        given_dataset_name=dataset_name,
+        resource="resource",
+        resource_type=f"dask/{manifest_type.value}",
+        resource_path=path,
+        models={},
+    )
+
+    converted = read_data(manifest_type, path)
+    dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
+    yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
+
+
+def read_data(manifest_type: DictFormat, path: str) -> dict:
     if path.startswith(HTTP_URL_PREFIXES):
         value = requests.get(path).text
     else:
@@ -29,25 +45,37 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
             value = f.read()
 
     converted = {}
-    mapping_meta = _MappingMeta.get_for(manifest_type)
 
     if manifest_type == DictFormat.JSON:
         converted = json.loads(value)
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
         converted = xmltodict.parse(value, cdata_key="text()")
 
-    namespaces = list(extract_namespaces(converted, mapping_meta))
-    converted = _fix_for_blank_nodes(converted)
+    return converted
+
+
+def parse_data(
+    mapping_meta: _MappingMeta, data: dict, dataset_structure: _MappedDataset
+) -> tuple[_MappedDataset, list[Any]]:
+    namespaces = list(extract_namespaces(data, mapping_meta))
+
+    converted = _fix_for_blank_nodes(data)
+
+    mapping_meta.is_blank_node = is_blank_node(converted)
+
+    create_type_detectors(dataset_structure, converted, mapping_meta)
+
+    return dataset_structure, namespaces
+
+
+def convert_to_manifest(
+    mapping_meta: _MappingMeta,
+    namespaces: list[Any],
+    dataset_structure: _MappedDataset,
+) -> Iterator[ManifestSchema]:
     prefixes = {}
     for i, (key, value) in enumerate(namespaces):
         prefixes[key] = {"type": "prefix", "name": key, "uri": value, "eid": i}
-    dataset_structure = _MappedDataset(
-        dataset=dataset_name if dataset_name else "dataset",
-        resource="resource",
-        models={},
-    )
-    mapping_meta.is_blank_node = is_blank_node(converted)
-    create_type_detectors(dataset_structure, converted, mapping_meta)
 
     yield (
         None,
@@ -57,11 +85,11 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
             "prefixes": prefixes,
             "resources": {
                 dataset_structure.resource: {
-                    "type": f"dask/{manifest_type.value}",
-                    "external": path,
+                    "type": dataset_structure.resource_type,
+                    "external": dataset_structure.resource_path,
                 },
             },
-            "given_name": dataset_name,
+            "given_name": dataset_structure.given_dataset_name,
         },
     )
 

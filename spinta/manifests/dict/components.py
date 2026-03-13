@@ -51,7 +51,10 @@ class _MappedModels:
 @dataclasses.dataclass
 class _MappedDataset:
     dataset: str
+    given_dataset_name: str
     resource: str
+    resource_type: str
+    resource_path: str
     models: dict[str, dict[str, _MappedModels]]
 
 
