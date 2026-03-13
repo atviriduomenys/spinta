@@ -236,6 +236,7 @@ def _read_props(
         )
 
 
+UNKNOWN_TYPE = "UNKNOWN"
 TYPES = [
     (sa.Boolean, "boolean"),
     (sa.Date, "date"),
@@ -273,12 +274,12 @@ class _Column(TypedDict):
     type: TypeEngine
 
 
-def _get_column_type(column: _Column, table: str = None) -> str:
+def _get_column_type(column: _Column, table: str | None = None) -> str:
     column_type: TypeEngine = column["type"]
     for cls, name in TYPES:
         if isinstance(column_type, cls):
             return name
-    raise TypeError(f"Unknown type {column_type!r} of column {column!r} in table {table!r}.")
+    return UNKNOWN_TYPE
 
 
 class _Ref(NamedTuple):
