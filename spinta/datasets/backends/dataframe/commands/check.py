@@ -21,10 +21,13 @@ def _get_compare_operators(expr: Expr) -> list[str]:
 
 
 @commands.check.register(Context, Model, DaskBackend)
-def check(context: Context, model: Model, backend: DaskBackend):
-    if model.external and model.external.prepare:
-        # If there are any compare operators in the prepare expression,
-        # raise an error since they are not supported for Dask backend.
-        if compare_operators := _get_compare_operators(model.external.prepare):
-            manager: ErrorManager = context.get("error_manager")
-            manager.handle_error(exceptions.DaskBackendCompareNotSupported(model, operators=compare_operators))
+def check(context: Context, model: Model, backend: DaskBackend) -> None:
+    # If there are any compare operators in the prepare expression,
+    # raise an error since they are not supported for Dask backend.
+    if (
+        model.external
+        and model.external.prepare
+        and (compare_operators := list(dict.fromkeys(_get_compare_operators(model.external.prepare))))
+    ):
+        manager: ErrorManager = context.get("error_manager")
+        manager.handle_error(exceptions.DaskBackendCompareNotSupported(model, operators=compare_operators))

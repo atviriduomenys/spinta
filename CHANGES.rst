@@ -12,6 +12,7 @@ New Features:
 .. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
 
 0.2dev18 (2026-03-12)
+=====================
 
 Bug Fixes:
 
