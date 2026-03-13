@@ -1,4 +1,3 @@
-import dataclasses
 import pathlib
 import json
 from copy import deepcopy
@@ -7,111 +6,30 @@ import requests
 import xmltodict
 from typing import Any, Iterator
 
+from spinta import HTTP_URL_PREFIXES
 from spinta.manifests.components import ManifestSchema
-from spinta.manifests.dict.components import DictFormat
+from spinta.manifests.dict.components import (
+    DictFormat,
+    _MappedDataset,
+    _MappingMeta,
+    _MappingScope,
+    _MappedModels,
+    _MappedProperties,
+)
 from spinta.manifests.helpers import TypeDetector
 from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
-@dataclasses.dataclass
-class _MappedProperties:
-    name: str
-    source: str
-    extra: str
-    type_detector: TypeDetector
-
-
-@dataclasses.dataclass
-class _MappedModels:
-    name: str
-    source: str
-    properties: dict[str, _MappedProperties]
-
-
-@dataclasses.dataclass
-class _MappedDataset:
-    dataset: str
-    resource: str
-    models: dict[str, dict[str, _MappedModels]]
-
-
-@dataclasses.dataclass
-class _MappingMeta:
-    is_blank_node: bool
-    blank_node_name: str
-    blank_node_source: str
-    seperator: str
-    recursive_descent: str
-    remove_array_suffix: bool
-    model_source_prefix: str
-    check_namespace: bool
-    namespace_prefixes: dict[str, list[str]]
-    namespace_seperator: str
-
-    @classmethod
-    def for_json(cls):
-        return cls(
-            is_blank_node=False,
-            blank_node_name="model1",
-            blank_node_source=".",
-            seperator=".",
-            recursive_descent=".",
-            model_source_prefix="",
-            namespace_seperator=":",
-            remove_array_suffix=False,
-            check_namespace=False,
-            namespace_prefixes={},
-        )
-
-    @classmethod
-    def for_xml(cls):
-        return cls(
-            is_blank_node=False,
-            blank_node_name="model1",
-            blank_node_source=".",
-            seperator="/",
-            recursive_descent="/..",
-            model_source_prefix="/",
-            namespace_seperator=":",
-            remove_array_suffix=True,
-            check_namespace=True,
-            namespace_prefixes={"xmlns": ["xmlns", "@xmlns"]},
-        )
-
-    @classmethod
-    def default(cls):
-        return cls(
-            is_blank_node=False,
-            blank_node_name="model1",
-            blank_node_source=".",
-            seperator="",
-            recursive_descent="",
-            model_source_prefix="",
-            namespace_seperator=":",
-            remove_array_suffix=False,
-            check_namespace=False,
-            namespace_prefixes={},
-        )
-
-
-@dataclasses.dataclass
-class _MappingScope:
-    parent_scope: str
-    model_scope: str
-    model_name: str
-    property_name: str
-
-
 def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iterator[ManifestSchema]:
-    if path.startswith(("http://", "https://")):
+    if path.startswith(HTTP_URL_PREFIXES):
         value = requests.get(path).text
     else:
         with pathlib.Path(path).open(encoding="utf-8-sig") as f:
             value = f.read()
 
     converted = {}
-    mapping_meta = _get_mapping_meta(manifest_type)
+    mapping_meta = _MappingMeta.get_for(manifest_type)
 
     if manifest_type == DictFormat.JSON:
         converted = json.loads(value)
@@ -212,17 +130,6 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
                     "properties": converted_props,
                 },
             )
-
-
-def _get_mapping_meta(manifest_type: DictFormat) -> _MappingMeta:
-    if manifest_type == DictFormat.JSON:
-        mapping_meta = _MappingMeta.for_json()
-    elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-        mapping_meta = _MappingMeta.for_xml()
-    else:
-        mapping_meta = _MappingMeta.default()
-
-    return mapping_meta
 
 
 def is_single_item_dict(value: dict) -> bool:
