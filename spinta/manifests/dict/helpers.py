@@ -1,3 +1,5 @@
+import psutil
+import os
 import pathlib
 import json
 from copy import deepcopy
@@ -21,6 +23,114 @@ from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
+class BatchXMLSchemaReader:
+    """Reads XML data and converts it into mapped data in batches"""
+
+    mapping_meta: _MappingMeta
+    dataset_structure: _MappedDataset
+    batch_size: int
+
+    __read_item_counter: int  # Counter for the number of items that have been read in a batch
+    __batch_data: dict  # Variable to hold the data of the current batch
+
+    namespaces: list  # Variable to hold all namespaces that have been parsed
+
+    def __init__(self, mapping_meta: _MappingMeta, dataset_structure: _MappedDataset, batch_size: int = 1000) -> None:
+        self.mapping_meta = mapping_meta
+        self.dataset_structure = dataset_structure
+        self.batch_size = batch_size
+
+        self.total_bathes_processed = 0
+        self.__read_item_counter = 0
+        self.namespaces = []
+        self.__batch_data = {}
+
+    def read_xml(self, full_data: str) -> None:
+        xmltodict.parse(full_data, cdata_key="text()", item_depth=2, item_callback=self.read_item)
+
+        # Parse the last batch if no baches were processed yet
+        if self.total_bathes_processed == 0:
+            self.parse_batch()
+
+    def read_item(self, data_path: list[tuple[str, dict | None]], data: dict) -> bool:
+        """
+        Method that is called by xmltodict for each item that was read
+        Reads item, increments batch counter and if the patch is full - parses batch
+        """
+        self.add_item_to_batch(data_path, data)
+        self.__read_item_counter += 1
+
+        if self.__read_item_counter == self.batch_size:
+            self.parse_batch()
+
+        return True
+
+    def add_item_to_batch(self, path: list[tuple[str, dict | None]], item: dict) -> None:
+        """
+        Converts data_path and data to a single dict as if it would be returned by xmltodict
+        and adds it to the batch data
+        """
+        current_batch = self.__batch_data
+
+        for i, (tag, attrs) in enumerate(path):
+            node_attrs = {f"@{k}": v for k, v in attrs.items()} if attrs else {}
+            is_leaf = i == len(path) - 1
+
+            if tag not in current_batch:
+                current_batch[tag] = node_attrs
+                target = node_attrs
+
+            else:
+                existing = current_batch[tag]
+
+                if isinstance(existing, list):
+                    target = None
+                    for candidate in existing:
+                        if all(candidate.get(k) == v for k, v in node_attrs.items()):
+                            target = candidate
+                            break
+                    if target is None:
+                        existing.append(node_attrs)
+                        target = node_attrs
+
+                else:
+                    if all(existing.get(k) == v for k, v in node_attrs.items()):
+                        target = existing
+                    else:
+                        current_batch[tag] = [existing, node_attrs]
+                        target = node_attrs
+
+            if is_leaf:
+                if isinstance(item, dict):
+                    target.update(item)
+                else:
+                    target["#text"] = item
+
+            current_batch = target
+
+    def parse_batch(self) -> None:
+        """
+        Process batch data and save processed result into self.dataset_structure
+        """
+        self.dataset_structure, batch_namespaces = parse_data(
+            self.mapping_meta,
+            self.__batch_data,
+            self.dataset_structure,
+        )
+
+        # Add unique namespaces to self.namespaces and keep ordering
+        for namespace in batch_namespaces:
+            if namespace not in self.namespaces:
+                self.namespaces.append(namespace)
+
+        # Reset batch and counter
+        self.__batch_data = {}
+        self.__read_item_counter = 0
+
+        # Increase processed batches counter
+        self.total_bathes_processed += 1
+
+
 def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iterator[ManifestSchema]:
     mapping_meta = _MappingMeta.get_for(manifest_type)
     dataset_structure = _MappedDataset(
@@ -32,26 +142,37 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
         models={},
     )
 
-    converted = read_data(manifest_type, path)
-    dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
-    yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
-
-
-def read_data(manifest_type: DictFormat, path: str) -> dict:
     if path.startswith(HTTP_URL_PREFIXES):
         value = requests.get(path).text
     else:
         with pathlib.Path(path).open(encoding="utf-8-sig") as f:
             value = f.read()
 
-    converted = {}
-
     if manifest_type == DictFormat.JSON:
         converted = json.loads(value)
-    elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-        converted = xmltodict.parse(value, cdata_key="text()")
+        dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
+        yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
 
-    return converted
+    elif manifest_type in (DictFormat.XML, DictFormat.HTML):
+        process = psutil.Process(os.getpid())
+        memory_start = process.memory_info().rss
+        print(f"Memory start: {memory_start / 1024**2} MB")
+
+        xml_batch_reader = BatchXMLSchemaReader(mapping_meta, dataset_structure)
+        xml_batch_reader.read_xml(value)
+        print(
+            f"Total {xml_batch_reader.total_bathes_processed} batches of length {xml_batch_reader.batch_size} processed"
+        )
+        yield from convert_to_manifest(mapping_meta, xml_batch_reader.namespaces, xml_batch_reader.dataset_structure)
+
+        # converted = xmltodict.parse(value, cdata_key="text()")
+        # print(f"Memory after xml parse: {process.memory_info().rss / 1024 ** 2} MB")
+        # dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
+        # yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
+
+        memory_end = process.memory_info().rss
+        print(f"Memory end: {memory_end / 1024**2} MB")
+        print(f"Difference: {(memory_end - memory_start) / 1024**2} MB")
 
 
 def parse_data(
