@@ -9,6 +9,7 @@ Changes
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 
 0.2dev18 (2026-03-12)
+=====================
 
 Bug Fixes:
 
