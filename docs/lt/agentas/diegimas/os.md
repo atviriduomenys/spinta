@@ -338,3 +338,134 @@ Jei servisas veikia, gausite atsakymą su versijos informacija, pvz.:
 Jei gausite klaidą arba jokio atsakymo — patikrinkite žurnalus: `sudo journalctl -u spinta -xe`
 :::
 
+## Paralelinis apdorojimas su Gunicorn
+
+:::{note}
+Ši konfigūracija rekomenduojama institucijoms, kurių duomenų šaltinis yra
+**SQL/reliacinė duomenų bazė** ir kurios tikisi didelės vartotojų apkrovos.
+Standartinis `spinta run` servisas veikia su vienu darbo procesu ir nepalaiko
+kelių lygiagrečių užklausų apdorojimo vienu metu.
+:::
+
+Gunicorn su uvicorn workers leidžia paleisti kelis lygiagrečius darbo procesus,
+taip paskirstant apkrovą.
+
+### Gunicorn diegimas
+
+Aktyvuokite spinta vartotoją ir įdiekite gunicorn:
+
+```bash
+sudo -Hsu spinta
+cd
+env/bin/pip install gunicorn
+```
+
+### config.yml papildymas
+
+Gunicorn naudoja `spinta.asgi:app` ASGI entry point, kuris manifesto kelio ir
+backend'o **negauna** kaip CLI argumentų — jie turi būti nurodyti `config.yml`
+faile. Papildykite konfigūracijos failą `backends:` ir `manifests:` sekcijomis:
+
+```bash
+cat >> /opt/spinta/config.yml << 'EOF'
+
+backends:
+  default:
+    type: sql
+    dsn: postgresql+psycopg2://USER:PASSWORD@HOST:5432/DB_NAME
+
+manifests:
+  default:
+    type: tabular
+    path: /opt/spinta/manifest.csv
+    backend: default
+    mode: external
+EOF
+```
+
+:::{note}
+`backends.default.dsn` — pakeiskite į savo duomenų bazės prisijungimo eilutę.
+`manifests.default.backend` turi atitikti backends sekcijos raktą (`default`).
+:::
+
+### Gunicorn SystemD servisas
+
+Atsijunkite nuo spinta vartotojo ir sukurkite atskirą serviso failą:
+
+```bash
+exit
+```
+
+```bash
+cat << 'EOF' | sudo tee /etc/systemd/system/spinta.service
+[Unit]
+Description=Spinta Gunicorn service
+After=network.target
+
+[Service]
+Type=simple
+User=spinta
+Group=www-data
+WorkingDirectory=/opt/spinta
+Environment="SPINTA_CONFIG=/opt/spinta/config.yml"
+
+ExecStart=/opt/spinta/env/bin/gunicorn \
+    -k uvicorn.workers.UvicornWorker \
+    -w 2 \
+    --bind 127.0.0.1:8000 \
+    spinta.asgi:app
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+:::{note}
+`-w 2` nurodo darbo procesų (workers) skaičių. Rekomenduojama reikšmė:
+`2 × vCPU_skaičius`. Standartinei CCT VM (2 vCPU) rekomenduojama `-w 4`.
+Pernelyg daug workers gali išnaudoti visą RAM, todėl stebėkite resursų
+naudojimą ir koreguokite pagal poreikį.
+:::
+
+Aktyvuokite servisą:
+
+```bash
+sudo systemctl enable spinta
+sudo systemctl daemon-reload
+sudo systemctl start spinta
+```
+
+Patikrinkite:
+
+```bash
+sudo systemctl status spinta
+curl -s http://127.0.0.1:8000/version
+```
+
+### Workerių skaičiaus patikrinimas
+
+Norėdami įsitikinti, kad veikia nurodytas skaičius worker procesų, naudokite `ps`:
+
+```bash
+ps aux | grep gunicorn
+```
+
+Turėtumėte matyti vieną **master** procesą ir tiek **worker** procesų, kiek nurodėte su `-w`:
+
+```
+spinta  1234  gunicorn: master [spinta.asgi:app]
+spinta  1235  gunicorn: worker [spinta.asgi:app]
+spinta  1236  gunicorn: worker [spinta.asgi:app]
+```
+
+Arba tiksliau — suskaičiuoti tik worker procesus:
+
+```bash
+ps aux | grep "gunicorn: worker" | grep -v grep | wc -l
+```
+
+Ši komanda turi grąžinti skaičių, lygų `-w` reikšmei (pvz., `2`).
+

@@ -45,6 +45,22 @@ Sukūrus agentą, pateikiamas slaptas prisijungimo raktas. **Dėl saugumo jis ro
 tik vieną kartą — būtinai išsaugokite.**
 :::
 
+:::{important}
+**Reikalingi du agentai — nepriklausomai nuo IS aplinkų skaičiaus.**
+
+Kiekviena institucija turi registruoti po vieną agentą kiekvienai vartų aplinkai:
+
+- **TEST agentas** (`Testavimo` aplinka) — jungiamas prie `test-apigw.gov.lt` vartų.
+  Skirtas naujų DSA versijų testavimui prieš diegiant į produkciją.
+- **PROD agentas** (`Gamybinė` aplinka) — jungiamas prie `apigw.gov.lt` vartų.
+  Teikia duomenis galutiniams vartotojams.
+
+Net jei institucija turi tik vieną (produkcinę) informacinę sistemą — abu agentai
+vis tiek reikalingi. TEST vartai skirti ne IS aplinkai testuoti, o DSA pakeitimams
+patikrinti: nauja DSA versija pirmiausia įkeliama į TEST aplinką, ten patikrinama,
+ir tik tada perkeliama į PROD. Kiekvienas agentas reikalauja atskiros VM.
+:::
+
 ## OAS diegimas į vartus
 
 **OAS** (OpenAPI Specification) — tai standartinis API aprašo formatas (JSON/YAML),
@@ -76,19 +92,21 @@ to, kur yra talpinama institucijos informacinė sistema.
 ### Vartų tipai
 
 :::{important}
-**Numatyta: vidiniai vartai.** Institucijos, kurių informacinė sistema yra
-valstybiniame duomenų centre arba SVDPT tinkle, turi naudoti **vidinius vartus**.
+**Vidiniai vartai** — tik institucijoms, kurios yra **KVTC klientės** ir įtrauktos į
+[SVDPT naudotojų sąrašą](https://www.e-tar.lt/portal/lt/legalAct/aea15050a53411e8acb39f2e6db7935b/asr)
+pagal LR Vyriausybės nutarimą. Buvimas valstybiniame duomenų centre (VDC)
+**negarantuoja** galimybės jungtis per SVDPT — institucija privalo būti atskira
+KVTC klientė.
 
-**Išimtis: išoriniai vartai.** Jei institucijos informacinė sistema yra talpinam
-ne valstybiniame duomenų centre (pvz., komerciniame debesyje ar išorinio teikėjo
-infrastruktūroje), naudojami **išoriniai vartai**. Tokiu atveju papildomos
-KVTC/SVDPT tinklo konfigūracijos nereikia.
+**Išoriniai vartai** — visos kitos institucijos: kurių IS yra komerciniame debesyje,
+išorinio teikėjo infrastruktūroje, arba valstybiniame DC, bet nesančios SVDPT
+naudotojų sąraše. Papildomos KVTC/SVDPT tinklo konfigūracijos nereikia.
 :::
 
 | Vartų tipas | Kada naudojama | Prieiga |
 |-------------|----------------|---------|
-| **Vidiniai vartai** (numatyta) | IS valstybiniame DC arba SVDPT tinkle | Tik SVDPT tinkle |
-| **Išoriniai vartai** (išimtis) | IS ne valstybiniame DC (komercinis debesis, išorinis teikėjas) | Internetas |
+| **Vidiniai vartai** | IS KVTC kliento aplinkoje, institucija SVDPT naudotojų sąraše | Tik SVDPT tinkle |
+| **Išoriniai vartai** | IS ne SVDPT tinkle (VDC be SVDPT, komercinis debesis, išorinis teikėjas) | Internetas |
 
 :::{note}
 Jei nesate tikri, kurie vartai taikomi jūsų institucijai, kreipkitės į VSSA.
