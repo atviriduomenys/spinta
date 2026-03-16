@@ -219,6 +219,7 @@ psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
 test -n "$PID" && kill "$PID"
 spinta run &>> "$BASEDIR"/spinta.log & PID=$!
 #wait a bit for it to load
+sleep 30
 tail -50 "$BASEDIR"/spinta.log
 
 http :8000
