@@ -74,13 +74,15 @@ def offset(env: DaskDataFrameQueryBuilder, n: int):
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
 def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Property:
-    if str(attr.obj) in env.model.properties:
-        prop = env.model.properties.get(str(attr.obj))
+    obj = str(attr.obj)
+    name = str(attr.name)
+    if obj in env.model.properties:
+        prop = env.model.properties.get(obj)
         dtype = getattr(prop, "dtype", None)
         langs = getattr(dtype, "langs", None)
         if isinstance(dtype, Text) and langs:
-            if str(attr.name) in langs:
-                return env.resolve_property(langs[str(attr.name)])
+            if name in langs:
+                return env.resolve_property(langs[name])
     return env.resolve_property(attr.obj)
 
 
