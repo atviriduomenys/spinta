@@ -85,6 +85,53 @@ Turėtumėte gauti tokį atsakymą:
 }
 ```
 
+## Užklausų parametrai testavimo metu
+
+UDTS palaiko [UAPI užklausų parametrus](https://ivpk.github.io/uapi/#section/Query), kurie leidžia filtruoti ir riboti grąžinamus duomenis. Tai ypač naudinga testavimo metu, kai duomenų šaltinyje gali būti daug įrašų.
+
+### `_limit` — įrašų skaičiaus ribojimas
+
+Rekomenduojama visada naudoti `_limit` parametrą testavimo metu, kad būtų grąžinamas tik nedidelis įrašų skaičius:
+
+```bash
+curl "$SERVER/datasets/gov/example/MyModel?_limit=5" \
+  -H "$AUTH" | jq '.'
+```
+
+Atsakyme bus grąžinta ne daugiau kaip 5 įrašai:
+
+```json
+{
+  "_data": [
+    { "_type": "datasets/gov/example/MyModel", "_id": "...", "field": "value" },
+    { "_type": "datasets/gov/example/MyModel", "_id": "...", "field": "value" }
+  ]
+}
+```
+
+:::{note}
+Jei `_limit` nenurodytas, serveris taiko numatytąją vertę (paprastai 100 įrašų). Didelių duomenų šaltinių atveju tai gali sulėtinti atsakymą arba sukelti timeout klaidą.
+:::
+
+### `_limit=1` — greitas patikrinimas
+
+Norėdami tik patikrinti, ar duomenų šaltinis pasiekiamas ir grąžina bent vieną įrašą:
+
+```bash
+curl "$SERVER/datasets/gov/example/MyModel?_limit=1" \
+  -H "$AUTH" | jq '.'
+```
+
+### Puslapiavimas su `_offset`
+
+Jei norite peržiūrėti kitus įrašus (ne pirmuosius):
+
+```bash
+# Gauti 5 įrašus pradedant nuo 11-o
+curl "$SERVER/datasets/gov/example/MyModel?_limit=5&_offset=10" \
+  -H "$AUTH" | jq '.'
+```
+
 ## Derinimas ir žurnalai
 
 ### Žurnalų vietos
