@@ -3,6 +3,7 @@ import os
 import pathlib
 import tempfile
 from pathlib import Path
+from typing import Callable
 
 import sqlalchemy as sa
 
@@ -57,6 +58,34 @@ def rc_new(rc, tmp_path: pathlib.Path):
             },
         }
     )
+
+
+@pytest.fixture()
+def make_inspect_db(postgresql):
+    """Factory fixture: call with a function that defines DDL via (engine, meta)."""
+    created_dbs = []
+
+    def factory(db_name: str, setup: Callable[[sa.engine.Connection, sa.MetaData], None]) -> str:
+        db = f"{postgresql}/{db_name}"
+        if su.database_exists(db):
+            su.drop_database(db)
+        su.create_database(db)
+
+        engine = sa.create_engine(db)
+        with engine.begin() as conn:
+            meta = sa.MetaData()
+            setup(conn, meta)
+            meta.create_all(conn)
+
+        created_dbs.append((db, engine))
+        return db
+
+    yield factory
+
+    for db, engine in created_dbs:
+        engine.dispose()
+        if su.database_exists(db):
+            su.drop_database(db)
 
 
 def test_inspect(
@@ -2003,6 +2032,80 @@ def test_inspect_with_views(rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: P
         context,
     )
     assert a == b
+
+
+def test_inspect_with_postgresql_cross_schema_foreign_key(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    make_inspect_db,
+):
+    def setup(conn: sa.engine.Connection, meta: sa.MetaData):
+        conn.execute(sa.schema.CreateSchema("geography"))
+        conn.execute(sa.schema.CreateSchema("urban"))
+        sa.Table(
+            "country",
+            meta,
+            sa.Column("country_id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.String(100), nullable=False),
+            sa.Column("iso_code", sa.String(2), unique=True, nullable=False),
+            schema="geography",
+        )
+        sa.Table(
+            "city",
+            meta,
+            sa.Column("city_id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.String(100), nullable=False),
+            sa.Column("population", sa.BigInteger),
+            sa.Column(
+                "country_id",
+                sa.Integer,
+                sa.ForeignKey("geography.country.country_id", ondelete="CASCADE"),
+                nullable=False,
+            ),
+            schema="urban",
+        )
+
+    db = make_inspect_db("db", setup)
+    result_file_path = tmp_path / "result.csv"
+
+    cli.invoke(
+        rc_new,
+        [
+            "inspect",
+            "-r",
+            "sql",
+            db,
+            "-o",
+            result_file_path,
+        ],
+    )
+
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, "db/geography").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "db/urban").resources["resource1"].external = "postgresql"
+
+    assert (
+        manifest
+        == """
+    d | r | m | property    | type    | ref                      | source                  | prepare | access  | title
+    db/geography            |         |                          |                         |         |         |
+      | resource1           | sql     |                          | postgresql              |         |         |
+                            |         |                          |                         |         |         |
+      |   | Country         |         | country_id               | geography.country       |         |         |
+      |   |   | country_id  | integer |                          | country_id              |         |         |
+      |   |   | iso_code    | string  |                          | iso_code                |         |         |
+      |   |   | name        | string  |                          | name                    |         |         |
+    db/urban                |         |                          |                         |         |         |
+      | resource1           | sql     |                          | postgresql              |         |         |
+                            |         |                          |                         |         |         |
+      |   | City            |         | city_id                  | urban.city              |         |         |
+      |   |   | city_id     | integer |                          | city_id                 |         |         |
+      |   |   | country_id  | ref     | /db/geography/Country    | country_id              |         |         |
+      |   |   | name        | string  |                          | name                    |         |         |
+      |   |   | population  | integer |                          | population              |         |         |
+    """
+    )
 
 
 @pytest.mark.skip(reason="Requires #440 task")
