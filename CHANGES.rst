@@ -4,6 +4,12 @@ Changes
 0.2dev19 (unreleased)
 =====================
 
+Bug fixes:
+
+- Resolved a bug that caused the `spinta inspect`` command to error when processing MySQL databases with `JSON` columns (#1701_).
+
+.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
+
 
 0.2dev18 (2026-03-12)
 =====================
@@ -85,7 +91,6 @@ Bug Fixes:
 
 .. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
-.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
 
 

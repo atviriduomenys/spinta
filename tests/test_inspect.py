@@ -4,9 +4,9 @@ import pathlib
 import tempfile
 from pathlib import Path
 
-import sqlalchemy as sa
-
 import pytest
+import sqlalchemy as sa
+import sqlalchemy_utils as su
 
 from spinta import commands
 from spinta.core.config import RawConfig
@@ -18,7 +18,6 @@ from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-import sqlalchemy_utils as su
 
 
 @pytest.fixture()
@@ -2553,5 +2552,49 @@ def test_inspect_blob_types(
        |   |   |   |   | id        | integer |     | ID        |             |         |        |       |       | develop | private    |        |     |     |       |
        |   |   |   |   | logo      | binary  |     | LOGO      |             |         |        |       |       | develop | private    |        |     |     |       |
        |   |   |   |   | name      | string  |     | NAME      |             |         |        |       |       | develop | private    |        |     |     |       |
+    """
+    )
+
+
+def test_inspect_column_with_json_type(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    """
+    Test JSON type inspection via CLI.
+
+    This test verifies that `spinta inspect` correctly identifies a JSON column
+    in a SQLite database and maps it to the 'object' type in the manifest.
+    SQLite's native JSON support is often reflected as `sa.JSON` by SQLAlchemy.
+    """
+    # Setup database with a JSON column
+    sqlite.init(
+        {
+            "COUNTRY": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("NAME", sa.Text),
+                sa.Column("META", sa.JSON),  # SQLAlchemy's generic JSON type
+            ],
+        }
+    )
+
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type    | ref | source    | prepare | access  | title | description
+    db_sqlite                |         |     |           |         |         |       |
+      | resource1            | sql     |     | sqlite    |         |         |       |
+                             |         |     |           |         |         |       |
+      |   |   | Country      |         | id  | COUNTRY   |         |         |       |
+      |   |   |   | id       | integer |     | ID        |         |         |       |
+      |   |   |   | meta     | object  |     | META      |         |         |       |
+      |   |   |   | name     | string  |     | NAME      |         |         |       |
     """
     )
