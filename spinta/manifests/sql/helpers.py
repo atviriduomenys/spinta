@@ -251,6 +251,7 @@ TYPES = [
     (sa.String, "string"),
     (sa.VARCHAR, "string"),
     (sa.CHAR, "string"),
+    (sa.JSON, "object"),
     (mysql.BIT, "string"),
     (mysql.VARBINARY, "string"),
     (mysql.VARCHAR, "string"),
