@@ -268,7 +268,7 @@ def _update_table_migration(
             meta.reflect(schema=ref_table_schema, only=[ref_table_name], extend_existing=True)
             ref_table = meta.tables[ref_table_metadata_name]
 
-        ref_table_identifier = get_table_identifier(ref_table)
+        ref_table_identifier = get_table_identifier(ref_table.comment or ref_table)
         new_constraint_name = get_pg_foreign_key_name(
             table_identifier=new_table_identifier,
             referred_table_identifier=ref_table_identifier,

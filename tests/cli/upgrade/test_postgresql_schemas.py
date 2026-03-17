@@ -437,3 +437,204 @@ def test_upgrade_postgresql_schemas_required_list(
     assert not {
         "datasets/schemas/cli/Corrupted/:list/data",
     }.issubset(insp.get_table_names())
+
+
+def test_upgrade_postgresql_schemas_required_same_ref(
+    context: Context,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    cli: SpintaCliRunner,
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
+        d | r | b | m | property   | type     | ref        | prepare | access | level
+        datasets/schemas/cli       |          |            |         |        |
+          |   |   | RefCountry     |          | id         |         |        |
+          |   |   |   | id         | integer  |            |         | open   |
+          |   |   |   | name       | string   |            |         | open   |
+          |   |   | RefCity        |          | id         |         |        |
+          |   |   |   | id         | integer  |            |         | open   |
+          |   |   |   | name       | string   |            |         | open   |
+          |   |   |   | country    | ref      | RefCountry |         | open   |
+        """
+        ),
+    )
+
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    store = context.get("store")
+    backend = store.manifest.backend
+    with backend.begin() as conn:
+        conn.execute('ALTER TABLE "datasets/schemas/cli"."RefCountry" RENAME TO "datasets/schemas/cli/RefCountry"')
+        conn.execute(
+            'ALTER TABLE "datasets/schemas/cli"."RefCity" RENAME CONSTRAINT "fk_RefCity_country._id_RefCountry" TO "fk_corrupted"'
+        )
+        conn.execute('ALTER TABLE "datasets/schemas/cli"."RefCity" RENAME TO "datasets/schemas/cli/RefCity"')
+
+        # Ensure that no cached tables exist in public
+        conn.execute('DROP TABLE IF EXISTS "datasets/schemas/cli/RefCity"')
+        conn.execute('DROP TABLE IF EXISTS "RefCity"')
+        conn.execute('ALTER TABLE "datasets/schemas/cli"."datasets/schemas/cli/RefCity" SET SCHEMA public')
+        conn.execute('DROP TABLE IF EXISTS "datasets/schemas/cli/RefCountry"')
+        conn.execute('DROP TABLE IF EXISTS "RefCountry"')
+        conn.execute('ALTER TABLE "datasets/schemas/cli"."datasets/schemas/cli/RefCountry" SET SCHEMA public')
+
+    insp = sa.inspect(backend.engine)
+    assert {
+        "public",
+        "datasets/schemas/cli",
+    }.issubset(insp.get_schema_names())
+
+    assert {
+        "RefCountry/:changelog",
+        "RefCountry/:redirect",
+        "RefCity/:changelog",
+        "RefCity/:redirect",
+    }.issubset(insp.get_table_names(schema="datasets/schemas/cli"))
+
+    assert {
+        "datasets/schemas/cli/RefCountry",
+        "datasets/schemas/cli/RefCity",
+    }.issubset(insp.get_table_names(schema="public"))
+
+    assert {
+        "fk_corrupted",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("datasets/schemas/cli/RefCity"))
+
+    assert not {
+        "fk_RefCity_country._id_RefCountry",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("datasets/schemas/cli/RefCity"))
+
+    result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
+    assert result.exit_code == 0
+    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stdout
+    insp = sa.inspect(backend.engine)
+
+    assert {
+        "RefCountry",
+        "RefCountry/:changelog",
+        "RefCountry/:redirect",
+        "RefCity",
+        "RefCity/:changelog",
+        "RefCity/:redirect",
+    }.issubset(insp.get_table_names(schema="datasets/schemas/cli"))
+
+    assert not {
+        "datasets/schemas/cli/RefCountry",
+        "datasets/schemas/cli/RefCity",
+    }.issubset(insp.get_table_names(schema="public"))
+
+    assert not {
+        "fk_corrupted",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("RefCity", schema="datasets/schemas/cli"))
+
+    assert {
+        "fk_RefCity_country._id_RefCountry",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("RefCity", schema="datasets/schemas/cli"))
+
+    result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
+    assert result.exit_code == 0
+    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED) in result.stdout
+
+
+def test_upgrade_postgresql_schemas_required_different_ref(
+    context: Context,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    cli: SpintaCliRunner,
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
+        d | r | b | m | property   | type     | ref                             | prepare | access | level
+        datasets/schemas/cli       |          |                                 |         |        |
+          |   |   | RefCountry     |          | id                              |         |        |
+          |   |   |   | id         | integer  |                                 |         | open   |
+          |   |   |   | name       | string   |                                 |         | open   |
+        datasets/schemas/cli/diff  |          |                                 |         |        |
+          |   |   | RefCity        |          | id                              |         |        |
+          |   |   |   | id         | integer  |                                 |         | open   |
+          |   |   |   | name       | string   |                                 |         | open   |
+          |   |   |   | country    | ref      | datasets/schemas/cli/RefCountry |         | open   |
+        """
+        ),
+    )
+
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    store = context.get("store")
+    backend = store.manifest.backend
+    with backend.begin() as conn:
+        conn.execute(
+            'ALTER TABLE "datasets/schemas/cli/diff"."RefCity" RENAME CONSTRAINT "fk_RefCity_country._id_datasets/schemas/cli.RefCountry" TO "fk_corrupted"'
+        )
+        conn.execute('ALTER TABLE "datasets/schemas/cli/diff"."RefCity" RENAME TO "datasets/schemas/cli/diff/RefCity"')
+
+        # Ensure that no cached tables exist in public
+        conn.execute('DROP TABLE IF EXISTS "datasets/schemas/cli/diff/RefCity"')
+        conn.execute('DROP TABLE IF EXISTS "RefCity"')
+        conn.execute('ALTER TABLE "datasets/schemas/cli/diff"."datasets/schemas/cli/diff/RefCity" SET SCHEMA public')
+
+    insp = sa.inspect(backend.engine)
+    assert {
+        "public",
+        "datasets/schemas/cli",
+        "datasets/schemas/cli/diff",
+    }.issubset(insp.get_schema_names())
+
+    assert {
+        "RefCity/:changelog",
+        "RefCity/:redirect",
+    }.issubset(insp.get_table_names(schema="datasets/schemas/cli/diff"))
+
+    assert {
+        "datasets/schemas/cli/diff/RefCity",
+    }.issubset(insp.get_table_names(schema="public"))
+
+    assert {
+        "fk_corrupted",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("datasets/schemas/cli/diff/RefCity"))
+
+    assert not {
+        "fk_RefCity_country._id_datasets/schemas/cli/RefCountry",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("datasets/schemas/cli/diff/RefCity"))
+
+    result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
+    assert result.exit_code == 0
+    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stdout
+    insp = sa.inspect(backend.engine)
+
+    assert {
+        "RefCity",
+        "RefCity/:changelog",
+        "RefCity/:redirect",
+    }.issubset(insp.get_table_names(schema="datasets/schemas/cli/diff"))
+
+    assert not {
+        "datasets/schemas/cli/diff/RefCity",
+    }.issubset(insp.get_table_names(schema="public"))
+
+    assert not {
+        "fk_corrupted",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("RefCity", schema="datasets/schemas/cli/diff"))
+
+    assert {
+        "fk_RefCity_country._id_datasets/schemas/cli.RefCountry",
+    }.issubset(key["name"] for key in insp.get_foreign_keys("RefCity", schema="datasets/schemas/cli/diff"))
+
+    result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
+    assert result.exit_code == 0
+    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED) in result.stdout
