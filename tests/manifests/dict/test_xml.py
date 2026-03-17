@@ -79,6 +79,24 @@ def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(
         manifest,
+#         """
+# d | r | model   | property                        | type                    | ref    | source
+# dataset                                     |                         |        |
+#   | resource                                | dask/xml                |        | manifest.xml
+#                                             |                         |        |
+#   |   | Galaxy                              |                         |        | /galaxy
+#   |   |   | name                            | string required unique  |        | @name
+#   |   |   | solar_system_name               | string required unique  |        | solar_system/@name
+#   |   |   | solar_system_planet_name        | string required unique  |        | solar_system/planet/@name
+#                                             |                         |        |
+#   |   | Country                             |                         |        | /galaxy/solar_system/planet/countries/country
+#   |   |   | code                            | string required unique  |        | code
+#   |   |   | name                            | string required unique  |        | name
+#   |   |   | location_lat                    | integer required unique |        | location/@lat
+#   |   |   | location_lon                    | integer required unique |        | location/@lon
+#   |   |   | galaxy                          | ref                     | Galaxy | ../../../..
+#
+# """,
         """
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
@@ -88,14 +106,10 @@ dataset                                     |                         |        |
   |   |   | name                            | string required unique  |        | @name
   |   |   | solar_system_name               | string required unique  |        | solar_system/@name
   |   |   | solar_system_planet_name        | string required unique  |        | solar_system/planet/@name
-                                            |                         |        |
-  |   | Country                             |                         |        | /galaxy/solar_system/planet/countries/country
-  |   |   | code                            | string required unique  |        | code
-  |   |   | name                            | string required unique  |        | name
-  |   |   | location_lat                    | integer required unique |        | location/@lat
-  |   |   | location_lon                    | integer required unique |        | location/@lon
-  |   |   | galaxy                          | ref                     | Galaxy | ../../../..
-
+  |   |   | solar_system_planet_countries_country_code | string required unique  |        | solar_system/planet/countries/country/code
+  |   |   | solar_system_planet_countries_country_name | string required unique  |        | solar_system/planet/countries/country/name
+  |   |   | solar_system_planet_countries_country_location_lat | integer required unique |        | solar_system/planet/countries/country/location/@lat
+  |   |   | solar_system_planet_countries_country_location_lon | integer required unique |        | solar_system/planet/countries/country/location/@lon
 """,
         context,
     )

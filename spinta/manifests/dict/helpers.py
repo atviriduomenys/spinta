@@ -1,3 +1,6 @@
+import contextlib
+import logging
+
 import psutil
 import os
 import pathlib
@@ -6,7 +9,7 @@ from copy import deepcopy
 
 import requests
 import xmltodict
-from typing import Any, Iterator
+from typing import Any, Iterator, IO
 
 from spinta import HTTP_URL_PREFIXES
 from spinta.manifests.components import ManifestSchema
@@ -22,10 +25,17 @@ from spinta.manifests.helpers import TypeDetector
 from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
+import lxml.etree as ET
+from collections import defaultdict
+
+
+logger = logging.getLogger(__name__)
+
 
 class BatchXMLSchemaReader:
     """Reads XML data and converts it into mapped data in batches"""
 
+    path: str
     mapping_meta: _MappingMeta
     dataset_structure: _MappedDataset
     batch_size: int
@@ -35,7 +45,14 @@ class BatchXMLSchemaReader:
 
     namespaces: list  # Variable to hold all namespaces that have been parsed
 
-    def __init__(self, mapping_meta: _MappingMeta, dataset_structure: _MappedDataset, batch_size: int = 1000) -> None:
+    def __init__(
+        self,
+        path: str,
+        mapping_meta: _MappingMeta,
+        dataset_structure: _MappedDataset,
+        batch_size: int = 1000
+    ) -> None:
+        self.path = path
         self.mapping_meta = mapping_meta
         self.dataset_structure = dataset_structure
         self.batch_size = batch_size
@@ -45,12 +62,73 @@ class BatchXMLSchemaReader:
         self.namespaces = []
         self.__batch_data = {}
 
-    def read_xml(self, full_data: str) -> None:
-        xmltodict.parse(full_data, cdata_key="text()", item_depth=2, item_callback=self.read_item)
+    @contextlib.contextmanager
+    def read_path(self) -> Iterator[IO[bytes]]:
+        if self.path.startswith(HTTP_URL_PREFIXES):
+            response = requests.get(self.path, stream=True)
+            response.raise_for_status()
+            try:
+                yield response.raw
+            finally:
+                response.close()
+        else:
+            with pathlib.Path(self.path).open("rb") as file:
+                yield file
 
-        # Parse the last batch if no baches were processed yet
-        if self.total_bathes_processed == 0:
-            self.parse_batch()
+    def detect_item_depth(self, max_events: int = 20000) -> int:
+        """
+        Reads first max_events from given file, and collects depth and number of tags at each depth
+        to automatically detect the best item_depth for xmltodict.
+        """
+        logger.debug(f"Start reading {max_events} events from {self.path}")
+        depth = 0
+        depth_tag_counts = defaultdict(lambda: defaultdict(int))  # depth -> tag -> count
+
+        with self.read_path() as stream:
+            xml = ET.iterparse(stream, events=("start", "end"), recover=True)
+
+            for i, (event, element) in enumerate(xml):
+                if event == "start":
+                    depth += 1
+                    # Strip namespace if present
+                    tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
+                    depth_tag_counts[depth][tag] += 1
+                elif event == "end":
+                    depth -= 1
+                    element.clear()
+
+                if i >= max_events:
+                    break
+
+        # Find the first depth >= 2 where repetition or high breadth occurs
+        detected_depth = 2
+        for candidate_depth in sorted(depth_tag_counts.keys()):
+            if candidate_depth < 2:
+                continue
+
+            tag_counts = depth_tag_counts[candidate_depth]
+            max_repetition = max(tag_counts.values()) if tag_counts else 0
+            total_breadth = sum(tag_counts.values())
+
+            # If any tag repeats, we have many tags, or many attributes, this is likely the item level
+            if max_repetition > 1 or total_breadth > 10:
+                detected_depth = candidate_depth
+                break
+
+        logger.debug(f"Detected item_depth for {self.path}: {detected_depth}")
+        print(f"Detected item_depth for {self.path}: {detected_depth}")
+
+        return detected_depth
+
+    def read_xml(self) -> None:
+        item_depth = self.detect_item_depth()
+
+        with self.read_path() as stream:
+            xmltodict.parse(stream, cdata_key="text()", item_depth=item_depth, item_callback=self.read_item)
+
+            # Parse the last batch if no batches were processed yet
+            if self.total_bathes_processed == 0:
+                self.parse_batch()
 
     def read_item(self, data_path: list[tuple[str, dict | None]], data: dict) -> bool:
         """
@@ -142,13 +220,13 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
         models={},
     )
 
-    if path.startswith(HTTP_URL_PREFIXES):
-        value = requests.get(path).text
-    else:
-        with pathlib.Path(path).open(encoding="utf-8-sig") as f:
-            value = f.read()
-
     if manifest_type == DictFormat.JSON:
+        if path.startswith(HTTP_URL_PREFIXES):
+            value = requests.get(path).text
+        else:
+            with pathlib.Path(path).open(encoding="utf-8-sig") as f:
+                value = f.read()
+
         converted = json.loads(value)
         dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
         yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
@@ -158,8 +236,8 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
         memory_start = process.memory_info().rss
         print(f"Memory start: {memory_start / 1024**2} MB")
 
-        xml_batch_reader = BatchXMLSchemaReader(mapping_meta, dataset_structure)
-        xml_batch_reader.read_xml(value)
+        xml_batch_reader = BatchXMLSchemaReader(path, mapping_meta, dataset_structure)
+        xml_batch_reader.read_xml()
         print(
             f"Total {xml_batch_reader.total_bathes_processed} batches of length {xml_batch_reader.batch_size} processed"
         )
