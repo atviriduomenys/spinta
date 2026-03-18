@@ -103,11 +103,6 @@ def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property) -> Propert
     return prop
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
-def select(env: DaskDataFrameQueryBuilder, prop: Property, keys: set) -> Selected:
-    return env.call("select", prop.dtype, keys)
-
-
 @ufunc.resolver(DaskDataFrameQueryBuilder, object)
 def _resolve_unresolved(env: DaskDataFrameQueryBuilder, value: Any) -> Any:
     if isinstance(value, Unresolved):
@@ -202,6 +197,11 @@ def _get_property_for_select(
         return prop
     else:
         raise PropertyNotFound(env.model, property=name)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
+def select(env: DaskDataFrameQueryBuilder, prop: Property, keys: set) -> Selected:
+    return env.call("select", prop.dtype, keys)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
