@@ -28,11 +28,11 @@ id | d | r | b | m | property | type                   | ref     | source       
    |   | resource             | dask/json              |         | manifest.json    |         |       |        |     |       |
    |                          |                        |         |                  |         |       |        |     |       |
    |   |   |   | Country      |                        |         | country          |         |       |        |     |       |
-   |   |   |   |   | name     | string required unique |         | name             |         |       |        |     |       |
-   |   |   |   |   | code     | string required unique |         | code             |         |       |        |     |       |
+   |   |   |   |   | name     | string unique          |         | name             |         |       |        |     |       |
+   |   |   |   |   | code     | string unique          |         | code             |         |       |        |     |       |
    |                          |                        |         |                  |         |       |        |     |       |
    |   |   |   | Cities       |                        |         | country[].cities |         |       |        |     |       |
-   |   |   |   |   | name     | string required unique |         | name             |         |       |        |     |       |
+   |   |   |   |   | name     | string unique          |         | name             |         |       |        |     |       |
    |   |   |   |   | country  | ref                    | Country | ..               |         |       |        |     |       |
 """,
         context,
@@ -58,11 +58,11 @@ id | d | r | b | m | property | type                   | ref     | source       
    |   | resource             | dask/json              |         | manifest.json |         |       |        |     |       |
    |                          |                        |         |               |         |       |        |     |       |
    |   |   |   | Model1       |                        |         | .             |         |       |        |     |       |
-   |   |   |   |   | name     | string required unique |         | name          |         |       |        |     |       |
-   |   |   |   |   | code     | string required unique |         | code          |         |       |        |     |       |
+   |   |   |   |   | name     | string unique          |         | name          |         |       |        |     |       |
+   |   |   |   |   | code     | string unique          |         | code          |         |       |        |     |       |
    |                          |                        |         |               |         |       |        |     |       |
    |   |   |   | Cities       |                        |         | cities        |         |       |        |     |       |
-   |   |   |   |   | name     | string required unique |         | name          |         |       |        |     |       |
+   |   |   |   |   | name     | string unique          |         | name          |         |       |        |     |       |
    |   |   |   |   | parent   | ref                    | Model1  | ..            |         |       |        |     |       |
 """,
         context,
@@ -96,13 +96,13 @@ id | d | r | b | m | property            | type                   | ref     | so
    |   | resource                        | dask/json              |         | manifest.json       |         |       |        |     |       |
    |                                     |                        |         |                     |         |       |        |     |       |
    |   |   |   | Model1                  |                        |         | .                   |         |       |        |     |       |
-   |   |   |   |   | name                | string required unique |         | name                |         |       |        |     |       |
-   |   |   |   |   | code                | string required unique |         | code                |         |       |        |     |       |
+   |   |   |   |   | name                | string unique          |         | name                |         |       |        |     |       |
+   |   |   |   |   | code                | string unique          |         | code                |         |       |        |     |       |
    |   |   |   |   | location_latitude   | number unique          |         | location.latitude   |         |       |        |     |       |
    |   |   |   |   | location_longitude  | number unique          |         | location.longitude  |         |       |        |     |       |
    |                                     |                        |         |                     |         |       |        |     |       |
    |   |   |   | Cities                  |                        |         | cities              |         |       |        |     |       |
-   |   |   |   |   | name                | string required unique |         | name                |         |       |        |     |       |
+   |   |   |   |   | name                | string unique          |         | name                |         |       |        |     |       |
    |   |   |   |   | weather_temperature | number unique          |         | weather.temperature |         |       |        |     |       |
    |   |   |   |   | weather_wind_speed  | number unique          |         | weather.wind_speed  |         |       |        |     |       |
    |   |   |   |   | parent              | ref                    | Model1  | ..                  |         |       |        |     |       |
@@ -140,21 +140,21 @@ id | d | r | b | m | property            | type                    | ref     | s
    |   | resource                        | dask/json               |         | manifest.json                   |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Country                 |                         |         | country                         |         |       |        |     |       |
-   |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |
-   |   |   |   |   | code                | string required unique  |         | code                            |         |       |        |     |       |
+   |   |   |   |   | name                | string unique           |         | name                            |         |       |        |     |       |
+   |   |   |   |   | code                | string unique           |         | code                            |         |       |        |     |       |
    |   |   |   |   | location_coords[]   | number                  |         | location.coords                 |         |       |        |     |       |
    |   |   |   |   | location_test       | string unique           |         | location.test                   |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Geo                     |                         |         | country[].location.geo          |         |       |        |     |       |
-   |   |   |   |   | geo_test            | string required unique  |         | geo_test                        |         |       |        |     |       |
+   |   |   |   |   | geo_test            | string unique           |         | geo_test                        |         |       |        |     |       |
    |   |   |   |   | country             | ref                     | Country | ...                             |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Geo1                    |                         |         | country[].cities[].location.geo |         |       |        |     |       |
-   |   |   |   |   | geo_test            | integer required unique |         | geo_test                        |         |       |        |     |       |
+   |   |   |   |   | geo_test            | integer unique          |         | geo_test                        |         |       |        |     |       |
    |   |   |   |   | cities              | ref                     | Cities  | ...                             |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Cities                  |                         |         | country[].cities                |         |       |        |     |       |
-   |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |
+   |   |   |   |   | name                | string unique           |         | name                            |         |       |        |     |       |
    |   |   |   |   | location_coords[]   | number                  |         | location.coords                 |         |       |        |     |       |
    |   |   |   |   | country             | ref                     | Country | ..                              |         |       |        |     |       |
 """,

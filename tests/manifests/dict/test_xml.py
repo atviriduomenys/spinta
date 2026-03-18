@@ -79,37 +79,23 @@ def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(
         manifest,
-#         """
-# d | r | model   | property                        | type                    | ref    | source
-# dataset                                     |                         |        |
-#   | resource                                | dask/xml                |        | manifest.xml
-#                                             |                         |        |
-#   |   | Galaxy                              |                         |        | /galaxy
-#   |   |   | name                            | string required unique  |        | @name
-#   |   |   | solar_system_name               | string required unique  |        | solar_system/@name
-#   |   |   | solar_system_planet_name        | string required unique  |        | solar_system/planet/@name
-#                                             |                         |        |
-#   |   | Country                             |                         |        | /galaxy/solar_system/planet/countries/country
-#   |   |   | code                            | string required unique  |        | code
-#   |   |   | name                            | string required unique  |        | name
-#   |   |   | location_lat                    | integer required unique |        | location/@lat
-#   |   |   | location_lon                    | integer required unique |        | location/@lon
-#   |   |   | galaxy                          | ref                     | Galaxy | ../../../..
-#
-# """,
         """
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
   | resource                                | dask/xml                |        | manifest.xml
                                             |                         |        |
   |   | Galaxy                              |                         |        | /galaxy
-  |   |   | name                            | string required unique  |        | @name
-  |   |   | solar_system_name               | string required unique  |        | solar_system/@name
-  |   |   | solar_system_planet_name        | string required unique  |        | solar_system/planet/@name
-  |   |   | solar_system_planet_countries_country_code | string required unique  |        | solar_system/planet/countries/country/code
-  |   |   | solar_system_planet_countries_country_name | string required unique  |        | solar_system/planet/countries/country/name
-  |   |   | solar_system_planet_countries_country_location_lat | integer required unique |        | solar_system/planet/countries/country/location/@lat
-  |   |   | solar_system_planet_countries_country_location_lon | integer required unique |        | solar_system/planet/countries/country/location/@lon
+  |   |   | name                            | string unique           |        | @name
+  |   |   | solar_system_name               | string unique           |        | solar_system/@name
+  |   |   | solar_system_planet_name        | string unique           |        | solar_system/planet/@name
+                                            |                         |        |
+  |   | Country                             |                         |        | /galaxy/solar_system/planet/countries/country
+  |   |   | code                            | string unique           |        | code
+  |   |   | name                            | string unique           |        | name
+  |   |   | location_lat                    | integer unique          |        | location/@lat
+  |   |   | location_lon                    | integer unique          |        | location/@lon
+  |   |   | galaxy                          | ref                     | Galaxy | ../../../..
+
 """,
         context,
     )
@@ -194,7 +180,7 @@ dataset                   |                     |           |                   
   | resource              | dask/xml            |           | manifest.xml           |
                           |                     |           |                        |
   |   | Countries         |                     |           | /countries             |
-  |   |   | xsi           | url required unique |           | @test:xsi              |
+  |   |   | xsi           | url unique          |           | @test:xsi              |
                           |                     |           |                        |
   |   | Country           |                     |           | /countries/new:country |
   |   |   | xsi_code      | string unique       |           | @xsi:code              |
@@ -255,21 +241,21 @@ dataset                       |                         |         |
   | resource                  | dask/xml                |         | manifest.xml
                               |                         |         |
   |   | Country               |                         |         | /countries/country
-  |   |   | name              | string required unique  |         | @name
-  |   |   | code              | string required unique  |         | @code
+  |   |   | name              | string unique           |         | @name
+  |   |   | code              | string unique           |         | @code
   |   |   | location_test     | string unique           |         | location/@test
   |   |   | location_coords[] | number                  |         | location/coords
                               |                         |         |
   |   | Geo                   |                         |         | /countries/country/location/geos/geo
-  |   |   | geo_test          | string required         |         | @geo_test
+  |   |   | geo_test          | string unique           |         | @geo_test
   |   |   | country           | ref                     | Country | ../../..
                               |                         |         |
   |   | Geo1                  |                         |         | /countries/country/cities/city/location/geos/geo
-  |   |   | geo_test          | integer required unique |         | @geo_test
+  |   |   | geo_test          | integer unique          |         | @geo_test
   |   |   | city              | ref                     | City    | ../../..
                               |                         |         |
   |   | City                  |                         |         | /countries/country/cities/city
-  |   |   | name              | string required unique  |         | @name
+  |   |   | name              | string unique           |         | @name
   |   |   | location_coords[] | number                  |         | location/coords
   |   |   | country           | ref                     | Country | ../..
 """,

@@ -25,7 +25,7 @@ from spinta.manifests.helpers import TypeDetector
 from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
-import lxml.etree as ET
+from lxml import etree
 from collections import defaultdict
 
 
@@ -33,16 +33,13 @@ logger = logging.getLogger(__name__)
 
 
 class BatchXMLSchemaReader:
-    """Reads XML data and converts it into mapped data in batches"""
+    """Reads XML data and converts it into mapped data by collecting unique structure"""
 
     path: str
     mapping_meta: _MappingMeta
     dataset_structure: _MappedDataset
-    batch_size: int
 
-    __read_item_counter: int  # Counter for the number of items that have been read in a batch
-    __batch_data: dict  # Variable to hold the data of the current batch
-
+    __structural_data: dict  # Variable to hold the consolidated structural data
     namespaces: list  # Variable to hold all namespaces that have been parsed
 
     def __init__(
@@ -50,17 +47,13 @@ class BatchXMLSchemaReader:
         path: str,
         mapping_meta: _MappingMeta,
         dataset_structure: _MappedDataset,
-        batch_size: int = 1000
     ) -> None:
         self.path = path
         self.mapping_meta = mapping_meta
         self.dataset_structure = dataset_structure
-        self.batch_size = batch_size
 
-        self.total_bathes_processed = 0
-        self.__read_item_counter = 0
         self.namespaces = []
-        self.__batch_data = {}
+        self.__structural_data = {}
 
     @contextlib.contextmanager
     def read_path(self) -> Iterator[IO[bytes]]:
@@ -85,7 +78,7 @@ class BatchXMLSchemaReader:
         depth_tag_counts = defaultdict(lambda: defaultdict(int))  # depth -> tag -> count
 
         with self.read_path() as stream:
-            xml = ET.iterparse(stream, events=("start", "end"), recover=True)
+            xml = etree.iterparse(stream, events=("start", "end"), recover=True)
 
             for i, (event, element) in enumerate(xml):
                 if event == "start":
@@ -116,7 +109,6 @@ class BatchXMLSchemaReader:
                 break
 
         logger.debug(f"Detected item_depth for {self.path}: {detected_depth}")
-        print(f"Detected item_depth for {self.path}: {detected_depth}")
 
         return detected_depth
 
@@ -126,87 +118,104 @@ class BatchXMLSchemaReader:
         with self.read_path() as stream:
             xmltodict.parse(stream, cdata_key="text()", item_depth=item_depth, item_callback=self.read_item)
 
-            # Parse the last batch if no batches were processed yet
-            if self.total_bathes_processed == 0:
-                self.parse_batch()
+        # Process the collected structural data once at the end
+        self.parse_structure()
 
     def read_item(self, data_path: list[tuple[str, dict | None]], data: dict) -> bool:
         """
-        Method that is called by xmltodict for each item that was read
-        Reads item, increments batch counter and if the patch is full - parses batch
+        Method that is called by xmltodict for each item that was read.
+        Merges item structure into the global structural data.
         """
-        self.add_item_to_batch(data_path, data)
-        self.__read_item_counter += 1
-
-        if self.__read_item_counter == self.batch_size:
-            self.parse_batch()
-
+        self.merge_path_and_item_to_structure(data_path, data)
         return True
 
-    def add_item_to_batch(self, path: list[tuple[str, dict | None]], item: dict) -> None:
+    def merge_path_and_item_to_structure(self, path: list[tuple[str, dict | None]], item: dict) -> None:
         """
-        Converts data_path and data to a single dict as if it would be returned by xmltodict
-        and adds it to the batch data
+        Merges current item's path and item into the global structural dictionary.
         """
-        current_batch = self.__batch_data
+        current_data = self.__structural_data
 
         for i, (tag, attrs) in enumerate(path):
-            node_attrs = {f"@{k}": v for k, v in attrs.items()} if attrs else {}
-            is_leaf = i == len(path) - 1
+            tag_attrs = {f"@{k}": v for k, v in attrs.items()} if attrs else {}
+            is_leaf_tag = i == len(path) - 1
 
-            if tag not in current_batch:
-                current_batch[tag] = node_attrs
-                target = node_attrs
+            if tag not in current_data:
+                current_data[tag] = {}
+
+            if is_leaf_tag:
+                # If leaf tag exists multiple times in XML - make it a list
+                if isinstance(current_data[tag], dict) and current_data[tag]:
+                    current_data[tag] = [current_data[tag]]
+
+                # If leaf is a list - merge only first dict, since list only marks that there are multiple items in XML
+                if isinstance(current_data[tag], list):
+                    self._merge_item_to_structure(current_data[tag][0], item)
+                else:
+                    self._merge_item_to_structure(current_data[tag], item)
+            else:
+                current_data[tag].update(tag_attrs)
+
+            current_data = current_data[tag]
+
+    def _merge_item_to_structure(self, structure: dict, item: Any) -> None:
+        """
+        Merges XML item into already saved structural data, replacing values.
+        If item is nested - this method is recursively called for each nested element in item.
+        """
+        if not isinstance(item, dict):
+            # Element with text value. Simply save element value in structure
+            self._merge_value_into_structure(structure, "text()", item)
+            return
+
+        for key, value in item.items():
+            if key.startswith("@"):
+                # Key is XML element attribute. Simply save attribute value in structure
+                self._merge_value_into_structure(structure, key, value)
+
+            if isinstance(value, dict):
+                # Key is XML element tag, value is dictionary with element data (attributes + elements).
+                # Add new dictionary to structure and process element using recursion
+                if key not in structure:
+                    structure[key] = {}
+                self._merge_item_to_structure(structure[key], value)
+
+            elif isinstance(value, list):
+                # If value is list - multiple XML elements with same tag was found. List items are data of each element.
+                if is_list_of_dicts(value):
+                    # If all elements are dicts - create list with dict in structure and process
+                    # each element using recursion
+                    if key not in structure:
+                        structure[key] = [{}]
+                    for value_item in value:
+                        self._merge_item_to_structure(structure[key][0], value_item)
+
+                else:
+                    # If not all elements are dicts - Simply save value in structure.
+                    # Most likely XML elements are text values
+                    self._merge_value_into_structure(structure, key, value)
 
             else:
-                existing = current_batch[tag]
+                # Key is XML element with text value. Simply save element value in structure
+                self._merge_value_into_structure(structure, key, value)
 
-                if isinstance(existing, list):
-                    target = None
-                    for candidate in existing:
-                        if all(candidate.get(k) == v for k, v in node_attrs.items()):
-                            target = candidate
-                            break
-                    if target is None:
-                        existing.append(node_attrs)
-                        target = node_attrs
+    @staticmethod
+    def _merge_value_into_structure(structure: dict, key: str, value: Any) -> None:
+        structure[key] = value
 
-                else:
-                    if all(existing.get(k) == v for k, v in node_attrs.items()):
-                        target = existing
-                    else:
-                        current_batch[tag] = [existing, node_attrs]
-                        target = node_attrs
-
-            if is_leaf:
-                if isinstance(item, dict):
-                    target.update(item)
-                else:
-                    target["#text"] = item
-
-            current_batch = target
-
-    def parse_batch(self) -> None:
+    def parse_structure(self) -> None:
         """
-        Process batch data and save processed result into self.dataset_structure
+        Process the consolidated structural data and save processed result into self.dataset_structure
         """
-        self.dataset_structure, batch_namespaces = parse_data(
+        self.dataset_structure, namespaces = parse_data(
             self.mapping_meta,
-            self.__batch_data,
+            self.__structural_data,
             self.dataset_structure,
         )
 
         # Add unique namespaces to self.namespaces and keep ordering
-        for namespace in batch_namespaces:
+        for namespace in namespaces:
             if namespace not in self.namespaces:
                 self.namespaces.append(namespace)
-
-        # Reset batch and counter
-        self.__batch_data = {}
-        self.__read_item_counter = 0
-
-        # Increase processed batches counter
-        self.total_bathes_processed += 1
 
 
 def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iterator[ManifestSchema]:
@@ -238,15 +247,7 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
 
         xml_batch_reader = BatchXMLSchemaReader(path, mapping_meta, dataset_structure)
         xml_batch_reader.read_xml()
-        print(
-            f"Total {xml_batch_reader.total_bathes_processed} batches of length {xml_batch_reader.batch_size} processed"
-        )
         yield from convert_to_manifest(mapping_meta, xml_batch_reader.namespaces, xml_batch_reader.dataset_structure)
-
-        # converted = xmltodict.parse(value, cdata_key="text()")
-        # print(f"Memory after xml parse: {process.memory_info().rss / 1024 ** 2} MB")
-        # dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
-        # yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
 
         memory_end = process.memory_info().rss
         print(f"Memory end: {memory_end / 1024**2} MB")
@@ -327,7 +328,9 @@ def convert_to_manifest(
                     "type": prop_type,
                     "external": {"name": prop.source},
                     "description": "",
-                    "required": type_detector.required,
+                    # TODO: What to do with type_detector.required? XML now iterates over all items and accumulates
+                    #  single value that is used to generate manifest. Marking items required doesn't make sense
+                    "required": False,
                     "unique": type_detector.unique,
                     **extra,
                 }
