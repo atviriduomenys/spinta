@@ -85,6 +85,10 @@ accesslog:
 # RC Broker signature adapter configuration (required for POC)
 rc_signature:
   private_key_path: $BASEDIR/raktas_priv.pem
+
+# Load the RC signature adapter from a local file (config-driven)
+soap_adapter_modules:
+  - $BASEDIR/spinta/adapters/rc_signature_adapter.py
 YAML
 ```
 
@@ -219,18 +223,14 @@ If neither is set, the adapter logs a warning and the signature will be empty (R
 
 For this demo, either add the `rc_signature` section to `config.yml` or set the env var.
 
-### 3b. (Optional) Load adapter from local file
+### 3b. Adapter loading (local file)
 
-If you want to load the adapter from a **local file** instead of the entry points in pyproject.toml (useful for deploying adapters without updating Spinta), add this to `config.yml`:
+This POC uses **local Python file** adapter loading via `soap_adapter_modules`. The RC signature adapter is loaded from `spinta/adapters/rc_signature_adapter.py` (see the `config.yml` example above).
 
-```yaml
-soap_adapter_modules:
-  - /opt/spinta/adapters/rc_signature_adapter.py
-```
+The adapter module must export:
 
-This loads the adapter module from the specified path at startup. The module should have `get_deferred_prepare_names()` and `get_body_resolvers()` functions. This way, admins can drop adapter files and configure them without updating Spinta's version.
-
-**Note:** For this POC, the adapter is included in the repo and registered via entry points, so you don't need to use `soap_adapter_modules` unless you want to test the config-driven loading.
+- `get_deferred_prepare_names() -> list[str]`
+- `get_body_resolvers() -> dict[str, callable]`
 
 ### 4. DSA: signature param uses `rc_signature()`
 
@@ -246,6 +246,26 @@ If your RC test environment uses a different WSDL endpoint, edit the `rc_wsdl` r
 
 ```bash
 spinta -o config=config.yml run dsa.csv --mode external
+```
+
+### 5a. Local testing without calling RC (mock mode)
+
+If you want to validate the **signature generation** and SOAP body building locally **without** calling the real RC service, set:
+
+```bash
+export RC_POC_MOCK_SOAP=1
+```
+
+Then start Spinta as usual. In mock mode, Spinta will:
+
+- Build the SOAP payload (including `Signature`)
+- Log the SOAP request payload and envelope fragment
+- Skip the actual SOAP network call and return an empty dataset response
+
+Unset the variable (or set it to empty) to restore real SOAP calls:
+
+```bash
+unset RC_POC_MOCK_SOAP
 ```
 
 Then:

@@ -142,18 +142,18 @@ The POC does not add a separate adapter step in the SOAP command. Instead, the s
 | Area | Change | Intrusion |
 |------|--------|-----------|
 | **Manifest / DSA** | New prepare `rc_signature()` in param’s prepare column. | Declarative only. |
-| **Adapter registration** | `spinta/adapters/soap_plugins.py`: loads adapters from (1) entry points (`spinta.soap.deferred_prepares`, `spinta.soap.body_resolvers`) and (2) config-driven modules (`soap_adapter_modules` in config.yml). `register_soap_ufuncs(registry, rc)` called from config load. Generic resolvers for (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) dispatch by name. | One module; config load calls it once. |
-| **LoadBuilder** | No hardcoded `rc_signature`; deferred prepare names come from entry points. Generic resolver stores `Expr` in `param.soap_body` for any registered name. | Generic; no adapter names in core. |
-| **SoapQueryBuilder** | No hardcoded `rc_signature`; body resolvers come from entry points. Generic resolver looks up `expr.name` in registry; `_finalize` skips any Expr whose name is in deferred set. | Generic; no adapter names in core. |
-| **Adapters** (`spinta/adapters/rc_signature_adapter.py`) | `compute_rc_signature_from_body(soap_body, context)`, key from `rc_signature.private_key_path` (config.yml) or `RC_POC_PRIVATE_KEY_PATH` (env var); `get_deferred_prepare_names()` and `get_body_resolvers()` exposed as entry points in `pyproject.toml`. | Isolated module; can move to separate package and ship its own entry points. |
+| **Adapter registration** | `spinta/adapters/soap_plugins.py`: loads adapters from config-driven modules (`soap_adapter_modules` in `config.yml`). `register_soap_ufuncs(registry, raw_config)` is called from config load. Generic resolvers for (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) dispatch by name. | One module; config load calls it once. |
+| **LoadBuilder** | No hardcoded `rc_signature`; deferred prepare names come from the config-loaded adapter modules. Generic resolver stores `Expr` in `param.soap_body` for any registered name. | Generic; no adapter names in core. |
+| **SoapQueryBuilder** | No hardcoded `rc_signature`; body resolvers come from the config-loaded adapter modules. Generic resolver looks up `expr.name` in registry; `_finalize` skips any Expr whose name is in deferred set. | Generic; no adapter names in core. |
+| **Adapters** (`spinta/adapters/rc_signature_adapter.py`) | `compute_rc_signature_from_body(soap_body, context)`, key from `rc_signature.private_key_path` (config.yml) or `RC_POC_PRIVATE_KEY_PATH` (env var); `get_deferred_prepare_names()` and `get_body_resolvers()` are exported by the module and loaded via `soap_adapter_modules`. | Isolated module; can be shipped as a drop‑in file. |
 | **SOAP command** | NA → `""` in `_get_data_soap`; envelope logging for POC. | No change to getall flow. |
 
 The SOAP backend stays **generic**: it builds the body from the manifest and resolves prepare expressions. It does not need to know about “RC” or “adapters”.
 
 **How the adapter mechanism works**
 
-- **“Adapter”** = the logic that computes the RC signature (string-to-sign, key, algorithm). In the POC it lives in `spinta/adapters/rc_signature_adapter.py` (`compute_rc_signature_from_body`); it can live in a separate package (e.g. `spinta-rc-broker-adapter`) and register via the same entry points.
-- **“Mechanism”** = **DSA prepare** plus **entry-point registration**. The manifest says “the value of `Signature` param is `rc_signature()`”. At config load, `register_soap_ufuncs()` loads `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers`; adapters (e.g. the RC adapter) provide a list of deferred names and a name → callable map. Spinta registers generic resolvers that dispatch by name. When the body is built, the generic (LoadBuilder, Expr) resolver stores the Expr in `param.soap_body`; the generic (SoapQueryBuilder, Expr) resolver looks up the name and calls the adapter’s callable. The adapter is “plugged in” by (a) declaring entry points in its package and (b) using `rc_signature()` in the manifest.
+- **“Adapter”** = the logic that computes the RC signature (string-to-sign, key, algorithm). In the POC it lives in `spinta/adapters/rc_signature_adapter.py` (`compute_rc_signature_from_body`).
+- **“Mechanism”** = **DSA prepare** plus **config-driven adapter loading**. The manifest says “the value of `Signature` param is `rc_signature()`”. At config load, `register_soap_ufuncs()` loads adapter modules listed under `soap_adapter_modules` and registers their deferred prepare names and body resolvers. When the body is built, the generic (LoadBuilder, Expr) resolver stores the `Expr` in `param.soap_body`; the generic (SoapQueryBuilder, Expr) resolver looks up the name and calls the adapter’s callable.
 
 **Why an adapter repo (or isolated adapter) helps**
 
@@ -167,22 +167,21 @@ The SOAP backend stays **generic**: it builds the body from the manifest and res
 
 ### 2.6 Current POC implementation
 
-A **working POC** is in this repository. Signature is produced via **DSA prepare `rc_signature()`**, with **entry-point registration** so adapters can be supplied by Spinta or a separate package. Use it as the reference when continuing work.
+A **working POC** is in this repository. Signature is produced via **DSA prepare `rc_signature()`**, with the adapter module loaded via Spinta’s SOAP adapter mechanism. Use it as the reference when continuing work.
 
 **Where it lives**
 
 - **Adapter registration:** `spinta/adapters/soap_plugins.py`
-  - Loads adapters from two sources:
-    1. **Entry points**: `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers` (for installed packages)
-    2. **Config-driven**: `soap_adapter_modules` list in config.yml (for local files without package install)
+  - Loads adapters from config: `soap_adapter_modules` list in `config.yml` (local files; no package install).
   - `register_soap_ufuncs(registry, rc)` is called from config load (`spinta/types/config.py`); it registers generic (LoadBuilder, Expr) and (SoapQueryBuilder, Expr) resolvers for each name provided by adapters.
   - `get_deferred_prepare_names()` returns the cached set used in `_finalize` to skip deferred Exprs until `_populate`.
 - **Adapter logic:** `spinta/adapters/rc_signature_adapter.py`
-  - `compute_rc_signature_from_body(soap_body)` – builds string-to-sign from body, signs via OpenSSL, returns signature or None.
-  - `get_deferred_prepare_names()` and `get_body_resolvers()` – entry-point targets; registered in `pyproject.toml` under `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers`.
-- **DSA / ufuncs:** Manifest param `signature` has **prepare `rc_signature()`**. No hardcoded `rc_signature` in LoadBuilder or SoapQueryBuilder; both use the generic resolvers registered from entry points. The RC adapter supplies `"rc_signature"` in both lists and the callable that runs `compute_rc_signature_from_body(env.soap_request_body)`.
+  - `build_rc_poc_string_to_sign(soap_body)` – builds the canonical RC string‑to‑sign from `ActionType`, `CallerCode`, `EndUserInfo`, `Parameters`, and `Time`.
+  - `compute_rc_signature_from_body(soap_body)` – uses the string‑to‑sign and OpenSSL to compute the Base64 signature (or returns `None` on failure).
+  - `get_deferred_prepare_names()` and `get_body_resolvers()` – exported by the module and loaded either via entry points or `soap_adapter_modules`; in this demo they are loaded from `soap_adapter_modules` configured in `config.yml`.
+- **DSA / ufuncs:** Manifest param `signature` has **prepare `rc_signature()`**. No hardcoded `rc_signature` in LoadBuilder or SoapQueryBuilder; both use the generic resolvers registered from the adapter registry. The RC adapter supplies `"rc_signature"` in both lists and the callable that runs `compute_rc_signature_from_body(env.soap_request_body)`.
 - **SOAP command:** `spinta/datasets/backends/dataframe/backends/soap/commands/read.py`
-  - `_get_data_soap` normalises NA to `""` and logs payload and envelope fragment (`_log_soap_envelope_fragment`).
+  - `_get_data_soap` normalises NA to `""`, resolves any `MakeCDATA` wrappers to CDATA, and logs payload and envelope fragment (`_log_soap_envelope_fragment`) for POC debugging.
 
 **Configuration**
 
@@ -190,8 +189,11 @@ A **working POC** is in this repository. Signature is produced via **DSA prepare
   1. **config.yml**: `rc_signature.private_key_path`
   2. **environment variable**: `RC_POC_PRIVATE_KEY_PATH`
   
-  If neither is set, the adapter returns None and the signature is empty; a WARNING is logged.
-- No `config.yml` or manifest adapter list; the signature is enabled purely by using **prepare `rc_signature()`** for the signature param in the manifest.
+  If neither is set, the adapter returns `None` and the signature is empty.
+- Local testing (no RC call):
+  - Set `RC_POC_MOCK_SOAP=1` to skip the real SOAP call (Spinta will still build/log the SOAP payload and compute `Signature`).
+- Adapter module:
+  - In this POC, the RC adapter is loaded from a local file via `soap_adapter_modules` in `config.yml` (see `demo.md`).
 
 **Evidence it works**
 
@@ -324,20 +326,20 @@ This concrete formula will be used as the basis for:
 
 ### 3.5 Operational requirements
 
-- **R6**: The RC adapter lives in a **separate repository / package** (e.g. `spinta-rc-broker-adapter`), installed via pip/Poetry.
+- **R6**: The RC adapter is delivered as a **drop‑in Python file** loaded via `soap_adapter_modules` in `config.yml`.
 - **R7**: Documentation:
-  - How to define and use **generic adapters** in Spinta.
+  - How to define and use **drop‑in SOAP adapters** in Spinta.
   - How to configure and use the **RC broker signature adapter**.
 
 ---
 
 ## 4. Adapter Integration in SOAP Flow
 
-**Status:** Adapters are invoked **during** SOAP body build via entry-point–registered resolvers (§2.5, §2.6). The following describes the implemented approach.
+**Status:** Adapters are invoked **during** SOAP body build via config‑registered resolvers (§2.5, §2.6). The following describes the implemented approach.
 
 ### 4.1 Implemented approach: prepare resolution
 
-Signature (and any adapter-supplied value) is a **prepared value** in the manifest. When SoapQueryBuilder builds `soap_request_body`, it resolves prepare expressions; deferred names (e.g. `rc_signature`) are resolved by calling the adapter’s body resolver from the entry-point registry. So the “adapter” runs **inside** the build step, not after it.
+Signature (and any adapter-supplied value) is a **prepared value** in the manifest. When SoapQueryBuilder builds `soap_request_body`, it resolves prepare expressions; deferred names (e.g. `rc_signature`) are resolved by calling the adapter’s body resolver from the config‑loaded registry. So the “adapter” runs **inside** the build step, not after it.
 
 ```mermaid
 sequenceDiagram
@@ -347,7 +349,7 @@ sequenceDiagram
     participant RC as RC SOAP Service
 
     Spinta->>SOAPQB: build() → soap_request_body, http_headers
-    Note over SOAPQB: Resolves Exprs (e.g. rc_signature) via entry-point registry
+    Note over SOAPQB: Resolves Exprs (e.g. rc_signature) via config-loaded registry
     Spinta->>SOAPBF: _get_data_soap(backend, soap_body, headers)
     SOAPBF->>RC: zeep OperationProxy(**soap_body)
     RC-->>SOAPBF: SOAP response
@@ -357,13 +359,13 @@ No separate “AdapterManager” or post-build step; adapter logic is invoked wh
 
 ### 4.2 Adapter responsibilities (current implementation)
 
-In the POC, an adapter contributes **resolvers** (registered via entry points): a body resolver is called when the builder resolves an `Expr` whose name is in the adapter’s body-resolver map; it receives `(env, expr)` (env is the SoapQueryBuilder, with `soap_request_body`, etc.) and returns the value to inject (e.g. the signature string). Optionally it can register deferred-prepare names so the value is computed at prepare time. The adapter does **not** receive or return full `soap_body` / `http_headers`; it only supplies values for specific Exprs during body build.
+In the POC, an adapter contributes **resolvers** (loaded from `soap_adapter_modules`): a body resolver is called when the builder resolves an `Expr` whose name is in the adapter’s body-resolver map; it receives `(env, expr)` (env is the SoapQueryBuilder, with `soap_request_body`, etc.) and returns the value to inject (e.g. the signature string). Optionally it can register deferred-prepare names so the value is computed at prepare time. The adapter does **not** receive or return full `soap_body` / `http_headers`; it only supplies values for specific Exprs during body build.
 
 ---
 
 ## 5. Adapter Contract & Configuration
 
-**Status:** Adapters can be loaded via **entry points** (for packages) or **config-driven module loading** (for local files). This allows deploying adapters without updating Spinta's version.
+**Status:** Adapters are loaded via **config-driven module loading** (drop‑in local files). This allows deploying adapters without updating Spinta's version.
 
 ### 5.1 Current contract: body resolvers
 
@@ -373,20 +375,9 @@ Adapters provide two functions:
 
 A body resolver is a callable `(env, expr) -> value` where `env` is the SoapQueryBuilder (with `soap_request_body`, etc.) and the return value is injected for that Expr. Spinta does not depend on a specific implementation; it only calls whatever is registered for each name.
 
-### 5.2 Adapter loading methods
+### 5.2 Adapter loading
 
-**Method 1: Entry points (for installed packages)**
-
-Adapters declare entry points in their `pyproject.toml`:
-```toml
-[tool.poetry.plugins."spinta.soap.deferred_prepares"]
-rc = "my_adapter:get_deferred_prepare_names"
-
-[tool.poetry.plugins."spinta.soap.body_resolvers"]
-rc = "my_adapter:get_body_resolvers"
-```
-
-**Method 2: Config-driven module loading (for local files)**
+**Config-driven module loading (drop‑in local files)**
 
 Adapters can be loaded from local Python files without package install. In `config.yml`:
 ```yaml
@@ -416,55 +407,13 @@ Key path can be set via `rc_signature.private_key_path` in config.yml or env var
 
 ---
 
-## 6. RC Broker Signature Adapter (Separate Repo)
+## 6. RC Broker Signature Adapter (Delivery)
 
-**Status:** **Design for later.** The POC lives in this repo (§2.5). The following is the target for a separate installable package and config-driven integration.
+**Status:** Implemented in this repository as a drop‑in adapter file.
 
-### 6.1 Repository structure
-
-Proposed package name: `spinta-rc-broker-adapter`.
-
-```text
-spinta-rc-broker-adapter/
-  pyproject.toml
-  src/
-    spinta_rc_adapter/
-      __init__.py
-      signature.py      # main adapter implementation
-      config.py         # helpers (key loading, etc.)
-  tests/
-    test_signature.py
-  README.md
-  docs/
-    rc-signature-usage.md
-```
-
-### 6.2 Adapter behavior
-
-The adapter package exposes **entry points**: `get_deferred_prepare_names()` and `get_body_resolvers()`. The body resolver for `rc_signature` receives `(env, expr)`; it reads `env.soap_request_body` (the SOAP payload being built), computes the signature per RC spec, and returns the signature string to inject.
-
-**Logic (per RC spec / legacy example):**
-
-1. Build **`arguments`** from the body (e.g. ActionType, CallerCode, EndUserInfo, Parameters, Time) in the order required by RC.
-2. Load **private key** (from config/env; outside Spinta core).
-3. Compute Signature = F(key, arguments) using the agreed algorithm (e.g. RSA + SHA‑256 over the canonical string, Base64, strip `\r`/`\n`).
-4. Return the signature string; Spinta injects it into the SOAP body for the param that has prepare `rc_signature()`.
-
-**Output:** The resolver returns a single value (the signature string); it does not receive or return full `soap_body` or `http_headers`.
-
-### 6.3 Integration flow
-
-1. Install the adapter package:
-
-   ```bash
-   pip install spinta-rc-broker-adapter
-   ```
-
-2. The package declares entry points in `pyproject.toml` under `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers`. Spinta loads them at config time; no adapter list in `config.yml` is required for the POC approach.
-
-3. In the manifest, set **prepare** for the signature param to `rc_signature()` (e.g. in the param row that maps to `input/Signature`).
-
-4. Provide key material via `rc_signature.private_key_path` in config.yml or env var `RC_POC_PRIVATE_KEY_PATH`.
+- Adapter file: `spinta/adapters/rc_signature_adapter.py`
+- Loading: `soap_adapter_modules` in `config.yml`
+- Enable in manifest/DSA: signature param has prepare `rc_signature()`
 
 ---
 
@@ -474,10 +423,10 @@ The adapter package exposes **entry points**: `get_deferred_prepare_names()` and
 
 - **A. Adapter infrastructure**
   - **Design for later:** Adapter protocol, global config mapping from adapter names to Python paths, manifest loading for per-resource adapters.
-  - **Implemented:** **Entry-point registration** (§2.5, §2.6): `spinta.soap.deferred_prepares` and `spinta.soap.body_resolvers` allow adapters (in-tree or from a separate package) to register prepare names and body resolvers. Adapters plug in via DSA prepare and the generic resolvers. This satisfies “custom logic adapters that can be registered” (R1) for the SOAP prepare path.
+  - **Implemented:** **Config-driven adapter registration** (§2.5, §2.6): `soap_adapter_modules` allows deployments to drop in adapter files that register prepare names and body resolvers. Adapters plug in via DSA prepare and the generic resolvers. This satisfies “custom logic adapters that can be registered” (R1) for the SOAP prepare path.
 
 - **B. SOAP flow**
-  - Adapters are invoked **during** body build: when `read.py` builds `builder.soap_request_body`, entry-point–registered body resolvers run for deferred Exprs (e.g. `rc_signature()`). The result is passed directly to `_get_data_soap` (§4.1, §2.5).
+  - Adapters are invoked **during** body build: when `read.py` builds `builder.soap_request_body`, config‑registered body resolvers run for deferred Exprs (e.g. `rc_signature()`). The result is passed directly to `_get_data_soap` (§4.1, §2.5).
 
 - **C. Testing & docs**
   - Unit tests with a dummy adapter modifying headers/body.
@@ -487,7 +436,7 @@ The adapter package exposes **entry points**: `get_deferred_prepare_names()` and
 ### 7.2 RC broker adapter repo
 
 - **D. RC adapter implementation**
-  - Implement signature logic (string-to-sign, key loading, algorithm per RC’s “legacy SOAP call example”). Expose `get_deferred_prepare_names()` and `get_body_resolvers()` via entry points; the body resolver receives `(env, expr)` and returns the signature string. Spinta’s entry-point registration (§2.5, §2.6) is already in place; no changes to Spinta core are required to add another adapter package.
+  - Implement signature logic (string-to-sign, key loading, algorithm per RC’s “legacy SOAP call example”) in a drop‑in adapter file. Expose `get_deferred_prepare_names()` and `get_body_resolvers()` via the module exports; the body resolver receives `(env, expr)` and returns the signature string.
 
 - **E. Testing & docs**
   - Unit tests verifying signature construction from known inputs.
@@ -500,7 +449,7 @@ The adapter package exposes **entry points**: `get_deferred_prepare_names()` and
 These estimates assume **one senior developer** familiar with Python and basic Spinta concepts. **There is no direct RC test environment access** (no IP allowlist/keys for the dev team); code is pushed to **DEV** and **VSSA employees** test against RC and report whether things work or what went wrong. That feedback loop can add to completion time.
 
 - **Spinta core changes (7.1)**
-  - Design & implementation of adapter infra, entry-point registration, manifest/config wiring: **2–3 workdays** (~16–24 h).
+  - Design & implementation of adapter infra, config-driven registration, manifest/config wiring: **2–3 workdays** (~16–24 h).
   - Unit & small integration tests, basic docs for generic adapters: **1 day** (~8 h).
   - **Total: ~3–4 days**.
 
