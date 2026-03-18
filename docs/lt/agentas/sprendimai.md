@@ -31,7 +31,7 @@ flowchart TD
 
     Q5["5️⃣ Kas diegia?"]
     Q5 -->|"Savarankiškai"| E1["Sekti šią<br/>dokumentaciją"]
-    Q5 -->|"Su pagalba"| E2["Kreiptis į VSSA paslaugų teikėją,<br/>nurodyti pasirinktus variantus"]
+    Q5 -->|"Su pagalba"| E2["Kreiptis į<br/>VSSA paslaugų teikėją,<br/>nurodyti pasirinktus<br/>variantus"]
 
     style A1 fill:#2d6a2d,color:#fff
     style B1 fill:#2d6a2d,color:#fff
