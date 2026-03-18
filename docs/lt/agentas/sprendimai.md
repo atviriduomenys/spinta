@@ -31,7 +31,7 @@ flowchart TD
 
     Q5["5️⃣ Kas diegia?"]
     Q5 -->|"Savarankiškai"| E1["Sekti šią<br/>dokumentaciją"]
-    Q5 -->|"Su pagalba"| E2["Kreiptis į VSSA paslaugų teikėjas,<br/>nurodyti pasirinktus variantus"]
+    Q5 -->|"Su pagalba"| E2["Kreiptis į VSSA paslaugų teikėją,<br/>nurodyti pasirinktus variantus"]
 
     style A1 fill:#2d6a2d,color:#fff
     style B1 fill:#2d6a2d,color:#fff
@@ -108,4 +108,4 @@ Plačiau: [Tinklo konfigūravimas → Vartų parinkimas](tinklo-konfigūravimas.
 | Variantas | Ką reikia daryti |
 |-----------|-----------------|
 | **Savarankiškai** | Sekti šią dokumentaciją žingsnis po žingsnio |
-| **Su VSSA paslaugų teikėjas pagalba** | Kreiptis į VSSA paslaugų teikėjas, aiškiai nurodyti pasirinktus variantus (agentų skaičių, VM ar Docker, vartų tipą) — tai lemia jų darbų apimtį |
+| **Su VSSA paslaugų teikėjo pagalba** | Kreiptis į VSSA paslaugų teikėją, aiškiai nurodyti pasirinktus variantus (agentų skaičių, VM ar Docker, vartų tipą) — tai lemia jų darbų apimtį |
