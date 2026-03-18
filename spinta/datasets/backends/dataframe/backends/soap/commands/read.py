@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterator
 
 import logging
+import os
 import dask
 import zeep
 from zeep.helpers import serialize_object
@@ -70,7 +71,10 @@ def _log_soap_envelope_fragment(soap_request: dict) -> None:
             "</soapenv:Envelope>",
         ]
     )
-    log.warning("RC POC SOAP envelope fragment (Signature/CallerSignature in body):\n%s", "\n".join(parts))
+    log.warning(
+        "RC POC SOAP envelope fragment (Signature/CallerSignature in body):\n%s",
+        "\n".join(parts),
+    )
 
 
 def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_headers: dict) -> list[dict]:
@@ -90,8 +94,6 @@ def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_heade
 
     # For local testing we sometimes want to avoid calling the real RC service.
     # If RC_POC_MOCK_SOAP is set, just log and return an empty response.
-    import os
-
     if os.getenv("RC_POC_MOCK_SOAP"):
         log.warning("RC POC: RC_POC_MOCK_SOAP is set, skipping real SOAP call and returning empty response.")
         response_data = []

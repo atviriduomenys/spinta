@@ -1,15 +1,17 @@
 """
-SOAP adapter registration via entry points and config-driven module loading.
+SOAP adapter registration via **config-driven module loading**.
 
-Adapters can be loaded from:
-1. Entry points (for installed packages):
-   - spinta.soap.deferred_prepares: callable() -> list[str]
-   - spinta.soap.body_resolvers: callable() -> dict[str, callable]
+Adapters are loaded from local Python files specified in `config.yml`:
 
-2. Config-driven modules (for local files, no package install needed):
-   soap_adapter_modules:
-     - /path/to/adapter.py
-   Each module should have get_deferred_prepare_names() and/or get_body_resolvers().
+    soap_adapter_modules:
+      - /path/to/adapter.py
+
+Each module should provide:
+    - get_deferred_prepare_names() -> list[str]
+    - get_body_resolvers() -> dict[str, callable]
+
+This keeps Spinta core generic while allowing deployments to drop in
+adapter files without publishing packages or configuring entry points.
 """
 
 from __future__ import annotations
@@ -19,67 +21,26 @@ import logging
 from pathlib import Path
 from typing import Any, Callable
 
-try:
-    from importlib.metadata import entry_points
-except ImportError:
-    entry_points = None  # Python < 3.10
-
 from spinta.core.ufuncs import Expr
+from spinta.core.config import RawConfig
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 
 log = logging.getLogger(__name__)
 
 
-def _load_deferred_prepare_names() -> set[str]:
-    if entry_points is None:
-        return set()
-    names: set[str] = set()
-    try:
-        eps = entry_points(group="spinta.soap.deferred_prepares")
-    except TypeError:
-        eps = entry_points().get("spinta.soap.deferred_prepares", [])
-    for ep in eps:
-        try:
-            loader = ep.load()
-            result = loader()
-            if isinstance(result, (list, tuple)):
-                names.update(result)
-            else:
-                names.add(str(result))
-        except Exception as e:
-            log.warning("Failed to load SOAP deferred_prepares entry point %s: %s", ep.name, e)
-    return names
-
-
 _deferred_prepare_names_cache: set[str] | None = None
 
 
 def get_deferred_prepare_names() -> set[str]:
-    """Set of deferred prepare names (for _finalize skip). Cached."""
-    global _deferred_prepare_names_cache
-    if _deferred_prepare_names_cache is None:
-        _deferred_prepare_names_cache = _load_deferred_prepare_names()
-    return _deferred_prepare_names_cache
+    """Return deferred prepare names loaded at startup.
 
+    This is used by SOAP query builders to skip resolving deferred expressions
+    until the request body is populated and body resolvers run.
 
-def _load_body_resolver_registry() -> dict[str, Callable[..., Any]]:
-    if entry_points is None:
-        return {}
-    registry: dict[str, Callable[..., Any]] = {}
-    try:
-        eps = entry_points(group="spinta.soap.body_resolvers")
-    except TypeError:
-        eps = entry_points().get("spinta.soap.body_resolvers", [])
-    for ep in eps:
-        try:
-            loader = ep.load()
-            result = loader()
-            if isinstance(result, dict):
-                registry.update(result)
-        except Exception as e:
-            log.warning("Failed to load SOAP body_resolvers entry point %s: %s", ep.name, e)
-    return registry
+    If `register_soap_ufuncs()` hasn't been called yet, this returns an empty set.
+    """
+    return _deferred_prepare_names_cache or set()
 
 
 def _load_adapter_module_from_path(file_path: str):
@@ -105,8 +66,8 @@ def _load_adapter_module_from_path(file_path: str):
         return None
 
 
-def _load_adapters_from_config(rc) -> tuple[set[str], dict[str, Callable[..., Any]]]:
-    """Load adapter modules specified in config.yml.
+def _load_adapters_from_config(raw_config: RawConfig | None) -> tuple[set[str], dict[str, Callable[..., Any]]]:
+    """Load adapter modules specified in raw config.
 
     Config format:
         soap_adapter_modules:
@@ -120,10 +81,10 @@ def _load_adapters_from_config(rc) -> tuple[set[str], dict[str, Callable[..., An
     deferred: set[str] = set()
     body_resolvers: dict[str, Callable[..., Any]] = {}
 
-    if rc is None:
+    if raw_config is None:
         return deferred, body_resolvers
 
-    module_paths = rc.get("soap_adapter_modules", default=[])
+    module_paths = raw_config.get("soap_adapter_modules", default=[])
     if not module_paths:
         return deferred, body_resolvers
 
@@ -170,23 +131,19 @@ def _make_body_resolver(callable_fn: Callable[..., Any]):
     return body_resolver
 
 
-def register_soap_ufuncs(registry, rc=None) -> None:
-    """Register SOAP adapter resolvers from entry points and config.
+def register_soap_ufuncs(registry, raw_config: RawConfig | None = None) -> None:
+    """Register SOAP adapter resolvers from config (`soap_adapter_modules`).
 
-    Adapters are loaded from:
-    1. Entry points (spinta.soap.deferred_prepares, spinta.soap.body_resolvers)
-    2. Config: soap_adapter_modules (list of file paths to Python modules)
+    Adapters are loaded from local Python files listed in:
 
-    Call after resolver.collect().
+        soap_adapter_modules:
+          - /path/to/adapter.py
+
+    Call this after resolver.collect().
     """
     global _deferred_prepare_names_cache
 
-    deferred = _load_deferred_prepare_names()
-    body_resolvers = _load_body_resolver_registry()
-
-    config_deferred, config_body_resolvers = _load_adapters_from_config(rc)
-    deferred.update(config_deferred)
-    body_resolvers.update(config_body_resolvers)
+    deferred, body_resolvers = _load_adapters_from_config(raw_config)
 
     _deferred_prepare_names_cache = deferred
 
