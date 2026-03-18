@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev19 (unreleased)
+0.2dev19 (2026-03-18)
 =====================
 
 Improvements:
