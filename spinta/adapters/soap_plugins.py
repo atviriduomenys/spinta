@@ -152,8 +152,3 @@ def register_soap_ufuncs(registry, raw_config: RawConfig | None = None) -> None:
 
     for name, callable_fn in body_resolvers.items():
         registry.register(name, _make_body_resolver(callable_fn), (SoapQueryBuilder, Expr))
-
-
-def get_deferred_prepare_names_for_finalize() -> set[str]:
-    """Return the set of deferred prepare names (for use in _finalize skip)."""
-    return get_deferred_prepare_names()
