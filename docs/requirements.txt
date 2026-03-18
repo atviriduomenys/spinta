@@ -16,7 +16,7 @@ babel==2.18.0
     #   sphinx-intl
 certifi==2026.2.25
     # via requests
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
     # via requests
 click==8.3.1
     # via
@@ -108,7 +108,7 @@ typing-extensions==4.15.0
     #   uvicorn
 urllib3==2.6.3
     # via requests
-uvicorn==0.41.0
+uvicorn==0.42.0
     # via sphinx-autobuild
 watchfiles==1.1.1
     # via sphinx-autobuild

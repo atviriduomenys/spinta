@@ -4,14 +4,21 @@ Changes
 0.2dev19 (unreleased)
 =====================
 
+Improvements:
+
+- Improved reading of large XML files (Part 1) (`#1805`_)
+- `spinta inspect` doesn't stop on unrecognized types, but instead generates DSA and prints warnings about which columns were not added. (`#1820`_)
+- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
+
+.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
+.. _#1805: https://github.com/atviriduomenys/spinta/issues/1805
+.. _#1820: https://github.com/atviriduomenys/spinta/issues/1820
+
 
 0.2dev18 (2026-03-12)
 =====================
 
 Improvements:
-- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
-
-.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
 
 Bug Fixes:
 
