@@ -4,3 +4,4 @@ sphinxcontrib.httpdomain
 sphinx_rtd_theme
 sphinx-intl
 myst_parser
+sphinxcontrib-mermaid
