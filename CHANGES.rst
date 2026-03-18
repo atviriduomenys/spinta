@@ -8,6 +8,11 @@ Changes
 0.2dev18 (2026-03-12)
 =====================
 
+Improvements:
+- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
+
+.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
+
 Bug Fixes:
 
 - Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
