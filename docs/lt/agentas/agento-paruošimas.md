@@ -1,5 +1,20 @@
 # Aplinkos paruošimas
 
+## Reikalingų agentų skaičius
+
+:::{important}
+Kiekviena institucija turi registruoti ir įdiegti **du atskirus agentus** — nepriklausomai nuo to, kiek informacinės sistemos (IS) aplinkų turi institucija:
+
+| Agentas | Vartai | Paskirtis |
+|---------|--------|-----------|
+| **TEST agentas** | `test-apigw.gov.lt` | Naujų DSA versijų testavimas prieš diegiant į produkciją |
+| **PROD agentas** | `apigw.gov.lt` | Duomenų teikimas galutiniams vartotojams |
+
+Kiekvienas agentas reikalauja **atskiros virtualios mašinos (VM)**.
+
+**Kodėl reikia TEST agento net be TEST IS aplinkos?** TEST vartai yra skirti ne IS aplinkai testuoti, o DSA pakeitimams patikrinti: nauja DSA aprašo versija pirmiausia įkeliama į TEST aplinką, ten patikrinama, ar duomenys grąžinami teisingai, ir tik tada perkeliama į PROD. Tai užtikrina, kad netikėti pakeitimai nepasiektų gamybinės aplinkos.
+:::
+
 ## Techniniai reikalavimai
 
 Agentas veikia ir yra testuotas Linux operacinėse sistemose, konkrečiai naudojant Debian/Ubuntu distribucijas, todėl instrukcijos, kaip pavyzdys bus pateiktos būtent Debian/Ubuntu aplinkai. Diegimą galima atlikti ir kitose Linux distribucijose, tačiau tam tikros vietos, nurodytos šioje dokumentacijoje, turėtu būti priderintos taip, kad veiktų kitoje distribucijoje.
