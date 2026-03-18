@@ -1,8 +1,65 @@
 # Sprendimai prieš diegimą
 
-Prieš pradedant techninius diegimo darbus, reikia priimti tris sprendimus. Jie lemia, kokie infrastruktūros darbai reikalingi ir kurią diegimo instrukciją naudoti.
+Prieš pradedant techninius diegimo darbus reikia priimti penkis infrastruktūros sprendimus. Žemiau pavaizduotas sprendimų medis — kiekvienas pasirinkimas lemia tolesnę diegimo eigą ir reikalingų darbų apimtį.
 
-## 1. Kiek aplinkų reikia?
+```{mermaid}
+flowchart TD
+    Q1["1️⃣ Kiek agentų vienai IS?"]
+    Q1 -->|"Rekomenduojama"| A1["Dedikuotas agentas\nkiekvienai IS"]
+    Q1 -->|"Galima"| A2["Apjungtas\n(kelios IS — vienas agentas)"]
+    Q1 -->|"Galima"| A3["Mišrus\n(dalis dedikuota,\ndalis apjungta)"]
+
+    A1 & A2 & A3 --> Q2
+
+    Q2["2️⃣ Kaip diegti aplinkas?"]
+    Q2 -->|"Rekomenduojama"| B1["Atskira VM\nkiekvienai aplinkai\n(TEST + PROD)"]
+    Q2 -->|"Greitesnis būdas"| B2["Viena VM\nPROD + TEST per Docker"]
+
+    B1 --> Q3A["3️⃣ Diegimo būdas?"]
+    Q3A -->|"Rekomenduojama"| C1["OS diegimas\n(systemd servisas)"]
+    Q3A -->|"Galima"| C2["Docker Compose"]
+
+    B2 --> C3["OS + Docker\n(PROD — OS,\nTEST — Docker)"]
+
+    C1 & C2 & C3 --> Q4
+
+    Q4["4️⃣ Vartai?"]
+    Q4 -->|"KVTC klientai\nSVDPT sąraše"| D1["Vidiniai vartai\nReikia KVTC\ntinklo paraiškos"]
+    Q4 -->|"Visi kiti"| D2["Išoriniai vartai\nPapildomos tinklo\nkonfig. nereikia"]
+
+    D1 & D2 --> Q5
+
+    Q5["5️⃣ Kas diegia?"]
+    Q5 -->|"Savarankiškai"| E1["Sekti šią\ndokumentaciją"]
+    Q5 -->|"Su pagalba"| E2["Kreiptis į CCT/EY,\nnurodyti pasirinktus variantus"]
+
+    style A1 fill:#2d6a2d,color:#fff
+    style B1 fill:#2d6a2d,color:#fff
+    style C1 fill:#2d6a2d,color:#fff
+    style A2 fill:#5a5a00,color:#fff
+    style A3 fill:#5a5a00,color:#fff
+    style B2 fill:#5a5a00,color:#fff
+    style C2 fill:#5a5a00,color:#fff
+    style C3 fill:#5a5a00,color:#fff
+    style D1 fill:#1a4a7a,color:#fff
+    style D2 fill:#1a4a7a,color:#fff
+    style E1 fill:#4a4a4a,color:#fff
+    style E2 fill:#4a4a4a,color:#fff
+```
+
+Plačiau apie kiekvieną sprendimą — žemiau.
+
+## 1. Kiek agentų vienai IS?
+
+Vienas Spinta agentas gali aptarnauti vieną arba kelias informacines sistemas:
+
+| Variantas | Aprašas | Tinka kai |
+|-----------|---------|-----------|
+| **Dedikuotas** (rekomenduojama) | Atskiras agentas kiekvienai IS | IS skiriasi struktūra, apkrova ar atsakomybe |
+| **Apjungtas** | Kelios IS — vienas agentas | IS paprastos, mažos apkrovos, administruoja ta pati komanda |
+| **Mišrus** | Dalis dedikuota, dalis apjungta | Didelės IS — atskirai, mažos — grupuojamos |
+
+## 2. Kiek aplinkų reikia?
 
 Visoms institucijoms reikalingos **dvi aplinkos** — TEST ir PROD — nepriklausomai nuo to, kiek IS aplinkų turi institucija:
 
@@ -45,3 +102,10 @@ Tinklo konfigūravimas trunka ilgiausiai — **užsisakykite kuo anksčiau**, ne
 | **Išoriniai vartai** | IS nėra SVDPT tinkle | Papildomos tinklo konfigūracijos nereikia |
 
 Plačiau: [Tinklo konfigūravimas → Vartų parinkimas](tinklo-konfigūravimas.md#vartu-parinkimas)
+
+## 5. Kas diegia?
+
+| Variantas | Ką reikia daryti |
+|-----------|-----------------|
+| **Savarankiškai** | Sekti šią dokumentaciją žingsnis po žingsnio |
+| **Su CCT/EY pagalba** | Kreiptis į CCT/EY, aiškiai nurodyti pasirinktus variantus (agentų skaičių, VM ar Docker, vartų tipą) — tai lemia jų darbų apimtį |
