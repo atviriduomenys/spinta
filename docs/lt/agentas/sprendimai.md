@@ -5,33 +5,33 @@ Prieš pradedant techninius diegimo darbus reikia priimti penkis infrastruktūro
 ```{mermaid}
 flowchart TD
     Q1["1️⃣ Kiek agentų vienai IS?"]
-    Q1 -->|"Rekomenduojama"| A1["Dedikuotas agentas\nkiekvienai IS"]
-    Q1 -->|"Galima"| A2["Apjungtas\n(kelios IS — vienas agentas)"]
-    Q1 -->|"Galima"| A3["Mišrus\n(dalis dedikuota,\ndalis apjungta)"]
+    Q1 -->|"Rekomenduojama"| A1["Dedikuotas agentas<br/>kiekvienai IS"]
+    Q1 -->|"Galima"| A2["Apjungtas<br/>(kelios IS — vienas agentas)"]
+    Q1 -->|"Galima"| A3["Mišrus<br/>(dalis dedikuota,<br/>dalis apjungta)"]
 
     A1 & A2 & A3 --> Q2
 
     Q2["2️⃣ Kaip diegti aplinkas?"]
-    Q2 -->|"Rekomenduojama"| B1["Atskira VM\nkiekvienai aplinkai\n(TEST + PROD)"]
-    Q2 -->|"Greitesnis būdas"| B2["Viena VM\nPROD + TEST per Docker"]
+    Q2 -->|"Rekomenduojama"| B1["Atskira VM<br/>kiekvienai aplinkai<br/>(TEST + PROD)"]
+    Q2 -->|"Greitesnis būdas"| B2["Viena VM<br/>PROD + TEST per Docker"]
 
     B1 --> Q3A["3️⃣ Diegimo būdas?"]
-    Q3A -->|"Rekomenduojama"| C1["OS diegimas\n(systemd servisas)"]
-    Q3A -->|"Galima"| C2["Docker Compose"]
+    Q3A -->|"Rekomenduojama"| C1["OS diegimas<br/>(systemd servisas)"]
+    Q3A -->|"Galima"| C2["Docker"]
 
-    B2 --> C3["OS + Docker\n(PROD — OS,\nTEST — Docker)"]
+    B2 --> C3["OS + Docker<br/>(PROD — OS,<br/>TEST — Docker)"]
 
     C1 & C2 & C3 --> Q4
 
     Q4["4️⃣ Vartai?"]
-    Q4 -->|"KVTC klientai\nSVDPT sąraše"| D1["Vidiniai vartai\nReikia KVTC\ntinklo paraiškos"]
-    Q4 -->|"Visi kiti"| D2["Išoriniai vartai\nPapildomos tinklo\nkonfig. nereikia"]
+    Q4 -->|"KVTC klientai<br/>SVDPT sąraše"| D1["Vidiniai vartai<br/>Reikia KVTC<br/>tinklo paraiškos"]
+    Q4 -->|"Visi kiti"| D2["Išoriniai vartai<br/>Papildomos tinklo<br/>konfig. nereikia"]
 
     D1 & D2 --> Q5
 
     Q5["5️⃣ Kas diegia?"]
-    Q5 -->|"Savarankiškai"| E1["Sekti šią\ndokumentaciją"]
-    Q5 -->|"Su pagalba"| E2["Kreiptis į CCT/EY,\nnurodyti pasirinktus variantus"]
+    Q5 -->|"Savarankiškai"| E1["Sekti šią<br/>dokumentaciją"]
+    Q5 -->|"Su pagalba"| E2["Kreiptis į CCT/EY,<br/>nurodyti pasirinktus variantus"]
 
     style A1 fill:#2d6a2d,color:#fff
     style B1 fill:#2d6a2d,color:#fff
