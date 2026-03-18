@@ -1,41 +1,8 @@
 # Aplinkos paruošimas
 
-## Reikalingų agentų skaičius
-
-:::{important}
-Kiekviena institucija turi registruoti ir įdiegti **du atskirus agentus** — nepriklausomai nuo to, kiek informacinės sistemos (IS) aplinkų turi institucija:
-
-| Agentas | Vartai | Paskirtis |
-|---------|--------|-----------|
-| **TEST agentas** | `test-apigw.gov.lt` | Naujų DSA versijų testavimas prieš diegiant į produkciją |
-| **PROD agentas** | `apigw.gov.lt` | Duomenų teikimas galutiniams vartotojams |
-
-**Kodėl reikia TEST agento net be TEST IS aplinkos?** TEST vartai yra skirti ne IS aplinkai testuoti, o DSA pakeitimams patikrinti: nauja DSA aprašo versija pirmiausia įkeliama į TEST aplinką, ten patikrinama, ar duomenys grąžinami teisingai, ir tik tada perkeliama į PROD. Tai užtikrina, kad netikėti pakeitimai nepasiektų gamybinės aplinkos.
+:::{note}
+Informacija apie reikalingų aplinkų skaičių (TEST ir PROD) bei diegimo būdo pasirinkimą pateikta skyriuje [Sprendimai prieš diegimą](prieš-diegimą.md).
 :::
-
-### TEST agento infrastruktūros variantai
-
-Yra du būdai kaip įdiegti TEST agentą — kiekvienas turi savo privalumų ir trūkumų:
-
-**1 variantas — Atskira VM TEST agentui (Rekomenduojama)**
-
-TEST agentas įdiegiamas atskiroje virtualioje mašinoje.
-
-| Privalumai | Trūkumai |
-|------------|----------|
-| Pilna izoliacija — TEST ir PROD aplinkos nepriklauso viena nuo kitos | Reikia papildomos VM (papildomi infrastruktūros kaštai) |
-| PROD stabilumas neveikiamas TEST problemų | Papildomi tinklo derinimo darbai (IT pagalbos užklausos, SVDPT konfigūravimas) |
-| Aiški resursų atskirtis | Daugiau laiko diegimui |
-
-**2 variantas — TEST agentas Docker konteineryje PROD VM (Greitasis būdas)**
-
-TEST agentas paleidžiamas kaip atskiras Docker konteineris toje pačioje VM, kurioje veikia PROD agentas (kartu su Nginx ir Redis).
-
-| Privalumai | Trūkumai |
-|------------|----------|
-| Nereikia naujos VM | PROD VM yra vienas gedimo taškas — jei VM neprieinama, išjungiami **abu** agentai |
-| Greičiau įdiegiama, mažiau tinklo derinimo | TEST ir PROD dalinasi tais pačiais resursais (RAM, CPU) — didelė apkrova vienam gali paveikti kitą |
-| Tinka institucijoms, kurioms naujų VM užsakymas užtrunka | Sudėtingesnė priežiūra viename serveryje |
 
 ## Techniniai reikalavimai
 
