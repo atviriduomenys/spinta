@@ -88,12 +88,20 @@ def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_heade
     log.warning("RC POC SOAP request payload: %r", soap_request)
     _log_soap_envelope_fragment(soap_request)
 
-    try:
-        response_data = serialize_object(
-            backend.get_soap_operation(extra_headers=extra_headers)(**soap_request), target_cls=dict
-        )
-    except zeep.exceptions.Error as e:
-        raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
+    # For local testing we sometimes want to avoid calling the real RC service.
+    # If RC_POC_MOCK_SOAP is set, just log and return an empty response.
+    import os
+
+    if os.getenv("RC_POC_MOCK_SOAP"):
+        log.warning("RC POC: RC_POC_MOCK_SOAP is set, skipping real SOAP call and returning empty response.")
+        response_data = []
+    else:
+        try:
+            response_data = serialize_object(
+                backend.get_soap_operation(extra_headers=extra_headers)(**soap_request), target_cls=dict
+            )
+        except zeep.exceptions.Error as e:
+            raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
 
     if response_data and not isinstance(response_data, list):
         response_data = [response_data]

@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-# TODO(adapter): Move this module to a separate adapter repo
-# (e.g. spinta-rc-broker-adapter) so Spinta core stays generic.
-
 import base64
 import logging
 import os
 import subprocess
-from typing import Tuple, Dict, Optional
+from typing import Dict, Optional
 
-from spinta.components import Context, Model
-from spinta.datasets.components import Resource
+from lxml import etree
+
+from spinta.components import Context
+from spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs import MakeCDATA
 
 log = logging.getLogger(__name__)
 
@@ -54,11 +53,52 @@ def _compute_rc_signature(args: str, key_path: str) -> str:
     return sig_b64.replace("\r", "").replace("\n", "")
 
 
+def build_rc_poc_string_to_sign(soap_body: Dict[str, object]) -> Optional[str]:
+    """Build the RC POC string-to-sign from soap_body (input/ActionType, etc.)."""
+
+    def _get(name: str, default: str = "") -> str:
+        # Prefer the "input/Name" key if present.
+        value = soap_body.get(f"input/{name}")
+
+        # Support nested body: soap_body["input"] = {"ActionType": "...", ...}
+        if value is None and isinstance(soap_body.get("input"), dict):
+            value = soap_body["input"].get(name)
+
+        # Fallback to top-level key, then default.
+        if value is None:
+            value = soap_body.get(name, default)
+
+        # For signing we must use the original string, not wrappers/objects.
+        # 1) Unwrap MakeCDATA helper (used before zeep serialization).
+        if isinstance(value, MakeCDATA):
+            value = value.data
+
+        # 2) Unwrap lxml CDATA objects.
+        if isinstance(value, etree.CDATA):
+            value = str(value)
+
+        # 3) Parameters may be quoted RQL literals; strip surrounding single quotes.
+        if name == "Parameters" and isinstance(value, str):
+            if value.startswith("'") and value.endswith("'") and len(value) >= 2:
+                value = value[1:-1]
+
+        return "" if value is None else str(value)
+
+    action_type = _get("ActionType")
+    caller_code = _get("CallerCode")
+    end_user_info = _get("EndUserInfo", "")
+    parameters = _get("Parameters", "")
+    time_value = _get("Time")
+
+    # Even if some components are empty, return the concatenation; validation is handled elsewhere.
+    return f"{action_type}{caller_code}{end_user_info}{parameters}{time_value}"
+
+
 def compute_rc_signature_from_body(
     soap_body: Dict[str, object],
     context: Optional[Context] = None,
 ) -> str | None:
-    """Build string-to-sign from soap_body (input/ActionType, etc.) and return signature, or None if disabled/failed.
+    """Build string-to-sign from soap_body and return signature, or None if disabled/failed.
 
     Used by both the DSA prepare ufunc rc_signature() and the legacy adapter.
     """
@@ -70,25 +110,10 @@ def compute_rc_signature_from_body(
         )
         return None
 
-    def _get(name: str, default: str = "") -> str:
-        value = soap_body.get(f"input/{name}")
-        if value is None:
-            value = soap_body.get(name, default)
-        # Support nested body: soap_body["input"] = {"ActionType": "...", ...}
-        if value is None and isinstance(soap_body.get("input"), dict):
-            value = soap_body["input"].get(name, default)
-        return "" if value is None else str(value)
-
-    action_type = _get("ActionType")
-    caller_code = _get("CallerCode")
-    end_user_info = _get("EndUserInfo", "")
-    parameters = _get("Parameters", "")
-    time_value = _get("Time")
-
-    if not action_type or not caller_code or not time_value:
+    args = build_rc_poc_string_to_sign(soap_body)
+    if args is None:
         return None
 
-    args = f"{action_type}{caller_code}{end_user_info}{parameters}{time_value}"
     try:
         return _compute_rc_signature(args, key_path)
     except Exception as exc:  # pragma: no cover - POC logging only
@@ -109,70 +134,3 @@ def get_body_resolvers() -> Dict[str, object]:
         return result if result else ""
 
     return {"rc_signature": rc_signature_resolver}
-
-
-def rc_signature_poc_adapter(
-    *,
-    context: Context,
-    model: Model,
-    resource: Resource,
-    soap_body: Dict[str, object],
-    http_headers: Dict[str, str],
-) -> Tuple[Dict[str, object], Dict[str, str]]:
-    """POC adapter that generates RC-style Signature for GetData-like calls.
-
-    For now this is intentionally minimal and driven by environment:
-    - If RC_POC_PRIVATE_KEY_PATH is not set, adapter is a no-op.
-    - It expects ActionType, CallerCode, Parameters, Time to be present in soap_body.
-    - EndUserInfo is optional (Mode 1 vs Mode 2).
-    """
-    signature = compute_rc_signature_from_body(soap_body)
-    if signature is None:
-        return soap_body, http_headers
-
-    action_type = str(soap_body.get("input/ActionType") or soap_body.get("ActionType") or "")
-    caller_code = str(soap_body.get("input/CallerCode") or soap_body.get("CallerCode") or "")
-    end_user_info = str(soap_body.get("input/EndUserInfo") or soap_body.get("EndUserInfo") or "")
-    parameters = str(soap_body.get("input/Parameters") or soap_body.get("Parameters") or "")
-    time_value = str(soap_body.get("input/Time") or soap_body.get("Time") or "")
-
-    log.warning(
-        "RC POC signature generated | action_type=%r caller_code=%r end_user_info=%r parameters=%r time=%r signature=%s",
-        action_type,
-        caller_code,
-        end_user_info,
-        parameters,
-        time_value,
-        signature,
-    )
-
-    # Write Signature back into soap_body; prefer nested key if present.
-    if "input/Signature" in soap_body:
-        soap_body["input/Signature"] = signature
-    else:
-        soap_body["Signature"] = signature
-
-    return soap_body, http_headers
-
-
-def apply_soap_adapters(
-    *,
-    context: Context,
-    model: Model,
-    resource: Resource,
-    soap_body: Dict[str, object],
-    http_headers: Dict[str, str],
-) -> Tuple[Dict[str, object], Dict[str, str]]:
-    """Apply SOAP request adapters.
-
-    POC implementation: always run the RC signature POC adapter when a
-    private key path is configured. Later this can be extended to load
-    adapters from config/manifest.
-    """
-    return rc_signature_poc_adapter(
-        context=context,
-        model=model,
-        resource=resource,
-        soap_body=soap_body,
-        http_headers=http_headers,
-    )
