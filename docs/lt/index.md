@@ -72,7 +72,7 @@ Spinta atlieka griežtą duomenų validaciją pagal Manifestą prieš įrašydam
 :caption: SPINTA Agentas
 
 Apie SPINTA agentą <agentas/index>
-Sprendimai prieš diegimą <agentas/prieš-diegimą>
+Sprendimai prieš diegimą <agentas/sprendimai>
 Aplinkos paruošimas <agentas/agento-paruošimas>
 Manifest parengimas <agentas/šaltinių-konfigūravimas>
 Agento diegimas <agentas/diegimas/index>

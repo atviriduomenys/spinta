@@ -1,7 +1,7 @@
 # Aplinkos paruošimas
 
 :::{note}
-Informacija apie reikalingų aplinkų skaičių (TEST ir PROD) bei diegimo būdo pasirinkimą pateikta skyriuje [Sprendimai prieš diegimą](prieš-diegimą.md).
+Informacija apie reikalingų aplinkų skaičių (TEST ir PROD) bei diegimo būdo pasirinkimą pateikta skyriuje [Sprendimai prieš diegimą](sprendimai.md).
 :::
 
 ## Techniniai reikalavimai
