@@ -247,19 +247,6 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     return env.resolved[prop.place]
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, set)
-def select(env: DaskDataFrameQueryBuilder, dtype: DataType, keys: set) -> Selected:
-    raise NotImplementedFeature(dtype.prop.model, feature="Ability to select specific keys for DataType properties.")
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, DataType)
-def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
-    return Selected(
-        item=dtype.prop.external.name,
-        prop=dtype.prop,
-    )
-
-
 @ufunc.resolver(DaskDataFrameQueryBuilder, Text, set)
 def select(env: DaskDataFrameQueryBuilder, dtype: Text, languages: set) -> Selected:
     prep = {}
@@ -269,6 +256,14 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Text, languages: set) -> Selec
         else:
             raise PropertyNotFound(dtype.prop.model, property=dtype.prop, lang=lang)
     return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, DataType)
+def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
+    return Selected(
+        item=dtype.prop.external.name,
+        prop=dtype.prop,
+    )
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Text)
