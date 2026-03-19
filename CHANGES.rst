@@ -4,6 +4,9 @@ Changes
 0.2dev19 (unreleased)
 =====================
 
+- Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
+
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 
 0.2dev18 (2026-03-12)
 =====================
