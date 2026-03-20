@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from spinta.core.config import RawConfig
+
 import spinta.adapters.rc_signature_adapter as adapter
 
 
@@ -71,4 +73,22 @@ def test_rc_signature_message_preparation() -> None:
     }
 
     expected_args = f"{action_type}{caller_code}{end_user_info}{parameters}{time_value}"
-    assert adapter.build_rc_poc_string_to_sign(soap_body) == expected_args
+    assert adapter.build_rc_string_to_sign(soap_body) == expected_args
+
+
+def test_validate_soap_adapter_config_requires_raw_config() -> None:
+    with pytest.raises(RuntimeError, match="application configuration is missing"):
+        adapter.validate_soap_adapter_config(None)
+
+
+def test_validate_soap_adapter_config_requires_private_key_path() -> None:
+    raw = RawConfig()
+    raw.add("x", {})
+    with pytest.raises(RuntimeError, match="rc_signature.private_key_path"):
+        adapter.validate_soap_adapter_config(raw)
+
+
+def test_validate_soap_adapter_config_accepts_private_key_path() -> None:
+    raw = RawConfig()
+    raw.add("x", {"rc_signature": {"private_key_path": "/path/to/key.pem"}})
+    adapter.validate_soap_adapter_config(raw)

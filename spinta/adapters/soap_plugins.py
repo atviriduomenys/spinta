@@ -37,7 +37,7 @@ def get_deferred_prepare_names() -> set[str]:
     return _deferred_prepare_names_cache or set()
 
 
-def _load_adapter_module_from_path(file_path: str):
+def _load_adapter_module_from_path(file_path: str, raw_config: RawConfig | None = None):
     """Load a Python module from a file path.
     Returns the module object, or None if loading fails.
     """
@@ -53,6 +53,8 @@ def _load_adapter_module_from_path(file_path: str):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         log.info("Loaded SOAP adapter module from: %s", file_path)
+        if hasattr(module, "validate_soap_adapter_config"):
+            module.validate_soap_adapter_config(raw_config)
         return module
     except Exception as e:
         log.warning("Failed to load SOAP adapter module %s: %s", file_path, e)
@@ -83,7 +85,7 @@ def _load_adapters_from_config(raw_config: RawConfig | None) -> tuple[set[str], 
         module_paths = [module_paths]
 
     for module_path in module_paths:
-        module = _load_adapter_module_from_path(module_path)
+        module = _load_adapter_module_from_path(module_path, raw_config)
         if module is None:
             continue
 
