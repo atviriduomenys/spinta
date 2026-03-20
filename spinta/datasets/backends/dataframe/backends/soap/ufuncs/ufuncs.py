@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from lxml import etree
@@ -21,6 +22,8 @@ from spinta.exceptions import (
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+log = logging.getLogger(__name__)
 
 
 class MakeCDATA:
@@ -82,12 +85,31 @@ def _finalize_soap_request_body_resolve(env: SoapQueryBuilder) -> None:
         env.soap_request_body[param_body_key] = env.resolve(param_body_value)
 
 
-def _param_for_soap_body_key(env: SoapQueryBuilder, param_source: str) -> Param | None:
-    for param in env.params.values():
-        soap_body = getattr(param, "soap_body", None)
-        if soap_body and param_source in soap_body:
-            return param
+def _param_for_soap_body_key(env: SoapQueryBuilder, param_source: str, expr: Expr | None = None) -> Param | None:
+    """Find the resource Param that owns this SOAP body slot (flat key like ``input/Signature``)."""
+    for resource_param in env.params.values():
+        soap_body = getattr(resource_param, "soap_body", None)
+        if not soap_body:
+            continue
+        if param_source in soap_body:
+            return resource_param
+        for soap_body_key in soap_body.keys():
+            if soap_body_key.lower() == param_source.lower():
+                return resource_param
+        if expr is not None:
+            for prepared_value in soap_body.values():
+                if prepared_value is expr:
+                    return resource_param
     return None
+
+
+def _property_value_key_for_deferred(matched_param: Param | None, param_source: str) -> str:
+    """Key for ``property_values`` (must match manifest param names for downstream query env)."""
+    if matched_param is not None:
+        return matched_param.name
+    # Last segment of the SOAP path, lowercased (e.g. input/Signature -> signature).
+    path_suffix = param_source.rsplit("/", 1)[-1]
+    return path_suffix.lower() if path_suffix else param_source
 
 
 def _resolve_deferred_soap_request_body_exprs(env: SoapQueryBuilder) -> None:
@@ -95,19 +117,25 @@ def _resolve_deferred_soap_request_body_exprs(env: SoapQueryBuilder) -> None:
     deferred_names = get_deferred_prepare_names()
     if not deferred_names:
         return
-    for param_source, value in list(env.soap_request_body.items()):
-        if not isinstance(value, Expr):
+    for param_source, deferred_expr in list(env.soap_request_body.items()):
+        if not isinstance(deferred_expr, Expr):
             continue
-        if getattr(value, "name", None) not in deferred_names:
+        if getattr(deferred_expr, "name", None) not in deferred_names:
             continue
-        resolved = env.resolve(value)
-        param = _param_for_soap_body_key(env, param_source)
-        if param and getattr(param, "soap_body_value_type", None) == "cdata" and resolved:
+        resolved = env.resolve(deferred_expr)
+        matched_param = _param_for_soap_body_key(env, param_source, expr=deferred_expr)
+        if matched_param and getattr(matched_param, "soap_body_value_type", None) == "cdata" and resolved:
             env.soap_request_body[param_source] = MakeCDATA(resolved)
         else:
             env.soap_request_body[param_source] = resolved
-        if param is not None:
-            env.property_values[param.name] = resolved
+        property_value_key = _property_value_key_for_deferred(matched_param, param_source)
+        env.property_values[property_value_key] = resolved
+        if matched_param is None:
+            log.warning(
+                "SOAP deferred resolve: no Param matched for %r; property_values updated under %r",
+                param_source,
+                property_value_key,
+            )
 
 
 def _populate_soap_request_body_with_url_values(env: SoapQueryBuilder) -> None:
