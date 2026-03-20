@@ -220,7 +220,8 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
     if prop.dtype.required and param_source not in env.soap_request_body:
         raise MissingRequiredProperty(prop, prop=prop.name)
 
-    env.property_values.update({param.name: final_value})
+    if not is_deferred_expr:
+        env.property_values.update({param.name: final_value})
 
 
 @ufunc.resolver(SoapQueryBuilder, str)
