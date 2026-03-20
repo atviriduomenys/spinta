@@ -1,20 +1,31 @@
 Changes
 #######
 
-0.2dev19 (unreleased)
+0.2dev20 (unreleased)
 =====================
 
 - Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
 
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 
+0.2dev19 (2026-03-18)
+=====================
+
+Improvements:
+
+- Improved reading of large XML files (Part 1) (`#1805`_)
+- `spinta inspect` doesn't stop on unrecognized types, but instead generates DSA and prints warnings about which columns were not added. (`#1820`_)
+- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
+
+.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
+.. _#1805: https://github.com/atviriduomenys/spinta/issues/1805
+.. _#1820: https://github.com/atviriduomenys/spinta/issues/1820
+
+
 0.2dev18 (2026-03-12)
 =====================
 
 Improvements:
-- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
-
-.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
 
 Bug Fixes:
 

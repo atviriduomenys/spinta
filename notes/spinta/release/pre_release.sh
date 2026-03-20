@@ -8,9 +8,9 @@ test -n "$PID" && kill "$PID"
 # Setup versions and create prepare branch
 # Change version numbers here
 export MAJOR=0
-export MINOR=2dev18
-export OLD_MINOR=2dev17
-export FUTURE_MINOR=2dev19
+export MINOR=2dev19
+export OLD_MINOR=2dev18
+export FUTURE_MINOR=2dev20
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -88,6 +88,8 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Configure spinta
 # notes/spinta/release/common.sh    Create manifest file
+
+# Repeat the same with metadata
 
 # notes/spinta/release/common.sh    Run migrations
 #| (3624 rows)
