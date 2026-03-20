@@ -16,9 +16,7 @@ if TYPE_CHECKING:
 def validate_soap_adapter_config(raw_config: RawConfig | None) -> None:
     """Invoked by soap plugin loader when this module is listed in ``soap_adapter_modules``."""
     if raw_config is None:
-        raise RuntimeError(
-            "RC signature adapter was loaded but application configuration is missing."
-        )
+        raise RuntimeError("RC signature adapter was loaded but application configuration is missing.")
     path = raw_config.get("rc_signature", "private_key_path", default=None)
     if not path or not str(path).strip():
         raise RuntimeError(
@@ -30,9 +28,7 @@ def _get_private_key_path(context: Context) -> str:
     rc = context.get("rc")
     path = rc.get("rc_signature", "private_key_path", default=None)
     if not path or not str(path).strip():
-        raise RuntimeError(
-            "`rc_signature.private_key_path` must be set in configuration for RC request signing."
-        )
+        raise RuntimeError("`rc_signature.private_key_path` must be set in configuration for RC request signing.")
     return str(path)
 
 
@@ -90,7 +86,7 @@ def compute_rc_signature_from_body(soap_body: Dict[str, object], context: Contex
     """Build string-to-sign from soap_body and return base64 signature."""
     key_path = _get_private_key_path(context)
     args = build_rc_string_to_sign(soap_body)
-    
+
     return _compute_rc_signature(args, key_path)
 
 
