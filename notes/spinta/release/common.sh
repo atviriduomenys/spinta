@@ -280,6 +280,7 @@ EOF
 # Temporarily run with port 7000, so we can run another server with 8000 port
 test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
 spinta run --port 7000 --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & EXTERNAL_PID=$!
+sleep 10
 tail -50 "$BASEDIR"/spinta.log
 
 xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Forma
