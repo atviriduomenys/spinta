@@ -4,12 +4,21 @@ Changes
 0.2dev20 (unreleased)
 =====================
 
+Improvements:
+
+- Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
+  The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
+
+.. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
+
+Bug Fixes:
+
 - Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
 
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 
 0.2dev19 (2026-03-18)
-=====================
+======================
 
 Improvements:
 
@@ -25,8 +34,6 @@ Improvements:
 0.2dev18 (2026-03-12)
 =====================
 
-Improvements:
-
 Bug Fixes:
 
 - Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
@@ -34,6 +41,7 @@ Bug Fixes:
 
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 .. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
+
 
 0.2dev17 (2026-02-26)
 =====================
