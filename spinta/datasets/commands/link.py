@@ -9,14 +9,16 @@ from spinta.ufuncs.linkbuilder.components import LinkBuilder
 
 @commands.link.register(Context, Dataset)
 def link(context: Context, dataset: Dataset):
-    link_access_param(dataset, (dataset.manifest,))
+    config = context.get("config")
+    link_access_param(dataset, (dataset.manifest,), default_access=config.default_access_level)
     for resource in dataset.resources.values():
         commands.link(context, resource)
 
 
 @commands.link.register(Context, Resource)
 def link(context: Context, resource: Resource):
-    link_access_param(resource, (resource.dataset,))
+    config = context.get("config")
+    link_access_param(resource, (resource.dataset,), default_access=config.default_access_level)
     if resource.params and resource.manifest:
         link_params(context, resource.manifest, resource.params, resource.dataset)
 

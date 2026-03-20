@@ -178,6 +178,7 @@ def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
 @commands.link.register(Context, Model)
 def link(context: Context, model: Model):
     # Link external source.
+    config = context.get("config")
     if model.external:
         commands.link(context, model.external)
 
@@ -205,6 +206,7 @@ def link(context: Context, model: Model):
                 [model.ns],
                 model.ns.parents(),
             ),
+            default_access=config.default_access_level,
         )
     else:
         link_access_param(
@@ -213,6 +215,7 @@ def link(context: Context, model: Model):
                 [model.ns],
                 model.ns.parents(),
             ),
+            default_access=config.default_access_level,
         )
 
     # Link base
