@@ -4,6 +4,7 @@ from typing import Any
 
 from lxml import etree
 
+from spinta.adapters.soap_plugins import get_deferred_prepare_names
 from spinta.auth import authorized, query_client
 from spinta.components import Property
 from spinta.core.enums import Action
@@ -72,8 +73,11 @@ def and_(env: SoapQueryBuilder, args: list) -> Any:
 
 
 def _finalize_soap_request_body_resolve(env: SoapQueryBuilder) -> None:
+    deferred_names = get_deferred_prepare_names()
     for param_body_key, param_body_value in env.soap_request_body.items():
         if not isinstance(param_body_value, Expr):
+            continue
+        if getattr(param_body_value, "name", None) in deferred_names:
             continue
         env.soap_request_body[param_body_key] = env.resolve(param_body_value)
 
@@ -129,9 +133,19 @@ def _get_final_soap_request_body_value(env: SoapQueryBuilder, property_name: str
 
 @ufunc.resolver(SoapQueryBuilder, Property, Param)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
-    """Replace default param.soap_body values with url_param values"""
-    param_source = next(iter(param.soap_body))
-    final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
+    """Replace default param.soap_body with url_param values or resolve prepare Expr."""
+    soap_body = getattr(param, "soap_body", None)
+    if not soap_body:
+        return
+    param_source = next(iter(soap_body))
+    param_default_value = env.soap_request_body.get(param_source, NA)
+
+    if isinstance(param_default_value, Expr):
+        final_value = env.resolve(param_default_value)
+    else:
+        final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
+        if isinstance(final_value, Expr):
+            final_value = env.resolve(final_value)
 
     if final_value is NA:
         # If value not in URL and DSA has no default - remove it from SOAP request completely
