@@ -119,6 +119,7 @@ def _make_body_resolver(callable_fn: Callable[..., Any]):
             return callable_fn(env, expr)
         except TypeError:
             return callable_fn(env)
+
     return body_resolver
 
 

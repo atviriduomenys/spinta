@@ -37,7 +37,7 @@ def test_rc_exact_parameters_signing() -> None:
 
     message = (
         '17TEST_VSSA_IS,vasu_id=190286<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<args><fmt>xml</fmt><obj_kodas>188772433</obj_kodas></args>2026-03-12 07:50:30'
+        "<args><fmt>xml</fmt><obj_kodas>188772433</obj_kodas></args>2026-03-12 07:50:30"
     )
     expected_signature = (
         "mdLXBiu6D+vQ4h59+zMT+h0/qNL5SRFjl+eslyLPgIzicZFtnPGvJ5zppO155LQmLxyKl6M+NWRIhumEdOU78pdS"
@@ -56,7 +56,7 @@ def test_rc_signature_message_preparation() -> None:
     end_user_info = ""
     parameters = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<args><fmt>xml</fmt><obj_kodas>188772433</obj_kodas></args>'
+        "<args><fmt>xml</fmt><obj_kodas>188772433</obj_kodas></args>"
     )
     time_value = "2026-03-12 07:50:30"
 
@@ -70,11 +70,5 @@ def test_rc_signature_message_preparation() -> None:
         }
     }
 
-    expected_args = (
-        f"{action_type}"
-        f"{caller_code}"
-        f"{end_user_info}"
-        f"{parameters}"
-        f"{time_value}"
-    )
+    expected_args = f"{action_type}{caller_code}{end_user_info}{parameters}{time_value}"
     assert adapter.build_rc_poc_string_to_sign(soap_body) == expected_args
