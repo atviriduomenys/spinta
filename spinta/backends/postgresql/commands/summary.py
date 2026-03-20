@@ -6,7 +6,7 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name
 from spinta.core.ufuncs import Expr
 from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTime, Time, Ref
-from spinta import commands
+from spinta import commands, HTTP_URL_PREFIXES
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.exceptions import NotFoundError, NotImplementedFeature, InvalidRequestQuery
@@ -322,7 +322,7 @@ def summary(context: Context, dtype: Ref, backend: PostgreSQL, **kwargs):
         prefixes = dtype.model.external.dataset.prefixes
         label = None
         if uri and ":" in uri:
-            if uri.startswith(("http://", "https://")):
+            if uri.startswith(HTTP_URL_PREFIXES):
                 label = uri
             else:
                 split = uri.split(":")
