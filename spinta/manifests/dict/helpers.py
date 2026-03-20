@@ -8,45 +8,43 @@ import json
 from copy import deepcopy
 
 import requests
-import xmltodict
 from typing import Any, Iterator, IO
 
 from spinta import HTTP_URL_PREFIXES
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.dict.components import (
     DictFormat,
-    _MappedDataset,
-    _MappingMeta,
-    _MappingScope,
-    _MappedModels,
-    _MappedProperties,
+    MappedDataset,
+    MappingMeta,
+    MappingScope,
+    MappedModels,
+    MappedProperties,
 )
 from spinta.manifests.helpers import TypeDetector
 from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 from lxml import etree
-from collections import defaultdict
 
 
 logger = logging.getLogger(__name__)
 
 
-class BatchXMLSchemaReader:
-    """Reads XML data and converts it into mapped data by collecting unique structure"""
+class XMLIterSchemaReader:
+    """Reads XML data and converts it into mapped data by collecting unique structure using streaming"""
 
     path: str
-    mapping_meta: _MappingMeta
-    dataset_structure: _MappedDataset
+    mapping_meta: MappingMeta
+    dataset_structure: MappedDataset
 
-    __structural_data: dict  # Variable to hold the consolidated structural data
-    namespaces: list  # Variable to hold all namespaces that have been parsed
+    __structural_data: dict
+    namespaces: list
 
     def __init__(
         self,
         path: str,
-        mapping_meta: _MappingMeta,
-        dataset_structure: _MappedDataset,
+        mapping_meta: MappingMeta,
+        dataset_structure: MappedDataset,
     ) -> None:
         self.path = path
         self.mapping_meta = mapping_meta
@@ -54,6 +52,7 @@ class BatchXMLSchemaReader:
 
         self.namespaces = []
         self.__structural_data = {}
+        self.__seen_tags = [set()]
 
     @contextlib.contextmanager
     def read_path(self) -> Iterator[IO[bytes]]:
@@ -68,139 +67,158 @@ class BatchXMLSchemaReader:
             with pathlib.Path(self.path).open("rb") as file:
                 yield file
 
-    def detect_item_depth(self, max_events: int = 20000) -> int:
+    @staticmethod
+    def _strip_namespace(tag: str) -> str:
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    def _get_element_tag_with_prefix(self, elem: etree._Element) -> str:
         """
-        Reads first max_events from given file, and collects depth and number of tags at each depth
-        to automatically detect the best item_depth for xmltodict.
+        Replace element namespace with prefix
         """
-        logger.debug(f"Start reading {max_events} events from {self.path}")
-        depth = 0
-        depth_tag_counts = defaultdict(lambda: defaultdict(int))  # depth -> tag -> count
+        tag = self._strip_namespace(elem.tag)
+        return f"{elem.prefix}:{tag}" if elem.prefix else tag
 
-        with self.read_path() as stream:
-            xml = etree.iterparse(stream, events=("start", "end"), recover=True)
+    def _get_element_attribute_with_with_prefix(self, attribute: str, nsmap: dict[str, str]) -> str:
+        """
+        If attribute has a namespace - replace namespace with prefix.
+        Examples:
+            "{https://example.com/xsi}code" -> "xsi:code", if namespace exists in nsmap
+            "{https://example.com/xsi}code" -> "code", if namespace does not exist in nsmap
+            "code" -> "code"
+        """
+        if "}" not in attribute:
+            return f"@{attribute}"
 
-            for i, (event, element) in enumerate(xml):
-                if event == "start":
-                    depth += 1
-                    # Strip namespace if present
-                    tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-                    depth_tag_counts[depth][tag] += 1
-                elif event == "end":
-                    depth -= 1
-                    element.clear()
+        attribute_namespace = (attribute.split("}")[0]).strip("{}")
+        attribute_name = self._strip_namespace(attribute)
 
-                if i >= max_events:
-                    break
-
-        # Find the first depth >= 2 where repetition or high breadth occurs
-        detected_depth = 2
-        for candidate_depth in sorted(depth_tag_counts.keys()):
-            if candidate_depth < 2:
-                continue
-
-            tag_counts = depth_tag_counts[candidate_depth]
-            max_repetition = max(tag_counts.values()) if tag_counts else 0
-            total_breadth = sum(tag_counts.values())
-
-            # If any tag repeats, we have many tags, or many attributes, this is likely the item level
-            if max_repetition > 1 or total_breadth > 10:
-                detected_depth = candidate_depth
-                break
-
-        logger.debug(f"Detected item_depth for {self.path}: {detected_depth}")
-
-        return detected_depth
+        return next(
+            (f"@{prefix}:{attribute_name}" for prefix, ns in nsmap.items() if attribute_namespace == ns),
+            f"@{attribute_name}",
+        )
 
     def read_xml(self) -> None:
-        item_depth = self.detect_item_depth()
-
         with self.read_path() as stream:
-            xmltodict.parse(stream, cdata_key="text()", item_depth=item_depth, item_callback=self.read_item)
+            # lxml iterparse events:
+            #   "start-ns" - fired when namespace is found.
+            #   "start" - fired when element is found. Only element and its attributes available.
+            #   "end" - fired when element closing tag is found. Element content is available
+            context = etree.iterparse(stream, events=("start", "end", "start-ns"), recover=True)
+            path = []
+
+            for event, elem in context:
+                if event == "start-ns":
+                    prefix, uri = elem
+                    prefix = "xmlns" if prefix == "" else prefix
+                    if (prefix, uri) not in self.namespaces:
+                        self.namespaces.append((prefix, uri))
+                    continue
+
+                # Get tag with prefix instead of tag with namespace.
+                tag = self._get_element_tag_with_prefix(elem)
+
+                if event == "start":
+                    is_repeat = tag in self.__seen_tags[-1]
+                    self.__seen_tags[-1].add(tag)
+                    self.__seen_tags.append(set())
+
+                    path.append(tag)
+                    self._merge_start(path, elem, is_repeat)
+                elif event == "end":
+                    self.__seen_tags.pop()
+                    self._merge_end(path, elem)
+                    path.pop()
+                    # Memory cleanup
+                    elem.clear()
+                    while elem.getprevious() is not None:
+                        del elem.getparent()[0]
 
         # Process the collected structural data once at the end
         self.parse_structure()
 
-    def read_item(self, data_path: list[tuple[str, dict | None]], data: dict) -> bool:
+    @staticmethod
+    def _get_inner_value(data: dict[str, list | dict], tag: str) -> dict:
+        if isinstance(data[tag], list):
+            inner_data = data[tag][0]
+        else:
+            inner_data = data[tag]
+
+        return inner_data
+
+    def _merge_start(self, path: list[str], elem: etree._Element, is_repeat: bool) -> None:
         """
-        Method that is called by xmltodict for each item that was read.
-        Merges item structure into the global structural data.
+        Merges element and attributes to self.__structural_data
         """
-        self.merge_path_and_item_to_structure(data_path, data)
-        return True
+        current = self.__structural_data
+        for i, tag in enumerate(path[:-1]):
+            parent = current
+            current = self._get_inner_value(current, tag)
 
-    def merge_path_and_item_to_structure(self, path: list[tuple[str, dict | None]], item: dict) -> None:
-        """
-        Merges current item's path and item into the global structural dictionary.
-        """
-        current_data = self.__structural_data
-
-        for i, (tag, attrs) in enumerate(path):
-            tag_attrs = {f"@{k}": v for k, v in attrs.items()} if attrs else {}
-            is_leaf_tag = i == len(path) - 1
-
-            if tag not in current_data:
-                current_data[tag] = {}
-
-            if is_leaf_tag:
-                # If leaf tag exists multiple times in XML - make it a list
-                if isinstance(current_data[tag], dict) and current_data[tag]:
-                    current_data[tag] = [current_data[tag]]
-
-                # If leaf is a list - merge only first dict, since list only marks that there are multiple items in XML
-                if isinstance(current_data[tag], list):
-                    self._merge_item_to_structure(current_data[tag][0], item)
+            # If we previously thought this was a leaf (None or str), but now it has a child,
+            # we must convert it to a dictionary.
+            if not isinstance(current, dict):
+                if isinstance(parent[tag], list):
+                    parent[tag][0] = {"text()": current} if current is not None else {}
+                    current = parent[tag][0]
                 else:
-                    self._merge_item_to_structure(current_data[tag], item)
+                    parent[tag] = {"text()": current} if current is not None else {}
+                    current = parent[tag]
+
+        tag = path[-1]
+        if tag not in current:
+            # Tag does not exist. Add tag and element attributes to python structure
+            if elem.attrib:
+                current[tag] = {
+                    self._get_element_attribute_with_with_prefix(k, elem.nsmap): v for k, v in elem.attrib.items()
+                }
             else:
-                current_data[tag].update(tag_attrs)
+                current[tag] = None
+        else:
+            # Repetition detected, promote to list for array inference
+            if is_repeat:
+                if not isinstance(current[tag], list):
+                    current[tag] = [current[tag]]
 
-            current_data = current_data[tag]
+            target = self._get_inner_value(current, tag)
 
-    def _merge_item_to_structure(self, structure: dict, item: Any) -> None:
+            if elem.attrib:
+                if not isinstance(target, dict):
+                    # Convert simple value to dict to accommodate attributes
+                    target_val = {"text()": target} if target is not None else {}
+                    if isinstance(current[tag], list):
+                        current[tag][0] = target_val
+                    else:
+                        current[tag] = target_val
+                    target = target_val
+
+                for k, v in elem.attrib.items():
+                    target[self._get_element_attribute_with_with_prefix(k, elem.nsmap)] = v
+
+    def _merge_end(self, path: list[str], elem: etree._Element) -> None:
         """
-        Merges XML item into already saved structural data, replacing values.
-        If item is nested - this method is recursively called for each nested element in item.
+        Merges element text to self.__structural_data
         """
-        if not isinstance(item, dict):
-            # Element with text value. Simply save element value in structure
-            self._merge_value_into_structure(structure, "text()", item)
+        text = elem.text.strip() if elem.text else None
+        if not text:
             return
 
-        for key, value in item.items():
-            if key.startswith("@"):
-                # Key is XML element attribute. Simply save attribute value in structure
-                self._merge_value_into_structure(structure, key, value)
+        current = self.__structural_data
+        for tag in path[:-1]:
+            current = self._get_inner_value(current, tag)
 
-            if isinstance(value, dict):
-                # Key is XML element tag, value is dictionary with element data (attributes + elements).
-                # Add new dictionary to structure and process element using recursion
-                if key not in structure:
-                    structure[key] = {}
-                self._merge_item_to_structure(structure[key], value)
-
-            elif isinstance(value, list):
-                # If value is list - multiple XML elements with same tag was found. List items are data of each element.
-                if is_list_of_dicts(value):
-                    # If all elements are dicts - create list with dict in structure and process
-                    # each element using recursion
-                    if key not in structure:
-                        structure[key] = [{}]
-                    for value_item in value:
-                        self._merge_item_to_structure(structure[key][0], value_item)
-
-                else:
-                    # If not all elements are dicts - Simply save value in structure.
-                    # Most likely XML elements are text values
-                    self._merge_value_into_structure(structure, key, value)
-
+        tag = path[-1]
+        if isinstance(current[tag], list):
+            target = current[tag][0]
+            if isinstance(target, dict):
+                target["text()"] = text
             else:
-                # Key is XML element with text value. Simply save element value in structure
-                self._merge_value_into_structure(structure, key, value)
-
-    @staticmethod
-    def _merge_value_into_structure(structure: dict, key: str, value: Any) -> None:
-        structure[key] = value
+                current[tag][0] = text
+        else:
+            target = current[tag]
+            if isinstance(target, dict):
+                target["text()"] = text
+            else:
+                current[tag] = text
 
     def parse_structure(self) -> None:
         """
@@ -219,8 +237,8 @@ class BatchXMLSchemaReader:
 
 
 def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iterator[ManifestSchema]:
-    mapping_meta = _MappingMeta.get_for(manifest_type)
-    dataset_structure = _MappedDataset(
+    mapping_meta = MappingMeta.get_for(manifest_type)
+    dataset_structure = MappedDataset(
         dataset=dataset_name if dataset_name else "dataset",
         given_dataset_name=dataset_name,
         resource="resource",
@@ -245,9 +263,9 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
         memory_start = process.memory_info().rss
         print(f"Memory start: {memory_start / 1024**2} MB")
 
-        xml_batch_reader = BatchXMLSchemaReader(path, mapping_meta, dataset_structure)
-        xml_batch_reader.read_xml()
-        yield from convert_to_manifest(mapping_meta, xml_batch_reader.namespaces, xml_batch_reader.dataset_structure)
+        xml_reader = XMLIterSchemaReader(path, mapping_meta, dataset_structure)
+        xml_reader.read_xml()
+        yield from convert_to_manifest(mapping_meta, xml_reader.namespaces, xml_reader.dataset_structure)
 
         memory_end = process.memory_info().rss
         print(f"Memory end: {memory_end / 1024**2} MB")
@@ -255,8 +273,8 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
 
 
 def parse_data(
-    mapping_meta: _MappingMeta, data: dict, dataset_structure: _MappedDataset
-) -> tuple[_MappedDataset, list[Any]]:
+    mapping_meta: MappingMeta, data: dict, dataset_structure: MappedDataset
+) -> tuple[MappedDataset, list[Any]]:
     namespaces = list(extract_namespaces(data, mapping_meta))
 
     converted = _fix_for_blank_nodes(data)
@@ -269,9 +287,9 @@ def parse_data(
 
 
 def convert_to_manifest(
-    mapping_meta: _MappingMeta,
+    mapping_meta: MappingMeta,
     namespaces: list[Any],
-    dataset_structure: _MappedDataset,
+    dataset_structure: MappedDataset,
 ) -> Iterator[ManifestSchema]:
     prefixes = {}
     for i, (key, value) in enumerate(namespaces):
@@ -387,7 +405,7 @@ def _fix_for_blank_nodes(values: Any) -> Any:
     return return_values
 
 
-def _name_without_namespace(name: str, mapping_meta: _MappingMeta, prefixes: dict) -> str:
+def _name_without_namespace(name: str, mapping_meta: MappingMeta, prefixes: dict) -> str:
     if mapping_meta.namespace_seperator not in name:
         return name
 
@@ -410,7 +428,7 @@ def _find_parent_key(data: dict[str, list[str]], string: str) -> str | None:
     return None
 
 
-def extract_namespaces(data: Any, mapping_meta: _MappingMeta) -> Iterator[Any]:
+def extract_namespaces(data: Any, mapping_meta: MappingMeta) -> Iterator[Any]:
     if not mapping_meta.check_namespace:
         return
 
@@ -448,7 +466,7 @@ def nested_prop_names(new_values: list, values: dict, root: str, seperator: str)
 
 
 def check_missing_prop_required(
-    dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope, mapping_meta: _MappingMeta
+    dataset: MappedDataset, values: dict, mapping_scope: MappingScope, mapping_meta: MappingMeta
 ) -> None:
     if mapping_scope.model_scope != "":
         return
@@ -482,7 +500,7 @@ def check_missing_prop_required(
 
 
 def run_type_detectors(
-    dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope, mapping_meta: _MappingMeta
+    dataset: MappedDataset, values: dict, mapping_scope: MappingScope, mapping_meta: MappingMeta
 ) -> None:
     if isinstance(values, list):
         for item in values:
@@ -501,7 +519,7 @@ def run_type_detectors(
                     seperator=mapping_meta.seperator,
                     value=mapping_scope.model_scope,
                 )
-                new_mapping_scope = _MappingScope(
+                new_mapping_scope = MappingScope(
                     parent_scope=parent_scope,
                     model_name=key,
                     model_scope="",
@@ -509,7 +527,7 @@ def run_type_detectors(
                 )
                 run_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
             else:
-                new_mapping_scope = _MappingScope(
+                new_mapping_scope = MappingScope(
                     parent_scope=mapping_scope.parent_scope,
                     model_name=mapping_scope.model_name,
                     model_scope=mapping_scope.model_scope,
@@ -526,7 +544,7 @@ def run_type_detectors(
                     _detect_type(dataset, new_mapping_scope, mapping_meta, value)
 
 
-def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_meta: _MappingMeta, value: Any) -> None:
+def _detect_type(dataset: MappedDataset, mapping_scope: MappingScope, mapping_meta: MappingMeta, value: Any) -> None:
     prop_name = _create_name_with_prefix(mapping_scope.model_scope, mapping_meta.seperator, mapping_scope.property_name)
     model_name = mapping_scope.model_name
     model_source = _create_name_with_prefix(
@@ -543,7 +561,7 @@ def is_list_of_dicts(data: list) -> bool:
 
 
 def setup_model_type_detectors(
-    dataset: _MappedDataset, values: dict | list, mapping_scope: _MappingScope, mapping_meta: _MappingMeta
+    dataset: MappedDataset, values: dict | list, mapping_scope: MappingScope, mapping_meta: MappingMeta
 ) -> None:
     if isinstance(values, list):
         for item in values:
@@ -562,7 +580,7 @@ def setup_model_type_detectors(
                     value=mapping_scope.model_scope,
                 )
 
-                new_mapping_scope = _MappingScope(
+                new_mapping_scope = MappingScope(
                     parent_scope=parent_scope,
                     model_name=key,
                     model_scope="",
@@ -580,7 +598,7 @@ def setup_model_type_detectors(
                     set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
 
             else:
-                new_mapping_scope = _MappingScope(
+                new_mapping_scope = MappingScope(
                     parent_scope=mapping_scope.parent_scope,
                     model_name=mapping_scope.model_name,
                     model_scope=mapping_scope.model_scope,
@@ -607,8 +625,8 @@ def _create_name_with_prefix(prefix: str, seperator: str, value: str) -> str:
     return f"{prefix}{seperator}{value}"
 
 
-def create_type_detectors(dataset: _MappedDataset, values: Any, mapping_meta: _MappingMeta) -> None:
-    mapping_scope = _MappingScope(parent_scope="", model_scope="", model_name="", property_name="")
+def create_type_detectors(dataset: MappedDataset, values: Any, mapping_meta: MappingMeta) -> None:
+    mapping_scope = MappingScope(parent_scope="", model_scope="", model_name="", property_name="")
     setup_model_type_detectors(dataset, values, mapping_scope, mapping_meta)
     run_type_detectors(dataset, values, mapping_scope, mapping_meta)
 
@@ -638,9 +656,9 @@ def is_blank_node(values: list | dict) -> bool:
 
 
 def set_type_detector(
-    dataset: _MappedDataset,
-    mapping_scope: _MappingScope,
-    mapping_meta: _MappingMeta,
+    dataset: MappedDataset,
+    mapping_scope: MappingScope,
+    mapping_meta: MappingMeta,
     is_ref: bool = False,
     is_array: bool = False,
 ) -> None:
@@ -670,18 +688,18 @@ def set_type_detector(
     if model_name in dataset.models.keys():
         if model_source in dataset.models[model_name].keys():
             if prop_name not in dataset.models[model_name][model_source].properties.keys():
-                dataset.models[model_name][model_source].properties[prop_name] = _MappedProperties(
+                dataset.models[model_name][model_source].properties[prop_name] = MappedProperties(
                     name=prop_name,
                     source=prop_source,
                     type_detector=TypeDetector(),
                     extra=extra,
                 )
         else:
-            dataset.models[model_name][model_source] = _MappedModels(
+            dataset.models[model_name][model_source] = MappedModels(
                 name=model_name,
                 source=model_source,
                 properties={
-                    prop_name: _MappedProperties(
+                    prop_name: MappedProperties(
                         name=prop_name,
                         source=prop_source,
                         type_detector=TypeDetector(),
@@ -691,11 +709,11 @@ def set_type_detector(
             )
     else:
         dataset.models[model_name] = {
-            model_source: _MappedModels(
+            model_source: MappedModels(
                 name=model_name,
                 source=model_source,
                 properties={
-                    prop_name: _MappedProperties(
+                    prop_name: MappedProperties(
                         name=prop_name,
                         source=prop_source,
                         type_detector=TypeDetector(),
