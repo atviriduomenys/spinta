@@ -48,7 +48,7 @@ def eq_(env: SoapQueryBuilder, field: Bind, value: object) -> Expr | None:
     try:
         prop = env.resolve_property(field)
     except PropertyNotFound:
-        # leave query parameter for other query builders to resolve
+        # leave query parameter for other resolvers
         return Expr("eq", field, value)
 
     if not isinstance(prop.external.prepare, Expr):
@@ -82,6 +82,34 @@ def _finalize_soap_request_body_resolve(env: SoapQueryBuilder) -> None:
         env.soap_request_body[param_body_key] = env.resolve(param_body_value)
 
 
+def _param_for_soap_body_key(env: SoapQueryBuilder, param_source: str) -> Param | None:
+    for param in env.params.values():
+        soap_body = getattr(param, "soap_body", None)
+        if soap_body and param_source in soap_body:
+            return param
+    return None
+
+
+def _resolve_deferred_soap_request_body_exprs(env: SoapQueryBuilder) -> None:
+    """Resolve adapter-deferred prepares after the full SOAP body is assembled."""
+    deferred_names = get_deferred_prepare_names()
+    if not deferred_names:
+        return
+    for param_source, value in list(env.soap_request_body.items()):
+        if not isinstance(value, Expr):
+            continue
+        if getattr(value, "name", None) not in deferred_names:
+            continue
+        resolved = env.resolve(value)
+        param = _param_for_soap_body_key(env, param_source)
+        if param and getattr(param, "soap_body_value_type", None) == "cdata" and resolved:
+            env.soap_request_body[param_source] = MakeCDATA(resolved)
+        else:
+            env.soap_request_body[param_source] = resolved
+        if param is not None:
+            env.property_values[param.name] = resolved
+
+
 def _populate_soap_request_body_with_url_values(env: SoapQueryBuilder) -> None:
     for prop in take(env.model.properties).values():
         if not authorized(env.context, prop, Action.GETALL):
@@ -101,21 +129,19 @@ def soap_request_body(env: SoapQueryBuilder) -> None:
 
     _finalize_soap_request_body_resolve(env)
     _populate_soap_request_body_with_url_values(env)
+    _resolve_deferred_soap_request_body_exprs(env)
 
 
 @ufunc.resolver(SoapQueryBuilder, Property)
 def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
     """
-    Only care about properties that describe URL query parameters:
+    Only care for properties that describe URL query parameters:
         properties without `source` and with `prepare`.
-    We ignore the rest.
     """
     if prop.external.name:
-        # Ignore properties with `source`
         return None
 
     if not isinstance(prop.external.prepare, Expr):
-        # Ignore properties without `prepare` expression
         return None
 
     resource_param = env(this=prop).resolve(prop.external.prepare)
@@ -133,34 +159,39 @@ def _get_final_soap_request_body_value(env: SoapQueryBuilder, property_name: str
 
 @ufunc.resolver(SoapQueryBuilder, Property, Param)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
-    """Replace default param.soap_body with url_param values or resolve prepare Expr."""
+    """Merge URL query params into the SOAP body; resolve non-deferred Expr; keep deferred Expr for a later pass."""
     soap_body = getattr(param, "soap_body", None)
     if not soap_body:
         return
     param_source = next(iter(soap_body))
-    param_default_value = env.soap_request_body.get(param_source, NA)
+    deferred_names = get_deferred_prepare_names()
 
-    if isinstance(param_default_value, Expr):
-        final_value = env.resolve(param_default_value)
-    else:
-        final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
-        if isinstance(final_value, Expr):
+    # Single source of truth (same as pre-adapter behaviour): URL wins over manifest default.
+    final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
+
+    if isinstance(final_value, Expr):
+        if getattr(final_value, "name", None) in deferred_names:
+            pass
+        else:
             final_value = env.resolve(final_value)
 
+    is_deferred_expr = isinstance(final_value, Expr) and getattr(final_value, "name", None) in deferred_names
+
     if final_value is NA:
-        # If value not in URL and DSA has no default - remove it from SOAP request completely
         env.soap_request_body.pop(param_source, None)
         final_value = None
-    elif final_value:
-        # If value should be sent as CDATA - change it to etree.CDATA
-        soap_final_value = MakeCDATA(final_value) if param.soap_body_value_type == "cdata" else final_value
+    elif is_deferred_expr:
+        env.soap_request_body[param_source] = final_value
+    else:
+        if param.soap_body_value_type == "cdata" and final_value:
+            soap_final_value = MakeCDATA(final_value)
+        else:
+            soap_final_value = final_value
         env.soap_request_body[param_source] = soap_final_value
 
-    # Check if required property values exist
     if prop.dtype.required and param_source not in env.soap_request_body:
         raise MissingRequiredProperty(prop, prop=prop.name)
 
-    # Update property values. Even if value is not sent via SOAP, it should have None value when displayed by Spinta
     env.property_values.update({param.name: final_value})
 
 
