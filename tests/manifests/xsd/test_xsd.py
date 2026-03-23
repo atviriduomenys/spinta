@@ -163,10 +163,9 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     path = tmp_path / "manifest.xsd"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, xsd)
+    manifest = load_manifest(rc, path)
     print(manifest)
     assert manifest == table
-
 
 def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     xsd = """
