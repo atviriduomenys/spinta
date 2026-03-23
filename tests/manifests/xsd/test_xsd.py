@@ -63,7 +63,6 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
 
 """
     path = tmp_path / "manifest.xsd"
-    path_xsd = f"{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
@@ -109,10 +108,9 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
 """
 
     path = tmp_path / "manifest.xsd"
-    path_xsd = f"{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path_xsd)
+    manifest = load_manifest(rc, path)
     print(manifest)
     assert manifest == table
 
@@ -163,10 +161,9 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 """
 
     path = tmp_path / "manifest.xsd"
-    path_xsd = f"{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path_xsd)
+    manifest = load_manifest(rc, xsd)
     print(manifest)
     assert manifest == table
 
