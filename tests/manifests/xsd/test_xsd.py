@@ -111,13 +111,11 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
 
 
 def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     xsd = """
-
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 <xs:element name="asmenys">
   <xs:complexType mixed="true">
@@ -164,12 +162,11 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
+
 
 def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     xsd = """
-
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 
 <xs:element name="klaida" type="xs:string">
@@ -207,7 +204,6 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
 
 
@@ -261,7 +257,6 @@ id | d | r | b | m | property            | type            | ref              | 
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
 
 
@@ -322,7 +317,6 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
 
 
@@ -380,7 +374,6 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
 
 
@@ -413,7 +406,6 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
-    print(manifest)
     assert manifest == table
 
 
