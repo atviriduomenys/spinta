@@ -325,12 +325,12 @@ def select(
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Selected)
-def select(env: DaskDataFrameQueryBuilder, selected: Selected):
+def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
     return selected
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
-def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr):
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
     prep = env.call("select", prep)
     if prep is not None:
         return Selected(
