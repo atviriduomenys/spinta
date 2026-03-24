@@ -1,23 +1,12 @@
-"""
-SOAP adapter registration via **config-driven module loading**.
-Adapters are loaded from local Python files specified in `config.yml`:
-    soap_adapter_modules:
-      - /path/to/adapter.py
-Each module should provide:
-    - get_deferred_prepare_names() -> list[str]
-    - get_body_resolvers() -> dict[str, callable]
-This keeps Spinta core generic while allowing deployments to drop in
-adapter files without publishing packages or configuring entry points.
-"""
-
-from __future__ import annotations
+"""Load optional SOAP adapter modules from ``soap_adapter_modules`` paths in config."""
 
 import importlib.util
 import logging
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable
 
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, UFuncRegistry
 from spinta.core.config import RawConfig
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
@@ -29,18 +18,11 @@ _deferred_prepare_names_cache: set[str] | None = None
 
 
 def get_deferred_prepare_names() -> set[str]:
-    """Return deferred prepare names loaded at startup.
-    This is used by SOAP query builders to skip resolving deferred expressions
-    until the request body is populated and body resolvers run.
-    If `register_soap_ufuncs()` hasn't been called yet, this returns an empty set.
-    """
+    """Names of prepare ufuncs left unresolved until the SOAP body is built (empty before register)."""
     return _deferred_prepare_names_cache or set()
 
 
-def _load_adapter_module_from_path(file_path: str, raw_config: RawConfig | None = None):
-    """Load a Python module from a file path.
-    Returns the module object, or None if loading fails.
-    """
+def _load_adapter_module_from_path(file_path: str, raw_config: RawConfig | None = None) -> ModuleType | None:
     try:
         path = Path(file_path)
         if not path.exists():
@@ -62,15 +44,6 @@ def _load_adapter_module_from_path(file_path: str, raw_config: RawConfig | None 
 
 
 def _load_adapters_from_config(raw_config: RawConfig | None) -> tuple[set[str], dict[str, Callable[..., Any]]]:
-    """Load adapter modules specified in raw config.
-    Config format:
-        soap_adapter_modules:
-          - /path/to/adapter.py
-          - /path/to/another_adapter.py
-    Each module should have:
-    - get_deferred_prepare_names() -> list[str]
-    - get_body_resolvers() -> dict[str, callable]
-    """
     deferred: set[str] = set()
     body_resolvers: dict[str, Callable[..., Any]] = {}
 
@@ -92,20 +65,22 @@ def _load_adapters_from_config(raw_config: RawConfig | None) -> tuple[set[str], 
         if hasattr(module, "get_deferred_prepare_names"):
             try:
                 result = module.get_deferred_prepare_names()
+            except Exception as e:
+                log.warning("Failed to call get_deferred_prepare_names in %s: %s", module_path, e)
+            else:
                 if isinstance(result, (list, tuple)):
                     deferred.update(result)
                 else:
                     deferred.add(str(result))
-            except Exception as e:
-                log.warning("Failed to call get_deferred_prepare_names in %s: %s", module_path, e)
 
         if hasattr(module, "get_body_resolvers"):
             try:
                 result = module.get_body_resolvers()
-                if isinstance(result, dict):
-                    body_resolvers.update(result)
             except Exception as e:
                 log.warning("Failed to call get_body_resolvers in %s: %s", module_path, e)
+            else:
+                if isinstance(result, dict):
+                    body_resolvers.update(result)
 
     return deferred, body_resolvers
 
@@ -115,8 +90,10 @@ def _deferred_prepare_resolver(env, expr: Expr) -> Expr:
     return expr
 
 
-def _make_body_resolver(callable_fn: Callable[..., Any]):
-    def body_resolver(env, expr: Expr) -> Any:
+def _make_body_resolver(callable_fn: Callable[..., Any]) -> Callable[[SoapQueryBuilder, Expr], Any]:
+    """Adapter may implement ``fn(env)`` only; fall back if ``fn(env, expr)`` raises ``TypeError``."""
+
+    def body_resolver(env: SoapQueryBuilder, expr: Expr) -> Any:
         try:
             return callable_fn(env, expr)
         except TypeError:
@@ -125,7 +102,7 @@ def _make_body_resolver(callable_fn: Callable[..., Any]):
     return body_resolver
 
 
-def register_soap_ufuncs(registry, raw_config: RawConfig | None = None) -> None:
+def register_soap_ufuncs(registry: UFuncRegistry, raw_config: RawConfig | None = None) -> None:
     """Register SOAP adapter resolvers from config (`soap_adapter_modules`).
     Adapters are loaded from local Python files listed in:
         soap_adapter_modules:

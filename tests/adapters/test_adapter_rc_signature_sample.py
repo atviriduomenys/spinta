@@ -6,12 +6,12 @@ import pytest
 
 from spinta.core.config import RawConfig
 
-import spinta.adapters.rc_signature_adapter as adapter
+import spinta.adapters.rc.signature_adapter as adapter
 
 
 def _rc_test_private_key_path() -> Path:
     here = Path(__file__).resolve().parent
-    return here / "helpers" / "raktas_priv.pem"
+    return here / "helpers" / "rc_test_private_key.pem"
 
 
 def test_rc_simple_message_signing() -> None:
@@ -74,6 +74,36 @@ def test_rc_signature_message_preparation() -> None:
 
     expected_args = f"{action_type}{caller_code}{end_user_info}{parameters}{time_value}"
     assert adapter.build_rc_string_to_sign(soap_body) == expected_args
+
+
+def test_is_quoted() -> None:
+    assert not adapter.is_quoted("")
+    assert not adapter.is_quoted("a")
+    assert not adapter.is_quoted("'a")
+    assert adapter.is_quoted("'ab'")
+    assert adapter.is_quoted('"xml"')
+    assert not adapter.is_quoted('"')
+
+
+def test_rc_signature_message_preparation_strips_quoted_parameters() -> None:
+    action_type = "17"
+    caller_code = "X"
+    end_user_info = ""
+    parameters_inner = "<p/>"
+    time_value = "t"
+
+    for quoted in (f"'{parameters_inner}'", f'"{parameters_inner}"'):
+        soap_body = {
+            "input": {
+                "ActionType": action_type,
+                "CallerCode": caller_code,
+                "EndUserInfo": end_user_info,
+                "Parameters": quoted,
+                "Time": time_value,
+            }
+        }
+        expected = f"{action_type}{caller_code}{end_user_info}{parameters_inner}{time_value}"
+        assert adapter.build_rc_string_to_sign(soap_body) == expected
 
 
 def test_validate_soap_adapter_config_requires_raw_config() -> None:

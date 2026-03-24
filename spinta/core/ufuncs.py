@@ -140,7 +140,7 @@ class UFuncRegistry:
             # automatically by __call__.
             importlib.import_module(module)
 
-    def register(self, name: str, func: Callable, types: tuple):
+    def register(self, name: str, func: Callable, types: tuple) -> None:
         """Register a single (name, func, types) for plugin-discovered resolvers."""
         self._ufuncs.append((name, func, types))
 

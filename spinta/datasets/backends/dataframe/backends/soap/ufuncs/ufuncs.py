@@ -25,6 +25,8 @@ from spinta.utils.schema import NA
 
 log = logging.getLogger(__name__)
 
+SOAP_BODY_VALUE_TYPE_CDATA = "cdata"
+
 
 class MakeCDATA:
     """
@@ -63,7 +65,7 @@ def eq_(env: SoapQueryBuilder, field: Bind, value: object) -> Expr | None:
 @ufunc.resolver(SoapQueryBuilder, Expr, name="and")
 def and_(env: SoapQueryBuilder, expr: Expr) -> list[Any]:
     args, kwargs = expr.resolve(env)
-    args = [a for a in args if a is not None]
+    args = [arg_item for arg_item in args if arg_item is not None]
     return env.call("and", args)
 
 
@@ -77,59 +79,74 @@ def and_(env: SoapQueryBuilder, args: list) -> Any:
 
 def _finalize_soap_request_body_resolve(env: SoapQueryBuilder) -> None:
     deferred_names = get_deferred_prepare_names()
+
     for param_body_key, param_body_value in env.soap_request_body.items():
         if not isinstance(param_body_value, Expr):
             continue
+
         if getattr(param_body_value, "name", None) in deferred_names:
             continue
+
         env.soap_request_body[param_body_key] = env.resolve(param_body_value)
 
 
 def _param_for_soap_body_key(env: SoapQueryBuilder, param_source: str, expr: Expr | None = None) -> Param | None:
     """Find the resource Param that owns this SOAP body slot (flat key like ``input/Signature``)."""
+    param_lower = param_source.lower()
+
     for resource_param in env.params.values():
         soap_body = getattr(resource_param, "soap_body", None)
         if not soap_body:
             continue
+
         if param_source in soap_body:
             return resource_param
-        for soap_body_key in soap_body.keys():
-            if soap_body_key.lower() == param_source.lower():
-                return resource_param
+
+        if any(soap_key.lower() == param_lower for soap_key in soap_body):
+            return resource_param
+
         if expr is not None:
             for prepared_value in soap_body.values():
                 if prepared_value is expr:
                     return resource_param
+
     return None
 
 
 def _property_value_key_for_deferred(matched_param: Param | None, param_source: str) -> str:
-    """Key for ``property_values`` (must match manifest param names for downstream query env)."""
     if matched_param is not None:
         return matched_param.name
-    # Last segment of the SOAP path, lowercased (e.g. input/Signature -> signature).
     path_suffix = param_source.rsplit("/", 1)[-1]
     return path_suffix.lower() if path_suffix else param_source
 
 
 def _resolve_deferred_soap_request_body_exprs(env: SoapQueryBuilder) -> None:
-    """Resolve adapter-deferred prepares after the full SOAP body is assembled."""
     deferred_names = get_deferred_prepare_names()
     if not deferred_names:
         return
+
     for param_source, deferred_expr in list(env.soap_request_body.items()):
         if not isinstance(deferred_expr, Expr):
             continue
+
         if getattr(deferred_expr, "name", None) not in deferred_names:
             continue
+
         resolved = env.resolve(deferred_expr)
         matched_param = _param_for_soap_body_key(env, param_source, expr=deferred_expr)
-        if matched_param and getattr(matched_param, "soap_body_value_type", None) == "cdata" and resolved:
+
+        if (
+            matched_param
+            and getattr(matched_param, "soap_body_value_type", None) == SOAP_BODY_VALUE_TYPE_CDATA
+            and resolved
+        ):
             env.soap_request_body[param_source] = MakeCDATA(resolved)
         else:
             env.soap_request_body[param_source] = resolved
+
         property_value_key = _property_value_key_for_deferred(matched_param, param_source)
         env.property_values[property_value_key] = resolved
+
         if matched_param is None:
             log.warning(
                 "SOAP deferred resolve: no Param matched for %r; property_values updated under %r",
@@ -142,6 +159,7 @@ def _populate_soap_request_body_with_url_values(env: SoapQueryBuilder) -> None:
     for prop in take(env.model.properties).values():
         if not authorized(env.context, prop, Action.GETALL):
             continue
+
         env.call("soap_request_body", prop)
 
 
@@ -153,6 +171,7 @@ def soap_request_body(env: SoapQueryBuilder) -> None:
     for param in env.params.values():
         if not hasattr(param, "soap_body"):
             continue
+
         env.soap_request_body.update(param.soap_body)
 
     _finalize_soap_request_body_resolve(env)
@@ -191,30 +210,30 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
     soap_body = getattr(param, "soap_body", None)
     if not soap_body:
         return
+
     param_source = next(iter(soap_body))
     deferred_names = get_deferred_prepare_names()
 
-    # Single source of truth (same as pre-adapter behaviour): URL wins over manifest default.
     final_value = _get_final_soap_request_body_value(env, prop.place, param_source)
 
-    if isinstance(final_value, Expr):
-        if getattr(final_value, "name", None) in deferred_names:
-            pass
-        else:
-            final_value = env.resolve(final_value)
+    if isinstance(final_value, Expr) and getattr(final_value, "name", None) not in deferred_names:
+        final_value = env.resolve(final_value)
 
     is_deferred_expr = isinstance(final_value, Expr) and getattr(final_value, "name", None) in deferred_names
 
     if final_value is NA:
         env.soap_request_body.pop(param_source, None)
         final_value = None
+
     elif is_deferred_expr:
         env.soap_request_body[param_source] = final_value
+
     else:
-        if param.soap_body_value_type == "cdata" and final_value:
+        if param.soap_body_value_type == SOAP_BODY_VALUE_TYPE_CDATA and final_value:
             soap_final_value = MakeCDATA(final_value)
         else:
             soap_final_value = final_value
+
         env.soap_request_body[param_source] = soap_final_value
 
     if prop.dtype.required and param_source not in env.soap_request_body:
