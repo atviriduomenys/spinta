@@ -1,1659 +1,1281 @@
-from typing import Callable
-import pytest
-
-from spinta.manifests.xsd.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource
-from unittest.mock import MagicMock, patch
 from lxml import etree
 
-from spinta.utils.naming import to_property_name
+from spinta.manifests.xsd.helpers import XSDReader, XSDModel
 
 
-def test_process_element_inline_type():
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-      <xs:element name="cityPopulation" type="integer"/>
-    </xs:schema>"""
-    state = State()
-    xsd_reader = XSDReader("test", "test")
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
-    result = xsd_reader.process_element(element, state)[0]
-
-    # Expected values based on the given requirements
-    assert isinstance(result, XSDProperty)
-
-    # Assert that the 'name' is 'city_population'
-    assert result.xsd_name == "cityPopulation"
-
-    # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation/text()"
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.is_array is False
-
-    # Assert that 'type' is an instance of XSDType and is of type 'integer'
-    assert isinstance(result.type, XSDType)
-    assert result.type.name == "integer"
-
-
-def test_process_element_inline_type_array():
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-      <xs:element name="cityPopulation" type="integer" maxOccurs="unbounded"/>
-    </xs:schema>"""
-    state = State()
-    xsd_reader = XSDReader("test", "test")
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
-    result = xsd_reader.process_element(element, state)[0]
-
-    # Expected values based on the given requirements
-    assert isinstance(result, XSDProperty)
-
-    # Assert that the 'name' is 'city_population'
-    assert result.xsd_name == "cityPopulation"
-
-    # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation/text()"
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.is_array is True
-
-    # Assert that 'type' is an instance of XSDType and is of type 'integer'
-    assert isinstance(result.type, XSDType)
-    assert result.type.name == "integer"
-
-
-def test_process_element_simple_type():
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-    <xs:element name="cityPopulation">
-      <xs:simpleType>
-        <xs:restriction base="xs:integer">
-          <xs:minInclusive value="1"/>
-          <xs:maxInclusive value="1000000000"/>
-        </xs:restriction>
-      </xs:simpleType> 
-      </xs:element>
-    </xs:schema>"""
-    state = State()
-    xsd_reader = XSDReader("test", "test")
-
-    xsd_type = XSDType()
-    xsd_type.xsd_type = "cityPopulation"
-    xsd_type.name = "integer"
-    xsd_reader.custom_types = {"populationType": xsd_type}
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
-    result = xsd_reader.process_element(element, state)[0]
-
-    # Expected values based on the given requirements
-    assert isinstance(result, XSDProperty)
-
-    assert result.xsd_name == "cityPopulation"
-
-    # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation/text()"
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.is_array is False
-
-    # Assert that 'type' is an instance of XSDType and is of type 'integer'
-    assert isinstance(result.type, XSDType)
-    assert result.type.name == "integer"
-
-
-def test_process_element_simple_type_array():
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-    <xs:element name="cityPopulation" maxOccurs="unbounded">
-      <xs:simpleType>
-        <xs:restriction base="xs:integer">
-          <xs:minInclusive value="1"/>
-          <xs:maxInclusive value="1000000000"/>
-        </xs:restriction>
-      </xs:simpleType> 
-      </xs:element>
-    </xs:schema>"""
-    state = State()
-    xsd_reader = XSDReader("test", "test")
-    xsd_type = XSDType()
-    xsd_type.xsd_type = "cityPopulation"
-    xsd_type.name = "integer"
-    xsd_reader.custom_types = {"populationType": xsd_type}
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
-    result = xsd_reader.process_element(element, state)[0]
-
-    # Expected values based on the given requirements
-    assert isinstance(result, XSDProperty)
-
-    assert result.xsd_name == "cityPopulation"
-
-    # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation/text()"
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.is_array is True
-
-    # Assert that 'type' is an instance of XSDType and is of type 'integer'
-    assert isinstance(result.type, XSDType)
-    assert result.type.name == "integer"
-
-
-def test_process_element_separate_simple_type():
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-      <xs:simpleType name="populationType">
-        <xs:restriction base="xs:integer">
-          <xs:minInclusive value="1"/>
-          <xs:maxInclusive value="1000000000"/>
-        </xs:restriction>
-      </xs:simpleType>
-      <xs:element name="cityPopulation" type="populationType"/>
-    </xs:schema>"""
-    state = State()
-    xsd_reader = XSDReader("test", "test")
-    xsd_type = XSDType()
-    xsd_type.xsd_type = "cityPopulation"
-    xsd_type.name = "integer"
-    xsd_reader.custom_types = {"populationType": xsd_type}
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
-    result = xsd_reader.process_element(element, state)[0]
-
-    # Expected values based on the given requirements
-    assert isinstance(result, XSDProperty)
-
-    assert result.xsd_name == "cityPopulation"
-
-    # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation/text()"
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.is_array is False
-
-    # Assert that 'type' is an instance of XSDType and is of type 'integer'
-    assert isinstance(result.type, XSDType)
-    assert result.type.name == "integer"
-
-
-def test_process_element_separate_simple_type_array():
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-      <xs:simpleType name="populationType">
-        <xs:restriction base="xs:integer">
-          <xs:minInclusive value="1"/>
-          <xs:maxInclusive value="1000000000"/>
-        </xs:restriction>
-      </xs:simpleType>
-      <xs:element name="cityPopulation" type="populationType" maxOccurs="unbounded"/>
-    </xs:schema>"""
-    state = State()
-    xsd_reader = XSDReader("test", "test")
-    xsd_type = XSDType()
-    xsd_type.xsd_type = "cityPopulation"
-    xsd_type.name = "integer"
-    xsd_reader.custom_types = {"populationType": xsd_type}
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
-    result = xsd_reader.process_element(element, state)[0]
-
-    # Expected values based on the given requirements
-    assert isinstance(result, XSDProperty)
-
-    assert result.xsd_name == "cityPopulation"
-
-    # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation/text()"
-
-    assert result.is_array is True
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    # Assert that 'type' is an instance of XSDType and is of type 'integer'
-    assert isinstance(result.type, XSDType)
-    assert result.type.name == "integer"
-
-
-@patch.object(XSDReader, "process_complex_type")
-def test_process_element_complex_type(mock_process_complex_type):
-    # Mocking the return value of process_complex_type
-    xsd_schema = """
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-
-  <!-- Definition of an element 'country' with a complexType specified inside -->
-  <xs:element name="country">
-    <xs:complexType>
-      <xs:sequence>
-        <!-- Two elements inside the complexType -->
-        <xs:element name="name" type="xs:string"/>
-        <xs:element name="population" type="xs:integer"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-
-</xs:schema>
+def test_get_description():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klaida" type="xs:string">
+        <xs:annotation><xs:documentation>Klaidos atveju - klaidos pranešimas</xs:documentation></xs:annotation>
+    </xs:element>
+    </xs:schema>
     """
-    xsd_root = etree.fromstring(xsd_schema)
 
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    dataset_resource = XSDDatasetResource(dataset_name="test")
-    mock_model_1 = XSDModel(dataset_resource=dataset_resource)
-    mock_model_1.name = ("Country",)
-    mock_model_1.source = ("country",)
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_description(element)
 
-    mock_property1 = XSDProperty()
-    mock_property1.xsd_name = "name"
-    mock_property1.source = "name"
-    mock_property1.type = "string"
+    assert result == "Klaidos atveju - klaidos pranešimas"
 
-    mock_property2 = XSDProperty()
-    mock_property2.xsd_name = "population"
-    mock_property2.source = "population"
-    mock_property2.type = "integer"
 
-    mock_model_1.properties = (
-        {
-            "name": mock_property1,
-            "population": mock_property2,
+def test_get_description_longer():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klaida" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>Klaidos atveju - klaidos pranešimas</xs:documentation>
+            <xs:documentation>Klaidos atveju - klaidos pranešimas</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+    </xs:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_description(element)
+
+    assert result == "Klaidos atveju - klaidos pranešimas Klaidos atveju - klaidos pranešimas"
+
+
+def test_get_description_simple_type():
+    element_string = """
+    <s:schema xmlns:s="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+        <s:element minOccurs="1" maxOccurs="1" name="responseCode">
+            <s:simpleType>
+                <s:annotation>
+                    <s:documentation>1 = OK (užklausa įvykdyta, atsakymas grąžintas)</s:documentation>
+                    <s:documentation>0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta)</s:documentation>
+                    <s:documentation>-1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)</s:documentation>
+                </s:annotation>
+                <s:restriction base="s:int">
+                    <s:enumeration value="-1" />
+                    <s:enumeration value="0" />
+                    <s:enumeration value="1" />
+                </s:restriction>
+            </s:simpleType>
+            </s:element>
+    </s:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_description(element)
+
+    assert (
+        result
+        == "1 = OK (užklausa įvykdyta, atsakymas grąžintas) 0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta) -1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)"
+    )
+
+
+def test_get_property_type():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klaida" type="xs:string">
+        <xs:annotation><xs:documentation>Klaidos atveju - klaidos pranešimas</xs:documentation></xs:annotation>
+    </xs:element>
+    </xs:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_property_type(element)
+
+    assert result == "string"
+
+
+def test_get_property_type_ref():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klientu_saraso_rezultatas">
+      <xs:complexType mixed="true">
+        <xs:sequence>
+          <xs:element ref="asmenys" minOccurs="0" maxOccurs="1" />
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    </xs:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath(
+        '//*[@ref="asmenys"]',
+    )[0]
+    print("ELEMENT:", element)
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_property_type(element)
+
+    assert result == "ref"
+
+
+def test_get_property_type_simple_type():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_property_type(element)
+
+    assert result == "string"
+
+
+def test_get_property_type_custom():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" type="some_type">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.custom_types = {"some_type": {"base": "string"}}
+    result = xsd.get_property_type(element)
+
+    assert result == "string"
+
+
+def test_get_property_type_unknown():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" type="some_type">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.get_property_type(element)
+
+    assert result == "string"
+
+
+def test_node_to_partial_property():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model._node_to_partial_property(element)
+
+    assert result1 == "ct_e200_forma"
+    assert result2 == {
+        "description": "E200 medicininės formos pavadinimas",
+        "enums": {"": {}},
+        "external": {
+            "name": "CT_E200_FORMA",
         },
-    )
-    mock_model_1.is_root_model = False
-
-    # Set the return value of the mocked process_complex_type
-    mock_process_complex_type.return_value = [
-        mock_model_1,
-    ]
-
-    # Create an instance of XSDReader
-    xsd_reader = XSDReader("test", "test")
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    # Call the method you want to test (which uses process_complex_type internally)
-    state = State()
-    result = xsd_reader.process_element(element, state)[0]
-
-    assert isinstance(result, XSDProperty)
-
-    # Check that the first model's name is 'Country'
-    assert result.xsd_name == "country"
-
-    assert result.source == "country"
-
-    assert result.is_array is False
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.type.name == "ref"
-
-
-def test_process_element_complex_type_separate():
-    xsd_schema = """
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-
-  <!-- Definition of an element 'country' with a complexType specified inside -->
-  <xs:element name="country" type="countryType"/>
-    <xs:complexType name="countryType">
-      <xs:sequence>
-        <!-- Two elements inside the complexType -->
-        <xs:element name="name" type="xs:string"/>
-        <xs:element name="population" type="xs:integer"/>
-      </xs:sequence>
-    </xs:complexType>
-
-</xs:schema>
-    """
-    xsd_root = etree.fromstring(xsd_schema)
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-
-    # Create an instance of XSDReader
-    reader = XSDReader("test", "test")
-    reader.root = xsd_root
-    reader.namespaces = xsd_root.nsmap
-    # Call the method you want to test (which uses process_complex_type internally)
-    state = State()
-    result = reader.process_element(element, state)[0]
-
-    assert isinstance(result, XSDProperty)
-
-    # Check that the first model's name is 'Country'
-    assert result.xsd_name == "country"
-
-    assert result.source == "country"
-
-    assert result.is_array is False
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-
-def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
-    complex_type_xml = """
-    <complexType name="DerivedType">
-        <complexContent>
-            <extension base="BaseType">
-                <sequence>
-                    <element name="extendedProp" type="xs:string"/>
-                </sequence>
-                <element name="attr1" type="xs:int"/>
-            </extension>
-        </complexContent>
-    </complexType>
-    """
-    complex_type_node = etree.fromstring(complex_type_xml)
-
-    xsd_reader.process_complex_content = MagicMock(
-        return_value=[
-            [
-                XSDProperty(xsd_name="extendedProp", property_type=XSDType(name="string")),
-                XSDProperty(xsd_name="attr1", property_type=XSDType(name="int")),
-            ]
-        ]
-    )
-    state = State()
-    state.extends_model = "BaseType"
-    base_model = create_xsd_model("BaseType")
-    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
-
-    models = xsd_reader.process_complex_type(complex_type_node, state)
-
-    assert len(models) == 1, "Should return one model"
-    model = models[0]
-    prop_names = list(model.properties.keys())
-
-    assert "extended_prop" in prop_names
-    assert "attr1" in prop_names
-    assert model.extends_model == "BaseType"
-
-
-def test_process_complex_type_with_simple_content(xsd_reader):
-    complex_type_xml = """
-    <complexType name="CityType">
-        <simpleContent>
-            <extension base="xs:string">
-                <attribute name="name" type="xs:string" use="required"/>
-                <attribute name="code" type="xs:string" use="optional"/>
-            </extension>
-        </simpleContent>
-    </complexType>
-    """
-    complex_type_node = etree.fromstring(complex_type_xml)
-
-    xsd_reader.process_simple_content = MagicMock(
-        return_value=[
-            XSDProperty(xsd_name="text", property_type=XSDType(name="string")),
-            XSDProperty(xsd_name="name", property_type=XSDType(name="string"), required=True),
-            XSDProperty(xsd_name="code", property_type=XSDType(name="string"), required=False),
-        ]
-    )
-    xsd_reader.dataset_resource.dataset_name = "dataset_name"
-
-    state = State()
-    models = xsd_reader.process_complex_type(complex_type_node, state)
-
-    assert len(models) == 1
-    model = models[0]
-    assert model.basename == "CityType"
-    assert model.name == "dataset_name/CityType"
-    assert "text" in model.properties
-    assert "name" in model.properties
-    assert "code" in model.properties
-
-    text_prop = model.properties["text"]
-    name_prop = model.properties["name"]
-    code_prop = model.properties["code"]
-
-    assert text_prop.type.name == "string"
-    assert name_prop.type.name == "string"
-    assert code_prop.type.name == "string"
-    assert name_prop.required is True
-    assert code_prop.required is False
-
-    xsd_reader.process_simple_content.assert_called_once_with(complex_type_node[0], state)
-
-
-def test_process_complex_type_with_all(xsd_reader):
-    xml = """
-    <complexType name="TestType">
-        <all>
-            <element name="elementOne" type="xs:string" />
-            <element name="elementTwo" type="xs:int" />
-        </all>
-    </complexType>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-    models = xsd_reader.process_complex_type(node, state)
-    assert len(models) == 1
-    model = models[0]
-
-    assert len(model.properties) == 2
-    assert model.properties["element_one"].type.name == "string"
-    assert model.properties["element_one"].xsd_name == "elementOne"
-    assert model.properties["element_two"].type.name == "integer"
-    assert model.properties["element_two"].xsd_name == "elementTwo"
-
-
-def test_process_element_ref():
-    xsd_schema = """
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                <xs:element ref="country"/>
-</xs:schema>
-
-    """
-    xsd_root = etree.fromstring(xsd_schema)
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-
-    # Create an instance of XSDReader
-    reader = XSDReader("test", "test")
-    reader.root = xsd_root
-    reader.namespaces = xsd_root.nsmap
-    # Call the method you want to test (which uses process_complex_type internally)
-    state = State()
-    result = reader.process_element(element, state)[0]
-
-    assert isinstance(result, XSDProperty)
-
-    # Check that the first model's name is 'Country'
-    assert result.xsd_name == "country"
-
-    assert result.source == "country"
-
-    assert result.is_array is False
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.type.name == "ref"
-
-
-def test_process_element_ref_backref():
-    xsd_schema = """
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                <xs:element ref="country" maxOccurs="unbounded"/>
-</xs:schema>
-
-    """
-    xsd_root = etree.fromstring(xsd_schema)
-    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-
-    # Create an instance of XSDReader
-    reader = XSDReader("test", "test")
-    reader.root = xsd_root
-    reader.namespaces = xsd_root.nsmap
-    # Call the method you want to test (which uses process_complex_type internally)
-    state = State()
-    result = reader.process_element(element, state)[0]
-
-    assert isinstance(result, XSDProperty)
-
-    # Check that the first model's name is 'Country'
-    assert result.xsd_name == "country"
-
-    assert result.source == "country"
-
-    assert result.is_array is True
-
-    # Assert that 'required' is True
-    assert result.required is True
-
-    assert result.type.name == "backref"
-
-
-# tests for process_complex_type
-
-
-def test_process_complex_type_attributes():
-    xsd = """
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-
-  <!-- Define the root element 'country' -->
-  <xs:element name="country">
-    <xs:complexType>
-        <!-- Define the 'name' and 'code' attributes inside 'country' -->
-        <xs:attribute name="name" type="xs:string"/>
-        <xs:attribute name="code" type="xs:string"/>
-
-    </xs:complexType>
-  </xs:element>
-
-</xs:schema>
-
-    """
-    schema = etree.XML(xsd)
-
-    root = schema.find(".//{http://www.w3.org/2001/XMLSchema}complexType")
-    state = State()
-    # Create an instance of XSDReader
-    reader = XSDReader("test", "test")
-    models = reader.process_complex_type(root, state)
-
-    assert isinstance(models[0], XSDModel)
-
-    assert len(reader.models) == 1
-
-    assert len(models[0].properties) == 2
-
-
-# Test process_choice
-@pytest.fixture
-def setup_instance():
-    """Fixture to set up an instance of XSDReader and mock state."""
-    instance = XSDReader("test", "test")
-    state = MagicMock(spec=State)
-    return instance, state
-
-
-@pytest.fixture
-def sample_xsd():
-    """Fixture to provide an XML Schema (XSD) with complexType and choice."""
-    xsd_string = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="root">
-            <xs:complexType>
-                <xs:choice>
-                    <xs:element name="element1" type="xs:string"/>
-                    <xs:element name="element2" type="xs:string"/>
-                </xs:choice>
-            </xs:complexType>
-        </xs:element>
-    </xs:schema>
-    """
-    return etree.XML(xsd_string)
-
-
-def test_process_choice_with_choice_node(setup_instance, sample_xsd):
-    """Test when the node contains a choice element in a complexType."""
-    instance, state = setup_instance
-
-    # Parse the XML node for 'root' element and its children
-    root = sample_xsd.find(".//{http://www.w3.org/2001/XMLSchema}choice")
-
-    # Mock process_element for the child elements inside the choice
-    with patch.object(instance, "process_element", return_value=["element_property"]) as mock_process_element:
-        result = instance.process_choice(root, state)
-
-        # Ensure the process_element is called for each choice element
-        assert mock_process_element.call_count == 2
-        assert result == [["element_property"], ["element_property"]]
-
-
-def test_process_choice_ignores_comments(setup_instance):
-    """Test that comment nodes are ignored."""
-    xsd_string = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="root">
-            <xs:complexType>
-                <!-- This is a comment -->
-                <xs:choice>
-                    <xs:element name="element1" type="xs:string"/>
-                </xs:choice>
-            </xs:complexType>
-        </xs:element>
-    </xs:schema>
-    """
-    schema = etree.XML(xsd_string)
-    instance, state = setup_instance
-
-    root = schema.find(".//{http://www.w3.org/2001/XMLSchema}choice")
-
-    # Mock process_element for the child element
-    with patch.object(instance, "process_element", return_value=["element_property"]) as mock_process_element:
-        result = instance.process_choice(root, state)
-
-        # Ensure comments are ignored and element is processed
-        mock_process_element.assert_called_once_with(root.find(".//{http://www.w3.org/2001/XMLSchema}element"), state)
-        assert result == [["element_property"]]
-
-
-def test_process_choice_with_array(setup_instance):
-    xsd_schema = """
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-            <xs:choice maxOccurs="unbounded">
-                <xs:element name="ItemA" type="xs:string"/>
-                <xs:element name="ItemB" type="xs:string"/>
-                <xs:element name="ItemRef" type="ref"/>
-            </xs:choice>
-        </xs:schema>
-        """
-    xsd_reader, state = setup_instance
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    choice = xsd_root.find(".//xs:choice", namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
-
-    property_groups = xsd_reader.process_choice(choice, state)
-
-    assert len(property_groups) == 1
-    assert len(property_groups[0]) == 3
-
-    expected_results = {
-        "ItemA": ("string", True),
-        "ItemB": ("string", True),
-        "ItemRef": ("backref", True),
+        "type": "string",
     }
 
-    for prop in property_groups[0]:
-        assert prop.xsd_name in expected_results, f"Unexpected property name: {prop.xsd_name}"
 
-        expected_type, expected_is_array = expected_results[prop.xsd_name]
-        assert prop.type.name == expected_type, f"Property '{prop.xsd_name}' has incorrect type."
-        assert prop.is_array == expected_is_array, f"Property '{prop.xsd_name}' array flag incorrect."
+# TODO: test properties with refs
 
 
-def test_process_sequence_only_elements(setup_instance):
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:sequence>
-            <xs:element name="Name" type="xs:string"/>
-            <xs:element name="Population" type="xs:integer"/>
-            <xs:element name="Area" type="xs:decimal" minOccurs="0"/>
-        </xs:sequence>
+def test_node_to_partial_property_gYear():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" type="gYear">
+    </xs:element>
     </xs:schema>
     """
-    xsd_reader, state = setup_instance
 
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model._node_to_partial_property(element)
 
-    sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
-    property_groups = xsd_reader.process_sequence(sequence, state)
-
-    # Expected property groups: only one group since there are no choices
-    assert len(property_groups) == 1
-
-    # Extract property names from the group
-    group = property_groups[0]
-    property_names = [prop.xsd_name for prop in group]
-
-    expected_names = ["Name", "Population", "Area"]
-    assert property_names == expected_names
-
-
-def test_process_sequence_with_single_choice(setup_instance):
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:sequence>
-            <xs:element name="Name" type="xs:string"/>
-            <xs:choice>
-                <xs:element name="Capital" type="xs:string"/>
-                <xs:element name="Population" type="xs:integer"/>
-            </xs:choice>
-            <xs:element name="Area" type="xs:decimal"/>
-        </xs:sequence>
-    </xs:schema>
-    """
-    xsd_reader, state = setup_instance
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
-
-    property_groups = xsd_reader.process_sequence(sequence, state)
-
-    # Expected property groups: two groups due to the choice between Population and Area
-    assert len(property_groups) == 2
-
-    group1 = property_groups[0]
-    group1_names = [prop.xsd_name for prop in group1]
-    group2 = property_groups[1]
-    group2_names = [prop.xsd_name for prop in group2]
-
-    expected_group1 = ["Name", "Capital", "Area"]
-    expected_group2 = ["Name", "Population", "Area"]
-
-    assert group1_names == expected_group1
-    assert group2_names == expected_group2
-
-
-def test_process_sequence_with_multiple_choices(setup_instance):
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:sequence>
-            <xs:element name="Name" type="xs:string"/>
-            <xs:choice>
-                <xs:element name="Mayor" type="xs:string"/>
-                <xs:element name="CouncilSize" type="xs:integer"/>
-            </xs:choice>
-            <xs:choice>
-                <xs:element name="Founded" type="xs:date"/>
-                <xs:element name="Population" type="xs:integer"/>
-            </xs:choice>
-            <xs:element name="Area" type="xs:decimal"/>
-        </xs:sequence>
-    </xs:schema>
-    """
-    xsd_reader, state = setup_instance
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    sequence = xsd_root.find(".//xs:sequence", namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
-
-    property_groups = xsd_reader.process_sequence(sequence, state)
-
-    # Expected property groups: four groups due to two choices with two options each
-    assert len(property_groups) == 4, "There should be exactly four property groups."
-
-    expected_groups = [
-        ["Name", "Mayor", "Founded", "Area"],
-        ["Name", "Mayor", "Population", "Area"],
-        ["Name", "CouncilSize", "Founded", "Area"],
-        ["Name", "CouncilSize", "Population", "Area"],
-    ]
-
-    for group, expected in zip(property_groups, expected_groups):
-        property_names = [prop.xsd_name for prop in group]
-        assert property_names == expected, "Property group does not match any expected group."
-
-
-def test_process_sequence_with_nested_sequence_in_choice(setup_instance):
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:sequence>
-            <xs:element name="RegionName" type="xs:string"/>
-            <xs:choice>
-                <xs:sequence>
-                    <xs:element name="Country" type="xs:string"/>
-                    <xs:element name="Population" type="xs:integer"/>
-                </xs:sequence>
-                <xs:sequence>
-                    <xs:element name="Province" type="xs:string"/>
-                    <xs:element name="Area" type="xs:decimal"/>
-                </xs:sequence>
-            </xs:choice>
-            <xs:element name="Climate" type="xs:string"/>
-        </xs:sequence>
-    </xs:schema>
-    """
-    xsd_reader, state = setup_instance
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    sequence = xsd_root.find(".//xs:sequence", namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
-
-    property_groups = xsd_reader.process_sequence(sequence, state)
-
-    # Expected property groups: two groups due to the choice between two nested sequences
-    expected_groups = [
-        ["RegionName", "Country", "Population", "Climate"],
-        ["RegionName", "Province", "Area", "Climate"],
-    ]
-
-    assert len(property_groups) == 2, "There should be exactly two property groups."
-
-    group1 = property_groups[0]
-    group1_names = [prop.xsd_name for prop in group1]
-    group2 = property_groups[1]
-    group2_names = [prop.xsd_name for prop in group2]
-
-    assert group1_names == expected_groups[0], "First property group does not match expected names."
-    assert group2_names == expected_groups[1], "Second property group does not match expected names."
-
-
-def test_process_sequence_only_choices(setup_instance):
-    xsd_schema = """
-    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:sequence>
-            <xs:choice>
-                <xs:element name="Online" type="xs:boolean"/>
-                <xs:element name="Onsite" type="xs:boolean"/>
-            </xs:choice>
-            <xs:choice>
-                <xs:element name="FullTime" type="xs:boolean"/>
-                <xs:element name="PartTime" type="xs:boolean"/>
-            </xs:choice>
-        </xs:sequence>
-    </xs:schema>
-    """
-    xsd_reader, state = setup_instance
-
-    xsd_root = etree.fromstring(xsd_schema)
-    xsd_reader.root = xsd_root
-    xsd_reader.namespaces = xsd_root.nsmap
-    sequence = xsd_root.find(".//xs:sequence", namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
-
-    property_groups = xsd_reader.process_sequence(sequence, state)
-
-    expected_groups = [
-        ["Online", "FullTime"],
-        ["Online", "PartTime"],
-        ["Onsite", "FullTime"],
-        ["Onsite", "PartTime"],
-    ]
-
-    assert len(property_groups) == 4, "There should be exactly four property groups."
-
-    for group, expected in zip(property_groups, expected_groups):
-        property_names = [prop.xsd_name for prop in group]
-        assert property_names == expected, "Property group does not match any expected group."
-
-
-@pytest.fixture
-def xsd_reader():
-    return XSDReader("test", "test")
-
-
-@pytest.fixture
-def create_xsd_model() -> Callable[..., XSDModel]:
-    def _create(name: str) -> XSDModel:
-        dataset_resource = XSDDatasetResource(dataset_name="test")
-        model = XSDModel(dataset_resource=dataset_resource)
-        model.xsd_name = name
-        return model
-
-    return _create
-
-
-@pytest.fixture
-def create_ref_xsd_property() -> Callable[..., XSDProperty]:
-    def _create(name: str, type: str, ref_model: str) -> XSDProperty:
-        prop = XSDProperty(
-            xsd_name=name,
-            property_type=XSDType(name=type),
-            required=True,
-        )
-        prop.name = to_property_name(name)
-        if type == "ref":
-            prop.xsd_ref_to = ref_model
-        elif type == "type":
-            prop.xsd_type_to = ref_model
-        return prop
-
-    return _create
-
-
-@pytest.fixture
-def setup_models(xsd_reader, create_xsd_model, create_ref_xsd_property):
-    model_a = create_xsd_model("ModelA")
-    model_b = create_xsd_model("ModelB")
-
-    prop1 = create_ref_xsd_property("prop1", "ref", model_b.xsd_name)
-    prop2 = create_ref_xsd_property("prop2", "type", model_a.xsd_name)
-
-    model_a.properties["prop1"] = prop1
-    model_b.properties["prop2"] = prop2
-
-    xsd_reader.models.extend([model_a, model_b])
-
-    xsd_reader.top_level_element_models[model_b.xsd_name] = [model_b]
-    xsd_reader.top_level_complex_type_models[model_a.xsd_name] = [model_a]
-
-    return {
-        "xsd_reader": xsd_reader,
-        "models": {
-            "ModelA": model_a,
-            "ModelB": model_b,
+    assert result1 == "ct_e200_forma"
+    assert result2 == {
+        "description": "",
+        "enum": "Y",
+        "enums": {},
+        "external": {
+            "name": "CT_E200_FORMA",
         },
+        "type": "date",
+    }
+
+
+def test_simple_element_to_property():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model.simple_element_to_property(element)
+
+    assert result1 == "ct_e200_forma"
+    assert result2 == {
+        "description": "E200 medicininės formos pavadinimas",
+        "enums": {"": {}},
+        "external": {
+            "name": "CT_E200_FORMA/text()",
+        },
+        "type": "string",
+        "required": True,
+    }
+
+
+def test_simple_element_to_property_ref():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI"/>
+				<xs:element ref="FIZINIAI_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="OBJEKTAI">
+		<xs:annotation>
+			<xs:documentation>Pagrindiniai juridinio asmens duomenys.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTU_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="TEKSTINIAI_DUOMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FAKTAI" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="FIZINIAI_ASMENYS">
+		<xs:annotation>
+			<xs:documentation>Pagrindiniai juridinio asmens duomenys. Atributų reikšmės: OBJ_ID - Juridinio asmens identifikatorius (dirbtinis) OBJ_KODAS - 9 skaitmenų juridinio asmens kodas OBJ_REJESTRO_KODAS - 7 skaitmenų juridinio asmens kodas OBJ_PAV -Juridinio asmens pavadinimas FORM_KODAS - Teisinės formos kodas iš klasifikatoriaus FORMOS STAT_STATUSAS - Juridinio asmens statusas iš klasifikatoriaus STATUSAI JST_DATA_NUO - Statuso galiojimo data NUO. JST_IGIJIMO_DATA - Statuso Įgijimo data. JAD_TEKSTAS - Juridinio asmens adresas JA_E_PRIST_DEZUTES_ADR - 9 skaitmenų elektroninio pristatymo dėžutės adresas. OBJ_REG_DATA - Juridinio asmens Įregistravimo registre data OBJ_STEIGIMO_DATA - Įsteigimo data OBJ_ISREG_DATA - Juridinio asmens išregistravimo data OBJ_PAGRINDINIS - Juridinio asmens požymis: 0 - pagrindinis, 1 - filialas, 2 - atstovybė OBJ_ID_PRIKLAUSO - Nuoroda į kitą juridinį asmenį: filialo ar atstovybės aukštesnę instituciją PAGR_OBJ_KODAS - Pagrindinio juridinio asmens 9 skaitmenų kodas (tik filialui, atstovybei) PAGR_OBJ_REJESTRO_KODAS - Pagrindinio juridinio asmens 7 skaitmenų kodas (tik filialui, atstovybei) PAGR_OBJ_PAV - Pagrindinio juridinio asmens pavadinimas (tik filialui, atstovybei) DBUK_KODAS - Juridinio asmens duomenų būklė iš klasifikatoriaus DUOMENU_BUKLES VER_DATA_NUO - Versijos data VER_VERSIJA - Versijos nr ISR_DATA_PATVIRTINO - Išrašo - registravimo pažymėjimo patvirtinimo data ITIP_TIPAS - Išrašo tipas iš klasifikatoriaus ISRASU_TIPAI ITIP_PAV_I - Išrašo tipo pavadinimas iš klasifikatoriaus ISRASU_TIPAI TARN_NR - Juridinių asmenų registro tvarkytojo registravimo tarnybos numeris TARN_PAV_I - Registravimo tarnybos pavadinimas</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTU_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="TEKSTINIAI_DUOMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FAKTAI" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	</xs:schema>	
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[1]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model.simple_element_to_property(element)
+    assert result1 == "objektai"
+    assert result2 == {
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "enums": {},
+        "external": {
+            "name": "OBJEKTAI/text()",
+        },
+        "type": "string",
+        "required": True,
+    }
+
+
+def test_simple_element_to_property_array():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" maxOccurs="unbounded">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model.simple_element_to_property(element)
+    assert result1 == "ct_e200_forma[]"
+    assert result2 == {
+        "description": "E200 medicininės formos pavadinimas",
+        "enums": {"": {}},
+        "external": {
+            "name": "CT_E200_FORMA/text()",
+        },
+        "type": "string",
+        "required": True,
+    }
+
+
+def test_simple_element_to_property_required():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model.simple_element_to_property(element)
+    assert result1 == "ct_e200_forma"
+    assert result2 == {
+        "description": "E200 medicininės formos pavadinimas",
+        "enums": {"": {}},
+        "external": {
+            "name": "CT_E200_FORMA/text()",
+        },
+        "type": "string",
+        "required": True,
+    }
+
+
+def test_simple_element_to_property_not_required():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" minOccurs="0">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result1, result2 = model.simple_element_to_property(element)
+    assert result1 == "ct_e200_forma"
+    assert result2 == {
+        "description": "E200 medicininės formos pavadinimas",
+        "enums": {"": {}},
+        "external": {
+            "name": "CT_E200_FORMA/text()",
+        },
+        "type": "string",
+        "required": False,
+    }
+
+
+def test_attributes_to_properties():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="FIZINIAI_ASMENYS_NEID">
+<xs:annotation>
+<xs:documentation> Neidentifikuoti fiziniai asmenys. Atributų reikšmės: NEID_FIZ_ID - Neidentifikuoto fizinio asmens dirbtinis identifikatorius. FIZ_SAL_KODAS - Šalies kodas. FIZ_PASTABOS - Pastabos. FIZ_GIMIMO_DATA - Gimimo data. FAV_VARDAS - Vardas. FAV_PAVARDE - Pavardė. ASM_ADRESAS - Adresas. ARO_KODAS - Juridinio asmens aktualaus adreso kodas. ADR_BUS - Adreso būsena. Reikšmės: 1 - adresas užregistruotas adresų registre, 0 - Adreso Adresų registre nėra arba jis negaliojantis. </xs:documentation>
+</xs:annotation>
+<xs:complexType>
+<xs:attribute name="NEID_FIZ_ID" type="xs:int" use="required"/>
+<xs:attribute name="FIZ_SAL_KODAS" type="xs:short"/>
+<xs:attribute name="FIZ_PASTABOS">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="250"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="FIZ_GIMIMO_DATA" type="xs:date"/>
+<xs:attribute name="FAV_VARDAS" use="required">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="50"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="FAV_PAVARDE" use="required">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="50"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="ASM_ADRESAS">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="250"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="ARO_KODAS" type="xs:int"/>
+<xs:attribute name="ADR_BUS"/>
+</xs:complexType>
+</xs:element>
+</xs:schema>
+"""
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result = model.attributes_to_properties(element)
+    assert "neid_fiz_id" in result.keys()
+    assert "fiz_pastabos" in result.keys()
+    assert result["neid_fiz_id"] == {
+        "description": "",
+        "type": "integer",
+        "required": True,
+        "enums": {},
+        "external": {"name": "@NEID_FIZ_ID"},
+    }
+    assert result["fiz_pastabos"]["type"] == "string"
+
+
+def test_get_external_info():
+    xsd = XSDReader("test.xsd", "dataset1")
+    schema = ""
+    model = XSDModel(xsd, schema)
+    model.add_external_info("test")
+    assert model.external == {"dataset": "test", "resource": "resource1", "name": "test"}
+
+
+def test_set_dataset_and_resource_info():
+    xsd = XSDReader("test.xsd", "dataset_name")
+    xsd._set_dataset_and_resource_info()
+    assert xsd.dataset_and_resource_info == {
+        "type": "dataset",
+        "name": "test",
+        "resources": {
+            "resource1": {
+                "type": "dask/xml",
+            },
+        },
+        "given_name": "dataset_name",
+    }
+
+
+def test_set_dataset_and_resource_info_url():
+    xsd = XSDReader("https://example.com/something/test.php?a=b", "dataset_name")
+    xsd._set_dataset_and_resource_info()
+    assert xsd.dataset_and_resource_info == {
+        "type": "dataset",
+        "name": "test",
+        "resources": {
+            "resource1": {
+                "type": "dask/xml",
+            },
+        },
+        "given_name": "dataset_name",
+    }
+
+
+def test_node_is_simple_type_or_inline():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:maxLength value="4"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_simple_type_or_inline(element)
+    assert result is True
+
+
+def test_node_is_simple_type_or_inline_annotation_only():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA">
+      <xs:annotation><xs:documentation>E200 medicininės formos pavadinimas</xs:documentation></xs:annotation>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_simple_type_or_inline(element)
+    assert result is True
+
+
+def test_node_is_simple_type_or_inline_inline():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" />
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_simple_type_or_inline(element)
+    assert result is True
+
+
+def test_node_is_simple_type_or_inline_complex():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klientu_saraso_rezultatas">
+      <xs:complexType mixed="true">
+        <xs:sequence>
+          <xs:element ref="asmenys" minOccurs="0" maxOccurs="1" />
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_simple_type_or_inline(element)
+    assert result is False
+
+
+def test_node_is_simple_type_or_inline_complex_separate():
+    element_string = """
+    <xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="personDetailInformation1" type="personDetailInformation1"/>
+
+  <xs:complexType name="personDetailInformation1">
+    <xs:sequence>
+      <xs:element name="ats_adr_eil" type="xs:string" minOccurs="0"/>
+      <xs:element name="ats_adr_salis" type="xs:string" minOccurs="0"/>
+      <xs:element name="ats_asm_gim" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_simple_type_or_inline(element)
+    assert result is False
+
+
+def test_is_array():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klientu_saraso_rezultatas">
+      <xs:complexType mixed="true">
+        <xs:sequence>
+          <xs:element ref="asmenys" minOccurs="0" maxOccurs="unbounded" />
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[1]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.is_array(element)
+    assert result is True
+
+
+def test_is_array_false():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klientu_saraso_rezultatas">
+      <xs:complexType mixed="true">
+        <xs:sequence>
+          <xs:element ref="asmenys" minOccurs="0" />
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[1]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.is_array(element)
+    assert result is False
+
+
+def test_is_required():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="klientu_saraso_rezultatas">
+      <xs:complexType mixed="true">
+        <xs:sequence>
+          <xs:element ref="asmenys" minOccurs="0" />
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[1]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd.is_required(element)
+    assert result is False
+
+
+def test_extract_custom_types():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+        <xs:simpleType name="data_laikas">
+            <xs:annotation><xs:documentation>Data ir laikas</xs:documentation></xs:annotation>
+            <xs:restriction base="xs:string">
+                <xs:pattern value="\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    xsd._extract_custom_simple_types(schema)
+    assert xsd.custom_types == {"data_laikas": {"base": "string", "enums": {"": {}}}}
+
+
+def test_properties_from_references():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="TYRIMAS">
+<xs:annotation>
+<xs:documentation/>
+</xs:annotation>
+<xs:complexType>
+<xs:sequence>
+<xs:element minOccurs="1" maxOccurs="1" ref="CT_ID"/>
+<xs:element minOccurs="1" maxOccurs="1" ref="CT_E200_FC_ID"/>
+
+</xs:sequence>
+</xs:complexType>
+</xs:element>
+<xs:element name="CT_ID" type="xs:long">
+<xs:annotation>
+<xs:documentation>Lentelės įrašų identifikatorius, pirminis raktas</xs:documentation>
+</xs:annotation>
+</xs:element>
+<xs:element name="CT_E200_FC_ID" type="xs:long">
+<xs:annotation>
+<xs:documentation>E200 duomenų kompozicijos unikalus identifikatorius</xs:documentation>
+</xs:annotation>
+</xs:element>
+</xs:schema>
+"""
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    sequence = element.xpath('//*[local-name() = "complexType"]')[0].xpath('//*[local-name() = "sequence"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    result = xsd._properties_from_references(sequence, model, source_path="tst")
+
+    assert result == {
+        "ct_e200_fc_id": {
+            "description": "E200 duomenų kompozicijos unikalus identifikatorius",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FC_ID/text()",
+            },
+            "required": True,
+            "type": "integer",
+        },
+        "ct_id": {
+            "description": "Lentelės įrašų identifikatorius, pirminis raktas",
+            "enums": {},
+            "external": {
+                "name": "CT_ID/text()",
+            },
+            "required": True,
+            "type": "integer",
+        },
+    }
+
+
+def test_properties_from_references_complex_not_array():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI"/>
+				<xs:element ref="FIZINIAI_ASMENYS"/>
+				<xs:element name="FIZINIAI_ASMENYS_NEID" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="FIZINIAI_ASMENYS">
+		<xs:annotation>
+            <xs:documentation>Pagrindiniai juridinio asmens duomenys. </xs:documentation>		
+        </xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OBJEKTU_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="TEKSTINIAI_DUOMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+		<xs:element name="OBJEKTAI">
+		<xs:annotation>
+			<xs:documentation>Pagrindiniai juridinio asmens duomenys. </xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OBJEKTU_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="TEKSTINIAI_DUOMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
+"""
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    sequence = element.xpath('//*[local-name() = "complexType"]')[0].xpath('//*[local-name() = "sequence"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    xsd.namespaces = []
+    result = xsd._properties_from_references(sequence, model, source_path="tst")
+
+    assert result == {
+        "fiziniai_asmenys": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "FIZINIAI_ASMENYS"},
+            "model": "test/FiziniaiAsmenys",
+            "required": True,
+            "type": "ref",
+        },
+        "objektai": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "OBJEKTAI"},
+            "model": "test/Objektai",
+            "required": True,
+            "type": "ref",
+        },
+    }
+
+    assert list(xsd.models.values())[0].get_data() == {
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/OBJEKTAI",
+            "resource": "resource1",
+        },
+        "name": "test/Objektai",
         "properties": {
-            "prop1": prop1,
-            "prop2": prop2,
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
+
+    assert list(xsd.models.values())[1].get_data() == {
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/FIZINIAI_ASMENYS",
+            "resource": "resource1",
+        },
+        "name": "test/FiziniaiAsmenys",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
+
+
+def test_properties_from_references_complex_array():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI" maxOccurs="unbounded"/>
+				<xs:element ref="FIZINIAI_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="FIZINIAI_ASMENYS_NEID" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="FIZINIAI_ASMENYS">
+		<xs:annotation>
+            <xs:documentation>Pagrindiniai juridinio asmens duomenys. </xs:documentation>		
+        </xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OBJEKTU_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="TEKSTINIAI_DUOMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+		<xs:element name="OBJEKTAI">
+		<xs:annotation>
+			<xs:documentation>Pagrindiniai juridinio asmens duomenys. </xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="OBJEKTU_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="TEKSTINIAI_DUOMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
+"""
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    sequence = element.xpath('//*[local-name() = "complexType"]')[0].xpath('//*[local-name() = "sequence"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    model.set_name("test")
+    xsd.namespaces = []
+    result = xsd._properties_from_references(sequence, model, source_path="tst")
+
+    assert result == {
+        "fiziniai_asmenys[]": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "FIZINIAI_ASMENYS"},
+            "model": "test/FiziniaiAsmenys",
+            "required": False,
+            "type": "backref",
+        },
+        "objektai[]": {
+            "description": "Pagrindiniai juridinio asmens duomenys.",
+            "enums": {},
+            "external": {"name": "OBJEKTAI"},
+            "model": "test/Objektai",
+            "required": True,
+            "type": "backref",
+        },
+    }
+
+    assert list(xsd.models.values())[0].get_data() == {
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/OBJEKTAI",
+            "resource": "resource1",
+        },
+        "name": "test/Objektai",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
+
+    assert list(xsd.models.values())[1].get_data() == {
+        "description": "Pagrindiniai juridinio asmens duomenys.",
+        "external": {
+            "dataset": "test",
+            "name": "tst/FIZINIAI_ASMENYS",
+            "resource": "resource1",
+        },
+        "name": "test/FiziniaiAsmenys",
+        "properties": {
+            "objektu_asmenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "OBJEKTU_ASMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+            "tekstiniai_duomenys[]": {
+                "description": "",
+                "enums": {},
+                "external": {
+                    "name": "TEKSTINIAI_DUOMENYS/text()",
+                },
+                "required": False,
+                "type": "string",
+            },
+        },
+        "type": "model",
+    }
+
+
+def test_is_element():
+    element_string = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:element name="CT_E200_FC_ID" type="xs:long">
+<xs:annotation>
+<xs:documentation>E200 duomenų kompozicijos unikalus identifikatorius</xs:documentation>
+</xs:annotation>
+</xs:element>
+</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    assert xsd._is_element(element) is True
+
+
+def test_is_element_false():
+    element_string = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:attribute name="CT_E200_FC_ID" type="xs:long">
+<xs:annotation>
+<xs:documentation>E200 duomenų kompozicijos unikalus identifikatorius</xs:documentation>
+</xs:annotation>
+</xs:attribute>
+</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "attribute"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    assert xsd._is_element(element) is False
+
+
+def test_get_text_property():
+    xsd = XSDReader("test.xsd", "dataset1")
+    schema = ""
+    model = XSDModel(xsd, schema)
+    assert model.get_text_property() == {
+        "text": {
+            "type": "string",
+            "external": {
+                "name": "text()",
+            },
+        }
+    }
+
+
+def test_get_separate_complex_type_node():
+    element_string = """
+    <xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="personDetailInformation1" type="personDetailInformation1"/>
+
+  <xs:complexType name="personDetailInformation1">
+    <xs:sequence>
+      <xs:element name="ats_adr_eil" type="xs:string" minOccurs="0"/>
+      <xs:element name="ats_adr_salis" type="xs:string" minOccurs="0"/>
+      <xs:element name="ats_asm_gim" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    node = xsd._get_separate_complex_type_node(element)
+    assert node.get("name") == "personDetailInformation1"
+
+
+def test_node_has_separate_complex_type_node():
+    element_string = """
+    <xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="personDetailInformation1" type="personDetailInformation1"/>
+
+  <xs:complexType name="personDetailInformation1">
+    <xs:sequence>
+      <xs:element name="ats_adr_eil" type="xs:string" minOccurs="0"/>
+      <xs:element name="ats_adr_salis" type="xs:string" minOccurs="0"/>
+      <xs:element name="ats_asm_gim" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd._node_has_separate_complex_type(element)
+    assert result is True
+
+
+def test_node_has_separate_complex_type_node_false():
+    element_string = """
+    <xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="personDetailInformation1" type="personDetailInformation1"/>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd._node_has_separate_complex_type(element)
+    assert result is False
+
+
+def test_node_is_ref():
+    element_string = """
+        <xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    	<xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI"/>
+				<xs:element ref="DOKUMENTAI" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FIZINIAI_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[1]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_ref(element)
+    assert result is True
+
+
+def test_node_is_ref_false():
+    element_string = """
+        <xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    	<xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI"/>
+				<xs:element ref="DOKUMENTAI" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FIZINIAI_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    result = xsd.node_is_ref(element)
+    assert result is False
+
+
+def test_properties_from_simple_elements():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" />
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    # element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    xsd.namespaces = []
+    result = model.properties_from_simple_elements(schema)
+    assert result == {
+        "ct_e200_forma": {
+            "description": "",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FORMA/text()",
+            },
+            "required": True,
+            "type": "string",
         },
     }
 
 
-def test_post_process_refs_links_existing_references(setup_models):
+def test_properties_from_simple_elements_mix():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" />
+    <xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI"/>
+				<xs:element ref="DOKUMENTAI" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FIZINIAI_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+    </xs:schema>
     """
-    Test that _post_process_refs correctly links properties to existing models.
+    schema = etree.fromstring(element_string)
+    # element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    xsd.namespaces = []
+    result = model.properties_from_simple_elements(schema)
+    assert result == {
+        "ct_e200_forma": {
+            "description": "",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FORMA/text()",
+            },
+            "required": True,
+            "type": "string",
+        },
+    }
+
+
+def test_properties_from_simple_elements_empty():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="JAR">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="OBJEKTAI"/>
+				<xs:element ref="DOKUMENTAI" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FIZINIAI_ASMENYS" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+    </xs:schema>
     """
-    xsd_reader, models, properties = setup_models["xsd_reader"], setup_models["models"], setup_models["properties"]
-    model_a, model_b = models["ModelA"], models["ModelB"]
-    prop1, prop2 = properties["prop1"], properties["prop2"]
-
-    xsd_reader._post_process_refs()
-
-    # Property1 in ModelA should link to ModelB via ref_model
-    assert prop1.ref_model is not None
-    assert prop1.ref_model == model_b
-
-    # Property2 in ModelB should link to ModelA via ref_model
-    assert prop2.ref_model is not None
-    assert prop2.ref_model == model_a
+    schema = etree.fromstring(element_string)
+    # element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    result = model.properties_from_simple_elements(schema)
+    assert result == {}
 
 
-@pytest.fixture
-def create_xsd_models():
-    """Fixture to create sample XSDModel instances."""
-    france = XSDModel("test")
-
-    france.name = "France"
-    france.properties = {"lyon": XSDProperty(), "paris": XSDProperty()}
-    france.properties["lyon"].name = "lyon"
-    france.properties["paris"].name = "paris"
-
-    germany = XSDModel("test")
-
-    germany.name = "Germany"
-    germany.properties = {"hamburg": XSDProperty(), "berlin": XSDProperty()}
-    germany.properties["hamburg"].name = "hamburg"
-    germany.properties["berlin"].name = "berlin"
-
-    italy = XSDModel("test")
-
-    italy.name = "Italy"
-    italy.properties = {"rome": XSDProperty(), "milan": XSDProperty()}
-    italy.properties["rome"].name = "rome"
-    italy.properties["milan"].name = "milan"
-    return [italy, france, germany]
-
-
-def test_sort_models_by_name(create_xsd_models):
-    """Test that the XSDModel list is sorted by the 'name' attribute (country name)."""
-    models = create_xsd_models
-    sorted_models = sorted(models, key=lambda model: model.name)
-
-    # Extracting the sorted names to verify the order
-    sorted_names = [model.name for model in sorted_models]
-
-    assert sorted_names == ["France", "Germany", "Italy"]
-
-
-def test_sort_properties_by_key(create_xsd_models):
-    """Test that the properties dictionary in each XSDModel is sorted by key (city name)."""
-    models = create_xsd_models
-
-    for model in models:
-        sorted_properties = dict(sorted(model.properties.items()))
-
-        # Extract the sorted city names (keys) to verify the order
-        sorted_keys = list(sorted_properties.keys())
-
-        # Check that properties are sorted correctly for each model
-        if model.name == "France":
-            assert sorted_keys == ["lyon", "paris"]
-        elif model.name == "Germany":
-            assert sorted_keys == ["berlin", "hamburg"]
-        elif model.name == "Italy":
-            assert sorted_keys == ["milan", "rome"]
-
-
-def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_model):
-    extends_model = create_xsd_model("BaseType")
-    base_prop = XSDProperty(xsd_name="baseProp", property_type=XSDType(name="string"))
-    base_prop.name = "base_prop"
-    extends_model.properties = {"base_prop": base_prop}
-
-    derived_model = create_xsd_model("DerivedType")
-    derived_model.extends_model = "BaseType"
-    derived_prop = XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
-    derived_prop.name = "derived_prop"
-    derived_model.properties = {"derived_prop": derived_prop}
-
-    xsd_reader.models = [derived_model]
-    xsd_reader.top_level_complex_type_models = {"BaseType": [extends_model]}
-
-    xsd_reader._post_process_refs()
-
-    assert derived_model.extends_model is extends_model
-
-
-def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, create_xsd_model):
-    extends_model = create_xsd_model("BaseType")
-
-    derived_model = create_xsd_model("DerivedType")
-    derived_model.extends_model = "BaseType"
-    derived_prop = XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
-    derived_prop.name = "derived_prop"
-    derived_model.properties = {"derived_prop": derived_prop}
-
-    xsd_reader.models = [derived_model]
-    xsd_reader.top_level_complex_type_models = {"BaseType": [extends_model]}
-
-    xsd_reader._post_process_refs()
-
-    assert derived_model.extends_model is None
-
-
-# def test_process_extension_simple_type(xsd_reader):
-#     extension_xml = """
-#     <extension base="xs:string">
-#         <!-- No child elements -->
-#     </extension>
-#     """
-#     extension_node = etree.fromstring(extension_xml)
-
-#     state = State()
-
-#     type_name = xsd_reader.process_extension(extension_node, state)
-
-#     assert type_name == "string", "Should return the type name 'string'"
-
-
-def test_process_extension_complex_type_no_children(xsd_reader, create_xsd_model):
-    extension_xml = """
-    <extension base="BaseType">
-        <!-- No child elements -->
-    </extension>
+def test_properties_from_simple_elements_not_from_sequence():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" />
+    </xs:schema>
     """
-    extension_node = etree.fromstring(extension_xml)
+    schema = etree.fromstring(element_string)
+    # element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    xsd.root = schema
+    model = XSDModel(xsd, schema)
+    xsd.namespaces = []
+    result = model.properties_from_simple_elements(schema)
+    assert result == {
+        "ct_e200_forma": {
+            "description": "",
+            "enums": {},
+            "external": {
+                "name": "CT_E200_FORMA/text()",
+            },
+            "required": True,
+            "type": "string",
+        },
+    }
 
-    state = State()
-    base_model = create_xsd_model("BaseType")
-    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
 
-    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
-
-    assert isinstance(property_groups, list)
-    assert len(property_groups) == 1
-    assert property_groups[0] == []
-    assert state.extends_model == "BaseType"
-
-
-def test_process_extension_complex_type_with_sequence(xsd_reader, create_xsd_model):
-    extension_xml = """
-    <extension base="BaseType">
-        <sequence>
-            <element name="newProp1" type="xs:string"/>
-            <element name="newProp2" type="xs:int"/>
-        </sequence>
-    </extension>
+def test_get_enums():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="OBJEKTU_ATRIBUTAI">
+		<xs:annotation>
+			<xs:documentation>Juridinio asmens atributai (akcijų skaičius, stebėtojų tarybos narių skaičius ir t.t.). Atributų reikšmės: ATRI_KODAS - Atributo kodas iš klasifikatoriaus ATRIBUTAI. ATR_REIKSME - Atributo reikšmė. VIEN_KODAS - Matavimo vieneto kodas iš klasifikatoriaus MATAVIMU_VIENETAI.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:attribute name="ATRI_KODAS">
+				<xs:simpleType>
+					<xs:restriction base="xs:int">
+						<xs:enumeration value="202"/>
+						<xs:enumeration value="203"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+			<xs:attribute name="ATR_REIKSME">
+				<xs:simpleType>
+					<xs:restriction base="xs:decimal">
+						<xs:totalDigits value="14"/>
+						<xs:fractionDigits value="2"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+			<xs:attribute name="VIEN_KODAS" type="xs:int"/>
+		</xs:complexType>
+	</xs:element>
+	</xs:schema>
     """
-    extension_node = etree.fromstring(extension_xml)
 
-    xsd_reader.process_sequence = MagicMock(
-        return_value=[
-            [
-                XSDProperty(xsd_name="newProp1", property_type=XSDType(name="string")),
-                XSDProperty(xsd_name="newProp2", property_type=XSDType(name="int")),
-            ]
-        ]
-    )
-
-    state = State()
-    base_model = create_xsd_model("BaseType")
-    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
-
-    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
-
-    assert len(property_groups) == 1
-    prop_names = [prop.xsd_name for prop in property_groups[0]]
-    assert "newProp1" in prop_names
-    assert "newProp2" in prop_names
-    assert state.extends_model == "BaseType"
-
-
-def test_process_extension_complex_type_with_choice(xsd_reader, create_xsd_model):
-    extension_xml = """
-    <extension base="BaseType">
-        <choice>
-            <element name="choiceProp1" type="xs:string"/>
-            <element name="choiceProp2" type="xs:int"/>
-        </choice>
-    </extension>
-    """
-    extension_node = etree.fromstring(extension_xml)
-
-    xsd_reader.process_choice = MagicMock(
-        return_value=[
-            [XSDProperty(xsd_name="choiceProp1", property_type=XSDType(name="string"))],
-            [XSDProperty(xsd_name="choiceProp2", property_type=XSDType(name="int"))],
-        ]
-    )
-
-    state = State()
-    base_model = create_xsd_model("BaseType")
-    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
-
-    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
-
-    assert len(property_groups) == 2
-    prop_names_group1 = [prop.xsd_name for prop in property_groups[0]]
-    prop_names_group2 = [prop.xsd_name for prop in property_groups[1]]
-    assert "choiceProp1" in prop_names_group1
-    assert "choiceProp2" not in prop_names_group1
-    assert "choiceProp2" in prop_names_group2
-    assert "choiceProp1" not in prop_names_group2
-    assert state.extends_model == "BaseType"
-
-
-def test_process_extension_complex_type_with_elements(xsd_reader, create_xsd_model):
-    extension_xml = """
-    <extension base="BaseType">
-        <element name="attr1" type="xs:string"/>
-        <element name="attr2" type="xs:int"/>
-    </extension>
-    """
-    extension_node = etree.fromstring(extension_xml)
-
-    def mock_process_element(node, state):
-        name = node.attrib.get("name")
-        type_name = node.attrib.get("type").split(":")[-1]
-        return XSDProperty(xsd_name=name, property_type=XSDType(name=type_name))
-
-    xsd_reader.process_element = mock_process_element
-
-    state = State()
-    base_model = create_xsd_model("BaseType")
-    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
-
-    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
-
-    assert len(property_groups) == 1
-    prop_names = [prop.xsd_name for prop in property_groups[0]]
-    assert "attr1" in prop_names
-    assert "attr2" in prop_names
-    assert state.extends_model == "BaseType"
-
-
-def test_process_complex_content_with_extension(xsd_reader, create_xsd_model):
-    complex_content_xml = """
-    <complexContent>
-        <extension base="BaseType">
-            <sequence>
-                <element name="seqProp1" type="xs:string"/>
-            </sequence>
-            <choice>
-                <element name="choiceProp1" type="xs:int"/>
-                <element name="choiceProp2" type="xs:float"/>
-            </choice>
-            <element name="attr1" type="xs:boolean"/>
-        </extension>
-    </complexContent>
-    """
-    complex_content_node = etree.fromstring(complex_content_xml)
-
-    state = State()
-    base_model = create_xsd_model("BaseType")
-    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
-
-    def mock_process_complex_type_extension(node, state) -> list[list[XSDProperty]]:
-        state.prepare_statement = 'extend("BaseType")'
-        return [
-            [
-                XSDProperty(xsd_name="seqProp1", property_type=XSDType(name="string")),
-                XSDProperty(xsd_name="choiceProp1", property_type=XSDType(name="int")),
-                XSDProperty(xsd_name="attr1", property_type=XSDType(name="boolean")),
-            ],
-            [
-                XSDProperty(xsd_name="seqProp1", property_type=XSDType(name="string")),
-                XSDProperty(xsd_name="choiceProp2", property_type=XSDType(name="float")),
-                XSDProperty(xsd_name="attr1", property_type=XSDType(name="boolean")),
-            ],
-        ]
-
-    xsd_reader.process_complex_type_extension = mock_process_complex_type_extension
-
-    property_groups = xsd_reader.process_complex_content(complex_content_node, state)
-
-    assert len(property_groups) == 2
-    prop_names_group1 = [prop.xsd_name for prop in property_groups[0]]
-    prop_names_group2 = [prop.xsd_name for prop in property_groups[1]]
-    assert "seqProp1" in prop_names_group1 and "seqProp1" in prop_names_group2
-    assert "choiceProp1" in prop_names_group1 and "choiceProp1" not in prop_names_group2
-    assert "choiceProp2" in prop_names_group2 and "choiceProp2" not in prop_names_group1
-    assert "attr1" in prop_names_group1 and "attr1" in prop_names_group2
-    assert state.prepare_statement == 'extend("BaseType")'
-
-
-def test_process_complex_content_with_restriction(xsd_reader):
-    complex_content_xml = """
-    <complexContent>
-        <restriction base="xs:string">
-            <enumeration value="Option1"/>
-            <enumeration value="Option2"/>
-        </restriction>
-    </complexContent>
-    """
-    complex_content_node = etree.fromstring(complex_content_xml)
-
-    def mock_process_restriction(node, state):
-        prop_type = XSDType(name="string")
-        prop_type.enums = {"Option1": None, "Option2": None}
-        return prop_type
-
-    xsd_reader.process_restriction = mock_process_restriction
-
-    state = State()
-
-    property_groups = xsd_reader.process_complex_content(complex_content_node, state)
-
-    assert len(property_groups) == 1
-    prop_group = property_groups[0]
-    assert len(prop_group) == 1
-    prop = prop_group[0]
-    assert prop.xsd_name == "value"
-    assert prop.type.name == "string"
-    assert prop.type.enums == {"Option1": None, "Option2": None}
-
-
-def test_process_complex_content_with_mixed_content(xsd_reader):
-    complex_content_xml = """
-    <complexContent mixed="true">
-        <extension base="BaseType">
-            <!-- No child elements -->
-        </extension>
-    </complexContent>
-    """
-    complex_content_node = etree.fromstring(complex_content_xml)
-
-    xsd_reader.process_complex_type_extension = MagicMock(return_value=[[]])
-
-    state = State()
-
-    property_groups = xsd_reader.process_complex_content(complex_content_node, state)
-
-    assert len(property_groups) == 1
-    prop_group = property_groups[0]
-    prop_names = [prop.xsd_name for prop in prop_group]
-    assert "text" in prop_names
-
-
-def test_process_simple_type_extension_with_attributes_and_annotation(xsd_reader):
-    extension_xml = """
-    <extension base="xs:string">
-        <attribute name="code" type="xs:string" use="optional"/>
-        <annotation>
-            <documentation>Text property description</documentation>
-        </annotation>
-    </extension>
-    """
-    extension_node = etree.fromstring(extension_xml)
-    state = State()
-
-    xsd_reader.process_attribute = MagicMock(
-        return_value=XSDProperty(xsd_name="code", property_type=XSDType(name="string"))
-    )
-    xsd_reader.process_annotation = MagicMock(return_value="Text property description")
-
-    properties = xsd_reader.process_simple_type_extension(extension_node, state)
-
-    assert properties[0].xsd_name == "text"
-    assert properties[0].type.name == "string"
-    assert properties[0].description == "Text property description"
-
-    assert properties[1].xsd_name == "code"
-    assert properties[1].type.name == "string"
-
-
-def test_process_simple_content_with_extension(xsd_reader):
-    simple_content_xml = """
-    <simpleContent>
-        <extension base="xs:string">
-            <attribute name="code" type="xs:string" use="optional"/>
-            <annotation>
-                <documentation>Text property description</documentation>
-            </annotation>
-        </extension>
-    </simpleContent>
-    """
-    simple_content_node = etree.fromstring(simple_content_xml)
-    state = State()
-
-    xsd_reader.process_simple_type_extension = MagicMock(
-        return_value=[
-            XSDProperty(xsd_name="text", property_type=XSDType(name="string")),
-            XSDProperty(xsd_name="code", property_type=XSDType(name="string"), source="@code"),
-        ]
-    )
-
-    properties = xsd_reader.process_simple_content(simple_content_node, state)
-
-    assert len(properties) == 2
-    assert properties[0].xsd_name == "text"
-    assert properties[0].type.name == "string"
-    assert properties[1].xsd_name == "code"
-    assert properties[1].type.name == "string"
-
-
-def test_process_simple_content_with_restriction(xsd_reader):
-    simple_content_xml = """
-    <simpleContent>
-        <restriction base="xs:integer"/>
-    </simpleContent>
-    """
-    simple_content_node = etree.fromstring(simple_content_xml)
-    state = State()
-
-    xsd_reader.process_restriction = MagicMock(return_value=XSDType(name="integer"))
-
-    properties = xsd_reader.process_simple_content(simple_content_node, state)
-
-    assert len(properties) == 1
-    assert properties[0].xsd_name == "value"
-    assert properties[0].type.name == "integer"
-
-
-def test_process_all(xsd_reader):
-    xml = """
-    <all>
-        <element name="elementOne" type="xs:int" />
-        <element name="elementTwo" type="xs:float" />
-        <element name="elementThree" type="xs:boolean" />
-    </all>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-    properties = xsd_reader.process_all(node, state)
-
-    assert len(properties) == 3
-    assert properties[0].xsd_name == "elementOne"
-    assert properties[0].type.name == "integer"
-    assert properties[1].xsd_name == "elementTwo"
-    assert properties[1].type.name == "number"
-    assert properties[2].xsd_name == "elementThree"
-    assert properties[2].type.name == "boolean"
-
-
-def test_process_all_with_attributes(xsd_reader):
-    xml = """
-    <all>
-        <element name="requiredElement" type="xs:string" minOccurs="1" maxOccurs="1" />
-    </all>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-    properties = xsd_reader.process_all(node, state)
-
-    assert len(properties) == 1
-    assert properties[0].xsd_name == "requiredElement"
-    assert properties[0].type.name == "string"
-    assert properties[0].required is True
-    assert properties[0].is_array is False
-
-
-def test_process_union(xsd_reader):
-    union_xml = """
-    <xs:union xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:simpleType>
-            <xs:restriction base="xs:double"/>
-        </xs:simpleType>
-        <xs:simpleType>
-            <xs:restriction base="xs:long"/>
-        </xs:simpleType>
-    </xs:union>
-    """
-    union_node = etree.fromstring(union_xml)
-    state = State()
-
-    xsd_type = xsd_reader.process_union(union_node, state)
-
-    assert xsd_type.name == "number"
-
-
-def test_process_attribute_with_builtin_type_optional_by_default(xsd_reader):
-    xml = """
-    <attribute name="code" type="xs:string"/>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-
-    prop = xsd_reader.process_attribute(node, state)
-
-    assert prop.xsd_name == "code"
-    assert prop.type.name == "string"
-    assert getattr(prop, "required", False) is False
-
-
-def test_process_attribute_use_required_sets_required_true(xsd_reader):
-    xml = """
-    <attribute name="id" type="xs:integer" use="required"/>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-
-    prop = xsd_reader.process_attribute(node, state)
-
-    assert prop.xsd_name == "id"
-    assert prop.type.name == "integer"
-    assert prop.required is True
-
-
-def test_process_attribute_with_custom_type(xsd_reader):
-    xml = """
-    <attribute name="status" type="tns:Custom"/>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    # seed custom types lookup
-    xsd_reader.custom_types = {"Custom": XSDType(name="Custom")}
-    state = State()
-
-    prop = xsd_reader.process_attribute(node, state)
-
-    assert prop.xsd_name == "status"
-    assert prop.type.name == "Custom"
-
-
-def test_process_attribute_with_ref_uses_global_attribute_properties(xsd_reader):
-    xml = """
-    <attribute ref="tns:foo"/>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="uuid"))}
-    state = State()
-
-    prop = xsd_reader.process_attribute(node, state)
-
-    assert prop.type.name == "uuid"
-
-
-def test_process_attribute_with_inline_simple_type(xsd_reader):
-    xml = """
-    <attribute name="abbr">
-        <simpleType>
-            <restriction base="xs:string">
-                <maxLength value="8"/>
-            </restriction>
-        </simpleType>
-    </attribute>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-
-    prop = xsd_reader.process_attribute(node, state)
-
-    assert prop.xsd_name == "abbr"
-    assert prop.type.name == "string"
-
-
-def test_process_attribute_allows_annotation_child(xsd_reader):
-    xml = """
-    <attribute name="code" type="xs:string">
-        <annotation>
-            <documentation>desc</documentation>
-        </annotation>
-    </attribute>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-
-    prop = xsd_reader.process_attribute(node, state)
-
-    assert prop.xsd_name == "code"
-    assert prop.type.name == "string"
-
-
-def test_process_attribute_with_both_ref_and_type_raises(xsd_reader):
-    xml = """
-    <attribute ref="tns:foo" type="xs:string"/>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="string"))}
-    state = State()
-
-    with pytest.raises(RuntimeError, match=r"attribute  with ref 'tns:foo' can't have both `ref` and `type`"):
-        xsd_reader.process_attribute(node, state)
-
-
-def test_process_attribute_with_simple_type_and_type_raises(xsd_reader):
-    xml = """
-    <attribute name="code" type="xs:string">
-        <simpleType>
-            <restriction base="xs:string"/>
-        </simpleType>
-    </attribute>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-
-    with pytest.raises(RuntimeError):
-        xsd_reader.process_attribute(node, state)
-
-
-def test_process_attribute_with_simple_type_and_ref_raises(xsd_reader):
-    xml = """
-    <attribute ref="tns:foo">
-        <simpleType>
-            <restriction base="xs:string"/>
-        </simpleType>
-    </attribute>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="string"))}
-    state = State()
-
-    with pytest.raises(RuntimeError):
-        xsd_reader.process_attribute(node, state)
-
-
-def test_process_attribute_with_unexpected_child_raises(xsd_reader):
-    xml = """
-    <attribute name="weird">
-        <complexType/>
-    </attribute>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    state = State()
-
-    with pytest.raises(RuntimeError, match=r"Unexpected element type inside attribute element"):
-        xsd_reader.process_attribute(node, state)
-
-
-def test_register_global_attributes_single(xsd_reader):
-    xml = """
-    <schema>
-        <attribute name="code" type="xs:string"/>
-    </schema>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    xsd_reader.global_attribute_properties = {}
-    state = State()
-
-    # Mock process_attribute to return a property whose .name drives the dict key
-    prop = XSDProperty(xsd_name="code", property_type=XSDType(name="string"))
-    prop.name = "code"
-    xsd_reader.process_attribute = MagicMock(return_value=prop)
-
-    xsd_reader.register_global_attributes(state)
-
-    assert set(xsd_reader.global_attribute_properties.keys()) == {"code"}
-    assert xsd_reader.global_attribute_properties["code"] is prop
-    xsd_reader.process_attribute.assert_called_once()
-
-
-def test_register_global_attributes_multiple_and_mixed_children(xsd_reader):
-    xml = """
-    <schema>
-        <attribute name="a" type="xs:string"/>
-        <element name="ignored">
-            <attribute name="nested" type="xs:string"/>
-        </element>
-        <attribute name="b" type="xs:string"/>
-    </schema>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    xsd_reader.global_attribute_properties = {}
-    state = State()
-
-    def side_effect(attr_node, _state):
-        name = attr_node.get("name")
-        p = XSDProperty(xsd_name=name, property_type=XSDType(name="string"))
-        p.name = name
-        return p
-
-    xsd_reader.process_attribute = MagicMock(side_effect=side_effect)
-
-    xsd_reader.register_global_attributes(state)
-
-    # Only top-level <attribute> nodes should be registered (a, b), nested one is ignored
-    assert set(xsd_reader.global_attribute_properties.keys()) == {"a", "b"}
-    assert xsd_reader.process_attribute.call_count == 2
-
-
-def test_register_global_attributes_ignores_when_none(xsd_reader):
-    xml = """
-    <schema>
-        <element name="onlyElements">
-            <attribute name="nested" type="xs:string"/>
-        </element>
-    </schema>
-    """
-    node = etree.fromstring(xml)
-    xsd_reader.root = node
-    xsd_reader.namespaces = []
-    xsd_reader.global_attribute_properties = {}
-    state = State()
-
-    xsd_reader.process_attribute = MagicMock()
-
-    xsd_reader.register_global_attributes(state)
-
-    assert xsd_reader.global_attribute_properties == {}
-    xsd_reader.process_attribute.assert_not_called()
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "attribute"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    model = XSDModel(xsd, schema)
+    result = model._get_enums(element)
+    assert result == {"": {"202": {"source": "202", "prepare": "202"}, "203": {"source": "203", "prepare": "203"}}}

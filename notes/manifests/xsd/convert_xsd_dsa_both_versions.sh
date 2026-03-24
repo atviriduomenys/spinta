@@ -23,7 +23,7 @@ for file in "$base_dir/xsds/$register_dir/"*; do
     output_file="dsa_$filename$output_extension"
 
     # Run your command to process the file and output to the new file name
-    spinta copy -o "xsds/$result_dir/$output_file" "$file"
+    spinta copy -o "xsds/$result_dir/$output_file" "xsd2+file://$file"
 done
 
 # Iterate over each file in the input directory
@@ -50,7 +50,7 @@ for file in "$base_dir/xsds/$register_dir/"*; do
     output_file="dsa_$filename$output_extension"
 
     # Run your command to process the file and output to the new file name
-    spinta copy -o "xsds/$result_dir/csv/$output_file" "$file"
+    spinta copy -o "xsds/$result_dir/csv/$output_file" "xsd2+file://$file"
 done
 
 # Iterate over each file in the input directory
