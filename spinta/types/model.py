@@ -421,6 +421,10 @@ def _link_prop_enum(
         return prop.enums.get("")
 
 
+def property_is_private(prop: Property) -> bool:
+    return prop.name.startswith("_")
+
+
 @overload
 @commands.link.register(Context, Property)
 def link(context: Context, prop: Property):
@@ -453,7 +457,7 @@ def link(context: Context, prop: Property):
         )
     config = context.get("config")
     link_access_param(
-        prop, parents, use_given=not prop.name.startswith("_"), default_access=config.default_access_level
+        prop, parents, use_given=not property_is_private(prop), default_access=config.default_access_level
     )
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
