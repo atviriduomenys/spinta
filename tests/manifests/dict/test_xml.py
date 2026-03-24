@@ -37,7 +37,7 @@ class TestXMLIterSchemaReader:
         path.write_text(xml)
 
         reader = self.get_reader(str(path))
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader.namespaces
         assert reader.dataset_structure.models
@@ -51,7 +51,7 @@ class TestXMLIterSchemaReader:
         """
         responses.add(responses.GET, url, body=xml, status=200, content_type="application/xml")
         reader = self.get_reader(url)
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader.namespaces
         assert reader.dataset_structure.models
@@ -66,7 +66,7 @@ class TestXMLIterSchemaReader:
         path.write_text(xml)
 
         reader = self.get_reader(str(path))
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader.namespaces == [
             ("xmlns", "www.test.test/xmlns"),
@@ -93,7 +93,7 @@ class TestXMLIterSchemaReader:
         path.write_text(xml)
 
         reader = self.get_reader(str(path))
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader._XMLIterSchemaReader__structural_data == {
             "countries": {
@@ -160,7 +160,7 @@ class TestXMLIterSchemaReader:
         path.write_text(xml)
 
         reader = self.get_reader(str(path))
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader._XMLIterSchemaReader__structural_data == {
             "countries": {
@@ -239,7 +239,7 @@ class TestXMLIterSchemaReader:
         path.write_text(xml)
 
         reader = self.get_reader(str(path))
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader._XMLIterSchemaReader__structural_data == {
             "countries": {
@@ -331,7 +331,7 @@ class TestXMLIterSchemaReader:
         path.write_text(xml)
 
         reader = self.get_reader(str(path))
-        reader.read_xml()
+        reader.read_schema()
 
         assert reader._XMLIterSchemaReader__structural_data == {
             "countries": {

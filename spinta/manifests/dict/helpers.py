@@ -1,8 +1,6 @@
 import contextlib
 import logging
 
-import psutil
-import os
 import pathlib
 import json
 from copy import deepcopy
@@ -30,7 +28,45 @@ from lxml import etree
 logger = logging.getLogger(__name__)
 
 
-class XMLIterSchemaReader:
+class DictSchemaReader:
+    path: str
+    mapping_meta: MappingMeta
+    dataset_structure: MappedDataset
+
+    def __init__(self, path: str, mapping_meta: MappingMeta, dataset_structure: MappedDataset) -> None:
+        self.path = path
+        self.mapping_meta = mapping_meta
+        self.dataset_structure = dataset_structure
+
+    @contextlib.contextmanager
+    def read_path(self) -> Iterator[IO[bytes]]:
+        if self.path.startswith(HTTP_URL_PREFIXES):
+            response = requests.get(self.path, stream=True)
+            response.raise_for_status()
+            try:
+                yield response.raw
+            finally:
+                response.close()
+        else:
+            with pathlib.Path(self.path).open("rb") as file:
+                yield file
+
+    def read_schema(self) -> None:
+        raise NotImplementedError("read_schema not implemented")
+
+
+class JSONSchemaReader(DictSchemaReader):
+    path: str
+    mapping_meta: MappingMeta
+    dataset_structure: MappedDataset
+
+    def read_schema(self) -> None:
+        with self.read_path() as stream:
+            json_data = json.loads(stream.read().decode("utf-8"))
+            self.dataset_structure, _ = parse_data(self.mapping_meta, json_data, self.dataset_structure)
+
+
+class XMLIterSchemaReader(DictSchemaReader):
     """Reads XML data and converts it into mapped data by collecting unique structure using streaming"""
 
     path: str
@@ -46,58 +82,13 @@ class XMLIterSchemaReader:
         mapping_meta: MappingMeta,
         dataset_structure: MappedDataset,
     ) -> None:
-        self.path = path
-        self.mapping_meta = mapping_meta
-        self.dataset_structure = dataset_structure
+        super().__init__(path, mapping_meta, dataset_structure)
 
         self.namespaces = []
         self.__structural_data = {}
         self.__seen_tags = [set()]
 
-    @contextlib.contextmanager
-    def read_path(self) -> Iterator[IO[bytes]]:
-        if self.path.startswith(HTTP_URL_PREFIXES):
-            response = requests.get(self.path, stream=True)
-            response.raise_for_status()
-            try:
-                yield response.raw
-            finally:
-                response.close()
-        else:
-            with pathlib.Path(self.path).open("rb") as file:
-                yield file
-
-    @staticmethod
-    def _strip_namespace(tag: str) -> str:
-        return tag.split("}")[-1] if "}" in tag else tag
-
-    def _get_element_tag_with_prefix(self, elem: etree._Element) -> str:
-        """
-        Replace element namespace with prefix
-        """
-        tag = self._strip_namespace(elem.tag)
-        return f"{elem.prefix}:{tag}" if elem.prefix else tag
-
-    def _get_element_attribute_with_with_prefix(self, attribute: str, nsmap: dict[str, str]) -> str:
-        """
-        If attribute has a namespace - replace namespace with prefix.
-        Examples:
-            "{https://example.com/xsi}code" -> "xsi:code", if namespace exists in nsmap
-            "{https://example.com/xsi}code" -> "code", if namespace does not exist in nsmap
-            "code" -> "code"
-        """
-        if "}" not in attribute:
-            return f"@{attribute}"
-
-        attribute_namespace = (attribute.split("}")[0]).strip("{}")
-        attribute_name = self._strip_namespace(attribute)
-
-        return next(
-            (f"@{prefix}:{attribute_name}" for prefix, ns in nsmap.items() if attribute_namespace == ns),
-            f"@{attribute_name}",
-        )
-
-    def read_xml(self) -> None:
+    def read_schema(self) -> None:
         with self.read_path() as stream:
             # lxml iterparse events:
             #   "start-ns" - fired when namespace is found.
@@ -135,6 +126,36 @@ class XMLIterSchemaReader:
 
         # Process the collected structural data once at the end
         self.parse_structure()
+
+    @staticmethod
+    def _strip_namespace(tag: str) -> str:
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    def _get_element_tag_with_prefix(self, elem: etree._Element) -> str:
+        """
+        Replace element namespace with prefix
+        """
+        tag = self._strip_namespace(elem.tag)
+        return f"{elem.prefix}:{tag}" if elem.prefix else tag
+
+    def _get_element_attribute_with_with_prefix(self, attribute: str, nsmap: dict[str, str]) -> str:
+        """
+        If attribute has a namespace - replace namespace with prefix.
+        Examples:
+            "{https://example.com/xsi}code" -> "xsi:code", if namespace exists in nsmap
+            "{https://example.com/xsi}code" -> "code", if namespace does not exist in nsmap
+            "code" -> "code"
+        """
+        if "}" not in attribute:
+            return f"@{attribute}"
+
+        attribute_namespace = (attribute.split("}")[0]).strip("{}")
+        attribute_name = self._strip_namespace(attribute)
+
+        return next(
+            (f"@{prefix}:{attribute_name}" for prefix, ns in nsmap.items() if attribute_namespace == ns),
+            f"@{attribute_name}",
+        )
 
     @staticmethod
     def _get_inner_value(data: dict[str, list | dict], tag: str) -> dict:
@@ -248,28 +269,14 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str) -> Iter
     )
 
     if manifest_type == DictFormat.JSON:
-        if path.startswith(HTTP_URL_PREFIXES):
-            value = requests.get(path).text
-        else:
-            with pathlib.Path(path).open(encoding="utf-8-sig") as f:
-                value = f.read()
-
-        converted = json.loads(value)
-        dataset_structure, namespaces = parse_data(mapping_meta, converted, dataset_structure)
-        yield from convert_to_manifest(mapping_meta, namespaces, dataset_structure)
+        json_reader = JSONSchemaReader(path, mapping_meta, dataset_structure)
+        json_reader.read_schema()
+        yield from convert_to_manifest(mapping_meta, [], dataset_structure)
 
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-        process = psutil.Process(os.getpid())
-        memory_start = process.memory_info().rss
-        print(f"Memory start: {memory_start / 1024**2} MB")
-
         xml_reader = XMLIterSchemaReader(path, mapping_meta, dataset_structure)
-        xml_reader.read_xml()
+        xml_reader.read_schema()
         yield from convert_to_manifest(mapping_meta, xml_reader.namespaces, xml_reader.dataset_structure)
-
-        memory_end = process.memory_info().rss
-        print(f"Memory end: {memory_end / 1024**2} MB")
-        print(f"Difference: {(memory_end - memory_start) / 1024**2} MB")
 
 
 def parse_data(
