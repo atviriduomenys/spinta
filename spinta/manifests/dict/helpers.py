@@ -346,9 +346,7 @@ def convert_to_manifest(
                     "type": prop_type,
                     "external": {"name": prop.source},
                     "description": "",
-                    # TODO: What to do with type_detector.required? XML now iterates over all items and accumulates
-                    #  single value that is used to generate manifest. Marking items required doesn't make sense
-                    "required": False,
+                    "required": type_detector.required,
                     "unique": type_detector.unique,
                     **extra,
                 }
