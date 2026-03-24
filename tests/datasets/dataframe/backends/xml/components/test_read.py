@@ -1271,10 +1271,10 @@ def test_composite_prepare_links_tables(rc: RawConfig, tmp_path: Path):
           |   |   |   | asset_type_attribute           | ref required    | LegalEntityAttribute[code] | kodas/text()       |
           |   |   |   | asset_type_attribute.code      | string required |                            | kodas/text()       |
           |   |   |   | asset_type_attribute.title_lt  | string          |                            | pavadinimas/text() |
-          |   |   | LegalEntityAttribute               |                 |                            |                    |
+          |   |   | LegalEntityAttribute               |                 |                            | /israsas           |
           |   |   |   | code                           | string          |                            | kodas/text()       |
           |   |   |   | title_lt                       | string          |                            | pavadinimas/text() |
-          |   |   | AssetType                          |                 | name                       |                    |
+          |   |   | AssetType                          |                 | name                       | /israsas           |
           |   |   |   | code                           | string          |                            | kodas/text()       |
           |   |   |   | name                           | string          |                            | pavadinimas/text() |
         """,
@@ -1282,15 +1282,24 @@ def test_composite_prepare_links_tables(rc: RawConfig, tmp_path: Path):
     )
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel("example/ParticipantEvent", ["getall"])
-    resp = app.get("/example/ParticipantEvent")
-    data = resp.json()["_data"]
-    assert data == [
+    models = ["example/ParticipantEvent", "example/AssetType", "example/LegalEntityAttribute"]
+    for model in models:
+        app.authmodel(model, ["getall"])
+
+    participant = app.get("/example/ParticipantEvent")
+    legal = app.get("/example/LegalEntityAttribute")
+    asset = app.get("/example/AssetType")
+
+    participant_data = participant.json()["_data"]
+    legal_data = legal.json()["_data"]
+    asset_data = asset.json()["_data"]
+
+    assert participant_data == [
         {
             "_id": ANY,
             "_revision": None,
             "_type": "example/ParticipantEvent",
-            "asset_type": {"_id": ANY},
-            "asset_type_attribute": {"_id": ANY},
+            "asset_type": {"_id": asset_data[0]["_id"]},
+            "asset_type_attribute": {"_id": legal_data[0]["_id"]},
         }
     ]
