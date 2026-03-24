@@ -1,6 +1,5 @@
 import base64
 import subprocess
-from typing import Dict, List, Optional
 
 from lxml import etree
 
@@ -22,7 +21,7 @@ def is_quoted(value: str) -> bool:
     return len(value) > 1 and value[0] == value[-1] and value[0] in ('"', "'")
 
 
-def _require_rc_private_key_path(raw_config: Optional[RawConfig]) -> str:
+def _require_rc_private_key_path(raw_config: RawConfig | None) -> str:
     """Return the configured PEM path, or raise if raw config / key path is missing."""
     if raw_config is None:
         raise RuntimeError("RC signature adapter was loaded but application configuration is missing.")
@@ -34,7 +33,7 @@ def _require_rc_private_key_path(raw_config: Optional[RawConfig]) -> str:
     return str(path)
 
 
-def validate_soap_adapter_config(raw_config: Optional[RawConfig]) -> None:
+def validate_soap_adapter_config(raw_config: RawConfig | None) -> None:
     """Invoked by soap plugin loader when this module is listed in ``soap_adapter_modules``."""
     _require_rc_private_key_path(raw_config)
 
@@ -108,11 +107,11 @@ def compute_rc_signature_from_body(soap_body: dict[str, object], context: Contex
     return _compute_rc_signature(args, key_path)
 
 
-def get_deferred_prepare_names() -> List[str]:
+def get_deferred_prepare_names() -> list[str]:
     return ["rc_signature"]
 
 
-def get_body_resolvers() -> Dict[str, object]:
+def get_body_resolvers() -> dict[str, object]:
     def rc_signature_resolver(env: SoapQueryBuilder, expr: Expr | None = None) -> str:
         return compute_rc_signature_from_body(env.soap_request_body, env.context)
 
