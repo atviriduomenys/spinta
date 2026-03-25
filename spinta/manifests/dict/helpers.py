@@ -136,15 +136,12 @@ class XMLIterSchemaReader(DictSchemaReader):
         return tag.split(RIGHT_CURLY_BRACE)[-1] if RIGHT_CURLY_BRACE in tag else tag
 
     def _get_element_tag_with_prefix(self, element: etree._Element) -> str:
-        """
-        Replace element namespace with prefix
-        """
+        """Replace element namespace with prefix"""
         tag = self._strip_namespace(element.tag)
         return f"{element.prefix}:{tag}" if element.prefix else tag
 
     def _get_element_attribute_with_with_prefix(self, attribute: str, nsmap: dict[str, str]) -> str:
-        """
-        If attribute has a namespace - replace namespace with prefix.
+        """If attribute has a namespace - replace namespace with prefix.
         Examples:
             "{https://example.com/xsi}code" -> "xsi:code", if namespace exists in nsmap
             "{https://example.com/xsi}code" -> "code", if namespace does not exist in nsmap
@@ -166,9 +163,7 @@ class XMLIterSchemaReader(DictSchemaReader):
         return data[tag][0] if isinstance(data[tag], list) else data[tag]
 
     def _merge_start(self, path: list[str], element: etree._Element, is_repeat_in_parent: bool) -> None:
-        """
-        Merges element and attributes to self.__structural_data
-        """
+        """Merges element and attributes to self.__structural_data"""
         current = self.__structural_data
         for i, tag in enumerate(path[:-1]):
             parent = current
@@ -214,9 +209,7 @@ class XMLIterSchemaReader(DictSchemaReader):
                     target[self._get_element_attribute_with_with_prefix(key, element.nsmap)] = value
 
     def _merge_end(self, path: list[str], element: etree._Element) -> None:
-        """
-        Merges element text to self.__structural_data
-        """
+        """Merges element text to self.__structural_data"""
         text = element.text.strip() if element.text else None
         if not text:
             return
