@@ -426,7 +426,6 @@ dataset                  |                |         |
   |   |   | name         | string required unique |         | @name
   |   |   | location_lon | integer required unique |         | location/lon
   |   |   | location_lat | integer required unique |         | location/lat
-
 """,
         context,
     )
@@ -482,7 +481,6 @@ dataset                                     |                         |        |
   |   |   | location_lat                    | integer required unique |        | location/@lat
   |   |   | location_lon                    | integer required unique |        | location/@lon
   |   |   | galaxy                          | ref                     | Galaxy | ../../../..
-
 """,
         context,
     )
@@ -527,7 +525,6 @@ dataset                  |                |       |                        |
   |   |   | name         | string required unique |       | @name                  |
   |   |   | location_lon | integer required unique |       | location/test:lon      |
   |   |   | location_lat | integer required unique |       | location/test:lat      |
-
 """,
         context,
     )
@@ -575,7 +572,6 @@ dataset                   |                     |           |                   
   |   |   | location_lon  | integer required unique |           | location/test:lon      |
   |   |   | location_lat  | integer required unique |           | location/test:lat      |
   |   |   | countries     | ref                 | Countries | ..                     |
-
 """,
         context,
     )

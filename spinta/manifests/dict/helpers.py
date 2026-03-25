@@ -3,6 +3,7 @@ import logging
 
 import pathlib
 import json
+from abc import ABC, abstractmethod
 from copy import deepcopy
 
 import requests
@@ -27,8 +28,15 @@ from lxml import etree
 
 logger = logging.getLogger(__name__)
 
+# lxml iterparse events:
+EVENT_START_NS = "start-ns"  # Fired when XML namespace is found.
+EVENT_START = "start"  # Fired when XML element is found. Only element and its attributes available.
+EVENT_END = "end"  # Fired when XML element closing tag is found. Element content is available.
 
-class DictSchemaReader:
+RIGHT_CURLY_BRACE = "}"
+
+
+class DictSchemaReader(ABC):
     path: str
     mapping_meta: MappingMeta
     dataset_structure: MappedDataset
@@ -51,8 +59,8 @@ class DictSchemaReader:
             with pathlib.Path(self.path).open("rb") as file:
                 yield file
 
-    def read_schema(self) -> None:
-        raise NotImplementedError("read_schema not implemented")
+    @abstractmethod
+    def read_schema(self) -> None: ...
 
 
 class JSONSchemaReader(DictSchemaReader):
@@ -90,53 +98,49 @@ class XMLIterSchemaReader(DictSchemaReader):
 
     def read_schema(self) -> None:
         with self.read_path() as stream:
-            # lxml iterparse events:
-            #   "start-ns" - fired when namespace is found.
-            #   "start" - fired when element is found. Only element and its attributes available.
-            #   "end" - fired when element closing tag is found. Element content is available
-            context = etree.iterparse(stream, events=("start", "end", "start-ns"), recover=True)
+            context = etree.iterparse(stream, events=(EVENT_START, EVENT_END, EVENT_START_NS), recover=True)
             path = []
 
-            for event, elem in context:
-                if event == "start-ns":
-                    prefix, uri = elem
+            for event, element in context:
+                if event == EVENT_START_NS:
+                    prefix, uri = element
                     prefix = "xmlns" if prefix == "" else prefix
                     if (prefix, uri) not in self.namespaces:
                         self.namespaces.append((prefix, uri))
                     continue
 
                 # Get tag with prefix instead of tag with namespace.
-                tag = self._get_element_tag_with_prefix(elem)
+                tag = self._get_element_tag_with_prefix(element)
 
-                if event == "start":
-                    is_repeat = tag in self.__seen_tags[-1]
+                if event == EVENT_START:
+                    is_repeat_in_parent = tag in self.__seen_tags[-1]
                     self.__seen_tags[-1].add(tag)
                     self.__seen_tags.append(set())
 
                     path.append(tag)
-                    self._merge_start(path, elem, is_repeat)
-                elif event == "end":
+                    self._merge_start(path, element, is_repeat_in_parent)
+                elif event == EVENT_END:
                     self.__seen_tags.pop()
-                    self._merge_end(path, elem)
+                    self._merge_end(path, element)
                     path.pop()
                     # Memory cleanup
-                    elem.clear()
-                    while elem.getprevious() is not None:
-                        del elem.getparent()[0]
+                    element.clear()
+                    while element.getprevious() is not None:
+                        del element.getparent()[0]
 
         # Process the collected structural data once at the end
         self.parse_structure()
 
     @staticmethod
     def _strip_namespace(tag: str) -> str:
-        return tag.split("}")[-1] if "}" in tag else tag
+        return tag.split(RIGHT_CURLY_BRACE)[-1] if RIGHT_CURLY_BRACE in tag else tag
 
-    def _get_element_tag_with_prefix(self, elem: etree._Element) -> str:
+    def _get_element_tag_with_prefix(self, element: etree._Element) -> str:
         """
         Replace element namespace with prefix
         """
-        tag = self._strip_namespace(elem.tag)
-        return f"{elem.prefix}:{tag}" if elem.prefix else tag
+        tag = self._strip_namespace(element.tag)
+        return f"{element.prefix}:{tag}" if element.prefix else tag
 
     def _get_element_attribute_with_with_prefix(self, attribute: str, nsmap: dict[str, str]) -> str:
         """
@@ -146,10 +150,10 @@ class XMLIterSchemaReader(DictSchemaReader):
             "{https://example.com/xsi}code" -> "code", if namespace does not exist in nsmap
             "code" -> "code"
         """
-        if "}" not in attribute:
+        if RIGHT_CURLY_BRACE not in attribute:
             return f"@{attribute}"
 
-        attribute_namespace = (attribute.split("}")[0]).strip("{}")
+        attribute_namespace = (attribute.split(RIGHT_CURLY_BRACE)[0]).strip("{}")
         attribute_name = self._strip_namespace(attribute)
 
         return next(
@@ -159,14 +163,9 @@ class XMLIterSchemaReader(DictSchemaReader):
 
     @staticmethod
     def _get_inner_value(data: dict[str, list | dict], tag: str) -> dict:
-        if isinstance(data[tag], list):
-            inner_data = data[tag][0]
-        else:
-            inner_data = data[tag]
+        return data[tag][0] if isinstance(data[tag], list) else data[tag]
 
-        return inner_data
-
-    def _merge_start(self, path: list[str], elem: etree._Element, is_repeat: bool) -> None:
+    def _merge_start(self, path: list[str], element: etree._Element, is_repeat_in_parent: bool) -> None:
         """
         Merges element and attributes to self.__structural_data
         """
@@ -188,38 +187,37 @@ class XMLIterSchemaReader(DictSchemaReader):
         tag = path[-1]
         if tag not in current:
             # Tag does not exist. Add tag and element attributes to python structure
-            if elem.attrib:
+            if element.attrib:
                 current[tag] = {
-                    self._get_element_attribute_with_with_prefix(k, elem.nsmap): v for k, v in elem.attrib.items()
+                    self._get_element_attribute_with_with_prefix(k, element.nsmap): v for k, v in element.attrib.items()
                 }
             else:
                 current[tag] = None
         else:
             # Repetition detected, promote to list for array inference
-            if is_repeat:
-                if not isinstance(current[tag], list):
-                    current[tag] = [current[tag]]
+            if is_repeat_in_parent and not isinstance(current[tag], list):
+                current[tag] = [current[tag]]
 
             target = self._get_inner_value(current, tag)
 
-            if elem.attrib:
+            if element.attrib:
                 if not isinstance(target, dict):
                     # Convert simple value to dict to accommodate attributes
-                    target_val = {"text()": target} if target is not None else {}
+                    target_value = {"text()": target} if target is not None else {}
                     if isinstance(current[tag], list):
-                        current[tag][0] = target_val
+                        current[tag][0] = target_value
                     else:
-                        current[tag] = target_val
-                    target = target_val
+                        current[tag] = target_value
+                    target = target_value
 
-                for k, v in elem.attrib.items():
-                    target[self._get_element_attribute_with_with_prefix(k, elem.nsmap)] = v
+                for key, value in element.attrib.items():
+                    target[self._get_element_attribute_with_with_prefix(key, element.nsmap)] = value
 
-    def _merge_end(self, path: list[str], elem: etree._Element) -> None:
+    def _merge_end(self, path: list[str], element: etree._Element) -> None:
         """
         Merges element text to self.__structural_data
         """
-        text = elem.text.strip() if elem.text else None
+        text = element.text.strip() if element.text else None
         if not text:
             return
 
