@@ -8,8 +8,11 @@ Improvements:
 
 - Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
   The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
+- Added configuration value default_access_value and set its default value to `private`.
+  Set default value of Manifest component access value to private (`#1802`_).
 
 .. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
+.. _#1802: https://github.com/atviriduomenys/spinta/issues/1802
 
 Bug Fixes:
 
