@@ -4,6 +4,13 @@ Changes
 0.2dev20 (unreleased)
 =====================
 
+New Features:
+
+- Adding SOAP custom adapters support. Now you can add your own SOAP adapters to the SOAP backend in order to extend
+  the functionality of the SOAP backend. (`#1832`_).
+
+.. _#1832: https://github.com/atviriduomenys/spinta/issues/1832
+
 Improvements:
 
 - Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
@@ -74,8 +81,8 @@ New Features:
 
 Bug fixes:
 
-- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
-  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`,
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
 - Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
 

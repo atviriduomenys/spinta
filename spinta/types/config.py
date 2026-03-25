@@ -4,6 +4,7 @@ from typing import Type
 
 from ruamel.yaml import YAML
 
+from spinta.adapters.soap_plugins import register_soap_ufuncs
 from spinta.auth import client_name_exists, get_clients_path
 from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
@@ -37,6 +38,7 @@ def load(context: Context, config: Config) -> Config:
 
     # Load ufuncs.
     ufunc.resolver.collect(rc.get("ufuncs"))
+    register_soap_ufuncs(ufunc.resolver, rc)
     config.resolvers = ufunc.resolver.ufuncs()
     config.executors = ufunc.executor.ufuncs()
 
