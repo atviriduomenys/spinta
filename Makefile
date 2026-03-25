@@ -26,7 +26,7 @@ test: env
 
 .PHONY: test-github
 test-github: 
-	poetry run pytest -vvxra --tb=short --log-level=debug --cov=spinta --cov-report=term-missing tests
+	poetry run pytest -vvra --tb=short --log-level=debug --cov=spinta --cov-report=term-missing tests
 
 .PHONY: run
 run: env

@@ -22,9 +22,11 @@ Bug Fixes:
 
 - Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
 - Fixed a bug which duplicated pagination filters each time new page was fetched during `getall` (`#1829`_).
+- Fixed a bug where a ref property without a source and with a prepare function caused the prepare function to be ignored (`#1813`_).
 
 .. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
 .. _#1829: https://github.com/atviriduomenys/spinta/issues/1829
+.. _#1813: https://github.com/atviriduomenys/spinta/issues/1813
 
 0.2dev19 (2026-03-18)
 ======================

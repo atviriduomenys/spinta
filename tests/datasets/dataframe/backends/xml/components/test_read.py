@@ -1209,3 +1209,97 @@ def test_xml_read_text_lang_select(rc: RawConfig, tmp_path: Path, select: str, e
         ("KNS", expected_name[0], NA, NA),
         ("VNO", expected_name[1], NA, NA),
     ]
+
+
+def test_composite_prepare_links_tables_error_if_count_mismatch(rc: RawConfig, tmp_path: Path):
+    xml = """
+	<israsas>
+        <akciju_klases_tipas>
+            <kodas>110</kodas>
+            <pavadinimas>Vardinių paprastųjų akcijų skaičius</pavadinimas>
+        </akciju_klases_tipas>
+	</israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property                | type            | ref                    | source              | prepare                 | access
+        example/xml                             |                 |                        |                     |                         |
+          | resource                            | dask/xml        |                        | {path}              |                         |
+          |   |   | Event                       |                 |                        | israsas             |                         |
+          |   |   |   | type                    | ref required    | AssetType              |                     | type_attribute.title_lt | open
+          |   |   |   | type_attribute          | ref required    | EntityAttribute[code]  |                     |                         | open
+          |   |   |   | type_attribute.code     | string required |                        | kodas               |                         | open
+          |   |   |   | type_attribute.title_lt | string required |                        | pavadinimas         |                         | open
+          |   |   | EntityAttribute             |                 |                        | israsas             |                         |
+          |   |   |   | code                    | string          |                        | kodas               |                         | open
+          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+          |   |   | AssetType                   |                 |                        | israsas             |                         | open
+          |   |   |   | code                    | string          |                        | kodas               |                         | open
+          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Event", ["getall"])
+    resp = app.get("/example/xml/Event")
+    assert resp.json()["errors"][0]["code"] == "GivenValueCountMissmatch"
+
+
+def test_composite_prepare_links_tables(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <israsas>
+        <kodas>110</kodas>
+        <pavadinimas>pavadinimas</pavadinimas>
+    </israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property                       | type            | ref                        | source             | prepare
+        example                                        |                 |                            |                    |
+          | service                                    | dask/xml        |                            | {path}             |
+          |   |   | ParticipantEvent                   |                 |                            | /israsas           |
+          |   |   |   | asset_type                     | ref required    | AssetType                  |                    | asset_type_attribute.title_lt
+          |   |   |   | asset_type_attribute           | ref required    | LegalEntityAttribute[code] | kodas/text()       |
+          |   |   |   | asset_type_attribute.code      | string required |                            | kodas/text()       |
+          |   |   |   | asset_type_attribute.title_lt  | string          |                            | pavadinimas/text() |
+          |   |   | LegalEntityAttribute               |                 |                            | /israsas           |
+          |   |   |   | code                           | string          |                            | kodas/text()       |
+          |   |   |   | title_lt                       | string          |                            | pavadinimas/text() |
+          |   |   | AssetType                          |                 | name                       | /israsas           |
+          |   |   |   | code                           | string          |                            | kodas/text()       |
+          |   |   |   | name                           | string          |                            | pavadinimas/text() |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    models = ["example/ParticipantEvent", "example/AssetType", "example/LegalEntityAttribute"]
+    for model in models:
+        app.authmodel(model, ["getall"])
+
+    participant = app.get("/example/ParticipantEvent")
+    legal = app.get("/example/LegalEntityAttribute")
+    asset = app.get("/example/AssetType")
+
+    participant_data = participant.json()["_data"]
+    legal_data = legal.json()["_data"]
+    asset_data = asset.json()["_data"]
+
+    assert participant_data == [
+        {
+            "_id": ANY,
+            "_revision": None,
+            "_type": "example/ParticipantEvent",
+            "asset_type": {"_id": asset_data[0]["_id"]},
+            "asset_type_attribute": {"_id": legal_data[0]["_id"]},
+        }
+    ]

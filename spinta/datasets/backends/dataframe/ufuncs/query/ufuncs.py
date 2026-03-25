@@ -15,7 +15,7 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
-from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList, SourceOrPrepareNotAllowed
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList, SourceOrPrepareNotAllowed
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
@@ -325,8 +325,18 @@ def select(
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Selected)
-def select(env: DaskDataFrameQueryBuilder, selected: Selected):
+def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
     return selected
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
+    prep = env.call("select", prep)
+    if prep is not None:
+        return Selected(
+            prop=dtype.prop,
+            prep=prep,
+        )
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
@@ -340,14 +350,8 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Selected:
-    """For things like select(foo.bar.baz)."""
-
-    fpr: ForeignProperty = env.call("_resolve_getattr", attr)
-    raise NotImplementedFeature(fpr.left.prop.model, feature="Ability to use foreign properties")
-    return Selected(
-        prop=fpr.right.prop,
-        prep=env.call("select", fpr, fpr.right.prop),
-    )
+    resolved = env.resolve_property(attr)
+    return env.call("select", resolved)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty)
