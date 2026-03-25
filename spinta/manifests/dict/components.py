@@ -70,13 +70,14 @@ class MappingMeta:
     check_namespace: bool
     namespace_prefixes: dict[str, list[str]]
     namespace_seperator: str
+    manifest_type: DictFormat
 
     @classmethod
     def get_for(cls, manifest_type: DictFormat) -> "MappingMeta":
         if manifest_type == DictFormat.JSON:
             mapping_meta = MappingMeta.for_json()
         elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-            mapping_meta = MappingMeta.for_xml()
+            mapping_meta = MappingMeta.for_xml(manifest_type)
         else:
             mapping_meta = MappingMeta.default()
 
@@ -95,10 +96,11 @@ class MappingMeta:
             remove_array_suffix=False,
             check_namespace=False,
             namespace_prefixes={},
+            manifest_type=DictFormat.JSON,
         )
 
     @classmethod
-    def for_xml(cls) -> "MappingMeta":
+    def for_xml(cls, manifest_type: DictFormat) -> "MappingMeta":
         return cls(
             is_blank_node=False,
             blank_node_name="model1",
@@ -110,6 +112,7 @@ class MappingMeta:
             remove_array_suffix=True,
             check_namespace=True,
             namespace_prefixes={"xmlns": ["xmlns", "@xmlns"]},
+            manifest_type=manifest_type,
         )
 
     @classmethod

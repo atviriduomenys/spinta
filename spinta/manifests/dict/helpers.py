@@ -728,3 +728,7 @@ def set_type_detector(
         type_detector.type = "ref"
         type_detector.unique = False
         type_detector.required = False
+    # Do not set unique or required for lxml parsed manifests
+    if mapping_meta.manifest_type in (DictFormat.XML, DictFormat.HTML):
+        type_detector.unique = False
+        type_detector.required = False

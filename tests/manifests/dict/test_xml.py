@@ -417,16 +417,16 @@ def test_xml_normal(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(
         manifest,
         """
-d | r | model | property     | type           | ref     | source
-dataset                  |                |         |
-  | resource             | dask/xml       |         | manifest.xml
-                         |                |         |
-  |   | Country          |                |         | /countries/country
-  |   |   | code         | string required unique |         | @code
-  |   |   | name         | string required unique |         | @name
-  |   |   | location_lon | integer required unique |         | location/lon
-  |   |   | location_lat | integer required unique |         | location/lat
-""",
+        d | r | model | property     | type       | ref     | source
+        dataset                  |            |         |
+          | resource             | dask/xml   |         | manifest.xml
+                                 |            |         |
+          |   | Country          |            |         | /countries/country
+          |   |   | code         | string     |         | @code
+          |   |   | name         | string     |         | @name
+          |   |   | location_lon | integer    |         | location/lon
+          |   |   | location_lat | integer    |         | location/lat
+        """,
         context,
     )
     assert a == b
@@ -466,22 +466,22 @@ def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(
         manifest,
         """
-d | r | model   | property                        | type                    | ref    | source
-dataset                                     |                         |        |
-  | resource                                | dask/xml                |        | manifest.xml
-                                            |                         |        |
-  |   | Galaxy                              |                         |        | /galaxy
-  |   |   | name                            | string required unique  |        | @name
-  |   |   | solar_system_name               | string required unique  |        | solar_system/@name
-  |   |   | solar_system_planet_name        | string required unique  |        | solar_system/planet/@name
-                                            |                         |        |
-  |   | Country                             |                         |        | /galaxy/solar_system/planet/countries/country
-  |   |   | code                            | string required unique  |        | code
-  |   |   | name                            | string required unique  |        | name
-  |   |   | location_lat                    | integer required unique |        | location/@lat
-  |   |   | location_lon                    | integer required unique |        | location/@lon
-  |   |   | galaxy                          | ref                     | Galaxy | ../../../..
-""",
+        d | r | model   | property                        | type        | ref    | source
+        dataset                                     |             |        |
+          | resource                                | dask/xml    |        | manifest.xml
+                                                    |             |        |
+          |   | Galaxy                              |             |        | /galaxy
+          |   |   | name                            | string      |        | @name
+          |   |   | solar_system_name               | string      |        | solar_system/@name
+          |   |   | solar_system_planet_name        | string      |        | solar_system/planet/@name
+                                                    |             |        |
+          |   | Country                             |             |        | /galaxy/solar_system/planet/countries/country
+          |   |   | code                            | string      |        | code
+          |   |   | name                            | string      |        | name
+          |   |   | location_lat                    | integer     |        | location/@lat
+          |   |   | location_lon                    | integer     |        | location/@lon
+          |   |   | galaxy                          | ref         | Galaxy | ../../../..
+        """,
         context,
     )
     assert a == b
@@ -511,21 +511,21 @@ def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(
         manifest,
         """
-d | r | model   | property     | type           | ref   | source                 | uri
-dataset                  |                |       |                        |
-                         | prefix         | xsi   |                        | http://www.example.com/xmlns/xsi
-                         |                | xmlns |                        | http://www.example.com/xmlns
-                         |                | new   |                        | http://www.example.com/xmlns/new
-                         |                | test  |                        | http://www.example.com/xmlns/test
-                         |                |       |                        |
-  | resource             | dask/xml       |       | manifest.xml           |
-                         |                |       |                        |
-  |   | Country          |                |       | /countries/new:country |
-  |   |   | code         | string required unique |       | @xsi:code              |
-  |   |   | name         | string required unique |       | @name                  |
-  |   |   | location_lon | integer required unique |       | location/test:lon      |
-  |   |   | location_lat | integer required unique |       | location/test:lat      |
-""",
+        d | r | model   | property     | type           | ref   | source                 | uri
+        dataset                  |                |       |                        |
+                                 | prefix         | xsi   |                        | http://www.example.com/xmlns/xsi
+                                 |                | xmlns |                        | http://www.example.com/xmlns
+                                 |                | new   |                        | http://www.example.com/xmlns/new
+                                 |                | test  |                        | http://www.example.com/xmlns/test
+                                 |                |       |                        |
+          | resource             | dask/xml       |       | manifest.xml           |
+                                 |                |       |                        |
+          |   | Country          |                |       | /countries/new:country |
+          |   |   | code         | string         |       | @xsi:code              |
+          |   |   | name         | string         |       | @name                  |
+          |   |   | location_lon | integer        |       | location/test:lon      |
+          |   |   | location_lat | integer        |       | location/test:lat      |
+        """,
         context,
     )
     assert a == b
@@ -555,24 +555,24 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(
         manifest,
         """
-d | r | model   | property      | type                | ref       | source                 | uri
-dataset                   |                     |           |                        |
-                          | prefix              | xmlns     |                        | http://www.example.com/xmlns
-                          |                     | new       |                        | http://www.example.com/xmlns/new
-                          |                     | test      |                        | http://www.example.com/xmlns/test
-                          |                     |           |                        |
-  | resource              | dask/xml            |           | manifest.xml           |
-                          |                     |           |                        |
-  |   | Countries         |                     |           | /countries             |
-  |   |   | xsi           | url required unique |           | @test:xsi              |
-                          |                     |           |                        |
-  |   | Country           |                     |           | /countries/new:country |
-  |   |   | xsi_code      | string required unique |           | @xsi:code              |
-  |   |   | name          | string required unique |           | @name                  |
-  |   |   | location_lon  | integer required unique |           | location/test:lon      |
-  |   |   | location_lat  | integer required unique |           | location/test:lat      |
-  |   |   | countries     | ref                 | Countries | ..                     |
-""",
+        d | r | model   | property      | type       | ref       | source                 | uri
+        dataset                   |            |           |                        |
+                                  | prefix     | xmlns     |                        | http://www.example.com/xmlns
+                                  |            | new       |                        | http://www.example.com/xmlns/new
+                                  |            | test      |                        | http://www.example.com/xmlns/test
+                                  |            |           |                        |
+          | resource              | dask/xml   |           | manifest.xml           |
+                                  |            |           |                        |
+          |   | Countries         |            |           | /countries             |
+          |   |   | xsi           | url        |           | @test:xsi              |
+                                  |            |           |                        |
+          |   | Country           |            |           | /countries/new:country |
+          |   |   | xsi_code      | string     |           | @xsi:code              |
+          |   |   | name          | string     |           | @name                  |
+          |   |   | location_lon  | integer    |           | location/test:lon      |
+          |   |   | location_lat  | integer    |           | location/test:lat      |
+          |   |   | countries     | ref        | Countries | ..                     |
+        """,
         context,
     )
     assert a == b
@@ -619,29 +619,29 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(
         manifest,
         """
-d | r | m | property          | type                    | ref     | source
-dataset                       |                         |         |
-  | resource                  | dask/xml                |         | manifest.xml
-                              |                         |         |
-  |   | Country               |                         |         | /countries/country
-  |   |   | name              | string required unique  |         | @name
-  |   |   | code              | string required unique  |         | @code
-  |   |   | location_test     | string required unique  |         | location/@test
-  |   |   | location_coords[] | number                  |         | location/coords
-                              |                         |         |
-  |   | Geo                   |                         |         | /countries/country/location/geos/geo
-  |   |   | geo_test          | string required unique  |         | @geo_test
-  |   |   | country           | ref                     | Country | ../../..
-                              |                         |         |
-  |   | Geo1                  |                         |         | /countries/country/cities/city/location/geos/geo
-  |   |   | geo_test          | integer required unique |         | @geo_test
-  |   |   | city              | ref                     | City    | ../../..
-                              |                         |         |
-  |   | City                  |                         |         | /countries/country/cities/city
-  |   |   | name              | string required unique  |         | @name
-  |   |   | location_coords[] | number                  |         | location/coords
-  |   |   | country           | ref                     | Country | ../..
-""",
+        d | r | m | property          | type     | ref     | source
+        dataset                       |          |         |
+          | resource                  | dask/xml |         | manifest.xml
+                                      |          |         |
+          |   | Country               |          |         | /countries/country
+          |   |   | name              | string   |         | @name
+          |   |   | code              | string   |         | @code
+          |   |   | location_test     | string   |         | location/@test
+          |   |   | location_coords[] | number   |         | location/coords
+                                      |          |         |
+          |   | Geo                   |          |         | /countries/country/location/geos/geo
+          |   |   | geo_test          | string   |         | @geo_test
+          |   |   | country           | ref      | Country | ../../..
+                                      |          |         |
+          |   | Geo1                  |          |         | /countries/country/cities/city/location/geos/geo
+          |   |   | geo_test          | integer  |         | @geo_test
+          |   |   | city              | ref      | City    | ../../..
+                                      |          |         |
+          |   | City                  |          |         | /countries/country/cities/city
+          |   |   | name              | string   |         | @name
+          |   |   | location_coords[] | number   |         | location/coords
+          |   |   | country           | ref      | Country | ../..
+        """,
         context,
     )
     assert a == b
