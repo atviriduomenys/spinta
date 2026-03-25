@@ -1,8 +1,6 @@
-from typing import Optional, Any, Dict, Iterable, Tuple
-
 import logging
 import re
-
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -971,6 +969,10 @@ class InvalidClientBackend(UserError):
     template = """Backend "{backend_name}" is not defined in the client file."""
 
 
+class DaskBackendCompareNotSupported(UserError):
+    template = "Dask backend does not support comparison (filter) operators in prepare formula. Found: {operators}."
+
+
 class InvalidClientBackendCredentials(UserError):
     template = """Credential "{key}" is not defined in the client's file's "{backend_name}" backends variable."""
 
@@ -1214,4 +1216,10 @@ class UnsupportedDataTypeConfiguration(UserError):
 class EnumPrepareMissing(UserError):
     template = """
         Enum {enum} is missing a required value in the prepare column.
+    """
+
+
+class SourceOrPrepareNotAllowed(UserError):
+    template = """
+        The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
     """

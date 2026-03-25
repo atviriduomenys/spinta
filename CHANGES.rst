@@ -1,12 +1,70 @@
 Changes
 #######
 
-0.2dev18 (unreleased)
+0.2dev20 (unreleased)
 =====================
+
+New Features:
+
+- Adding SOAP custom adapters support. Now you can add your own SOAP adapters to the SOAP backend in order to extend
+  the functionality of the SOAP backend. (`#1832`_).
+
+.. _#1832: https://github.com/atviriduomenys/spinta/issues/1832
+
+Improvements:
+
+- Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
+  The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
+- Added configuration value default_access_value and set its default value to `private`.
+  Set default value of Manifest component access value to private (`#1802`_).
+
+.. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
+.. _#1802: https://github.com/atviriduomenys/spinta/issues/1802
+
+Bug Fixes:
+
+- Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
+- Fixed a bug which duplicated pagination filters each time new page was fetched during `getall` (`#1829`_).
+- Fixed a bug where a ref property without a source and with a prepare function caused the prepare function to be ignored (`#1813`_).
+
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
+.. _#1829: https://github.com/atviriduomenys/spinta/issues/1829
+.. _#1813: https://github.com/atviriduomenys/spinta/issues/1813
+
+0.2dev19 (2026-03-18)
+======================
+
+Improvements:
+
+- Improved reading of large XML files (Part 1) (`#1805`_)
+- `spinta inspect` doesn't stop on unrecognized types, but instead generates DSA and prints warnings about which columns were not added. (`#1820`_)
+- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
+
+.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
+.. _#1805: https://github.com/atviriduomenys/spinta/issues/1805
+.. _#1820: https://github.com/atviriduomenys/spinta/issues/1820
+
+
+0.2dev18 (2026-03-12)
+=====================
+
+Bug Fixes:
+
+- Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
+- Fixed a bug where an expression in the prepare column was not being evaluated (`#2460`_).
+
+.. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
+.. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
 
 
 0.2dev17 (2026-02-26)
 =====================
+
+New Features:
+
+- Generate OpenAPI schemas for dependant ref models  (`#Katalogas2299`_).
+
+.. _#Katalogas2299: https://github.com/atviriduomenys/katalogas/issues/2299
 
 Bug fixes:
 
@@ -28,8 +86,8 @@ New Features:
 
 Bug fixes:
 
-- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
-  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`,
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
 - Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
 

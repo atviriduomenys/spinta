@@ -30,6 +30,7 @@ directory where additional configuration files are looked for.
    auth
    backend
    manifest
+   soap-custom-adapters
 
 .. _config-file:
 

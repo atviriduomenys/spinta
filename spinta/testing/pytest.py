@@ -98,8 +98,12 @@ def mongo(rc):
     if dsn and db:
         import pymongo
 
-        client = pymongo.MongoClient(dsn)
-        client.drop_database(db)
+        try:
+            client = pymongo.MongoClient(dsn, serverSelectionTimeoutMS=2000)
+            client.server_info()  # force connection check
+            client.drop_database(db)
+        except pymongo.errors.ServerSelectionTimeoutError:
+            pass  # MongoDB not running, nothing to clean up
 
 
 @pytest.fixture(scope="session")
