@@ -63,5 +63,5 @@ class CastMatrix:
                     sa.text("SELECT NULL::" + from_type + "::" + to_type),
                 ).scalar()
                 return CastSupport.UNSAFE
-            except Exception as _:
+            except sa.exc.ProgrammingError:
                 return CastSupport.INVALID

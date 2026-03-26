@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects import postgresql
-from typing import List, Tuple, Dict, Union
 
 import sqlalchemy as sa
 from typing import TYPE_CHECKING
@@ -17,7 +16,7 @@ pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
 class MigrationAction(ABC):
     @abstractmethod
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         pass
 
 
@@ -25,16 +24,16 @@ class CreateTableMigrationAction(MigrationAction):
     def __init__(
         self,
         table_identifier: TableIdentifier,
-        columns: List[sa.Column],
+        columns: list[sa.Column],
         comment: str,
-        indexes: List[sa.Index] | None = None,
-    ):
+        indexes: list[sa.Index] | None = None,
+    ) -> None:
         self.table_identifier = table_identifier
         self.columns = columns
         self.comment = comment
         self.indexes = indexes
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         table_identifier = self.table_identifier
         table_name = table_identifier.pg_table_name
         schema = table_identifier.pg_schema_name
@@ -54,10 +53,10 @@ class CreateTableMigrationAction(MigrationAction):
 
 
 class DropTableMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier):
+    def __init__(self, table_identifier: TableIdentifier) -> None:
         self.table_identifier = table_identifier
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.drop_table(table_name=self.table_identifier.pg_table_name, schema=self.table_identifier.pg_schema_name)
 
 
@@ -66,14 +65,14 @@ class RenameTableMigrationAction(MigrationAction):
         self,
         old_table_identifier: TableIdentifier,
         new_table_identifier: TableIdentifier,
-        comment: Union[str, bool] = False,
-    ):
+        comment: str | bool = False,
+    ) -> None:
         self.old_table_identifier = old_table_identifier
         self.new_table_identifier = new_table_identifier
         self.comment = comment
         self.schema_rename_query = f"ALTER TABLE {self.old_table_identifier.pg_escaped_qualified_name} SET SCHEMA {pg_identifier_preparer.quote(new_table_identifier.pg_schema_name)}"
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         if name_changed(self.old_table_identifier.pg_schema_name, self.new_table_identifier.pg_schema_name):
             replaced = self.schema_rename_query.replace(":", "\\:")
             op.execute(replaced)
@@ -93,11 +92,11 @@ class RenameTableMigrationAction(MigrationAction):
 
 
 class AddColumnMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, column: sa.Column):
+    def __init__(self, table_identifier: TableIdentifier, column: sa.Column) -> None:
         self.table_identifier = table_identifier
         self.column = column
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.add_column(
             table_name=self.table_identifier.pg_table_name,
             column=self.column,
@@ -106,11 +105,11 @@ class AddColumnMigrationAction(MigrationAction):
 
 
 class DropColumnMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, column_name: str):
+    def __init__(self, table_identifier: TableIdentifier, column_name: str) -> None:
         self.table_identifier = table_identifier
         self.column_name = column_name
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.drop_column(
             table_name=self.table_identifier.pg_table_name,
             column_name=self.column_name,
@@ -128,7 +127,7 @@ class AlterColumnMigrationAction(MigrationAction):
         type_=None,
         using: str = None,
         comment: str = False,
-    ):
+    ) -> None:
         self.table_identifier = table_identifier
         self.column_name = column_name
         self.nullable = nullable
@@ -137,7 +136,7 @@ class AlterColumnMigrationAction(MigrationAction):
         self.using = using
         self.comment = comment
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.alter_column(
             table_name=self.table_identifier.pg_table_name,
             column_name=self.column_name,
@@ -151,11 +150,11 @@ class AlterColumnMigrationAction(MigrationAction):
 
 
 class DropConstraintMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, constraint_name: str):
+    def __init__(self, table_identifier: TableIdentifier, constraint_name: str) -> None:
         self.table_identifier = table_identifier
         self.constraint_name = constraint_name
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.drop_constraint(
             constraint_name=self.constraint_name,
             table_name=self.table_identifier.pg_table_name,
@@ -164,11 +163,11 @@ class DropConstraintMigrationAction(MigrationAction):
 
 
 class DropIndexMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, index_name: str):
+    def __init__(self, table_identifier: TableIdentifier, index_name: str) -> None:
         self.table_identifier = table_identifier
         self.index_name = index_name
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.drop_index(
             index_name=self.index_name,
             table_name=self.table_identifier.pg_table_name,
@@ -177,12 +176,12 @@ class DropIndexMigrationAction(MigrationAction):
 
 
 class CreateUniqueConstraintMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, constraint_name: str, columns: List[str]):
+    def __init__(self, table_identifier: TableIdentifier, constraint_name: str, columns: list[str]) -> None:
         self.table_identifier = table_identifier
         self.constraint_name = constraint_name
         self.columns = columns
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.create_unique_constraint(
             constraint_name=self.constraint_name,
             table_name=self.table_identifier.pg_table_name,
@@ -192,26 +191,28 @@ class CreateUniqueConstraintMigrationAction(MigrationAction):
 
 
 class RenameConstraintMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, old_constraint_name: str, new_constraint_name: str):
+    def __init__(self, table_identifier: TableIdentifier, old_constraint_name: str, new_constraint_name: str) -> None:
         self.query = (
             f"ALTER TABLE {table_identifier.pg_escaped_qualified_name} RENAME CONSTRAINT "
             f"{pg_identifier_preparer.quote(old_constraint_name)} "
             f"TO {pg_identifier_preparer.quote(new_constraint_name)}"
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
 
 class CreateIndexMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, index_name: str, columns: List[str], using: str = None):
+    def __init__(
+        self, table_identifier: TableIdentifier, index_name: str, columns: list[str], using: str | None = None
+    ) -> None:
         self.table_identifier = table_identifier
         self.index_name = index_name
         self.columns = columns
         self.using = using
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.create_index(
             index_name=self.index_name,
             table_name=self.table_identifier.pg_table_name,
@@ -228,7 +229,7 @@ class RenameIndexMigrationAction(MigrationAction):
         new_index_name: str,
         table_identifier: TableIdentifier,
         old_table_identifier: TableIdentifier | None = None,
-    ):
+    ) -> None:
         self.table_identifier = table_identifier
         self.old_table_identifier = old_table_identifier
 
@@ -240,7 +241,7 @@ class RenameIndexMigrationAction(MigrationAction):
 
         self.query = f"ALTER INDEX {target_index} RENAME TO {pg_identifier_preparer.quote(new_index_name)}"
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
@@ -281,9 +282,9 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
         table_identifier: TableIdentifier,
         referenced_table_identifier: TableIdentifier,
         source_column: sa.Column,
-        columns: Dict[str, sa.Column],
+        columns: dict[str, sa.Column],
         target: str,
-    ):
+    ) -> None:
         original_table = sa.Table(
             table_identifier.pg_table_name,
             sa.MetaData(),
@@ -306,7 +307,7 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
             .where(original_table.columns[source_column.name] == foreign_table.columns[target])
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
@@ -343,8 +344,8 @@ class UpgradeTransferDataMigrationAction(MigrationAction):
         table_identifier: TableIdentifier,
         referenced_table_identifier: TableIdentifier,
         ref_column: sa.Column,
-        columns: Dict[str, sa.Column],
-    ):
+        columns: dict[str, sa.Column],
+    ) -> None:
         original_table = sa.Table(
             table_identifier.pg_table_name,
             sa.MetaData(),
@@ -374,7 +375,7 @@ class UpgradeTransferDataMigrationAction(MigrationAction):
             )
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
@@ -386,14 +387,14 @@ class CreateForeignKeyMigrationAction(MigrationAction):
         constraint_name: str,
         local_cols: list,
         remote_cols: list,
-    ):
+    ) -> None:
         self.constraint_name = constraint_name
         self.source_table_identifier = source_table_identifier
         self.referent_table_identifier = referent_table_identifier
         self.local_cols = local_cols
         self.remote_cols = remote_cols
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.create_foreign_key(
             constraint_name=self.constraint_name,
             source_table=self.source_table_identifier.pg_table_name,
@@ -411,8 +412,8 @@ class RenameSequenceMigrationAction(MigrationAction):
         old_name: str,
         new_name: str,
         table_identifier: TableIdentifier,
-        old_table_identifier: TableIdentifier = None,
-    ):
+        old_table_identifier: TableIdentifier | None = None,
+    ) -> None:
         self.table_identifier = table_identifier
         self.old_table_identifier = old_table_identifier
         target_sequence = (
@@ -423,13 +424,15 @@ class RenameSequenceMigrationAction(MigrationAction):
 
         self.query = f"ALTER SEQUENCE {target_sequence} RENAME TO {pg_identifier_preparer.quote(new_name)}"
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
 
 class TransferJSONDataMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+    def __init__(
+        self, table_identifier: TableIdentifier, source: sa.Column, columns: list[tuple[str, sa.Column]]
+    ) -> None:
         # Hack to transfer data if columns do not exist
         # Create new table with just required columns exist
         # SQLAlchemy does not allow the use table actions when those columns do not exist
@@ -445,12 +448,14 @@ class TransferJSONDataMigrationAction(MigrationAction):
             **{temp_table.columns[column.name].name: source[key].astext for key, column in columns}
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
 class TransferColumnDataToJSONMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+    def __init__(
+        self, table_identifier: TableIdentifier, source: sa.Column, columns: list[tuple[str, sa.Column]]
+    ) -> None:
         # # Hack to transfer data if columns do not exist
         # # Create new table with just required columns exist
         # # SQLAlchemy does not allow the use table actions when those columns do not exist
@@ -470,12 +475,12 @@ class TransferColumnDataToJSONMigrationAction(MigrationAction):
             **{copied_source.name: copied_source + sa.func.jsonb_build_object(*results)}
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
 class AddEmptyAttributeToJSONMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, key: str):
+    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, key: str) -> None:
         temp_table = sa.Table(
             table_identifier.pg_table_name,
             sa.MetaData(),
@@ -487,12 +492,12 @@ class AddEmptyAttributeToJSONMigrationAction(MigrationAction):
             **{copied_source.name: copied_source + sa.func.jsonb_build_object(key, None)}
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
 class RenameJSONAttributeMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, old_key: str, new_key: str):
+    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, old_key: str, new_key: str) -> None:
         temp_table = sa.Table(
             table_identifier.pg_table_name,
             sa.MetaData(),
@@ -512,12 +517,12 @@ class RenameJSONAttributeMigrationAction(MigrationAction):
             .where(copied_source.has_key(old_key))
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
 class RemoveJSONAttributeMigrationAction(MigrationAction):
-    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, key: str):
+    def __init__(self, table_identifier: TableIdentifier, source: sa.Column, key: str) -> None:
         temp_table = sa.Table(
             table_identifier.pg_table_name,
             sa.MetaData(),
@@ -529,25 +534,25 @@ class RemoveJSONAttributeMigrationAction(MigrationAction):
             temp_table.update().values(**{copied_source.name: copied_source - key}).where(copied_source.has_key(key))
         )
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
 class CreateSchemaMigrationAction(MigrationAction):
-    def __init__(self, schema_name: str):
+    def __init__(self, schema_name: str) -> None:
         self.schema_name = schema_name
         self.query = f"CREATE SCHEMA IF NOT EXISTS {pg_identifier_preparer.quote(schema_name)}"
 
-    def execute(self, op: "Operations"):
+    def execute(self, op: "Operations") -> None:
         op.execute(self.query)
 
 
 class MigrationHandler:
-    def __init__(self):
-        self.migrations: List[MigrationAction] = []
-        self.foreign_key_migration: List[MigrationAction] = []
+    def __init__(self) -> None:
+        self.migrations: list[MigrationAction] = []
+        self.foreign_key_migration: list[MigrationAction] = []
 
-    def add_action(self, action: MigrationAction, foreign_key: bool = False):
+    def add_action(self, action: MigrationAction, foreign_key: bool = False) -> "MigrationHandler":
         if foreign_key:
             self.foreign_key_migration.append(action)
         else:
@@ -555,7 +560,7 @@ class MigrationHandler:
 
         return self
 
-    def has_constraint_been_dropped(self, constraint_name: str):
+    def has_constraint_been_dropped(self, constraint_name: str) -> bool:
         for migration in self.migrations:
             if isinstance(migration, DropConstraintMigrationAction):
                 if migration.constraint_name == constraint_name:
@@ -566,7 +571,7 @@ class MigrationHandler:
                     return True
         return False
 
-    def run_migrations(self, op: "Operations"):
+    def run_migrations(self, op: "Operations") -> None:
         for migration in self.migrations:
             migration.execute(op)
         for migration in self.foreign_key_migration:

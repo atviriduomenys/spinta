@@ -74,7 +74,7 @@ class RenameMap:
 
         return None
 
-    def insert_table(self, old_name: str, new_name: str | None = None):
+    def insert_table(self, old_name: str, new_name: str | None = None) -> None:
         old_namespace, old_model, old_table_type, old_table_arg = split_logical_name(old_name)
         new_namespace = new_model = new_table_type = new_table_arg = None
         if new_name:
@@ -92,7 +92,7 @@ class RenameMap:
             columns={},
         )
 
-    def insert_column(self, table_name: str, column_name: str, new_column_name: str):
+    def insert_column(self, table_name: str, column_name: str, new_column_name: str) -> None:
         if table_name not in self.tables.keys():
             self.insert_table(table_name)
         if column_name == "":
@@ -107,7 +107,7 @@ class RenameMap:
         column_name: str,
         root_only: bool = False,
         root_value: str = "",
-    ):
+    ) -> str:
         # If table does not have renamed, return given column
         table_identifier = _get_table_identifier(table_name)
         table = self._find_new_table(table_identifier.logical_qualified_name)
@@ -137,7 +137,7 @@ class RenameMap:
         column_name: str,
         root_only: bool = False,
         root_value: str = "",
-    ):
+    ) -> str:
         table_identifier = _get_table_identifier(table_name)
         table = self._find_new_table(table_identifier.logical_qualified_name)
         if table is None:
@@ -172,8 +172,8 @@ class RenameMap:
 
         return table.get_old_table_identifier()
 
-    def parse_rename_src(self, rename_src: str | dict):
-        def _parse_dict(src: dict):
+    def parse_rename_src(self, rename_src: str | dict) -> None:
+        def _parse_dict(src: dict) -> None:
             for table, table_data in src.items():
                 table_rename = table_data.pop("", None)
                 self.insert_table(table, table_rename)
@@ -201,16 +201,12 @@ def get_full_name(item: str) -> str:
 
 @dispatch(sa.Table)
 def get_full_name(item: sa.Table) -> str:
-    if item.comment:
-        return item.comment
-    return item.name
+    return item.comment if item.comment else item.name
 
 
 @dispatch(sa.Column)
 def get_full_name(item: sa.Column) -> str:
-    if item.comment:
-        return item.comment
-    return item.name
+    return item.comment if item.comment else item.name
 
 
 @dispatch(Model)

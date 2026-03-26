@@ -309,7 +309,7 @@ def reset_keymap(context):
     _reset_keymap(excluded)
 
 
-def _cleanup_tables(engine: sa.engine.Engine):
+def _cleanup_tables(engine: sa.engine.Engine) -> None:
     schemas = get_spinta_schemas(engine)
     with engine.connect() as conn:
         for schema in schemas:

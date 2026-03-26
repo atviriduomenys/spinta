@@ -1296,15 +1296,16 @@ def generate_model_tables_mapping(
     mapped_tables = keydefaultdict(ModelTables)
     for schema in schemas:
         existing_tables = inspector.get_table_names(schema=schema)
-        filtered_tables = [table for table in existing_tables if table not in excluded_tables]
-        filtered_tables = [
-            table
-            for table in filtered_tables
+        filtered_tables = []
+        for table in existing_tables:
             if (
-                (table_comment := inspector.get_table_comment(table, schema=schema)["text"])
-                and "__" not in table_comment
-            )
-        ]
+                table in excluded_tables
+                or not (table_comment := inspector.get_table_comment(table, schema=schema)["text"])
+                or "__" in table_comment
+            ):
+                continue
+
+            filtered_tables.append(table)
 
         for table in filtered_tables:
             metadata_table_name = f"{schema}.{table}"
