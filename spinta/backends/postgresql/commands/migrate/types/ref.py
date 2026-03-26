@@ -481,7 +481,9 @@ def _handle_property_foreign_key_constraint(
     old_referent_table = old_referent_table_identifier.pg_table_name
     old_referent_schema = old_referent_table_identifier.pg_schema_name
     if not contains_constraint_name(foreign_keys, foreign_key_name):
-        if constraint := constraint_with_foreign_key_columns(foreign_keys, old_referent_table_identifier, [old_prop_name]):
+        if constraint := constraint_with_foreign_key_columns(
+            foreign_keys, old_referent_table_identifier, [old_prop_name]
+        ):
             model_context.mark_foreign_constraint_handled(source_logical_name, constraint["name"])
             handler.add_action(
                 ma.RenameConstraintMigrationAction(
