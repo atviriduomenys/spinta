@@ -15,8 +15,7 @@ def bootstrap(context: Context, backend: PostgreSQL):
     validated_schemas = []
     with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         for table in backend.tables.values():
-            schema = table.schema
-            if not schema:
+            if not (schema := table.schema):
                 continue
 
             if schema in validated_schemas:

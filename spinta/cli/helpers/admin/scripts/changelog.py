@@ -4,7 +4,7 @@ import datetime
 import pathlib
 import sys
 from collections.abc import Generator
-from typing import List, Iterator, AsyncIterator
+from typing import Iterator, AsyncIterator
 
 import tqdm
 from multipledispatch import dispatch
@@ -70,7 +70,7 @@ class _DuplicateChangelogModel:
 
 
 def check_if_corrupted_changelog_exists(
-    engine: Engine, table_identifier: TableIdentifier, data_keys: List[str]
+    engine: Engine, table_identifier: TableIdentifier, data_keys: list[str]
 ) -> bool:
     keys_list = ", ".join(f"('{key}')" for key in data_keys)
 
@@ -138,7 +138,7 @@ def check_if_corrupted_changelog_exists(
 
 
 def fetch_corrupted_changelog_entities(
-    engine: Engine, table_identifier: TableIdentifier, data_keys: List[str]
+    engine: Engine, table_identifier: TableIdentifier, data_keys: list[str]
 ) -> Generator[_DuplicateChangelogEntry]:
     # Safely quote the data_keys for the SQL IN clause
     keys_list = ", ".join(f"('{key}')" for key in data_keys)
@@ -295,9 +295,7 @@ def _changelog_contains_corrupted_data(context: Context, backend: PostgreSQL, mo
             pkey_columns.append(get_pg_column_name(name))
 
     table_identifier = get_table_identifier(model, TableType.CHANGELOG)
-    if check_if_corrupted_changelog_exists(backend.engine, table_identifier, pkey_columns):
-        return True
-    return False
+    return check_if_corrupted_changelog_exists(backend.engine, table_identifier, pkey_columns)
 
 
 async def _duplicate_mapping_to_dataitem(

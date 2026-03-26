@@ -24,7 +24,7 @@ def _get_escaped_qualified_name(schema: str | None, table: str) -> str:
     )
 
 
-def get_table_unique_constraint_columns(table: sa.Table):
+def get_table_unique_constraint_columns(table: sa.Table) -> list[list[str]]:
     constraint_columns = []
     for constraint in table.constraints:
         if isinstance(constraint, sa.UniqueConstraint):
@@ -33,7 +33,7 @@ def get_table_unique_constraint_columns(table: sa.Table):
     return constraint_columns
 
 
-def get_table_foreign_key_constraint_columns(table: sa.Table):
+def get_table_foreign_key_constraint_columns(table: sa.Table) -> list[dict]:
     constraint_columns = []
     for constraint in table.constraints:
         if isinstance(constraint, sa.ForeignKeyConstraint):
@@ -55,7 +55,7 @@ def add_index(table_identifier: TableIdentifier, index_name: str, columns: list[
     return f"CREATE INDEX {pg_identifier_preparer.quote(index_name)} ON {table_identifier.pg_escaped_qualified_name} ({column});\n\n"
 
 
-def rename_index(table_identifier: TableIdentifier, old_index_name: str, new_index_name: str):
+def rename_index(table_identifier: TableIdentifier, old_index_name: str, new_index_name: str) -> str:
     qualified_index_name = (
         f"{pg_identifier_preparer.quote(table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(old_index_name)}"
         if table_identifier.pg_schema_name
@@ -64,7 +64,7 @@ def rename_index(table_identifier: TableIdentifier, old_index_name: str, new_ind
     return f"ALTER INDEX {qualified_index_name} RENAME TO {pg_identifier_preparer.quote(new_index_name)};\n\n"
 
 
-def drop_index(table_identifier: TableIdentifier, index_name: str):
+def drop_index(table_identifier: TableIdentifier, index_name: str) -> str:
     qualified_index_name = (
         f"{pg_identifier_preparer.quote(table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(index_name)}"
         if table_identifier.pg_schema_name
@@ -73,7 +73,7 @@ def drop_index(table_identifier: TableIdentifier, index_name: str):
     return f"DROP INDEX {qualified_index_name};\n\n"
 
 
-def change_index_schema(table_identifier: TableIdentifier, index_name: str, new_schema: str):
+def change_index_schema(table_identifier: TableIdentifier, index_name: str, new_schema: str) -> str:
     qualified_index_name = (
         f"{pg_identifier_preparer.quote(table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(index_name)}"
         if table_identifier.pg_schema_name
@@ -83,19 +83,19 @@ def change_index_schema(table_identifier: TableIdentifier, index_name: str, new_
 
 
 # Constraint migration helpers
-def rename_constraint(table_identifier: TableIdentifier, constraint_name: str, new_constraint_name: str):
+def rename_constraint(table_identifier: TableIdentifier, constraint_name: str, new_constraint_name: str) -> str:
     return (
         f"ALTER TABLE {table_identifier.pg_escaped_qualified_name} "
         f"RENAME CONSTRAINT {pg_identifier_preparer.quote(constraint_name)} TO {pg_identifier_preparer.quote(new_constraint_name)};\n\n"
     )
 
 
-def drop_constraint(table_identifier: TableIdentifier, constraint_name: str):
+def drop_constraint(table_identifier: TableIdentifier, constraint_name: str) -> str:
     return f"ALTER TABLE {table_identifier.pg_escaped_qualified_name} DROP CONSTRAINT {pg_identifier_preparer.quote(constraint_name)};\n\n"
 
 
 # Sequence migration helpers
-def rename_sequence(table_identifier: TableIdentifier, sequence_name: str, new_sequence_name: str):
+def rename_sequence(table_identifier: TableIdentifier, sequence_name: str, new_sequence_name: str) -> str:
     qualified_sequence_name = (
         f"{pg_identifier_preparer.quote(table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(sequence_name)}"
         if table_identifier.pg_schema_name
@@ -104,7 +104,7 @@ def rename_sequence(table_identifier: TableIdentifier, sequence_name: str, new_s
     return f"ALTER SEQUENCE {qualified_sequence_name} RENAME TO {pg_identifier_preparer.quote(new_sequence_name)};\n\n"
 
 
-def change_sequence_schema(table_identifier: TableIdentifier, sequence_name: str, new_schema: str):
+def change_sequence_schema(table_identifier: TableIdentifier, sequence_name: str, new_schema: str) -> str:
     qualified_sequence_name = (
         f"{pg_identifier_preparer.quote(table_identifier.pg_schema_name)}.{pg_identifier_preparer.quote(sequence_name)}"
         if table_identifier.pg_schema_name
@@ -129,7 +129,7 @@ def add_column(table_identifier: TableIdentifier, column: str, column_type: str,
     )
 
 
-def rename_column(table_identifier: TableIdentifier, column: str, new_name: str, comment: str = None):
+def rename_column(table_identifier: TableIdentifier, column: str, new_name: str, comment: str = None) -> str:
     if comment is None:
         comment = new_name
     return (
@@ -139,7 +139,7 @@ def rename_column(table_identifier: TableIdentifier, column: str, new_name: str,
     )
 
 
-def drop_column(table_identifier: TableIdentifier, column: str, comment: str = None):
+def drop_column(table_identifier: TableIdentifier, column: str, comment: str = None) -> str:
     removed_name = get_pg_removed_name(column)
     if comment is None:
         comment = removed_name
@@ -152,7 +152,7 @@ def drop_column(table_identifier: TableIdentifier, column: str, comment: str = N
 
 
 # Schema migration helpers
-def add_schema(schema: str):
+def add_schema(schema: str) -> str:
     return f"CREATE SCHEMA IF NOT EXISTS {pg_identifier_preparer.quote(schema)};\n\n"
 
 
@@ -226,7 +226,7 @@ def rename_table(
     new_table_identifier: TableIdentifier,
     comment: str = None,
     rename_pk_constraint: bool = True,
-):
+) -> str:
     if comment is None:
         comment = new_table_identifier.logical_qualified_name
 
@@ -252,7 +252,9 @@ def rename_table(
     return query
 
 
-def rename_changelog(old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None):
+def rename_changelog(
+    old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None
+) -> str:
     if old_table_identifier.table_type != TableType.CHANGELOG:
         old_table_identifier = old_table_identifier.change_table_type(new_type=TableType.CHANGELOG)
 
@@ -285,7 +287,9 @@ def rename_changelog(old_table_identifier: TableIdentifier, new_table_identifier
     )
 
 
-def rename_redirect(old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None):
+def rename_redirect(
+    old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None
+) -> str:
     if old_table_identifier.table_type != TableType.REDIRECT:
         old_table_identifier = old_table_identifier.change_table_type(new_type=TableType.REDIRECT)
 
@@ -308,7 +312,7 @@ def rename_redirect(old_table_identifier: TableIdentifier, new_table_identifier:
     )
 
 
-def drop_table(table_identifier: TableIdentifier, remove_model_only: bool = False, comment: str = None):
+def drop_table(table_identifier: TableIdentifier, remove_model_only: bool = False, comment: str = None) -> str:
     removed_table_identifier = table_identifier.apply_removed_prefix(remove_model_only=remove_model_only)
     if comment is None:
         comment = removed_table_identifier.logical_qualified_name

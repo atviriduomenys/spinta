@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import enum
 
 import sqlalchemy as sa
@@ -18,7 +16,7 @@ class CastMatrix:
     _cache: dict[tuple[str, str], CastSupport]
     engine: sa.engine.Engine
 
-    def __init__(self, engine: sa.engine.Engine):
+    def __init__(self, engine: sa.engine.Engine) -> None:
         self._cache = {}
         self.engine = engine
 

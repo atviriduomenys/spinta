@@ -23,7 +23,11 @@ class MigrationAction(ABC):
 
 class CreateTableMigrationAction(MigrationAction):
     def __init__(
-        self, table_identifier: TableIdentifier, columns: List[sa.Column], comment: str, indexes: List[sa.Index] = None
+        self,
+        table_identifier: TableIdentifier,
+        columns: List[sa.Column],
+        comment: str,
+        indexes: List[sa.Index] | None = None,
     ):
         self.table_identifier = table_identifier
         self.columns = columns
@@ -223,7 +227,7 @@ class RenameIndexMigrationAction(MigrationAction):
         old_index_name: str,
         new_index_name: str,
         table_identifier: TableIdentifier,
-        old_table_identifier: TableIdentifier = None,
+        old_table_identifier: TableIdentifier | None = None,
     ):
         self.table_identifier = table_identifier
         self.old_table_identifier = old_table_identifier

@@ -141,7 +141,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         raise exception
 
 
-def _filter_reflect_datasets(inspector: Inspector, schema: str, datasets: list):
+def _filter_reflect_datasets(inspector: Inspector, schema: str, datasets: list) -> list[str] | None:
     if not datasets:
         return None
 

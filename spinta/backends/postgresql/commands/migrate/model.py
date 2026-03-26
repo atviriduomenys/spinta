@@ -205,9 +205,8 @@ def migrate(
         return
 
     # Precalculate removed table identifiers
-    removed_table_identifiers = []
     table_identifier = migration_ctx.get_table_identifier(source_table)
-    removed_table_identifiers.append((table_identifier, table_identifier.apply_removed_prefix()))
+    removed_table_identifiers = [(table_identifier, table_identifier.apply_removed_prefix())]
     for table in old.sorted_reserve.values():
         table_identifier = migration_ctx.get_table_identifier(table)
         removed_table_identifiers.append((table_identifier, table_identifier.apply_removed_prefix()))
@@ -461,7 +460,6 @@ def _handle_model_foreign_key_constraints(
     rename: RenameMap,
     model_context: ModelMigrationContext,
 ):
-    # table_name = target_table.name
     foreign_keys = inspector.get_foreign_keys(
         source_table_identifier.pg_table_name, schema=source_table_identifier.pg_schema_name
     )

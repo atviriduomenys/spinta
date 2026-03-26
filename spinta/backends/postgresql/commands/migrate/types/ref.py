@@ -41,6 +41,8 @@ from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefT
 from spinta.types.datatype import Ref, ExternalRef
 from spinta.utils.schema import NotAvailable, NA
 
+_IDENTIFIABLE_REF_KEY = "_id"
+
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, NotAvailable, Ref)
 def migrate(
@@ -173,7 +175,7 @@ def _migrate_scalar_to_ref_4(
     new_name = rename.to_new_column_name(source_table, column.name)
 
     # Check if after rename column becomes ref itself, or only part of it (can check if name contains special characters)
-    if is_name_complex(new_name) or ref.prop.list and new_name == "_id":
+    if is_name_complex(new_name) or ref.prop.list and new_name == _IDENTIFIABLE_REF_KEY:
         return False
 
     # Check if refprops is size of 1
@@ -470,7 +472,7 @@ def _handle_property_foreign_key_constraint(
     )
     model_context.mark_foreign_constraint_handled(source_logical_name, foreign_key_name)
     old_prop_name = (
-        get_pg_column_name("_id")
+        get_pg_column_name(_IDENTIFIABLE_REF_KEY)
         if ref.prop.list
         else get_pg_column_name(f"{rename.to_old_column_name(source_table_identifier, get_column_name(ref.prop))}._id")
     )
@@ -479,8 +481,7 @@ def _handle_property_foreign_key_constraint(
     old_referent_table = old_referent_table_identifier.pg_table_name
     old_referent_schema = old_referent_table_identifier.pg_schema_name
     if not contains_constraint_name(foreign_keys, foreign_key_name):
-        constraint = constraint_with_foreign_key_columns(foreign_keys, old_referent_table_identifier, [old_prop_name])
-        if constraint:
+        if constraint := constraint_with_foreign_key_columns(foreign_keys, old_referent_table_identifier, [old_prop_name]):
             model_context.mark_foreign_constraint_handled(source_logical_name, constraint["name"])
             handler.add_action(
                 ma.RenameConstraintMigrationAction(
@@ -498,7 +499,7 @@ def _handle_property_foreign_key_constraint(
                 referent_table_identifier=referenced_table_identifier,
                 constraint_name=foreign_key_name,
                 local_cols=[primary_column.name],
-                remote_cols=["_id"],
+                remote_cols=[_IDENTIFIABLE_REF_KEY],
             ),
             foreign_key=True,
         )
@@ -523,7 +524,7 @@ def _handle_property_foreign_key_constraint(
                 referent_table_identifier=referenced_table_identifier,
                 constraint_name=foreign_key_name,
                 local_cols=[primary_column.name],
-                remote_cols=["_id"],
+                remote_cols=[_IDENTIFIABLE_REF_KEY],
             ),
             foreign_key=True,
         )
@@ -620,7 +621,7 @@ def migrate(
                         referenced_table_identifier=migration_ctx.get_table_identifier(new.model),
                         source_column=old_primary_column,
                         columns=column_mapping,
-                        target="_id",
+                        target=_IDENTIFIABLE_REF_KEY,
                     ),
                     True,
                 )

@@ -612,7 +612,9 @@ def constraint_with_columns(constraints: list, column_names: list[str]):
         return None
 
 
-def constraint_with_foreign_key_columns(constraints: list, table_identifier: TableIdentifier, column_names: list[str]):
+def constraint_with_foreign_key_columns(
+    constraints: list, table_identifier: TableIdentifier, column_names: list[str]
+) -> dict | None:
     try:
         return next(
             constraint
@@ -1309,8 +1311,7 @@ def generate_model_tables_mapping(
             if metadata_table_name not in metadata.tables:
                 continue
 
-            logical_qualified_named = inspector.get_table_comment(table, schema=schema)["text"]
-            if not logical_qualified_named:
+            if not (logical_qualified_named := inspector.get_table_comment(table, schema=schema)["text"]):
                 raise MissingPostgresqlComments(table=table)
 
             base_name, table_type, property_name = extract_table_data_from_logical_name(logical_qualified_named)
@@ -1445,38 +1446,35 @@ def create_missing_schemas(
 ):
     # If datasets are given, only apply changes to them
     if datasets:
+        seen = set()
         for dataset in datasets:
             pg_schema_name = get_pg_name(dataset)
-            if pg_schema_name in schemas:
+            if pg_schema_name in schemas or pg_schema_name in seen:
                 continue
-
+            seen.add(pg_schema_name)
             handler.add_action(ma.CreateSchemaMigrationAction(schema_name=pg_schema_name))
         return
 
     # Ideally, we would only use datasets (with commands.get_datasets()), but there are some systemic models that
     # might need to be changed that do not have a dataset. (_schema/Version, _schema, etc.).)
-    validated_schemas = []
+    validated_schemas = set()
+
     for table in backend.tables.values():
         schema = table.schema
-        if not schema:
+        if not schema or schema in validated_schemas:
             continue
 
-        if schema in validated_schemas:
-            continue
+        if schema not in schemas:
+            handler.add_action(ma.CreateSchemaMigrationAction(schema_name=schema))
 
-        if schema in schemas:
-            validated_schemas.append(schema)
-            continue
-
-        handler.add_action(ma.CreateSchemaMigrationAction(schema_name=schema))
-        validated_schemas.append(schema)
+        validated_schemas.add(schema)
 
 
 def revalidate_table_identifier(table_identifier: TableIdentifier, inspector: Inspector) -> TableIdentifier:
     if inspector.has_table(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name):
         return table_identifier
 
-    # Check ff it's old system, where namespace was part of table name
+    # Check if it's old system, where namespace was part of table name
     pg_table_name = get_pg_name(table_identifier.logical_qualified_name)
     if inspector.has_table(pg_table_name, schema=None):
         base_name = (

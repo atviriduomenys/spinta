@@ -10,15 +10,12 @@ from spinta.backends.helpers import get_table_identifier, split_logical_name
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
 
+_DEFAULT_DTYPE = "string"
 
-def _table_type_to_dtype(table_type: TableType) -> str:
-    if table_type == TableType.LIST:
-        return "array"
-
-    if table_type == TableType.FILE:
-        return "file"
-
-    return "string"
+_TABLE_TYPE_TO_DTYPE = {
+    TableType.LIST: "array",
+    TableType.FILE: "file",
+}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -333,7 +330,7 @@ def test_get_table_identifier_from_model_or_prop(
     identifier_case: IdentifierCase,
 ):
     namespace, model, table_type, prop = split_logical_name(identifier_case.model)
-    prop_type = _table_type_to_dtype(table_type)
+    prop_type = _TABLE_TYPE_TO_DTYPE.get(table_type, _DEFAULT_DTYPE)
     context, manifest = load_manifest_and_context(
         rc,
         f"""
