@@ -144,15 +144,7 @@ def migrate_schemas(context: Context, **kwargs):
 
         def cache_op(backend_: PostgreSQL):
             if backend_.name not in ops:
-                connection = get_conn(backend_)
-                ctx = MigrationContext.configure(
-                    connection,
-                    # If uncommented, it will only generate SQL and output it to stdout
-                    # opts={
-                    #     "as_sql": True,
-                    #     "literal_binds": True,
-                    # },
-                )
+                ctx = MigrationContext.configure(get_conn(backend_))
                 operations = Operations(ctx)
                 ops[backend_.name] = operations
 
