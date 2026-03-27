@@ -34,7 +34,7 @@ class XmlManifest(DictManifest):
 
 
 @dataclasses.dataclass
-class _MappedProperties:
+class MappedProperties:
     name: str
     source: str
     extra: str
@@ -42,21 +42,24 @@ class _MappedProperties:
 
 
 @dataclasses.dataclass
-class _MappedModels:
+class MappedModels:
     name: str
     source: str
-    properties: dict[str, _MappedProperties]
+    properties: dict[str, MappedProperties]
 
 
 @dataclasses.dataclass
-class _MappedDataset:
+class MappedDataset:
     dataset: str
+    given_dataset_name: str
     resource: str
-    models: dict[str, dict[str, _MappedModels]]
+    resource_type: str
+    resource_path: str
+    models: dict[str, dict[str, MappedModels]]
 
 
 @dataclasses.dataclass
-class _MappingMeta:
+class MappingMeta:
     is_blank_node: bool
     blank_node_name: str
     blank_node_source: str
@@ -67,20 +70,21 @@ class _MappingMeta:
     check_namespace: bool
     namespace_prefixes: dict[str, list[str]]
     namespace_seperator: str
+    manifest_type: DictFormat
 
     @classmethod
-    def get_for(cls, manifest_type: DictFormat) -> "_MappingMeta":
+    def get_for(cls, manifest_type: DictFormat) -> "MappingMeta":
         if manifest_type == DictFormat.JSON:
-            mapping_meta = _MappingMeta.for_json()
+            mapping_meta = MappingMeta.for_json()
         elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-            mapping_meta = _MappingMeta.for_xml()
+            mapping_meta = MappingMeta.for_xml(manifest_type)
         else:
-            mapping_meta = _MappingMeta.default()
+            mapping_meta = MappingMeta.default()
 
         return mapping_meta
 
     @classmethod
-    def for_json(cls) -> "_MappingMeta":
+    def for_json(cls) -> "MappingMeta":
         return cls(
             is_blank_node=False,
             blank_node_name="model1",
@@ -92,10 +96,11 @@ class _MappingMeta:
             remove_array_suffix=False,
             check_namespace=False,
             namespace_prefixes={},
+            manifest_type=DictFormat.JSON,
         )
 
     @classmethod
-    def for_xml(cls) -> "_MappingMeta":
+    def for_xml(cls, manifest_type: DictFormat) -> "MappingMeta":
         return cls(
             is_blank_node=False,
             blank_node_name="model1",
@@ -107,10 +112,11 @@ class _MappingMeta:
             remove_array_suffix=True,
             check_namespace=True,
             namespace_prefixes={"xmlns": ["xmlns", "@xmlns"]},
+            manifest_type=manifest_type,
         )
 
     @classmethod
-    def default(cls) -> "_MappingMeta":
+    def default(cls) -> "MappingMeta":
         return cls(
             is_blank_node=False,
             blank_node_name="model1",
@@ -126,7 +132,7 @@ class _MappingMeta:
 
 
 @dataclasses.dataclass
-class _MappingScope:
+class MappingScope:
     parent_scope: str
     model_scope: str
     model_name: str
