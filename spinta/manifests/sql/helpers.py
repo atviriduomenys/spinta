@@ -457,6 +457,12 @@ def is_internal_schema(engine: Engine, schema: str) -> bool:
             return True
         if schema.startswith("pg_"):
             return True
+
+        # Commonly used postgresql extensions (used by spinta)
+        common_psql_extension_schemas = {"tiger", "tiger_data", "topology"}
+        if schema in common_psql_extension_schemas:
+            return True
+
         return False
 
     elif isinstance(dialect, mysql.dialect):

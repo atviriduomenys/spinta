@@ -4,6 +4,26 @@ Changes
 0.2dev21 (unreleased)
 =====================
 
+Backwards Incompatible:
+
+- `postgresql` backend no longer stores tables under `public` schema. Each dataset will have their own respective schemas.
+  It means that those tables will no longer include `dataset` names as part of their table names. Any new sqlalchemy
+  inspections will need to include table schemas (for easier use `TableIdentifier` with `get_table_identifier` were introduced).
+  When migrating to new version it is important to run either `spinta upgrade postgresql_schemas` or `spinta migrate` before
+  running `spinta bootstrap` (it is not capable of updating table names / schemas, and it will just create new empty tables,
+  causing issues with other migration steps) (`#598`_).
+
+New Features:
+
+- Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
+  schemas (`#598`_).
+
+Improvements:
+
+- Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
+  using dataset names) (`#598`_).
+
+.. _#598: https://github.com/atviriduomenys/spinta/issues/598
 
 0.2dev20 (2026-03-27)
 =====================
