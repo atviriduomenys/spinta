@@ -4,10 +4,6 @@ Changes
 0.2dev21 (unreleased)
 =====================
 
-
-0.2dev20 (2026-03-27)
-=====================
-
 Backwards Incompatible:
 
 - `postgresql` backend no longer stores tables under `public` schema. Each dataset will have their own respective schemas.
@@ -19,10 +15,23 @@ Backwards Incompatible:
 
 New Features:
 
-- Adding SOAP custom adapters support. Now you can add your own SOAP adapters to the SOAP backend in order to extend
-  the functionality of the SOAP backend. (`#1832`_).
 - Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
   schemas (`#598`_).
+
+Improvements:
+
+- Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
+  using dataset names) (`#598`_).
+
+.. _#598: https://github.com/atviriduomenys/spinta/issues/598
+
+0.2dev20 (2026-03-27)
+=====================
+
+New Features:
+
+- Adding SOAP custom adapters support. Now you can add your own SOAP adapters to the SOAP backend in order to extend
+  the functionality of the SOAP backend. (`#1832`_).
 
 .. _#1832: https://github.com/atviriduomenys/spinta/issues/1832
 
@@ -32,12 +41,9 @@ Improvements:
   The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
 - Added configuration value default_access_value and set its default value to `private`.
   Set default value of Manifest component access value to private (`#1802`_).
-- Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
-  using dataset names) (`#598`_).
 
 .. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
 .. _#1802: https://github.com/atviriduomenys/spinta/issues/1802
-.. _#598: https://github.com/atviriduomenys/spinta/issues/598
 
 Bug Fixes:
 
