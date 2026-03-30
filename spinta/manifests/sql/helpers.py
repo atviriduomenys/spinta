@@ -1,5 +1,4 @@
 import dataclasses
-import logging
 from operator import itemgetter
 from typing import Any, TypedDict
 from typing import Dict
@@ -27,9 +26,6 @@ from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_dataset_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
-
-
-logger = logging.getLogger(__name__)
 
 
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
@@ -240,7 +236,6 @@ def _read_props(
         )
 
 
-UNKNOWN_TYPE = "UNKNOWN"
 TYPES = [
     (sa.Boolean, "boolean"),
     (sa.Date, "date"),
@@ -283,8 +278,7 @@ def _get_column_type(column: _Column, table: str | None = None) -> str:
     for cls, name in TYPES:
         if isinstance(column_type, cls):
             return name
-    logger.warning(f"Unknown type {column_type!r} of column {column!r} in table {table!r}. Column will be skipped.")
-    return UNKNOWN_TYPE
+    raise TypeError(f"Unknown type {column_type!r} of column {column!r} in table {table!r}.")
 
 
 class _Ref(NamedTuple):

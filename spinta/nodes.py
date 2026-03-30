@@ -14,7 +14,6 @@ from spinta.components import Context
 from spinta.components import EntryId
 from spinta.components import Node
 from spinta.manifests.components import Manifest
-from spinta.manifests.sql.helpers import UNKNOWN_TYPE
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
@@ -222,9 +221,6 @@ def load_model_properties(
     model.leafprops = {}
     model.properties = {}
     for name, params in data.items():
-        # Do not load properties with unmapped types.
-        if params["type"] == UNKNOWN_TYPE:
-            continue
         prop = Prop()
         prop.name = name
         prop.place = name
