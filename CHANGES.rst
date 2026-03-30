@@ -41,6 +41,8 @@ Improvements:
   The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
 - Added configuration value default_access_value and set its default value to `private`.
   Set default value of Manifest component access value to private (`#1802`_).
+- Improved `spinta inspect` manifest generation from XML files. XML file is now parsed in memory efficient
+  way using `lxml iterparse` (`#1805`_).
 
 .. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
 .. _#1802: https://github.com/atviriduomenys/spinta/issues/1802
