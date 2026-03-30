@@ -923,11 +923,10 @@ def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
       |   |   |   | id                 | integer required |              | CityID/text()           | open   |
       |   |   |   |                    | enum             |              | 35                      | open   | 35
       |   |   |   |                    |                  |              | 40                      | open   | 40
-      
-      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | code               | integer required |              | Code/text()           | open   |
+      |   |   | Details                |                  |              | /r/Cities               |        |
       |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
-      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
-      |   |   |   | code               | string           |              | Code/text()             | open   |
+      |   |   |   | contract_type.code | integer required |              | Code/text()           | open   |
     """,
         mode=Mode.external,
     )
@@ -941,15 +940,19 @@ def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
             "_type": "example/xml/Details",
             "_id": ANY,
             "_revision": None,
-            "contract_type": {"_id": ANY},
-            "code": "6666000000",
+            "contract_type": {
+                "_id": ANY,
+                "code": 6666000000,
+            },
         },
         {
             "_type": "example/xml/Details",
             "_id": ANY,
             "_revision": None,
-            "contract_type": {"_id": ANY},
-            "code": "7777000000",
+            "contract_type": {
+                "_id": ANY,
+                "code": 7777000000,
+            },
         },
     ]
 
@@ -981,7 +984,7 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
 
       |   |   | Details                |                  | code         | /r/Cities               |        |
       |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
-      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | contract_type.code | string required  |              | CityID/text()           | open   |
       |   |   |   | code               | string           |              | Code/text()             | open   |
     """,
         mode=Mode.external,
@@ -996,14 +999,20 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
             "_type": "example/xml/Details",
             "_id": ANY,
             "_revision": None,
-            "contract_type": {"_id": ANY},
+            "contract_type": {
+                "_id": ANY,
+                "code": "401",
+            },
             "code": "6666000000",
         },
         {
             "_type": "example/xml/Details",
             "_id": ANY,
             "_revision": None,
-            "contract_type": {"_id": ANY},
+            "contract_type": {
+                "_id": ANY,
+                "code": "402",
+            },
             "code": "7777000000",
         },
     ]
@@ -1300,6 +1309,10 @@ def test_composite_prepare_links_tables(rc: RawConfig, tmp_path: Path):
             "_revision": None,
             "_type": "example/ParticipantEvent",
             "asset_type": {"_id": asset_data[0]["_id"]},
-            "asset_type_attribute": {"_id": legal_data[0]["_id"]},
+            "asset_type_attribute": {
+                "_id": legal_data[0]["_id"],
+                "code": "110",
+                "title_lt": "pavadinimas",
+            },
         }
     ]
