@@ -1,14 +1,17 @@
 import json
 from pathlib import Path
-
+import pytest
+from unittest.mock import ANY
 from responses import RequestsMock, POST
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
+from spinta.exceptions import SourceOrPrepareNotAllowed
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.utils.schema import NA
 
 
 def test_xml_read(rc: RawConfig, tmp_path: Path):
@@ -806,3 +809,497 @@ def test_xml_read_many_refs_0(rc: RawConfig, tmp_path: Path):
 
     resp = app.get("/example/xml/Street")
     assert resp.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), ("0.0", "1.0"), (0, 1), (0.0, 1.0)]
+)
+def test_xml_read_bool_enum(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
+    xml = f"""
+        <cities>
+            <city>
+                <is_capital>{first_val}</is_capital>
+                <name>Kaunas</name>
+            </city>
+            <city>
+                <is_capital>{second_val}</is_capital>
+                <name>Vilnius</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type     | ref  | source       | prepare | access
+    example/xml                |          |      |              |         |
+      | xml                    | dask/xml |      | {path}       |         |
+      |   |   | City           |          | name | /cities/city |         |
+      |   |   |   | name       | string   |      | name         |         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   |         | open
+      |   |   |   |            | enum     |      | {first_val}  | false   | open
+      |   |   |   |            | enum     |      | {second_val} | true    | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        (False, "Kaunas"),
+        (True, "Vilnius"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "first_val, second_val", [("false", "true"), ("False", "True"), ("0", "1"), (0, 1), ("off", "on")]
+)
+def test_xml_read_bool(rc: RawConfig, tmp_path: Path, first_val: str, second_val: str):
+    xml = f"""
+        <cities>
+            <city>
+                <is_capital>{first_val}</is_capital>
+                <name>Kaunas</name>
+            </city>
+            <city>
+                <is_capital>{second_val}</is_capital>
+                <name>Vilnius</name>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type     | ref  | source       | access
+    example/xml                |          |      |              |
+      | xml                    | dask/xml |      | {path}       |
+      |   |   | City           |          | name | /cities/city |
+      |   |   |   | name       | string   |      | name         | open
+      |   |   |   | is_capital | boolean  |      | is_capital   | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+    assert listdata(resp, sort=False) == [
+        (False, "Kaunas"),
+        (True, "Vilnius"),
+    ]
+
+
+def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+      |   |   |   |                    | enum             |              | 35                      | open   | 35
+      |   |   |   |                    |                  |              | 40                      | open   | 40
+      
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
+    ]
+
+
+def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <r>
+            <Cities>
+                <CityID>401</CityID>
+                <Code>6666000000</Code>
+            </Cities>
+            <Cities>
+                <CityID>402</CityID>
+                <Code>7777000000</Code>
+            </Cities>
+        </r>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property           | type             | ref          | source                  | access | prepare
+    example/xml                        |                  |              |                         |        |
+      | xml                            | dask/xml         |              | {path}                  |        |
+      |   |   | City                   |                  | id           |                         |        |
+      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
+
+      |   |   | Details                |                  | code         | /r/Cities               |        |
+      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
+      |   |   |   | contract_type.code | integer required |              | CityID/text()           | open   |
+      |   |   |   | code               | string           |              | Code/text()             | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Details", ["getall"])
+    resp = app.get("/example/xml/Details")
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "6666000000",
+        },
+        {
+            "_type": "example/xml/Details",
+            "_id": ANY,
+            "_revision": None,
+            "contract_type": {"_id": ANY},
+            "code": "7777000000",
+        },
+    ]
+
+
+def test_xml_read_text_lang_getall(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <miestai>
+            <miestas>
+                <pavadinimas_lt>Kaunas</pavadinimas_lt>
+                <pavadinimas_en>Kaunas_en</pavadinimas_en>
+                <kodas>KNS</kodas>
+            </miestas>
+            <miestas>
+                <pavadinimas_lt>Vilnius</pavadinimas_lt>
+                <pavadinimas_en>Vilnius_en</pavadinimas_en>
+                <kodas>VNO</kodas>
+            </miestas>
+        </miestai>
+    """
+    path = tmp_path / "miestai.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type     | ref  | source               | access
+    example/xml              |          |      |                      |
+      | xml                  | dask/xml |      | {path}               |
+      |   |   | City         |          | code | /miestai/miestas      |
+      |   |   |   | name@lt  | string   |      | pavadinimas_lt/text() | open
+      |   |   |   | name@en  | string   |      | pavadinimas_en/text() | open
+      |   |   |   | code     | string   |      | kodas/text()          | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    resp = app.get("/example/xml/City")
+
+    data = resp.json()["_data"]
+
+    assert data == [
+        {
+            "_id": ANY,
+            "_type": "example/xml/City",
+            "_revision": None,
+            "name": {"lt": "Kaunas", "en": "Kaunas_en"},
+            "code": "KNS",
+        },
+        {
+            "_id": ANY,
+            "_type": "example/xml/City",
+            "_revision": None,
+            "name": {"lt": "Vilnius", "en": "Vilnius_en"},
+            "code": "VNO",
+        },
+    ]
+
+
+def test_xml_fails_on_composite_prepare(rc: RawConfig, tmp_path: Path):
+    xml = """
+	<israsas>
+        <akciju_klases_tipas>
+            <kodas>110</kodas>
+            <pavadinimas>Vardinių paprastųjų akcijų skaičius</pavadinimas>
+        </akciju_klases_tipas>
+	</israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    with pytest.raises(SourceOrPrepareNotAllowed) as error:
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property                | type            | ref        | source              | prepare                 | access
+            example/xml                             |                 |            |                     |                         |
+              | resource                            | dask/xml        |            | {path}              |                         |
+              |   |   | Event                       |                 |            | israsas             |                         |
+              |   |   |   | type                    | ref required    | AssetType  | akciju_klases_tipas | type_attribute.title_lt | open
+              |   |   |   | type_attribute          | ref required    | AssetType  | akciju_klases_tipas |                         | open
+              |   |   |   | type_attribute.code     | string required |            | kodas               |                         | open
+              |   |   |   | type_attribute.title_lt | string required |            | pavadinimas         |                         | open
+              |   |   | EntityAttribute             |                 |            | israsas             |                         |
+              |   |   |   | code                    | string          |            | kodas               |                         | open
+              |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+              |   |   | AssetType                   |                 |            | israsas             |                         | open
+              |   |   |   | code                    | string          |            | kodas               |                         | open
+              |   |   |   | title_lt                | string          |            | pavadinimas         |                         | open
+            """,
+            mode=Mode.external,
+        )
+        assert (
+            error.value.args[0]
+            == "The source akciju_klases_tipas was not expected. Delete it from the manifest or update the prepare function to allow it."
+        )
+
+
+def test_xml_passes_on_composite_prepare_if_no_source(rc: RawConfig, tmp_path: Path):
+    xml = """
+	<israsas>
+        <akciju_klases_tipas>
+            <kodas>110</kodas>
+            <pavadinimas>Vardinių paprastųjų akcijų skaičius</pavadinimas>
+        </akciju_klases_tipas>
+	</israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property                | type            | ref                    | source              | prepare                 | access
+        example/xml                             |                 |                        |                     |                         |
+          | resource                            | dask/xml        |                        | {path}              |                         |
+          |   |   | Event                       |                 |                        | israsas             |                         |
+          |   |   |   | type                    | ref required    | example2/xml/AssetType |                     | type_attribute.title_lt | open
+          |   |   |   | type_attribute          | ref required    | EntityAttribute        | akciju_klases_tipas |                         | open
+          |   |   |   | type_attribute.code     | string required |                        | kodas               |                         | open
+          |   |   |   | type_attribute.title_lt | string required |                        | pavadinimas         |                         | open
+          |   |   | EntityAttribute             |                 |                        | israsas             |                         |
+          |   |   |   | code                    | string          |                        | kodas               |                         | open
+          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+        example2/xml                            |                 |                        |                     |                         |
+          |   |   | AssetType                   |                 |                        | israsas             |                         | open
+          |   |   |   | code                    | string          |                        | kodas               |                         | open
+          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Event", ["getall"])
+    resp = app.get("/example/xml/Event")
+    assert resp.json()["errors"][0]["code"] == "GivenValueCountMissmatch"
+
+
+@pytest.mark.parametrize(
+    "select,expected_name",
+    [
+        (
+            "code,name@lt,name@en",
+            [
+                {"lt": "Kaunas", "en": "Kaunas_en"},
+                {"lt": "Vilnius", "en": "Vilnius_en"},
+            ],
+        ),
+        (
+            "code,name@lt",
+            [
+                {"lt": "Kaunas"},
+                {"lt": "Vilnius"},
+            ],
+        ),
+        (
+            "code,name",
+            [
+                {"lt": "Kaunas", "en": "Kaunas_en"},
+                {"lt": "Vilnius", "en": "Vilnius_en"},
+            ],
+        ),
+    ],
+)
+def test_xml_read_text_lang_select(rc: RawConfig, tmp_path: Path, select: str, expected_name: list[dict[str, str]]):
+    xml = """
+        <miestai>
+            <miestas>
+                <pavadinimas_lt>Kaunas</pavadinimas_lt>
+                <pavadinimas_en>Kaunas_en</pavadinimas_en>
+                <kodas>KNS</kodas>
+            </miestas>
+            <miestas>
+                <pavadinimas_lt>Vilnius</pavadinimas_lt>
+                <pavadinimas_en>Vilnius_en</pavadinimas_en>
+                <kodas>VNO</kodas>
+            </miestas>
+        </miestai>
+    """
+    path = tmp_path / "miestai.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type     | ref  | source               | access
+    example/xml              |          |      |                      |
+      | xml                  | dask/xml |      | {path}               |
+      |   |   | City         |          | code | /miestai/miestas      |
+      |   |   |   | name@lt  | string   |      | pavadinimas_lt/text() | open
+      |   |   |   | name@en  | string   |      | pavadinimas_en/text() | open
+      |   |   |   | code     | string   |      | kodas/text()          | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall", "search"])
+
+    resp = app.get(f"/example/xml/City?select({select})")
+    assert listdata(resp, "code", "name", "name@lt", "name@en", sort=False) == [
+        ("KNS", expected_name[0], NA, NA),
+        ("VNO", expected_name[1], NA, NA),
+    ]
+
+
+def test_composite_prepare_links_tables_error_if_count_mismatch(rc: RawConfig, tmp_path: Path):
+    xml = """
+	<israsas>
+        <akciju_klases_tipas>
+            <kodas>110</kodas>
+            <pavadinimas>Vardinių paprastųjų akcijų skaičius</pavadinimas>
+        </akciju_klases_tipas>
+	</israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property                | type            | ref                    | source              | prepare                 | access
+        example/xml                             |                 |                        |                     |                         |
+          | resource                            | dask/xml        |                        | {path}              |                         |
+          |   |   | Event                       |                 |                        | israsas             |                         |
+          |   |   |   | type                    | ref required    | AssetType              |                     | type_attribute.title_lt | open
+          |   |   |   | type_attribute          | ref required    | EntityAttribute[code]  |                     |                         | open
+          |   |   |   | type_attribute.code     | string required |                        | kodas               |                         | open
+          |   |   |   | type_attribute.title_lt | string required |                        | pavadinimas         |                         | open
+          |   |   | EntityAttribute             |                 |                        | israsas             |                         |
+          |   |   |   | code                    | string          |                        | kodas               |                         | open
+          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+          |   |   | AssetType                   |                 |                        | israsas             |                         | open
+          |   |   |   | code                    | string          |                        | kodas               |                         | open
+          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/Event", ["getall"])
+    resp = app.get("/example/xml/Event")
+    assert resp.json()["errors"][0]["code"] == "GivenValueCountMissmatch"
+
+
+def test_composite_prepare_links_tables(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <israsas>
+        <kodas>110</kodas>
+        <pavadinimas>pavadinimas</pavadinimas>
+    </israsas>
+    """
+
+    path = tmp_path / "example.xml"
+    path.write_text(xml)
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property                       | type            | ref                        | source             | prepare
+        example                                        |                 |                            |                    |
+          | service                                    | dask/xml        |                            | {path}             |
+          |   |   | ParticipantEvent                   |                 |                            | /israsas           |
+          |   |   |   | asset_type                     | ref required    | AssetType                  |                    | asset_type_attribute.title_lt
+          |   |   |   | asset_type_attribute           | ref required    | LegalEntityAttribute[code] | kodas/text()       |
+          |   |   |   | asset_type_attribute.code      | string required |                            | kodas/text()       |
+          |   |   |   | asset_type_attribute.title_lt  | string          |                            | pavadinimas/text() |
+          |   |   | LegalEntityAttribute               |                 |                            | /israsas           |
+          |   |   |   | code                           | string          |                            | kodas/text()       |
+          |   |   |   | title_lt                       | string          |                            | pavadinimas/text() |
+          |   |   | AssetType                          |                 | name                       | /israsas           |
+          |   |   |   | code                           | string          |                            | kodas/text()       |
+          |   |   |   | name                           | string          |                            | pavadinimas/text() |
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    models = ["example/ParticipantEvent", "example/AssetType", "example/LegalEntityAttribute"]
+    for model in models:
+        app.authmodel(model, ["getall"])
+
+    participant = app.get("/example/ParticipantEvent")
+    legal = app.get("/example/LegalEntityAttribute")
+    asset = app.get("/example/AssetType")
+
+    participant_data = participant.json()["_data"]
+    legal_data = legal.json()["_data"]
+    asset_data = asset.json()["_data"]
+
+    assert participant_data == [
+        {
+            "_id": ANY,
+            "_revision": None,
+            "_type": "example/ParticipantEvent",
+            "asset_type": {"_id": asset_data[0]["_id"]},
+            "asset_type_attribute": {"_id": legal_data[0]["_id"]},
+        }
+    ]

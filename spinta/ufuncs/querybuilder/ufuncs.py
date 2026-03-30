@@ -331,6 +331,7 @@ def paginate(env, expr):
             env.page.page_ = page
             env.page.size = page.size
             return env.resolve(get_pagination_compare_query(page))
+        return None
     else:
         raise InvalidArgumentInExpression(arguments=expr.args, expr="paginate")
 

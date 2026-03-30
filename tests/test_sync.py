@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
+import spinta
 from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL
 from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
     execute_manifest_synchronization_catalog_to_agent,
@@ -84,6 +85,10 @@ class TestSynchronization:
             status_code=HTTPStatus.OK,
             json={"access_token": "test-token"},
         )
+        mock_connection_check_post = requests_mock.post(
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            status_code=HTTPStatus.NO_CONTENT,
+        )
         mock_data_service_get = requests_mock.get(
             f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
@@ -116,6 +121,14 @@ class TestSynchronization:
                 "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
             }
         ]
+        assert get_request_context(mock_connection_check_post) == [
+            {
+                "data": {"spinta_version": [spinta.__version__]},
+                "method": "POST",
+                "params": {},
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            }
+        ]
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
@@ -140,6 +153,40 @@ class TestSynchronization:
                 "data": {},
             }
         ]
+
+    def test_failure_connection_check_unsuccessful(
+        self,
+        rc: RawConfig,
+        cli: SpintaCliRunner,
+        requests_mock: MagicMock,
+        credentials: RemoteClientCredentials,
+    ):
+        mock_auth_token_post = requests_mock.post(
+            f"{credentials.server}/auth/token",
+            status_code=HTTPStatus.BAD_REQUEST,
+            json={"error": "unexpected error"},
+        )
+        mock_connection_check_post = requests_mock.post(
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            status_code=HTTPStatus.BAD_REQUEST,
+            json={"error": "connection_error"},
+        )
+
+        with pytest.raises(Exception) as exception:
+            cli.invoke(rc, args=["sync"], catch_exceptions=False)
+
+        assert exception.value.response.status_code == HTTPStatus.BAD_REQUEST
+        assert exception.value.response.text == json.dumps({"error": "unexpected error"})
+
+        assert get_request_context(mock_auth_token_post) == [
+            {
+                "method": "POST",
+                "url": f"{credentials.server}/auth/token",
+                "params": {},
+                "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
+            }
+        ]
+        assert get_request_context(mock_connection_check_post) == []
 
     def test_failure_credentials_not_set(self, rc: RawConfig, cli: SpintaCliRunner):
         credentials = RemoteClientCredentials(
@@ -201,6 +248,10 @@ class TestSynchronization:
             status_code=HTTPStatus.OK,
             json={"access_token": "test-token"},
         )
+        mock_connection_check_post = requests_mock.post(
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            status_code=HTTPStatus.NO_CONTENT,
+        )
         mock_data_service_get = requests_mock.get(
             f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.NOT_FOUND,
@@ -224,6 +275,14 @@ class TestSynchronization:
                 "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
             }
         ]
+        assert get_request_context(mock_connection_check_post) == [
+            {
+                "data": {"spinta_version": [spinta.__version__]},
+                "method": "POST",
+                "params": {},
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            }
+        ]
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
@@ -245,6 +304,10 @@ class TestSynchronization:
             status_code=HTTPStatus.OK,
             json={"access_token": "test-token"},
         )
+        mock_connection_check_post = requests_mock.post(
+            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            status_code=HTTPStatus.NO_CONTENT,
+        )
         mock_data_service_get = requests_mock.get(
             f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
@@ -264,6 +327,14 @@ class TestSynchronization:
                 "url": f"{credentials.server}/auth/token",
                 "params": {},
                 "data": {"grant_type": ["client_credentials"], "scope": ["scope1 scope2"]},
+            }
+        ]
+        assert get_request_context(mock_connection_check_post) == [
+            {
+                "data": {"spinta_version": [spinta.__version__]},
+                "method": "POST",
+                "params": {},
+                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             }
         ]
         assert get_request_context(mock_data_service_get) == [

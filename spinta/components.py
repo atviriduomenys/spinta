@@ -1095,6 +1095,7 @@ class Config:
     scope_log: bool
     check_contract_scopes: bool
     default_auth_client: str
+    default_access_level: str
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
@@ -1115,6 +1116,7 @@ class Config:
     sync_retry_count: int
     sync_retry_delay_range: tuple[float]
     languages: List[str]
+    # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
     # MB
     max_api_file_size: int

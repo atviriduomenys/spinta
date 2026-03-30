@@ -13,7 +13,7 @@ keymaps:
 backends:
   default:
     type: postgresql
-    dsn: postgresql://admin:admin123@${DB_HOST_INTERNAL:=localhost}:${DB_PORT:=5432}/spinta
+    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=5432}/spinta
 manifest: default
 manifests:
   default:
@@ -31,37 +31,52 @@ else
     echo "Found existing config.yml."
 fi
 
+export SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
+echo "##############################"
+echo "SECRET:"
+echo $SECRET
+
 # Ensure client folders exists
 poetry run spinta upgrade clients
 
 git clone https://github.com/atviriduomenys/manifest.git
+git clone https://github.com/atviriduomenys/demo-saltiniai.git
+
 mkdir manifests
-find manifest/datasets/gov -name "*.csv" | xargs -I{} mv "{}" manifests/
+
+find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
+cat manifest/get_data_gov_lt.in | xargs -I{} mv "manifest/{}" manifests/
+
 ls manifests/* | xargs poetry run spinta copy -o manifest.csv
+cp manifest/datasets/gov/vssa/demo/sql/sql_sdsa.csv sql_sdsa.csv
 
-rm -rf manifest manifests
+rm -rf manifest manifests demo-saltiniai
 
-CLIENTS_FOLDER="${XDG_CONFIG_HOME:-$HOME}/.config/spinta/clients"
-if [ ! -d $CLIENTS_FOLDER ] ||
-   [ ! -f "$CLIENTS_FOLDER/helpers/keymap.yml" ] ||
-   ! grep -q '^client:' "$CLIENTS_FOLDER/helpers/keymap.yml"; then
-  poetry run spinta client add -n client -s secret --scope - <<EOF
-spinta_set_meta_fields
-spinta_auth_clients
-spinta_getone
-spinta_getall
-spinta_search
-spinta_changes
-spinta_insert
-spinta_upsert
-spinta_update
-spinta_patch
-spinta_delete
-spinta_wipe
+cat >> ~/.config/spinta/credentials.cfg <<EOF
+[test@localhost]
+client = test
+secret = $SECRET
+server = http://localhost:8000
+scopes =
+  uapi:/:set_meta_fields
+  uapi:/:auth_clients
+  uapi:/:getone
+  uapi:/:getall
+  uapi:/:search
+  uapi:/:changes
+  uapi:/:create
+  uapi:/:update
+  uapi:/:patch
+  uapi:/:delete
+  uapi:/:wipe
 EOF
-  fi
+
+#export PGPASSWORD=admin123
+#cat database.psql | psql -H $DB_HOST_INTERNAL -U admin spinta
 
 poetry run spinta upgrade
-poetry run spinta push
+poetry run spinta migrate -p
+poetry run spinta migrate
 
+sleep 10 && poetry run spinta push sql_sdsa.csv -o test@localhost &
 make run

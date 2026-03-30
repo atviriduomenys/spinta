@@ -123,11 +123,10 @@ def getall(context: Context, model: Model, page: Page, *, query: Expr = None, li
     page.size = size + 1
 
     page_meta = PaginationMetaData(page_size=size, limit=limit)
+    paginated_query = add_page_expr(query, page)
     while not page_meta.is_finished:
         page_meta.is_finished = True
-        query = add_page_expr(query, page)
-        rows = commands.getall(context, model, backend, query=query, **kwargs)
-
+        rows = commands.getall(context, model, backend, query=paginated_query, **kwargs)
         yield from get_paginated_values(page, page_meta, rows, extract_source_page_keys)
 
 

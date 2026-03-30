@@ -2,7 +2,11 @@ import pytest
 from spinta.manifests.components import ManifestPath
 
 from spinta.manifests.open_api.helpers import create_openapi_manifest
-from tests.manifests.open_api.conftest import MANIFEST, MANIFEST_WITH_SOAP_PREPARE
+from tests.manifests.open_api.conftest import (
+    MANIFEST,
+    MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_REFS,
+)
 
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
@@ -35,16 +39,19 @@ def test_info(open_manifest_path: ManifestPath):
 
 
 def test_components_schemas(open_manifest_path: ManifestPath):
+    dataset_name = "datasets/demo/system_data"
     expected_models = ["Organization", "ProcessingUnit"]
-    expected_schemas = ["", "Collection", "Changes", "Change"]
-    all_model_schemas = [f"{model}{schema}" for model in expected_models for schema in expected_schemas]
+    expected_schemas = ["", "Collection"]
+    all_model_schemas = [
+        f"{dataset_name.replace('/', '_')}_{model}{schema}" for model in expected_models for schema in expected_schemas
+    ]
     open_api_spec = create_openapi_manifest(open_manifest_path)
     assert set(all_model_schemas).issubset(set(open_api_spec["components"]["schemas"].keys()))
 
 
 def test_components_paths(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
-    expected_path_types = ["", "/{id}", "/:changes/{cid}"]
+    expected_path_types = ["", "/{id}"]
 
     dataset_name = "datasets/demo/system_data"
     all_model_paths = [
@@ -62,7 +69,6 @@ def test_components_paths(open_manifest_path: ManifestPath):
 
 def test_model_path_contents(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
-
     # image and file
     model_properties = {
         "Organization": ["org_logo"],
@@ -76,9 +82,58 @@ def test_model_path_contents(open_manifest_path: ManifestPath):
     for model_name, properties in model_properties.items():
         _test_collection_path_content(paths, dataset_name, model_name)
         _test_single_item_path_content(paths, dataset_name, model_name)
-        _test_changes_path_content(paths, dataset_name, model_name)
         for prop_name in properties:
             _test_property_path_content(paths, dataset_name, model_name, prop_name)
+
+
+def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_path_factory):
+    """During subsequent runs, specification generation should not duplicate values."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST)
+    create_openapi_manifest(open_manifest_path)
+    open_manifest_path.file.seek(0)
+    open_api_spec = create_openapi_manifest(open_manifest_path, api_version="1.0.0")
+
+    open_api_spec.pop("components")  # Components do not have a default initial value.
+    open_api_spec.pop("paths")  # Paths are not part of the generated specification
+    assert open_api_spec == {
+        "openapi": "3.1.0",
+        "info": {
+            "version": "1.0.0",
+            "title": "Universal application programming interface",
+            "contact": {
+                "email": "info@vssa.lt",
+                "name": "VSSA",
+                "url": "https://vssa.lrv.lt/",
+            },
+            "license": {
+                "name": "CC-BY 4.0",
+                "url": "https://creativecommons.org/licenses/by/4.0/",
+            },
+            "summary": "Test title",
+            "description": "Test description",
+        },
+        "externalDocs": {"url": "https://ivpk.github.io/uapi"},
+        "servers": [
+            {
+                "description": "Data access server",
+                "url": "get.data.gov.lt",
+            }
+        ],
+        "tags": [  # Utility is a default tag, others are generated from models. Should not be duplicated.
+            {
+                "name": "utility",
+                "description": "Utility operations performed on the API itself",
+            },
+            {
+                "name": "Organization",
+                "description": "Operations with Organization",
+            },
+            {
+                "name": "ProcessingUnit",
+                "description": "Operations with ProcessingUnit",
+            },
+        ],
+    }
 
 
 def _validate_operation_id_contains(operation_id: str, path: str, *required_terms):
@@ -136,21 +191,17 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
 
 
 def _test_collection_path_content(paths: dict, dataset_name: str, model_name: str):
-    path = f"/{dataset_name}/{model_name}"
-    expected_ref = f"#/components/schemas/{model_name}Collection"
-    _test_api_path(paths, path, expected_ref, model_name)
-
-
-def _test_changes_path_content(paths: dict, dataset_name: str, model_name: str):
-    path = f"/{dataset_name}/{model_name}/:changes/{{cid}}"
-    expected_ref = f"#/components/schemas/{model_name}Changes"
-    _test_api_path(paths, path, expected_ref, model_name)
+    api_path = f"/{dataset_name}/{model_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
+    expected_ref = f"#/components/schemas/{model_schema_name}Collection"
+    _test_api_path(paths, api_path, expected_ref, model_name)
 
 
 def _test_single_item_path_content(paths: dict, dataset_name: str, model_name: str):
-    path = f"/{dataset_name}/{model_name}/{{id}}"
-    expected_ref = f"#/components/schemas/{model_name}"
-    _test_api_path(paths, path, expected_ref, model_name)
+    api_path = f"/{dataset_name}/{model_name}/{{id}}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
+    expected_ref = f"#/components/schemas/{model_schema_name}"
+    _test_api_path(paths, api_path, expected_ref, model_name)
 
 
 def _test_property_path_content(paths: dict, dataset_name: str, model_name: str, property_name: str):
@@ -206,9 +257,8 @@ def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
 
 def test_components_paths_with_properties(open_manifest_path: ManifestPath):
     expected_models = ["Organization", "ProcessingUnit"]
-    expected_path_types = ["", "/{id}", "/:changes/{cid}"]
+    expected_path_types = ["", "/{id}"]
 
-    # image and file
     enabled_model_properties = {
         "Organization": ["org_logo"],
         "ProcessingUnit": ["technical_specs"],
@@ -249,6 +299,7 @@ def test_components_paths_with_properties(open_manifest_path: ManifestPath):
 
 
 def test_model_schema_content(open_manifest_path: ManifestPath):
+    dataset_name = "datasets/demo/system_data"
     model_properties = {
         "Organization": ["org_name", "annual_revenue", "coordinates", "established_date"],
         "ProcessingUnit": ["unit_name", "unit_type", "efficiency_rate", "capacity"],
@@ -259,14 +310,13 @@ def test_model_schema_content(open_manifest_path: ManifestPath):
     schemas = open_api_spec["components"]["schemas"]
 
     for model_name, properties in model_properties.items():
-        _test_base_model_schema(schemas, model_name, properties)
-        _test_collection_schema(schemas, model_name)
-        _test_changes_schema(schemas, model_name)
-        _test_change_schema(schemas, model_name, properties)
+        _test_base_model_schema(schemas, dataset_name, model_name, properties)
+        _test_collection_schema(schemas, dataset_name, model_name)
 
 
-def _test_base_model_schema(schemas: dict, model_name: str, expected_properties):
-    schema = schemas[model_name]
+def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, expected_properties):
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
+    schema = schemas[model_schema_name]
 
     assert schema["type"] == "object"
     assert "properties" in schema
@@ -293,8 +343,9 @@ def _test_base_model_schema(schemas: dict, model_name: str, expected_properties)
         assert prop_name in example, f"Missing property {prop_name} in {model_name}"
 
 
-def _test_collection_schema(schemas: dict, model_name: str):
-    collection_schema_name = f"{model_name}Collection"
+def _test_collection_schema(schemas: dict, dataset_name: str, model_name: str):
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
+    collection_schema_name = f"{model_schema_name}Collection"
     schema = schemas[collection_schema_name]
 
     assert schema["type"] == "object"
@@ -307,58 +358,17 @@ def _test_collection_schema(schemas: dict, model_name: str):
     data_property = properties["_data"]
     assert data_property["type"] == "array"
     assert "items" in data_property
-    assert data_property["items"]["$ref"] == f"#/components/schemas/{model_name}"
-
-
-def _test_changes_schema(schemas: dict, model_name: str):
-    changes_schema_name = f"{model_name}Changes"
-    schema = schemas[changes_schema_name]
-
-    assert schema["type"] == "object"
-    assert "properties" in schema
-
-    properties = schema["properties"]
-    assert "_type" in properties
-    assert "_data" in properties
-
-    data_property = properties["_data"]
-    assert data_property["type"] == "array"
-    assert "items" in data_property
-    assert data_property["items"]["$ref"] == f"#/components/schemas/{model_name}Change"
-
-
-def _test_change_schema(schemas: dict, model_name: str, expected_properties):
-    change_schema_name = f"{model_name}Change"
-    schema = schemas[change_schema_name]
-
-    assert schema["type"] == "object"
-    assert "properties" in schema
-    assert schema.get("additionalProperties") is False
-
-    properties = schema["properties"]
-
-    change_properties = ["_cid", "_id", "_rev", "_txn", "_created", "_op", "_objectType"]
-    for change_prop in change_properties:
-        assert change_prop in properties, f"Missing change property {change_prop} in {change_schema_name}"
-
-    op_property = properties["_op"]
-    assert op_property["type"] == "string"
-    assert "enum" in op_property
-    expected_ops = ["insert", "patch", "delete"]
-    assert set(op_property["enum"]) == set(expected_ops)
-
-    object_type_property = properties["_objectType"]
-    assert object_type_property["example"] == model_name
-
-    for prop_name in expected_properties:
-        assert prop_name in properties, f"Missing model property {prop_name} in {change_schema_name}"
+    assert data_property["items"]["$ref"] == f"#/components/schemas/{model_schema_name}"
 
 
 def test_organization_schema_details(open_manifest_path: ManifestPath):
+    dataset_name = "datasets/demo/system_data"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_Organization"
+
     open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
 
-    org_schema = schemas["Organization"]
+    org_schema = schemas[model_schema_name]
     properties = org_schema["properties"]
 
     assert properties["org_name"]["type"] == "string"
@@ -366,37 +376,201 @@ def test_organization_schema_details(open_manifest_path: ManifestPath):
     assert properties["coordinates"]["type"] == "string"
     assert properties["established_date"]["type"] == "string"
 
-    org_change_schema = schemas["OrganizationChange"]
-    change_properties = org_change_schema["properties"]
-
-    assert "_cid" in change_properties
-    assert "_op" in change_properties
-    assert "org_name" in change_properties
-    assert "annual_revenue" in change_properties
-    assert "coordinates" in change_properties
-    assert "established_date" in change_properties
-
 
 def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
+    dataset_name = "datasets/demo/system_data"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_ProcessingUnit"
+
     open_api_spec = create_openapi_manifest(open_manifest_path)
     schemas = open_api_spec["components"]["schemas"]
 
-    pu_schema = schemas["ProcessingUnit"]
+    pu_schema = schemas[model_schema_name]
     properties = pu_schema["properties"]
 
     assert properties["unit_name"]["type"] == "string"
+
     assert properties["unit_type"]["type"] == "string"
     assert "enum" in properties["unit_type"]
     expected_enum = ["FAC", "TRT", "OUT", "OTH"]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
 
+    assert properties["unit_version"]["type"] == "integer"
+    assert "enum" in properties["unit_version"]
+    assert set(properties["unit_version"]["enum"]) == {1, 2}
+
+    assert properties["unit_kind"]["type"] == "string"
+    assert "enum" in properties["unit_kind"]
+    assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
+
     assert properties["efficiency_rate"]["type"] == "number"
     assert properties["capacity"]["type"] == "integer"
 
-    pu_change_schema = schemas["ProcessingUnitChange"]
-    change_properties = pu_change_schema["properties"]
 
-    assert "unit_type" in change_properties
-    unit_type_change = change_properties["unit_type"]
-    assert "enum" in unit_type_change
-    assert set(unit_type_change["enum"]) == set(expected_enum)
+def test_version_schema_structure(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+    version_schema = open_api_spec["components"]["schemas"]["version"]
+
+    properties = version_schema["properties"]
+
+    assert set(properties.keys()) == {
+        "api",
+        "implementation",
+        "dsa",
+        "uapi",
+        "build",
+    }
+
+    assert properties["api"]["properties"]["version"]["type"] == "string"
+
+    implementation = properties["implementation"]["properties"]
+
+    assert implementation["name"]["type"] == "string"
+    assert implementation["version"]["type"] == "string"
+    assert properties["dsa"]["properties"]["version"]["type"] == "string"
+    assert properties["uapi"]["properties"]["version"]["type"] == "string"
+    assert properties["build"]["properties"]["version"]["type"] == "string"
+
+
+def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    schemas = open_api_spec["components"]["schemas"]
+
+    assert "Territory" in schemas
+
+    assert "datasets_gov_vssa_demo_Municipality" in schemas
+    assert "datasets_gov_vssa_demo_County" in schemas
+
+
+def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    schemas = open_api_spec["components"]["schemas"]
+
+    municipality_schema = schemas["datasets_gov_vssa_demo_Municipality"]
+    assert municipality_schema["type"] == "object"
+    municipality_props = municipality_schema["properties"]
+    assert "id" not in municipality_props
+    assert "_type" in municipality_props
+    assert "_id" in municipality_props
+    assert "_revision" in municipality_props
+
+    county_schema = schemas["datasets_gov_vssa_demo_County"]
+    assert county_schema["type"] == "object"
+    county_props = county_schema["properties"]
+    assert "id" not in county_props
+    assert "title" not in county_props
+    assert "population" not in county_props
+    assert "_id" in county_props
+
+    municipality_example = municipality_schema["example"]
+    assert "_id" in municipality_example
+    assert "id" not in municipality_example
+
+    county_example = county_schema["example"]
+    assert "_id" in county_example
+    assert "id" not in county_example
+
+
+def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    schemas = open_api_spec["components"]["schemas"]
+    territory_schema = schemas["Territory"]
+    properties = territory_schema["properties"]
+
+    assert properties["city"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_Municipality"
+    assert properties["region"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
+
+
+def test_main_model_ref_properties_have_proper_examples(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    schemas = open_api_spec["components"]["schemas"]
+    territory_schema = schemas["Territory"]
+
+    city_example = territory_schema["properties"]["city"]["example"]
+    assert "_id" in city_example, "city example should contain global '_id' field"
+    assert "id" not in city_example
+
+    region_example = territory_schema["properties"]["region"]["example"]
+    assert "_id" in region_example, "region example should contain global '_id' field"
+    assert "id" not in region_example
+    assert "title" not in region_example
+
+    schema_example = territory_schema["example"]
+    assert isinstance(schema_example["city"], dict)
+    assert "_id" in schema_example["city"]
+    assert "id" not in schema_example["city"]
+    assert isinstance(schema_example["region"], dict)
+    assert "_id" in schema_example["region"]
+    assert "id" not in schema_example["region"]
+
+
+def test_cross_dataset_ref_no_paths_for_referenced_models(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    paths = open_api_spec["paths"]
+
+    assert "/datasets/gov/cemetery/Territory" in paths
+
+    for path in paths:
+        assert "Municipality" not in path, f"Unexpected path for referenced model: {path}"
+        assert "County" not in path, f"Unexpected path for referenced model: {path}"
+
+
+def test_cross_dataset_ref_without_filter_all_schemas_exist(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schemas = open_api_spec["components"]["schemas"]
+
+    assert "datasets_gov_cemetery_Territory" in schemas
+    assert "datasets_gov_vssa_demo_Municipality" in schemas
+    assert "datasets_gov_vssa_demo_County" in schemas
+
+
+def test_circular_ref_creates_ref_only_schema_for_back_reference(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    schemas = open_api_spec["components"]["schemas"]
+
+    assert "Territory" in schemas
+    full_schema = schemas["Territory"]
+    assert "vda_id" in full_schema["properties"]
+    assert "cemetery" in full_schema["properties"]
+    assert "city" in full_schema["properties"]
+    assert "geometry" in full_schema["properties"]
+
+
+def test_circular_ref_does_not_create_infinite_schemas(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, main_dataset_name="datasets/gov/cemetery")
+
+    schemas = open_api_spec["components"]["schemas"]
+    model_schema_names = [
+        key
+        for key in schemas
+        if key.startswith("datasets_")
+        or key in ("Territory", "TerritoryCollection", "TerritoryChanges", "TerritoryChange", "Territory_Ref")
+    ]
+    expected = {
+        "Territory",
+        "TerritoryCollection",
+        "datasets_gov_vssa_demo_County",
+        "datasets_gov_giscenter_grpk_Area",
+        "datasets_gov_vssa_demo_Municipality",
+    }
+    assert set(model_schema_names) == expected
+
+
+def test_api_version(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST)
+    open_api_spec = create_openapi_manifest(open_manifest_path, api_version="2.1.8")
+    assert open_api_spec["info"]["version"] == "2.1.8"

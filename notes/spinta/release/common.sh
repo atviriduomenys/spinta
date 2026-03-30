@@ -137,6 +137,8 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
+# switch to a different tab. Export the BASEDIR there and SPINTA_CONFIG.
+# Activate the environment.
 # this is a directory to which manifest data will be downloaded.
 # If you don't have one, create an empty directory and cs into it.
 # If you create a new directory, do this:
@@ -152,12 +154,15 @@ git pull
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
-spinta check
 
 spinta show \
     datasets/gov/rc/ar/adresai.csv \
     datasets/gov/rc/jar/formos_statusai.csv \
     datasets/gov/rc/jar/iregistruoti.csv
+
+# go back to previous tab
+spinta check
+
 
 cat > "$BASEDIR"/sdsa.txt <<EOF
 d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access
@@ -214,6 +219,7 @@ psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
 test -n "$PID" && kill "$PID"
 spinta run &>> "$BASEDIR"/spinta.log & PID=$!
 #wait a bit for it to load
+sleep 30
 tail -50 "$BASEDIR"/spinta.log
 
 http :8000
@@ -274,6 +280,7 @@ EOF
 # Temporarily run with port 7000, so we can run another server with 8000 port
 test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
 spinta run --port 7000 --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & EXTERNAL_PID=$!
+sleep 10
 tail -50 "$BASEDIR"/spinta.log
 
 xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Forma
@@ -331,8 +338,6 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 
-
-# change the version number in pyproject.toml
 
 # Publish project to PyPI
 # If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04

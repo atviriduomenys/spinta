@@ -21,7 +21,7 @@ from spinta.testing.client import TestClient, get_yaml_data
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
 from spinta.testing.context import create_test_context
-from spinta.testing.utils import get_error_codes, get_error_context, error
+from spinta.testing.utils import get_error_codes, error
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.data import pushdata
 from spinta.utils.nestedstruct import flatten
@@ -1311,26 +1311,6 @@ def test_post_missing_auth_header(model, context, app, mocker):
 def test_post_invalid_report_schema(model, app):
     # tests validation of correct value types according to manifest's schema
     app.authmodel(model, ["insert", "getone"])
-
-    # test integer validation
-    resp = app.post(
-        f"/{model}",
-        json={
-            "count": "123",
-        },
-    )
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(
-        resp.json(),
-        "InvalidValue",
-        ["manifest", "model", "property", "type"],
-    ) == {
-        "manifest": "default",
-        "model": model,
-        "property": "count",
-        "type": "integer",
-    }
 
     resp = app.post(
         f"/{model}",

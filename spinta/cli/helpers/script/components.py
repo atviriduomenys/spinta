@@ -99,6 +99,19 @@ class ScriptBase(metaclass=_ScriptMeta):
         return cls._type_registry
 
 
+class ScriptStatusCache:
+    cache: dict[tuple[str, str], ScriptStatus]
+
+    def __init__(self):
+        self.cache: dict[tuple[str, str], ScriptStatus] = {}
+
+    def get(self, script_type: str, script_name: str) -> ScriptStatus | None:
+        return self.cache.get((script_type, script_name), None)
+
+    def set(self, script_type: str, script_name: str, status: ScriptStatus):
+        self.cache[(script_type, script_name)] = status
+
+
 class ScriptStatus(enum.Enum):
     PASSED = "PASSED"
     REQUIRED = "REQUIRED"

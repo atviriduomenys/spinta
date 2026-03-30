@@ -94,6 +94,7 @@ def create_remote_server(
         {
             "config_path": confdir,
             "default_auth_client": None,
+            "default_access_level": "protected",
         }
     )
     context = create_test_context(rc)
@@ -293,6 +294,7 @@ def create_rc(
             },
             # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
             "default_auth_client": "3388ea36-4a4f-4821-900a-b574c8829d52",
+            "default_access_level": "protected",
         }
     )
 

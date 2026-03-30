@@ -4,12 +4,15 @@ from typing import Type
 
 from ruamel.yaml import YAML
 
+from spinta.adapters.soap_plugins import register_soap_ufuncs
 from spinta.auth import client_name_exists, get_clients_path
+from spinta.core.enums import Access
 from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
 from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
+from spinta.utils.enums import get_enum_by_name
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
 from spinta.components import Context, Config
@@ -37,6 +40,7 @@ def load(context: Context, config: Config) -> Config:
 
     # Load ufuncs.
     ufunc.resolver.collect(rc.get("ufuncs"))
+    register_soap_ufuncs(ufunc.resolver, rc)
     config.resolvers = ufunc.resolver.ufuncs()
     config.executors = ufunc.executor.ufuncs()
 
@@ -74,6 +78,11 @@ def load(context: Context, config: Config) -> Config:
     config.scope_log = rc.get("scope_log", default=False, cast=asbool)
     config.check_contract_scopes = rc.get("check_contract_scopes", default=False, cast=asbool)
     config.default_auth_client = rc.get("default_auth_client")
+    config.default_access_level = rc.get(
+        "default_access_level",
+        default="private",
+        cast=lambda name: get_enum_by_name(Access, name),
+    )
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")

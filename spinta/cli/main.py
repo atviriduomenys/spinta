@@ -50,7 +50,6 @@ add(app, "show", show, short_help="Show manifest as ascii table")
 add(app, "bootstrap", migrate.bootstrap, short_help="Initialize backends")
 add(app, "sync", migrate.sync, short_help="Sync source manifests into main manifest")
 add(app, "migrate", migrate.migrate, short_help="Migrate schema changes to backends")
-add(app, "freeze", migrate.freeze, short_help=("Detect schema changes and create new schema version"))
 
 add(app, "import", data.import_, short_help="Import data from a file")
 add(app, "export", data.export_, short_help="Export data to specific format")

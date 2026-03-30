@@ -7,7 +7,7 @@
 /.venv/
 /build/
 /dist/
-/docs/_build/
+/docs/**/_build/
 /docs/.venv/
 /env/
 /tags
@@ -25,3 +25,7 @@ manifest.*
 /config.yml
 /manifest.csv
 /test/
+
+# Script input/output directories & files
+scripts/xml/output/
+scripts/xml/examples.xml

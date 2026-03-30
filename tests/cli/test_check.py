@@ -1,9 +1,12 @@
 from pathlib import Path
 
+import pytest
+
 from spinta.components import Context
-from spinta.exceptions import InvalidValue, InvalidManifestFile
-from spinta.testing.cli import SpintaCliRunner
+from spinta.core.config import RawConfig
+from spinta.exceptions import InvalidManifestFile, InvalidName, InvalidValue
 from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -486,3 +489,216 @@ def test_check_backref_only(context: Context, rc, cli: SpintaCliRunner, tmp_path
     )
 
     cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+
+
+def test_check_prop_underscore_ok_1(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # happy path 1:  allowed _* property names and "--check-names" flag
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access | status
+    datasets/gov/example      |        |         |             |         |        |
+      | data                  | sql    |         |             |         |        |
+                              |        |         |             |         |        |
+      |   |   | Country       |        | code    | salis       |         |        | develop
+      |   |   |   | code      | string |         | kodas       |         | public | develop
+      |   |   |   | name      | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _label    | string |         | zyme        |         | open   | develop
+      |   |   |   | _created  | string |         | sukurta     |         | open   | discont
+                              |        |         |             |         |        |
+      |   |   | City          |        | name    | miestas     |         |        | completed
+      |   |   |   | name      | string |         | pavadinimas |         | open   | deprecated
+      |   |   |   | country   | ref    | Country | salis       |         | open   | withdrawn
+      |   |   |   | _revision | string |         | versija     |         | open   | discont
+      |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
+      |   |   |   | _id       | uuid   |         | id          |         | open   | develop
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+
+def test_check_prop_underscore_ok_2(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # happy path 2:  no "--check-names" flag and all possible _* property names
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access | status
+    datasets/gov/example      |        |         |             |         |        |
+      | data                  | sql    |         |             |         |        |
+                              |        |         |             |         |        |
+      |   |   | Country       |        | code    | salis       |         |        | develop
+      |   |   |   | code      | string |         | kodas       |         | public | develop
+      |   |   |   | name      | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _label    | string |         | zyme        |         | open   | develop
+      |   |   |   | _created  | string |         | sukurta     |         | open   | discont
+      |   |   |   | _revision | string |         | versija     |         | open   | discont
+      |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
+      |   |   |   | _id       | uuid   |         | id          |         | open   | develop
+      |   |   |   | _op       | string |         | op          |         | open   | develop
+      |   |   |   | _test123  | string |         | test123     |         | open   | develop
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+
+def test_check_prop_underscore_err_1(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # error path 1:  reserved property name and "--check-names" flag
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _created | string |         | sukurta     |         | open   | discont
+      |   |   |   | _op      | string |         | veiksmas    |         | open   | develop
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidName
+    assert "_op" in str(result.exception)
+
+
+def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # error path 2:  property name starts with _* and "--check-names" flag
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | _created | string |         | sukurta     |         | open   | discont
+      |   |   |   | _test123 | string |         | test123     |         | open   | develop
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidName
+    assert "_test123" in str(result.exception)
+
+
+@pytest.mark.parametrize("type", ["dask/xml", "dask/json", "dask/csv"])
+def test_spinta_check_message_no_filters_support_dask_backend(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path, type: str
+):
+    # Create a manifest (XML, CSV JSON type) using a Dask backend and unsupported comparison filters.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        manifest=striptable(f"""
+    d | r | b | m | property | type     | ref  | source      | prepare                 | access
+    datasets/gov/example     |          |      |             |                         |
+      | data                 | {type}   |      |             |                         |
+      |   |   | Country      |          | code | salis       | or(code>'lt',code<'pl') | open
+      |   |   |   | code     | string   |      | kodas       |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+      |   |   | City         |          | code | miestas     | code='Vilnius'          | open   
+      |   |   |   | code     | string   |      | kodas       |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+      |   |   | Street       |          | id   | gatve       | startswith(name,'V')    | open
+      |   |   |   | id       | integer  |      | id          |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+    """),
+    )
+
+    # Run the check command and verify that warnings about unsupported Dask filters are displayed.
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Dask backend does not support comparison (filter) operators in prepare formula." in result.output
+    assert "operators: ['gt', 'lt']" in result.output
+    assert "operators: ['eq']" in result.output
+    assert "operators: ['startswith']" in result.output
+    assert "model: datasets/gov/example/Country" in result.output
+    assert "model: datasets/gov/example/City" in result.output
+    assert "model: datasets/gov/example/Street" in result.output
+    assert "entity: salis" in result.output
+    assert "entity: miestas" in result.output
+    assert "entity: gatve" in result.output
+    # All models are checked and all problems are shown at once using the ErrorManager.
+    assert "Total errors: 3" in result.output
+
+
+def test_spinta_check_no_message_filters_support_sql_backend(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path
+):
+    # Create a manifest using a SQL backend with filters.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
+    d | r | b | m | property | type   | ref  | source      | prepare                            | access
+    datasets/gov/example     |        |      |             |                                    |
+      | data                 | sql    |      |             |                                    |
+      |   |   | Country      |        | code | salis       | or(code='lt',startswith(name,'L')) |
+      |   |   |   | code     | string |      | kodas       |                                    | public
+      |   |   |   | name     | string |      | pavadinimas |                                    | open
+    """
+        ),
+    )
+
+    # Run the check command and verify that no Dask-specific messages are shown.
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    # Ensure the command succeeds.
+    assert result.exit_code == 0
+    # Verify that no Dask-related messages are issued.
+    assert "Dask backend does not support" not in result.output
