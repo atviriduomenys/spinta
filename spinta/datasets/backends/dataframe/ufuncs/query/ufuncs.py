@@ -15,7 +15,12 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, SourceOrPrepareNotAllowed
+from spinta.exceptions import (
+    PropertyNotFound,
+    SourceCannotBeList,
+    SourceOrPrepareNotAllowed,
+    InvalidArgumentInExpression,
+)
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
@@ -522,3 +527,13 @@ def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
 def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
     raise SourceOrPrepareNotAllowed(source=str(source))
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def cast(env: DaskDataFrameQueryBuilder, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    if args or kwargs:
+        arguments = args + list(kwargs.values())
+        raise InvalidArgumentInExpression(arguments=arguments, expr="cast")
+
+    return Expr("cast")

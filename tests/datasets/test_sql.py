@@ -3357,6 +3357,42 @@ def test_cast_integer_error(
     assert error(resp) == "UnableToCast"
 
 
+def test_cast_with_arguments_error(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    sqlite: Sqlite,
+):
+    dataset = "example/func/cast/integer/error"
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        f"""
+        d | r | b | m | property | type    | ref | source | prepare
+        {dataset}                |         |     |        |
+          | resource             | sql     | sql |        |
+          |   |   | Data         |         | id  | DATA   |
+          |   |   |   | id       | integer |     | ID     | cast("string")
+        """,
+    )
+
+    # Configure local server with SQL backend
+    sqlite.init({"DATA": [sa.Column("ID", sa.Integer)]})
+    sqlite.write("DATA", [{"ID": 123}])
+
+    app = create_client(rc, tmp_path, sqlite)
+    app.authmodel(dataset, ["getall"])
+
+    resp = app.get(f"/{dataset}/Data")
+    assert error(resp, "code", "message") == {
+        "code": "InvalidArgumentInExpression",
+        "message": "Invalid ['string'] arguments given to cast expression.",
+    }
+
+
 def test_point(
     context,
     postgresql,

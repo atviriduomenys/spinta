@@ -853,12 +853,6 @@ def file(env: SqlQueryBuilder, expr: Expr) -> Expr:
 
 
 @overload
-@ufunc.resolver(SqlQueryBuilder)
-def cast(env: SqlQueryBuilder) -> Expr:
-    return Expr("cast")
-
-
-@overload
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind)
 def point(env: SqlQueryBuilder, x: Bind, y: Bind) -> Expr:
     return Expr(
