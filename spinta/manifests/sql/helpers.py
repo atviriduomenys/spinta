@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from operator import itemgetter
 from typing import Any, TypedDict
 from typing import Dict
@@ -21,11 +22,15 @@ from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.backends.oracle.helpers import SDO_GEOMETRY
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
 from spinta.exceptions import UnexpectedFormulaResult
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.imports import full_class_name
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_dataset_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
+
+
+logger = logging.getLogger(__name__)
 
 
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
@@ -278,7 +283,10 @@ def _get_column_type(column: _Column, table: str | None = None) -> str:
     for cls, name in TYPES:
         if isinstance(column_type, cls):
             return name
-    raise TypeError(f"Unknown type {column_type!r} of column {column!r} in table {table!r}.")
+    logger.warning(
+        f"Unknown type {column_type!r} of column {column!r} in table {table!r}. Column registered as UNKNOWN."
+    )
+    return DataTypeEnum.UNKNOWN.value
 
 
 class _Ref(NamedTuple):
