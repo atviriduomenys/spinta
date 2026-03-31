@@ -23,9 +23,11 @@ Improvements:
 
 - Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
   using dataset names) (`#598`_).
+- `cast()` prepare function now supports conversions from string to `string`, `integer`, `number`,
+  `boolean`, `date`, `time` and `datetime` fields for all backends. (`#1699`_).
 
 .. _#598: https://github.com/atviriduomenys/spinta/issues/598
-.. _#1848: https://github.com/atviriduomenys/spinta/issues/1848
+.. _#1699: https://github.com/atviriduomenys/spinta/issues/1699
 
 0.2dev20 (2026-03-27)
 =====================
