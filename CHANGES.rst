@@ -17,6 +17,7 @@ New Features:
 
 - Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
   schemas (`#598`_).
+- New type - `unknown`. Used for to replace unrecognized column types while reading with `spinta inspect`.
 
 Improvements:
 
@@ -24,6 +25,7 @@ Improvements:
   using dataset names) (`#598`_).
 
 .. _#598: https://github.com/atviriduomenys/spinta/issues/598
+.. _#1848: https://github.com/atviriduomenys/spinta/issues/1848
 
 0.2dev20 (2026-03-27)
 =====================
