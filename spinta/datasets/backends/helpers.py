@@ -14,6 +14,7 @@ from spinta.utils.schema import NA
 
 
 def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
+    original_value = value
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in ref.refprops)}"
@@ -84,6 +85,11 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
                 values = values[0]
             val[prop] = values
             i = i + count
+
+    if isinstance(original_value, dict):
+        for nested_prop_name in ref.properties:
+            val[nested_prop_name] = original_value[nested_prop_name]
+
     return val
 
 
