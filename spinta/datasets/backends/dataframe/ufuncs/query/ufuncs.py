@@ -331,12 +331,18 @@ def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
-    prep = env.call("select", prep)
-    if prep is not None:
-        return Selected(
-            prop=dtype.prop,
-            prep=prep,
-        )
+    resolved_prep = env.call("select", prep)
+    if resolved_prep is None:
+        return None
+
+    result = {}
+    result["_id"] = Selected(prop=dtype.prop, prep=resolved_prep)
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        result[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
@@ -346,6 +352,18 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
         prop=dtype.prop,
         prep=env.call("select", fpr, fpr.right.prop),
     )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref)
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
+    prep = {}
+    prep["_id"] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
