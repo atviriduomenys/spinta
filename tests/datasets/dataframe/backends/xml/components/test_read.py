@@ -1303,3 +1303,126 @@ def test_composite_prepare_links_tables(rc: RawConfig, tmp_path: Path):
             "asset_type_attribute": {"_id": legal_data[0]["_id"]},
         }
     ]
+
+
+def test_read_with_prepare_cast(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <cities>
+            <city>
+                <string_field>abc</string_field>
+                <integer_field>1</integer_field>
+                <number_field>1.2</number_field>
+                <boolean_field>true</boolean_field>
+                <date_field>2025-05-05</date_field>
+                <time_field>12:05</time_field>
+                <datetime_field>2025-05-05T12:05</datetime_field>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property       | type     | ref          | source         | prepare
+        example/xml                    |          |              |                |
+          | xml                        | dask/xml |              | {path}         |
+          |   |   | City               |          | string_field | /cities/city   |
+          |   |   |   | string_field   | string   |              | string_field   | cast()
+          |   |   |   | integer_field  | integer  |              | integer_field  | cast()
+          |   |   |   | number_field   | number   |              | number_field   | cast()
+          |   |   |   | boolean_field  | boolean  |              | boolean_field  | cast()
+          |   |   |   | date_field     | date     |              | date_field     | cast()
+          |   |   |   | time_field     | time     |              | time_field     | cast()
+          |   |   |   | datetime_field | datetime |              | datetime_field | cast()
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    response = app.get("/example/xml/City")
+    assert response.json()["_data"] == [
+        {
+            "_type": "example/xml/City",
+            "_id": ANY,
+            "_revision": None,
+            "string_field": "abc",
+            "integer_field": 1,
+            "number_field": 1.2,
+            "boolean_field": True,
+            "date_field": "2025-05-05",
+            "time_field": "12:05:00",
+            "datetime_field": "2025-05-05T12:05:00",
+        },
+    ]
+
+
+def test_read_with_invalid_prepare_cast(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <cities>
+            <city>
+                <geometry_field>SRID=4326;POINT(15 15)</geometry_field>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property       | type     | source         | prepare
+        example/xml                    |          |                |
+          | xml                        | dask/xml | {path}         |
+          |   |   | City               |          | /cities/city   |
+          |   |   |   | geometry_field | geometry | geometry_field | cast()
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    response = app.get("/example/xml/City")
+    assert response.status_code == 500
+
+    response_error = response.json()["errors"][0]
+    assert response_error["code"] == "NotImplementedFeature"
+    assert response_error["message"] == 'Prepare method "cast()" for data type geometry is not implemented yet.'
+
+
+def test_read_prepare_cast_with_argument(rc: RawConfig, tmp_path: Path):
+    xml = """
+        <cities>
+            <city>
+                <string_field>1234</string_field>
+            </city>
+        </cities>
+    """
+    path = tmp_path / "cities.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property     | type     | source       | prepare
+        example/xml                  |          |              |
+          | xml                      | dask/xml | {path}       |
+          |   |   | City             |          | /cities/city |
+          |   |   |   | string_field | string   | string_field | cast("integer")
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml/City", ["getall"])
+
+    response = app.get("/example/xml/City")
+    assert response.status_code == 500
+
+    response_error = response.json()["errors"][0]
+    assert response_error["code"] == "InvalidArgumentInExpression"
+    assert response_error["message"] == "Invalid ['integer'] arguments given to cast expression."
