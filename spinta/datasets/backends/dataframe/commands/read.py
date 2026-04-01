@@ -78,6 +78,7 @@ def _aggregate_values(data, target: Property):
 
 def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) -> Any:
     params = params or {}
+
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, row, sel, params)
@@ -87,7 +88,6 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
             if sel.item in row.keys():
                 val = row[sel.item]
             else:
-                breakpoint()
                 val = {}
                 if isinstance(sel.prop.dtype, Ref):
                     for prop in sel.prop.dtype.refprops:
@@ -283,7 +283,6 @@ def dask_get_all(
                         ]
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
-                    breakpoint()
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
