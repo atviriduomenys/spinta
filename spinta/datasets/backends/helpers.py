@@ -15,6 +15,8 @@ from spinta.utils.schema import NA
 
 def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
     original_value = value
+    if isinstance(value, dict):
+        value = value.get("_id")
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in ref.refprops)}"
