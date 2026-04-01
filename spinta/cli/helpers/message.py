@@ -12,4 +12,4 @@ def cli_message(message: str, progress_bar: tqdm.tqdm = None):
     if progress_bar is not None:
         progress_bar.write(message)
     else:
-        echo(message)
+        echo(message, err=True)

@@ -115,5 +115,6 @@ trigger:
   ref:
     include:
       - refs/heads/master
+      - refs/heads/1691-prideti-citus-palaikyma
     exclude:
       - refs/tags/**
