@@ -1,0 +1,9 @@
+.wy-nav-content-wrap .wy-nav-content {
+    max-width: 1200px;
+}
+
+.rst-content table.docutils {
+    width: 100%;
+    overflow-x: auto;
+    display: block;
+}
