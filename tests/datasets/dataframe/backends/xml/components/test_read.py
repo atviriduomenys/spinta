@@ -961,11 +961,11 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
     xml = """
         <r>
             <Cities>
-                <CityID>401</CityID>
+                <CityID>301</CityID>
                 <Code>6666000000</Code>
             </Cities>
             <Cities>
-                <CityID>402</CityID>
+                <CityID>302</CityID>
                 <Code>7777000000</Code>
             </Cities>
         </r>
@@ -1001,7 +1001,7 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
             "_revision": None,
             "contract_type": {
                 "_id": ANY,
-                "code": "401",
+                "code": "301",
             },
             "code": "6666000000",
         },
@@ -1011,7 +1011,7 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
             "_revision": None,
             "contract_type": {
                 "_id": ANY,
-                "code": "402",
+                "code": "302",
             },
             "code": "7777000000",
         },
