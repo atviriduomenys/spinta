@@ -328,3 +328,12 @@ def _prepare_migration_postgresql(engine: URL | sa.engine.Engine) -> None:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+
+
+@pytest.fixture(autouse=True)
+def clean_keymap(rc):
+    yield
+    data_dir = rc.get("data_path")
+    keymap_path = pathlib.Path(str(data_dir)) / "keymap.db"
+    if keymap_path.exists():
+        keymap_path.unlink()
