@@ -15,3 +15,4 @@ class AdminScript(ScriptBase):
 class Script(enum.Enum):
     DEDUPLICATE = "deduplicate"
     CHANGELOG = "changelog"
+    CITUS_DISTRIBUTION = "citus_distribution"
