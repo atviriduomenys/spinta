@@ -8,6 +8,10 @@ def cli_error(message: str):
     raise Exit(code=1)
 
 
+def cli_warning(message: str):
+    echo(f"Warning: {message}", err=True)
+
+
 def cli_message(message: str, progress_bar: tqdm.tqdm = None):
     if progress_bar is not None:
         progress_bar.write(message)
