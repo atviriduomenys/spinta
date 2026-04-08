@@ -6,13 +6,16 @@ from ruamel.yaml import YAML
 
 from spinta.adapters.soap_plugins import register_soap_ufuncs
 from spinta.auth import client_name_exists, get_clients_path
+from spinta.backends.components import DistributionStrategy
+from spinta.backends.constants import DistributionType
 from spinta.core.enums import Access
+
 from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
 from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
-from spinta.utils.enums import get_enum_by_name
+from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
 from spinta.components import Context, Config
@@ -130,6 +133,15 @@ def load(context: Context, config: Config) -> Config:
     config.file_log_path = pathlib.Path(rc.get("file_log_path", default=pathlib.Path().home() / ".spinta_logs"))
 
     setup_logging(config)
+
+    config.default_distribution_strategy = rc.get(
+        "default_distribution_strategy",
+        default=DistributionType.UNDISTRIBUTED.value,
+        cast=lambda strategy: DistributionStrategy(
+            get_enum_by_value(DistributionType, strategy),
+            column=rc.get("default_table_distribution_column", default=None),
+        ),
+    )
 
     return config
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 from typing import Any, Type
 from typing import Dict
 from typing import Optional
 from typing import Set
 
-from spinta.backends.constants import BackendOrigin, BackendFeatures
+from spinta.backends.constants import BackendOrigin, BackendFeatures, DistributionType
 from spinta.core.ufuncs import Env
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
@@ -58,3 +59,9 @@ class Backend:
 
 
 SelectTree = Optional[Dict[str, "SelectTree"]]
+
+
+@dataclasses.dataclass
+class DistributionStrategy:
+    distribution_type: DistributionType
+    column: str | None = None

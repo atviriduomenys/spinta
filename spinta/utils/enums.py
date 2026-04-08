@@ -15,6 +15,14 @@ def get_enum_by_name(enum, value):
     raise Exception(f"Unknown value {value!r}.")
 
 
+def get_enum_by_value(enum, value):
+    for item in enum:
+        print(item, item.name)
+        if item.value == value:
+            return item
+    raise Exception(f"Unknown value {value!r}.")
+
+
 def enum_by_name(
     component: Component,
     param: Optional[str],  # component param

@@ -344,7 +344,7 @@ def get_ns_reserved_props(action: Action) -> list[str]:
     return []
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class TableIdentifier:
     """
     Represents a table identifier across logical (app) and PostgreSQL layers.
@@ -391,34 +391,41 @@ class TableIdentifier:
     table_arg: str | None = dataclasses.field(default=None)
     default_pg_schema: str | None = dataclasses.field(default=None)
 
-    logical_name: str = dataclasses.field(init=False)
+    logical_name: str = dataclasses.field(init=False, compare=False)
     # Name with namespace connected with '/', like it is used with Model class
-    logical_qualified_name: str = dataclasses.field(init=False)
+    logical_qualified_name: str = dataclasses.field(init=False, compare=False)
 
-    pg_table_name: str = dataclasses.field(init=False)
-    pg_schema_name: str | None = dataclasses.field(init=False)
+    pg_table_name: str = dataclasses.field(init=False, compare=False)
+    pg_schema_name: str | None = dataclasses.field(init=False, compare=False)
     # Used for hashed schema and table names
-    pg_qualified_name: str = dataclasses.field(init=False)
+    pg_qualified_name: str = dataclasses.field(init=False, compare=False)
     # Escaped qualified name, used for queries
-    pg_escaped_qualified_name: str = dataclasses.field(init=False)
+    pg_escaped_qualified_name: str = dataclasses.field(init=False, compare=False)
 
     def __post_init__(self):
-        self.logical_name = self.base_name + self.table_type.value
+        logical_name = self.base_name + self.table_type.value
         if self.table_arg:
-            self.logical_name += "/" + self.table_arg
+            logical_name += "/" + self.table_arg
 
-        self.logical_qualified_name = f"{self.schema}/{self.logical_name}" if self.schema else self.logical_name
+        logical_qualified_name = f"{self.schema}/{logical_name}" if self.schema else logical_name
 
-        self.pg_table_name = get_pg_name(self.logical_name)
-        self.pg_schema_name = get_pg_name(self.schema) if self.schema else self.default_pg_schema
-        self.pg_qualified_name = (
-            f"{self.pg_schema_name}.{self.pg_table_name}" if self.pg_schema_name else self.pg_table_name
+        pg_table_name = get_pg_name(logical_name)
+        pg_schema_name = get_pg_name(self.schema) if self.schema else self.default_pg_schema
+        pg_qualified_name = f"{pg_schema_name}.{pg_table_name}" if pg_schema_name else pg_table_name
+        pg_escaped_qualified_name = (
+            f"{pg_identifier_preparer.quote(pg_schema_name)}.{pg_identifier_preparer.quote(pg_table_name)}"
+            if pg_schema_name
+            else pg_identifier_preparer.quote(pg_table_name)
         )
-        self.pg_escaped_qualified_name = (
-            f"{pg_identifier_preparer.quote(self.pg_schema_name)}.{pg_identifier_preparer.quote(self.pg_table_name)}"
-            if self.pg_schema_name
-            else pg_identifier_preparer.quote(self.pg_table_name)
-        )
+
+        # This is need because we want to make this dataclass hashable (frozen=True, does that)
+        # But because it becomes immutable, we need to set all the attributes manually (the same way dataclass __init__ does).
+        object.__setattr__(self, "logical_name", logical_name)
+        object.__setattr__(self, "logical_qualified_name", logical_qualified_name)
+        object.__setattr__(self, "pg_table_name", pg_table_name)
+        object.__setattr__(self, "pg_schema_name", pg_schema_name)
+        object.__setattr__(self, "pg_qualified_name", pg_qualified_name)
+        object.__setattr__(self, "pg_escaped_qualified_name", pg_escaped_qualified_name)
 
     def change_table_type(self, new_type: TableType, table_arg: str | None = None) -> "TableIdentifier":
         return dataclasses.replace(self, table_type=new_type, table_arg=table_arg)

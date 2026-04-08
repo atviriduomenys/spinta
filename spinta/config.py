@@ -266,6 +266,9 @@ CONFIG = {
     "ensure_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
+    # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
+    "default_distribution_strategy": "schema",
+    "default_table_distribution_column": "_id",
     "environments": {
         "dev": {
             "keymaps.default": {

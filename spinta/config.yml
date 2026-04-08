@@ -198,6 +198,9 @@ default_auth_client:
 default_access_level:
   type: string
 
+default_distribute:
+  type: string
+
 check:
   type: object
   items:
