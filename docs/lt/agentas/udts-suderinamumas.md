@@ -35,16 +35,16 @@ kurioms galioja tos pačios palaikymo reikšmės.
 
 ## CRUD operacijos
 
-| UDTS reikalavimas | 0.1.x | 0.2dev1–dev17 |
-|-------------------|-------|---------------|
-| `GET /{model}` — sąrašo gavimas (getall) | ✅ | ✅ |
-| `GET /{model}/{id}` — vieno objekto gavimas (getone) | ✅ | ✅ |
-| `POST /{model}` — objekto kūrimas (insert) | ✅ | ✅ |
-| `PUT /{model}/{id}` — pilnas atnaujinimas (update) | ✅ | ✅ |
-| `PATCH /{model}/{id}` — dalinis atnaujinimas | ✅ | ✅ |
-| `DELETE /{model}/{id}` — soft delete | ✅ | ✅ |
-| `DELETE /{model}/{id}/:wipe` — permanent delete | ? | ? |
-| `POST /{model}/{id}` — upsert operacija | ? | ? |
+| UDTS reikalavimas | Palaiko |
+|-------------------|-------|
+| `GET /{model}` — sąrašo gavimas (getall) | ✅ |
+| `GET /{model}/{id}` — vieno objekto gavimas (getone) | ✅ |
+| `POST /{model}` — objekto kūrimas (insert) | ❌ |
+| `PUT /{model}/{id}` — pilnas atnaujinimas (update) | ❌ |
+| `PATCH /{model}/{id}` — dalinis atnaujinimas | ❌ |
+| `DELETE /{model}/{id}` — soft delete | ❌ |
+| `DELETE /{model}/{id}/:wipe` — permanent delete | ❌ |
+| `POST /{model}/{id}` — upsert operacija | ❌ |
 
 ---
 
