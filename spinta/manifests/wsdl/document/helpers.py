@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional
 import xml.etree.ElementTree as ET
 
-from spinta import exceptions
 from spinta.manifests.wsdl.xml_helpers import get_attribute_by_local_name, local_part, tag_namespace
 from spinta.manifests.wsdl.ambiguity import ensure_unique_wsdl_name
 

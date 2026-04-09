@@ -17,7 +17,7 @@ from spinta.manifests.wsdl.xml_helpers import tag_namespace
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 from spinta.utils.schema import NA
 
-from .qname import WsdlQName, build_wsdl_namespace_map, resolve_wsdl_qname, resolve_wsdl_qname_in_scope, wsdl_qname_key, wsdl_qname_local_name
+from .qname import WsdlQName, build_wsdl_namespace_map, wsdl_qname_key, wsdl_qname_local_name
 from .document.helpers import (
     BindingInfo,
     MessageInfo,

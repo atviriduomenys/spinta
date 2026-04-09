@@ -1102,11 +1102,6 @@ class UnsupportedWsdlVersion(UserError):
     template = "Unsupported WSDL document namespace {namespace!r} for {path!r}. Expected WSDL 1.1 or WSDL 2.0."
 
 
-class UnsupportedWsdlVersionTranslation(UserError):
-    status_code = 501
-    template = "WSDL {version!r} translation is not implemented yet for {path!r}."
-
-
 class RemoteWsdlResourceUnavailable(UserError):
     status_code = 503
     template = "Remote WSDL resource {path!r} is unavailable. {error}"

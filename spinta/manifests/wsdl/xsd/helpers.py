@@ -7,19 +7,16 @@ import os
 from tempfile import TemporaryDirectory
 from typing import Any
 from urllib.request import urlopen
-import xml.etree.ElementTree as ET
 import xml.etree.ElementTree as xml_etree
 
 import lxml.etree as etree
-import lxml.objectify as objectify
 from lxml.etree import QName, _Element
 
-from spinta import exceptions
 from spinta.manifests.wsdl.ambiguity import raise_ambiguous_wsdl_reference, raise_duplicate_wsdl_qname_conflict
 from spinta.manifests.wsdl.qname import WsdlQName, wsdl_qname_key
 from spinta.manifests.wsdl.xsd.datatypes import normalize_embedded_field_type
-from spinta.manifests.wsdl.xsd.schema_sources import TOLERATED_SCHEMA_ERRORS, is_remote_schema_source, load_schema_root as _load_schema_root, normalize_local_schema_path, normalize_schema_source, resolve_schema_reference
-from spinta.manifests.xsd2.helpers import XSDModel, XSDProperty, XSDReader
+from spinta.manifests.wsdl.xsd.schema_sources import TOLERATED_SCHEMA_ERRORS, load_schema_root as _load_schema_root, normalize_schema_source, resolve_schema_reference
+from spinta.manifests.xsd.helpers import XSDModel, XSDProperty, XSDReader
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_property_name
 

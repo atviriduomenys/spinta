@@ -1906,7 +1906,7 @@ def test_wsdl_soap_namespace_handling_is_preserved_for_supported_bindings(
     assert set(params) == set(expected_params)
 
 
-def test_wsdl_local_schema_references_are_loaded_through_xsd2(rc: RawConfig, tmp_path: Path):
+def test_wsdl_local_schema_references_are_loaded_through_xsd(rc: RawConfig, tmp_path: Path):
     path = tmp_path / "country-local-ref.wsdl"
     referenced_schema = tmp_path / "country-types.xsd"
     path.write_text(_build_local_reference_wsdl(referenced_schema.name))
@@ -1920,7 +1920,7 @@ def test_wsdl_local_schema_references_are_loaded_through_xsd2(rc: RawConfig, tmp
     assert response_model.properties["population"].dtype.required is False
 
 
-def test_wsdl_remote_schema_references_are_loaded_through_xsd2(
+def test_wsdl_remote_schema_references_are_loaded_through_xsd(
     rc: RawConfig,
     monkeypatch,
     tmp_path: Path,

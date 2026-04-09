@@ -3150,7 +3150,7 @@ def test_wsdl_referenced_schema_loading_is_owned_by_wsdl_seam(
         raise AssertionError("WSDL referenced-schema loading should not use xsd2.helpers.urlopen.")
 
     monkeypatch.setattr("spinta.manifests.wsdl.xsd.helpers.urlopen", fake_urlopen)
-    monkeypatch.setattr("spinta.manifests.xsd2.helpers.urlopen", fail_xsd2_urlopen)
+    monkeypatch.setattr("spinta.manifests.xsd.helpers.urlopen", fail_xsd2_urlopen)
 
     context, manifest = load_manifest_and_context(rc, path)
 
@@ -3169,7 +3169,7 @@ def test_wsdl_embedded_schemas_delegate_to_xsd2_parser_seam(
 
     captured: dict[str, Any] = {}
 
-    from spinta.manifests.xsd2.helpers import XSDReader
+    from spinta.manifests.xsd.helpers import XSDReader
 
     original_start = XSDReader.start
 
