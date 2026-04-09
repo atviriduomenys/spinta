@@ -201,10 +201,26 @@ Konkrečius IP adresus (`<TEST_GATEWAY_IP>`, `<PROD_GATEWAY_IP>`) pateikia VSSA.
 
 ### KVTC sujungimo užsakymas
 
-Sujungimas per SVDPT užsakomas pateikiant standartinę KVTC formą el. paštu:
-**pagalba@kvtc.lt**
+Tinklo sujungimui per SVDPT galimi du keliai:
 
-Formą galima gauti kreipiantis į VSSA. Formoje pildoma:
+**1 būdas — per VSSA (paprastesnis)**
+
+Institucija pateikia VSSA paraišką dėl tinklo sujungimo SVDPT tinkle. Tai yra
+sutikimas, kad VSSA veiktų institucijos vardu bendraujant su KVTC — viena paraiška
+gali apimti kelis KVTC sujungimus (TEST ir PROD aplinkas). VSSA koordinuoja visą
+procesą su KVTC ir atlieka DNS registraciją.
+
+Paraiškos forma gaunama el. paštu: **das@vssa.lt**
+
+**2 būdas — tiesiogiai per KVTC**
+
+Institucija pati kreipiasi į KVTC ir užpildo KVTC sujungimo formas kiekvienam
+sujungimui atskirai. KVTC formos prieinamos [KVTC svetainėje](https://www.kvtc.lt)
+arba kreipiantis į KVTC kontaktus el. paštu **pagalba@kvtc.gov.lt**. Užpildytas
+formas reikia persiųsti ir VSSA — sujungimas laikomas baigtu tik tada, kai abi
+pusės (institucija ir VSSA) įgyvendina nustatymus pagal KVTC paraiškas.
+
+Formoje pildoma:
 
 **Institucijos pusė (2 skyrius)** — institucija nurodo:
 - Savo vidinį Spinta agento VM IP adresą (`10.10.X.X`)
@@ -213,8 +229,3 @@ Formą galima gauti kreipiantis į VSSA. Formoje pildoma:
 **Institucijos pusė (3 skyrius)** — institucija deklaruoja savo resursą:
 - Informacinio ištekliaus pavadinimas: `SPINTA AGENTAS X` arba `INSTITUCIJA LB`
 - VM IP adresas institucijos tinkle
-
-:::{note}
-Užpildytą formą institucija turi persiųsti VSSA — sujungimas laikomas baigtu tik
-tada, kai abi pusės (institucija ir VSSA) įgyvendina nustatymus pagal KVTC paraiškas.
-:::
