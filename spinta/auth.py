@@ -58,6 +58,7 @@ from spinta.exceptions import (
     InvalidClientsKeymapStructure,
     InvalidScopes,
     InvalidClientFileFormat,
+    ModelNotFound,
 )
 from spinta.utils import passwords
 from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
@@ -858,11 +859,17 @@ def authorized(
     scope_formatter: ScopeFormatterFunc = None,
 ):
     config: Config = context.get("config")
+
+    # Disable access to nodes that have lower access level than config.access
+    if config.access > node.access:
+        if throw:
+            raise ModelNotFound(model=node.name)
+        return False
+
     token = context.get("auth.token")
     # Unauthorized clients can only access open nodes.
     unauthorized = token.get_client_id() == get_default_auth_client_id(context)
-    open_node = node.access >= Access.open
-    if unauthorized and not open_node:
+    if unauthorized and node.access < Access.open:
         if throw:
             raise AuthorizedClientsOnly()
         else:

@@ -1095,7 +1095,8 @@ class Config:
     scope_log: bool
     check_contract_scopes: bool
     default_auth_client: str
-    default_access_level: str
+    default_access_level: Access
+    access: Access
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None

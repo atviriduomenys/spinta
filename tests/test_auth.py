@@ -843,6 +843,50 @@ class TestAuthorized:
             authorized(context, node, Action.GETALL)
         assert type(e.value) in (NoScopesForNamespaces, InvalidExtraScopes)
 
+    @pytest.mark.parametrize(
+        "model_access, config_access, result",
+        [
+            ("open", "open", True),
+            ("open", "public", True),
+            ("open", "protected", True),
+            ("open", "private", True),
+            ("public", "open", False),
+            ("public", "public", True),
+            ("public", "protected", True),
+            ("public", "private", True),
+            ("protected", "open", False),
+            ("protected", "public", False),
+            ("protected", "protected", True),
+            ("protected", "private", True),
+            ("private", "open", False),
+            ("private", "public", False),
+            ("private", "protected", False),
+            ("private", "private", True),
+        ],
+    )
+    def test_authorized_with_different_node_and_config_access(
+        self, context, rc: RawConfig, model_access: str, config_access: str, result: bool
+    ):
+        rc = rc.fork({"access": config_access})
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            id | d | r | b | m | property | access
+               | datasets/test/example    | 
+               |   | data                 |
+               |   |   |   | Foo          | {model_access}
+            """,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(
+            context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes={"uapi:/datasets/test/example/Foo/:getall"}
+        )
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        assert authorized(context, node, Action.GETALL) is result
+
 
 class TestQueryClient:
     def test_get_all_contract_scopes(self, tmp_path: pathlib.Path):

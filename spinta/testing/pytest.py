@@ -55,6 +55,7 @@ def rc():
                     "type": "sqlalchemy",
                     "dsn": "sqlite:///{data_dir}/keymap.db",
                 },
+                "access": "private",
             },
         )
         rc.lock()
