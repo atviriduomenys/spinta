@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from copy import copy, deepcopy
 from dataclasses import dataclass
 from typing import Any, List
@@ -16,6 +17,8 @@ from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to
 
 
 logger = logging.getLogger(__name__)
+
+_NESTED_SOURCE_PARENT_RE = re.compile(r".+(?:Request|Response)$")
 
 
 DATATYPES_MAPPING = {
@@ -325,8 +328,9 @@ class XSDReader:
     namespaces: dict[str, str] | None = None
     global_attribute_properties: dict[str, list[XSDProperty]] = {}
 
-    def __init__(self, path: str, dataset_name: str) -> None:
+    def __init__(self, path: str, dataset_name: str, *, assign_nested_partial_source: bool = False) -> None:
         self._path = path
+        self._assign_nested_partial_source = assign_nested_partial_source
         self.dataset_resource = XSDDatasetResource(dataset_given_name=dataset_name, resource_name="resource1")
         self.custom_types = {}
         self.models = []
@@ -335,6 +339,33 @@ class XSDReader:
         self.top_level_complex_type_models = {}
         self.separate_complex_type_root_elements = []
         self.properties_xsd_type_to_set = set()
+
+    def _should_assign_nested_partial_source(self) -> bool:
+        return self._assign_nested_partial_source
+
+    def _allows_nested_partial_source(self, parent_source: str | None, is_array: bool) -> bool:
+        if not self._should_assign_nested_partial_source() or not parent_source or is_array:
+            return False
+
+        parent_name = parent_source.rsplit("/", 1)[-1]
+        return bool(_NESTED_SOURCE_PARENT_RE.fullmatch(parent_name)) and parent_name not in {"Request", "Response"}
+
+    def _resolve_model_source(
+        self,
+        property_name: str,
+        *,
+        parent_source: str | None,
+        is_root: bool,
+        is_referenced: bool,
+        is_array: bool,
+    ) -> str | None:
+        if is_root and not is_referenced:
+            return f"/{property_name}"
+
+        if not is_referenced and self._allows_nested_partial_source(parent_source, is_array):
+            return f"{parent_source}/{property_name}"
+
+        return None
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath('./*[local-name() = "simpleType"]')
@@ -538,7 +569,7 @@ class XSDReader:
             if isinstance(node, etree._Comment):
                 continue
             if QName(node).localname == "element":
-                properties = self.process_element(node, state, is_root=True)
+                properties = self.process_element(node, state, is_root=True, parent_source=None)
                 for prop in properties:
                     if prop.type.name not in ("ref", "backref"):
                         prop.name = self.resource_model.deduplicate_property_name(to_property_name(prop.xsd_name))
@@ -565,7 +596,14 @@ class XSDReader:
                 raise RuntimeError(f"This node type cannot be at the top level: {QName(node).localname}")
 
     #  XSD nodes processors
-    def process_element(self, node: _Element, state: State, is_array=False, is_root=False) -> list[XSDProperty]:
+    def process_element(
+        self,
+        node: _Element,
+        state: State,
+        is_array=False,
+        is_root=False,
+        parent_source: str | None = None,
+    ) -> list[XSDProperty]:
         """
         Element should return a property. It can return multiple properties if there is a choice somewhere down the way.
         property name is set after returning all properties, because we need to do a deduplication first.
@@ -641,7 +679,14 @@ class XSDReader:
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "complexType":
-                models = self.process_complex_type(child, state)
+                model_source = self._resolve_model_source(
+                    property_name,
+                    parent_source=parent_source,
+                    is_root=is_root,
+                    is_referenced=is_referenced,
+                    is_array=is_array,
+                )
+                models = self.process_complex_type(child, state, parent_source=model_source)
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
                     if property_name != model.xsd_name:
@@ -658,7 +703,8 @@ class XSDReader:
                     else:
                         model.is_partial = False
                         model.is_entry_model = True
-                        model.source = f"/{property_name}"
+                    if model_source is not None:
+                        model.source = model_source
                     prop = XSDProperty(
                         xsd_name=property_name, required=is_required, source=property_name, is_array=is_array
                     )
@@ -694,7 +740,7 @@ class XSDReader:
 
         return props
 
-    def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
+    def process_complex_type(self, node: _Element, state: State, parent_source: str | None = None) -> list[XSDModel]:
         # preparation for building model
         models = []
         name = node.attrib.get("name")
@@ -726,7 +772,11 @@ class XSDReader:
                     group.append(prop)
 
             elif local_name == "sequence":
-                sequence_property_groups: list[list[XSDProperty]] = self.process_sequence(child, state)
+                sequence_property_groups: list[list[XSDProperty]] = self.process_sequence(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for seq_group in sequence_property_groups:
@@ -736,7 +786,11 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "choice":
-                choice_property_groups: list[list[XSDProperty]] = self.process_choice(child, state)
+                choice_property_groups: list[list[XSDProperty]] = self.process_choice(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for choice_group in choice_property_groups:
@@ -746,7 +800,11 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "complexContent":
-                complex_content_property_groups: List[List[XSDModel]] = self.process_complex_content(child, state)
+                complex_content_property_groups: List[List[XSDModel]] = self.process_complex_content(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for cc_group in complex_content_property_groups:
@@ -762,7 +820,7 @@ class XSDReader:
                     extends_model = None
 
             elif local_name == "all":
-                all_properties: list[XSDProperty] = self.process_all(child, state)
+                all_properties: list[XSDProperty] = self.process_all(child, state, parent_source=parent_source)
                 for group in property_groups:
                     group.extend(all_properties)
 
@@ -894,7 +952,7 @@ class XSDReader:
         property_type.description = description
         return property_type
 
-    def process_sequence(self, node: _Element, state: State) -> list[list[XSDProperty]]:
+    def process_sequence(self, node: _Element, state: State, parent_source: str | None = None) -> list[list[XSDProperty]]:
         """
         Processes an XSD <sequence> element and returns a list of property groups.
         Each group is a list of XSDProperty instances representing a possible combination.
@@ -908,11 +966,15 @@ class XSDReader:
             local_name = QName(child).localname
 
             if local_name == "element":
-                props: list[XSDProperty] = self.process_element(child, state)
+                props: list[XSDProperty] = self.process_element(child, state, parent_source=parent_source)
                 for group in property_groups:
                     group.extend(props)
             elif local_name == "choice":
-                choice_groups: list[list[XSDProperty]] = self.process_choice(child, state)
+                choice_groups: list[list[XSDProperty]] = self.process_choice(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for choice_group in choice_groups:
@@ -933,7 +995,7 @@ class XSDReader:
 
         return property_groups
 
-    def process_choice(self, node: _Element, state: State) -> list[list[XSDProperty]]:
+    def process_choice(self, node: _Element, state: State, parent_source: str | None = None) -> list[list[XSDProperty]]:
         """
         Returns a list of lists. Each list inside the main list is for the separate choice.
         Those lists can also have other lists inside
@@ -941,7 +1003,7 @@ class XSDReader:
         choice_groups = []
 
         if _is_array(node):
-            choice_groups: list[list[XSDProperty]] = self.process_sequence(node, state)
+            choice_groups: list[list[XSDProperty]] = self.process_sequence(node, state, parent_source=parent_source)
             return choice_groups
 
         for child in node.getchildren():
@@ -951,13 +1013,21 @@ class XSDReader:
             local_name = etree.QName(child).localname
 
             if local_name == "element":
-                properties: list[XSDProperty] = self.process_element(child, state)
+                properties: list[XSDProperty] = self.process_element(child, state, parent_source=parent_source)
                 choice_groups.append(properties)
             elif QName(child).localname == "sequence":
-                nested_groups: list[list[XSDProperty]] = self.process_sequence(child, state)
+                nested_groups: list[list[XSDProperty]] = self.process_sequence(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 choice_groups.extend(nested_groups)
             elif local_name == "choice":
-                nested_choice_groups: list[list[XSDProperty]] = self.process_choice(child, state)
+                nested_choice_groups: list[list[XSDProperty]] = self.process_choice(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 choice_groups.extend(nested_choice_groups)
             else:
                 raise RuntimeError(f"Unexpected element type inside <choice>: {local_name}")
@@ -967,7 +1037,7 @@ class XSDReader:
     def process_group(self, node: _Element, state: State) -> None:
         pass
 
-    def process_all(self, node: _Element, state: State) -> list[XSDProperty]:
+    def process_all(self, node: _Element, state: State, parent_source: str | None = None) -> list[XSDProperty]:
         """
         Processes an XSD <all> element, ensuring each child element has minOccurs=0|1 and maxOccurs=1,
         and returns a list of property groups. Since <all> allows any order, this method does not produce combinations.
@@ -989,7 +1059,7 @@ class XSDReader:
                         f"Invalid occurrence in <all> element: minOccurs='{min_occurs}', maxOccurs='{max_occurs}'"
                     )
 
-                props: list[XSDProperty] = self.process_element(child, state)
+                props: list[XSDProperty] = self.process_element(child, state, parent_source=parent_source)
                 properties.extend(props)
 
             else:
@@ -1024,7 +1094,12 @@ class XSDReader:
 
         return properties
 
-    def process_complex_content(self, node: _Element, state: State) -> list[list[XSDModel]]:
+    def process_complex_content(
+        self,
+        node: _Element,
+        state: State,
+        parent_source: str | None = None,
+    ) -> list[list[XSDModel]]:
         property_groups: list[list] = [[]]
 
         for child in node:
@@ -1034,7 +1109,11 @@ class XSDReader:
             local_name = QName(child).localname
 
             if local_name == "extension":
-                extension_property_groups: list[list[XSDProperty]] = self.process_complex_type_extension(child, state)
+                extension_property_groups: list[list[XSDProperty]] = self.process_complex_type_extension(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for ext_group in extension_property_groups:
@@ -1123,7 +1202,12 @@ class XSDReader:
 
         return properties
 
-    def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
+    def process_complex_type_extension(
+        self,
+        node: _Element,
+        state: State,
+        parent_source: str | None = None,
+    ) -> List[List[XSDProperty]]:
         base = node.attrib.get("base")
         if not base:
             raise RuntimeError("Extension must have a 'base' attribute.")
@@ -1139,7 +1223,7 @@ class XSDReader:
             local_name = QName(child).localname
 
             if local_name == "element":
-                prop: List[XSDProperty] = self.process_element(child, state)
+                prop: List[XSDProperty] = self.process_element(child, state, parent_source=parent_source)
                 for group in property_groups:
                     group.append(prop)
 
@@ -1149,7 +1233,11 @@ class XSDReader:
                     group.append(prop)
 
             elif local_name == "sequence":
-                sequence_property_groups: List[List[XSDProperty]] = self.process_sequence(child, state)
+                sequence_property_groups: List[List[XSDProperty]] = self.process_sequence(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for seq_group in sequence_property_groups:
@@ -1159,7 +1247,11 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "choice":
-                choice_property_groups: List[List[XSDProperty]] = self.process_choice(child, state)
+                choice_property_groups: List[List[XSDProperty]] = self.process_choice(
+                    child,
+                    state,
+                    parent_source=parent_source,
+                )
                 new_property_groups = []
                 for group in property_groups:
                     for choice_group in choice_property_groups:
@@ -1300,7 +1392,7 @@ class State:
 def read_schema(
     context: Context, path: str, prepare: str = None, dataset_name: str = ""
 ) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
-    xsd = XSDReader(path, dataset_name)
+    xsd = XSDReader(path, dataset_name, assign_nested_partial_source=not path.startswith("xsd2+"))
 
     xsd.start()
 
