@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects import postgresql
 
 import sqlalchemy as sa
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 
 from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.helpers.name import name_changed
@@ -547,6 +547,50 @@ class CreateSchemaMigrationAction(MigrationAction):
         op.execute(self.query)
 
 
+class DistributeSchema(MigrationAction):
+    def __init__(self, schema_name: str) -> None:
+        self.schema_name = schema_name
+        self.query = f"SELECT citus_schema_distribute('{pg_identifier_preparer.quote(schema_name)}')"
+
+    def execute(self, op: "Operations") -> None:
+        op.execute(self.query)
+
+
+class DistributeReference(MigrationAction):
+    def __init__(self, table_identifier: TableIdentifier) -> None:
+        self.query = f"SELECT create_reference_table('{table_identifier.pg_escaped_qualified_name}')"
+
+    def execute(self, op: "Operations") -> None:
+        op.execute(self.query)
+
+
+class DistributeTable(MigrationAction):
+    def __init__(self, table_identifier: TableIdentifier, column: str) -> None:
+        self.query = f"SELECT create_distributed_table('{table_identifier.pg_escaped_qualified_name}', '{column}')"
+
+    def execute(self, op: "Operations") -> None:
+        op.execute(self.query)
+
+
+class UndistributeSchema(MigrationAction):
+    def __init__(self, schema_name: str) -> None:
+        self.schema_name = schema_name
+        self.query = f"SELECT citus_schema_undistribute('{pg_identifier_preparer.quote(schema_name)}')"
+
+    def execute(self, op: "Operations") -> None:
+        op.execute(self.query)
+
+
+class UndistributeTable(MigrationAction):
+    def __init__(self, table_identifier: TableIdentifier) -> None:
+        self.query = (
+            f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}, cascade_via_foreign_keys=>true')"
+        )
+
+    def execute(self, op: "Operations") -> None:
+        op.execute(self.query)
+
+
 class MigrationHandler:
     def __init__(self) -> None:
         self.migrations: list[MigrationAction] = []
@@ -571,8 +615,12 @@ class MigrationHandler:
                     return True
         return False
 
-    def run_migrations(self, op: "Operations") -> None:
+    def gather_migrations(self) -> Generator[MigrationAction, None, None]:
         for migration in self.migrations:
-            migration.execute(op)
+            yield migration
         for migration in self.foreign_key_migration:
+            yield migration
+
+    def run_migrations(self, op: "Operations") -> None:
+        for migration in self.gather_migrations():
             migration.execute(op)

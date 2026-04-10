@@ -3,17 +3,31 @@ from copy import deepcopy
 
 from collections import defaultdict
 
+from alembic.operations import Operations
+from alembic.runtime.migration import MigrationContext
+from multipledispatch import dispatch
 from tqdm import tqdm
 
 from spinta import commands
+from spinta.backends import Backend
 from spinta.backends.constants import DistributionType
 from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.migrate.actions import (
+    MigrationHandler,
+    UndistributeSchema,
+    UndistributeTable,
+    DistributeReference,
+    DistributeTable,
+    DistributeSchema,
+)
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context
 
 import sqlalchemy as sa
+
+from spinta.exceptions import NotImplementedFeature
 
 
 @dataclasses.dataclass
@@ -30,12 +44,79 @@ class ShardingPlan:
         )
 
 
+@dispatch(Context)
+def gather_current_sharding_state(context: Context, verbose: bool = True, **kwargs):
+    store = context.get("store")
+    backends = store.backends
+
+    if verbose:
+        cli_message("Extracting already distributed schemas")
+
+    plans: dict[str, ShardingPlan] = defaultdict(ShardingPlan)
+    for backend_name, backend in backends.items():
+        plans[backend_name] = gather_current_sharding_state(context, backend, verbose=verbose, **kwargs)
+    return plans
+
+
+@dispatch(Context, Backend)
+def gather_current_sharding_state(context: Context, backend: Backend, **kwargs):
+    # Currently, only postgresql backend supports citus distribution, instead of erroring, return empty plan.
+    return ShardingPlan()
+
+
+@dispatch(Context, PostgreSQL)
+def gather_current_sharding_state(context: Context, backend: PostgreSQL, verbose: bool = True, **kwargs):
+    plan = ShardingPlan()
+    with backend.begin() as conn:
+        result = conn.execute(
+            sa.text("""
+                    SELECT
+                        n.nspname AS schema_name,
+                        c.relname AS table_name,
+                        format('%I.%I', n.nspname, c.relname) AS full_table_name,
+                        d.description AS table_comment,
+
+                        COALESCE(ct.citus_table_type, 'local') AS distribution_type,
+                        ct.distribution_column
+
+                    FROM pg_class c
+                             JOIN pg_namespace n ON n.oid = c.relnamespace
+
+                             LEFT JOIN citus_tables ct
+                                       ON ct.table_name = c.oid::regclass
+
+    LEFT JOIN pg_description d
+                    ON d.objoid = c.oid
+                        AND d.objsubid = 0
+
+                    WHERE c.relkind = 'r'
+                      AND n.nspname NOT LIKE 'pg_%'
+                      AND n.nspname <> 'information_schema'
+
+                    ORDER BY n.nspname, c.relname;""")
+        ).fetchall()
+
+        for row in result:
+            if not row["table_comment"]:
+                continue
+
+            table_identifier = get_table_identifier(row["table_comment"])
+            match row["distribution_type"]:
+                case "schema":
+                    plan.schemas.add(row["schema_name"])
+                case "distributed":
+                    plan.tables.add((table_identifier, row["distribution_column"]))
+                case "reference":
+                    plan.references.add(table_identifier)
+                case _:
+                    pass
+    return plan
+
+
 def create_sharding_plan(context: Context, verbose: bool = True, **kwargs) -> dict[str, ShardingPlan]:
     store = context.get("store")
-    schemas: dict[str, set[str]] = defaultdict(set)
-    # disallowed_schemas = set()
     if verbose:
-        cli_message("Creating schema-based sharding plan from manifest")
+        cli_message("Creating distribution plan from manifest")
 
     plans = defaultdict(ShardingPlan)
     for model in commands.get_models(context, store.manifest).values():
@@ -58,91 +139,6 @@ def create_sharding_plan(context: Context, verbose: bool = True, **kwargs) -> di
             case _:
                 pass
 
-        # dataset_name = model.external.dataset.name
-        # if dataset_name in disallowed_schemas:
-        #     continue
-        #
-        # schemas.add(dataset_name)
-        #
-        # if model.base and (base_dataset := model.base.parent.external.dataset.name) != dataset_name:
-        #     disallowed_schemas.add(base_dataset)
-        #     schemas.discard(base_dataset)
-        #
-        # for prop in model.flatprops.values():
-        #     if isinstance(prop.dtype, Ref) and not prop.dtype.inherited:
-        #         if (ref_dataset := prop.dtype.model.external.dataset.name) == dataset_name:
-        #             continue
-        #
-        #         disallowed_schemas.add(ref_dataset)
-        #         schemas.discard(ref_dataset)
-        #
-        #         # Currently, we do not support reference tables, so cannot shard root schema aswell
-        #         disallowed_schemas.add(dataset_name)
-        #         schemas.discard(dataset_name)
-
-    return plans
-
-
-def gather_current_sharding_state(context: Context, verbose: bool = True, **kwargs):
-    store = context.get("store")
-    backends = store.backends
-
-    if verbose:
-        cli_message("Extracting already distributed schemas")
-
-    plans: dict[str, ShardingPlan] = defaultdict(ShardingPlan)
-    # schemas: dict[str, set[str]] = defaultdict(set)
-    for backend_name, backend in backends.items():
-        if not isinstance(backend, PostgreSQL):
-            continue
-
-        plan = plans[backend_name]
-        with backend.begin() as conn:
-            result = conn.execute(
-                sa.text("""
-                SELECT
-        n.nspname AS schema_name,
-        c.relname AS table_name,
-        format('%I.%I', n.nspname, c.relname) AS full_table_name,
-        d.description AS table_comment,
-    
-        COALESCE(ct.citus_table_type, 'local') AS distribution_type,
-        ct.distribution_column
-    
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    
-    LEFT JOIN citus_tables ct
-           ON ct.table_name = c.oid::regclass
-    
-    LEFT JOIN pg_description d
-           ON d.objoid = c.oid
-          AND d.objsubid = 0
-    
-    WHERE c.relkind = 'r'
-      AND n.nspname NOT LIKE 'pg_%'
-      AND n.nspname <> 'information_schema'
-    
-    ORDER BY n.nspname, c.relname;""")
-            ).fetchall()
-
-            for row in result:
-                if not row["table_comment"]:
-                    continue
-
-                table_identifier = get_table_identifier(row["table_comment"])
-                match row["distribution_type"]:
-                    case "schema":
-                        plan.schemas.add(row["schema_name"])
-                    case "distributed":
-                        plan.tables.add((table_identifier, row["distribution_column"]))
-                    case "reference":
-                        plan.references.add(table_identifier)
-                    case _:
-                        pass
-                #
-                # if row["distribution_type"] != "local":
-                #     schemas[backend_name].add(row["schema_name"])
     return plans
 
 
@@ -158,7 +154,7 @@ def invalidate_default_distribution(
 
     match default_distribution.distribution_type:
         case DistributionType.SCHEMA:
-            return invalidate_default_schema_distributions(context, backend, plan, verbose=verbose)
+            return invalidate_default_schema_distributions(context, backend, plan)
         case _:
             return plan
 
@@ -177,8 +173,16 @@ def valid_schema_distribution_foreign_key(plan: ShardingPlan, schema: str, forei
     return False
 
 
+@dispatch(Context, Backend, ShardingPlan)
 def invalidate_default_schema_distributions(
-    context: Context, backend: PostgreSQL, plan: ShardingPlan, verbose: bool = True, **kwargs
+    context: Context, backend: Backend, plan: ShardingPlan, **kwargs
+) -> ShardingPlan:
+    raise NotImplementedFeature(f"Ability to invalidate default schema distribution for {backend.type!r} backend type")
+
+
+@dispatch(Context, PostgreSQL, ShardingPlan)
+def invalidate_default_schema_distributions(
+    context: Context, backend: PostgreSQL, plan: ShardingPlan, **kwargs
 ) -> ShardingPlan:
     if not plan.schemas:
         return plan
@@ -186,8 +190,6 @@ def invalidate_default_schema_distributions(
     invalid_schemas = set()
 
     inspector = sa.inspect(backend.engine)
-    if verbose:
-        cli_message("Invalidating incorrect schema shards")
 
     plan_copy = deepcopy(plan)
     for schema in plan.schemas:
@@ -212,15 +214,32 @@ def invalidate_default_schema_distributions(
     return plan_copy
 
 
+@dispatch(Context, Backend, ShardingPlan, ShardingPlan, MigrationHandler)
 def generate_citus_migrations(
-    context: Context, backend: PostgreSQL, existing_plan: ShardingPlan, new_plan: ShardingPlan, **kwargs
+    context: Context,
+    backend: Backend,
+    existing_plan: ShardingPlan,
+    new_plan: ShardingPlan,
+    handler: MigrationHandler,
+    **kwargs,
+):
+    raise NotImplementedFeature(f"Ability to generate citus migrations for {backend.type!r} backend type")
+
+
+@dispatch(Context, PostgreSQL, ShardingPlan, ShardingPlan, MigrationHandler)
+def generate_citus_migrations(
+    context: Context,
+    backend: PostgreSQL,
+    existing_plan: ShardingPlan,
+    new_plan: ShardingPlan,
+    handler: MigrationHandler,
+    **kwargs,
 ):
     undistributed_plan = existing_plan - new_plan
     diff_plan = new_plan - existing_plan
 
-    print("UNDISTRIBUTE SCHEMA:", len(undistributed_plan.schemas))
     for schema in undistributed_plan.schemas:
-        yield f"SELECT citus_schema_undistribute('{schema}')"
+        handler.add_action(UndistributeSchema(schema_name=schema))
 
     if undistributed_plan.references or undistributed_plan.tables:
         component_map = {}
@@ -229,35 +248,30 @@ def generate_citus_migrations(
         with backend.begin() as conn:
             component_map = build_fk_components(conn, undistributed_tables)
 
-        print("UNDISTRIBUTE TABLES:", len(undistributed_plan.tables))
         for table, _ in undistributed_plan.tables:
             if table in processed:
                 continue
 
-            yield f"SELECT undistribute_table('{table.pg_escaped_qualified_name}')"
+            handler.add_action(UndistributeTable(table_identifier=table))
             component = component_map[table]
             processed.update(component)
 
-        print("UNDISTRIBUTE REFERENCES:", len(undistributed_plan.references))
         for table in undistributed_plan.references:
             if table in processed:
                 continue
 
-            yield f"SELECT undistribute_table('{table.pg_escaped_qualified_name}', cascade_via_foreign_keys=>true)"
+            handler.add_action(UndistributeTable(table_identifier=table))
             component = component_map[table]
             processed.update(component)
 
-    print("DISTRIBUTE REFERENCES:", len(diff_plan.references))
     for table in diff_plan.references:
-        yield f"SELECT create_reference_table('{table.pg_escaped_qualified_name}')"
+        handler.add_action(DistributeReference(table_identifier=table))
 
-    print("DISTRIBUTE TABLES:", len(diff_plan.tables))
     for table, column in diff_plan.tables:
-        yield f"SELECT create_distributed_table('{table.pg_escaped_qualified_name}', '{column}')"
+        handler.add_action(DistributeTable(table_identifier=table, column=column))
 
-    print("DISTRIBUTE SCHEMA:", len(diff_plan.schemas))
     for schema in diff_plan.schemas:
-        yield f"SELECT citus_schema_distribute('{schema}')"
+        handler.add_action(DistributeSchema(schema_name=schema))
 
 
 def migrate_citus_distributions(context: Context, destructive: bool, **kwargs):
@@ -267,30 +281,39 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs):
     sharded_plan = gather_current_sharding_state(context, verbose=True)
     backends = store.backends
     for backend_name, plan in required_plan.items():
-        progress_bar = tqdm(desc=f"Adding schema distributions {backend_name}", ascii=True)
         backend = backends[backend_name]
-        validated_plan = invalidate_default_distribution(context, backend, plan, verbose=True)
+        if not isinstance(backend, PostgreSQL):
+            cli_message(f"Skipping '{backend_name}' backend, it's not PostgreSQL backend")
+            continue
 
-        migrations = generate_citus_migrations(context, backend, sharded_plan[backend_name], validated_plan)
+        validated_plan = invalidate_default_distribution(context, backend, plan, verbose=True)
+        progress_bar = tqdm(desc=f"Updating distributions for '{backend_name}' backend", ascii=True)
+        handler = MigrationHandler()
+        generate_citus_migrations(context, backend, sharded_plan[backend_name], validated_plan, handler)
         with backend.begin() as conn:
-            for migration in migrations:
-                cli_message(migration, progress_bar)
-                conn.execute(sa.text(migration))
+            ctx = MigrationContext.configure(conn)
+            operations = Operations(ctx)
+            for migration in handler.gather_migrations():
+                migration.execute(operations)
                 progress_bar.update(1)
 
 
 def cli_requires_citus_distribution(context: Context, **kwargs):
     store = ensure_store_is_loaded(context)
-    required_plan = create_sharding_plan(context, verbose=False)
+    required_plans = create_sharding_plan(context, verbose=False)
 
-    sharded_plan = gather_current_sharding_state(context, verbose=False)
+    existing_plans = gather_current_sharding_state(context, verbose=False)
     backends = store.backends
-    for backend_name, plan in required_plan.items():
+    for backend_name, required_plan in required_plans.items():
         backend = backends[backend_name]
-        validated_plan = invalidate_default_distribution(context, backend, plan, verbose=False)
+        existing_plan = existing_plans[backend_name]
+        validated_plan = invalidate_default_distribution(context, backend, required_plan, verbose=False)
+        diff_plan = existing_plan - validated_plan
+        if diff_plan.tables or diff_plan.references or diff_plan.schemas:
+            return True
 
-        migrations = generate_citus_migrations(context, backend, sharded_plan[backend_name], validated_plan)
-        for _ in migrations:
+        req_plan = validated_plan - existing_plan
+        if req_plan.tables or req_plan.references or req_plan.schemas:
             return True
     return False
 
@@ -361,8 +384,6 @@ def build_fk_components(conn, tables: set[TableIdentifier]) -> dict[TableIdentif
 
     for key, table in target_map.items():
         full_component = key_to_component.get(key, {key})
-
-        # intersect with your subset
         result[table] = {target_map[k] for k in full_component if k in target_map}
 
     return result
