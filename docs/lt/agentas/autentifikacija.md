@@ -234,7 +234,7 @@ downloaded_public_keys_file: "custom-well-knows.json" # vietinis failas atsisių
 ```
 
 :::{note}
-`token_validation_keys_download_url` negali būti naudojamas kartu su `token_validation_key`, nes abu atlieka tą pačią funkciją. Skirtumas tas, kad `token_validation_keys_download_url` yra dinamiškesnis ir palaiko raktų rotaciją. Dėl šios priežasties siūloma naudoti `token_validation_keys_download_url`. Dėl `token_validation_keys_download_url` kreiptis į VSSA.
+`token_validation_keys_download_url` negali būti naudojamas kartu su `token_validation_key`, nes abu atlieka tą pačią funkciją. Skirtumas tas, kad `token_validation_keys_download_url` yra dinamiškesnis ir palaiko raktų rotaciją. Dėl šios priežasties siūloma naudoti `token_validation_keys_download_url`.
 :::
 
 Naujus raktus galima parsisiųsti su komanda:
