@@ -229,7 +229,7 @@ token_validation_key:  > # vienas raktas arba raktų sąrašas
       }
     ]
   }
-token_validation_keys_download_url: https://<auth-serverio-adresas> # URL, iš kurio galima atsisiųsti viešuosius raktus
+token_validation_keys_download_url: https://am.test-apigw.gov.lt/dvms/oidc/.well-known/jwks.json # URL, iš kurio galima atsisiųsti viešuosius raktus
 downloaded_public_keys_file: "custom-well-knows.json" # vietinis failas atsisiųstiems raktams saugoti. Jei nenurodyta - "downloaded-well-knows.json" bus naudojamas.
 ```
 
