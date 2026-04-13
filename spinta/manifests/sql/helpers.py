@@ -459,7 +459,7 @@ def is_internal_schema(engine: Engine, schema: str) -> bool:
             return True
 
         # Commonly used postgresql extensions (used by spinta)
-        common_psql_extension_schemas = {"tiger", "tiger_data", "topology"}
+        common_psql_extension_schemas = {"tiger", "tiger_data", "topology", "citus", "citus_internal"}
         if schema in common_psql_extension_schemas:
             return True
 
