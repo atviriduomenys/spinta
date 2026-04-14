@@ -184,3 +184,116 @@ id,dataset,resource,base,model,property,type,ref,source,prepare,level,status,vis
 ,,,,,title,string,,title,,,,,,,,,
 EOF
 ```
+
+---
+
+## SOAP adapteriai
+
+Kai kurių SOAP paslaugų užklausoms reikia laukų, kurių reikšmę galima apskaičiuoti tik tada, kai **visi kiti užklausos laukai jau žinomi** — pavyzdžiui, parašas (signature), kuris skaičiuojamas iš kelių kitų laukų reikšmių kartu.
+
+Tokius atvejus galima išspręsti rašant pasirinktinį Python modulį (adapterį) ir nurodant jį `config.yml`. Spinta įkelia šį modulį paleidimo metu ir naudoja jį SOAP užklausos formavimo metu.
+
+### Kaip tai veikia
+
+Įprasti `prepare` laukai manifest faile įvertinami iš karto, vienas po kito. Adapteris leidžia nurodyti, kad konkretus laukas turi būti įvertintas **paskutinis** — kai visi kiti laukai jau turi reikšmes.
+
+Tai daroma dviem žingsniais:
+
+1. Manifest `prepare` stulpelyje naudojamas adapterio funkcijos pavadinimas (pvz. `rc_signature()`).
+2. Adapterio modulyje ta funkcija įregistruojama kaip „atidėta" — Spinta ją įvertins tik po to, kai kiti laukai jau bus sudėti į užklausą.
+
+### config.yml
+
+```yaml
+soap_adapter_modules:
+  - /opt/spinta/adapters/my_adapter.py
+```
+
+Galima nurodyti kelis failus. Keliai turi būti **absoliutūs**.
+
+Jei adapteriui reikia papildomų nustatymų, juos galima dėti `config.yml` šalia kitų raktų. Pavyzdžiui:
+
+```yaml
+rc_signature:
+  private_key_path: /opt/spinta/keys/private.pem
+```
+
+### Manifest
+
+SOAP resurso `param` eilutėse `prepare` stulpelyje naudojamas adapterio funkcijos pavadinimas:
+
+| property    | source            | prepare          |
+|-------------|-------------------|------------------|
+| `signature` | `input/Signature` | `rc_signature()` |
+
+Kad tai veiktų, adapterio modulyje `rc_signature` turi būti nurodytas ir kaip atidėtas pavadinimas, ir kaip funkcija, kuri grąžina galutinę reikšmę.
+
+### Adapterio modulis
+
+Adapteris yra paprastas Python failas su dviem privalomomis funkcijomis:
+
+| Funkcija | Paskirtis |
+|----------|-----------|
+| `get_deferred_prepare_names()` | Grąžina sąrašą pavadinimų, kurie turi būti įvertinti paskutiniai, pvz. `["rc_signature"]`. |
+| `get_body_resolvers()` | Grąžina žodyną `{"rc_signature": fn}`, kur `fn(env)` apskaičiuoja ir grąžina lauko reikšmę. |
+
+Papildomai galima aprašyti `validate_soap_adapter_config(raw_config)` — ji bus iškviesta paleidimo metu ir leis pranešti apie konfigūracijos klaidas iš karto, o ne užklausos metu.
+
+Funkcija `fn(env)` gauna `SoapQueryBuilder` objektą — per `env.soap_request_body` pasiekiami visi jau sudėti užklausos laukai.
+
+Pavyzdinis adapteris Spinta kode: `spinta/adapters/rc/signature_adapter.py`.
+
+### Adapterio kūrimo pavyzdys
+
+Žemiau pateiktas minimalus adapteris, kuris apskaičiuoja parašą iš jau sudėtų užklausos laukų:
+
+```python
+# /opt/spinta/adapters/my_signature_adapter.py
+
+def get_deferred_prepare_names():
+    """Šie prepare pavadinimai manifest faile bus įvertinti paskutiniai."""
+    return ["rc_signature"]
+
+
+def get_body_resolvers():
+    """Funkcijos, kurios apskaičiuoja atidėtų laukų reikšmes."""
+    return {"rc_signature": compute_signature}
+
+
+def compute_signature(env, expr=None):
+    """
+    env.soap_request_body — žodynas su visais jau sudėtais SOAP užklausos laukais.
+    env.context — Spinta kontekstas, per kurį pasiekiama konfigūracija.
+    """
+    body = env.soap_request_body
+
+    # Skaitome konfigūraciją iš config.yml
+    config = env.context.get("config")
+    key_path = config.rc_signature["private_key_path"]
+
+    # Apskaičiuojame parašą iš laukų reikšmių
+    data_to_sign = (
+        str(body.get("input/CallerCode", "")) +
+        str(body.get("input/Time", "")) +
+        str(body.get("input/ActionType", ""))
+    )
+
+    return sign(data_to_sign, key_path)
+
+
+def sign(data: str, key_path: str) -> str:
+    """Parašo skaičiavimo logika — pakeiskite savo implementacija."""
+    ...
+
+
+def validate_soap_adapter_config(raw_config):
+    """Tikrinama konfigūracija paleidimo metu — klaida pasirodys iš karto."""
+    if "rc_signature" not in raw_config:
+        raise ValueError("Trūksta 'rc_signature' skilties config.yml faile")
+    if "private_key_path" not in raw_config["rc_signature"]:
+        raise ValueError("Trūksta 'rc_signature.private_key_path' config.yml faile")
+```
+
+:::{note}
+`env.soap_request_body` raktai atitinka manifest `source` stulpelio reikšmes (`input/CallerCode`, `input/Time` ir t.t.), o ne `property` pavadinimus.
+:::
