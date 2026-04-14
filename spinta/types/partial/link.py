@@ -14,6 +14,7 @@ def get_ref_value(context: Context, prop: Property):
         model = parent.dtype.model
 
         if prop.name in model.properties:
+            model.properties[prop.name].dtype.model = commands.get_model(context, prop.model.manifest, model.properties[prop.name].dtype.model)
             return model.properties[prop.name]
 
 

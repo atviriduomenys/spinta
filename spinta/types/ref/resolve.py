@@ -5,9 +5,6 @@ from spinta.components import Context, Property
 from spinta.types.datatype import Ref
 
 
-@commands.resolve_property.register(Context, Ref, str)
-def resolve_property(context: Context, dtype: Ref, prop: str) -> Property | None:
-    if isinstance(dtype.model, str):
-        dtype.model = commands.get_model(context, dtype.prop.model.manifest, dtype.model)
-
+@commands.resolve_property.register(Ref, str)
+def resolve_property(dtype: Ref, prop: str) -> Property | None:
     return commands.resolve_property(dtype.model, prop)

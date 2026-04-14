@@ -13,10 +13,16 @@ from spinta.types.namespace import check_if_model_has_backend_and_source
 from spinta.utils.schema import NA
 
 
+def _resolve_id(value: Any) -> Any:
+    while isinstance(value, dict) and "_id" in value:
+        value = value["_id"]
+    return value
+
+
 def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
     original_value = value
     if isinstance(value, dict):
-        value = value.get("_id")
+        value = _resolve_id(value.get("_id"))
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in ref.refprops)}"
@@ -41,6 +47,16 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
     if len(value) != expected_count:
         raise GivenValueCountMissmatch(ref, given_count=len(value), expected_count=expected_count)
 
+    def _copy_nested_props(original_value: dict, val: dict) -> dict:
+        for nested_prop_name, nested_val in original_value.items():
+            if nested_prop_name == "_id":
+                continue
+            nested_prop = ref.model.properties.get(nested_prop_name)
+            if nested_prop and isinstance(nested_prop.dtype, Ref) and isinstance(nested_val, dict):
+                nested_val = handle_ref_key_assignment(context, keymap, env, nested_val, nested_prop.dtype)
+            val[nested_prop_name] = nested_val
+        return val
+
     if commands.identifiable(ref.prop):
         target_value = value
         if len(value) == 1:
@@ -60,9 +76,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
                 val = {"_id": keymap.encode(keymap_name, target_value)}
                 if isinstance(original_value, dict):
-                    for nested_prop_name in ref.properties:
-                        val[nested_prop_name] = original_value.get(nested_prop_name)
-
+                    val = _copy_nested_props(original_value, val)
                 return val
 
             expr_parts = ["select()"]
@@ -94,8 +108,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             i = i + count
 
     if isinstance(original_value, dict):
-        for nested_prop_name in ref.properties:
-            val[nested_prop_name] = original_value.get(nested_prop_name)
+        val = _copy_nested_props(original_value, val)
 
     return val
 
