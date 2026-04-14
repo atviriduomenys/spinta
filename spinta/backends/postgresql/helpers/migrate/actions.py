@@ -91,6 +91,19 @@ class RenameTableMigrationAction(MigrationAction):
             )
 
 
+class SetTableCommentMigrationAction(MigrationAction):
+    def __init__(self, table_identifier: TableIdentifier, comment: str) -> None:
+        self.table_identifier = table_identifier
+        self.comment = comment
+
+    def execute(self, op: "Operations") -> None:
+        op.create_table_comment(
+            table_name=self.table_identifier.pg_table_name,
+            comment=self.comment,
+            schema=self.table_identifier.pg_schema_name,
+        )
+
+
 class AddColumnMigrationAction(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier, column: sa.Column) -> None:
         self.table_identifier = table_identifier
@@ -144,6 +157,21 @@ class AlterColumnMigrationAction(MigrationAction):
             new_column_name=self.new_column_name,
             type_=self.type_,
             postgresql_using=self.using,
+            comment=self.comment,
+            schema=self.table_identifier.pg_schema_name,
+        )
+
+
+class SetColumnCommentMigrationAction(MigrationAction):
+    def __init__(self, table_identifier: TableIdentifier, column: str, comment: str) -> None:
+        self.table_identifier = table_identifier
+        self.comment = comment
+        self.column = column
+
+    def execute(self, op: "Operations") -> None:
+        op.alter_column(
+            table_name=self.table_identifier.pg_table_name,
+            column_name=self.column,
             comment=self.comment,
             schema=self.table_identifier.pg_schema_name,
         )
@@ -584,7 +612,7 @@ class UndistributeSchema(MigrationAction):
 class UndistributeTable(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier) -> None:
         self.query = (
-            f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}, cascade_via_foreign_keys=>true')"
+            f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}', cascade_via_foreign_keys=>true)"
         )
 
     def execute(self, op: "Operations") -> None:
