@@ -600,7 +600,7 @@ class TestAuthorized:
     @pytest.mark.parametrize(
         "client, scopes, node, action, result",
         [
-            ("default-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, False),
+            ("default-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
@@ -611,7 +611,7 @@ class TestAuthorized:
                 {"spinta_backends_mongo_subitem_getone"},
                 "backends/mongo/Subitem",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"spinta_backends_mongo_subitem_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
@@ -642,7 +642,7 @@ class TestAuthorized:
                 {"spinta_backends_mongo_subitem_subobj_getone"},
                 "backends/mongo/Subitem.subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
             (
@@ -678,9 +678,9 @@ class TestAuthorized:
                 {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
                 "backends/mongo/Subitem.hidden_subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
-            ("default-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, False),
+            ("default-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
@@ -691,7 +691,7 @@ class TestAuthorized:
                 {"uapi:/backends/mongo/Subitem/:getone"},
                 "backends/mongo/Subitem",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"uapi:/backends/mongo/Subitem/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
@@ -722,7 +722,7 @@ class TestAuthorized:
                 {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
                 "backends/mongo/Subitem.subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
             (
@@ -758,7 +758,7 @@ class TestAuthorized:
                 {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
                 "backends/mongo/Subitem.hidden_subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"uapi:/backends/mongo/Subitem/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
             ("test-client", {"uapi:/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
@@ -791,7 +791,12 @@ class TestAuthorized:
         ],
     )
     def test_authorized_contract_scope_check_success(self, rc: RawConfig, scopes: set[str]):
-        rc = rc.fork({"check_contract_scopes": True})
+        rc = rc.fork(
+            {
+                "check_contract_scopes": True,
+                "access": "public",
+            }
+        )
         context, manifest = prepare_manifest(
             rc,
             """
@@ -820,7 +825,12 @@ class TestAuthorized:
         ],
     )
     def test_authorized_contract_scope_check_failure(self, rc: RawConfig, scopes: set[str]):
-        rc = rc.fork({"check_contract_scopes": True})
+        rc = rc.fork(
+            {
+                "check_contract_scopes": True,
+                "access": "public",
+            }
+        )
         context, manifest = prepare_manifest(
             rc,
             """

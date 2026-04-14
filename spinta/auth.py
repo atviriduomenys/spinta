@@ -867,38 +867,38 @@ def authorized(
         return False
 
     token = context.get("auth.token")
-    # Unauthorized clients can only access open nodes.
-    unauthorized = token.get_client_id() == get_default_auth_client_id(context)
-    if unauthorized and node.access < Access.open:
+
+    # Unauthenticated clients can only access nodes if spinta config.access is open.
+    unauthenticated = token.get_client_id() == get_default_auth_client_id(context)
+
+    if unauthenticated and config.access < Access.open:
         if throw:
             raise AuthorizedClientsOnly()
         else:
             return False
 
-    # Private nodes can only be accessed with explicit node scope.
+    # Add explicit node scope
     scopes = [node]
 
-    # Protected and higher level nodes can be accessed with parent nodes scopes.
-    if node.access > Access.private:
-        ns = None
+    # Add parent node scopes
+    ns = None
+    if isinstance(node, Property):
+        # Hidden nodes also require explicit scope.
+        # XXX: `hidden` parameter should only be used for API control, not
+        #      access control. See docs.
+        if not node.hidden:
+            scopes.append(node.model)
+            scopes.append(node.model.ns)
+            ns = node.model.ns
+    elif isinstance(node, Model):
+        scopes.append(node.ns)
+        ns = node.ns
+    elif isinstance(node, Namespace):
+        ns = node
 
-        if isinstance(node, Property):
-            # Hidden nodes also require explicit scope.
-            # XXX: `hidden` parameter should only be used for API control, not
-            #      access control. See docs.
-            if not node.hidden:
-                scopes.append(node.model)
-                scopes.append(node.model.ns)
-                ns = node.model.ns
-        elif isinstance(node, Model):
-            scopes.append(node.ns)
-            ns = node.ns
-        elif isinstance(node, Namespace):
-            ns = node
-
-        # Add all parent namespace scopes too.
-        if ns:
-            scopes.extend(ns.parents())
+    # Add all parent namespace scopes too.
+    if ns:
+        scopes.extend(ns.parents())
 
     # Build scope names.
     scope_formatter = scope_formatter or config.scope_formatter
