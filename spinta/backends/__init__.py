@@ -1057,6 +1057,9 @@ def prepare_dtype_for_response(
     if value is None:
         return None
 
+    if isinstance(dtype.model, str):
+        dtype.model = commands.get_model(context, dtype.prop.model.manifest, dtype.model)
+
     properties = dtype.model.properties.copy()
     properties.update(dtype.properties)
 
@@ -1138,6 +1141,9 @@ def prepare_dtype_for_response(
 ):
     if value is None:
         return None
+
+    if isinstance(dtype.model, str):
+        dtype.model = commands.get_model(context, dtype.prop.model.manifest, dtype.model)
 
     nullable = True
     if select and select != {"*": {}}:

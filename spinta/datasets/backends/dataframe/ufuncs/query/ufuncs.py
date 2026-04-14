@@ -342,7 +342,6 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selecte
 
     result = {}
     result["_id"] = Selected(prop=dtype.prop, prep=resolved_prep)
-
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
         result[prop.name] = sel
