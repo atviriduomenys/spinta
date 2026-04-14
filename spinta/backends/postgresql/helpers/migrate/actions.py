@@ -652,3 +652,6 @@ class MigrationHandler:
     def run_migrations(self, op: "Operations") -> None:
         for migration in self.gather_migrations():
             migration.execute(op)
+
+    def count(self) -> int:
+        return len(list(self.gather_migrations()))

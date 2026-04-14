@@ -18,15 +18,13 @@ from spinta.backends.postgresql.helpers.migrate.actions import (
     DistributeReference,
     DistributeTable,
     DistributeSchema,
-    SetTableCommentMigrationAction,
-    SetColumnCommentMigrationAction,
 )
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
+from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import migrate_comments
 from spinta.components import Context
 
 import sqlalchemy as sa
-from sqlalchemy.engine.reflection import Inspector
 
 from spinta.exceptions import NotImplementedFeature
 
@@ -239,21 +237,11 @@ def generate_citus_migrations(
     undistributed_plan = existing_plan - new_plan
     diff_plan = new_plan - existing_plan
 
-    inspector = sa.inspect(backend.engine)
-    progress_bar = tqdm(desc="Generating citus migrations", ascii=True)
+    progress_bar = tqdm(desc="Generating citus migrations")
 
     for schema in undistributed_plan.schemas:
         handler.add_action(UndistributeSchema(schema_name=schema))
-        progress_bar.display(f"Undistributing schema {schema!r}")
         progress_bar.update(1)
-
-        # Reapply comments to tables since un-distribution action does not preserve comments.
-        for table in inspector.get_table_names(schema=schema):
-            if not (table_comment := inspector.get_table_comment(table, schema=schema)["text"]):
-                continue
-
-            table_identifier = get_table_identifier(table_comment)
-            reapply_comments_to_table(inspector, table_identifier, handler, progress_bar)
 
     if undistributed_plan.references or undistributed_plan.tables:
         component_map = {}
@@ -267,7 +255,6 @@ def generate_citus_migrations(
                 continue
 
             handler.add_action(UndistributeTable(table_identifier=table))
-            progress_bar.display(f"Undistributing table {table.pg_qualified_name!r}")
             progress_bar.update(1)
             component = component_map[table]
             processed.update(component)
@@ -277,53 +264,20 @@ def generate_citus_migrations(
                 continue
 
             handler.add_action(UndistributeTable(table_identifier=table))
-            progress_bar.display(f"Undistributing reference {table.pg_qualified_name!r}")
             progress_bar.update(1)
             component = component_map[table]
             processed.update(component)
 
-        for processed_table in processed:
-            reapply_comments_to_table(inspector, processed_table, handler, progress_bar)
-
     for table in diff_plan.references:
         handler.add_action(DistributeReference(table_identifier=table))
-        progress_bar.display(f"Distributing reference {table.pg_qualified_name!r}")
         progress_bar.update(1)
 
     for table, column in diff_plan.tables:
         handler.add_action(DistributeTable(table_identifier=table, column=column))
-        progress_bar.write(f"Distributing table {table.pg_qualified_name!r}")
         progress_bar.update(1)
 
     for schema in diff_plan.schemas:
         handler.add_action(DistributeSchema(schema_name=schema))
-        progress_bar.write(f"Distributing schema {schema!r}")
-        progress_bar.update(1)
-
-
-def reapply_comments_to_table(
-    inspector: Inspector, table_identifier: TableIdentifier, handler: MigrationHandler, progress_bar: tqdm
-):
-    table_comment = inspector.get_table_comment(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name)[
-        "text"
-    ]
-    if table_comment:
-        handler.add_action(SetTableCommentMigrationAction(table_identifier=table_identifier, comment=table_comment))
-        progress_bar.display(f"Reapplying comment to table {table_identifier.pg_escaped_qualified_name!r}")
-        progress_bar.update(1)
-
-    for column in inspector.get_columns(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name):
-        if not (column_comment := column["comment"]):
-            continue
-
-        handler.add_action(
-            SetColumnCommentMigrationAction(
-                table_identifier=table_identifier, column=column["name"], comment=column_comment
-            )
-        )
-        progress_bar.display(
-            f"Reapplying comment to column {column['name']!r} in table {table_identifier.pg_escaped_qualified_name!r}"
-        )
         progress_bar.update(1)
 
 
@@ -345,13 +299,16 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs):
         validated_plan = invalidate_default_distribution(context, backend, plan, verbose=True)
         handler = MigrationHandler()
         generate_citus_migrations(context, backend, sharded_plan[backend_name], validated_plan, handler)
-        progress_bar = tqdm(desc=f"Updating distributions for '{backend_name}' backend", ascii=True)
+        progress_bar = tqdm(desc=f"Updating distributions for '{backend_name}' backend", total=handler.count())
         with backend.begin() as conn:
             ctx = MigrationContext.configure(conn)
             operations = Operations(ctx)
             for migration in handler.gather_migrations():
                 migration.execute(operations)
                 progress_bar.update(1)
+        progress_bar.close()
+    cli_message("Reapplying removed comments")
+    migrate_comments(context, verbose=False)
 
 
 def cli_requires_citus_distribution(context: Context, **kwargs):
