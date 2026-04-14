@@ -1,8 +1,6 @@
 from contextlib import ExitStack
 from typing import Generator
 
-from alembic.operations import Operations
-from alembic.runtime.migration import MigrationContext
 from click import echo
 from sqlalchemy.engine import Inspector
 from tqdm import tqdm
@@ -105,6 +103,9 @@ def gather_associated_tables(backend: PostgreSQL, table_identifier: TableIdentif
 
 
 def migrate_schemas(context: Context, **kwargs):
+    from alembic.operations import Operations
+    from alembic.runtime.migration import MigrationContext
+
     ensure_store_is_loaded(context)
     store = context.get("store")
 
