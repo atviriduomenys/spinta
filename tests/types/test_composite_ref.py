@@ -1,5 +1,3 @@
-"""Tests for composite reference properties (nested ref properties like x.y)."""
-
 from pathlib import Path
 from unittest.mock import ANY
 
@@ -11,13 +9,6 @@ from spinta.testing.manifest import prepare_manifest
 
 
 def test_composite_ref_two_levels_returns_data(rc: RawConfig, tmp_path: Path):
-    """Test that composite ref properties at x.y level are properly resolved and returned.
-
-    This test validates the fix for composite ref properties (x.y style) where:
-    - dtype.model is not a string but properly resolved
-    - external field is copied from the referenced property
-    - data flows through the composite property correctly
-    """
     xml = """
     <root>
         <participant>
@@ -38,17 +29,17 @@ def test_composite_ref_two_levels_returns_data(rc: RawConfig, tmp_path: Path):
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property             | type       | ref       | source              | access
-    example                              |            |           |                     |
-      | data                             | dask/xml   |           | {path}              |
-      |   |   | AssetType                |            | code      | /root/participant   |
-      |   |   |   | code                 | string     |           | asset_code          | open
-      |   |   |   | name                 | string     |           | asset_name          | open
-      |   |   | Participant              |            | code      | /root/participant   |
-      |   |   |   | code                 | string     |           | code                | open
-      |   |   |   | asset_type           | ref required | AssetType | asset_code         | open
-      |   |   |   | asset_type.code      | string     |           | asset_code          | open
-      |   |   |   | asset_type.name      | string     |           | asset_name          | open
+    d | r | b | m | property             | type       | ref       | source              | access | level
+    example                              |            |           |                     |        |
+      | data                             | dask/xml   |           | {path}              |        |
+      |   |   | AssetType                |            | code      | /root/participant   |        | 5
+      |   |   |   | code                 | string     |           | asset_code          | open   | 5
+      |   |   |   | name                 | string     |           | asset_name          | open   | 5
+      |   |   | Participant              |            |           | /root/participant   |        | 5
+      |   |   |   | code                 | string     |           | code                | open   | 5
+      |   |   |   | asset_type           | ref required | AssetType | asset_code         | open   | 5
+      |   |   |   | asset_type.code      | string     |           | asset_code          | open   | 5
+      |   |   |   | asset_type.name      | string     |           | asset_name          | open   | 5
     """,
         mode=Mode.external,
     )
@@ -61,28 +52,25 @@ def test_composite_ref_two_levels_returns_data(rc: RawConfig, tmp_path: Path):
     assert resp.status_code == 200
 
     data = resp.json()["_data"]
-
-    # Verify composite properties x.y are returned and accessible
-    assert len(data) == 2
-    assert data[0]["code"] == "P001"
-    # Verify the ref object has proper data from composite properties
-    assert data[0]["asset_type"]["_id"] == ANY
-    assert data[0]["asset_type"]["code"] == "AT001"
-    assert data[0]["asset_type"]["name"] == "Equipment"
-
-    assert data[1]["code"] == "P002"
-    assert data[1]["asset_type"]["_id"] == ANY
-    assert data[1]["asset_type"]["code"] == "AT002"
-    assert data[1]["asset_type"]["name"] == "Building"
+    assert data == [
+        {
+            "_type": "example/Participant",
+            "_id": ANY,
+            "_revision": None,
+            "code": "P001",
+            "asset_type": {"_id": ANY, "name": "Equipment"},
+        },
+        {
+            "_type": "example/Participant",
+            "_id": ANY,
+            "_revision": None,
+            "code": "P002",
+            "asset_type": {"_id": ANY, "name": "Building"},
+        },
+    ]
 
 
 def test_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
-    """Test composite ref properties at three levels (x.y.z).
-
-    This test validates that the fix works with deeper property chains:
-    - order -> vendor (ref) -> country (ref)
-    - Accessing order.vendor.country.name as x.y.z property
-    """
     xml = """
     <root>
         <order>
