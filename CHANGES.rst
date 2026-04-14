@@ -4,6 +4,12 @@ Changes
 0.2dev22 (unreleased)
 =====================
 
+Bug fixes:
+
+- Fixed `postgresql_schemas` globally importing optional `alembic` dependency when running spinta (`#1869`_).
+
+.. _#1869: https://github.com/atviriduomenys/spinta/issues/1869
+
 
 0.2dev21 (2026-04-13)
 =====================
