@@ -2,6 +2,7 @@ from copy import copy
 
 from spinta import commands
 from spinta.components import Context, Property
+from spinta.core.enums import Mode
 from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound, PartialIncorrectProperty
 from spinta.types.datatype import Partial, Ref
 
@@ -38,7 +39,9 @@ def link(context: Context, dtype: Partial):
             prop.given.explicit = False
             prop.given.name = ""
             prop.dtype.prop = prop
-            if result.external:
+            # For external mode (dataframe/XML datasets), copy the external mapping
+            # For internal mode (SQL), don't copy as it breaks multi-level denormalization
+            if result.external and prop.model.mode == Mode.external:
                 prop.external = copy(result.external)
             for partial_prop in props.values():
                 commands.link(context, partial_prop)
