@@ -6,7 +6,7 @@ from responses import RequestsMock, POST
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.exceptions import SourceOrPrepareNotAllowed
+from spinta.exceptions import SourceOrPrepareNotAllowed, PartialIncorrectProperty
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
@@ -1705,3 +1705,100 @@ def test_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
             },
         },
     ]
+
+
+def test_incorrect_composite_property(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>ORD001</id>
+            <vendor_code>VEND001</vendor_code>
+            <country_code>LT</country_code>
+            <country_name>Lithuania</country_name>
+        </order>
+        <order>
+            <id>ORD002</id>
+            <vendor_code>VEND002</vendor_code>
+            <country_code>PL</country_code>
+            <country_name>Poland</country_name>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    with pytest.raises(PartialIncorrectProperty):
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                | type       | ref      | source              | access
+        example                                 |            |          |                     |
+          | data                                | dask/xml   |          | {path}              |
+          |   |   | Country                     |            | code     | /root/order         |
+          |   |   |   | code                    | string     |          | country_code        | open
+          |   |   |   | name                    | string     |          | country_name        | open
+          |   |   | Vendor                      |            | code         | /root/order         |
+          |   |   |   | code                    | string     |          | vendor_code         | open
+          |   |   |   | country                 | ref required | Country | country_code        | open
+          |   |   |   | country.code            | string     |          | country_code        | open
+          |   |   |   | country.name            | string     |          | country_name        | open
+          |   |   | Order                       |            |          | /root/order         |
+          |   |   |   | id                      | string     |          | id                  | open
+          |   |   |   | vendor                  | ref required | Vendor | vendor_code         | open
+          |   |   |   | vendor.incorrect.code   | string     |          | country_code        | open
+          |   |   |   | vendor.country.name     | string     |          | country_name        | open
+        """,
+            mode=Mode.external,
+        )
+
+
+def test_incorrect_composite_property_primary_key_values(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>ORD001</id>
+            <vendor_code>VEND001</vendor_code>
+            <country_code>LT</country_code>
+            <country_name>Lithuania</country_name>
+        </order>
+        <order>
+            <id>ORD002</id>
+            <vendor_code>VEND002</vendor_code>
+            <country_code>PL</country_code>
+            <country_name>Poland</country_name>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                | type       | ref      | source              | access
+    example                                 |            |          |                     |
+      | data                                | dask/xml   |          | {path}              |
+      |   |   | Country                     |            | code     | /root/order         |
+      |   |   |   | code                    | string     |          | country_code        | open
+      |   |   |   | name                    | string     |          | country_name        | open
+      |   |   | Vendor                      |            | code         | /root/order         |
+      |   |   |   | code                    | string     |          | vendor_code         | open
+      |   |   |   | country                 | ref required | Country | vendor_code        | open
+      |   |   |   | country.code            | string     |          | country_code        | open
+      |   |   |   | country.name            | string     |          | country_name        | open
+      |   |   | Order                       |            |          | /root/order         |
+      |   |   |   | id                      | string     |          | id                  | open
+      |   |   |   | vendor                  | ref required | Vendor | vendor_code         | open
+      |   |   |   | vendor.country.code   | string     |          | country_code        | open
+      |   |   |   | vendor.country.name     | string     |          | country_name        | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+
+    app.authmodel("example/Order", ["getall"])
+
+    resp = app.get("/example/Order")
+    assert resp.status_code == 400
+    assert resp.json()["errors"][0]["code"] == "NoPrimaryKeyCandidatesFound"
