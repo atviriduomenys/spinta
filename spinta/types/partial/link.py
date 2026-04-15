@@ -35,12 +35,6 @@ def link(context: Context, dtype: Partial):
                 raise PartialIncorrectProperty(dtype)
             prop.dtype = copy(result.dtype)
             prop.dtype.properties = props
-            if isinstance(prop.dtype, Ref) and not prop.dtype.refprops:
-                if prop.dtype.model and not isinstance(prop.dtype.model, str):
-                    if prop.dtype.model.external:
-                        prop.dtype.refprops = [*prop.dtype.model.external.pkeys]
-                    else:
-                        prop.dtype.refprops = [prop.dtype.model.properties["_id"]]
             prop.dtype.inherited = True
             prop.given.explicit = False
             prop.given.name = ""
@@ -50,8 +44,9 @@ def link(context: Context, dtype: Partial):
             # For internal mode (SQL), don't copy as it breaks multi-level denormalization
             if result.external and prop.model.mode == Mode.external:
                 prop.external = copy(result.external)
-            for partial_prop in props.values():
-                commands.link(context, partial_prop)
+            if isinstance(prop.dtype, Ref):
+                prop.dtype.refprops = []
+            commands.link(context, prop.dtype)
         else:
             raise PartialTypeNotFound(dtype)
     else:
