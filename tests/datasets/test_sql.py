@@ -550,6 +550,7 @@ def test_private_property(context, rc, tmp_path, geodb):
 
 
 def test_all_private_properties(context, rc, tmp_path, geodb):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -571,6 +572,12 @@ def test_all_private_properties(context, rc, tmp_path, geodb):
 
 
 def test_default_access(context, rc, tmp_path, geodb):
+    rc = rc.fork(
+        {
+            "default_access_level": "protected",
+            "access": "protected",
+        }
+    )
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",

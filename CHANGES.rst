@@ -4,6 +4,15 @@ Changes
 0.2dev22 (unreleased)
 =====================
 
+New Features:
+
+- Added new parameter `access` to spinta configuration with default value set to `open`. 
+  This change affects data access permissions:
+  - If `config.access` is lower than `node`, that client is trying to reach, `access` level, spinta always returns `404 ModelNotFound` error.
+  - Whenever an unauthenticated(default client) request is received and `config.access` is set to lower level than `open`, spinta returns `401 AuthorizedClientsOnly`.
+  - `private` nodes can now be accessed with parent node scopes.
+
+
 Bug fixes:
 
 - Fixed `postgresql_schemas` globally importing optional `alembic` dependency when running spinta (`#1869`_).
