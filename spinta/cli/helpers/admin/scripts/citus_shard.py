@@ -1,15 +1,16 @@
 import dataclasses
+from collections import defaultdict
 from copy import deepcopy
 
-from collections import defaultdict
-
+import sqlalchemy as sa
 from multipledispatch import dispatch
 from tqdm import tqdm
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import DistributionType
-from spinta.backends.helpers import TableIdentifier, get_table_identifier
+from spinta.backends.helpers import TableIdentifier
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.actions import (
     MigrationHandler,
@@ -23,9 +24,6 @@ from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import migrate_comments
 from spinta.components import Context
-
-import sqlalchemy as sa
-
 from spinta.exceptions import NotImplementedFeature
 
 
