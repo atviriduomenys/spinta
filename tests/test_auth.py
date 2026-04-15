@@ -29,7 +29,13 @@ from spinta.auth import (
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.core.enums import Action, Mode
-from spinta.exceptions import InvalidClientFileFormat, InvalidExtraScopes, NoScopesForNamespaces, UserError
+from spinta.exceptions import (
+    InvalidClientFileFormat,
+    InvalidExtraScopes,
+    NoScopesForNamespaces,
+    UserError,
+    ModelNotFound,
+)
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
@@ -896,6 +902,27 @@ class TestAuthorized:
         node = commands.get_model(context, manifest, "datasets/test/example/Foo")
 
         assert authorized(context, node, Action.GETALL) is result
+
+    def test_authorized_raises_modelnotfound(self, context, rc: RawConfig):
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | 
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(
+            context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes={"uapi:/datasets/test/example/Foo/:getall"}
+        )
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        with pytest.raises(ModelNotFound):
+            authorized(context, node, Action.GETALL, throw=True)
 
 
 class TestQueryClient:
