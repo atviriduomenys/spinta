@@ -40,8 +40,8 @@ def link(context: Context, dtype: Partial):
             prop.given.name = ""
             prop.dtype.prop = prop
 
-            # For external mode (dataframe/XML datasets), copy the external mapping
-            # For internal mode (SQL), don't copy as it breaks multi-level denormalization
+            # For external mode copy the external mapping
+            # For internal mode leave it as is, because it breaks multi-level denormalization
             if result.external and prop.model.mode == Mode.external:
                 prop.external = copy(result.external)
             if isinstance(prop.dtype, Ref):
