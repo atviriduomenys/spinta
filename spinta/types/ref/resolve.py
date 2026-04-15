@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from spinta import commands
-from spinta.components import Context, Property
+from spinta.components import Property
 from spinta.types.datatype import Ref
 
 

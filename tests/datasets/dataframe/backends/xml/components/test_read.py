@@ -1663,7 +1663,6 @@ def test_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
     region_resp = app.get("/example/Region")
     region_ids = [region_object["_id"] for region_object in region_resp.json()["_data"]]
 
-
     resp = app.get("/example/Order")
     assert resp.status_code == 200
     data = resp.json()["_data"]
@@ -1706,4 +1705,3 @@ def test_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
             },
         },
     ]
-
