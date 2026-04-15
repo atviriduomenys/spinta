@@ -2,7 +2,7 @@ from copy import copy
 
 from spinta import commands
 from spinta.components import Context, Property
-from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound
+from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound, PartialIncorrectProperty
 from spinta.types.datatype import Partial, Ref
 
 
@@ -14,7 +14,10 @@ def get_ref_value(context: Context, prop: Property):
         model = parent.dtype.model
 
         if prop.name in model.properties:
-            model.properties[prop.name].dtype.model = commands.get_model(context, prop.model.manifest, model.properties[prop.name].dtype.model)
+            if isinstance(model.properties[prop.name].dtype.model, str):
+                model.properties[prop.name].dtype.model = commands.get_model(
+                    context, prop.model.manifest, model.properties[prop.name].dtype.model
+                )
             return model.properties[prop.name]
 
 
@@ -26,6 +29,8 @@ def link(context: Context, dtype: Partial):
         if isinstance(parent.dtype, Ref):
             props = dtype.properties
             result = get_ref_value(context, prop)
+            if not result:
+                raise PartialIncorrectProperty(dtype)
             prop.dtype = copy(result.dtype)
             prop.dtype.properties = props
             prop.dtype.inherited = True

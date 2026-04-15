@@ -1223,3 +1223,9 @@ class SourceOrPrepareNotAllowed(UserError):
     template = """
         The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
     """
+
+
+class PartialIncorrectProperty(BaseError):
+    template = (
+        "The composite property {property} is not correct. Check if all parts of the composite property are present."
+    )

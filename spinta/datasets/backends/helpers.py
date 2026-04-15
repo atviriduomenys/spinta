@@ -89,7 +89,10 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             for row in rows:
                 if val is not None:
                     raise MultiplePrimaryKeyCandidatesFound(ref, values=target_value)
-                val = row["_id"]
+                if "_id" in row:
+                    val = row["_id"]
+                else:
+                    val = keymap.encode(keymap_name, target_value)
                 found_value = True
 
             if not found_value:
