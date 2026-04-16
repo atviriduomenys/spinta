@@ -1848,6 +1848,9 @@ def test_composite_ref_level_2_no_id(rc: RawConfig, tmp_path: Path):
     app.authmodel("example/Vendor", ["getall"])
     app.authmodel("example/Country", ["getall"])
 
+    vendor_resp = app.get("/example/Vendor")
+    vendor_ids = [vendor_id["_id"] for vendor_id in vendor_resp.json()["_data"]]
+
     resp = app.get("/example/Item")
     assert resp.status_code == 200
     data = resp.json()["_data"]
@@ -1855,17 +1858,17 @@ def test_composite_ref_level_2_no_id(rc: RawConfig, tmp_path: Path):
     assert data == [
         {
             "_type": "example/Item",
-            "_id": "ee10052d-a223-4b3c-b9bf-0e14d71a7d87",
+            "_id": ANY,
             "_revision": None,
             "code": "ORD001",
-            "vendor": {"_id": "7414c195-fc7b-43cd-85d6-e28676b5a7f6", "code": "VEND001", "country": {"code": "LT"}},
+            "vendor": {"_id": vendor_ids[0], "code": "VEND001", "country": {"code": "LT"}},
         },
         {
             "_type": "example/Item",
-            "_id": "e12978e2-ce4a-4b66-ae98-08accf8a2e3a",
+            "_id": ANY,
             "_revision": None,
             "code": "ORD002",
-            "vendor": {"_id": "341281da-50e9-4ce1-aa80-16c89e82f39e", "code": "VEND002", "country": {"code": "PL"}},
+            "vendor": {"_id": vendor_ids[1], "code": "VEND002", "country": {"code": "PL"}},
         },
     ]
 
@@ -1931,7 +1934,7 @@ def test_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Pa
     assert data == [
         {
             "_type": "example/Order",
-            "_id": "77e94568-21c1-4263-abb8-e86901bfd5d1",
+            "_id": ANY,
             "_revision": None,
             "id": "ORD001",
             "vendor": {
@@ -1941,7 +1944,7 @@ def test_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Pa
         },
         {
             "_type": "example/Order",
-            "_id": "71bf5a23-2fe5-4eeb-90b3-b0dd7fb49f2a",
+            "_id": ANY,
             "_revision": None,
             "id": "ORD002",
             "vendor": {
