@@ -1802,3 +1802,151 @@ def test_incorrect_composite_property_primary_key_values(rc: RawConfig, tmp_path
     resp = app.get("/example/Order")
     assert resp.status_code == 400
     assert resp.json()["errors"][0]["code"] == "NoPrimaryKeyCandidatesFound"
+
+
+def test_composite_ref_level_2_no_id(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>ORD001</id>
+            <vendor_code>VEND001</vendor_code>
+            <country_code>LT</country_code>
+        </order>
+        <order>
+            <id>ORD002</id>
+            <vendor_code>VEND002</vendor_code>
+            <country_code>PL</country_code>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property              | type         | ref     | source       | level | access
+    example                               |              |         |              |       |
+      | data                              | dask/xml     |         | {path}       |       |
+      |   |   | Country                   |              | code    | /root/order  |       |
+      |   |   |   | code                  | string       |         | country_code | 5     | open
+      |   |   | Vendor                    |              | code    | /root/order  |       |
+      |   |   |   | code                  | string       |         | vendor_code  | 5     | open
+      |   |   |   | country               | ref required | Country | country_code | 2     | open
+      |   |   |   | country.code          | string       |         | country_code |       | open
+      |   |   | Item                      |              | code    | /root/order  |       |
+      |   |   |   | code                  | string       |         | id           | 5     | open
+      |   |   |   | vendor                | ref required | Vendor  | vendor_code  | 5     | open
+      |   |   |   | vendor.code           | string       |         | vendor_code  |       | open
+      |   |   |   | vendor.country.code   | string       |         | country_code |       | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Item", ["getall"])
+    app.authmodel("example/Vendor", ["getall"])
+    app.authmodel("example/Country", ["getall"])
+
+    resp = app.get("/example/Item")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+
+    assert data == [
+        {
+            "_type": "example/Item",
+            "_id": "ee10052d-a223-4b3c-b9bf-0e14d71a7d87",
+            "_revision": None,
+            "code": "ORD001",
+            "vendor": {"_id": "7414c195-fc7b-43cd-85d6-e28676b5a7f6", "code": "VEND001", "country": {"code": "LT"}},
+        },
+        {
+            "_type": "example/Item",
+            "_id": "e12978e2-ce4a-4b66-ae98-08accf8a2e3a",
+            "_revision": None,
+            "code": "ORD002",
+            "vendor": {"_id": "341281da-50e9-4ce1-aa80-16c89e82f39e", "code": "VEND002", "country": {"code": "PL"}},
+        },
+    ]
+
+
+def test_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>ORD001</id>
+            <vendor_code>VEND001</vendor_code>
+            <country_code>LT</country_code>
+            <region_code>REG001</region_code>
+            <region_name>Vilnius Region</region_name>
+        </order>
+        <order>
+            <id>ORD002</id>
+            <vendor_code>VEND002</vendor_code>
+            <country_code>PL</country_code>
+            <region_code>REG002</region_code>
+            <region_name>Warsaw Region</region_name>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type       | ref      | source        | level      | access
+    example                                       |            |          |               |            |
+      | data                                      | dask/xml   |          | {path}        |            |
+      |   |   | Region                            |            | code     | /root/order   |            |
+      |   |   |   | code                          | string     |          | region_code   |            | open
+      |   |   |   | name                          | string     |          | region_name   |            | open
+      |   |   | Country                           |            | code     | /root/order   |            |
+      |   |   |   | code                          | string     |          | country_code  |            | open
+      |   |   |   | region                        | ref required | Region  | region_code  | 2          | open
+      |   |   |   | region.code                   | string     |          | region_code   |            | open
+      |   |   |   | region.name                   | string     |          | region_name   |            | open
+      |   |   | Vendor                            |            | code     | /root/order   |            |
+      |   |   |   | code                          | string     |          | vendor_code   |            | open
+      |   |   |   | country                       | ref required | Country | country_code | 2          | open
+      |   |   |   | country.code                  | string     |          | country_code  |            | open
+      |   |   |   | country.region.code           | string     |          | region_code   |            | open
+      |   |   |   | country.region.name           | string     |          | region_name   |            | open
+      |   |   | Order                             |            | id       | /root/order   |            |
+      |   |   |   | id                            | string     |          | id            |            | open
+      |   |   |   | vendor                        | ref required | Vendor | vendor_code   | 2          | open
+      |   |   |   | vendor.country.code           | string     |          | country_code  |            | open
+      |   |   |   | vendor.country.region.code    | string     |          | region_code   |            | open
+      |   |   |   | vendor.country.region.name    | string     |          | region_name   |            | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Order", ["getall"])
+
+    resp = app.get("/example/Order")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/Order",
+            "_id": "77e94568-21c1-4263-abb8-e86901bfd5d1",
+            "_revision": None,
+            "id": "ORD001",
+            "vendor": {
+                "code": "VEND001",
+                "country": {"code": "LT", "region": {"code": "REG001", "name": "Vilnius Region"}},
+            },
+        },
+        {
+            "_type": "example/Order",
+            "_id": "71bf5a23-2fe5-4eeb-90b3-b0dd7fb49f2a",
+            "_revision": None,
+            "id": "ORD002",
+            "vendor": {
+                "code": "VEND002",
+                "country": {"code": "PL", "region": {"code": "REG002", "name": "Warsaw Region"}},
+            },
+        },
+    ]
