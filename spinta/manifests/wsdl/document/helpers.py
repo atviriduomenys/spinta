@@ -40,12 +40,21 @@ class WsdlNamespaceContext:
 
 
 @dataclass
+class MessagePartInfo:
+    name: str
+    element_qname: WsdlQName | None = None
+    type_qname: WsdlQName | None = None
+    fields: Optional[list[dict[str, Any]]] = None
+
+
+@dataclass
 class MessageInfo:
     name: str
     qname: WsdlQName | None = None
     element_qname: WsdlQName | None = None
     type_qname: WsdlQName | None = None
     fields: Optional[list[dict[str, Any]]] = None
+    parts: Optional[list[MessagePartInfo]] = None
 
 
 @dataclass
@@ -75,15 +84,31 @@ def collect_messages(
     for message in root.findall(f".//{{{wsdl_ns}}}message"):
         message_name = local_name(message.get("name"))
         message_qname = namespace_context.resolve_in_scope(message.get("name"), node=message)
-        info = MessageInfo(name=message_name, qname=message_qname, fields=[])
-        for part in message.findall(f"{{{wsdl_ns}}}part"):
+        info = MessageInfo(name=message_name, qname=message_qname, fields=[], parts=[])
+        parts = message.findall(f"{{{wsdl_ns}}}part")
+        for part in parts:
+            part_name = local_name(part.get("name"))
             element_qname = namespace_context.resolve_in_scope(part.get("element"), node=part)
             type_qname = namespace_context.resolve_in_scope(part.get("type"), node=part)
+            part_fields: list[dict[str, Any]] = []
             if element_qname:
-                info.element_qname = element_qname
-                info.fields = element_types.get(element_qname.expanded_name, [])
+                part_fields = element_types.get(element_qname.expanded_name, [])
+                if len(parts) == 1:
+                    info.element_qname = element_qname
+                    info.fields = part_fields
             elif type_qname:
-                info.type_qname = type_qname
+                if len(parts) == 1:
+                    info.type_qname = type_qname
+            if info.parts is not None:
+                info.parts.append(MessagePartInfo(
+                    name=part_name,
+                    element_qname=element_qname,
+                    type_qname=type_qname,
+                    fields=part_fields,
+                ))
+
+        if len(parts) > 1:
+            info.fields = _flatten_message_part_fields(info.parts or [])
         message_key = wsdl_qname_key(message_qname, fallback=message_name)
         ensure_unique_wsdl_name(
             result,
@@ -271,3 +296,14 @@ def _is_soap_extension(node: ET.Element, local: str) -> bool:
         "http://schemas.xmlsoap.org/wsdl/soap/",
         "http://www.w3.org/ns/wsdl/soap",
     }
+
+
+def _flatten_message_part_fields(parts: list[MessagePartInfo]) -> list[dict[str, Any]]:
+    fields: list[dict[str, Any]] = []
+    for part in parts:
+        for field in part.fields or []:
+            merged_field = dict(field)
+            source = merged_field.get("source") or merged_field["name"]
+            merged_field["source"] = f"{part.name}/{source}"
+            fields.append(merged_field)
+    return fields

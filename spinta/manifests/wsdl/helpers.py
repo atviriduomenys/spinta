@@ -412,7 +412,10 @@ def _build_operation_message_manifest_schema(
         message.element_qname,
         fallback=wsdl_qname_local_name(
             message.type_qname,
-            fallback=operation_message.suffix.lower(),
+            fallback=wsdl_qname_local_name(
+                message.qname,
+                fallback=message.name or operation_message.suffix.lower(),
+            ),
         ),
     )
     return {

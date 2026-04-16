@@ -25,6 +25,7 @@ from spinta.manifests.wsdl.helpers import read_schema
 from spinta.manifests.wsdl.helpers import read_wsdl_document_version
 from spinta.testing.context import create_test_context
 from spinta.testing.manifest import load_manifest_and_context
+from tests.manifests.wsdl.test_wsdl import MULTIPART_ELEMENT_WSDL
 
 
 COUNTRY_WSDL = """
@@ -1473,6 +1474,35 @@ def test_wsdl_manifest_generates_contract_and_operation_models(rc: RawConfig, tm
     assert response_model.external.resource.name == "country_port_get_country"
     assert {"code"}.issubset(request_model.properties)
     assert {"name", "population"}.issubset(response_model.properties)
+
+
+def test_wsdl_multipart_messages_are_flattened_into_operation_models(
+    rc: RawConfig,
+    tmp_path: Path,
+):
+    path = tmp_path / "multipart.wsdl"
+    path.write_text(MULTIPART_ELEMENT_WSDL)
+
+    context, manifest = load_manifest_and_context(rc, path)
+
+    request_model = commands.get_model(context, manifest, "services/multipart_service/GetCountryRequest")
+    response_model = commands.get_model(context, manifest, "services/multipart_service/GetCountryResponse")
+    raw_header_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryRequestHeader")
+    raw_body_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryRequestBody")
+    raw_meta_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryResponseMeta")
+    raw_response_body_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryResponseBody")
+
+    assert raw_header_model.external.resource.name == "contract"
+    assert raw_body_model.external.resource.name == "contract"
+    assert raw_meta_model.external.resource.name == "contract"
+    assert raw_response_body_model.external.resource.name == "contract"
+
+    assert _user_property_names(request_model) == {"request_id", "code"}
+    assert _user_property_names(response_model) == {"status", "name"}
+    assert request_model.properties["request_id"].external.name == "header/request_id"
+    assert request_model.properties["code"].external.name == "body/code"
+    assert response_model.properties["status"].external.name == "meta/status"
+    assert response_model.properties["name"].external.name == "payload/name"
 
 
 def test_wsdl_reader_resolves_same_namespace_with_different_prefixes(rc: RawConfig, tmp_path: Path):
