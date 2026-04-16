@@ -278,7 +278,7 @@ def dask_get_all(
                 if isinstance(sel.prop.dtype, PrimaryKey):
                     if isinstance(val, list):
                         val = [
-                            list_value["_id"] if isinstance(list_value, dict) and "_id" in list_value else list_value
+                            list_value.get("_id", list_value) if isinstance(list_value, dict) else list_value
                             for list_value in val
                         ]
                     val = keymap.encode(sel.prop.model.model_type(), val)

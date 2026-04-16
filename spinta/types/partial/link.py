@@ -7,20 +7,24 @@ from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound, PartialIn
 from spinta.types.datatype import Partial, Ref
 
 
-def get_ref_value(context: Context, prop: Property):
+def get_ref_value(context: Context, prop: Property) -> Property | None:
     parent = prop.parent
-    if isinstance(parent, Property) and isinstance(parent.dtype, Ref):
-        if isinstance(parent.dtype.model, str):
-            parent.dtype.model = commands.get_model(context, prop.model.manifest, parent.dtype.model)
-        model = parent.dtype.model
+    if not (isinstance(parent, Property) and isinstance(parent.dtype, Ref)):
+        return None
+    if isinstance(parent.dtype.model, str):
+        parent.dtype.model = commands.get_model(context, prop.model.manifest, parent.dtype.model)
+    model = parent.dtype.model
 
-        if prop.name in model.properties:
-            model_dtype = model.properties[prop.name].dtype
-            if hasattr(model_dtype, "model") and isinstance(model_dtype.model, str):
-                model.properties[prop.name].dtype.model = commands.get_model(
-                    context, prop.model.manifest, model.properties[prop.name].dtype.model
-                )
-            return model.properties[prop.name]
+    if prop.name not in model.properties:
+        return None
+
+    model_property_value = model.properties[prop.name]
+    model_dtype = model_property_value.dtype
+    if hasattr(model_dtype, "model") and isinstance(model_dtype.model, str):
+        model_property_value.dtype.model = commands.get_model(
+            context, prop.model.manifest, model_property_value.dtype.model
+        )
+    return model_property_value
 
 
 @commands.link.register(Context, Partial)
@@ -39,7 +43,8 @@ def link(context: Context, dtype: Partial):
             prop.given.explicit = False
             prop.given.name = ""
             prop.dtype.prop = prop
-
+            if prop.level is None:
+                prop.level = result.level
             # For external mode copy the external mapping
             # For internal mode leave it as is, because it breaks multi-level denormalization
             if result.external and prop.model.mode == Mode.external:
