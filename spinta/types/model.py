@@ -75,13 +75,20 @@ def configure(context: Context, model: Model):
             distribute_type = values.pop("type", None)
 
             if distribute_type is None:
-                raise Exception(model.name, "Distribution strategy must have type.")
+                raise MissingConfigurationParameter(
+                    model, config_type="Model", config_object=model.model_type(), missing_params="distribute.type"
+                )
             distribute_type = get_enum_by_value(DistributionType, distribute_type)
 
             match distribute_type:
                 case DistributionType.TABLE:
                     if (prop := values.pop("property", None)) is None:
-                        raise Exception(model.name, "Distribution strategy must have property.")
+                        raise MissingConfigurationParameter(
+                            model,
+                            config_type="Model",
+                            config_object=model.model_type(),
+                            missing_params="distribute.property",
+                        )
                     model.distribution_strategy = DistributionStrategy(distribute_type, prop)
                 case _:
                     model.distribution_strategy = DistributionStrategy(distribute_type)

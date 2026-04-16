@@ -198,7 +198,10 @@ default_auth_client:
 default_access_level:
   type: string
 
-default_distribute:
+default_distribution_strategy:
+  type: string
+
+default_distribution_property:
   type: string
 
 check:

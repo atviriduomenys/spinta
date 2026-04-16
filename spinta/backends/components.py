@@ -64,4 +64,4 @@ SelectTree = Optional[Dict[str, "SelectTree"]]
 @dataclasses.dataclass
 class DistributionStrategy:
     distribution_type: DistributionType
-    column: str | None = None
+    property: str | None = None

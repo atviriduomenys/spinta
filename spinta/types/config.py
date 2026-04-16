@@ -139,7 +139,7 @@ def load(context: Context, config: Config) -> Config:
         default=DistributionType.UNDISTRIBUTED.value,
         cast=lambda strategy: DistributionStrategy(
             get_enum_by_value(DistributionType, strategy),
-            column=rc.get("default_table_distribution_column", default=None),
+            property=rc.get("default_distribution_property", default=None),
         ),
     )
 

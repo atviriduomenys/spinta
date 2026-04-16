@@ -130,7 +130,7 @@ def create_sharding_plan(context: Context, verbose: bool = True, **kwargs) -> di
             case DistributionType.SCHEMA:
                 plan.schemas.add(table_identifier.pg_schema_name)
             case DistributionType.TABLE:
-                plan.tables.add((table_identifier, distribution_strategy.column))
+                plan.tables.add((table_identifier, distribution_strategy.property))
             case DistributionType.COPY:
                 plan.references.add(table_identifier)
             case _:
