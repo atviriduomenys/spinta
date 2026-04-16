@@ -1,4 +1,4 @@
-FROM citusdata/citus:postgres_16
+FROM citusdata/citus:postgres_17
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
