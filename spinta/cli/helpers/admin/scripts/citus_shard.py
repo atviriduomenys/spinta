@@ -219,7 +219,7 @@ def generate_citus_migrations(
     new_plan: ShardingPlan,
     handler: MigrationHandler,
     **kwargs,
-):
+) -> None:
     raise NotImplementedFeature(f"Ability to generate citus migrations for {backend.type!r} backend type")
 
 
@@ -231,7 +231,7 @@ def generate_citus_migrations(
     new_plan: ShardingPlan,
     handler: MigrationHandler,
     **kwargs,
-):
+) -> None:
     undistributed_plan = existing_plan - new_plan
     diff_plan = new_plan - existing_plan
 
@@ -279,7 +279,7 @@ def generate_citus_migrations(
         progress_bar.update(1)
 
 
-def migrate_citus_distributions(context: Context, destructive: bool, **kwargs):
+def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -> None:
     from alembic.operations import Operations
     from alembic.runtime.migration import MigrationContext
 
@@ -309,7 +309,7 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs):
     migrate_comments(context, verbose=False)
 
 
-def cli_requires_citus_distribution(context: Context, **kwargs):
+def cli_requires_citus_distribution(context: Context, **kwargs) -> bool:
     store = ensure_store_is_loaded(context)
     required_plans = create_sharding_plan(context, verbose=False)
 

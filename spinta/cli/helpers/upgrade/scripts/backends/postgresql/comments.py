@@ -140,7 +140,7 @@ def table_contains_all_comments(backend: PostgreSQL, inspector: PGInspector, tab
     return True
 
 
-def migrate_comments(context: Context, verbose: bool = True, **kwargs):
+def migrate_comments(context: Context, verbose: bool = True, **kwargs) -> None:
     ensure_store_is_loaded(context)
     store = context.get("store")
 
@@ -204,7 +204,7 @@ def apply_missing_table_comments(
     table_identifier: TableIdentifier,
     progress_bar: tqdm = None,
     verbose: bool = True,
-):
+) -> None:
     bootstrap_table = backend.tables.get(table_identifier.logical_qualified_name)
     if bootstrap_table is None:
         if progress_bar and verbose:
@@ -248,8 +248,8 @@ def apply_custom_property_table_comments(
     *,
     progress_bar: tqdm = None,
     verbose: bool = True,
-):
-    return apply_custom_property_table_comments(
+) -> None:
+    apply_custom_property_table_comments(
         conn, backend, inspector, prop.dtype, progress_bar=progress_bar, verbose=verbose
     )
 
@@ -263,7 +263,7 @@ def apply_custom_property_table_comments(
     *,
     progress_bar: tqdm = None,
     verbose: bool = True,
-):
+) -> None:
     return
 
 
@@ -276,11 +276,9 @@ def apply_custom_property_table_comments(
     *,
     progress_bar: tqdm = None,
     verbose: bool = True,
-):
+) -> None:
     table_identifier = get_table_identifier(dtype.prop, TableType.LIST)
-    return apply_missing_table_comments(
-        conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose
-    )
+    apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose)
 
 
 @dispatch(sa.engine.Connection, PostgreSQL, PGInspector, File)
@@ -292,8 +290,6 @@ def apply_custom_property_table_comments(
     *,
     progress_bar: tqdm = None,
     verbose: bool = True,
-):
+) -> None:
     table_identifier = get_table_identifier(dtype.prop, TableType.FILE)
-    return apply_missing_table_comments(
-        conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose
-    )
+    apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose)

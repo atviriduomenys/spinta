@@ -36,5 +36,6 @@ script_registry.register(
         run=migrate_citus_distributions,
         check=cli_requires_citus_distribution,
         required=[(UPGRADE_SCRIPT_TYPE, UpgradeScript.POSTGRESQL_SCHEMAS.value)],
+        targets={ScriptTarget.BACKEND.value},
     )
 )

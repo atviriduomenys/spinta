@@ -270,7 +270,7 @@ MIGRATION_TEMPLATE_DATABASE = "spinta_tests_migration_template"
 
 
 @pytest.fixture(scope="session")
-def postgresql_migration_template(rc) -> URL:
+def postgresql_migration_template(rc: RawConfig) -> URL:
     url = make_url(rc.get("backends", "default", "dsn", required=True))
     url = url.set(database=MIGRATION_TEMPLATE_DATABASE)
 
@@ -290,7 +290,7 @@ def postgresql_migration_template(rc) -> URL:
 
 
 @pytest.fixture(scope="function")
-def postgresql_migration(rc, postgresql_migration_template) -> URL:
+def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> URL:
     url = make_url(rc.get("backends", "default", "dsn", required=True))
     url = url.set(database=MIGRATION_DATABASE)
 

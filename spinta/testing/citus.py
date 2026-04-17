@@ -1,4 +1,5 @@
 import dataclasses
+from pathlib import Path
 
 from sqlalchemy.engine.url import make_url
 
@@ -10,6 +11,7 @@ from spinta.components import Context
 
 import sqlalchemy as sa
 
+from spinta.core.config import RawConfig
 from spinta.manifests.sql.helpers import is_internal_schema
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.context import create_test_context
@@ -25,7 +27,7 @@ class CitusState:
     schemas: set[str] = dataclasses.field(default_factory=set)
 
 
-def gather_citus_state(context: Context, backend: PostgreSQL):
+def gather_citus_state(context: Context, backend: PostgreSQL) -> CitusState:
     citus_state = CitusState()
     with backend.begin() as conn:
         result = conn.execute(
@@ -77,9 +79,9 @@ def gather_citus_state(context: Context, backend: PostgreSQL):
 
 
 def configure_distribute(
-    rc,
-    path,
-    manifest,
+    rc: RawConfig,
+    manifest: str,
+    path: Path,
     *,
     default_distribution_strategy: str | None = None,
     default_distribution_property: str | None = None,
@@ -116,9 +118,9 @@ def configure_distribute(
 
 
 def bootstrap_distribute_manifest(
-    rc,
-    manifest,
-    path,
+    rc: RawConfig,
+    manifest: str,
+    path: Path,
     *,
     default_distribution_strategy: str | None = None,
     default_distribution_property: str | None = None,
