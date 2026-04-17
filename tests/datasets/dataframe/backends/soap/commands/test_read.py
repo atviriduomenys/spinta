@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import ANY
 
 import pytest
@@ -7,7 +8,7 @@ from responses import RequestsMock, POST
 from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.datasets.backends.dataframe.backends.soap.commands.read import _expand_dict_keys
+from spinta.datasets.backends.dataframe.backends.soap.commands.read import _expand_dict_keys, _get_data_soap
 from spinta.exceptions import SoapRequestBodyParseError
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
@@ -101,7 +102,7 @@ def test_soap_read_calls_soap_operation_with_empty_request_body(rc: RawConfig, m
     app.authmodel("/example/City/", ["getall"])
     app.get("/example/City/")
 
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body={})
+    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body={}, source="/")
 
 
 def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: RawConfig, mocker: MockerFixture) -> None:
