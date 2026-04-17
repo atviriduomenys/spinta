@@ -14,11 +14,11 @@ New Features:
 
 
 Bug fixes:
-
+- Fixed a bug where composite properties like x.y and x.y.z... were not returning any data (`#1843`_).
 - Fixed `postgresql_schemas` globally importing optional `alembic` dependency when running spinta (`#1869`_).
 
 .. _#1869: https://github.com/atviriduomenys/spinta/issues/1869
-
+.. _#1843: https://github.com/atviriduomenys/spinta/issues/1843
 
 0.2dev21 (2026-04-13)
 =====================
