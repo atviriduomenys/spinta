@@ -337,8 +337,6 @@ def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
     resolved_prep = env.call("select", prep)
-    if resolved_prep is None:
-        return None
 
     result = {}
     result["_id"] = Selected(prop=dtype.prop, prep=resolved_prep)
