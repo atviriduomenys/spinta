@@ -257,7 +257,6 @@ def test_wsdl_nested_schema_output_matches_xsd_pipelines(rc: RawConfig, tmp_path
         "location_zip": {"type": "integer", "required": False, "source": "location/zip"},
     }
     assert wsdl_snapshot == xsd_snapshot == xsd2_snapshot
-    assert xsd_location_model.external.name == "/GetNestedResponse/location"
     assert xsd2_model.properties["location"].dtype.name == "ref"
     assert xsd2_model.properties["location"].dtype.model.name == "nested/Location"
 
@@ -297,7 +296,6 @@ def test_wsdl_raw_nested_schema_output_matches_xsd_pipelines(rc: RawConfig, tmp_
     }
     assert wsdl_model.properties["location"].dtype.name == "ref"
     assert wsdl_model.properties["location"].dtype.model.name == "services/nested_service/schema/Location"
-    assert xsd_location_model.external.name == "/GetNestedResponse/location"
     assert xsd2_model.properties["location"].dtype.model.name == "nested/Location"
 
 

@@ -71,7 +71,7 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-def test_xsd_inline_nested_model_source_is_scoped_without_leaking_to_named_partials(rc: RawConfig, tmp_path: Path):
+def test_xsd_partial_model_sources_remain_blank_for_inline_and_referenced_nested_models(rc: RawConfig, tmp_path: Path):
         xsd = """
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
             <xs:complexType name="AddressType">
@@ -110,7 +110,7 @@ def test_xsd_inline_nested_model_source_is_scoped_without_leaking_to_named_parti
         nested_model = commands.get_model(context, manifest, "nested_sources/Location")
         referenced_model = commands.get_model(context, manifest, "nested_sources/AddressType")
 
-        assert nested_model.external.name == "/GetNestedResponse/location"
+        assert (nested_model.external.name if nested_model.external else None) in {None, ""}
         assert nested_model.features == "/:part"
         assert (referenced_model.external.name if referenced_model.external else None) in {None, ""}
 

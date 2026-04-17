@@ -279,7 +279,7 @@ def _process_embedded_schema_root(
     with open(path, "wb") as file:
         file.write(etree.tostring(composed_root, encoding="utf-8"))
 
-    reader = XSDReader(path, dataset_name, assign_nested_partial_source=False)
+    reader = XSDReader(path, dataset_name)
     reader.start()
     raw_schema_models.update(_reader_to_raw_schema_models(reader))
 
@@ -291,7 +291,7 @@ def _process_embedded_schema_root(
         with open(filtered_path, "wb") as file:
             file.write(etree.tostring(filtered_root, encoding="utf-8"))
 
-        filtered_reader = XSDReader(filtered_path, dataset_name, assign_nested_partial_source=False)
+        filtered_reader = XSDReader(filtered_path, dataset_name)
         filtered_reader.start()
         element_types.update(
             _reader_to_embedded_element_types(
@@ -310,7 +310,7 @@ def _process_embedded_schema_root(
         with open(filtered_path, "wb") as file:
             file.write(etree.tostring(filtered_root, encoding="utf-8"))
 
-        filtered_reader = XSDReader(filtered_path, dataset_name, assign_nested_partial_source=False)
+        filtered_reader = XSDReader(filtered_path, dataset_name)
         filtered_reader.start()
         type_types.update(
             _reader_to_embedded_type_types(
