@@ -99,6 +99,7 @@ class WsdlReadContext:
     prefixes: dict[str, str]
     schemas: list[ET.Element]
     element_types: dict[str, list[dict[str, Any]]]
+    type_types: dict[str, list[dict[str, Any]]]
     raw_schema_models: dict[str, dict[str, Any]]
     schema_diagnostics: list[Exception]
     messages: dict[str, MessageInfo]
@@ -118,6 +119,7 @@ class WsdlPreparedReadState:
     resource_name: str
     schemas: list[ET.Element]
     element_types: dict[str, list[dict[str, Any]]]
+    type_types: dict[str, list[dict[str, Any]]]
     raw_schema_models: dict[str, dict[str, Any]]
     schema_diagnostics: list[Exception]
     resources: dict[str, dict[str, Any]]
@@ -263,6 +265,7 @@ def _extract_wsdl_read_context(
         prefixes=prefixes,
         schemas=prepared.schemas,
         element_types=prepared.element_types,
+        type_types=prepared.type_types,
         raw_schema_models=prepared.raw_schema_models,
         schema_diagnostics=prepared.schema_diagnostics,
         messages=collected.messages,
@@ -292,11 +295,13 @@ def _prepare_wsdl_read_state(
     )
     resource_name = "contract"
     schemas = root.findall(f".//{{{XSD_NS}}}schema")
-    element_types, raw_schema_models, schema_diagnostics = _collect_xsd_types(
+    referenced_type_qnames = _collect_wsdl_1_1_part_type_qnames(root, namespace_context)
+    element_types, type_types, raw_schema_models, schema_diagnostics = _collect_xsd_types(
         manifest,
         schemas,
         dataset_name=dataset_name,
         schema_source_path=normalized_path,
+        referenced_type_qnames=referenced_type_qnames,
     )
     return WsdlPreparedReadState(
         definitions_name=definitions_name,
@@ -307,6 +312,7 @@ def _prepare_wsdl_read_state(
         resource_name=resource_name,
         schemas=schemas,
         element_types=element_types,
+        type_types=type_types,
         raw_schema_models=raw_schema_models,
         schema_diagnostics=schema_diagnostics,
         resources=_build_wsdl_root_resource(normalized_path, resource_name, definitions_name),
@@ -344,6 +350,7 @@ def _collect_wsdl_artifacts(
             root,
             wsdl_ns=WSDL_1_1_NS,
             element_types=prepared.element_types,
+            type_types=prepared.type_types,
             namespace_context=prepared.namespace_context,
         )
         bindings_collector = collect_bindings
@@ -827,20 +834,39 @@ def _collect_xsd_types(
     *,
     dataset_name: str | None,
     schema_source_path: str,
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]], list[Exception]]:
+    referenced_type_qnames: set[str] | None = None,
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    dict[str, dict[str, Any]],
+    list[Exception],
+]:
     schema_diagnostics: list[Exception] = []
     del manifest
-    element_types, raw_schema_models = collect_embedded_schema_types(
+    element_types, type_types, raw_schema_models = collect_embedded_schema_types(
         schemas,
         dataset_name=dataset_name or "",
         schema_source_path=schema_source_path,
+        allowed_type_qnames=referenced_type_qnames,
         xsd_ns=XSD_NS,
         datatype_overrides=get_wsdl_datatype_overrides(),
         flatten_nested_handler=flatten_embedded_nested_fields,
         schema_diagnostics=schema_diagnostics,
         tolerate_schema_errors=True,
     )
-    return element_types, raw_schema_models, schema_diagnostics
+    return element_types, type_types, raw_schema_models, schema_diagnostics
+
+
+def _collect_wsdl_1_1_part_type_qnames(
+    root: ET.Element,
+    namespace_context: WsdlNamespaceContext,
+) -> set[str]:
+    referenced_type_qnames: set[str] = set()
+    for part in root.findall(f".//{{{WSDL_1_1_NS}}}part"):
+        type_qname = namespace_context.resolve_in_scope(part.get("type"), node=part)
+        if type_qname is not None:
+            referenced_type_qnames.add(type_qname.expanded_name)
+    return referenced_type_qnames
 
 
 def _merge_metadata(*parts: dict[str, str] | None) -> dict[str, str]:

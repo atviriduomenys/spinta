@@ -78,6 +78,7 @@ def collect_messages(
     *,
     wsdl_ns: str,
     element_types: dict[str, list[dict[str, Any]]],
+    type_types: dict[str, list[dict[str, Any]]],
     namespace_context: WsdlNamespaceContext,
 ) -> dict[str, MessageInfo]:
     result: dict[str, MessageInfo] = {}
@@ -97,8 +98,10 @@ def collect_messages(
                     info.element_qname = element_qname
                     info.fields = part_fields
             elif type_qname:
+                part_fields = type_types.get(type_qname.expanded_name, [])
                 if len(parts) == 1:
                     info.type_qname = type_qname
+                    info.fields = part_fields
             if info.parts is not None:
                 info.parts.append(MessagePartInfo(
                     name=part_name,

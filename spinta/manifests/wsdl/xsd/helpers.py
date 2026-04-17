@@ -122,16 +122,22 @@ def collect_embedded_schema_types(
     flatten_nested_handler=None,
     dataset_name: str = "",
     schema_source_path: str | None = None,
+    allowed_type_qnames: set[str] | None = None,
     schema_diagnostics: list[Exception] | None = None,
     tolerate_schema_errors: bool = False,
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    dict[str, dict[str, Any]],
+]:
     del xsd_ns
 
     schema_list = list(schemas)
     if not schema_list:
-        return {}, {}
+        return {}, {}, {}
 
     element_types: dict[str, list[dict[str, Any]]] = {}
+    type_types: dict[str, list[dict[str, Any]]] = {}
     raw_schema_models: dict[str, dict[str, Any]] = {}
     visited_referenced_sources: set[str] = set()
     with TemporaryDirectory() as tmpdir:
@@ -139,21 +145,29 @@ def collect_embedded_schema_types(
             diagnostics_before = len(schema_diagnostics or [])
             try:
                 root = _schema_to_lxml_root(schema)
+                schema_element_types, schema_type_types = _process_embedded_schema_root(
+                    root,
+                    source=schema_source_path,
+                    tmpdir=tmpdir,
+                    file_stem=f"embedded_{index}",
+                    dataset_name=dataset_name,
+                    datatype_overrides=datatype_overrides,
+                    flatten_nested_handler=flatten_nested_handler,
+                    allowed_type_qnames=allowed_type_qnames,
+                    schema_diagnostics=schema_diagnostics,
+                    tolerate_schema_errors=tolerate_schema_errors,
+                    raw_schema_models=raw_schema_models,
+                )
                 _merge_embedded_element_types(
                     element_types,
-                    _process_embedded_schema_root(
-                        root,
-                        source=schema_source_path,
-                        tmpdir=tmpdir,
-                        file_stem=f"embedded_{index}",
-                        dataset_name=dataset_name,
-                        datatype_overrides=datatype_overrides,
-                        flatten_nested_handler=flatten_nested_handler,
-                        schema_diagnostics=schema_diagnostics,
-                        tolerate_schema_errors=tolerate_schema_errors,
-                        raw_schema_models=raw_schema_models,
-                    ),
+                    schema_element_types,
                     path=schema_source_path,
+                )
+                _merge_embedded_element_types(
+                    type_types,
+                    schema_type_types,
+                    path=schema_source_path,
+                    scope="wsdl:types/xs:complexType",
                 )
                 if schema_source_path:
                     for referenced_index, (referenced_root, referenced_source) in enumerate(
@@ -165,28 +179,36 @@ def collect_embedded_schema_types(
                             visited=visited_referenced_sources,
                         )
                     ):
+                        referenced_element_types, referenced_type_types = _process_embedded_schema_root(
+                            referenced_root,
+                            source=referenced_source,
+                            tmpdir=tmpdir,
+                            file_stem=f"embedded_{index}_referenced_{referenced_index}",
+                            dataset_name=dataset_name,
+                            datatype_overrides=datatype_overrides,
+                            flatten_nested_handler=flatten_nested_handler,
+                            allowed_type_qnames=allowed_type_qnames,
+                            schema_diagnostics=schema_diagnostics,
+                            tolerate_schema_errors=tolerate_schema_errors,
+                            raw_schema_models=raw_schema_models,
+                        )
                         _merge_embedded_element_types(
                             element_types,
-                            _process_embedded_schema_root(
-                                referenced_root,
-                                source=referenced_source,
-                                tmpdir=tmpdir,
-                                file_stem=f"embedded_{index}_referenced_{referenced_index}",
-                                dataset_name=dataset_name,
-                                datatype_overrides=datatype_overrides,
-                                flatten_nested_handler=flatten_nested_handler,
-                                schema_diagnostics=schema_diagnostics,
-                                tolerate_schema_errors=tolerate_schema_errors,
-                                raw_schema_models=raw_schema_models,
-                            ),
+                            referenced_element_types,
                             path=referenced_source,
+                        )
+                        _merge_embedded_element_types(
+                            type_types,
+                            referenced_type_types,
+                            path=referenced_source,
+                            scope="wsdl:types/xs:complexType",
                         )
             except KeyError:
                 if not tolerate_schema_errors or len(schema_diagnostics or []) == diagnostics_before:
                     raise
                 continue
 
-    return element_types, raw_schema_models
+    return element_types, type_types, raw_schema_models
 
 
 def flatten_embedded_nested_fields(
@@ -227,15 +249,22 @@ def _process_embedded_schema_root(
     dataset_name: str,
     datatype_overrides: Mapping[str, str] | None,
     flatten_nested_handler,
+    allowed_type_qnames: set[str] | None,
     schema_diagnostics: list[Exception] | None,
     tolerate_schema_errors: bool,
     raw_schema_models: dict[str, dict[str, Any]],
-) -> dict[str, list[dict[str, Any]]]:
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
     target_namespace = root.attrib.get("targetNamespace")
     allowed_element_names = _schema_top_level_element_names(
         root,
         target_namespace=target_namespace,
         path=source,
+    )
+    allowed_type_names = _schema_top_level_complex_type_names(
+        root,
+        target_namespace=target_namespace,
+        path=source,
+        allowed_type_qnames=allowed_type_qnames,
     )
     composed_root = root
     if source:
@@ -255,6 +284,7 @@ def _process_embedded_schema_root(
     raw_schema_models.update(_reader_to_raw_schema_models(reader))
 
     element_types: dict[str, list[dict[str, Any]]] = {}
+    type_types: dict[str, list[dict[str, Any]]] = {}
     for element_name in allowed_element_names:
         filtered_root = _filter_schema_for_top_level_element(root, composed_root, element_name)
         filtered_path = os.path.join(tmpdir, f"{file_stem}_{element_name}.xsd")
@@ -274,7 +304,25 @@ def _process_embedded_schema_root(
             )
         )
 
-    return element_types
+    for type_name in allowed_type_names:
+        filtered_root = _filter_schema_for_top_level_complex_type(root, composed_root, type_name)
+        filtered_path = os.path.join(tmpdir, f"{file_stem}_{type_name}_type.xsd")
+        with open(filtered_path, "wb") as file:
+            file.write(etree.tostring(filtered_root, encoding="utf-8"))
+
+        filtered_reader = XSDReader(filtered_path, dataset_name, assign_nested_partial_source=False)
+        filtered_reader.start()
+        type_types.update(
+            _reader_to_embedded_type_types(
+                filtered_reader,
+                type_name=type_name,
+                target_namespace=target_namespace,
+                datatype_overrides=datatype_overrides,
+                flatten_nested_handler=flatten_nested_handler,
+            )
+        )
+
+    return element_types, type_types
 
 
 def _schema_top_level_element_names(
@@ -306,13 +354,14 @@ def _merge_embedded_element_types(
     incoming: dict[str, list[dict[str, Any]]],
     *,
     path: str | None,
+    scope: str = "wsdl:types/xs:element",
 ) -> None:
     for qname, fields in incoming.items():
         if qname in current:
             raise_duplicate_wsdl_qname_conflict(
                 path=_wsdl_ambiguity_path(path),
                 qname=qname,
-                scope="wsdl:types/xs:element",
+                scope=scope,
             )
         current[qname] = fields
 
@@ -352,6 +401,40 @@ def _filter_schema_for_top_level_element(
     if direct_element is not None:
         filtered_root.append(direct_element)
 
+    return filtered_root
+
+
+def _filter_schema_for_top_level_complex_type(
+    original_root: etree._Element,
+    composed_root: etree._Element,
+    type_name: str,
+) -> etree._Element:
+    filtered_root = etree.Element(composed_root.tag, nsmap=composed_root.nsmap)
+    for key, value in composed_root.attrib.items():
+        filtered_root.set(key, value)
+
+    direct_complex_type = None
+    for child in original_root:
+        if isinstance(child, etree._Comment):
+            continue
+        if QName(child).localname != "complexType":
+            continue
+        if child.attrib.get("name") == type_name:
+            direct_complex_type = deepcopy(child)
+            break
+
+    if direct_complex_type is None:
+        raise KeyError(type_name)
+
+    for child in composed_root:
+        if isinstance(child, etree._Comment):
+            continue
+        filtered_root.append(deepcopy(child))
+
+    wrapper = etree.Element(f"{{{XSD_NS}}}element")
+    wrapper.set("name", _type_wrapper_element_name(type_name))
+    wrapper.append(direct_complex_type)
+    filtered_root.append(wrapper)
     return filtered_root
 
 
@@ -410,6 +493,38 @@ def _expanded_wsdl_qname(local_name: str, namespace: str | None) -> str:
     )
 
 
+def _type_wrapper_element_name(type_name: str) -> str:
+    return f"__wsdl_type__{type_name}"
+
+
+def _schema_top_level_complex_type_names(
+    root: etree._Element,
+    *,
+    target_namespace: str | None,
+    path: str | None,
+    allowed_type_qnames: set[str] | None,
+) -> set[str]:
+    names: set[str] = set()
+    for child in root:
+        if isinstance(child, etree._Comment):
+            continue
+        if QName(child).localname != "complexType":
+            continue
+        name = child.attrib.get("name")
+        if name:
+            expanded_name = _expanded_wsdl_qname(name, target_namespace)
+            if allowed_type_qnames is not None and expanded_name not in allowed_type_qnames:
+                continue
+            if name in names:
+                raise_duplicate_wsdl_qname_conflict(
+                    path=_wsdl_ambiguity_path(path),
+                    qname=expanded_name,
+                    scope="wsdl:types/xs:complexType",
+                )
+            names.add(name)
+    return names
+
+
 def _reader_to_embedded_element_types(
     reader: XSDReader,
     *,
@@ -457,6 +572,31 @@ def _reader_to_embedded_element_types(
             )
 
     return element_types
+
+
+def _reader_to_embedded_type_types(
+    reader: XSDReader,
+    *,
+    type_name: str,
+    target_namespace: str | None,
+    datatype_overrides: Mapping[str, str] | None,
+    flatten_nested_handler,
+) -> dict[str, list[dict[str, Any]]]:
+    wrapper_name = _type_wrapper_element_name(type_name)
+    wrapper_fields = _reader_to_embedded_element_types(
+        reader,
+        source_path=None,
+        target_namespace=target_namespace,
+        allowed_element_names={wrapper_name},
+        datatype_overrides=datatype_overrides,
+        flatten_nested_handler=flatten_nested_handler,
+    )
+    return {
+        _expanded_wsdl_qname(type_name, target_namespace): wrapper_fields.get(
+            _expanded_wsdl_qname(wrapper_name, target_namespace),
+            [],
+        )
+    }
 
 
 def _reader_to_raw_schema_models(reader: XSDReader) -> dict[str, dict[str, Any]]:

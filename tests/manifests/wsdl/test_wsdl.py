@@ -152,6 +152,68 @@ MULTIPART_ELEMENT_WSDL = """
 """
 
 
+MULTIPART_TYPE_WSDL = """
+<wsdl:definitions
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="urn:multipart-type"
+    targetNamespace="urn:multipart-type"
+    name="MultipartTypeService"
+>
+    <wsdl:types>
+        <xs:schema targetNamespace="urn:multipart-type">
+            <xs:complexType name="GetCountryRequestHeaderType">
+                <xs:sequence>
+                    <xs:element name="request_id" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="GetCountryRequestBodyType">
+                <xs:sequence>
+                    <xs:element name="code" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="GetCountryResponseMetaType">
+                <xs:sequence>
+                    <xs:element name="status" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="GetCountryResponseBodyType">
+                <xs:sequence>
+                    <xs:element name="name" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+    </wsdl:types>
+    <wsdl:message name="GetCountryInput">
+        <wsdl:part name="header" type="tns:GetCountryRequestHeaderType" />
+        <wsdl:part name="body" type="tns:GetCountryRequestBodyType" />
+    </wsdl:message>
+    <wsdl:message name="GetCountryOutput">
+        <wsdl:part name="meta" type="tns:GetCountryResponseMetaType" />
+        <wsdl:part name="payload" type="tns:GetCountryResponseBodyType" />
+    </wsdl:message>
+    <wsdl:portType name="MultipartTypePortType">
+        <wsdl:operation name="GetCountry">
+            <wsdl:input message="tns:GetCountryInput" />
+            <wsdl:output message="tns:GetCountryOutput" />
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="MultipartTypeBinding" type="tns:MultipartTypePortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http" />
+        <wsdl:operation name="GetCountry">
+            <soap:operation soapAction="urn:multipart-type#GetCountry" />
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="MultipartTypeService">
+        <wsdl:port name="MultipartTypePort" binding="tns:MultipartTypeBinding">
+            <soap:address location="https://example.com/multipart-type" />
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>
+"""
+
+
 COUNTRY_WSDL_WITHOUT_SOAP_ACTION = COUNTRY_WSDL.replace(
     '<soap:operation soapAction="urn:country#GetCountry" />',
     '<soap:operation />',
@@ -1599,13 +1661,14 @@ def test_wsdl_read_schema_reuses_single_shared_extraction_for_raw_and_operation_
     original_collect_xsd_types = wsdl_helpers._collect_xsd_types
     collect_calls: list[int] = []
 
-    def fake_collect_xsd_types(manifest, schemas, *, dataset_name, schema_source_path):
+    def fake_collect_xsd_types(manifest, schemas, *, dataset_name, schema_source_path, referenced_type_qnames=None):
         collect_calls.append(len(list(schemas)))
         return original_collect_xsd_types(
             manifest,
             schemas,
             dataset_name=dataset_name,
             schema_source_path=schema_source_path,
+            referenced_type_qnames=referenced_type_qnames,
         )
 
     monkeypatch.setattr("spinta.manifests.wsdl.helpers._collect_xsd_types", fake_collect_xsd_types)
@@ -2014,6 +2077,78 @@ def test_wsdl_shared_extraction_context_collects_multipart_message_parts(
     assert [part.element_qname.expanded_name if part.element_qname else None for part in output_message.parts] == [
         "{urn:multipart}GetCountryResponseMeta",
         "{urn:multipart}GetCountryResponseBody",
+    ]
+    assert {field["name"] for field in output_message.fields or []} == {"status", "name"}
+    assert {field["source"] for field in output_message.fields or []} == {"meta/status", "payload/name"}
+
+    assert request_message is not None
+    assert request_message.parts is not None
+    assert {field["name"] for field in request_message.fields or []} == {"request_id", "code"}
+    assert response_message is not None
+    assert response_message.parts is not None
+    assert {field["name"] for field in response_message.fields or []} == {"status", "name"}
+
+
+def test_wsdl_shared_extraction_context_collects_multipart_type_message_parts(
+    rc: RawConfig,
+    tmp_path: Path,
+):
+    path = tmp_path / "multipart-type.wsdl"
+    path.write_text(MULTIPART_TYPE_WSDL)
+
+    context = create_test_context(rc)
+    manifest = WsdlManifest()
+    manifest.path = str(path)
+    normalized_path = normalize_wsdl_path(manifest.path)
+    root, prefixes = _read_xml(normalized_path)
+
+    wsdl_context = _extract_wsdl_read_context(
+        context,
+        manifest,
+        normalized_path,
+        None,
+        root,
+        prefixes,
+        version="1.1",
+    )
+
+    assert {
+        "GetCountryRequestHeaderType",
+        "GetCountryRequestBodyType",
+        "GetCountryResponseMetaType",
+        "GetCountryResponseBodyType",
+    }.issubset(wsdl_context.raw_schema_models)
+    assert {
+        "{urn:multipart-type}GetCountryRequestHeaderType",
+        "{urn:multipart-type}GetCountryRequestBodyType",
+        "{urn:multipart-type}GetCountryResponseMetaType",
+        "{urn:multipart-type}GetCountryResponseBodyType",
+    }.issubset(wsdl_context.type_types)
+
+    input_message = wsdl_context.messages["{urn:multipart-type}GetCountryInput"]
+    output_message = wsdl_context.messages["{urn:multipart-type}GetCountryOutput"]
+    operation_link = wsdl_context.operation_links[0]
+    request_message = operation_link.messages[0].message
+    response_message = operation_link.messages[1].message
+
+    assert input_message.element_qname is None
+    assert input_message.type_qname is None
+    assert input_message.parts is not None
+    assert [part.name for part in input_message.parts] == ["header", "body"]
+    assert [part.type_qname.expanded_name if part.type_qname else None for part in input_message.parts] == [
+        "{urn:multipart-type}GetCountryRequestHeaderType",
+        "{urn:multipart-type}GetCountryRequestBodyType",
+    ]
+    assert {field["name"] for field in input_message.fields or []} == {"request_id", "code"}
+    assert {field["source"] for field in input_message.fields or []} == {"header/request_id", "body/code"}
+
+    assert output_message.element_qname is None
+    assert output_message.type_qname is None
+    assert output_message.parts is not None
+    assert [part.name for part in output_message.parts] == ["meta", "payload"]
+    assert [part.type_qname.expanded_name if part.type_qname else None for part in output_message.parts] == [
+        "{urn:multipart-type}GetCountryResponseMetaType",
+        "{urn:multipart-type}GetCountryResponseBodyType",
     ]
     assert {field["name"] for field in output_message.fields or []} == {"status", "name"}
     assert {field["source"] for field in output_message.fields or []} == {"meta/status", "payload/name"}
