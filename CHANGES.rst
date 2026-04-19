@@ -1,17 +1,18 @@
 Changes
 #######
 
-0.2dev22 (unreleased)
+0.2dev22 (2026-04-19)
 =====================
 
 New Features:
 
-- Added new parameter `access` to spinta configuration with default value set to `open`. 
+- Added new parameter `access` to spinta configuration with default value set to `open` (`#1807`_).
   This change affects data access permissions:
   - If `config.access` is lower than `node`, that client is trying to reach, `access` level, spinta always returns `404 ModelNotFound` error.
   - Whenever an unauthenticated(default client) request is received and `config.access` is set to lower level than `open`, spinta returns `401 AuthorizedClientsOnly`.
   - `private` nodes can now be accessed with parent node scopes.
 
+.. _#1807: https://github.com/atviriduomenys/spinta/issues/1807
 
 Bug fixes:
 - Fixed a bug where composite properties like x.y and x.y.z... were not returning any data (`#1843`_).
