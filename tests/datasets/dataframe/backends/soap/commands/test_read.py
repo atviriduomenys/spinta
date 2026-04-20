@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import ANY
 
 import pytest
@@ -8,7 +7,7 @@ from responses import RequestsMock, POST
 from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.datasets.backends.dataframe.backends.soap.commands.read import _expand_dict_keys, _get_data_soap
+from spinta.datasets.backends.dataframe.backends.soap.commands.read import _expand_dict_keys
 from spinta.exceptions import SoapRequestBodyParseError
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
