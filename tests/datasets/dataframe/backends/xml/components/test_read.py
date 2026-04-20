@@ -1953,3 +1953,91 @@ def test_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Pa
             },
         },
     ]
+
+
+def test_for_id_uuid(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>ed76eda3-7922-4a7d-9ba8-62828ca0ae98</id>
+            <code>ORD001</code>
+        </order>
+        <order>
+            <id>1590ab44-6463-4da7-8862-3598f6e83924</id>
+            <code>ORD002</code>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type       | ref      | source        | level      | access
+    example                                       |            |          |               |            |
+      | data                                      | dask/xml   |          | {path}        |            |
+      |   |   | Region                            |            | _id      | /root/order   |            |
+      |   |   |   | code                          | string     |          | code          |            | open
+      |   |   |   | _id                           | uuid       |          | id            |            | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Region", ["getall", "getone"])
+
+    resp = app.get("/example/Region")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {"_type": "example/Region", "_id": "ed76eda3-7922-4a7d-9ba8-62828ca0ae98", "_revision": None, "code": "ORD001"},
+        {"_type": "example/Region", "_id": "1590ab44-6463-4da7-8862-3598f6e83924", "_revision": None, "code": "ORD002"},
+    ]
+    with pytest.raises(NotImplementedError):
+        app.get("/example/Region/ed76eda3-7922-4a7d-9ba8-62828ca0ae98")
+        # Expected, XML does not support getone operations
+
+
+def test_for_id_integer(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>123</id>
+            <code>ORD001</code>
+        </order>
+        <order>
+            <id>1234</id>
+            <code>ORD002</code>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type       | ref      | source        | level      | access
+    example                                       |            |          |               |            |
+      | data                                      | dask/xml   |          | {path}        |            |
+      |   |   | Region                            |            | _id      | /root/order   |            |
+      |   |   |   | code                          | string     |          | code          |            | open
+      |   |   |   | _id                           | integer       |          | id            |            | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Region", ["getall", "getone"])
+
+    resp = app.get("/example/Region")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {"_type": "example/Region", "_id": 123, "_revision": None, "code": "ORD001"},
+        {"_type": "example/Region", "_id": 1234, "_revision": None, "code": "ORD002"},
+    ]
+    with pytest.raises(NotImplementedError):
+        app.get("/example/Region/123")
+        # Expected, XML does not support getone operations

@@ -153,6 +153,7 @@ def load(
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
         model.given.pkeys = external.get("pk", [])
+        _detect_cooperating_reserved_properties(model)
     else:
         model.external = None
         model.given.pkeys = []
@@ -461,6 +462,13 @@ def link(context: Context, prop: Property):
     )
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
+
+
+def _detect_cooperating_reserved_properties(model: Model) -> None:
+    for name, attr in (("_id", "id_prop"), ("_revision", "revision_prop")):
+        prop = model.properties.get(name)
+        if prop is not None and prop.explicitly_given:
+            setattr(model.external, attr, prop)
 
 
 def _load_property_external(

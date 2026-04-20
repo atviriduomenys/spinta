@@ -12,7 +12,7 @@ from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import Integer, PrimaryKey
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.ufuncs.querybuilder.helpers import get_page_values
@@ -84,18 +84,23 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
-    _id = keymap.decode(model.name, id_)
-
-    # preparing query for retrieving item by pk (single column or multi column)
-    query = {}
-    if isinstance(_id, list):
-        pkeys = model.external.pkeys
-        for index, pk in enumerate(pkeys):
-            query[pk.name] = _id[index]
+    id_prop = model.external.id_prop
+    if id_prop is not None:
+        value = int(id_) if isinstance(id_prop.dtype, Integer) else id_
+        query = {id_prop.external.name: value}
     else:
-        pk = model.external.pkeys[0].name
-        query[pk] = _id
+        keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
+        _id = keymap.decode(model.name, id_)
+
+        # preparing query for retrieving item by pk (single column or multi column)
+        query = {}
+        if isinstance(_id, list):
+            pkeys = model.external.pkeys
+            for index, pk in enumerate(pkeys):
+                query[pk.name] = _id[index]
+        else:
+            pk = model.external.pkeys[0].name
+            query[pk] = _id
 
     # building sqlalchemy query
     context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
