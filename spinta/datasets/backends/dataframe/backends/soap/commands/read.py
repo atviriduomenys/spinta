@@ -40,6 +40,8 @@ def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_heade
 
     if isinstance(response_data, dict):
         for part in source.split("/"):
+            if not part:
+                continue
             if isinstance(response_data, dict) and part in response_data:
                 response_data = response_data[part]
             else:
