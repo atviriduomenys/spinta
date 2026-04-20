@@ -21,7 +21,9 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
-def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_headers: dict, source: str = None) -> list[dict]:
+def _get_data_soap(
+    url: str, backend: Soap, soap_request_body: dict, extra_headers: dict, source: str = None
+) -> list[dict]:
     for key, value in soap_request_body.items():
         if isinstance(value, MakeCDATA):
             soap_request_body[key] = value()

@@ -125,7 +125,9 @@ def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: Raw
         "request_model/param1": "default_val",
         "request_model/param2": "default_val",
     }
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request, source="/")
+    soap_data_mock.assert_called_with(
+        source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request, source="/"
+    )
 
 
 def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: RawConfig, mocker: MockerFixture) -> None:
@@ -149,7 +151,9 @@ def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: Ra
         "request_model/param1": "foo",
         "request_model/param2": "bar",
     }
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request, source="/")
+    soap_data_mock.assert_called_with(
+        source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request, source="/"
+    )
 
 
 def test_soap_read_raise_error_if_manifest_resource_param_source_cannot_be_parsed(rc: RawConfig) -> None:
