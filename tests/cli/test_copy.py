@@ -1238,3 +1238,47 @@ def test_copy_property_with_underscore_wrong(context: Context, rc, cli: SpintaCl
     assert result.exit_code != 0
     assert isinstance(result.exception, InvalidName)
     assert "_test" in str(result.exception)
+
+
+def test_copy_undeclared_ref_transforms_to_object(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """When a ref points to an undeclared model, copy should output the property
+    as object (level=2) and append a restore comment row."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref              | access
+    example                  |        |                  |
+                             |        |                  |
+      |   |   | City         |        |                  |
+      |   |   |   | name     | string |                  | private
+      |   |   |   | country  | ref    | example2/Country | private
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "private",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type    | ref  | source | prepare                                | level | access
+    example                  |         |      |        |                                        |       |
+                             |         |      |        |                                        |       |
+      |   |   | City         |         |      |        |                                        |       |
+      |   |   |   | name     | string  |      |        |                                        |       | private
+      |   |   |   | country  | object  |      |        |                                        | 2     | private
+                             | comment | type | author | update(type:ref, ref:example2/Country) | 4     |
+    """
+    )

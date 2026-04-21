@@ -702,3 +702,29 @@ def test_spinta_check_no_message_filters_support_sql_backend(
     assert result.exit_code == 0
     # Verify that no Dask-related messages are issued.
     assert "Dask backend does not support" not in result.output
+
+
+def test_check_undeclared_ref_does_not_fail(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """check should succeed when a ref points to an undeclared model,
+    silently downgrading the property to object instead of raising."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref              | access
+    example                  |        |                  |
+                             |        |                  |
+      |   |   | City         |        |                  |
+      |   |   |   | name     | string |                  | private
+      |   |   |   | country  | ref    | example2/Country | private
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert result.exit_code == 0
