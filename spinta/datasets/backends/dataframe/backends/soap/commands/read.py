@@ -44,7 +44,7 @@ def _get_data_soap(
         for part in source.split("/"):
             if not part:
                 continue
-            if isinstance(response_data, dict) and part in response_data:
+            if part in response_data:
                 response_data = response_data[part]
             else:
                 response_data = []
