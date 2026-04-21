@@ -1,5 +1,11 @@
-from importlib import import_module
+from . import (
+    configure,
+    diagnostics,
+    load
+)
 
-import_module("spinta.manifests.wsdl.commands.configure")
-import_module("spinta.manifests.wsdl.commands.diagnostics")
-import_module("spinta.manifests.wsdl.commands.load")
+__all__ = [
+ "configure",
+ "diagnostics",
+ "load"
+]

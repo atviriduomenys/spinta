@@ -1243,11 +1243,6 @@ def update_manifest_dataset_schema(context: Context, manifest: Manifest, target_
 
 
 @command()
-def collect_embedded_schema_types(context: Context, manifest: Manifest, schemas, **kwargs):
-    """Collect embedded XML schema element and complex type mappings for a manifest reader."""
-
-
-@command()
 def store_schema_diagnostics(context: Context, manifest: Manifest, path: str, diagnostics, **kwargs):
     """Store schema-read diagnostics for a manifest reader."""
 

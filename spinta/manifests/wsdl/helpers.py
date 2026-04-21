@@ -600,7 +600,7 @@ def _collect_wsdl_1_1_operation_links(
     namespace_context: WsdlNamespaceContext,
 ) -> list[WsdlOperationLink]:
     def resolve_operation(operation: ET.Element) -> tuple[str, WsdlQName | None, list[WsdlOperationMessage]]:
-        operation_name = _local_name(operation.get("name"))
+        operation_name = local_name(operation.get("name"))
         operation_qname = namespace_context.resolve_in_scope(operation.get("name"), node=operation)
         input_message = message_info(
             operation.find(f"{{{WSDL_1_1_NS}}}input"),
@@ -644,7 +644,7 @@ def _collect_wsdl_operation_links_for_interfaces(
     resource_deduplicator = Deduplicator("_{}")
 
     for interface in interfaces:
-        interface_name = _local_name(interface.get("name"))
+        interface_name = local_name(interface.get("name"))
         interface_qname = namespace_context.resolve_in_scope(interface.get("name"), node=interface)
         for operation in interface.findall(operation_tag):
             operation_name, operation_qname, operation_messages = resolve_operation(operation)
@@ -686,7 +686,7 @@ def _collect_wsdl_2_0_operation_links(
     namespace_context: WsdlNamespaceContext,
 ) -> list[WsdlOperationLink]:
     def resolve_operation(operation: ET.Element) -> tuple[str, WsdlQName | None, list[WsdlOperationMessage]]:
-        operation_name = _local_name(operation.get("name") or operation.get("ref"))
+        operation_name = local_name(operation.get("name") or operation.get("ref"))
         operation_qname = namespace_context.resolve_in_scope(
             operation.get("name") or operation.get("ref"),
             node=operation,
@@ -824,10 +824,6 @@ def _is_remote_url(path: str) -> bool:
     return path.startswith(("http://", "https://"))
 
 
-def _local_name(name: Optional[str]) -> str:
-    return local_name(name)
-
-
 def _collect_xsd_types(
     manifest: Manifest,
     schemas: Iterable[ET.Element],
@@ -940,7 +936,3 @@ def _fields_to_properties(
             prop["items"] = item
         properties[name] = prop
     return properties
-
-
-def name_or_default(element: ET.Element) -> str:
-    return _local_name(element.get("name")) or "value"

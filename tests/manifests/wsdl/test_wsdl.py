@@ -1,10 +1,3 @@
-"""Legacy transitional WSDL manifest scaffolding.
-
-The functional contract baseline now lives in test_wsdl_functional.py.
-Keep helper-seam, extraction-context, and other implementation-oriented
-coverage here until a later retirement decision is made.
-"""
-
 from pathlib import Path
 from io import BytesIO
 from typing import Any

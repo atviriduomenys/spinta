@@ -565,13 +565,7 @@ class XSDReader:
                 raise RuntimeError(f"This node type cannot be at the top level: {QName(node).localname}")
 
     #  XSD nodes processors
-    def process_element(
-        self,
-        node: _Element,
-        state: State,
-        is_array=False,
-        is_root=False,
-    ) -> list[XSDProperty]:
+    def process_element(self, node: _Element, state: State, is_array=False, is_root=False) -> list[XSDProperty]:
         """
         Element should return a property. It can return multiple properties if there is a choice somewhere down the way.
         property name is set after returning all properties, because we need to do a deduplication first.
@@ -647,7 +641,6 @@ class XSDReader:
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "complexType":
-                model_source = f"/{property_name}" if is_root and not is_referenced else None
                 models = self.process_complex_type(child, state)
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
@@ -665,8 +658,7 @@ class XSDReader:
                     else:
                         model.is_partial = False
                         model.is_entry_model = True
-                    if model_source is not None:
-                        model.source = model_source
+                        model.source = f"/{property_name}"
                     prop = XSDProperty(
                         xsd_name=property_name, required=is_required, source=property_name, is_array=is_array
                     )
@@ -1032,11 +1024,7 @@ class XSDReader:
 
         return properties
 
-    def process_complex_content(
-        self,
-        node: _Element,
-        state: State,
-    ) -> list[list[XSDModel]]:
+    def process_complex_content(self, node: _Element, state: State) -> list[list[XSDModel]]:
         property_groups: list[list] = [[]]
 
         for child in node:
@@ -1135,11 +1123,7 @@ class XSDReader:
 
         return properties
 
-    def process_complex_type_extension(
-        self,
-        node: _Element,
-        state: State,
-    ) -> List[List[XSDProperty]]:
+    def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
         base = node.attrib.get("base")
         if not base:
             raise RuntimeError("Extension must have a 'base' attribute.")
