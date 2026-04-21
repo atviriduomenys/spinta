@@ -71,9 +71,18 @@ privalo naudoti to paties tipo duomenis — PROD ir DEMO duomenys privalo būti 
 skirtinguose agentuose.
 :::
 
-Vienas agentas gali aptarnauti **vieną arba kelis duomenų šaltinius** — tai nustatoma
-manifesto faile (DSA). Rekomenduojama: **vienas agentas vienai IS**, tačiau techniškai galimas ir
-kelių šaltinių grupavimas viename agente.
+Vienas agentas gali aptarnauti **vieną arba kelis duomenų šaltinius** — (tai nustatoma
+manifesto faile sujungus DSA). Kiek agentų reikės institucijai priklauso nuo:
+
+- **Šaltinių skaičiaus ir tipo** — kiekviena IS paprastai reikalauja atskiro agento
+- **Apkrovos ir našumo reikalavimų** — intensyviai naudojamas IS geriau izoliuoti
+- **Administravimo sudėtingumo** — atskiri agentai lengviau prižiūrimi
+
+:::{note}
+Rekomenduojama: **vienas agentas vienai IS**. Kelių šaltinių (IS, DB) grupavimas viename agente
+galimas tik kai šaltiniai yra labai primityvūs (maža apkrova, paprasta struktūra,
+administruoja ta pati komanda) — tokiu atveju tai gali supaprastinti infrastruktūrą.
+:::
 
 ## Diegimo eiga
 
@@ -83,7 +92,7 @@ aprašytas atskiruose skyriuose.
 ```
 PARENGIAMIEJI DARBAI 
 │
-├─► 1. Paruošiamas manifest (sDSA)
+├─► 1. Paruošiamas manifest (sDSA) - (paprastai šis žingsnis atliekamas po spintos diegimo, tačiau įmanoma iš PC)
 │       • Generuojamas su: spinta inspect <šaltinis>
 │       • Tikslinamas ir pildomas veiklos žmonių
 │       • Suderinamas su UDTS standartu
