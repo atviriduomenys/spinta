@@ -1,4 +1,4 @@
-# Tinklo konfigūravimas ir registracija
+# Tinklo konfigūravimas (KVTC/SVDPT)
 
 ## Tinklo reikalavimai
 
@@ -13,109 +13,6 @@ Lokalus testavimas turi būti **sėkmingai užbaigtas** prieš pradedant registr
 ir diegimą į vartus. Gravitee veikia kaip proxy, todėl lokalus testavimas yra
 pakankamas funkcionalumo patikrinimui prieš jungiantis prie SVDPT.
 :::
-
-## Registracija kataloge
-
-Kai lokalus testavimas sėkmingas, agentas registruojamas duomenų kataloge.
-Registracija vykdoma organizacijos, kuriai priklauso naudotojas, puslapyje.
-
-1. Prisijunkite prie [duomenų Katalogo](https://data.gov.lt).
-2. Viršutiniame dešiniajame kampe užveskite pelę ant savo naudotojo vardo ir
-   pasirinkite **„Mano organizacijos duomenų ištekliai"**.
-3. Atverkite skirtuką **„Agentai"**.
-4. Spauskite **„Pridėti Agentą"**.
-5. Užpildykite formos laukus ir spauskite **„Sukurti"**:
-
-| Laukas | Aprašas |
-|--------|---------|
-| **Pavadinimas** | Vartotojui matomas agento pavadinimas |
-| **Rūšis** | Pasirinkite **Spinta** — bus sugeneruotos `credentials.cfg` ir `config.yml` konfigūracijos |
-| **Duomenų paslauga** | Duomenų paslauga, kuriai agentas bus priskirtas (jei nenurodyta — sukuriama automatiškai) |
-| **Aplinka** | `Testavimo` arba `Gamybinė` |
-| **Agento adresas** | Vidinis agento adresas, kurį mato API vartai; jei vartai nenurodyti — išorinis adresas |
-| **Autorizacijos serverio adresas** | AM serverio adresas metaduomenų sinchronizacijai |
-| **API vartų serverio adresas** | Gravitee vartų adresas |
-
-6. Atlikus registraciją, pateikiamos dvi konfigūracijos (Spinta rūšiai):
-   - `credentials.cfg` — prisijungimui prie Katalogo (Spinta → Katalogas)
-   - `config.yml` — agento konfigūracijos šablonas (Spinta → Duomenų šaltinis)
-
-:::{caution}
-Sukūrus agentą, pateikiamas slaptas prisijungimo raktas. **Dėl saugumo jis rodomas
-tik vieną kartą — būtinai išsaugokite.**
-:::
-
-:::{important}
-**Reikalingi du agentai — nepriklausomai nuo IS aplinkų skaičiaus.**
-
-Kiekviena institucija turi registruoti po vieną agentą kiekvienai vartų aplinkai:
-
-- **TEST agentas** (`Testavimo` aplinka) — jungiamas prie `test-apigw.gov.lt` vartų.
-  Skirtas naujų DSA versijų testavimui prieš diegiant į produkciją.
-- **PROD agentas** (`Gamybinė` aplinka) — jungiamas prie `apigw.gov.lt` vartų.
-  Teikia duomenis galutiniams vartotojams.
-
-Net jei institucija turi tik vieną (produkcinę) informacinę sistemą — abu agentai
-vis tiek reikalingi. TEST vartai skirti ne IS aplinkai testuoti, o DSA pakeitimams
-patikrinti: nauja DSA versija pirmiausia įkeliama į TEST aplinką, ten patikrinama,
-ir tik tada perkeliama į PROD. Kiekvienas agentas reikalauja atskiros VM.
-:::
-
-## OAS diegimas į vartus
-
-**OAS** (OpenAPI Specification) — tai standartinis API aprašo formatas (JSON/YAML),
-kuriame deklaruojami visi Spinta Agento teikiami duomenų endpoint'ai, jų parametrai
-ir autorizacijos reikalavimai. Gravitee vartai naudoja šį aprašą API valdymui —
-maršrutizavimui, prieigos kontrolei ir dokumentacijai.
-
-Dabartinė OAS diegimo eiga yra rankinė:
-
-1. **DSA → Katalogas** — institucija įkelia DSA į duomenų Katalogą
-2. **Katalogas → Failas** — Katalogas iš DSA sugeneruoja OAS failą
-3. **Failas → VSSA** — institucija perduoda OAS failą VSSA
-4. **VSSA → Gravitee** — VSSA sukonfigūruoja Gravitee vartus pagal OAS
-
-:::{important}
-**Planuojamas automatizavimas:** Dabartinis rankinis procesas yra laikinas.
-Planuojama, kad:
-
-- Spinta automatiškai sinchronizuos DSA su Katalogu
-- Katalogas automatiškai eksportuos OAS į GitHub repozitoriją
-- Gravitee nuskaitys OAS iš GitHub ir susikonfigūruos automatiškai
-
-<!-- TODO: pridėti nuorodas į GitHub issues kai bus sukurti -->
-:::
-
-Spinta Agento paslauga pasiekiama per Gravitee vartus. Vartų tipas priklauso nuo
-to, kur yra talpinama institucijos informacinė sistema.
-
-(vartu-tipai)=
-### Vartų tipai
-
-:::{important}
-**Vidiniai vartai** — tik institucijoms, kurios yra **KVTC klientės** ir įtrauktos į
-[SVDPT naudotojų sąrašą](https://www.e-tar.lt/portal/lt/legalAct/aea15050a53411e8acb39f2e6db7935b/asr)
-pagal LR Vyriausybės nutarimą. Buvimas valstybiniame duomenų centre (VDC)
-**negarantuoja** galimybės jungtis per SVDPT — institucija privalo būti atskira
-KVTC klientė.
-
-**Išoriniai vartai** — visos kitos institucijos: kurių IS yra komerciniame debesyje,
-išorinio teikėjo infrastruktūroje, arba valstybiniame DC, bet nesančios SVDPT
-naudotojų sąraše. Papildomos KVTC/SVDPT tinklo konfigūracijos nereikia.
-:::
-
-| Vartų tipas | Kada naudojama | Prieiga |
-|-------------|----------------|---------|
-| **Vidiniai vartai** | IS KVTC kliento aplinkoje, institucija SVDPT naudotojų sąraše | Tik SVDPT tinkle |
-| **Išoriniai vartai** | IS ne SVDPT tinkle (VDC be SVDPT, komercinis debesis, išorinis teikėjas) | Internetas |
-
-:::{note}
-Jei nesate tikri, kurie vartai taikomi jūsų institucijai, kreipkitės į VSSA.
-:::
-
-<!-- TODO: papildyti OAS diegimo į vartus instrukcijomis -->
-
-Dėl OAS diegimo į vartus instrukcijų kreipkitės į VSSA.
 
 ## Tinklo konfigūracija vidiniams vartams (KVTC/SVDPT)
 

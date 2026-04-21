@@ -18,9 +18,10 @@ nekeičiant esamų sistemų.
 metaduomenų aprašą (DSA failą), o ne užkoduotą logiką. Tai leidžia valdyti
 duomenų struktūrą, prieigos teises ir šaltinius be papildomo programavimo.
 
-- **Vystytojas:** VSSA (MIT licencija, atviras kodas)
+- **Vystytojas:** VSSA 
 - **Statusas:** Aktyvios plėtros stadija (v0.x) — veikimas tiesiogiai priklauso nuo manifesto tikslumo
 - **Projektai:** ADP (Atvirų duomenų portalas), DVMS (Duomenų valdymo modelio sistema)
+- **Licencija:** (MIT licencija, atviras kodas)
 
 ## Architektūra
 
@@ -72,6 +73,7 @@ Spinta atlieka griežtą duomenų validaciją pagal Manifestą prieš įrašydam
 :caption: SPINTA Agentas
 
 Apie SPINTA agentą <agentas/index>
+Architektūra <agentas/architektura>
 Sprendimai prieš diegimą <agentas/sprendimai>
 Aplinkos paruošimas <agentas/agento-paruošimas>
 Manifest parengimas <agentas/šaltinių-konfigūravimas>
@@ -79,6 +81,7 @@ Agento diegimas <agentas/diegimas/index>
 agentas/autentifikacija
 agentas/web-serverio-konfigūravimas
 agentas/duomenų-gavimo-testavimas
+Registracija ir diegimas į vartus <agentas/registracija>
 agentas/tinklo-konfigūravimas
 agentas/udts-suderinamumas
 agentas/papildoma-informacija

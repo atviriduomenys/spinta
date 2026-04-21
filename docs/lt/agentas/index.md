@@ -33,16 +33,27 @@ Spinta Agentas leidžia institucijai iš esamų duomenų šaltinių sukurti stan
 (kita institucija ar sistema) gauna prieigą per API vartus (Gravitee) naudodamas
 UDTS standartą.
 
-```{figure} ../static/udts-paslauga.png
-:width: 100%
-:alt: UDTS duomenų paslaugos kūrimas naudojant SPINTA agentą
-:target: ../_static/udts-paslauga.png
+```{mermaid}
+flowchart LR
+    S["Duomenų šaltinis<br/>(SQL / SOAP / XML / JSON)"]
+    A["Spinta Agentas<br/>(institucijos infrastruktūra)"]
+    G["API vartai<br/>(Gravitee)"]
+    C["Duomenų vartotojas"]
+    K["Katalogas<br/>(data.gov.lt)"]
 
-UDTS duomenų paslauga — nuo šaltinio iki duomenų vartotojo (spustelėkite norėdami padidinti)
+    S -->|DSA| A
+    A -->|UDTS/UAPI| G
+    G -->|UDTS| C
+    A -.->|"sinchronizacija<br/>(credentials.cfg)"| K
+
+    style A fill:#2d6a2d,color:#fff
+    style G fill:#1a4a7a,color:#fff
+    style K fill:#5a5a00,color:#fff
 ```
 
 Institucija valdo savo infrastruktūrą (Spinta agentus, Redis, Reverse proxy), o
-VSSA valdo Gravitee vartus ir Access Manager. Techniniai diegimo reikalavimai
+VSSA valdo Gravitee vartus ir Access Manager. Detalesnė architektūros schema —
+skyriuje [Architektūra](architektura.md). Techniniai diegimo reikalavimai
 aprašyti skyriuose [Agento paruošimas](agento-paruošimas.md) ir
 [Agento diegimas](diegimas/index.rst).
 
@@ -63,6 +74,79 @@ skaičiaus. Agentų skaičius priklauso nuo to, kokio tipo duomenys bus skelbiam
 :::{important}
 \* Vidinis Spinta AM rekomenduojamas tol, kol kataloge neužbaigtas sutarčių sudarymo ir valdymo modulis. Atsiradus galimybei sudaryti testavimo sutartį su savimi, agentus bus galima prijungti prie centralizuoto Gravitee TEST aplinkos AM.
 :::
+
+```{mermaid}
+flowchart TD
+    DSA["🔧 Nauja DSA versija"]
+
+    subgraph PROD_DATA["PROD duomenys — privaloma"]
+        direction LR
+        TA1["TEST agentas<br/>(DSA testavimas)"]
+        PA1["PROD agentas<br/>(duomenų teikimas)"]
+        TA1 -->|"✓ DSA patikrinta"| PA1
+    end
+
+    subgraph DEMO_DATA["DEMO duomenys — neprivaloma"]
+        direction LR
+        TA2["TEST agentas<br/>(DSA testavimas)"]
+        PA2["PROD agentas<br/>(duomenų teikimas)"]
+        TA2 -->|"✓ DSA patikrinta"| PA2
+    end
+
+    DSA --> TA1
+    DSA --> TA2
+
+    PA1 --> GW["PROD vartai<br/>(apigw.gov.lt)"]
+    PA2 --> GW
+    TA1 -.-> TGW["TEST vartai<br/>(test-apigw.gov.lt)"]
+    TA2 -.-> TGW
+
+    style PA1 fill:#2d6a2d,color:#fff
+    style TA1 fill:#5a5a00,color:#fff
+    style GW fill:#1a4a7a,color:#fff
+    style TGW fill:#1a4a7a,color:#fff
+    style PA2 fill:#7a9a7a,color:#fff
+    style TA2 fill:#8a8a50,color:#fff
+```
+
+### Versijų testavimo agentas
+
+Išėjus naujai Spinta versijai, rekomenduojama patikrinti suderinamumą prieš
+atnaujinant produkciją. Eiga priklauso nuo to, ar institucija turi atskirą
+versijų testavimo agentą:
+
+```{mermaid}
+flowchart TD
+    START["📦 Išėjo nauja Spinta versija"]
+    Q1{"Versijų testavimo<br/>agentas?"}
+
+    START --> Q1
+
+    Q1 -->|"Taip"| B1["Atnaujinama Spinta<br/>versijų testavimo agente"]
+    B1 --> B2["Manifest imamas iš TEST agento,<br/>atliekami duomenų kreipiniai"]
+    B2 --> B3{"Duomenys identiški<br/>su TEST agentu?"}
+    B3 -->|"Ne"| STOP1["❌ Versija netinkama"]
+    B3 -->|"Taip"| B4["Atnaujinama Spinta<br/>TEST agente"]
+    B4 --> B5["Lyginami duomenys<br/>su PROD (per vartus)"]
+    B5 --> B6{"Duomenys identiški<br/>su PROD?"}
+    B6 -->|"Ne"| STOP2["❌ Tikrinti TEST agentą"]
+    B6 -->|"Taip"| B7["✅ Atnaujinama Spinta<br/>PROD agente"]
+
+    Q1 -->|"Ne (alternatyva)"| A1["Atnaujinama Spinta<br/>TEST agente"]
+    A1 --> A2["Lyginami duomenys<br/>tarp TEST ir PROD"]
+    A2 --> A3{"Duomenys identiški?"}
+    A3 -->|"Ne"| STOP3["❌ Tikrinti TEST agentą"]
+    A3 -->|"Taip"| A4["✅ Atnaujinama Spinta<br/>PROD agente"]
+
+    style B7 fill:#2d6a2d,color:#fff
+    style A4 fill:#2d6a2d,color:#fff
+    style STOP1 fill:#8b0000,color:#fff
+    style STOP2 fill:#8b0000,color:#fff
+    style STOP3 fill:#8b0000,color:#fff
+    style START fill:#4a4a4a,color:#fff
+```
+
+
 
 :::{warning}
 **Privaloma taisyklė** (taikoma kai vienas agentas aptarnauja kelias IS): vienas agentas
