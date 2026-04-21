@@ -306,10 +306,6 @@ class NodeNotFound(UserError):
     template = "Node {name!r} of type {type!r} not found."
 
 
-class ModelReferenceNotFound(BaseError):
-    template = "Model reference {ref!r} not found."
-
-
 class ModelReferenceKeyNotFound(BaseError):
     template = "Model reference key {ref!r} not found in {model!r}."
 

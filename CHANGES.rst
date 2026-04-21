@@ -4,6 +4,12 @@ Changes
 0.2dev24 (unreleased)
 =====================
 
+New Features:
+
+- Adding implicit `link` changes; Implicitly change the `property` of type `ref` that refers a model, that does not exist in the file (`#1872`_).
+
+.. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
+
 
 0.2dev22 (2026-04-23)
 =====================
