@@ -22,7 +22,7 @@ from spinta.ufuncs.querybuilder.components import QueryParams
 
 
 def _get_data_soap(
-    url: str, backend: Soap, soap_request_body: dict, extra_headers: dict, source: str = None
+    url: str, backend: Soap, soap_request_body: dict, extra_headers: dict, source: str | None = None
 ) -> list[dict]:
     for key, value in soap_request_body.items():
         if isinstance(value, MakeCDATA):
