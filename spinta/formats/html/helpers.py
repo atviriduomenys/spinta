@@ -83,8 +83,9 @@ def get_current_location(
 
 
 def short_id(value: Optional[str]) -> Optional[str]:
-    if value is not None:
+    if value is not None and isinstance(value, str):
         return value[:8]
+    return value
 
 
 def get_cell(

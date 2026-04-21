@@ -2023,7 +2023,7 @@ def test_for_id_integer(rc: RawConfig, tmp_path: Path):
       | data                                      | dask/xml   |          | {path}        |            |
       |   |   | Region                            |            | _id      | /root/order   |            |
       |   |   |   | code                          | string     |          | code          |            | open
-      |   |   |   | _id                           | integer       |          | id            |            | open
+      |   |   |   | _id                           | integer    |          | id            |            | open
     """,
         mode=Mode.external,
     )
@@ -2040,4 +2040,138 @@ def test_for_id_integer(rc: RawConfig, tmp_path: Path):
     ]
     with pytest.raises(NotImplementedError):
         app.get("/example/Region/123")
+        # Expected, XML does not support getone operations
+
+
+def test_for_id_string(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>123</id>
+            <code>ORD001</code>
+        </order>
+        <order>
+            <id>1234</id>
+            <code>ORD002</code>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type       | ref      | source        | level      | access
+    example                                       |            |          |               |            |
+      | data                                      | dask/xml   |          | {path}        |            |
+      |   |   | Region                            |            | _id      | /root/order   |            |
+      |   |   |   | code                          | string     |          | code          |            | open
+      |   |   |   | _id                           | string     |          | id            |            | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Region", ["getall", "getone"])
+
+    resp = app.get("/example/Region")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {"_type": "example/Region", "_id": "123", "_revision": None, "code": "ORD001"},
+        {"_type": "example/Region", "_id": "1234", "_revision": None, "code": "ORD002"},
+    ]
+    with pytest.raises(NotImplementedError):
+        app.get("/example/Region/=123")
+        # Expected, XML does not support getone operations
+
+
+def test_for_id_comp(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>123</id>
+            <code>ORD001</code>
+        </order>
+        <order>
+            <id>1234</id>
+            <code>ORD002</code>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type       | ref       | source        | level      | access | prepare
+    example                                       |            |           |               |            |        |
+      | data                                      | dask/xml   |           | {path}        |            |        |
+      |   |   | Region                            |            | id, code  | /root/order   |            |        |
+      |   |   |   | code                          | string     |           | code          |            | open   |
+      |   |   |   | _id                           | string     |           |               |            | open   | id, code
+      |   |   |   | id                            | integer    |           | id            |            | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Region", ["getall", "getone"])
+
+    resp = app.get("/example/Region")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {"_type": "example/Region", "_id": "123,ORD001", "_revision": None, "code": "ORD001"},
+        {"_type": "example/Region", "_id": "1234,ORD002", "_revision": None, "code": "ORD002"},
+    ]
+    with pytest.raises(NotImplementedError):
+        app.get("/example/Region/123,ORD001")
+        # Expected, XML does not support getone operations
+
+
+def test_for_id_base32(rc: RawConfig, tmp_path: Path):
+    xml = """
+    <root>
+        <order>
+            <id>123</id>
+            <code>ORD001</code>
+        </order>
+        <order>
+            <id>1234</id>
+            <code>ORD002</code>
+        </order>
+    </root>
+    """
+    path = tmp_path / "test.xml"
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type       | ref       | source        | level      | access | prepare
+    example                                       |            |           |               |            |        |
+      | data                                      | dask/xml   |           | {path}        |            |        |
+      |   |   | Region                            |            | id, code  | /root/order   |            |        |
+      |   |   |   | code                          | string     |           | code          |            | open   |
+      |   |   |   | _id                           | base32     |           |               |            | open   | base32(id)
+      |   |   |   | id                            | integer    |           | id            |            | open   |
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Region", ["getall", "getone"])
+
+    resp = app.get("/example/Region")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {"_type": "example/Region", "_id": "3R", "_revision": None, "code": "ORD001"},
+        {"_type": "example/Region", "_id": "16I", "_revision": None, "code": "ORD002"},
+    ]
+    with pytest.raises(NotImplementedError):
+        app.get("/example/Region/=3R")
         # Expected, XML does not support getone operations
