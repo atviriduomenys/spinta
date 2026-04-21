@@ -89,6 +89,7 @@ Planuojama, kad:
 Spinta Agento paslauga pasiekiama per Gravitee vartus. Vartų tipas priklauso nuo
 to, kur yra talpinama institucijos informacinė sistema.
 
+(vartu-tipai)=
 ### Vartų tipai
 
 :::{important}

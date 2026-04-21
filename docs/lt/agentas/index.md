@@ -44,20 +44,36 @@ UDTS duomenų paslauga — nuo šaltinio iki duomenų vartotojo (spustelėkite n
 Institucija valdo savo infrastruktūrą (Spinta agentus, Redis, Reverse proxy), o
 VSSA valdo Gravitee vartus ir Access Manager. Techniniai diegimo reikalavimai
 aprašyti skyriuose [Agento paruošimas](agento-paruošimas.md) ir
-[Agento diegimas](diegimas/index.md).
+[Agento diegimas](diegimas/index.rst).
 
+(kiek-agentu-reikia)=
 ## Kiek agentų reikia?
 
-Vienas Spinta Agentas gali aptarnauti **vieną arba kelis duomenų šaltinius** — tai
-nustatoma manifesto faile (DSA). Agentų skaičius priklauso nuo:
+Kiekviena institucija turi turėti bent **du agentus** — nepriklausomai nuo IS aplinkų
+skaičiaus. Agentų skaičius priklauso nuo to, kokio tipo duomenys bus skelbiami kataloge:
 
-- Šaltinių skaičiaus ir tipo
-- Apkrovos ir našumo reikalavimų
-- Administravimo sudėtingumo
+| Agento paskirtis | Duomenų tipas | Paskirtis / panaudos atvejis | Autorizacijos serveris | Privalomas DVMS projekto apimtyje |
+|---|---|---|---|---|
+| PROD agentas (duomenų teikimui) | PROD | Jungiamas su produkcine vartų aplinka<br/>ir teikia PRODUKCINIUS IS duomenis<br/>galutiniams vartotojams | Vartų PROD AM | Taip |
+| TEST agentas (DSA testavimo agentas) | PROD | Institucija tikrina PRODUKCINIŲ<br/> duomenų DSA pakeitimus<br/>prieš keliant DSA pakeitimus<br/> į PRODUKCINIŲ duomenų  PROD agentą | Spinta AM \* | Taip |
+| PROD agentas (duomenų teikimui) | DEMO | Jungiamas su produkcine vartų aplinka<br/>ir teikia DEMO IS duomenis<br/>galutiniams vartotojams | Vartų PROD AM | Tik jei kataloge<br/>skelbiami DEMO duomenys |
+| TEST agentas (DSA testavimo agentas) | DEMO | Institucija tikrina DEMO<br/> duomenų DSA pakeitimus<br/>prieš keliant DSA pakeitimus<br/> į DEMO duomenų  PROD agentą | Spinta AM \* | Tik jei kataloge<br/>skelbiami DEMO duomenys |
+| Agentas SPINTA versijos testavimui | PROD arba DEMO | Lokalus — skirtas patikrinti<br/>Spinta versijų suderinamumą<br/>prieš atnaujinant | Vidinis Spinta AM \* | Ne (rekomenduojamas) |
 
-Dažniausiai rekomenduojama: **vienas agentas vienam šaltiniui** (šaltinis — tai
-informacinė sistema arba duomenų bazė), tačiau galimas ir kelių šaltinių grupavimas
-viename agente.
+:::{important}
+\* Vidinis Spinta AM rekomenduojamas tol, kol kataloge neužbaigtas sutarčių sudarymo ir valdymo modulis. Atsiradus galimybei sudaryti testavimo sutartį su savimi, agentus bus galima prijungti prie centralizuoto Gravitee TEST aplinkos AM.
+:::
+
+:::{warning}
+**Privaloma taisyklė** (taikoma kai vienas agentas aptarnauja kelias IS): vienas agentas
+negali teikti skirtingo tipo duomenų. Jei kelios IS jungiamos per vieną agentą, visos
+privalo naudoti to paties tipo duomenis — PROD ir DEMO duomenys privalo būti atskirti
+skirtinguose agentuose.
+:::
+
+Vienas agentas gali aptarnauti **vieną arba kelis duomenų šaltinius** — tai nustatoma
+manifesto faile (DSA). Rekomenduojama: **vienas agentas vienai IS**, tačiau techniškai galimas ir
+kelių šaltinių grupavimas viename agente.
 
 ## Diegimo eiga
 

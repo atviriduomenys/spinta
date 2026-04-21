@@ -11,15 +11,15 @@ flowchart TD
 
     A1 & A2 & A3 --> Q2
 
-    Q2["2️⃣ Kaip diegti aplinkas?"]
-    Q2 -->|"Rekomenduojama"| B1["Atskira VM<br/>kiekvienai aplinkai<br/>(TEST + PROD)"]
-    Q2 -->|"Greitesnis būdas"| B2["Viena VM<br/>PROD + TEST per Docker"]
+    Q2["2️⃣ Kaip diegti DSA testavimo agentą?"]
+    Q2 -->|"Rekomenduojama"| B1["Atskira VM<br/>kiekvienam agentui"]
+    Q2 -->|"Greitesnis būdas"| B2["Viena VM<br/>PROD + DSA testavimo<br/>per Docker"]
 
     B1 --> Q3A["3️⃣ Diegimo būdas?"]
     Q3A -->|"Rekomenduojama"| C1["OS diegimas<br/>(systemd servisas)"]
     Q3A -->|"Galima"| C2["Docker"]
 
-    B2 --> C3["OS + Docker<br/>(PROD — OS,<br/>TEST — Docker)"]
+    B2 --> C3["OS + Docker<br/>(PROD — OS,<br/>DSA testavimo — Docker)"]
 
     C1 & C2 & C3 --> Q4
 
@@ -51,7 +51,10 @@ Plačiau apie kiekvieną sprendimą — žemiau.
 
 ## 1. Kiek agentų vienai IS?
 
-Vienas Spinta agentas gali aptarnauti vieną arba kelias informacines sistemas:
+Kiekviena institucija turi bent **du agentus** (PROD agentas ir DSA testavimo agentas).
+Jei kataloge skelbiami ir DEMO duomenys — atitinkamai daugiau. Žr. {ref}`agentų tipų lentelę <kiek-agentu-reikia>`.
+
+Vienas agentas gali aptarnauti vieną arba kelias informacines sistemas:
 
 | Variantas | Aprašas | Tinka kai |
 |-----------|---------|-----------|
@@ -59,27 +62,40 @@ Vienas Spinta agentas gali aptarnauti vieną arba kelias informacines sistemas:
 | **Apjungtas** | Kelios IS — vienas agentas | IS paprastos, mažos apkrovos, administruoja ta pati komanda |
 | **Mišrus** | Dalis dedikuota, dalis apjungta | Didelės IS — atskirai, mažos — grupuojamos |
 
-## 2. Kiek aplinkų reikia?
+:::{warning}
+**Privaloma taisyklė** (taikoma kai vienas agentas aptarnauja kelias IS): vienas agentas
+negali teikti skirtingo tipo duomenų. Jei kelios IS jungiamos per vieną agentą, visos
+privalo naudoti to paties tipo duomenis — PROD ir DEMO duomenys privalo būti atskirti
+skirtinguose agentuose.
+:::
 
-Visoms institucijoms reikalingos **dvi aplinkos** — TEST ir PROD — nepriklausomai nuo to, kiek IS aplinkų turi institucija:
+## 2. Kiek agentų reikia pagal tipą?
 
-| Aplinka | Vartai | Paskirtis |
-|---------|--------|-----------|
-| **TEST** | `test-apigw.gov.lt` | DSA pakeitimų tikrinimas prieš perkeliant į PROD |
-| **PROD** | `apigw.gov.lt` | Duomenų teikimas galutiniams vartotojams |
+Minimalus agentų skaičius priklauso nuo to, kokie duomenys bus skelbiami kataloge.
+Kiekviena institucija privalo turėti bent:
 
-**Kodėl TEST reikia net be TEST IS aplinkos?** TEST vartai skirti ne IS aplinkai testuoti, o DSA pakeitimams patikrinti: nauja DSA aprašo versija pirmiausia įkeliama į TEST, ten patikrinama, ar duomenys grąžinami teisingai, ir tik tada perkeliama į PROD.
+- **PROD agentą (duomenų teikimui)** — jungiamas prie `apigw.gov.lt`
+- **DSA testavimo agentą** — jungiamas prie `test-apigw.gov.lt`, skirtas DSA
+  pakeitimams tikrinti prieš perkeliant į PROD. Rekomenduojama naudoti tik vidinį
+  Spinta AM — kitos institucijos neturi turėti prieigos.
 
-## 2. Kaip diegti TEST agentą?
+Jei kataloge skelbiami ir DEMO duomenys — kiekvienam duomenų tipui reikia atskiro
+PROD agento ir DSA testavimo agento.
 
-TEST agentą galima įdiegti dviem būdais:
+**Kodėl DSA testavimo agentas reikalingas net be TEST IS aplinkos?** Jis skirtas ne
+IS aplinkai testuoti, o DSA pakeitimams patikrinti: nauja DSA versija pirmiausia
+įkeliama į DSA testavimo agentą, ten patikrinama, ir tik tada perkeliama į PROD agentą.
+
+## 3. Kaip diegti DSA testavimo agentą?
+
+DSA testavimo agentą galima įdiegti dviem būdais:
 
 **Atskira VM (rekomenduojama)**
 
 | Privalumai | Trūkumai |
 |------------|----------|
-| Pilna izoliacija — TEST ir PROD nesusiję | Reikia papildomos VM |
-| PROD stabilumas neveikiamas TEST problemų | Papildomi tinklo derinimo darbai |
+| Pilna izoliacija — PROD ir DSA testavimo agentai nesusiję | Reikia papildomos VM |
+| PROD stabilumas neveikiamas DSA testavimo problemų | Papildomi tinklo derinimo darbai |
 | Aiški resursų atskirtis | Daugiau laiko diegimui |
 
 **Docker konteineris PROD VM**
@@ -87,10 +103,10 @@ TEST agentą galima įdiegti dviem būdais:
 | Privalumai | Trūkumai |
 |------------|----------|
 | Nereikia naujos VM | PROD VM — vienas gedimo taškas abiem agentams |
-| Greičiau įdiegiama | TEST ir PROD dalinasi resursais (RAM, CPU) |
+| Greičiau įdiegiama | PROD ir DSA testavimo agentai dalinasi resursais (RAM, CPU) |
 | Mažiau tinklo derinimo | Sudėtingesnė priežiūra |
 
-## 3. Kokie vartai bus naudojami?
+## 4. Kokie vartai bus naudojami?
 
 :::{important}
 Tinklo konfigūravimas trunka ilgiausiai — **užsisakykite kuo anksčiau**, nelaukdami kol bus baigtas techninis diegimas.
@@ -101,7 +117,7 @@ Tinklo konfigūravimas trunka ilgiausiai — **užsisakykite kuo anksčiau**, ne
 | **Vidiniai vartai** | Institucija yra KVTC klientė ir įtraukta į [SVDPT naudotojų sąrašą](https://www.e-tar.lt/portal/lt/legalAct/aea15050a53411e8acb39f2e6db7935b/asr) | Reikalingas papildomas tinklo sujungimas per SVDPT (KVTC forma → VSSA) |
 | **Išoriniai vartai** | IS nėra SVDPT tinkle | Papildomos tinklo konfigūracijos nereikia |
 
-Plačiau: [Tinklo konfigūravimas → Vartų parinkimas](tinklo-konfigūravimas.md#vartu-parinkimas)
+Plačiau: {ref}`Tinklo konfigūravimas → Vartų tipai <vartu-tipai>`
 
 ## 5. Kas diegia?
 
