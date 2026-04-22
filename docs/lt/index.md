@@ -21,7 +21,7 @@ duomenų struktūrą, prieigos teises ir šaltinius be papildomo programavimo.
 - **Vystytojas:** VSSA 
 - **Statusas:** Aktyvios plėtros stadija (v0.x) — veikimas tiesiogiai priklauso nuo manifesto tikslumo
 - **Projektai:** ADP (Atvirų duomenų portalas), DVMS (Duomenų valdymo modelio sistema)
-- **Licencija:** (MIT licencija, atviras kodas)
+- **Licencija:** (MIT licencija)
 
 ## Architektūra
 
