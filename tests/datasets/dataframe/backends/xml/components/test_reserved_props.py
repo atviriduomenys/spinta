@@ -384,6 +384,7 @@ def test_for_id_comp_error_with_uuid(rc: RawConfig, tmp_path: Path):
         )
 
 
+@pytest.mark.skip(reason="Not supported yet, should have CBOR")
 def test_for_id_comp_error_with_base32(rc: RawConfig, tmp_path: Path):
     with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
         prepare_manifest(

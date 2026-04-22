@@ -485,7 +485,8 @@ def _detect_cooperating_reserved_properties(model: Model) -> None:
 
             if model_ref_set:
                 if len(model_ref_set[0]) > 1:
-                    model_primary_key_dtype = String
+                    model_primary_key_dtype = String()
+                    model_primary_key_dtype.name = "string"
                 else:
                     model_primary_key_dtype = model_ref_set[0][0].dtype
                 if model_ref_set and (type(prop.dtype), type(model_primary_key_dtype)) in INCORRECT_DTYPES:
