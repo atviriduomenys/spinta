@@ -487,7 +487,10 @@ def _detect_cooperating_reserved_properties(model: Model) -> None:
                         model_primary_key_dtype = prop.model.unique[0][0].dtype
                     if {type(prop.dtype), type(model_primary_key_dtype)} in INCORRECT_DTYPES:
                         raise ReservedPropertyTypeShouldMatchPrimaryKey(
-                            property=prop, model=model.name, reserved_type=prop.dtype.name, primary_type=model_primary_key_dtype.name
+                            property=prop,
+                            model=model.name,
+                            reserved_type=prop.dtype.name,
+                            primary_type=model_primary_key_dtype.name,
                         )
 
             setattr(model.external, attr, prop)
