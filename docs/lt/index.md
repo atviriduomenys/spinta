@@ -5,6 +5,17 @@
 diegimo instrukcijos, skirtos institucijoms, pradedančioms diegiančioms SPINTA agentą UDTS duomenų paslaugų publikavimui vartuose. Kitos dalys bus papildomos vėliau.
 :::
 
+:::{warning}
+Nuo Spinta versijos **0.2dev22** `config.access` numatytoji reikšmė pasikeitė: `protected` → `open`. Jei `config.yml` nėra išskirtinai nurodytas `access` laukas, ir
+DSA modeliai naudoja `access=protected` arba `access=public` — po atnaujinimo
+tokie modeliai grąžins `ModelNotFound` klaidą.
+**Sprendimas:** į `config.yml` pridėti:
+```yaml
+access: protected
+```
+Patikrinkite savo konfigūraciją **prieš** atnaujinant Spintą.
+:::
+
 ## Kas yra Spinta?
 
 **Spinta** — metaduomenimis valdomas (*metadata-driven*) duomenų logistikos variklis,

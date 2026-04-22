@@ -27,9 +27,22 @@ kurioms galioja tos pačios palaikymo reikšmės.
 
 | UDTS reikalavimas | 0.1.x | 0.2dev1–dev17 |
 |-------------------|-------|---------------|
-| UDTS URI schema (`/datasets/{form}/{org}/{catalog}/{dataset}/{version}/{model}`) | ✅ | ✅ |
+| UDTS URI schema (`{domain}/{datasets}/{form}/{org}/{catalog}/{service}/{version}/{dataset}/{model}/{id}`) | ✅ | ✅ |
 | `GET /version` — versijos tikrinimas | ✅ | ✅ |
 | `GET /health` — sveikatos patikra | ? | ? |
+
+:::{note}
+
+Spinta agentas turi `domain/version` (be dvitaškio prefikso). Kas tiesiogiai nesuderinama su UDTS.
+UDTS specifikacija numato, kad versijos endpoint turi būti pasiekiamas `{domain}/{datasets}/{form}/{org}/{catalog}/{service}/:version`. 
+Publikuojant paslaugą iš Katalogo į vartus, sukuriamos taisyklės kurios realizuoja šį reikalavimą ir nukreipia į SPINTA agento endpoint.
+
+
+Kai paslauga publikuojama per **Gravitee vartus**, vartai per dinaminį maršrutizavimą
+atlieka atitikties užtikrinimą — `/:version` užklausa per vartus sėkmingai nukreipiama
+į Spinta agento `/version`. Taigi UDTS atitiktis egzistuoja **publikuotai paslaugai per vartus**,
+tačiau tiesioginis Spinta agento endpoint `/:version` (su dvitaškiu) nepalaikomas.
+:::
 
 ---
 
@@ -81,18 +94,25 @@ kurioms galioja tos pačios palaikymo reikšmės.
 |-------------------|-------|---------------|
 | OAuth2 Client Credentials srautas | ✅ | ✅ |
 | OAuth2 Authorization Code srautas | ? | ? |
-| Scope valdymas — modelio lygis (`uapi:/datasets/.../Model/:action`) | ✅ | ✅ |
+| Scope valdymas — dataset lygis (`uapi:/datasets/.../:action`) | ✅ | ✅ |
+| Scope valdymas — modelio lygis (`uapi:/datasets/.../Model/:action`) | ❌ | ❌ |
 | Scope valdymas — eilučių lygis (`uapi:/datasets/.../Model/@filtras/:action`) | ❌ | ❌ |
 
 :::{note}
-**Eilučių lygio scope** (row-level security) — tai UDTS mechanizmas, leidžiantis
-apriboti prieigą ne tik prie modelio, bet ir prie konkrečių duomenų eilučių pagal
-filtro sąlygą. Pavyzdžiui, `uapi:/datasets/gov/rc/ar/ws/Gyventojas/@registruotas/:getall`
-leistų klientui matyti tik eilutes, kur `registruotas=true`.
+**Scope valdymas**
 
-Šiuo metu Spinta Agentas **nepalaiko** šio funkcionalumo — scope tikrinamas tik
-modelio lygiu. Jei jūsų integracijos scenarijus reikalauja eilučių lygio prieigos
-kontrolės, kreipkitės į VSSA.
+Spinta Agentas palaiko scope tikrinimą tik **dataset lygiu**
+(`uapi:/datasets/{form}/{org}/{catalog}/{service}/:action`).
+Modelio lygio scopų (`uapi:/datasets/.../Model/:action`) Spinta Agentas
+**neatpažįsta ir nepalaiko** — tokie scopai bus ignoruojami arba sukels klaidą.
+Eilučių lygio scopai taip pat nepalaikomi.
+:::
+
+:::{note}
+**Eilučių lygio scope** (row-level security) — tai UDTS mechanizmas, leidžiantis
+apriboti prieigą prie konkrečių duomenų eilučių pagal filtro sąlygą. Šiuo metu
+Spinta Agentas **nepalaiko** šio funkcionalumo. Jei jūsų integracijos scenarijus
+reikalauja eilučių lygio prieigos kontrolės, kreipkitės į VSSA.
 :::
 
 ---

@@ -132,6 +132,7 @@ Kadangi Spintos konfigūracijos failas neegzistuoja, reikia jį sukurti:
 cat > config.yml <<'EOF'
 config_path: /opt/spinta/config
 env: production
+access: protected
 
 keymaps:
   default:
@@ -150,6 +151,7 @@ EOF
 | ----------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | config_path | Privalomas                 | Nurodo kelią į direktoriją, kurioje yra įvairūs konfigūracijos duomenys                                                                            |
 | env         |                            | Nurodo, ar aplinka testinė, ar vystymo, ar produkcinė. Rekomenduojama diegti su `production`, nes `dev` arba `test` įrašo papildomų konfigūracijų. |
+| access      | **Privalomas nuo 0.2dev22** | Nurodo numatytąjį prieigos lygį. Rekomenduojama nurodyti `protected`. Nuo versijos 0.2dev22 numatytoji reikšmė pasikeitė iš `protected` į `open` — neaprašius šio lauko, modeliai su `access=protected` grąžins `ModelNotFound` klaidą. |
 | keymaps     | Privalomas                 | Aprašyta žemiau                                                                                                                                    |
 | .default    |                            | Nurodo numatytąjį                                                                                                                                  |
 | ..type      |                            | Tipas - `redis`                                                                                                                                    |
