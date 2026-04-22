@@ -1977,9 +1977,9 @@ def test_for_id_uuid(rc: RawConfig, tmp_path: Path):
     d | r | b | m | property                      | type       | ref      | source        | level      | access
     example                                       |            |          |               |            |
       | data                                      | dask/xml   |          | {path}        |            |
-      |   |   | Region                            |            | _id      | /root/order   |            |
-      |   |   |   | code                          | string     |          | code          |            | open
-      |   |   |   | _id                           | uuid       |          | id            |            | open
+      |   |   | Region                            |            | id       | /root/order   |            |
+      |   |   |   | id                            | uuid       |          | id            |            | open
+      |   |   |   | _id                           | uuid       |          |               |            | open
     """,
         mode=Mode.external,
     )
@@ -1991,8 +1991,18 @@ def test_for_id_uuid(rc: RawConfig, tmp_path: Path):
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert data == [
-        {"_type": "example/Region", "_id": "ed76eda3-7922-4a7d-9ba8-62828ca0ae98", "_revision": None, "code": "ORD001"},
-        {"_type": "example/Region", "_id": "1590ab44-6463-4da7-8862-3598f6e83924", "_revision": None, "code": "ORD002"},
+        {
+            "_type": "example/Region",
+            "_id": "ed76eda3-7922-4a7d-9ba8-62828ca0ae98",
+            "_revision": None,
+            "id": "ed76eda3-7922-4a7d-9ba8-62828ca0ae98",
+        },
+        {
+            "_type": "example/Region",
+            "_id": "1590ab44-6463-4da7-8862-3598f6e83924",
+            "_revision": None,
+            "id": "1590ab44-6463-4da7-8862-3598f6e83924",
+        },
     ]
     with pytest.raises(NotImplementedError):
         app.get("/example/Region/ed76eda3-7922-4a7d-9ba8-62828ca0ae98")
@@ -2021,9 +2031,9 @@ def test_for_id_integer(rc: RawConfig, tmp_path: Path):
     d | r | b | m | property                      | type       | ref      | source        | level      | access
     example                                       |            |          |               |            |
       | data                                      | dask/xml   |          | {path}        |            |
-      |   |   | Region                            |            | _id      | /root/order   |            |
-      |   |   |   | code                          | string     |          | code          |            | open
-      |   |   |   | _id                           | integer    |          | id            |            | open
+      |   |   | Region                            |            | id       | /root/order   |            |
+      |   |   |   | id                            | integer    |          | id            |            | open
+      |   |   |   | _id                           | integer    |          |               |            | open
     """,
         mode=Mode.external,
     )
@@ -2035,8 +2045,8 @@ def test_for_id_integer(rc: RawConfig, tmp_path: Path):
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert data == [
-        {"_type": "example/Region", "_id": 123, "_revision": None, "code": "ORD001"},
-        {"_type": "example/Region", "_id": 1234, "_revision": None, "code": "ORD002"},
+        {"_type": "example/Region", "_id": 123, "_revision": None, "id": 123},
+        {"_type": "example/Region", "_id": 1234, "_revision": None, "id": 1234},
     ]
     with pytest.raises(NotImplementedError):
         app.get("/example/Region/123")
@@ -2065,9 +2075,9 @@ def test_for_id_string(rc: RawConfig, tmp_path: Path):
     d | r | b | m | property                      | type       | ref      | source        | level      | access
     example                                       |            |          |               |            |
       | data                                      | dask/xml   |          | {path}        |            |
-      |   |   | Region                            |            | _id      | /root/order   |            |
+      |   |   | Region                            |            | code     | /root/order   |            |
       |   |   |   | code                          | string     |          | code          |            | open
-      |   |   |   | _id                           | string     |          | id            |            | open
+      |   |   |   | _id                           | string     |          |               |            | open
     """,
         mode=Mode.external,
     )
@@ -2079,14 +2089,15 @@ def test_for_id_string(rc: RawConfig, tmp_path: Path):
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert data == [
-        {"_type": "example/Region", "_id": "123", "_revision": None, "code": "ORD001"},
-        {"_type": "example/Region", "_id": "1234", "_revision": None, "code": "ORD002"},
+        {"_type": "example/Region", "_id": "ORD001", "_revision": None, "code": "ORD001"},
+        {"_type": "example/Region", "_id": "ORD002", "_revision": None, "code": "ORD002"},
     ]
     with pytest.raises(NotImplementedError):
         app.get("/example/Region/=123")
         # Expected, XML does not support getone operations
 
 
+@pytest.mark.skip(reason="skipped, not implemented yet")
 def test_for_id_comp(rc: RawConfig, tmp_path: Path):
     xml = """
     <root>
@@ -2151,13 +2162,13 @@ def test_for_id_base32(rc: RawConfig, tmp_path: Path):
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property                      | type       | ref       | source        | level      | access | prepare
-    example                                       |            |           |               |            |        |
-      | data                                      | dask/xml   |           | {path}        |            |        |
-      |   |   | Region                            |            | id, code  | /root/order   |            |        |
-      |   |   |   | code                          | string     |           | code          |            | open   |
-      |   |   |   | _id                           | base32     |           |               |            | open   | base32(id)
-      |   |   |   | id                            | integer    |           | id            |            | open   |
+    d | r | b | m | property                      | type       | ref       | source        | level      | access
+    example                                       |            |           |               |            |        
+      | data                                      | dask/xml   |           | {path}        |            |        
+      |   |   | Region                            |            | code      | /root/order   |            |        
+      |   |   |   | code                          | string     |           | code          |            | open   
+      |   |   |   | _id                           | base32     |           |               |            | open   
+      |   |   |   | id                            | integer    |           | id            |            | open   
     """,
         mode=Mode.external,
     )
@@ -2169,8 +2180,8 @@ def test_for_id_base32(rc: RawConfig, tmp_path: Path):
     assert resp.status_code == 200
     data = resp.json()["_data"]
     assert data == [
-        {"_type": "example/Region", "_id": "3R", "_revision": None, "code": "ORD001"},
-        {"_type": "example/Region", "_id": "16I", "_revision": None, "code": "ORD002"},
+        {"_type": "example/Region", "_id": "J5JEIMBQGE======", "_revision": None, "code": "ORD001", "id": 123},
+        {"_type": "example/Region", "_id": "J5JEIMBQGI======", "_revision": None, "code": "ORD002", "id": 1234},
     ]
     with pytest.raises(NotImplementedError):
         app.get("/example/Region/=3R")

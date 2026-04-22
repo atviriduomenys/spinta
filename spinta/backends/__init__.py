@@ -58,7 +58,18 @@ from spinta.exceptions import (
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
+from spinta.types.datatype import (
+    Array,
+    ExternalRef,
+    Inherit,
+    PageType,
+    BackRef,
+    ArrayBackRef,
+    Integer,
+    Boolean,
+    Denorm,
+    Base32,
+)
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -1951,6 +1962,16 @@ def cast_backend_to_python(context: Context, dtype: Array, backend: Backend, dat
 @commands.cast_backend_to_python.register(Context, Denorm, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, data: Any, **kwargs) -> Any:
     return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
+
+
+@commands.cast_backend_to_python.register(Context, Base32, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
+    if is_nan(data):
+        return None
+
+    data = str(data).encode("utf-8")
+    encoded = base64.b32encode(data)
+    return encoded.decode("utf-8")
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)

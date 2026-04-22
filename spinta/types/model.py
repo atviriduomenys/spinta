@@ -30,6 +30,7 @@ from spinta.exceptions import (
     UnknownPropertyType,
     ReservedPropertySourceShouldBeRemoved,
     ReservedPropertyTypeShouldMatchPrimaryKey,
+    ReservedPropertyModelShouldHaveRef,
 )
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
 
 INCORRECT_DTYPES = [{String, UUID}, {Integer, UUID}, {String, Integer}]
+
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
     ns = load_namespace_from_name(context, manifest, model.name)
@@ -468,23 +470,13 @@ def link(context: Context, prop: Property):
     prop.enum = _link_prop_enum(prop)
 
 
-def _find_properties_by_source(model: Model, source_name: str, exclude: Property):
-    for other_prop in model.properties.values():
-        if other_prop is exclude:
-            continue
-        external = other_prop.external
-        if not external or external is NA:
-            continue
-        externals = external if isinstance(external, list) else [external]
-        if any(ext.name == source_name for ext in externals):
-            yield other_prop
-
-
 def _detect_cooperating_reserved_properties(model: Model) -> None:
     for name, attr in (("_id", "id_prop"), ("_revision", "revision_prop")):
         prop = model.properties.get(name)
         if prop is not None and prop.explicitly_given:
             if name == "_id":
+                if not prop.model.unique:
+                    raise ReservedPropertyModelShouldHaveRef(property=prop)
                 if prop.external.name and prop.model.unique:
                     raise ReservedPropertySourceShouldBeRemoved(property=prop)
 
@@ -494,11 +486,9 @@ def _detect_cooperating_reserved_properties(model: Model) -> None:
                     else:
                         model_primary_key_dtype = prop.model.unique[0][0].dtype
                     if {type(prop.dtype), type(model_primary_key_dtype)} in INCORRECT_DTYPES:
-                        raise ReservedPropertyTypeShouldMatchPrimaryKey(property=prop, reserved_type=prop.dtype.name, primary_type=model_primary_key_dtype.name)
-                elif prop.external.name:
-                    for matched in _find_properties_by_source(model, prop.external.name, exclude=prop):
-                        if {type(prop.dtype), type(matched.dtype)} in INCORRECT_DTYPES:
-                            raise ReservedPropertyTypeShouldMatchPrimaryKey(property=prop, reserved_type=prop.dtype.name, primary_type=matched.dtype.name)
+                        raise ReservedPropertyTypeShouldMatchPrimaryKey(
+                            property=prop, model=model.name, reserved_type=prop.dtype.name, primary_type=model_primary_key_dtype.name
+                        )
 
             setattr(model.external, attr, prop)
 

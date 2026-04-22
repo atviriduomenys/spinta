@@ -1232,13 +1232,19 @@ class PartialIncorrectProperty(BaseError):
 
 
 class ReservedPropertySourceShouldBeRemoved(BaseError):
-    template = (
-        "The property {property} should not have a source value, if its model has a ref value."
-    )
+    template = "The property {property} should not have a source value, if its model has a ref value."
 
 
 class ReservedPropertyTypeShouldMatchPrimaryKey(BaseError):
     template = (
-        "The property {property} should have the same type as the primary key of the model {model}."
+        "The property {property} should have the same type as the primary key of the model {model}. "
         "Reserved property type: {reserved_type}. Model primary key type: {primary_type}."
     )
+
+
+class ReservedPropertyModelShouldHaveRef(BaseError):
+    template = "The reserved property {property} should be in a model which has a ref value."
+
+
+class Base32TypeOnlyAllowedOnId(BaseError):
+    template = "The 'base32' type is only allowed on the '_id' reserved property, got {property}."
