@@ -1242,8 +1242,8 @@ class ReservedPropertyTypeShouldMatchPrimaryKey(BaseError):
     )
 
 
-class ReservedPropertyModelShouldHaveRef(BaseError):
-    template = "The reserved property {property} should be in a model which has a ref value."
+class ReservedPropertySourceOrModelRefShouldBeSet(BaseError):
+    template = "The reserved property {property} should be in a model which has a ref value or it itself should have a source value."
 
 
 class Base32TypeOnlyAllowedOnId(BaseError):

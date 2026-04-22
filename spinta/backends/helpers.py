@@ -26,7 +26,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
 from spinta.exceptions import BackendUnavailable
-from spinta.types.datatype import DataType, Denorm
+from spinta.types.datatype import DataType, Denorm, String, Base32
 from spinta.utils.data import take
 from spinta.backends.constants import TableType, BackendOrigin
 
@@ -596,3 +596,13 @@ def extract_table_data_from_logical_name(table_name: str) -> tuple[str | None, T
             return data[0], table_type, None
 
     return None, None, None
+
+
+def is_accessible_by_equals_sign(id_prop: Property, value: str | int) -> bool:
+    if "," in str(value):
+        return False
+
+    if isinstance(id_prop.dtype, String) or isinstance(id_prop.dtype, Base32):
+        return True
+
+    return False

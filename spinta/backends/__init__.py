@@ -23,7 +23,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response
+from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response, is_accessible_by_equals_sign
 from spinta.backends.helpers import flat_select_to_nested
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import get_select_prop_names
@@ -69,6 +69,7 @@ from spinta.types.datatype import (
     Boolean,
     Denorm,
     Base32,
+    String,
 )
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
@@ -603,10 +604,8 @@ def is_object_id(context: Context, value: str):
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
     id_prop = getattr(model.external, "id_prop", None) if model.external else None
     if id_prop is not None:
-        from spinta.types.datatype import String as StringType
-
         candidate = value
-        if isinstance(id_prop.dtype, StringType):
+        if is_accessible_by_equals_sign(id_prop, value):
             if not value.startswith("="):
                 return False
             candidate = value[1:]
@@ -615,6 +614,7 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         except exceptions.InvalidValue:
             return False
         return True
+
     try:
         return uuid.UUID(value).version == 4
     except ValueError:

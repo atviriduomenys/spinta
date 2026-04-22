@@ -28,9 +28,8 @@ from spinta.exceptions import (
     PropertyNotFound,
     UndefinedEnum,
     UnknownPropertyType,
-    ReservedPropertySourceShouldBeRemoved,
     ReservedPropertyTypeShouldMatchPrimaryKey,
-    ReservedPropertyModelShouldHaveRef,
+    ReservedPropertySourceOrModelRefShouldBeSet,
 )
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
@@ -48,7 +47,7 @@ from spinta.utils.schema import NA
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
 
-INCORRECT_DTYPES = [{String, UUID}, {Integer, UUID}, {String, Integer}]
+INCORRECT_DTYPES = [(Integer, UUID), (Integer, String), (UUID, String), (UUID, Integer)]
 
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
@@ -473,25 +472,29 @@ def link(context: Context, prop: Property):
 def _detect_cooperating_reserved_properties(model: Model) -> None:
     for name, attr in (("_id", "id_prop"), ("_revision", "revision_prop")):
         prop = model.properties.get(name)
-        if prop is not None and prop.explicitly_given:
-            if name == "_id":
-                if not prop.model.unique:
-                    raise ReservedPropertyModelShouldHaveRef(property=prop)
-                if prop.external.name and prop.model.unique:
-                    raise ReservedPropertySourceShouldBeRemoved(property=prop)
+        if prop is None or not prop.explicitly_given:
+            return
+        if name == "_id":
+            model_ref_set = prop.model.unique
+            reserved_id_source_set = prop.external.name
 
-                if prop.model.unique:
-                    if len(prop.model.unique) > 1:
-                        model_primary_key_dtype = String
-                    else:
-                        model_primary_key_dtype = prop.model.unique[0][0].dtype
-                    if {type(prop.dtype), type(model_primary_key_dtype)} in INCORRECT_DTYPES:
-                        raise ReservedPropertyTypeShouldMatchPrimaryKey(
-                            property=prop,
-                            model=model.name,
-                            reserved_type=prop.dtype.name,
-                            primary_type=model_primary_key_dtype.name,
-                        )
+            if not model_ref_set and not reserved_id_source_set:
+                raise ReservedPropertySourceOrModelRefShouldBeSet(property=prop)
+            if reserved_id_source_set and model_ref_set:
+                raise ReservedPropertySourceOrModelRefShouldBeSet(property=prop)
+
+            if model_ref_set:
+                if len(model_ref_set[0]) > 1:
+                    model_primary_key_dtype = String
+                else:
+                    model_primary_key_dtype = model_ref_set[0][0].dtype
+                if model_ref_set and (type(prop.dtype), type(model_primary_key_dtype)) in INCORRECT_DTYPES:
+                    raise ReservedPropertyTypeShouldMatchPrimaryKey(
+                        property=prop,
+                        model=model.name,
+                        reserved_type=prop.dtype.name,
+                        primary_type=model_primary_key_dtype.name,
+                    )
 
             setattr(model.external, attr, prop)
 
