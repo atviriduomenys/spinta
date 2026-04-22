@@ -8,9 +8,8 @@ from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.backends.constants import TableType, BackendFeatures
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_column_name
 
 
@@ -28,18 +27,20 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
 
     same_backend = backend.name == dtype.backend.name
 
-    table_name = get_table_name(prop, TableType.FILE)
-    if same_backend and table_name not in backend.tables:
+    table_identifier = get_table_identifier(prop, TableType.FILE)
+
+    if same_backend and table_identifier.logical_qualified_name not in backend.tables:
         # If dtype is on the same backend currently being prepared, then
         # create table for storing file blocks and also add file metadata
         # columns.
 
         table = sa.Table(
-            get_pg_name(table_name),
+            table_identifier.pg_table_name,
             model.backend.schema,
             sa.Column(get_pg_column_name("_id"), pkey_type, primary_key=True, comment="_id"),
             sa.Column(get_pg_column_name("_block"), sa.LargeBinary, comment="_block"),
-            comment=table_name,
+            schema=table_identifier.pg_schema_name,
+            comment=table_identifier.logical_qualified_name,
         )
         model.backend.add_table(table, prop, TableType.FILE)
 

@@ -54,7 +54,6 @@ CONFIG = {
             "xml": "spinta.manifests.dict.components:XmlManifest",
             "internal": "spinta.manifests.internal_sql.components:InternalSQLManifest",
             "xsd": "spinta.manifests.xsd.components:XsdManifest",
-            "xsd2": "spinta.manifests.xsd2.components:XsdManifest2",
             "openapi": "spinta.manifests.open_api.components:OpenAPIManifest",
         },
         "backends": {
@@ -116,9 +115,6 @@ CONFIG = {
             # External result builders
             "sql": "spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder",
         },
-        "migrations": {
-            "alembic": "spinta.migrations.schema.alembic:Alembic",
-        },
         "nodes": {
             "ns": "spinta.components:Namespace",
             "model": "spinta.components:Model",
@@ -168,6 +164,7 @@ CONFIG = {
             "partial": "spinta.types.datatype:Partial",
             "partial_array": "spinta.types.datatype:PartialArray",
             "uuid": "spinta.types.datatype:UUID",
+            "unknown": "spinta.types.datatype:Unknown",
         },
         "urlparams": {
             "component": "spinta.urlparams:UrlParams",
@@ -347,6 +344,8 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+            "default_access_level": "open",
+            "access": "open",
             "sync_retry_count": 0,
         },
     },

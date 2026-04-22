@@ -1,12 +1,14 @@
+from __future__ import annotations
+
+import dataclasses
 from typing import Any
-from typing import Dict
 from typing import Iterable
 from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import Tuple
 from typing import TypeVar
-from typing import Union
+
+import sqlalchemy as sa
+
+from multipledispatch import dispatch
 
 from spinta import commands
 from spinta import exceptions
@@ -14,6 +16,7 @@ from spinta import spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.commands import build_full_response
 from spinta.components import Config, DataItem
 from spinta.core.enums import Action
@@ -26,6 +29,11 @@ from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import DataType, Denorm
 from spinta.utils.data import take
 from spinta.backends.constants import TableType, BackendOrigin
+
+
+from sqlalchemy.dialects import postgresql
+
+pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
 
 def validate_and_return_transaction(context: Context, backend: Backend, **kwargs):
@@ -51,7 +59,7 @@ def validate_and_return_begin(context: Context, backend: Backend, **kwargs):
 
 
 def load_backend(
-    context: Context, component: Component, name: str, origin: BackendOrigin, data: Dict[str, str]
+    context: Context, component: Component, name: str, origin: BackendOrigin, data: dict[str, str]
 ) -> Backend:
     config = context.get("config")
     type_ = data.get("type")
@@ -77,7 +85,7 @@ def load_backend(
 def get_select_tree(
     context: Context,
     action: Action,
-    select: Optional[List[str]],
+    select: list[str] | None,
 ) -> SelectTree:
     if isinstance(select, dict):
         select = list(select.keys())
@@ -92,8 +100,8 @@ def get_select_tree(
 def _apply_always_show_id(
     context: Context,
     action: Action,
-    select: Optional[List[str]],
-) -> Optional[List[str]]:
+    select: list[str] | None,
+) -> list[str] | None:
     if action in (Action.GETALL, Action.SEARCH):
         config = context.get("config")
         if config.always_show_id:
@@ -106,18 +114,18 @@ def _apply_always_show_id(
 
 def get_select_prop_names(
     context: Context,
-    node: Union[Model, Property, DataType],
-    props: Dict[str, Property],
+    node: Model | Property | DataType,
+    props: dict[str, Property],
     action: Action,
     select: SelectTree,
     *,
     # If False, do not check if client has access to this property.
     auth: bool = True,
     # Allowed reserved property names.
-    reserved: List[str] = None,
+    reserved: list[str] = None,
     # If False, do not include Denorm type props
     include_denorm_props: bool = True,
-) -> List[str]:
+) -> list[str]:
     known = set(reserved or []) | set(take(props))
     check_unknown_props(node, select, known)
 
@@ -138,13 +146,13 @@ def get_select_prop_names(
 
 def select_model_props(
     model: Model,
-    prop_names: List[str],
+    prop_names: list[str],
     value: dict,
     select: SelectTree,
-    reserved: List[str],
+    reserved: list[str],
 ) -> Iterator[
-    Tuple[
-        Union[Property, str],
+    tuple[
+        Property | str,
         Any,
         SelectTree,
     ]
@@ -170,16 +178,16 @@ T = TypeVar("T")
 
 
 def select_props(
-    node: Union[Namespace, Model, Property],
+    node: Namespace | Model | Property,
     keys: Iterable[str],
-    props: Dict[str, Property],
-    value: Dict[str, T],
+    props: dict[str, Property],
+    value: dict[str, T],
     select: SelectTree,
     *,
     reserved: bool = True,
 ) -> Iterator[
-    Tuple[
-        Union[Property, str],
+    tuple[
+        Property | str,
         T,
         SelectTree,
     ]
@@ -191,15 +199,15 @@ def select_props(
 
 
 def select_only_props(
-    node: Union[Namespace, Model, Property],
+    node: Namespace | Model | Property,
     keys: Iterable[str],
-    props: Dict[str, Property],
+    props: dict[str, Property],
     select: SelectTree,
     *,
     reserved: bool = True,
 ) -> Iterator[
-    Tuple[
-        Union[Property, str],
+    tuple[
+        Property | str,
         SelectTree,
     ]
 ]:
@@ -211,9 +219,9 @@ def select_only_props(
 
 def _select_prop(
     key: str,
-    props: Dict[str, Property],
-    node: Union[Namespace, Model, Property],
-) -> Optional[Property]:
+    props: dict[str, Property],
+    node: Namespace | Model | Property,
+) -> Property | None:
     if not (prop := props.get(key)) or prop.hidden:
         return None
 
@@ -222,12 +230,12 @@ def _select_prop(
 
 def select_keys(
     keys: Iterable[str],
-    value: Dict[str, T],
+    value: dict[str, T],
     select: SelectTree,
     *,
     reserved: bool = True,
 ) -> Iterator[
-    Tuple[
+    tuple[
         str,
         T,
         SelectTree,
@@ -253,7 +261,7 @@ def select_only_keys(
     *,
     reserved: bool = True,
 ) -> Iterator[
-    Tuple[
+    tuple[
         str,
         SelectTree,
     ]
@@ -280,8 +288,8 @@ def select_only_keys(
 # FIXME: We should check select list at the very beginning of
 #        request, not when returning results.
 def check_unknown_props(
-    node: Union[Model, Property, DataType],
-    select: Optional[Iterable[str]],
+    node: Model | Property | DataType,
+    select: Iterable[str] | None,
     known: Iterable[str],
 ):
     unknown_properties = set(select or []) - set(known) - {"*"}
@@ -291,7 +299,7 @@ def check_unknown_props(
         )
 
 
-def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
+def flat_select_to_nested(select: list[str] | None) -> SelectTree:
     """
     >>> flat_select_to_nested(None)
 
@@ -316,7 +324,7 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     return res
 
 
-def get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
+def get_model_reserved_props(action: Action, include_page: bool) -> list[str]:
     if action == Action.GETALL:
         reserved = ["_type", "_id", "_revision"]
     elif action == Action.SEARCH:
@@ -332,12 +340,145 @@ def get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     return reserved
 
 
-def get_ns_reserved_props(action: Action) -> List[str]:
+def get_ns_reserved_props(action: Action) -> list[str]:
     return []
 
 
+@dataclasses.dataclass
+class TableIdentifier:
+    """
+    Represents a table identifier across logical (app) and PostgreSQL layers.
+
+    It builds derived names used for internal logic and SQL queries, including
+    schema-qualified and escaped identifiers.
+
+    Attributes:
+        schema (str | None): Logical schema/namespace (e.g. "datasets/gov/rc").
+        base_name (str): Base table name (e.g. "Building").
+        table_type (TableType): Table type suffix (default: TableType.MAIN).
+        table_arg (str | None): Optional argument appended used for table types that require property.
+        default_pg_schema (str | None): Fallback PG schema if schema is not given.
+
+        logical_name (str): Computed name (base + type + optional arg).
+            Example: "Building/:list/apartments"
+        logical_qualified_name (str): Logical name with schema (dataset).
+            Example: "datasets/gov/rc/Building/:list/apartments"
+
+        pg_table_name (str): PG-safe (compressed) table name from logical_name.
+        pg_schema_name (str | None): PG-safe (compressed) schema name.
+        pg_qualified_name (str): PG-safe (compressed) schema with table name.
+            Example: "datasets/gov/rc.Building/:list/apartments" (unescaped).
+        pg_escaped_qualified_name (str): Quoted version of pg_qualified_name, used for queries.
+            Example: '"datasets/gov/rc"."Building/:list/apartments"' (escaped).
+
+    Example:
+        >>> TableIdentifier("datasets/gov/rc", "Buildings", TableType.LIST, "apartments")
+        # logical_qualified_name: "datasets/gov/rc/Buildings/:list/apartments"
+        # pg_qualified_name: "datasets/gov/rc.Building/:list/apartments"
+
+        >>> TableIdentifier("datasets/gov/rc", "Buildings")
+        # logical_qualified_name: "datasets/gov/rc/Buildings"
+        # pg_qualified_name: "datasets/gov/rc.Building"
+
+        >>> TableIdentifier("datasets/gov/rc/very/long/dataset/name/that/does/not/fit/withing/limits", "Buildings")
+        # logical_qualified_name: "datasets/gov/rc/very/long/dataset/name/that/does/not/fit/withing/limits/Buildings"
+        # pg_qualified_name: "datasets/gov/rc/very/long/dataset/nam_e5985b69_t/withing/limits.Building"
+    """
+
+    schema: str | None
+    base_name: str
+    table_type: TableType = dataclasses.field(default=TableType.MAIN)
+    table_arg: str | None = dataclasses.field(default=None)
+    default_pg_schema: str | None = dataclasses.field(default=None)
+
+    logical_name: str = dataclasses.field(init=False)
+    # Name with namespace connected with '/', like it is used with Model class
+    logical_qualified_name: str = dataclasses.field(init=False)
+
+    pg_table_name: str = dataclasses.field(init=False)
+    pg_schema_name: str | None = dataclasses.field(init=False)
+    # Used for hashed schema and table names
+    pg_qualified_name: str = dataclasses.field(init=False)
+    # Escaped qualified name, used for queries
+    pg_escaped_qualified_name: str = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.logical_name = self.base_name + self.table_type.value
+        if self.table_arg:
+            self.logical_name += "/" + self.table_arg
+
+        self.logical_qualified_name = f"{self.schema}/{self.logical_name}" if self.schema else self.logical_name
+
+        self.pg_table_name = get_pg_name(self.logical_name)
+        self.pg_schema_name = get_pg_name(self.schema) if self.schema else self.default_pg_schema
+        self.pg_qualified_name = (
+            f"{self.pg_schema_name}.{self.pg_table_name}" if self.pg_schema_name else self.pg_table_name
+        )
+        self.pg_escaped_qualified_name = (
+            f"{pg_identifier_preparer.quote(self.pg_schema_name)}.{pg_identifier_preparer.quote(self.pg_table_name)}"
+            if self.pg_schema_name
+            else pg_identifier_preparer.quote(self.pg_table_name)
+        )
+
+    def change_table_type(self, new_type: TableType, table_arg: str | None = None) -> "TableIdentifier":
+        return dataclasses.replace(self, table_type=new_type, table_arg=table_arg)
+
+    def apply_removed_prefix(self, remove_model_only: bool = False) -> "TableIdentifier":
+        if remove_model_only or not self.table_arg:
+            if not self.base_name.startswith("__"):
+                return dataclasses.replace(self, base_name=f"__{self.base_name}")
+            return self
+
+        if not self.table_arg.startswith("__"):
+            return dataclasses.replace(self, table_arg=f"__{self.table_arg}")
+        return self
+
+
+@dispatch(str)
+def get_table_identifier(item: str, **kwargs) -> TableIdentifier:
+    schema, model_name, table_type, table_arg = split_logical_name(item)
+    return TableIdentifier(schema=schema, base_name=model_name, table_type=table_type, table_arg=table_arg, **kwargs)
+
+
+@dispatch(sa.Table)
+def get_table_identifier(item: sa.Table, **kwargs) -> TableIdentifier:
+    if not item.comment:
+        return TableIdentifier(schema=item.schema, base_name=item.name, **kwargs)
+    if item.schema not in ("public", None):
+        return get_table_identifier(item.comment, **kwargs)
+
+    schema, model_name, table_type, table_arg = split_logical_name(item.comment)
+    return TableIdentifier(
+        schema=None,
+        base_name=f"{schema}/{model_name}" if schema else model_name,
+        table_type=table_type,
+        table_arg=table_arg,
+        **kwargs,
+    )
+
+
+@dispatch((Model, Property))
+def get_table_identifier(node: Model | Property, **kwargs) -> TableIdentifier:
+    return get_table_identifier(node, TableType.MAIN, **kwargs)
+
+
+@dispatch((Model, Property), TableType)
+def get_table_identifier(
+    node: Model | Property, table_type: TableType, table_arg: str = None, **kwargs
+) -> TableIdentifier:
+    model = node if isinstance(node, Model) else node.model
+
+    schema = model.ns.name if model.ns else None
+    base_name = model.get_name_without_ns()
+
+    if isinstance(node, Property) and table_type in (TableType.LIST, TableType.FILE):
+        table_arg = node.place
+
+    return TableIdentifier(schema, base_name, table_type, table_arg, **kwargs)
+
+
 def get_table_name(
-    node: Union[Model, Property],
+    node: Model | Property,
     ttype: TableType = TableType.MAIN,
 ) -> str:
     if isinstance(node, Model):
@@ -349,6 +490,27 @@ def get_table_name(
     else:
         name = model.model_type() + ttype.value
     return name
+
+
+def split_table_name(full_name: str) -> tuple[str | None, str]:
+    parts = full_name.split(".", maxsplit=1)
+    if len(parts) == 1:
+        return None, parts[0]
+    return parts[0], parts[1]
+
+
+def split_logical_name(full_name: str) -> tuple[str | None, str, TableType, str | None]:
+    base_name, table_type, property_name = extract_table_data_from_logical_name(full_name)
+    parts = base_name.split("/")
+    if len(parts) == 1:
+        return None, parts[0], table_type, property_name
+
+    for i, part in enumerate(parts):
+        if part[0].isupper() or (part[:2] == "__" and part[2].isupper()):
+            namespace = "/".join(parts[:i])
+            model = "/".join(parts[i:])
+            return namespace, model, table_type, property_name
+    return None, base_name, table_type, property_name
 
 
 def load_query_builder_class(config: Config, backend: Backend):
@@ -400,3 +562,37 @@ def prepare_response(
     else:
         resp = {}
     return resp
+
+
+def extract_table_data_from_logical_name(table_name: str) -> tuple[str | None, TableType | None, str | None]:
+    """
+    Extracts the main table name, table type, and an optional property suffix from a logical
+    table name string. It parses the given logical table name and determines whether it belongs
+    to the main table or some specific table type. If a specific type is found, it splits the
+    table name into its components.
+
+    Parameters:
+        table_name (str): The logical table name string that needs to be processed.
+
+    Returns:
+        tuple: A tuple containing:
+            - str | None: The main table name.
+            - TableType | None: The type of the table, which can be `MAIN` or other enum members of
+              `TableType`.
+            - str | None: A property suffix string if present in the logical table name, or
+              None otherwise.
+    """
+    if "/:" not in table_name:
+        return table_name, TableType.MAIN, None
+
+    for table_type in TableType:
+        if table_type is TableType.MAIN:
+            continue
+
+        if table_type.value in table_name:
+            data = table_name.split(table_type.value, 1)
+            if data[1]:
+                return data[0], table_type, data[1][1:]  # skip /property slash
+            return data[0], table_type, None
+
+    return None, None, None

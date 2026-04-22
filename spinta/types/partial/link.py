@@ -2,23 +2,29 @@ from copy import copy
 
 from spinta import commands
 from spinta.components import Context, Property
-from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound
+from spinta.core.enums import Mode
+from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound, PartialIncorrectProperty
 from spinta.types.datatype import Partial, Ref
 
 
-def get_ref_value(context: Context, prop: Property):
+def get_ref_value(context: Context, prop: Property) -> Property | None:
     parent = prop.parent
-    if isinstance(parent, Property) and isinstance(parent.dtype, Ref):
-        parent_parent = parent.parent
-        if isinstance(parent_parent, Property) and isinstance(parent_parent.dtype, Ref):
-            model = parent_parent.dtype.model
-            first_level = model.properties[parent.name]
-            if prop.name in first_level.dtype.properties:
-                return first_level.dtype.properties[prop.name]
-        else:
-            model = parent.dtype.model
-            if prop.name in model.properties:
-                return model.properties[prop.name]
+    if not (isinstance(parent, Property) and isinstance(parent.dtype, Ref)):
+        return None
+    if isinstance(parent.dtype.model, str):
+        parent.dtype.model = commands.get_model(context, prop.model.manifest, parent.dtype.model)
+    model = parent.dtype.model
+
+    if prop.name not in model.properties:
+        return None
+
+    model_property_value = model.properties[prop.name]
+    model_dtype = model_property_value.dtype
+    if hasattr(model_dtype, "model") and isinstance(model_dtype.model, str):
+        model_property_value.dtype.model = commands.get_model(
+            context, prop.model.manifest, model_property_value.dtype.model
+        )
+    return model_property_value
 
 
 @commands.link.register(Context, Partial)
@@ -29,14 +35,23 @@ def link(context: Context, dtype: Partial):
         if isinstance(parent.dtype, Ref):
             props = dtype.properties
             result = get_ref_value(context, prop)
+            if not result:
+                raise PartialIncorrectProperty(dtype)
             prop.dtype = copy(result.dtype)
             prop.dtype.properties = props
             prop.dtype.inherited = True
             prop.given.explicit = False
             prop.given.name = ""
             prop.dtype.prop = prop
-            for partial_prop in props.values():
-                commands.link(context, partial_prop)
+            if prop.level is None:
+                prop.level = result.level
+            # For external mode copy the external mapping
+            # For internal mode leave it as is, because it breaks multi-level denormalization
+            if result.external and prop.model.mode == Mode.external:
+                prop.external = copy(result.external)
+            if isinstance(prop.dtype, Ref):
+                prop.dtype.refprops = []
+            commands.link(context, prop.dtype)
         else:
             raise PartialTypeNotFound(dtype)
     else:

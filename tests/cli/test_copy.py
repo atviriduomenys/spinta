@@ -1,4 +1,5 @@
 from pathlib import Path
+from pytest import mark
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -10,6 +11,7 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    rc = rc.fork({"default_access_level": "protected"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -160,14 +162,16 @@ def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     )
 
 
-def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
+@mark.parametrize("type", ["dask/xml", "sql/sqlite"])
+def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path, type: str):
+    rc = rc.fork({"default_access_level": "protected"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
-        striptable("""
+        striptable(f"""
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
-      | data                 | sql    |         |             |           |
+      | data                 | {type} |         |             |           |
                              |        |         |             |           |
       |   |   | Country      |        | code    | salis       | code='lt' |
       |   |   |   | code     | string |         | kodas       |           | private
@@ -201,10 +205,10 @@ def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
     manifest = load_manifest(rc, tmp_path / "result.csv")
     assert (
         manifest
-        == """
+        == f"""
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
     datasets/gov/example     |        |         |             |           |       |
-      | data                 | sql    |         |             |           |       |
+      | data                 | {type} |         |             |           |       |
                              |        |         |             |           |       |
       |   |   | Country      |        |         | salis       | code='lt' |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open

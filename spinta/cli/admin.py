@@ -10,6 +10,7 @@ from typer import Option
 from spinta.cli.helpers.admin.components import ADMIN_SCRIPT_TYPE
 from spinta.cli.helpers.admin.registry import admin_script_registry
 from spinta.cli.helpers.message import cli_error
+from spinta.cli.helpers.script.components import ScriptStatusCache
 from spinta.cli.helpers.script.core import run_specific_script
 from spinta.cli.helpers.script.helpers import sort_scripts_by_required
 from spinta.cli.helpers.store import load_config
@@ -78,6 +79,7 @@ def admin(
         script_objects[script] = script_
 
     script_objects = sort_scripts_by_required(script_objects)
+    status_cache = ScriptStatusCache()
     for script in script_objects:
         run_specific_script(
             context=context,
@@ -88,4 +90,5 @@ def admin(
             check_only=check_only,
             input_path=input_path,
             output_path=output_path,
+            status_cache=status_cache,
         )

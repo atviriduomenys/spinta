@@ -6,9 +6,8 @@ from typing import Dict
 from typing import List, Iterable, Optional
 from typing import Type
 
-import jsonpatch
 
-from spinta import commands
+from spinta import commands, HTTP_URL_PREFIXES
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Model
@@ -41,7 +40,7 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.sync = []
     manifest.prefixes = {}
     manifest.enums = {}
-    manifest.access = Access.protected
+    manifest.access = config.default_access_level
     manifest.keymap = None
     manifest.backend = None
     manifest.mode = Mode.internal
@@ -197,17 +196,6 @@ def _load_manifest_node(
     return node
 
 
-def get_current_schema_changes(
-    context: Context,
-    manifest: Manifest,
-    eid: EntryId,
-) -> List[dict]:
-    freezed = commands.manifest_read_freezed(context, manifest, eid=eid)
-    current = commands.manifest_read_current(context, manifest, eid=eid)
-    patch = jsonpatch.make_patch(freezed, current)
-    return list(patch)
-
-
 def entity_to_schema(entity: Optional[Entity]) -> ManifestSchema:
     if entity is None:
         return None, {
@@ -324,7 +312,7 @@ def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
 
 
 def check_manifest_path(manifest: Manifest, path: str) -> None:
-    if not path.startswith(("http://", "https://")) and not pathlib.Path(path).exists():
+    if not path.startswith(HTTP_URL_PREFIXES) and not pathlib.Path(path).exists():
         raise ManifestFileDoesNotExist(manifest, path=path)
 
 
@@ -432,7 +420,7 @@ class TypeDetector:
         self.type = new_type
 
     def _assert_url(self, value: str):
-        if value.startswith(("http://", "https://")):
+        if value.startswith(HTTP_URL_PREFIXES):
             self.type = "url"
         else:
             self.type = ""

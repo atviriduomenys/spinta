@@ -331,6 +331,7 @@ def paginate(env, expr):
             env.page.page_ = page
             env.page.size = page.size
             return env.resolve(get_pagination_compare_query(page))
+        return None
     else:
         raise InvalidArgumentInExpression(arguments=expr.args, expr="paginate")
 
@@ -512,3 +513,12 @@ def swap(env: QueryBuilder, expr: Expr):
 def split(env: QueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return Expr("split", *args, **kwargs)
+
+
+@ufunc.resolver(QueryBuilder, Expr)
+def cast(env: QueryBuilder, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    if args or kwargs:
+        arguments = args + list(kwargs.values())
+        raise InvalidArgumentInExpression(arguments=arguments, expr="cast")
+    return Expr("cast")
