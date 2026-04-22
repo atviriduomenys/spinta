@@ -1,4 +1,4 @@
-# Tinklo konfigūravimas (KVTC/SVDPT)
+# Tinklo konfigūravimas
 
 ## Tinklo reikalavimai
 
@@ -12,6 +12,40 @@ Institucija, kuri diegiasi Spinta, turi pasirūpinti tinklo konfigūracija:
 Lokalus testavimas turi būti **sėkmingai užbaigtas** prieš pradedant registraciją
 ir diegimą į vartus. Gravitee veikia kaip proxy, todėl lokalus testavimas yra
 pakankamas funkcionalumo patikrinimui prieš jungiantis prie SVDPT.
+:::
+
+## Tinklo konfigūracija išoriniams vartams
+
+Išoriniai vartai taikomi institucijoms, kurių Spinta agentas yra prieinamas per
+viešąjį internetą (ne SVDPT). Šiuo atveju KVTC/SVDPT tinklo konfigūracijos
+nereikia, tačiau būtina užtikrinti šiuos reikalavimus.
+
+### Techniniai reikalavimai
+
+- **Prieiga per internetą**: Spinta agentas turi būti pasiekiamas per **HTTPS**
+- **Reverse Proxy**: institucija turi pasirūpinti Reverse Proxy (pvz., Nginx, WAF arba F5), kuris terminuotų HTTPS srautą ir nukreiptų į Spinta **8000** portą
+- **SSL sertifikatai**: institucija pati atsakinga už SSL sertifikatų diegimą (pvz., Let's Encrypt)
+
+### Gravitee IP — whitelist reikalavimas
+
+Gravitee vartai kreipiasi į Spinta agentą iš fiksuoto IP adreso. Šis adresas privalo
+būti leidžiamas ugniasienėje arba WAF taisyklėse:
+
+| Gravitee IP | Protokolas | Portas |
+|-------------|------------|--------|
+| `195.182.78.26` | HTTPS | 443 |
+
+### WAF paslauga (gov cloud / VSSA infrastruktūra)
+
+Jei institucijos Spinta agentas yra **VSSA infrastruktūroje arba gov cloud** aplinkoje,
+būtina užsakyti WAF (Web Application Firewall) paslaugą. Tai daroma per **IT pagalbos
+sistemą** — formą rasite IT pagalbos portale arba kreipkitės į VSSA.
+
+WAF konfigūracijoje nurodykite **whitelist** IP adresą `195.182.78.26`.
+
+:::{note}
+Jei nesate tikri, ar jūsų institucija naudoja gov cloud / VSSA infrastruktūrą,
+arba jei turite klausimų dėl WAF užsakymo, kreipkitės į **das@vssa.lt**.
 :::
 
 ## Tinklo konfigūracija vidiniams vartams (KVTC/SVDPT)

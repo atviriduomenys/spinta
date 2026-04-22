@@ -205,4 +205,6 @@ Jei nesate tikri, kurie vartai taikomi jūsų institucijai, kreipkitės į VSSA.
 Dėl OAS diegimo į vartus instrukcijų kreipkitės į VSSA.
 
 Jei naudojami **vidiniai vartai** — reikalinga papildoma tinklo konfigūracija.
-Žr. [Tinklo konfigūravimas (KVTC/SVDPT)](tinklo-konfigūravimas.md).
+Žr. [Tinklo konfigūravimas](tinklo-konfigūravimas.md).
+
+Jei naudojami **išoriniai vartai** — žr. [Tinklo konfigūravimas → Išoriniai vartai](tinklo-konfigūravimas.md#tinklo-konfigūracija-išoriniams-vartams).
