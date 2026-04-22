@@ -1229,3 +1229,16 @@ class PartialIncorrectProperty(BaseError):
     template = (
         "The composite property {property} is not correct. Check if all parts of the composite property are present."
     )
+
+
+class ReservedPropertySourceShouldBeRemoved(BaseError):
+    template = (
+        "The property {property} should not have a source value, if its model has a ref value."
+    )
+
+
+class ReservedPropertyTypeShouldMatchPrimaryKey(BaseError):
+    template = (
+        "The property {property} should have the same type as the primary key of the model {model}."
+        "Reserved property type: {reserved_type}. Model primary key type: {primary_type}."
+    )
