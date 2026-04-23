@@ -1135,7 +1135,7 @@ def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunne
       | data                  | sql    |         |             |         |
                               |        |         |             |         |
       |   |   | Country       |        | code    | salis       |         |
-      |   |   |   | _id       | uuid   |         | miesto_id   |         | open
+      |   |   |   | _id       | string |         |             |         | open
       |   |   |   | code      | string |         | kodas       |         | public
       |   |   |   | name      | string |         | pavadinimas |         | open
       |   |   |   | _updated  | string |         | atnaujinta  |         | open
@@ -1165,8 +1165,8 @@ def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunne
     d | r | b | m | property  | type   | ref     | source | prepare | access
     datasets/gov/example      |        |         |        |         |
                               |        |         |        |         |
-      |   |   | Country       |        |         |        |         |
-      |   |   |   | _id       | uuid   |         |        |         | open
+      |   |   | Country       |        | code    |        |         |
+      |   |   |   | _id       | string |         |        |         | open
       |   |   |   | _revision | string |         |        |         | public
       |   |   |   | _created  | string |         |        |         | open
       |   |   |   | code      | string |         |        |         | public
