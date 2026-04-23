@@ -2538,10 +2538,16 @@ def _model_to_tabular(
                 "prepare": unparse(model.external.prepare or NA),
             }
         )
-        if not model.external.unknown_primary_key and all(p.access >= access for p in model.external.pkeys):
-            # Add `ref` only if all properties are available in the
-            # resulting manifest.
-            data["ref"] = ", ".join([p.given.name or p.name for p in model.external.pkeys])
+    if (
+        model.external
+        and not model.external.unknown_primary_key
+        and all(p.access >= access for p in model.external.pkeys)
+    ):
+        # Add `ref` only if all properties are available in the
+        # resulting manifest. `ref` lists the model's primary-key
+        # property names and is preserved even when source metadata
+        # is stripped (e.g. `copy --no-source`).
+        data["ref"] = ", ".join([p.given.name or p.name for p in model.external.pkeys])
 
     hide_list = []
     if model.external:
