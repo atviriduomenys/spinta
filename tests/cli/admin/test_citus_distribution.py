@@ -10,7 +10,7 @@ from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.core.config import RawConfig
 from spinta.testing.citus import gather_citus_state, bootstrap_distribute_manifest
-from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.cli import SpintaCliRunner, message_in_result
 
 
 @pytest.mark.parametrize(
@@ -235,7 +235,9 @@ def test_mixed_distribution(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.CITUS_DISTRIBUTION.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED) in result.stdout
+    assert message_in_result(
+        result, script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED)
+    )
 
     updated_citus_state = gather_citus_state(context, backend)
     assert updated_citus_state.schemas == {"distribute/example"}
@@ -289,7 +291,9 @@ def test_default_schema_distribution_invalidation(
 
     result = cli.invoke(rc, ["admin", Script.CITUS_DISTRIBUTION.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED) in result.stdout
+    assert message_in_result(
+        result, script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED)
+    )
 
     updated_citus_state = gather_citus_state(context, backend)
     assert updated_citus_state.schemas == {"distribute/new"}
@@ -303,7 +307,9 @@ def test_default_schema_distribution_invalidation(
         ["admin", Script.CITUS_DISTRIBUTION.value],
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED) in result.stdout
+    assert message_in_result(
+        result, script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED)
+    )
 
     updated_citus_state = gather_citus_state(context, backend)
     assert updated_citus_state.schemas == {"distribute/new", "distribute/example"}

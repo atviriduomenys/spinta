@@ -8,7 +8,7 @@ from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.cli import SpintaCliRunner, message_in_result
 from spinta.testing.client import create_test_client
 from spinta.testing.csv import read_csv
 from spinta.testing.manifest import bootstrap_manifest
@@ -60,7 +60,7 @@ def test_admin_enum_list_all_valid(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [["model", "property", "invalid_value"]]
 
 
@@ -120,7 +120,7 @@ def test_admin_enum_list_invalid_str(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/Country", "name", "Test3"],
@@ -177,7 +177,7 @@ def test_admin_enum_list_invalid_int(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/City", "id", "10"],
@@ -238,7 +238,7 @@ def test_admin_enum_list_invalid_multiple_properties(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/City", "id", "10"],
@@ -311,7 +311,7 @@ def test_admin_enum_list_invalid_multiple_models(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/City", "id", "10"],
@@ -372,7 +372,7 @@ def test_admin_enum_list_swap(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/Country", "name", "Test4"],
@@ -429,7 +429,7 @@ def test_admin_enum_list_source(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.ENUM_LIST.value, "-o", tmp_path / "output.csv"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.ENUM_LIST.value, ScriptStatus.REQUIRED))
     assert read_csv(tmp_path / "output.csv") == [
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/Country", "name", "Test1"],
