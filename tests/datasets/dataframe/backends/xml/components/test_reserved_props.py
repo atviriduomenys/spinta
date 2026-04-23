@@ -476,10 +476,10 @@ class TestIdBase:
 
         assert rows[0]["code"]["value"] == "ORD001"
         assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "J5JEIMBQ"
-        assert rows[1]["_id"]["value"] == "J5JEIMBQ"
-        assert rows[0]["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
-        assert rows[1]["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
+        assert rows[0]["_id"]["value"] == "QFTE6USE"
+        assert rows[1]["_id"]["value"] == "QFTE6USE"
+        assert rows[0]["_id"]["link"] == "/example/Region/=QFTE6USEGAYDC==="
+        assert rows[1]["_id"]["link"] == "/example/Region/=QFTE6USEGAYDE==="
 
         with pytest.raises(NotImplementedError):
             app.get(rows[0]["_id"]["link"])
@@ -522,10 +522,10 @@ class TestIdBase:
 
         assert rows[0]["id"]["value"] == 123
         assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "GEZDG==="
-        assert rows[1]["_id"]["value"] == "GEZDGNA="
-        assert rows[0]["_id"]["link"] == "/example/Region/=GEZDG==="
-        assert rows[1]["_id"]["link"] == "/example/Region/=GEZDGNA="
+        assert rows[0]["_id"]["value"] == "QFRTCMRT"
+        assert rows[1]["_id"]["value"] == "QFSDCMRT"
+        assert rows[0]["_id"]["link"] == "/example/Region/=QFRTCMRT"
+        assert rows[1]["_id"]["link"] == "/example/Region/=QFSDCMRTGQ======"
 
         with pytest.raises(NotImplementedError):
             app.get(rows[0]["_id"]["link"])
@@ -568,15 +568,15 @@ class TestIdBase:
 
         assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
         assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["_id"]["value"] == "MQ3DIMRQ"
-        assert rows[1]["_id"]["value"] == "HBTDKNZX"
+        assert rows[0]["_id"]["value"] == "QF4CIZBW"
+        assert rows[1]["_id"]["value"] == "QF4CIODG"
         assert (
             rows[0]["_id"]["link"]
-            == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI======"
+            == "/example/Region/=QF4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMQ="
         )
         assert (
             rows[1]["_id"]["link"]
-            == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA======"
+            == "/example/Region/=QF4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMA="
         )
 
         with pytest.raises(NotImplementedError):
@@ -626,13 +626,13 @@ class TestIdBase:
         assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
         assert rows[0]["code"]["value"] == "ORD001"
         assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "MITVY6BY"
-        assert rows[1]["_id"]["value"] == "MITVY6BY"
+        assert rows[0]["_id"]["value"] == "MQ3DIMRQ"
+        assert rows[1]["_id"]["value"] == "HBTDKNZX"
         assert rows[0]["_id"]["link"] == (
-            "/example/Region/=MITVY6BYGJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGETQ===="
+            "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGIWE6USEGAYDC==="
         )
         assert rows[1]["_id"]["link"] == (
-            "/example/Region/=MITVY6BYGJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGITQ===="
+            "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGAWE6USEGAYDE==="
         )
 
         with pytest.raises(NotImplementedError):
