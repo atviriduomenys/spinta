@@ -1,7 +1,41 @@
 Changes
 #######
 
-0.2dev21 (unreleased)
+0.2dev23 (unreleased)
+=====================
+
+New Features:
+
+- Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
+
+.. _#1790: https://github.com/atviriduomenys/spinta/issues/1790
+
+Improvements:
+
+- Added support for `spinta admin` `-o` (`--output`) argument, that can be used for scripts to specify output path (`#1790`_).
+
+
+0.2dev22 (2026-04-19)
+=====================
+
+New Features:
+
+- Added new parameter `access` to spinta configuration with default value set to `open` (`#1807`_).
+  This change affects data access permissions:
+  - If `config.access` is lower than `node`, that client is trying to reach, `access` level, spinta always returns `404 ModelNotFound` error.
+  - Whenever an unauthenticated(default client) request is received and `config.access` is set to lower level than `open`, spinta returns `401 AuthorizedClientsOnly`.
+  - `private` nodes can now be accessed with parent node scopes.
+
+.. _#1807: https://github.com/atviriduomenys/spinta/issues/1807
+
+Bug fixes:
+- Fixed a bug where composite properties like x.y and x.y.z... were not returning any data (`#1843`_).
+- Fixed `postgresql_schemas` globally importing optional `alembic` dependency when running spinta (`#1869`_).
+
+.. _#1869: https://github.com/atviriduomenys/spinta/issues/1869
+.. _#1843: https://github.com/atviriduomenys/spinta/issues/1843
+
+0.2dev21 (2026-04-13)
 =====================
 
 Backwards Incompatible:
@@ -17,13 +51,18 @@ New Features:
 
 - Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
   schemas (`#598`_).
+- New type - `unknown`. Used for to replace unrecognized column types while reading with `spinta inspect` (`#1848`_).
 
 Improvements:
 
 - Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
   using dataset names) (`#598`_).
+- `cast()` prepare function now supports conversions from string to `string`, `integer`, `number`,
+  `boolean`, `date`, `time` and `datetime` fields for all backends. (`#1699`_).
 
 .. _#598: https://github.com/atviriduomenys/spinta/issues/598
+.. _#1699: https://github.com/atviriduomenys/spinta/issues/1699
+.. _#1848: https://github.com/atviriduomenys/spinta/issues/1848
 
 0.2dev20 (2026-03-27)
 =====================
@@ -41,6 +80,8 @@ Improvements:
   The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
 - Added configuration value default_access_value and set its default value to `private`.
   Set default value of Manifest component access value to private (`#1802`_).
+- Improved `spinta inspect` manifest generation from XML files. XML file is now parsed in memory efficient
+  way using `lxml iterparse` (`#1805`_).
 
 .. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
 .. _#1802: https://github.com/atviriduomenys/spinta/issues/1802

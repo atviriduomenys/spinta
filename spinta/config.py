@@ -164,6 +164,7 @@ CONFIG = {
             "partial": "spinta.types.datatype:Partial",
             "partial_array": "spinta.types.datatype:PartialArray",
             "uuid": "spinta.types.datatype:UUID",
+            "unknown": "spinta.types.datatype:Unknown",
         },
         "urlparams": {
             "component": "spinta.urlparams:UrlParams",
@@ -346,7 +347,8 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
-            "default_access_level": "protected",
+            "default_access_level": "open",
+            "access": "open",
             "sync_retry_count": 0,
         },
     },

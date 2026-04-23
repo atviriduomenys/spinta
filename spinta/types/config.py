@@ -86,6 +86,11 @@ def load(context: Context, config: Config) -> Config:
         default="private",
         cast=lambda name: get_enum_by_name(Access, name),
     )
+    config.access = rc.get(
+        "access",
+        default="open",
+        cast=lambda name: get_enum_by_name(Access, name),
+    )
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")

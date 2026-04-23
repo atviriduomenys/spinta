@@ -276,6 +276,11 @@ def dask_get_all(
             val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
+                    if isinstance(val, list):
+                        val = [
+                            list_value.get("_id", list_value) if isinstance(list_value, dict) else list_value
+                            for list_value in val
+                        ]
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)

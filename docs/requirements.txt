@@ -16,9 +16,9 @@ babel==2.18.0
     #   sphinx-intl
 certifi==2026.2.25
     # via requests
-charset-normalizer==3.4.6
+charset-normalizer==3.4.7
     # via requests
-click==8.3.1
+click==8.3.2
     # via
     #   sphinx-intl
     #   uvicorn
@@ -55,13 +55,13 @@ mdurl==0.1.2
     # via markdown-it-py
 myst-parser==4.0.1
     # via -r requirements.in
-packaging==26.0
+packaging==26.1
     # via sphinx
-pygments==2.19.2
+pygments==2.20.0
     # via sphinx
 pyyaml==6.0.3
     # via myst-parser
-requests==2.33.0
+requests==2.33.1
     # via sphinx
 snowballstemmer==3.0.1
     # via sphinx
@@ -108,7 +108,7 @@ typing-extensions==4.15.0
     #   uvicorn
 urllib3==2.6.3
     # via requests
-uvicorn==0.42.0
+uvicorn==0.44.0
     # via sphinx-autobuild
 watchfiles==1.1.1
     # via sphinx-autobuild

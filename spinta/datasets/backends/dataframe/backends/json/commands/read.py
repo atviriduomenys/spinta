@@ -164,7 +164,7 @@ def getall(
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
-    for prop in model.properties.values():
+    for prop in model.flatprops.values():
         if prop.external and prop.external.name:
             root_source = _get_prop_full_source(model.external.name, prop.external.name)
             props[prop.external.name] = {

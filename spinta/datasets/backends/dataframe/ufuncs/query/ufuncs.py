@@ -15,7 +15,12 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, SourceOrPrepareNotAllowed
+from spinta.exceptions import (
+    PropertyNotFound,
+    SourceCannotBeList,
+    SourceOrPrepareNotAllowed,
+    InvalidArgumentInExpression,
+)
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
@@ -331,12 +336,15 @@ def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
-    prep = env.call("select", prep)
-    if prep is not None:
-        return Selected(
-            prop=dtype.prop,
-            prep=prep,
-        )
+    resolved_prep = env.call("select", prep)
+
+    result = {}
+    result["_id"] = Selected(prop=dtype.prop, prep=resolved_prep)
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        result[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
@@ -346,6 +354,18 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
         prop=dtype.prop,
         prep=env.call("select", fpr, fpr.right.prop),
     )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref)
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
+    prep = {}
+    prep["_id"] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
@@ -522,3 +542,13 @@ def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
 def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
     raise SourceOrPrepareNotAllowed(source=str(source))
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def cast(env: DaskDataFrameQueryBuilder, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    if args or kwargs:
+        arguments = args + list(kwargs.values())
+        raise InvalidArgumentInExpression(arguments=arguments, expr="cast")
+
+    return Expr("cast")

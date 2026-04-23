@@ -513,3 +513,12 @@ def swap(env: QueryBuilder, expr: Expr):
 def split(env: QueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return Expr("split", *args, **kwargs)
+
+
+@ufunc.resolver(QueryBuilder, Expr)
+def cast(env: QueryBuilder, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    if args or kwargs:
+        arguments = args + list(kwargs.values())
+        raise InvalidArgumentInExpression(arguments=arguments, expr="cast")
+    return Expr("cast")

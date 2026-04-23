@@ -1,7 +1,7 @@
 from typing import List
 
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, Model
 from spinta.types.datatype import Ref
 from spinta.exceptions import ModelReferenceNotFound, MissingRefModel
 from spinta.exceptions import ModelReferenceKeyNotFound
@@ -25,6 +25,8 @@ def link(context: Context, dtype: Ref) -> None:
         # Self reference.
         dtype.model = dtype.prop.model
     else:
+        if isinstance(rmodel, Model):
+            rmodel = rmodel.name
         if not commands.has_model(context, dtype.prop.model.manifest, rmodel):
             raise ModelReferenceNotFound(dtype, ref=rmodel)
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, rmodel)

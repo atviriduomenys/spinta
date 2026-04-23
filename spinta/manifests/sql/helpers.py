@@ -22,6 +22,7 @@ from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.backends.oracle.helpers import SDO_GEOMETRY
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
 from spinta.exceptions import UnexpectedFormulaResult
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.imports import full_class_name
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_dataset_name
@@ -240,7 +241,6 @@ def _read_props(
         )
 
 
-UNKNOWN_TYPE = "UNKNOWN"
 TYPES = [
     (sa.Boolean, "boolean"),
     (sa.Date, "date"),
@@ -283,8 +283,10 @@ def _get_column_type(column: _Column, table: str | None = None) -> str:
     for cls, name in TYPES:
         if isinstance(column_type, cls):
             return name
-    logger.warning(f"Unknown type {column_type!r} of column {column!r} in table {table!r}. Column will be skipped.")
-    return UNKNOWN_TYPE
+    logger.warning(
+        f"Unknown type {column_type!r} of column {column!r} in table {table!r}. Column registered as UNKNOWN."
+    )
+    return DataTypeEnum.UNKNOWN.value
 
 
 class _Ref(NamedTuple):

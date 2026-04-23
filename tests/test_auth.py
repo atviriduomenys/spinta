@@ -29,7 +29,13 @@ from spinta.auth import (
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.core.enums import Action, Mode
-from spinta.exceptions import InvalidClientFileFormat, InvalidExtraScopes, NoScopesForNamespaces, UserError
+from spinta.exceptions import (
+    InvalidClientFileFormat,
+    InvalidExtraScopes,
+    NoScopesForNamespaces,
+    UserError,
+    ModelNotFound,
+)
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
@@ -600,7 +606,7 @@ class TestAuthorized:
     @pytest.mark.parametrize(
         "client, scopes, node, action, result",
         [
-            ("default-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, False),
+            ("default-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
@@ -611,7 +617,7 @@ class TestAuthorized:
                 {"spinta_backends_mongo_subitem_getone"},
                 "backends/mongo/Subitem",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"spinta_backends_mongo_subitem_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
@@ -642,7 +648,7 @@ class TestAuthorized:
                 {"spinta_backends_mongo_subitem_subobj_getone"},
                 "backends/mongo/Subitem.subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
             (
@@ -678,9 +684,9 @@ class TestAuthorized:
                 {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
                 "backends/mongo/Subitem.hidden_subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
-            ("default-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, False),
+            ("default-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
@@ -691,7 +697,7 @@ class TestAuthorized:
                 {"uapi:/backends/mongo/Subitem/:getone"},
                 "backends/mongo/Subitem",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"uapi:/backends/mongo/Subitem/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
@@ -722,7 +728,7 @@ class TestAuthorized:
                 {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
                 "backends/mongo/Subitem.subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
             (
@@ -758,7 +764,7 @@ class TestAuthorized:
                 {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
                 "backends/mongo/Subitem.hidden_subobj",
                 Action.GETONE,
-                False,
+                True,
             ),
             ("test-client", {"uapi:/backends/mongo/Subitem/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
             ("test-client", {"uapi:/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
@@ -791,7 +797,12 @@ class TestAuthorized:
         ],
     )
     def test_authorized_contract_scope_check_success(self, rc: RawConfig, scopes: set[str]):
-        rc = rc.fork({"check_contract_scopes": True})
+        rc = rc.fork(
+            {
+                "check_contract_scopes": True,
+                "access": "public",
+            }
+        )
         context, manifest = prepare_manifest(
             rc,
             """
@@ -820,7 +831,12 @@ class TestAuthorized:
         ],
     )
     def test_authorized_contract_scope_check_failure(self, rc: RawConfig, scopes: set[str]):
-        rc = rc.fork({"check_contract_scopes": True})
+        rc = rc.fork(
+            {
+                "check_contract_scopes": True,
+                "access": "public",
+            }
+        )
         context, manifest = prepare_manifest(
             rc,
             """
@@ -842,6 +858,71 @@ class TestAuthorized:
         with pytest.raises(UserError) as e:
             authorized(context, node, Action.GETALL)
         assert type(e.value) in (NoScopesForNamespaces, InvalidExtraScopes)
+
+    @pytest.mark.parametrize(
+        "model_access, config_access, result",
+        [
+            ("open", "open", True),
+            ("open", "public", True),
+            ("open", "protected", True),
+            ("open", "private", True),
+            ("public", "open", False),
+            ("public", "public", True),
+            ("public", "protected", True),
+            ("public", "private", True),
+            ("protected", "open", False),
+            ("protected", "public", False),
+            ("protected", "protected", True),
+            ("protected", "private", True),
+            ("private", "open", False),
+            ("private", "public", False),
+            ("private", "protected", False),
+            ("private", "private", True),
+        ],
+    )
+    def test_authorized_with_different_node_and_config_access(
+        self, context, rc: RawConfig, model_access: str, config_access: str, result: bool
+    ):
+        rc = rc.fork({"access": config_access})
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            id | d | r | b | m | property | access
+               | datasets/test/example    | 
+               |   | data                 |
+               |   |   |   | Foo          | {model_access}
+            """,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(
+            context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes={"uapi:/datasets/test/example/Foo/:getall"}
+        )
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        assert authorized(context, node, Action.GETALL) is result
+
+    def test_authorized_raises_modelnotfound(self, context, rc: RawConfig):
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | 
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(
+            context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes={"uapi:/datasets/test/example/Foo/:getall"}
+        )
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        with pytest.raises(ModelNotFound):
+            authorized(context, node, Action.GETALL, throw=True)
 
 
 class TestQueryClient:

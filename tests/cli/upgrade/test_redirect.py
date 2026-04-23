@@ -64,7 +64,7 @@ def test_upgrade_redirect_pass(
 
     result = cli.invoke(rc, ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.PASSED) in result.stderr
 
 
 def test_upgrade_redirect_required(
@@ -121,7 +121,7 @@ def test_upgrade_redirect_required(
     assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
     result = cli.invoke(context.get("rc"), ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED) in result.stderr
 
     assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
     assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)

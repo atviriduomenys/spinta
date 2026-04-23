@@ -4,6 +4,7 @@ from spinta.cli.helpers.admin.components import AdminScript, Script, ADMIN_SCRIP
 from spinta.cli.helpers.admin.scripts.changelog import migrate_changelog_duplicates, cli_requires_changelog_migrations
 from spinta.cli.helpers.admin.scripts.citus_shard import migrate_citus_distributions, cli_requires_citus_distribution
 from spinta.cli.helpers.admin.scripts.deduplicate import migrate_duplicates, cli_requires_deduplicate_migrations
+from spinta.cli.helpers.admin.scripts.enums import gather_invalid_enum_values
 from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
 from spinta.cli.helpers.script.registry import script_registry
 from spinta.cli.helpers.upgrade.components import Script as UpgradeScript, UPGRADE_SCRIPT_TYPE
@@ -29,6 +30,9 @@ script_registry.register(
         required=[Script.DEDUPLICATE.value],
         targets={ScriptTarget.BACKEND.value},
     )
+)
+script_registry.register(
+    AdminScript(name=Script.ENUM_LIST.value, run=gather_invalid_enum_values, targets={ScriptTarget.BACKEND.value})
 )
 script_registry.register(
     AdminScript(

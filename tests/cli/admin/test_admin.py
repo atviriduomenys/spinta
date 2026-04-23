@@ -29,7 +29,7 @@ def test_admin_all_error(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Pa
     assert "At least one script needs to be specified" in result.stderr
 
     for script in upgrade_script_registry.get_all_names():
-        assert script_check_status_message(script, ScriptStatus.PASSED) not in result.stdout
+        assert script_check_status_message(script, ScriptStatus.PASSED) not in result.stderr
 
 
 def test_admin_multiple(
@@ -66,5 +66,5 @@ def test_admin_multiple(
     )
     assert result.exit_code == 0
 
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED) in result.stdout
-    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED) in result.stderr
+    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stderr

@@ -11,6 +11,7 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    rc = rc.fork({"default_access_level": "protected"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -163,6 +164,7 @@ def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
 
 @mark.parametrize("type", ["dask/xml", "sql/sqlite"])
 def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path, type: str):
+    rc = rc.fork({"default_access_level": "protected"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
