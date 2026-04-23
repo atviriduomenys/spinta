@@ -272,6 +272,7 @@ def dask_get_all(
         res = {
             "_type": model.model_type(),
         }
+        id_prop = getattr(model.external, "id_prop", None)
         for key, sel in env.selected.items():
             val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
@@ -284,6 +285,8 @@ def dask_get_all(
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
+                elif sel.prop is id_prop and isinstance(val, list):
+                    val = ",".join("" if list_value is None else str(list_value) for list_value in val)
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
