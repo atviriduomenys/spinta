@@ -8,7 +8,6 @@ import pytest
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest_and_context
 from tests.manifests.wsdl.test_wsdl import (
