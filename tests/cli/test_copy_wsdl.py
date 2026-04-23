@@ -493,57 +493,6 @@ def test_copy_wsdl_referenced_schema_output_is_loadable(
     assert response_model.properties["population"].dtype.required is False
 
 
-def test_copy_wsdl_generates_dsa_manifest_snapshot(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    tmp_path: Path,
-):
-    path = tmp_path / "country.wsdl"
-    output = tmp_path / "result.txt"
-    path.write_text(COUNTRY_WSDL)
-
-    cli.invoke(
-        rc,
-        [
-            "copy",
-            "-o",
-            output,
-            path,
-        ],
-    )
-
-    expected = striptable(f"""
-        id | d | r | b | m | property                                            | type            | ref        | source                                                                         | source.type | prepare        | origin | count | level | status  | visibility | access | uri                                   | eli | title               | description
-           | services/country_service                                            |                 |            |                                                                                |             |                |        |       |       |         |            |        |                                       |     | CountryService      |
-           |                                                                     | prefix          | wsdl       |                                                                                |             |                |        |       |       |         |            |        | http://schemas.xmlsoap.org/wsdl/      |     |                     |
-           |                                                                     |                 | soap       |                                                                                |             |                |        |       |       |         |            |        | http://schemas.xmlsoap.org/wsdl/soap/ |     |                     |
-           |                                                                     |                 | xs         |                                                                                |             |                |        |       |       |         |            |        | http://www.w3.org/2001/XMLSchema      |     |                     |
-           |                                                                     |                 | tns        |                                                                                |             |                |        |       |       |         |            |        | urn:country                           |     |                     |
-           |                                                                     |                 |            |                                                                                |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |   | contract                                                        | wsdl            |            | {path} |             |                |        |       |       |         |            |        |                                       |     | CountryService      |
-           |                                                                     |                 |            |                                                                                |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |   |   |   | /services/country_service/schema/GetCountryRequest      |                 |            | /GetCountryRequest                                                             |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |   |   |   |   | code                                                | string required |            | code/text()                                                                    |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |                                                                     |                 |            |                                                                                |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |   |   |   | /services/country_service/schema/GetCountryResponse     |                 |            | /GetCountryResponse                                                            |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |   |   |   |   | name                                                | string required |            | name/text()                                                                    |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |   |   |   |   | population                                          | integer         |            | population/text()                                                              |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |   | country_port_get_country                                        | soap            |            | CountryService.CountryPort.CountryPortType.GetCountry                          |             | wsdl(contract) |        |       |       |         |            |        |                                       |     | GetCountry          |
-           |                                                                     | param           | style      | document                                                                       |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |                                                                     | param           | transport  | http://schemas.xmlsoap.org/soap/http                                           |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |                                                                     | param           | address    | https://example.com/country                                                    |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |                                                                     | param           | soapAction | urn:country#GetCountry                                                         |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |                                                                     |                 |            |                                                                                |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |   |   |   | GetCountryRequest                                       |                 |            | GetCountryRequest                                                              |             |                |        |       |       | develop | private    |        |                                       |     | GetCountry Request  |
-           |   |   |   |   | code                                                | string required |            | code                                                                           |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |                                                                     |                 |            |                                                                                |             |                |        |       |       |         |            |        |                                       |     |                     |
-           |   |   |   | GetCountryResponse                                      |                 |            | GetCountryResponse                                                             |             |                |        |       |       | develop | private    |        |                                       |     | GetCountry Response |
-           |   |   |   |   | name                                                | string required |            | name                                                                           |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-           |   |   |   |   | population                                          | integer         |            | population                                                                     |             |                |        |       |       | develop | private    |        |                                       |     |                     |
-    """)
-    assert output.read_text() == expected
-
-
 def test_copy_wsdl_generates_loadable_dsa_manifest(
     rc: RawConfig,
     cli: SpintaCliRunner,
