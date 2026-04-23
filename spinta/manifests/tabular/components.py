@@ -207,6 +207,7 @@ class ModelRow(TypedDict, total=False):
     title: str
     description: str
     properties: Dict[str, PropertyRow]
+    scopes: Dict[str, ScopeRow]
     external: ModelExternalRow
     backend: str
     lang: LangData
@@ -297,6 +298,16 @@ class CommentRow(TypedDict, total=False):
     # TODO: should be datetime
     created: str
     comment: str
+
+
+class ScopeRow(TypedDict, total=False):
+    id: str
+    name: str  # scope name
+    prepare: Optional[Dict[str, Any]]  # formula
+    title: str
+    description: str
+    eli: str
+    access: str
 
 
 class CommentData(TypedDict, total=False):

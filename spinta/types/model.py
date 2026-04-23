@@ -20,6 +20,7 @@ from spinta.dimensions.enum.components import Enums, EnumValue
 from spinta.dimensions.enum.helpers import link_enums, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
+from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import (
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
@@ -33,7 +34,7 @@ from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.helpers import check_model_name, check_property_name
+from spinta.types.helpers import check_model_name, check_property_name, check_scope_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
@@ -531,7 +532,6 @@ def check(context: Context, model: Model):
     check_model_name(context, model)
     if "_id" not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop="_id")
-
     for prop in model.properties.values():
         commands.check(context, prop)
 
@@ -551,6 +551,11 @@ def check(context: Context, model: Model):
 @check.register(Context, Model, Backend)
 def check(context: Context, model: Model, backend: Backend) -> None:
     pass
+
+
+@check.register(Context, Scope)
+def check(context: Context, scope: Scope):
+    check_scope_name(context, scope)
 
 
 @check.register(Context, Property)
