@@ -175,6 +175,10 @@ class URI(String):
     pass
 
 
+class Base32(DataType):
+    pass
+
+
 class Ref(DataType):
     # Referenced model
     model: Model
@@ -381,6 +385,12 @@ class Unknown(DataType):
 @commands.check.register(Context, DataType)
 def check(context: Context, dtype: DataType):
     pass
+
+
+@commands.check.register(Context, Base32)
+def check(context: Context, dtype: Base32):
+    if dtype.prop.name != "_id":
+        raise exceptions.Base32TypeOnlyAllowedOnId(dtype.prop, property=dtype.prop.place)
 
 
 @load.register(Context, DataType, dict, Manifest)

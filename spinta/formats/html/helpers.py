@@ -83,8 +83,9 @@ def get_current_location(
 
 
 def short_id(value: Optional[str]) -> Optional[str]:
-    if value is not None:
+    if value is not None and isinstance(value, str):
         return value[:8]
+    return value
 
 
 def get_cell(
@@ -186,6 +187,9 @@ def get_model_link_params(
             "args": (model.name.split("/") + ([pk] if pk is not None else []) + ([prop] if prop is not None else [])),
         }
     ]
+    if isinstance(model, Model):
+        if id_prop := model.external.id_prop:
+            ptree[0]["id_prop"] = id_prop
 
     for k, v in extra.items():
         ptree.append(
