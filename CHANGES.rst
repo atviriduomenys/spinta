@@ -8,6 +8,15 @@ Bug fixes:
 - Fixed a bug where nested SOAP data was not read properly (`#1866`_).
 
 .. _#1866: https://github.com/atviriduomenys/spinta/issues/1866
+New Features:
+
+- Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
+
+.. _#1790: https://github.com/atviriduomenys/spinta/issues/1790
+
+Improvements:
+
+- Added support for `spinta admin` `-o` (`--output`) argument, that can be used for scripts to specify output path (`#1790`_).
 
 
 0.2dev22 (2026-04-19)

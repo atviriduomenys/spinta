@@ -81,7 +81,7 @@ def test_upgrade_postgresql_comments_pass(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.PASSED) in result.stderr
 
 
 def test_upgrade_postgresql_comments_required_table(
@@ -126,7 +126,7 @@ def test_upgrade_postgresql_comments_required_table(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/req/Country")
 
 
@@ -173,7 +173,7 @@ def test_upgrade_postgresql_comments_required_changelog(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/req/Country/:changelog")
 
 
@@ -220,7 +220,7 @@ def test_upgrade_postgresql_comments_required_redirect(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/req/Country/:redirect")
 
 
@@ -269,7 +269,7 @@ def test_upgrade_postgresql_comments_required_file(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/req/file/Country/:file/img")
 
 
@@ -316,7 +316,7 @@ def test_upgrade_postgresql_comments_required_column(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/req/Country")
 
 
@@ -362,7 +362,7 @@ def test_upgrade_postgresql_comments_required_table_missmatch(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/rand/very/long/dataset/name/that/will/compress/Country")
 
 
@@ -408,5 +408,5 @@ def test_upgrade_postgresql_comments_required_column_missmatch(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_COMMENTS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.POSTGRESQL_COMMENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert_model_comments(insp, "datasets/comments/req/Country")

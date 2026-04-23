@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import logging
 import pathlib
-import sys
 from typing import Optional, List
 
 from typer import Context as TyperContext, Argument
 from typer import Option
-from typer import echo
 
 from spinta.cli.helpers.admin.components import ADMIN_SCRIPT_TYPE
 from spinta.cli.helpers.admin.registry import admin_script_registry
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.script.components import ScriptStatusCache
 from spinta.cli.helpers.script.core import run_specific_script
 from spinta.cli.helpers.script.helpers import sort_scripts_by_required
@@ -48,26 +47,30 @@ def admin(
         False,
         "-c",
         "--check",
-        help=("Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."),
+        help="Only runs script checks, skipping execution part (used to find out what scripts are needed to run).",
     ),
     input_path: Optional[pathlib.Path] = Option(
         None,
         "-i",
         "--input",
-        help=("Path to input file (some scripts might require extra data). If not given, script will read from stdin."),
+        help="Path to input file (some scripts might require extra data). If not given, script will read from stdin.",
+    ),
+    output_path: Optional[pathlib.Path] = Option(
+        None,
+        "-o",
+        "--output",
+        help="Path to output file (some scripts might write extra data). If not given, script will write to stdout.",
     ),
 ):
     context = configure_context(ctx.obj)
 
     if force and check_only:
-        echo("Cannot run force mode with check only mode", err=True)
-        sys.exit(1)
+        cli_error("Cannot run force mode with check only mode")
 
     load_config(context, ensure_config_dir=ensure_config_dir)
 
     if not scripts:
-        echo("At least one script needs to be specified", err=True)
-        sys.exit(1)
+        cli_error("At least one script needs to be specified")
 
     script_objects = {}
     for script in scripts:
@@ -86,5 +89,6 @@ def admin(
             script_name=script,
             check_only=check_only,
             input_path=input_path,
+            output_path=output_path,
             status_cache=status_cache,
         )
