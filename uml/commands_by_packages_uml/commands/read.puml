@@ -1,0 +1,34 @@
+@startuml
+package read <<Rectangle>> {
+
+    object getall {
+        +context: Context
+        +model: Model
+        +request: Request
+        + *
+        +action: Action
+        +params: UrlParams
+    }
+
+    object getone {
+        +context: Context
+        +request: Request
+        +node: Node
+        + *
+        +action: Action
+        +params: UrlParams
+    }
+
+}
+
+getall *-- Context
+getall *-- Model
+getall *-- Request
+getall *-- Action
+getall *-- UrlParams
+getone *-- Context
+getone *-- Request
+getone *-- Node
+getone *-- Action
+getone *-- UrlParams
+@enduml
