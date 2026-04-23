@@ -543,7 +543,7 @@ def test_check_prop_underscore_ok_2(context: Context, rc, cli: SpintaCliRunner, 
       |   |   |   | _created  | string |         | sukurta     |         | open   | discont
       |   |   |   | _revision | string |         | versija     |         | open   | discont
       |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
-      |   |   |   | _id       | strin  |         |             |         | open   | develop
+      |   |   |   | _id       | string |         |             |         | open   | develop
       |   |   |   | _op       | string |         | op          |         | open   | develop
       |   |   |   | _test123  | string |         | test123     |         | open   | develop
     """),

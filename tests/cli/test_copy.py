@@ -63,7 +63,7 @@ def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
                              | enum   |         |        | 'left'  | open
                              |        |         |        | 'right' | open
                              |        |         |        |         |
-      |   |   | City         |        |         |        |         |
+      |   |   | City         |        | name    |        |         |
       |   |   |   | name     | string |         |        |         | open
       |   |   |   | country  | ref    | Country |        |         | open
     """
@@ -107,7 +107,7 @@ def test_copy_enum_0(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     d | r | b | m | property | type    | ref     | source | prepare | access
     datasets/gov/example     |         |         |        |         |
                              |         |         |        |         |
-      |   |   | Country      |         |         |        |         |
+      |   |   | Country      |         | name    |        |         |
       |   |   |   | name     | string  |         |        |         | open
       |   |   |   | driving  | integer |         |        |         | open
                              | enum    |         |        | 0       | open
@@ -155,7 +155,7 @@ def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
                              | enum    | direction |        | 0       |
                              |         |           |        | 1       |
                              |         |           |        |         |
-      |   |   | Country      |         |           |        |         |
+      |   |   | Country      |         | name      |        |         |
       |   |   |   | name     | string  |           |        |         | open
       |   |   |   | driving  | integer | direction |        |         | open
     """
