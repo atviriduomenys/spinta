@@ -9,6 +9,7 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
+from spinta.dimensions.scope.components import Scope
 from spinta.core.enums import Access, load_level, Level
 from spinta.dimensions.comments.components import Comment, CommentGiven
 from spinta.exceptions import BackendNotFound
@@ -145,3 +146,11 @@ def check_property_name(context: Context, prop: Property):
         elif prop.name == C_LANG:
             return
         raise InvalidName(prop, name=prop.name, type="property")
+
+
+def check_scope_name(context: Context, scope: Scope):
+    config: Config = context.get("config")
+    # Scope names follow the same naming rules as property names,
+    # so we reuse `is_valid_property_name` for validation.
+    if config.check_names and not is_valid_property_name(scope.name):
+        raise InvalidName(scope, name=scope.name, type="scope")

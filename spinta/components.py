@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from spinta.accesslog import AccessLog
     from spinta.formats.components import Format
     from spinta.dimensions.comments.components import Comment
+    from spinta.dimensions.scope.components import Scope
 
 
 class Context:
@@ -642,6 +643,7 @@ class Model(MetaData):
     description: str
     ns: Namespace
     external: Entity = None
+    scopes: Dict[str, Scope]
     properties: Dict[str, Property]
     mode: Mode = None
     given: ModelGiven
@@ -666,6 +668,7 @@ class Model(MetaData):
         "unique": {"default": []},
         "base": {},
         "link": {},
+        "scopes": {"default": {}},
         "properties": {"default": {}},
         "external": {},
         "level": {
