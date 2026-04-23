@@ -4,6 +4,10 @@ Changes
 0.2dev23 (unreleased)
 =====================
 
+Bug fixes:
+- Fixed a bug where nested SOAP data was not read properly (`#1866`_).
+
+.. _#1866: https://github.com/atviriduomenys/spinta/issues/1866
 New Features:
 
 - Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
