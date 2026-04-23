@@ -59,6 +59,11 @@
         </style>
     </head>
     <body>
+        {% if access==3 %}
+            saugykla - open
+            išoriniai - public
+            vidiniai - protected
+            IS - private
         <div class="warning">
             <strong>Dėmesio!</strong>
             <a href="https://data.gov.lt/page/saugykla" target="_blank">Atvirų
@@ -67,6 +72,15 @@
             todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
             kuriuos maloniai prašome pranešti <a href="mailto: atviriduomenys@vssa.lt" target="_blank">atviriduomenys@vssa.lt</a>.
         </div>
+        {% else %}
+        <div class="warning">
+            <strong>Dėmesio!</strong>
+            <a href="https://data.gov.lt/page/saugykla" target="_blank">Duomenų agentas</a> šiuo metu yra
+            <a href="https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas" target="_blank">aktyviai vystomas</a>,
+            todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
+            kuriuos maloniai prašome pranešti <a href="mailto: das@vssa.lt" target="_blank">das@vssa.lt</a>.
+        </div>
+        {% endif %}
 
         <div class="container">
             {% block content %}{% endblock %}
