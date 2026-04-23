@@ -40,7 +40,7 @@ def test_upgrade_check_only(
 
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value, "-c"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stderr
     assert client_migration_status_message("TEST.yml", CLIENT_STATUS_SUCCESS) not in result.stdout
     assert "Created keymap with 1 users" not in result.stdout
 
@@ -58,12 +58,12 @@ def test_upgrade_all(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
     assert result.exit_code == 0
 
     for script in upgrade_script_registry.get_all_names():
-        assert script_check_status_message(script, ScriptStatus.PASSED) in result.stdout
+        assert script_check_status_message(script, ScriptStatus.PASSED) in result.stderr
 
 
 def test_upgrade_multiple(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
     result = cli.invoke(rc, ["upgrade", Script.SQL_KEYMAP_REDIRECT.value, Script.SQL_KEYMAP_INITIAL.value, "-c"])
     assert result.exit_code == 0
 
-    assert script_check_status_message(Script.SQL_KEYMAP_INITIAL.value, ScriptStatus.PASSED) in result.stdout
-    assert script_check_status_message(Script.SQL_KEYMAP_REDIRECT.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.SQL_KEYMAP_INITIAL.value, ScriptStatus.PASSED) in result.stderr
+    assert script_check_status_message(Script.SQL_KEYMAP_REDIRECT.value, ScriptStatus.PASSED) in result.stderr

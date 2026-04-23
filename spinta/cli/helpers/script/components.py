@@ -31,7 +31,7 @@ class _ScriptMeta(type):
 
 class ScriptBase(metaclass=_ScriptMeta):
     """
-    Represents an script with optional preconditions and target constraints.
+    Represents a script with optional preconditions and target constraints.
 
     Targets and tags are mainly used to be able to filter specific scripts. Main use case would be to set target as
     specific object, like sqlalchemy keymap and tag as migration, so then you could filter all database migration

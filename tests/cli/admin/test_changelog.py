@@ -74,7 +74,7 @@ def test_admin_changelog_requires_redirect(
     assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
     result = cli.invoke(context.get("rc"), ["admin", Script.CHANGELOG.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
+    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stderr
 
     assert not insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
     assert not insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
@@ -82,7 +82,7 @@ def test_admin_changelog_requires_redirect(
 
     result = cli.invoke(context.get("rc"), ["upgrade", UpgradeScript.REDIRECT.value])
     assert result.exit_code == 0
-    assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stderr
 
     assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
     assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
@@ -97,7 +97,7 @@ def test_admin_changelog_requires_redirect(
         context.get("rc"), ["admin", Script.CHANGELOG.value, "-c", "--input", f"{tmp_path / 'modellist.txt'}"]
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stderr
 
 
 def test_admin_changelog_requires_deduplicate(
@@ -162,11 +162,11 @@ def test_admin_changelog_requires_deduplicate(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.CHANGELOG.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
+    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stderr
 
     result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stderr
 
     insp = sa.inspect(backend.engine)
     assert any(
@@ -185,7 +185,7 @@ def test_admin_changelog_requires_deduplicate(
         context.get("rc"), ["admin", Script.CHANGELOG.value, "--input", f"{tmp_path / 'modellist.txt'}"]
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
+    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -319,7 +319,7 @@ def test_admin_changelog_old_deleted_entries(
         context.get("rc"), ["admin", Script.CHANGELOG.value, "--input", f"{tmp_path / 'modellist.txt'}"]
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.REQUIRED) in result.stderr
 
     result = app.get("/datasets/deduplicate/changelog/Country")
     assert listdata(result, "_id", "id", "name", sort="id", full=True) == [
