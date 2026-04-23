@@ -199,9 +199,10 @@ def get_ref_filters(
 
 def encode_composite_string_id(values: list, pkeys: list) -> str:
     for primary_key, value in zip(pkeys, values):
+        value = str(value)
         if "," in value or value.startswith(INVALID_PREFIXES):
             raise ValuesForIdCantHaveSpecialSymbols(value=value, property=primary_key.name or primary_key)
-    return ",".join(value for value in values)
+    return ",".join(str(value) for value in values)
 
 
 def decode_id_value(id_prop: Property, value):

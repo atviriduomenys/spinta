@@ -1783,6 +1783,13 @@ def cast_backend_to_python(context: Context, dtype: DataType, backend: Backend, 
     return data
 
 
+@commands.cast_backend_to_python.register(Context, String, Backend, object)
+def cast_backend_to_python(context: Context, dtype: String, backend: Backend, data: Any, **kwargs) -> Any:
+    if data is None or is_nan(data):
+        return None
+    return str(data)
+
+
 @commands.cast_backend_to_python.register(Context, UUID, Backend, object)
 def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data: Any, **kwargs) -> Any:
     if is_nan(data):
