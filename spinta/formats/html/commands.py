@@ -279,8 +279,6 @@ def _render_model(
     # Preserve response data for tests.
     if request.url.hostname == "testserver":
         ctx["data"] = list(ctx["data"])
-    config = context._context[-1].get('config')
-    print(vars(config))
     templates = Jinja2Templates(directory=str(resource_filename("spinta", "templates")))
     return templates.TemplateResponse("data.html", ctx, headers=http_headers)
 
