@@ -62,7 +62,7 @@
 
 
 
-        {% if access==3 %}
+        {% if access == "open" %}
             saugykla - open
             išoriniai - public
             vidiniai - protected
@@ -76,7 +76,16 @@
             todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
             kuriuos maloniai prašome pranešti <a href="mailto: atviriduomenys@vssa.lt" target="_blank">atviriduomenys@vssa.lt</a>.
         </div>
-        {% else %}
+        {% elif access == "public" %}
+        <div class="warning">
+
+            <strong>B {{ access }} Dėmesio!</strong>
+            <a href="https://data.gov.lt/page/saugykla" target="_blank">Duomenų agentas</a> šiuo metu yra
+            <a href="https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas" target="_blank">aktyviai vystomas</a>,
+            todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
+            kuriuos maloniai prašome pranešti <a href="mailto: das@vssa.lt" target="_blank">das@vssa.lt</a>.
+        </div>
+        {% elif access == "protected" %}
         <div class="warning">
 
             <strong>B {{ access }} Dėmesio!</strong>
@@ -86,7 +95,23 @@
             kuriuos maloniai prašome pranešti <a href="mailto: das@vssa.lt" target="_blank">das@vssa.lt</a>.
         </div>
         {% endif %}
+        {% elif access == "private" %}
 
+        <div class="warning">
+            <strong>
+                Būkite atsargūs! Agentas teikia ir duomenis, kurie pažymėti <em>private</em>.
+                Jei norite, kad šie duomenys teikiami nebūtų, agento konfigūracijos faile
+                pakeiskite parametro <em>access</em> į aukštesnį (protected, public, open).
+            </strong>
+        </div>
+
+        <div class="warning">
+            <strong>Dėmesio!</strong>
+            <a href="https://data.gov.lt/page/saugykla" target="_blank">Duomenų agentas</a> šiuo metu yra
+            <a href="https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas" target="_blank">aktyviai vystomas</a>,
+            todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
+            kuriuos maloniai prašome pranešti <a href="mailto: das@vssa.lt" target="_blank">das@vssa.lt</a>.
+        </div>
         <div class="container">
             {% block content %}{% endblock %}
         </div>

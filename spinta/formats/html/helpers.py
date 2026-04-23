@@ -245,9 +245,18 @@ def _split_path(
     return result
 
 
+def get_access_level(context: Context) -> dict:
+    """Template context shared by all templates that extend `base.html`."""
+    config: Config = context.get("config")
+    return {
+        "access": config.access.name,
+    }
+
+
 def get_template_context(context: Context, model, params: UrlParams):
     config: Config = context.get("config")
     return {
+        **get_access_level(context),
         "location": get_current_location(context, config, model, params),
     }
 
