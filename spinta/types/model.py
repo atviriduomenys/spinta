@@ -68,11 +68,14 @@ def configure(context: Context, model: Model):
         model.backend = backend
 
     if distribute := model_config.get("distribute"):
-        if isinstance(distribute, str):
-            model.distribution_strategy = DistributionStrategy(get_enum_by_value(DistributionType, distribute))
-        elif isinstance(distribute, list):
-            values = {key: rc.get(*model_path, "distribute", key) for key in distribute}
-            distribute_type = values.pop("type", None)
+        if (
+            len(distribute) == 1
+            and (distribute_type := tuple(distribute.keys())[0])
+            and distribute[distribute_type] == NA
+        ):
+            model.distribution_strategy = DistributionStrategy(get_enum_by_value(DistributionType, distribute_type))
+        else:
+            distribute_type = distribute.pop("type", None)
 
             if distribute_type is None:
                 raise MissingConfigurationParameter(
@@ -82,7 +85,7 @@ def configure(context: Context, model: Model):
 
             match distribute_type:
                 case DistributionType.TABLE:
-                    if (prop := values.pop("property", None)) is None:
+                    if (prop := distribute.pop("property", None)) is None:
                         raise MissingConfigurationParameter(
                             model,
                             config_type="Model",
