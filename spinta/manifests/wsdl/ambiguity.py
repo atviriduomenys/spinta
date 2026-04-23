@@ -7,9 +7,7 @@ from spinta import exceptions
 from .qname import WsdlQName, wsdl_qname_key
 
 
-DUPLICATE_EXPANDED_QNAME_CONFLICT = (
-    "Duplicate expanded QName conflict detected in a scope that requires uniqueness."
-)
+DUPLICATE_EXPANDED_QNAME_CONFLICT = "Duplicate expanded QName conflict detected in a scope that requires uniqueness."
 
 
 def raise_ambiguous_wsdl_reference(

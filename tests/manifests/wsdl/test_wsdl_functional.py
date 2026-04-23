@@ -86,7 +86,7 @@ COUNTRY_WSDL = """
 
 COUNTRY_WSDL_WITHOUT_SOAP_ACTION = COUNTRY_WSDL.replace(
     '<soap:operation soapAction="urn:country#GetCountry" />',
-    '<soap:operation />',
+    "<soap:operation />",
 )
 
 
@@ -94,7 +94,7 @@ COUNTRY_WSDL_DUPLICATE_MESSAGE = COUNTRY_WSDL.replace(
     '    <wsdl:message name="GetCountryOutput">\n',
     '    <wsdl:message name="GetCountryInput">\n'
     '        <wsdl:part name="parameters" element="tns:GetCountryResponse" />\n'
-    '    </wsdl:message>\n'
+    "    </wsdl:message>\n"
     '    <wsdl:message name="GetCountryOutput">\n',
 )
 
@@ -234,17 +234,17 @@ def _user_property_names(model: Model) -> set[str]:
 
 
 COUNTRY_WSDL_NAMESPACE_VARIANT = (
-    COUNTRY_WSDL
-    .replace('xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"', 'xmlns:soap11="http://schemas.xmlsoap.org/wsdl/soap/"')
-    .replace('<soap:binding', '<soap11:binding')
-    .replace('<soap:operation', '<soap11:operation')
-    .replace('<soap:address', '<soap11:address')
+    COUNTRY_WSDL.replace(
+        'xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"', 'xmlns:soap11="http://schemas.xmlsoap.org/wsdl/soap/"'
+    )
+    .replace("<soap:binding", "<soap11:binding")
+    .replace("<soap:operation", "<soap11:operation")
+    .replace("<soap:address", "<soap11:address")
 )
 
 
 COUNTRY_WSDL_QNAME_PREFIX_VARIANT = (
-    COUNTRY_WSDL
-    .replace(
+    COUNTRY_WSDL.replace(
         'xmlns:tns="urn:country"',
         'xmlns:tns="urn:country"\n    xmlns:messages="urn:country"\n    xmlns:bindings="urn:country"\n    xmlns:interfaces="urn:country"\n    xmlns:elements="urn:country"',
     )
@@ -805,11 +805,12 @@ COUNTRY_WSDL_2_0 = """
 
 
 COUNTRY_WSDL_2_0_NAMESPACE_VARIANT = (
-    COUNTRY_WSDL_2_0
-    .replace('xmlns:soap="http://www.w3.org/ns/wsdl/soap"', 'xmlns:soap12="http://www.w3.org/ns/wsdl/soap"')
-    .replace('<soap:binding', '<soap12:binding')
+    COUNTRY_WSDL_2_0.replace(
+        'xmlns:soap="http://www.w3.org/ns/wsdl/soap"', 'xmlns:soap12="http://www.w3.org/ns/wsdl/soap"'
+    )
+    .replace("<soap:binding", "<soap12:binding")
     .replace('xmlns:wsoap="http://www.w3.org/ns/wsdl/soap"', 'xmlns:soapmeta="http://www.w3.org/ns/wsdl/soap"')
-    .replace('wsoap:protocol', 'soapmeta:protocol')
+    .replace("wsoap:protocol", "soapmeta:protocol")
 )
 
 
@@ -817,17 +818,17 @@ COUNTRY_WSDL_2_0_DUPLICATE_BINDING = COUNTRY_WSDL_2_0.replace(
     '    <wsdl:service name="CountryService" interface="tns:CountryInterface">\n',
     '    <wsdl:binding name="CountryBinding" interface="tns:CountryInterface" type="http://www.w3.org/ns/wsdl/soap">\n'
     '        <soap:binding wsoap:protocol="http://www.w3.org/2003/05/soap/bindings/HTTP/" xmlns:wsoap="http://www.w3.org/ns/wsdl/soap" />\n'
-    '    </wsdl:binding>\n'
+    "    </wsdl:binding>\n"
     '    <wsdl:service name="CountryService" interface="tns:CountryInterface">\n',
 )
 
 
 COUNTRY_WSDL_2_0_DUPLICATE_SERVICE = COUNTRY_WSDL_2_0.replace(
-    '</wsdl:description>\n',
+    "</wsdl:description>\n",
     '    <wsdl:service name="CountryService" interface="tns:CountryInterface">\n'
     '        <wsdl:endpoint name="CountryEndpointSecondary" binding="tns:CountryBinding" address="https://example.com/country-secondary" />\n'
-    '    </wsdl:service>\n'
-    '</wsdl:description>\n',
+    "    </wsdl:service>\n"
+    "</wsdl:description>\n",
 )
 
 
@@ -1250,7 +1251,9 @@ def test_wsdl_malformed_remote_xml_is_user_visible(rc: RawConfig, monkeypatch):
 
     def fake_urlopen(request_url: str):
         assert request_url == url
-        return FakeResponse(b'<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"><wsdl:types></wsdl:definitions>')
+        return FakeResponse(
+            b'<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"><wsdl:types></wsdl:definitions>'
+        )
 
     monkeypatch.setattr("spinta.manifests.wsdl.helpers.urllib.request.urlopen", fake_urlopen)
 
@@ -1371,7 +1374,9 @@ def test_wsdl_read_schema_output_loads_into_runtime_models_via_generic_loader(rc
     schemas = read_schema(context, source_manifest, str(path))
     load_manifest_nodes(cast(Any, context), target_manifest, schemas, source=source_manifest, link=True)
 
-    raw_response_model = commands.get_model(context, target_manifest, "services/nested_service/schema/GetNestedResponse")
+    raw_response_model = commands.get_model(
+        context, target_manifest, "services/nested_service/schema/GetNestedResponse"
+    )
     raw_location_model = commands.get_model(context, target_manifest, "services/nested_service/schema/Location")
     operation_request_model = commands.get_model(context, target_manifest, "services/nested_service/GetNestedRequest")
     operation_response_model = commands.get_model(context, target_manifest, "services/nested_service/GetNestedResponse")
@@ -1488,10 +1493,14 @@ def test_wsdl_multipart_messages_are_flattened_into_operation_models(
 
     request_model = commands.get_model(context, manifest, "services/multipart_service/GetCountryRequest")
     response_model = commands.get_model(context, manifest, "services/multipart_service/GetCountryResponse")
-    raw_header_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryRequestHeader")
+    raw_header_model = commands.get_model(
+        context, manifest, "services/multipart_service/schema/GetCountryRequestHeader"
+    )
     raw_body_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryRequestBody")
     raw_meta_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryResponseMeta")
-    raw_response_body_model = commands.get_model(context, manifest, "services/multipart_service/schema/GetCountryResponseBody")
+    raw_response_body_model = commands.get_model(
+        context, manifest, "services/multipart_service/schema/GetCountryResponseBody"
+    )
 
     assert raw_header_model.external.resource.name == "contract"
     assert raw_body_model.external.resource.name == "contract"
@@ -1517,10 +1526,18 @@ def test_wsdl_multipart_type_messages_are_flattened_into_operation_models(
 
     request_model = commands.get_model(context, manifest, "services/multipart_type_service/GetCountryRequest")
     response_model = commands.get_model(context, manifest, "services/multipart_type_service/GetCountryResponse")
-    raw_header_model = commands.get_model(context, manifest, "services/multipart_type_service/schema/GetCountryRequestHeaderType")
-    raw_body_model = commands.get_model(context, manifest, "services/multipart_type_service/schema/GetCountryRequestBodyType")
-    raw_meta_model = commands.get_model(context, manifest, "services/multipart_type_service/schema/GetCountryResponseMetaType")
-    raw_response_body_model = commands.get_model(context, manifest, "services/multipart_type_service/schema/GetCountryResponseBodyType")
+    raw_header_model = commands.get_model(
+        context, manifest, "services/multipart_type_service/schema/GetCountryRequestHeaderType"
+    )
+    raw_body_model = commands.get_model(
+        context, manifest, "services/multipart_type_service/schema/GetCountryRequestBodyType"
+    )
+    raw_meta_model = commands.get_model(
+        context, manifest, "services/multipart_type_service/schema/GetCountryResponseMetaType"
+    )
+    raw_response_body_model = commands.get_model(
+        context, manifest, "services/multipart_type_service/schema/GetCountryResponseBodyType"
+    )
 
     assert raw_header_model.external.resource.name == "contract"
     assert raw_body_model.external.resource.name == "contract"

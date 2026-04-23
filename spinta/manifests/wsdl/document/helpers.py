@@ -103,12 +103,14 @@ def collect_messages(
                     info.type_qname = type_qname
                     info.fields = part_fields
             if info.parts is not None:
-                info.parts.append(MessagePartInfo(
-                    name=part_name,
-                    element_qname=element_qname,
-                    type_qname=type_qname,
-                    fields=part_fields,
-                ))
+                info.parts.append(
+                    MessagePartInfo(
+                        name=part_name,
+                        element_qname=element_qname,
+                        type_qname=type_qname,
+                        fields=part_fields,
+                    )
+                )
 
         if len(parts) > 1:
             info.fields = _flatten_message_part_fields(info.parts or [])
@@ -152,7 +154,9 @@ def collect_bindings(
             params: dict[str, str] = {}
             for child in operation:
                 if _is_soap_extension(child, "operation"):
-                    soap_action = get_attribute_by_local_name(child, "soapAction") or get_attribute_by_local_name(child, "action")
+                    soap_action = get_attribute_by_local_name(child, "soapAction") or get_attribute_by_local_name(
+                        child, "action"
+                    )
                     if soap_action:
                         params["soapAction"] = soap_action
             if params:
@@ -230,7 +234,9 @@ def collect_services(
             params: dict[str, str] = {}
             for child in port:
                 if _is_soap_extension(child, "address"):
-                    address = get_attribute_by_local_name(child, "location") or get_attribute_by_local_name(child, "address")
+                    address = get_attribute_by_local_name(child, "location") or get_attribute_by_local_name(
+                        child, "address"
+                    )
                     if address:
                         params["address"] = address
 

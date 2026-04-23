@@ -15,7 +15,12 @@ from lxml.etree import QName, _Element
 from spinta.manifests.wsdl.ambiguity import raise_ambiguous_wsdl_reference, raise_duplicate_wsdl_qname_conflict
 from spinta.manifests.wsdl.qname import WsdlQName, wsdl_qname_key
 from spinta.manifests.wsdl.xsd.datatypes import normalize_embedded_field_type
-from spinta.manifests.wsdl.xsd.schema_sources import TOLERATED_SCHEMA_ERRORS, load_schema_root as _load_schema_root, normalize_schema_source, resolve_schema_reference
+from spinta.manifests.wsdl.xsd.schema_sources import (
+    TOLERATED_SCHEMA_ERRORS,
+    load_schema_root as _load_schema_root,
+    normalize_schema_source,
+    resolve_schema_reference,
+)
 from spinta.manifests.xsd.helpers import XSDModel, XSDProperty, XSDReader
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_property_name
@@ -105,12 +110,14 @@ def flatten_nested_fields(
 ) -> list[dict[str, Any]]:
     fields = []
     for field in nested:
-        fields.append({
-            **field,
-            "required": required and field.get("required", False),
-            "source": f"{prefix}/{field.get('source') or field['name']}",
-            **({"array": True} if is_array_field else {}),
-        })
+        fields.append(
+            {
+                **field,
+                "required": required and field.get("required", False),
+                "source": f"{prefix}/{field.get('source') or field['name']}",
+                **({"array": True} if is_array_field else {}),
+            }
+        )
     return fields
 
 
@@ -553,10 +560,10 @@ def _reader_to_embedded_element_types(
                 error="QName resolution matched multiple embedded schema model candidates.",
             )
         element_types[_expanded_wsdl_qname(local_name, target_namespace)] = _flatten_model_fields(
-                models[0],
-                datatype_overrides=datatype_overrides,
-                flatten_nested_handler=flatten_nested_handler,
-                visited_models=set(),
+            models[0],
+            datatype_overrides=datatype_overrides,
+            flatten_nested_handler=flatten_nested_handler,
+            visited_models=set(),
         )
 
     resource_model = getattr(reader, "resource_model", None)

@@ -209,7 +209,7 @@ MULTIPART_TYPE_WSDL = """
 
 COUNTRY_WSDL_WITHOUT_SOAP_ACTION = COUNTRY_WSDL.replace(
     '<soap:operation soapAction="urn:country#GetCountry" />',
-    '<soap:operation />',
+    "<soap:operation />",
 )
 
 
@@ -217,7 +217,7 @@ COUNTRY_WSDL_DUPLICATE_MESSAGE = COUNTRY_WSDL.replace(
     '    <wsdl:message name="GetCountryOutput">\n',
     '    <wsdl:message name="GetCountryInput">\n'
     '        <wsdl:part name="parameters" element="tns:GetCountryResponse" />\n'
-    '    </wsdl:message>\n'
+    "    </wsdl:message>\n"
     '    <wsdl:message name="GetCountryOutput">\n',
 )
 
@@ -344,17 +344,17 @@ COUNTRY_WSDL_DUPLICATE_EMBEDDED_TYPE = """
 
 
 COUNTRY_WSDL_NAMESPACE_VARIANT = (
-    COUNTRY_WSDL
-    .replace('xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"', 'xmlns:soap11="http://schemas.xmlsoap.org/wsdl/soap/"')
-    .replace('<soap:binding', '<soap11:binding')
-    .replace('<soap:operation', '<soap11:operation')
-    .replace('<soap:address', '<soap11:address')
+    COUNTRY_WSDL.replace(
+        'xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"', 'xmlns:soap11="http://schemas.xmlsoap.org/wsdl/soap/"'
+    )
+    .replace("<soap:binding", "<soap11:binding")
+    .replace("<soap:operation", "<soap11:operation")
+    .replace("<soap:address", "<soap11:address")
 )
 
 
 COUNTRY_WSDL_QNAME_PREFIX_VARIANT = (
-    COUNTRY_WSDL
-    .replace(
+    COUNTRY_WSDL.replace(
         'xmlns:tns="urn:country"',
         'xmlns:tns="urn:country"\n    xmlns:messages="urn:country"\n    xmlns:bindings="urn:country"\n    xmlns:interfaces="urn:country"\n    xmlns:elements="urn:country"',
     )
@@ -989,8 +989,7 @@ COUNTRY_WSDL_2_0 = """
 
 
 COUNTRY_WSDL_2_0_QNAME_PREFIX_VARIANT = (
-    COUNTRY_WSDL_2_0
-    .replace(
+    COUNTRY_WSDL_2_0.replace(
         'xmlns:tns="urn:country"',
         'xmlns:tns="urn:country"\n    xmlns:elements="urn:country"\n    xmlns:contracts="urn:country"\n    xmlns:bindings="urn:country"',
     )
@@ -1060,11 +1059,12 @@ COUNTRY_WSDL_ELEMENT_SCOPED_PREFIX_REBINDING = """
 
 
 COUNTRY_WSDL_2_0_NAMESPACE_VARIANT = (
-    COUNTRY_WSDL_2_0
-    .replace('xmlns:soap="http://www.w3.org/ns/wsdl/soap"', 'xmlns:soap12="http://www.w3.org/ns/wsdl/soap"')
-    .replace('<soap:binding', '<soap12:binding')
+    COUNTRY_WSDL_2_0.replace(
+        'xmlns:soap="http://www.w3.org/ns/wsdl/soap"', 'xmlns:soap12="http://www.w3.org/ns/wsdl/soap"'
+    )
+    .replace("<soap:binding", "<soap12:binding")
     .replace('xmlns:wsoap="http://www.w3.org/ns/wsdl/soap"', 'xmlns:soapmeta="http://www.w3.org/ns/wsdl/soap"')
-    .replace('wsoap:protocol', 'soapmeta:protocol')
+    .replace("wsoap:protocol", "soapmeta:protocol")
 )
 
 
@@ -1072,17 +1072,17 @@ COUNTRY_WSDL_2_0_DUPLICATE_BINDING = COUNTRY_WSDL_2_0.replace(
     '    <wsdl:service name="CountryService" interface="tns:CountryInterface">\n',
     '    <wsdl:binding name="CountryBinding" interface="tns:CountryInterface" type="http://www.w3.org/ns/wsdl/soap">\n'
     '        <soap:binding wsoap:protocol="http://www.w3.org/2003/05/soap/bindings/HTTP/" xmlns:wsoap="http://www.w3.org/ns/wsdl/soap" />\n'
-    '    </wsdl:binding>\n'
+    "    </wsdl:binding>\n"
     '    <wsdl:service name="CountryService" interface="tns:CountryInterface">\n',
 )
 
 
 COUNTRY_WSDL_2_0_DUPLICATE_SERVICE = COUNTRY_WSDL_2_0.replace(
-    '</wsdl:description>\n',
+    "</wsdl:description>\n",
     '    <wsdl:service name="CountryService" interface="tns:CountryInterface">\n'
     '        <wsdl:endpoint name="CountryEndpointSecondary" binding="tns:CountryBinding" address="https://example.com/country-secondary" />\n'
-    '    </wsdl:service>\n'
-    '</wsdl:description>\n',
+    "    </wsdl:service>\n"
+    "</wsdl:description>\n",
 )
 
 
@@ -1701,8 +1701,12 @@ def test_wsdl_raw_and_operation_models_do_not_collide(rc: RawConfig, tmp_path: P
     assert "services/nested_service/GetNestedResponse_1" not in model_names
 
     loaded_context, loaded_manifest = load_manifest_and_context(rc, path)
-    raw_response_model = commands.get_model(loaded_context, loaded_manifest, "services/nested_service/schema/GetNestedResponse")
-    operation_response_model = commands.get_model(loaded_context, loaded_manifest, "services/nested_service/GetNestedResponse")
+    raw_response_model = commands.get_model(
+        loaded_context, loaded_manifest, "services/nested_service/schema/GetNestedResponse"
+    )
+    operation_response_model = commands.get_model(
+        loaded_context, loaded_manifest, "services/nested_service/GetNestedResponse"
+    )
 
     assert raw_response_model.name == "services/nested_service/schema/GetNestedResponse"
     assert operation_response_model.name == "services/nested_service/GetNestedResponse"
@@ -2009,8 +2013,13 @@ def test_wsdl_shared_extraction_context_keeps_cross_namespace_same_local_names_d
 
     assert "{urn:country}GetCountryResponse" in wsdl_context.element_types
     assert "{urn:country-types}GetCountryResponse" in wsdl_context.element_types
-    assert {field["name"] for field in wsdl_context.element_types["{urn:country}GetCountryResponse"]} == {"name", "population"}
-    assert {field["name"] for field in wsdl_context.element_types["{urn:country-types}GetCountryResponse"]} == {"foreign_name"}
+    assert {field["name"] for field in wsdl_context.element_types["{urn:country}GetCountryResponse"]} == {
+        "name",
+        "population",
+    }
+    assert {field["name"] for field in wsdl_context.element_types["{urn:country-types}GetCountryResponse"]} == {
+        "foreign_name"
+    }
 
     response_message = wsdl_context.messages["{urn:country}GetCountryOutput"]
     assert response_message.element_qname is not None

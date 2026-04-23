@@ -4,7 +4,12 @@ from textwrap import dedent
 from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
-from tests.manifests.wsdl.test_wsdl import COUNTRY_WSDL_DEFAULT_NAMESPACE_SCHEMA_TYPES, COUNTRY_WSDL_QNAME_PREFIX_VARIANT, NESTED_TYPES_WSDL, SCALAR_TYPES_WSDL
+from tests.manifests.wsdl.test_wsdl import (
+    COUNTRY_WSDL_DEFAULT_NAMESPACE_SCHEMA_TYPES,
+    COUNTRY_WSDL_QNAME_PREFIX_VARIANT,
+    NESTED_TYPES_WSDL,
+    SCALAR_TYPES_WSDL,
+)
 
 
 SCALAR_TYPES_XSD = """
@@ -290,10 +295,14 @@ def test_wsdl_raw_nested_schema_output_matches_xsd_pipelines(rc: RawConfig, tmp_
         "location_zip": {"type": "integer", "required": False, "source": "location/zip"},
     }
     assert wsdl_snapshot == xsd_snapshot == xsd2_snapshot
-    assert wsdl_location_snapshot == xsd2_location_snapshot == {
-        "city": {"type": "string", "required": True, "source": "city"},
-        "zip": {"type": "integer", "required": True, "source": "zip"},
-    }
+    assert (
+        wsdl_location_snapshot
+        == xsd2_location_snapshot
+        == {
+            "city": {"type": "string", "required": True, "source": "city"},
+            "zip": {"type": "integer", "required": True, "source": "zip"},
+        }
+    )
     assert wsdl_model.properties["location"].dtype.name == "ref"
     assert wsdl_model.properties["location"].dtype.model.name == "services/nested_service/schema/Location"
     assert xsd2_model.properties["location"].dtype.model.name == "nested/Location"
@@ -318,13 +327,23 @@ def test_wsdl_namespace_aware_schema_output_matches_xsd_and_xsd2(rc: RawConfig, 
     xsd2_request = commands.get_model(xsd2_context, xsd2_manifest, "country_namespace_aware/GetCountryRequest")
     xsd2_response = commands.get_model(xsd2_context, xsd2_manifest, "country_namespace_aware/GetCountryResponse")
 
-    assert _canonical_public_properties(wsdl_request) == _canonical_public_properties(xsd_request) == _canonical_public_properties(xsd2_request) == {
-        "code": {"type": "string", "required": True, "source": "code"},
-    }
-    assert _canonical_public_properties(wsdl_response) == _canonical_public_properties(xsd_response) == _canonical_public_properties(xsd2_response) == {
-        "name": {"type": "string", "required": True, "source": "name"},
-        "population": {"type": "integer", "required": False, "source": "population"},
-    }
+    assert (
+        _canonical_public_properties(wsdl_request)
+        == _canonical_public_properties(xsd_request)
+        == _canonical_public_properties(xsd2_request)
+        == {
+            "code": {"type": "string", "required": True, "source": "code"},
+        }
+    )
+    assert (
+        _canonical_public_properties(wsdl_response)
+        == _canonical_public_properties(xsd_response)
+        == _canonical_public_properties(xsd2_response)
+        == {
+            "name": {"type": "string", "required": True, "source": "name"},
+            "population": {"type": "integer", "required": False, "source": "population"},
+        }
+    )
 
 
 def test_wsdl_default_namespace_schema_output_matches_xsd_pipelines(rc: RawConfig, tmp_path: Path):
@@ -346,13 +365,23 @@ def test_wsdl_default_namespace_schema_output_matches_xsd_pipelines(rc: RawConfi
     xsd2_request = commands.get_model(xsd2_context, xsd2_manifest, "country_default_namespace/GetCountryRequest")
     xsd2_response = commands.get_model(xsd2_context, xsd2_manifest, "country_default_namespace/GetCountryResponse")
 
-    assert _canonical_public_properties(wsdl_request) == _canonical_public_properties(xsd_request) == _canonical_public_properties(xsd2_request) == {
-        "code": {"type": "string", "required": True, "source": "code"},
-    }
-    assert _canonical_public_properties(wsdl_response) == _canonical_public_properties(xsd_response) == _canonical_public_properties(xsd2_response) == {
-        "name": {"type": "string", "required": True, "source": "name"},
-        "population": {"type": "integer", "required": False, "source": "population"},
-    }
+    assert (
+        _canonical_public_properties(wsdl_request)
+        == _canonical_public_properties(xsd_request)
+        == _canonical_public_properties(xsd2_request)
+        == {
+            "code": {"type": "string", "required": True, "source": "code"},
+        }
+    )
+    assert (
+        _canonical_public_properties(wsdl_response)
+        == _canonical_public_properties(xsd_response)
+        == _canonical_public_properties(xsd2_response)
+        == {
+            "name": {"type": "string", "required": True, "source": "name"},
+            "population": {"type": "integer", "required": False, "source": "population"},
+        }
+    )
 
 
 def test_wsdl_raw_partial_nested_model_features_match_xsd2(rc: RawConfig, tmp_path: Path):
@@ -431,10 +460,14 @@ def test_wsdl_raw_reference_schema_output_matches_xsd_pipelines(rc: RawConfig, t
         "status": {"type": "string", "required": True, "source": "status"},
     }
     assert wsdl_snapshot == xsd_snapshot == xsd2_snapshot
-    assert wsdl_address_snapshot == xsd2_address_snapshot == {
-        "city": {"type": "string", "required": True, "source": "city"},
-        "zip": {"type": "integer", "required": False, "source": "zip"},
-    }
+    assert (
+        wsdl_address_snapshot
+        == xsd2_address_snapshot
+        == {
+            "city": {"type": "string", "required": True, "source": "city"},
+            "zip": {"type": "integer", "required": False, "source": "zip"},
+        }
+    )
     assert wsdl_model.properties["address"].dtype.name == "ref"
     assert wsdl_model.properties["address"].dtype.model.name == "services/ref_service/schema/AddressType"
     assert xsd_model.properties["address"].dtype.name == "ref"

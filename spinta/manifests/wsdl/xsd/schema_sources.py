@@ -28,7 +28,7 @@ def is_remote_schema_source(path: str) -> bool:
 
 def normalize_local_schema_path(path: str) -> str:
     if path.startswith("file://"):
-        return path[len("file://"):]
+        return path[len("file://") :]
     return path
 
 

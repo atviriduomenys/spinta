@@ -151,13 +151,13 @@ def is_wsdl_path(path: str) -> bool:
 
 def normalize_wsdl_path(path: str) -> str:
     if path.startswith(WSDL_FILE_PREFIX):
-        return path[len(WSDL_FILE_PREFIX):]
+        return path[len(WSDL_FILE_PREFIX) :]
     if path.startswith("wsdl+http://"):
-        return "http://" + path[len("wsdl+http://"):]
+        return "http://" + path[len("wsdl+http://") :]
     if path.startswith("wsdl+https://"):
-        return "https://" + path[len("wsdl+https://"):]
+        return "https://" + path[len("wsdl+https://") :]
     if path.startswith(WSDL_PREFIX):
-        return path[len(WSDL_PREFIX):]
+        return path[len(WSDL_PREFIX) :]
     if _is_remote_url(path):
         return path
     if path.lower().endswith("?wsdl"):
@@ -449,11 +449,14 @@ def _iter_operation_message_manifest_schemas(
                 continue
 
             model_name = model_deduplicator(to_model_name(f"{operation_link.operation_name}{operation_message.suffix}"))
-            yield None, _build_operation_message_manifest_schema(
-                wsdl_context,
-                operation_link,
-                operation_message,
-                model_name=model_name,
+            yield (
+                None,
+                _build_operation_message_manifest_schema(
+                    wsdl_context,
+                    operation_link,
+                    operation_message,
+                    model_name=model_name,
+                ),
             )
 
 
@@ -550,11 +553,9 @@ def _build_raw_schema_manifest_schema(
             dataset=wsdl_context.dataset,
         ),
     }
-    model_schema.update({
-        key: value
-        for key, value in raw_schema_model.items()
-        if key not in {"type", "name", "external", "properties"}
-    })
+    model_schema.update(
+        {key: value for key, value in raw_schema_model.items() if key not in {"type", "name", "external", "properties"}}
+    )
     return model_schema
 
 
@@ -612,10 +613,14 @@ def _collect_wsdl_1_1_operation_links(
             messages,
             namespace_context=namespace_context,
         )
-        return operation_name, operation_qname, [
-            WsdlOperationMessage("Request", input_message),
-            WsdlOperationMessage("Response", output_message),
-        ]
+        return (
+            operation_name,
+            operation_qname,
+            [
+                WsdlOperationMessage("Request", input_message),
+                WsdlOperationMessage("Response", output_message),
+            ],
+        )
 
     return _collect_wsdl_operation_links_for_interfaces(
         root.findall(f".//{{{WSDL_1_1_NS}}}portType"),
@@ -648,7 +653,9 @@ def _collect_wsdl_operation_links_for_interfaces(
         interface_qname = namespace_context.resolve_in_scope(interface.get("name"), node=interface)
         for operation in interface.findall(operation_tag):
             operation_name, operation_qname, operation_messages = resolve_operation(operation)
-            for service_name, port_name in resolve_ports_for_port_type(services, bindings, interface_qname, interface_name):
+            for service_name, port_name in resolve_ports_for_port_type(
+                services, bindings, interface_qname, interface_name
+            ):
                 port_info, binding_info = _resolve_wsdl_service_binding(
                     services,
                     bindings,
@@ -701,10 +708,14 @@ def _collect_wsdl_2_0_operation_links(
             element_types,
             namespace_context=namespace_context,
         )
-        return operation_name, operation_qname, [
-            WsdlOperationMessage("Request", input_message),
-            WsdlOperationMessage("Response", output_message),
-        ]
+        return (
+            operation_name,
+            operation_qname,
+            [
+                WsdlOperationMessage("Request", input_message),
+                WsdlOperationMessage("Response", output_message),
+            ],
+        )
 
     return _collect_wsdl_operation_links_for_interfaces(
         root.findall(f".//{{{WSDL_2_0_NS}}}interface"),

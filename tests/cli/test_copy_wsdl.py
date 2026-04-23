@@ -11,7 +11,25 @@ from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest_and_context
-from tests.manifests.wsdl.test_wsdl import _build_local_reference_wsdl, _build_remote_reference_wsdl, COUNTRY_WSDL, COUNTRY_WSDL_2_0, COUNTRY_WSDL_2_0_NAMESPACE_VARIANT, COUNTRY_WSDL_DUPLICATE_EMBEDDED_TYPE, COUNTRY_WSDL_DUPLICATE_MESSAGE, COUNTRY_WSDL_NAMESPACE_VARIANT, COUNTRY_WSDL_WITHOUT_SOAP_ACTION, FAULT_WSDL_2_0, LOCAL_REFERENCED_RESPONSE_TYPES_XSD, MULTI_OPERATION_WSDL, MULTI_OPERATION_WSDL_2_0, NESTED_TYPES_WSDL_2_0, NON_SOAP_BINDING_WSDL_2_0, SCALAR_TYPES_WSDL, SCALAR_TYPES_WSDL_2_0
+from tests.manifests.wsdl.test_wsdl import (
+    _build_local_reference_wsdl,
+    _build_remote_reference_wsdl,
+    COUNTRY_WSDL,
+    COUNTRY_WSDL_2_0,
+    COUNTRY_WSDL_2_0_NAMESPACE_VARIANT,
+    COUNTRY_WSDL_DUPLICATE_EMBEDDED_TYPE,
+    COUNTRY_WSDL_DUPLICATE_MESSAGE,
+    COUNTRY_WSDL_NAMESPACE_VARIANT,
+    COUNTRY_WSDL_WITHOUT_SOAP_ACTION,
+    FAULT_WSDL_2_0,
+    LOCAL_REFERENCED_RESPONSE_TYPES_XSD,
+    MULTI_OPERATION_WSDL,
+    MULTI_OPERATION_WSDL_2_0,
+    NESTED_TYPES_WSDL_2_0,
+    NON_SOAP_BINDING_WSDL_2_0,
+    SCALAR_TYPES_WSDL,
+    SCALAR_TYPES_WSDL_2_0,
+)
 
 
 def _user_property_names(model) -> set[str]:
@@ -145,7 +163,9 @@ def test_copy_wsdl_reports_remote_auth_failure(
     )
 
     assert result.exit_code == 1
-    assert "Authentication failed while reading remote WSDL resource 'https://example.com/country?wsdl'." in result.stderr
+    assert (
+        "Authentication failed while reading remote WSDL resource 'https://example.com/country?wsdl'." in result.stderr
+    )
     assert "HTTP status: 401." in result.stderr
     assert "Unauthorized" in result.stderr
 
@@ -270,7 +290,9 @@ def test_copy_wsdl_reports_malformed_remote_xml_without_traceback(
 
     def fake_urlopen(request_url: str):
         assert request_url == normalized_url
-        return FakeResponse(b"<wsdl:definitions xmlns:wsdl=\"http://schemas.xmlsoap.org/wsdl/\"><wsdl:types></wsdl:definitions>")
+        return FakeResponse(
+            b'<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"><wsdl:types></wsdl:definitions>'
+        )
 
     monkeypatch.setattr("spinta.manifests.wsdl.helpers.urllib.request.urlopen", fake_urlopen)
 
@@ -340,7 +362,7 @@ def test_copy_wsdl_warns_on_malformed_referenced_schema_but_writes_output(
     referenced_schema = tmp_path / "country-types.xsd"
     output = tmp_path / "result.csv"
     path.write_text(_build_local_reference_wsdl(referenced_schema.name))
-    referenced_schema.write_text("<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element")
+    referenced_schema.write_text('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"><xs:element')
 
     result = cli.invoke(
         rc,
@@ -846,7 +868,12 @@ def test_copy_wsdl_endpoint_urls_are_preserved_for_supported_soap_resources(
     for row in rendered:
         if row["resource"]:
             current_resource = row["resource"]
-        if row["type"] == "param" and current_resource is not None and row["ref"] == "address" and current_resource in expected_resource_addresses:
+        if (
+            row["type"] == "param"
+            and current_resource is not None
+            and row["ref"] == "address"
+            and current_resource in expected_resource_addresses
+        ):
             rendered_addresses[current_resource] = row["source"]
             assert row["prepare"] == ""
 
@@ -893,7 +920,10 @@ def test_copy_wsdl_optional_soap_action_is_omitted_when_not_declared(
     assert set(rendered_resource_params) == {"country_port_get_country"}
     assert set(rendered_resource_params["country_port_get_country"]) == {"style", "transport", "address"}
     assert rendered_resource_params["country_port_get_country"]["style"]["source"] == "document"
-    assert rendered_resource_params["country_port_get_country"]["transport"]["source"] == "http://schemas.xmlsoap.org/soap/http"
+    assert (
+        rendered_resource_params["country_port_get_country"]["transport"]["source"]
+        == "http://schemas.xmlsoap.org/soap/http"
+    )
     assert rendered_resource_params["country_port_get_country"]["address"]["source"] == "https://example.com/country"
     assert "soapAction" not in rendered_resource_params["country_port_get_country"]
 
@@ -1062,14 +1092,10 @@ def test_copy_wsdl_2_0_renders_nested_fields_into_dsa_csv(
 
     rendered = list(csv.DictReader(output.read_text().splitlines()))
     rendered_types = {
-        row["property"]: row["type"]
-        for row in rendered
-        if row["property"] in {"location_city", "location_zip"}
+        row["property"]: row["type"] for row in rendered if row["property"] in {"location_city", "location_zip"}
     }
     rendered_sources = {
-        row["property"]: row["source"]
-        for row in rendered
-        if row["property"] in {"location_city", "location_zip"}
+        row["property"]: row["source"] for row in rendered if row["property"] in {"location_city", "location_zip"}
     }
 
     assert rendered_types == {
@@ -1173,16 +1199,8 @@ def test_copy_wsdl_renders_xsd_scalar_types_into_dsa_csv(
         "count": "integer required",
         "website": "url required",
     }
-    rendered_types = {
-        row["property"]: row["type"]
-        for row in rendered
-        if row["property"] in expected_types
-    }
-    rendered_sources = {
-        row["property"]: row["source"]
-        for row in rendered
-        if row["property"] in expected_types
-    }
+    rendered_types = {row["property"]: row["type"] for row in rendered if row["property"] in expected_types}
+    rendered_sources = {row["property"]: row["source"] for row in rendered if row["property"] in expected_types}
 
     assert rendered_types == expected_types
     assert rendered_sources == {name: name for name in expected_types}
