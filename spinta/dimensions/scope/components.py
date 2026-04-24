@@ -3,6 +3,10 @@ from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
 
 
+class ScopeGiven:
+    access: str = None
+
+
 class Scope(ExtraMetaData):
     name: str
     prepare: Expr
@@ -23,3 +27,6 @@ class Scope(ExtraMetaData):
         "description": {"type": "string"},
         "eli": {"type": "string"},
     }
+
+    def __init__(self):
+        self.given = ScopeGiven()

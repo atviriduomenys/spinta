@@ -9,7 +9,7 @@ number_prefix_re = re.compile(r"^([0-9]+)")
 
 namespace_re = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:/[a-z][a-z0-9]*(?:_[a-z0-9]+)*)*$")
 model_re = re.compile(r"^[A-Z][A-Za-z0-9]*$")
-propery_re = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*_?$")
+property_re = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*_?$")
 
 
 def is_valid_model_name(name: str) -> bool:
@@ -17,7 +17,7 @@ def is_valid_model_name(name: str) -> bool:
 
 
 def is_valid_property_name(name: str) -> bool:
-    return propery_re.match(name) is not None
+    return property_re.match(name) is not None
 
 
 def is_valid_namespace_name(name: str) -> bool:

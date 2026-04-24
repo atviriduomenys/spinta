@@ -1674,10 +1674,14 @@ class ScopeReader(TabularReader):
             self.error(f"Scope {self.name!r} with the same name is already defined for this {node.name!r} {node.type}.")
             return
 
+        parsed_prepare = _parse_spyna(self, row[PREPARE])
+        if parsed_prepare is NA:
+            return
+
         self.data = {
             "id": row[ID],
             "name": self.name,
-            "prepare": _parse_spyna(self, row[PREPARE]),
+            "prepare": parsed_prepare,
             "title": row[TITLE],
             "description": row[DESCRIPTION],
             "access": row[ACCESS],
@@ -2563,22 +2567,16 @@ def _scopes_to_tabular(scopes: Dict[str, Scope]) -> Iterator[ManifestRow]:
     if not scopes:
         return
     for scope in scopes.values():
-        print(scope)
-        prepare = scope["prepare"]
-        if isinstance(prepare, NotAvailable):
-            prepare = ""
-        elif prepare:
-            prepare = spyna.unparse(prepare)
         yield torow(
             DATASET,
             {
                 "type": "scope",
-                "ref": scope["name"],
-                "prepare": prepare,
-                "title": scope["title"],
-                "description": scope["description"],
-                "access": scope["access"],
-                "eli": scope["eli"],
+                "ref": scope.name,
+                "prepare": spyna.unparse(scope.prepare),
+                "title": scope.title,
+                "description": scope.description,
+                "access": scope.given.access,
+                "eli": scope.eli,
             },
         )
 

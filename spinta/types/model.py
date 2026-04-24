@@ -21,6 +21,7 @@ from spinta.dimensions.enum.helpers import link_enums, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.scope.components import Scope
+from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
@@ -106,6 +107,8 @@ def load(
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
     model.properties["_id"].access = model.access
+
+    model.scopes = load_scopes(context, [model], data.get("scopes"))
 
     config = context.get("config")
 
@@ -532,6 +535,8 @@ def check(context: Context, model: Model):
     check_model_name(context, model)
     if "_id" not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop="_id")
+    for scope in model.scopes.values():
+        commands.check(context, scope)
     for prop in model.properties.values():
         commands.check(context, prop)
 
