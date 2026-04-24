@@ -223,7 +223,7 @@ class ModelNotFound(UserError):
 
 
 class NoModelDefined(UserError):
-    template = "Property {property!r} must be defined on a concrete model."
+    template = "{dimension} {name!r} must be defined on a concrete model."
 
 
 class PropertyNotFound(UserError):
