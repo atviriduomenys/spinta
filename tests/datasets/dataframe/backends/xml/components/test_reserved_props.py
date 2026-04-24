@@ -2,7 +2,7 @@ import pytest
 
 from spinta.core.config import RawConfig, Path
 from spinta.core.enums import Mode
-from spinta.exceptions import ReservedPropertyTypeShouldMatchPrimaryKey, ReservedPropertySourceOrModelRefShouldBeSet
+from spinta.exceptions import ReservedPropertyTypeShouldMatchPrimaryKey, ReservedPropertySourceOrModelRefShouldBeSet, Base32TypeOnlyAllowedOnId
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
 
@@ -718,3 +718,19 @@ class TestManifestLoading:
         with pytest.raises(NotImplementedError):
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
+
+    def test_only_id_can_have_base32_type(self, rc: RawConfig, tmp_path: Path):
+        with pytest.raises(Base32TypeOnlyAllowedOnId):
+            prepare_manifest(
+                rc,
+                """
+            d | r | b | m | property                      | type       | ref       | source        | level      | access
+            example                                       |            |           |               |            |
+              | data                                      | dask/xml   |           |               |            |
+              |   |   | Region                            |            | id        | /root/order   |            |
+              |   |   |   | _id                           | base32     |           |               |            | open
+              |   |   |   | id                            | base32     |           |               |            | open
+
+            """,
+                mode=Mode.external,
+            )
