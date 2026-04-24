@@ -924,7 +924,7 @@ DATATYPE_HANDLERS = {
 
 def _get_root_prop(reader: PropertyReader, name: str):
     if reader.state.model is None:
-        raise NoModelDefined(property=name)
+        raise NoModelDefined(dimension="Property", name=name)
     if name in reader.state.model.data["properties"]:
         return reader.state.model.data["properties"][name]
     return None
@@ -1654,7 +1654,7 @@ class ScopeReader(TabularReader):
         node = self.state.model
 
         if node is None:
-            raise NoModelDefined(dimension="Scope", property=row[REF])
+            raise NoModelDefined(dimension="Scope", name=row[REF])
 
         if not row[REF]:
             self.error("Scope must have a ref.")
