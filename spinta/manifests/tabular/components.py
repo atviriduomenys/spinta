@@ -300,15 +300,15 @@ class CommentRow(TypedDict, total=False):
     comment: str
 
 
+class CommentData(TypedDict, total=False):
+    comments: Optional[List[CommentRow]]
+
+
 class ScopeRow(TypedDict, total=False):
     id: str
     name: str  # scope name
-    prepare: Optional[Dict[str, Any]]  # formula
+    prepare: Dict[str, Any]  # formula
     title: str
     description: str
     eli: str
     access: str
-
-
-class CommentData(TypedDict, total=False):
-    comments: Optional[List[CommentRow]]

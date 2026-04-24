@@ -559,7 +559,7 @@ def check(context: Context, model: Model, backend: Backend) -> None:
 
 
 @check.register(Context, Scope)
-def check(context: Context, scope: Scope):
+def check(context: Context, scope: Scope) -> None:
     check_scope_name(context, scope)
 
 
