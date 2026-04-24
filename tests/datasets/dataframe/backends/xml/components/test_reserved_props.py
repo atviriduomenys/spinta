@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from spinta.core.config import RawConfig, Path
@@ -11,28 +12,52 @@ from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
 
 
-class TestIdStr:
-    def test_for_id_string_with_string(self, rc: RawConfig, tmp_path: Path):
-        xml = """
+XML_DATA = """
         <root>
             <order>
                 <code>ORD001</code>
+                <id>123</id>
+                <uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</uuid_id>
+                <comma_code>OR,D001</comma_code>
             </order>
             <order>
                 <code>ORD002</code>
+                <id>1234</id>
+                <uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</uuid_id>
+                <comma_code>OR,D002</comma_code>
             </order>
         </root>
         """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+
+
+JSON_DATA = {
+    "order": [
+        {"code": "ORD001", "id": "123", "uuid_id": "d6420786-082f-4ee4-9624-7a559f31d032", "comma_code": "OR,D001"},
+        {"code": "ORD002", "id": "1234", "uuid_id": "8f5773d6-a5eb-4409-8f88-aca874e27200", "comma_code": "OR,D002"},
+    ]
+}
+
+
+class TestIdStr:
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_string_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            | code     | /root/order   |            |
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            | code     | {source}      |            |
           |   |   |   | code                          | string     |          | code          |            | open
           |   |   |   | _id                           | string     |          |               |            | open
         """,
@@ -46,7 +71,6 @@ class TestIdStr:
         assert resp.status_code == 200
         header = resp.context["header"]
         rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
-
         assert rows[0]["code"]["value"] == "ORD001"
         assert rows[1]["code"]["value"] == "ORD002"
         assert rows[0]["_id"]["value"] == "ORD001"
@@ -58,27 +82,25 @@ class TestIdStr:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_string_with_integer(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <id>123</id>
-            </order>
-            <order>
-                <id>1234</id>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_string_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            | id       | /root/order   |            |
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            | id       | {source}      |            |
           |   |   |   | id                            | integer    |          | id            |            | open
           |   |   |   | _id                           | string     |          |               |            | open
         """,
@@ -104,27 +126,25 @@ class TestIdStr:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_string_with_uuid(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</uuid_id>
-            </order>
-            <order>
-                <uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</uuid_id>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_string_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            | uuid_id  | /root/order   |            |
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            | uuid_id  | {source}      |            |
           |   |   |   | uuid_id                       | uuid       |          | uuid_id       |            | open
           |   |   |   | _id                           | string     |          |               |            | open
         """,
@@ -150,28 +170,26 @@ class TestIdStr:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_string_with_string_incorrect_equal_sing(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <code>OR,D001</code>
-            </order>
-            <order>
-                <code>OR,D002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_string_with_string_correct_equal_sing(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            | code     | /root/order   |            |
-          |   |   |   | code                          | string     |          | code          |            | open
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            | code     | {source}      |            |
+          |   |   |   | code                          | string     |          | comma_code    |            | open
           |   |   |   | _id                           | string     |          |               |            | open
         """,
             mode=Mode.external,
@@ -198,29 +216,25 @@ class TestIdStr:
 
 
 class TestIdInt:
-    def test_for_id_integer(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <id>123</id>
-                <code>ORD001</code>
-            </order>
-            <order>
-                <id>1234</id>
-                <code>ORD002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            | id       | /root/order   |            |
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            | id       | {source}      |            |
           |   |   |   | id                            | integer    |          | id            |            | open
           |   |   |   | _id                           | integer    |          |               |            | open
         """,
@@ -246,30 +260,46 @@ class TestIdInt:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_integer_errors_with_string(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_integer_errors_with_string(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref      | source        | level      | access
             example                                       |            |          |               |            |
-              | data                                      | dask/xml   |          |               |            |
-              |   |   | Region                            |            | id       | /root/order   |            |
+              | data                                      | dask/{fmt} |          |               |            |
+              |   |   | Region                            |            | id       | {source}      |            |
               |   |   |   | id                            | string     |          | id            |            | open
               |   |   |   | _id                           | integer    |          |               |            | open
             """,
                 mode=Mode.external,
             )
 
-    def test_for_id_integer_errors_with_uuid(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_integer_errors_with_uuid(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref      | source        | level      | access
             example                                       |            |          |               |            |
-              | data                                      | dask/xml   |          |               |            |
-              |   |   | Region                            |            | id       | /root/order   |            |
+              | data                                      | dask/{fmt} |          |               |            |
+              |   |   | Region                            |            | id       | {source}      |            |
               |   |   |   | id                            | uuid       |          | id            |            | open
               |   |   |   | _id                           | integer    |          |               |            | open
             """,
@@ -278,30 +308,26 @@ class TestIdInt:
 
 
 class TestIdUuid:
-    def test_for_id_uuid(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <id>ed76eda3-7922-4a7d-9ba8-62828ca0ae98</id>
-                <code>ORD001</code>
-            </order>
-            <order>
-                <id>1590ab44-6463-4da7-8862-3598f6e83924</id>
-                <code>ORD002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            | id       | /root/order   |            |
-          |   |   |   | id                            | uuid       |          | id            |            | open
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            | uuid_id  | {source}      |            |
+          |   |   |   | uuid_id                       | uuid       |          | uuid_id       |            | open
           |   |   |   | _id                           | uuid       |          |               |            | open
         """,
             mode=Mode.external,
@@ -315,41 +341,57 @@ class TestIdUuid:
         header = resp.context["header"]
         rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == "ed76eda3-7922-4a7d-9ba8-62828ca0ae98"
-        assert rows[1]["id"]["value"] == "1590ab44-6463-4da7-8862-3598f6e83924"
-        assert rows[0]["_id"]["value"] == "ed76eda3"
-        assert rows[1]["_id"]["value"] == "1590ab44"
-        assert rows[0]["_id"]["link"] == "/example/Region/ed76eda3-7922-4a7d-9ba8-62828ca0ae98"
-        assert rows[1]["_id"]["link"] == "/example/Region/1590ab44-6463-4da7-8862-3598f6e83924"
+        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert rows[0]["_id"]["value"] == "d6420786"
+        assert rows[1]["_id"]["value"] == "8f5773d6"
+        assert rows[0]["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
+        assert rows[1]["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
 
         with pytest.raises(NotImplementedError):
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_uuid_errors_with_string(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_uuid_errors_with_string(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref      | source        | level      | access
             example                                       |            |          |               |            |
-              | data                                      | dask/xml   |          |               |            |
-              |   |   | Region                            |            | id       | /root/order   |            |
+              | data                                      | dask/{fmt} |          |               |            |
+              |   |   | Region                            |            | id       | {source}      |            |
               |   |   |   | id                            | string     |          | id            |            | open
               |   |   |   | _id                           | uuid       |          |               |            | open
             """,
                 mode=Mode.external,
             )
 
-    def test_for_id_uuid_errors_with_integer(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_uuid_errors_with_integer(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref      | source        | level      | access
             example                                       |            |          |               |            |
-              | data                                      | dask/xml   |          |               |            |
-              |   |   | Region                            |            | id       | /root/order   |            |
+              | data                                      | dask/{fmt} |          |               |            |
+              |   |   | Region                            |            | id       | {source}      |            |
               |   |   |   | id                            | integer    |          | id            |            | open
               |   |   |   | _id                           | uuid       |          |               |            | open
             """,
@@ -358,29 +400,25 @@ class TestIdUuid:
 
 
 class TestIdComp:
-    def test_for_id_comp(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <id>123</id>
-                <code>ORD001</code>
-            </order>
-            <order>
-                <id>1234</id>
-                <code>ORD002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_comp(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref       | source        | level      | access
         example                                       |            |           |               |            |
-          | data                                      | dask/xml   |           | {path}        |            |
-          |   |   | Region                            |            | id, code  | /root/order   |            |
+          | data                                      | dask/{fmt} |           | {path}        |            |
+          |   |   | Region                            |            | id, code  | {source}      |            |
           |   |   |   | code                          | string     |           | code          |            | open
           |   |   |   | _id                           | string     |           |               |            | open
           |   |   |   | id                            | integer    |           | id            |            | open
@@ -409,15 +447,23 @@ class TestIdComp:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_comp_error_with_integer(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_comp_error_with_integer(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref       | source        | level      | access
             example                                       |            |           |               |            |
-              | data                                      | dask/xml   |           |               |            |
-              |   |   | Region                            |            | id, code  | /root/order   |            |
+              | data                                      | dask/{fmt} |           |               |            |
+              |   |   | Region                            |            | id, code  | {source}      |            |
               |   |   |   | code                          | string     |           | code          |            | open
               |   |   |   | _id                           | integer    |           |               |            | open
               |   |   |   | id                            | integer    |           | id            |            | open
@@ -425,15 +471,23 @@ class TestIdComp:
                 mode=Mode.external,
             )
 
-    def test_for_id_comp_error_with_uuid(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_comp_error_with_uuid(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref       | source        | level      | access
             example                                       |            |           |               |            |
-              | data                                      | dask/xml   |           |               |            |
-              |   |   | Region                            |            | id, code  | /root/order   |            |
+              | data                                      | dask/{fmt} |           |               |            |
+              |   |   | Region                            |            | id, code  | {source}      |            |
               |   |   |   | code                          | string     |           | code          |            | open
               |   |   |   | _id                           | uuid       |           |               |            | open
               |   |   |   | id                            | integer    |           | id            |            | open
@@ -443,27 +497,25 @@ class TestIdComp:
 
 
 class TestIdBase:
-    def test_for_id_base32_with_string(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <code>ORD001</code>
-            </order>
-            <order>
-                <code>ORD002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_base32_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref       | source        | level      | access
         example                                       |            |           |               |            |
-          | data                                      | dask/xml   |           | {path}        |            |
-          |   |   | Region                            |            | code      | /root/order   |            |
+          | data                                      | dask/{fmt} |           | {path}        |            |
+          |   |   | Region                            |            | code      | {source}      |            |
           |   |   |   | code                          | string     |           | code          |            | open
           |   |   |   | _id                           | base32     |           |               |            | open
         """,
@@ -489,27 +541,25 @@ class TestIdBase:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_base32_with_integer(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <id>123</id>
-            </order>
-            <order>
-                <id>1234</id>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_base32_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref       | source        | level      | access
         example                                       |            |           |               |            |
-          | data                                      | dask/xml   |           | {path}        |            |
-          |   |   | Region                            |            | id        | /root/order   |            |
+          | data                                      | dask/{fmt} |           | {path}        |            |
+          |   |   | Region                            |            | id        | {source}      |            |
           |   |   |   | _id                           | base32     |           |               |            | open
           |   |   |   | id                            | integer    |           | id            |            | open
         """,
@@ -535,27 +585,25 @@ class TestIdBase:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_base32_with_uuid(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</uuid_id>
-            </order>
-            <order>
-                <uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</uuid_id>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_base32_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref       | source        | level      | access
         example                                       |            |           |               |            |
-          | data                                      | dask/xml   |           | {path}        |            |
-          |   |   | Region                            |            | uuid_id   | /root/order   |            |
+          | data                                      | dask/{fmt} |           | {path}        |            |
+          |   |   | Region                            |            | uuid_id   | {source}      |            |
           |   |   |   | _id                           | base32     |           |               |            | open
           |   |   |   | uuid_id                       | uuid       |           | uuid_id       |            | open
         """,
@@ -587,29 +635,25 @@ class TestIdBase:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_for_id_base32_with_composite(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</uuid_id>
-                <code>ORD001</code>
-            </order>
-            <order>
-                <uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</uuid_id>
-                <code>ORD002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_base32_with_composite(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref            | source        | level      | access
         example                                       |            |                |               |            |
-          | data                                      | dask/xml   |                | {path}        |            |
-          |   |   | Region                            |            | uuid_id, code  | /root/order   |            |
+          | data                                      | dask/{fmt} |                | {path}        |            |
+          |   |   | Region                            |            | uuid_id, code  | {source}      |            |
           |   |   |   | code                          | string     |                | code          |            | open
           |   |   |   | _id                           | base32     |                |               |            | open
           |   |   |   | uuid_id                       | uuid       |                | uuid_id       |            | open
@@ -645,29 +689,45 @@ class TestIdBase:
 
 
 class TestManifestLoading:
-    def test_error_if_model_ref_and_source_empty(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_error_if_model_ref_and_source_empty(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertySourceOrModelRefShouldBeSet):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref       | source        | level      | access
             example                                       |            |           |               |            |
-              | data                                      | dask/xml   |           |               |            |
-              |   |   | Region                            |            |           | /root/order   |            |
+              | data                                      | dask/{fmt} |           |               |            |
+              |   |   | Region                            |            |           | {source}      |            |
               |   |   |   | _id                           | base32     |           |               |            | open
             """,
                 mode=Mode.external,
             )
 
-    def test_error_if_model_ref_and_source_populated(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_error_if_model_ref_and_source_populated(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertySourceOrModelRefShouldBeSet):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref       | source        | level      | access
             example                                       |            |           |               |            |
-              | data                                      | dask/xml   |           |               |            |
-              |   |   | Region                            |            | id        | /root/order   |            |
+              | data                                      | dask/{fmt} |           |               |            |
+              |   |   | Region                            |            | id        | {source}      |            |
               |   |   |   | _id                           | base32     |           | id            |            | open
               |   |   |   | id                            | integer    |           |               |            | open
 
@@ -675,31 +735,27 @@ class TestManifestLoading:
                 mode=Mode.external,
             )
 
-    def test_for_id_uuid_works_with_string_if_source_set(self, rc: RawConfig, tmp_path: Path):
-        xml = """
-        <root>
-            <order>
-                <id>ed76eda3-7922-4a7d-9ba8-62828ca0ae98</id>
-                <code>ORD001</code>
-            </order>
-            <order>
-                <id>1590ab44-6463-4da7-8862-3598f6e83924</id>
-                <code>ORD002</code>
-            </order>
-        </root>
-        """
-        path = tmp_path / "test.xml"
-        path.write_text(xml)
+    @pytest.mark.parametrize(
+        "fmt,data,source",
+        [
+            ("json", json.dumps(JSON_DATA), "order"),
+            ("xml", XML_DATA, "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_for_id_uuid_works_with_string_if_source_set(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
 
         context, manifest = prepare_manifest(
             rc,
             f"""
         d | r | b | m | property                      | type       | ref      | source        | level      | access
         example                                       |            |          |               |            |
-          | data                                      | dask/xml   |          | {path}        |            |
-          |   |   | Region                            |            |          | /root/order   |            |
-          |   |   |   | id                            | uuid       |          | id            |            | open
-          |   |   |   | _id                           | uuid       |          | id            |            | open
+          | data                                      | dask/{fmt} |          | {path}        |            |
+          |   |   | Region                            |            |          | {source}      |            |
+          |   |   |   | uuid_id                       | uuid       |          | uuid_id       |            | open
+          |   |   |   | _id                           | uuid       |          | uuid_id       |            | open
         """,
             mode=Mode.external,
         )
@@ -712,26 +768,34 @@ class TestManifestLoading:
         header = resp.context["header"]
         rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == "ed76eda3-7922-4a7d-9ba8-62828ca0ae98"
-        assert rows[1]["id"]["value"] == "1590ab44-6463-4da7-8862-3598f6e83924"
-        assert rows[0]["_id"]["value"] == "ed76eda3"
-        assert rows[1]["_id"]["value"] == "1590ab44"
-        assert rows[0]["_id"]["link"] == "/example/Region/ed76eda3-7922-4a7d-9ba8-62828ca0ae98"
-        assert rows[1]["_id"]["link"] == "/example/Region/1590ab44-6463-4da7-8862-3598f6e83924"
+        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert rows[0]["_id"]["value"] == "d6420786"
+        assert rows[1]["_id"]["value"] == "8f5773d6"
+        assert rows[0]["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
+        assert rows[1]["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
 
         with pytest.raises(NotImplementedError):
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    def test_only_id_can_have_base32_type(self, rc: RawConfig, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "fmt,source",
+        [
+            ("json", "order"),
+            ("xml", "/root/order"),
+        ],
+        ids=["json", "xml"],
+    )
+    def test_only_id_can_have_base32_type(self, fmt, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(Base32TypeOnlyAllowedOnId):
             prepare_manifest(
                 rc,
-                """
+                f"""
             d | r | b | m | property                      | type       | ref       | source        | level      | access
             example                                       |            |           |               |            |
-              | data                                      | dask/xml   |           |               |            |
-              |   |   | Region                            |            | id        | /root/order   |            |
+              | data                                      | dask/{fmt} |           |               |            |
+              |   |   | Region                            |            | id        | {source}      |            |
               |   |   |   | _id                           | base32     |           |               |            | open
               |   |   |   | id                            | base32     |           |               |            | open
 
