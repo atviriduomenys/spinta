@@ -38,15 +38,15 @@ JSON_DATA = {
 }
 
 
+@pytest.mark.parametrize(
+    "fmt,data,source",
+    [
+        ("json", json.dumps(JSON_DATA), "order"),
+        ("xml", XML_DATA, "/root/order"),
+    ],
+    ids=["json", "xml"],
+)
 class TestIdStr:
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_string_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -82,14 +82,6 @@ class TestIdStr:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_string_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -126,14 +118,6 @@ class TestIdStr:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_string_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -170,14 +154,6 @@ class TestIdStr:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_string_with_string_correct_equal_sing(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -215,15 +191,15 @@ class TestIdStr:
             # Expected, XML does not support getone operations
 
 
+@pytest.mark.parametrize(
+    "fmt,data,source",
+    [
+        ("json", json.dumps(JSON_DATA), "order"),
+        ("xml", XML_DATA, "/root/order"),
+    ],
+    ids=["json", "xml"],
+)
 class TestIdInt:
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -260,15 +236,7 @@ class TestIdInt:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_for_id_integer_errors_with_string(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_for_id_integer_errors_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
@@ -283,15 +251,7 @@ class TestIdInt:
                 mode=Mode.external,
             )
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_for_id_integer_errors_with_uuid(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_for_id_integer_errors_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
@@ -307,15 +267,15 @@ class TestIdInt:
             )
 
 
+@pytest.mark.parametrize(
+    "fmt,data,source",
+    [
+        ("json", json.dumps(JSON_DATA), "order"),
+        ("xml", XML_DATA, "/root/order"),
+    ],
+    ids=["json", "xml"],
+)
 class TestIdUuid:
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -352,15 +312,7 @@ class TestIdUuid:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_for_id_uuid_errors_with_string(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_for_id_uuid_errors_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
@@ -375,15 +327,7 @@ class TestIdUuid:
                 mode=Mode.external,
             )
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_for_id_uuid_errors_with_integer(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_for_id_uuid_errors_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
@@ -399,15 +343,15 @@ class TestIdUuid:
             )
 
 
+@pytest.mark.parametrize(
+    "fmt,data,source",
+    [
+        ("json", json.dumps(JSON_DATA), "order"),
+        ("xml", XML_DATA, "/root/order"),
+    ],
+    ids=["json", "xml"],
+)
 class TestIdComp:
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_comp(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -447,15 +391,7 @@ class TestIdComp:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_for_id_comp_error_with_integer(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_for_id_comp_error_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
@@ -471,15 +407,7 @@ class TestIdComp:
                 mode=Mode.external,
             )
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_for_id_comp_error_with_uuid(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_for_id_comp_error_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
             prepare_manifest(
                 rc,
@@ -496,15 +424,15 @@ class TestIdComp:
             )
 
 
+@pytest.mark.parametrize(
+    "fmt,data,source",
+    [
+        ("json", json.dumps(JSON_DATA), "order"),
+        ("xml", XML_DATA, "/root/order"),
+    ],
+    ids=["json", "xml"],
+)
 class TestIdBase:
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_base32_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -541,14 +469,6 @@ class TestIdBase:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_base32_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -585,14 +505,6 @@ class TestIdBase:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_base32_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -635,14 +547,6 @@ class TestIdBase:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_base32_with_composite(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -688,16 +592,16 @@ class TestIdBase:
             # Expected, XML does not support getone operations
 
 
+@pytest.mark.parametrize(
+    "fmt,data,source",
+    [
+        ("json", json.dumps(JSON_DATA), "order"),
+        ("xml", XML_DATA, "/root/order"),
+    ],
+    ids=["json", "xml"],
+)
 class TestManifestLoading:
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_error_if_model_ref_and_source_empty(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_error_if_model_ref_and_source_empty(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertySourceOrModelRefShouldBeSet):
             prepare_manifest(
                 rc,
@@ -711,15 +615,7 @@ class TestManifestLoading:
                 mode=Mode.external,
             )
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_error_if_model_ref_and_source_populated(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_error_if_model_ref_and_source_populated(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(ReservedPropertySourceOrModelRefShouldBeSet):
             prepare_manifest(
                 rc,
@@ -735,14 +631,6 @@ class TestManifestLoading:
                 mode=Mode.external,
             )
 
-    @pytest.mark.parametrize(
-        "fmt,data,source",
-        [
-            ("json", json.dumps(JSON_DATA), "order"),
-            ("xml", XML_DATA, "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
     def test_for_id_uuid_works_with_string_if_source_set(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         path = tmp_path / f"test.{fmt}"
         path.write_text(data)
@@ -779,15 +667,7 @@ class TestManifestLoading:
             app.get(rows[0]["_id"]["link"])
             # Expected, XML does not support getone operations
 
-    @pytest.mark.parametrize(
-        "fmt,source",
-        [
-            ("json", "order"),
-            ("xml", "/root/order"),
-        ],
-        ids=["json", "xml"],
-    )
-    def test_only_id_can_have_base32_type(self, fmt, source, rc: RawConfig, tmp_path: Path):
+    def test_only_id_can_have_base32_type(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
         with pytest.raises(Base32TypeOnlyAllowedOnId):
             prepare_manifest(
                 rc,
