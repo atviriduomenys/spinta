@@ -68,3 +68,99 @@ sudo usermod -aG docker spinta
 ```
 
 Atkreipkite dėmesį, kad visose komandose, kurios prasideda sudo, komanda turi būti vykdoma administratoriaus teisėmis, tačiau visur kur nėra sudo, komanda turi būti vykdoma spinta naudotojo teisėmis. Tai yra svarbu, todėl nesupainiokite kokio naudotojo teisėmis vykdote komandas, priešingu atveju susidursite su sunkumais susijusiais su failų teisėmis.
+
+## Papildomos duomenų bazių tvarkyklės
+
+Priklausomai nuo to, prie kokių duomenų šaltinių bus jungiamas Spinta agentas,
+gali reikėti įdiegti papildomus Python paketus ir sisteminius komponentus.
+
+| Duomenų bazė | Python paketas | Papildomi sisteminiai reikalavimai |
+|--------------|----------------|-----------------------------------|
+| PostgreSQL | `psycopg2-binary` | — |
+| MySQL (≥ 5.6) | `pymysql` | — |
+| MySQL (< 5.6) | `mysqlclient` | `build-essential python3-dev default-libmysqlclient-dev` |
+| Microsoft SQL Server | `pymssql` | `freetds-bin` |
+| Oracle | `cx_Oracle` | Oracle Instant Client (žr. žemiau) |
+| SAS Datasets | `JayDeBeApi` | Java 11, SAS JDBC tvarkyklė |
+
+:::{note}
+Dalis paketų (pvz., `psycopg2-binary`) jau įtraukta į standartinį Spinta
+requirements failą ir bus sudiegta automatiškai. Prieš diegiant papildomai,
+patikrinkite, ar paketas nėra jau sudiegtas:
+
+```bash
+env/bin/pip show <paketo-pavadinimas>
+```
+:::
+
+### PostgreSQL
+
+```bash
+sudo -Hsu spinta && cd
+env/bin/pip install psycopg2-binary
+```
+
+### MySQL
+
+MySQL versijai ≥ 5.6:
+
+```bash
+sudo -Hsu spinta && cd
+env/bin/pip install pymysql
+```
+
+Senesnei MySQL versijai (< 5.6) naudojamas `mysqlclient`. Pirmiausiai įdiekite
+sisteminius paketus, tada Python paketą:
+
+```bash
+sudo apt install build-essential python3-dev default-libmysqlclient-dev
+sudo -Hsu spinta && cd
+env/bin/pip install mysqlclient
+```
+
+### Microsoft SQL Server
+
+MS SQL Server tvarkyklei reikalinga [FreeTDS](http://www.freetds.org/) biblioteka:
+
+```bash
+sudo apt install freetds-bin
+sudo -Hsu spinta && cd
+env/bin/pip install pymssql
+```
+
+### Oracle
+
+Oracle duomenų bazei, be `cx_Oracle` Python paketo, privaloma įdiegti
+**Oracle Instant Client** — tai natyviai sukompiliuota biblioteka, kurią turi
+rasti sistema. Be šios bibliotekos `cx_Oracle` neveiks (klaida `DPI-1047`).
+
+```bash
+sudo -Hsu spinta && cd
+env/bin/pip install cx_Oracle
+```
+
+Išsamią Oracle Instant Client diegimo instrukciją rasite čia:
+[Oracle driver installation guide](https://github.com/atviriduomenys/spinta/issues/1881)
+
+Žinomų Oracle problemų sąrašas:
+[Oracle žinomų problemų sąrašas](https://github.com/atviriduomenys/spinta/issues/1768)
+
+### SAS Datasets
+
+SAS Datasets tvarkyklei reikalingi trys komponentai:
+
+1. **Java 11** — įdiekite sistemoje:
+
+   ```bash
+   sudo apt install openjdk-11-jdk
+   ```
+
+2. **SAS JDBC tvarkyklė** — `sas.core.jar` ir `sas.intrnet.javatools.jar` failai,
+   kuriuos gausite iš SAS licencijos turėtojo arba SAS palaikymo.
+
+3. **JayDeBeApi** Python paketas:
+
+   ```bash
+   sudo -Hsu spinta && cd
+   env/bin/pip install JayDeBeApi
+   ```
