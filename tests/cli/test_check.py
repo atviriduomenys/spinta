@@ -4,7 +4,7 @@ import pytest
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.exceptions import InvalidManifestFile, InvalidName, InvalidValue
+from spinta.exceptions import InvalidManifestFile, InvalidName, InvalidValue, NoModelDefined
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
@@ -702,3 +702,141 @@ def test_spinta_check_no_message_filters_support_sql_backend(
     assert result.exit_code == 0
     # Verify that no Dask-related messages are issued.
     assert "Dask backend does not support" not in result.output
+
+
+def test_check_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | ltu  |        | country.code='lt'   | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+    )
+
+
+def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | LTU  |        | country.code='lt'   | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidName
+    assert "LTU" in str(result.exception)
+
+
+def test_check_scope_no_model_defined_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+                             | scope  | ltu  |        | country.code='lt'   |
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is NoModelDefined
+
+
+def test_check_scope_missing_ref_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  |      |        | country.code='lt'   | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "ref" in str(result.exception).lower()
+
+
+def test_check_scope_missing_prepare_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | ltu  |        |                     | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "prepare" in str(result.exception).lower()
+
+
+def test_check_scope_duplicate_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | ltu  |        | country.code='lt'   | private
+      |   |   |   |          | scope  | ltu  |        | country.code='LT'   | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "already defined" in str(result.exception).lower()
