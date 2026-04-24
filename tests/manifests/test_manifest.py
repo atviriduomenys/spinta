@@ -2087,3 +2087,72 @@ def test_no_model_defined_error(manifest_type, tmp_path, rc):
               |   |   |   | id       | integer |     | open   |
         """,
         )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_loaded_with_prepare(manifest_type, tmp_path, rc):
+    check(
+        tmp_path,
+        rc,
+        """
+        d | r | b | m | property | type    | ref | prepare
+        example                  |         |     |
+                                 |         |     |
+          |   |   | Country      |         |     |
+                                 | scope   | ltu | country.code='lt'
+          |   |   |   | code     | string  |     |
+    """,
+        manifest_type,
+    )
+
+
+@pytest.mark.manifests("csv")
+def test_multiple_scopes_on_model(manifest_type, tmp_path, rc):
+    check(
+        tmp_path,
+        rc,
+        """
+        d | r | b | m | property | type    | ref | prepare
+        example                  |         |     |
+                                 |         |     |
+          |   |   | Country      |         |     |
+                                 | scope   | ltu | country.code='lt'
+                                 | scope   | eu  | country.region='EU'
+          |   |   |   | code     | string  |     |
+          |   |   |   | region   | string  |     |
+    """,
+        manifest_type,
+    )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_full_metadata(manifest_type, tmp_path, rc):
+    check(
+        tmp_path,
+        rc,
+        """
+        d | r | b | m | property | type    | ref | prepare           | access  | eli     | title     | description
+        example                  |         |     |                   |         |         |           |
+                                 |         |     |                   |         |         |           |
+          |   |   | Country      |         |     |                   |         |         |           |
+                                 | scope   | ltu | country.code='lt' | private | eli:eli | Lithuania | Lietuvos scope
+          |   |   |   | code     | string  |     |                   |         |         |           |
+    """,
+        manifest_type,
+    )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_no_model_defined_error(manifest_type, tmp_path, rc):
+    with pytest.raises(NoModelDefined):
+        check(
+            tmp_path,
+            rc,
+            """
+            d | r | b | m | property | type    | ref | prepare
+            example                  |         |     |
+                                     |         |     |
+                                     | scope   | ltu | country.code='lt'
+            """,
+            manifest_type,
+        )
