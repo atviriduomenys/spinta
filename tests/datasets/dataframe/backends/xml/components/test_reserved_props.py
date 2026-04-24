@@ -2,7 +2,11 @@ import pytest
 
 from spinta.core.config import RawConfig, Path
 from spinta.core.enums import Mode
-from spinta.exceptions import ReservedPropertyTypeShouldMatchPrimaryKey, ReservedPropertySourceOrModelRefShouldBeSet, Base32TypeOnlyAllowedOnId
+from spinta.exceptions import (
+    ReservedPropertyTypeShouldMatchPrimaryKey,
+    ReservedPropertySourceOrModelRefShouldBeSet,
+    Base32TypeOnlyAllowedOnId,
+)
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
 
