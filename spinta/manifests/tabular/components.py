@@ -299,6 +299,7 @@ class CommentRow(TypedDict, total=False):
     comment: str
     prepare: str
     level: str
+    uri: str
 
 
 class CommentData(TypedDict, total=False):
