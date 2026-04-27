@@ -47,7 +47,8 @@ from spinta.utils.schema import NA
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
 
-INCORRECT_DTYPES = [(Integer, UUID), (Integer, String), (UUID, String), (UUID, Integer)]
+RESERVED_PROPERTY_NAMES_AND_ATTRIBUTES = (("_id", "id_prop"), ("_revision", "revision_prop"))
+INCORRECT_DTYPE_COUPLES = [(Integer, UUID), (Integer, String), (UUID, String), (UUID, Integer)]
 
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
@@ -470,7 +471,7 @@ def link(context: Context, prop: Property):
 
 
 def _detect_cooperating_reserved_properties(model: Model) -> None:
-    for name, attr in (("_id", "id_prop"), ("_revision", "revision_prop")):
+    for name, attr in RESERVED_PROPERTY_NAMES_AND_ATTRIBUTES:
         prop = model.properties.get(name)
         if prop is None or not prop.explicitly_given:
             return
@@ -478,9 +479,7 @@ def _detect_cooperating_reserved_properties(model: Model) -> None:
             model_ref_set = prop.model.unique
             reserved_id_source_set = prop.external.name
 
-            if not model_ref_set and not reserved_id_source_set:
-                raise ReservedPropertySourceOrModelRefShouldBeSet(property=prop)
-            if reserved_id_source_set and model_ref_set:
+            if (not model_ref_set and not reserved_id_source_set) or (model_ref_set and reserved_id_source_set):
                 raise ReservedPropertySourceOrModelRefShouldBeSet(property=prop)
 
             if model_ref_set:
@@ -489,7 +488,7 @@ def _detect_cooperating_reserved_properties(model: Model) -> None:
                     model_primary_key_dtype.name = "string"
                 else:
                     model_primary_key_dtype = model_ref_set[0][0].dtype
-                if model_ref_set and (type(prop.dtype), type(model_primary_key_dtype)) in INCORRECT_DTYPES:
+                if model_ref_set and (type(prop.dtype), type(model_primary_key_dtype)) in INCORRECT_DTYPE_COUPLES:
                     raise ReservedPropertyTypeShouldMatchPrimaryKey(
                         property=prop,
                         model=model.name,
