@@ -682,3 +682,71 @@ class TestManifestLoading:
             """,
                 mode=Mode.external,
             )
+
+    def test_composite_values_cant_have_commas(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                      | type       | ref            | source        | level      | access
+        example                                       |            |                |               |            |
+          | data                                      | dask/{fmt} |                | {path}        |            |
+          |   |   | Region                            |            | uuid_id, code  | {source}      |            |
+          |   |   |   | code                          | string     |                | comma_code    |            | open
+          |   |   |   | _id                           | string     |                |               |            | open
+          |   |   |   | uuid_id                       | uuid       |                | uuid_id       |            | open
+        """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall", "getone"])
+
+        resp = app.get("/example/Region/:format/html")
+        assert resp.status_code == 500
+        assert resp.json()["errors"][0]["code"] == "ValuesForIdCantHaveSpecialSymbols"
+
+    def test_composite_values_with_base32_can_have_commas(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / f"test.{fmt}"
+        path.write_text(data)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                      | type       | ref            | source        | level      | access
+        example                                       |            |                |               |            |
+          | data                                      | dask/{fmt} |                | {path}        |            |
+          |   |   | Region                            |            | uuid_id, code  | {source}      |            |
+          |   |   |   | code                          | string     |                | comma_code    |            | open
+          |   |   |   | _id                           | base32     |                |               |            | open
+          |   |   |   | uuid_id                       | uuid       |                | uuid_id       |            | open
+        """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall", "getone"])
+
+        resp = app.get("/example/Region/:format/html")
+        assert resp.status_code == 200
+        header = resp.context["header"]
+        first_row, second_row = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+
+        assert first_row["_id"]["value"] == "QJ4CIZBW"
+        assert second_row["_id"]["value"] == "QJ4CIODG"
+        assert first_row["code"]["value"] == "OR,D001"
+        assert second_row["code"]["value"] == "OR,D002"
+        assert (
+            first_row["_id"]["link"]
+            == "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ===="
+        )
+        assert (
+            second_row["_id"]["link"]
+            == "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA===="
+        )
+
+        with pytest.raises(NotImplementedError):
+            app.get(first_row["_id"]["link"])
+            # Expected, XML does not support getone operations

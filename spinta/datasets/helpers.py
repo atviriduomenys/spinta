@@ -19,7 +19,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ShortExpr
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.types.datatype import Ref, Base32, String
+from spinta.types.datatype import Ref, Base32
 from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.helpers import merge_formulas
