@@ -609,7 +609,7 @@ def is_accessible_by_equals_sign(id_prop: Property, value: str | int) -> bool:
 
 
 def check_if_model_primary_key_is_composite(model: Model) -> bool:
-    unique = getattr(model, "unique", None) if model is not None else None
-    if unique and len(unique[0]) > 1:
+    pkeys_count = len(model.external.pkeys)
+    if pkeys_count > 1:
         return True
     return False
