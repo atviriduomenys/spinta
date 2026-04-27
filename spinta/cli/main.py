@@ -17,6 +17,8 @@ from spinta.cli import data
 from spinta.cli import inspect
 from spinta.cli import manifest
 from spinta.cli import migrate
+from spinta.cli.comment import comment
+from spinta.cli.uncomment import uncomment
 from spinta.cli import pii
 from spinta.cli import pull
 from spinta.cli import push
@@ -45,6 +47,8 @@ add(app, "inspect", inspect.inspect, short_help=("Update manifest schema from an
 add(app, "pii", pii.app, short_help="Manage Person Identifying Information")
 
 add(app, "copy", manifest.copy, short_help="Copy only specified metadata from a manifest")
+add(app, "comment", comment, short_help="Comment unsupported functionality in a manifest")
+add(app, "uncomment", uncomment, short_help="Restore commented parts of a manifest")
 add(app, "show", show, short_help="Show manifest as ascii table")
 
 add(app, "bootstrap", migrate.bootstrap, short_help="Initialize backends")
