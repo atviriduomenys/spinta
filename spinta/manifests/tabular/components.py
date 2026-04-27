@@ -297,6 +297,8 @@ class CommentRow(TypedDict, total=False):
     # TODO: should be datetime
     created: str
     comment: str
+    prepare: str
+    level: str
 
 
 class CommentData(TypedDict, total=False):
