@@ -603,13 +603,13 @@ def is_accessible_by_equals_sign(id_prop: Property, value: str | int) -> bool:
         return True
 
     if isinstance(id_prop.dtype, String):
-        return check_if_model_primary_key_is_composite(id_prop.model)
+        return not check_if_model_primary_key_is_composite(id_prop.model)
 
     return False
 
 
-def check_if_model_primary_key_is_composite(model: Model):
+def check_if_model_primary_key_is_composite(model: Model) -> bool:
     unique = getattr(model, "unique", None) if model is not None else None
     if unique and len(unique[0]) > 1:
-        return False
-    return True
+        return True
+    return False
