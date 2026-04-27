@@ -112,7 +112,7 @@ def replace_undeclared_ref_with_object(
             created=datetime.now(timezone.utc).isoformat(),
             comment="",
             given=CommentGiven(access=None),
-            prepare=f"update(type:{original_type}, ref:{ref_str})",
+            prepare=f'update(type:"{original_type}", ref:"{ref_str}")',
             level=4,
         )
     )

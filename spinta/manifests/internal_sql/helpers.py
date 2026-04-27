@@ -745,6 +745,7 @@ def _comments_to_sql(
                 "source": comment.author,
                 "access": comment.given.access,
                 "level": comment.level,
+                "uri": comment.uri,
                 "title": comment.created,
                 "description": comment.comment,
                 "prepare": _handle_prepare(spyna_parse(comment.prepare)) if comment.prepare else _handle_prepare(NA),

@@ -77,8 +77,8 @@ def test_undeclared_ref_model_transforms_to_object(manifest_type: str, tmp_path:
     comment = country_property.comments[0]
     assert comment.parent == "type"
     assert comment.level == 4
-    # internal-sql round-trips through spyna which normalises spacing
-    prepare = comment.prepare.replace(" ", "")
+    # internal-sql round-trips through spyna which normalises spacing and quote style
+    prepare = comment.prepare.replace(" ", "").replace('"', "").replace("'", "")
     assert "type:ref" in prepare
     assert "ref:example2/Country" in prepare
 
@@ -111,7 +111,7 @@ def test_undeclared_ref_with_refprops_transforms_to_object(manifest_type: str, t
     comment = country_property.comments[0]
     assert comment.parent == "type"
     assert comment.level == 4
-    prepare = comment.prepare.replace(" ", "")
+    prepare = comment.prepare.replace(" ", "").replace('"', "").replace("'", "")
     assert "type:ref" in prepare
     assert "ref:example2/Country[code]" in prepare
 
@@ -144,7 +144,7 @@ def test_undeclared_backref_model_transforms_to_object(manifest_type: str, tmp_p
     comment = countries_property.comments[0]
     assert comment.parent == "type"
     assert comment.level == 4
-    prepare = comment.prepare.replace(" ", "")
+    prepare = comment.prepare.replace(" ", "").replace('"', "").replace("'", "")
     assert "type:backref" in prepare
     assert "ref:example2/Country" in prepare
 
@@ -177,6 +177,6 @@ def test_undeclared_array_model_transforms_to_object(manifest_type, tmp_path, rc
     comment = countries_property.comments[0]
     assert comment.parent == "type"
     assert comment.level == 4
-    prepare = comment.prepare.replace(" ", "")
+    prepare = comment.prepare.replace(" ", "").replace('"', "").replace("'", "")
     assert "type:array" in prepare
     assert "ref:example2/CityCountry[city,country]" in prepare

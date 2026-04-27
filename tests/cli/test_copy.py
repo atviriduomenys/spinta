@@ -1279,6 +1279,6 @@ def test_copy_undeclared_ref_transforms_to_object(context: Context, rc, cli: Spi
       |   |   | City         |         |      |        |                                        |       |
       |   |   |   | name     | string  |      |        |                                        |       | private
       |   |   |   | country  | object  |      |        |                                        | 2     | private
-                             | comment | type | author | update(type:ref, ref:example2/Country) | 4     |
+                             | comment | type | author | update(type:"ref", ref:"example2/Country") | 4     |
     """
     )

@@ -7,8 +7,12 @@ Changes
 New Features:
 
 - Adding implicit `link` changes; Implicitly change the `property` of type `ref` that refers a model, that does not exist in the file (`#1872`_).
+- Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
+  - `spinta comment` comments the requested parts (argument) of the manifest;
+  - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
 
 .. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
+.. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
 
 
 0.2dev22 (2026-04-23)
