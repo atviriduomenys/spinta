@@ -1248,3 +1248,7 @@ class ReservedPropertySourceOrModelRefShouldBeSet(BaseError):
 
 class Base32TypeOnlyAllowedOnId(BaseError):
     template = "The 'base32' type is only allowed on the '_id' reserved property, got {property}."
+
+
+class ValuesForIdCantHaveSpecialSymbols(BaseError):
+    template = "The value used for _id can not have special symbols. Found {value} value on {property} property."

@@ -1970,7 +1970,7 @@ def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, da
     if is_nan(data):
         return None
     if check_if_model_primary_key_is_composite(dtype.prop.model):
-        data = cbor_dumps(data.split(","))
+        data = cbor_dumps(data)
     else:
         data = str(data).encode("utf-8")
     encoded = base64.b32encode(data)
