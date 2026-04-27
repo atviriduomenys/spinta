@@ -17,7 +17,7 @@ from spinta.datasets.backends.dataframe.backends.memory.components import Memory
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource
-from spinta.datasets.helpers import get_enum_filters, get_ref_filters
+from spinta.datasets.helpers import get_enum_filters, get_ref_filters, encode_composite_string_id
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
@@ -286,7 +286,7 @@ def dask_get_all(
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 elif sel.prop is id_prop and isinstance(val, list):
-                    val = ",".join("" if list_value is None else str(list_value) for list_value in val)
+                    val = encode_composite_string_id(val, model.external.pkeys)
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
