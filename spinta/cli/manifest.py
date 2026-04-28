@@ -116,7 +116,7 @@ def copy_manifest(
         )
     if output:
         if output_type == "mermaid":
-            write_mermaid_manifest(context, output, rows, main_dataset=dataset)
+            write_mermaid_manifest(context, rows, dataset, output)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:

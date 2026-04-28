@@ -2,6 +2,8 @@ from spinta.components import Context
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
+from spinta.cli.manifest import _read_and_return_manifest
+from spinta.manifests.mermaid.helpers import write_mermaid_manifest
 from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, ENTITY_STYLES, CONCEPT_STYLES
 
 
@@ -676,3 +678,49 @@ class `datasets/gov/example2/Country`["Country"]:::Entity {{
 classDef Entity {ENTITY_STYLES};
 """
         )
+
+
+def test_write_mermaid_manifest_output_as_string(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property | type             | ref       | source      | prepare | visibility
+        datasets/gov/example     |                  |           |             |         |
+          | data                 | sql              |           |             |         |
+          |   |   | City         |                  |           | miestas     |         |
+          |   |   |   | name     | string required  |           | pavadinimas |         | public
+          |   |   |   | id       | string           |           | id          |         | public                   
+          |   |   |   | council  | string           |           | taryba      |         | public
+        datasets/gov/example2    |                  |           |             |         |
+          | data                 | sql              |           |             |         |
+          |   |   | Country      |                  |           | miestas     |         |
+          |   |   |   | name     | string           |           | pavadinimas |         | public
+          |   |   |   | id       | string           |           | id          |         | public                   
+        """),
+    )
+    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+
+    assert (
+        mermaid
+        == f"""{MERMAID_CONFIG}
+classDiagram
+class `datasets/gov/example/City`["City"]:::Entity {{
+«mandatory»
++ name : string [1..1]
+«optional»
++ id : string [0..1]
++ council : string [0..1]
+}}
+
+namespace `datasets/gov/example2` {{
+class `datasets/gov/example2/Country`["Country"]:::Entity {{
+«optional»
++ name : string [0..1]
++ id : string [0..1]
+}}
+}}
+classDef Entity {ENTITY_STYLES};
+"""
+    )
