@@ -205,7 +205,7 @@ def encode_composite_string_id(values: list, pkeys: list) -> str:
     return ",".join(str(value) for value in values)
 
 
-def decode_id_value(id_prop: Property, value):
+def decode_id_value(id_prop: Property, value: str | list) -> list:
     decoded_value = value
     if check_if_model_primary_key_is_composite(id_prop.model):
         if isinstance(id_prop.dtype, Base32):
