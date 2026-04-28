@@ -1243,6 +1243,11 @@ def update_manifest_dataset_schema(context: Context, manifest: Manifest, target_
 
 
 @command()
+def store_schema_diagnostics(context: Context, manifest: Manifest, path: str, diagnostics, **kwargs):
+    """Store schema-read diagnostics for a manifest reader."""
+
+
+@command()
 def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backend):
     """Refreshed backend specific data, in case updates were made and need to reflect the changes."""
 

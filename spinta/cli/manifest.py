@@ -8,6 +8,9 @@ from typer import Option
 from typer import Typer
 from typer import echo
 
+from spinta import exceptions
+from spinta.manifests.wsdl import wsdl_schema_diagnostics
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
@@ -47,17 +50,31 @@ def copy(
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
     context = configure_context(context, manifests, check_names=not (format_names or rename_duplicates))
-    copy_manifest(
-        context,
-        source=source,
-        access=access,
-        format_names=format_names,
-        output=output,
-        columns=columns,
-        order_by=order_by,
-        rename_duplicates=rename_duplicates,
-        manifests=manifests,
-    )
+    try:
+        copy_manifest(
+            context,
+            source=source,
+            access=access,
+            format_names=format_names,
+            output=output,
+            columns=columns,
+            order_by=order_by,
+            rename_duplicates=rename_duplicates,
+            manifests=manifests,
+        )
+    except (
+        exceptions.RemoteWsdlResourceUnavailable,
+        exceptions.RemoteWsdlAuthenticationError,
+        exceptions.RemoteWsdlServerError,
+        exceptions.MalformedWsdlFile,
+        exceptions.AmbiguousWsdlReference,
+        exceptions.ReferencedSchemaFileDoesNotExist,
+        exceptions.MalformedReferencedSchema,
+        exceptions.RemoteSchemaResourceUnavailable,
+        exceptions.RemoteSchemaAuthenticationError,
+        exceptions.RemoteSchemaServerError,
+    ) as error:
+        cli_error(str(error))
 
 
 def copy_manifest(
@@ -144,17 +161,18 @@ def _read_and_return_manifest(
     ensure_backends: bool = True,
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests, ensure_backends=ensure_backends)
-    store = load_manifest(
-        context,
-        rename_duplicates=rename_duplicates,
-        load_internal=False,
-        verbose=verbose,
-        full_load=True,
-        check_config=check_config,
-    )
+    with wsdl_schema_diagnostics(context):
+        store = load_manifest(
+            context,
+            rename_duplicates=rename_duplicates,
+            load_internal=False,
+            verbose=verbose,
+            full_load=True,
+            check_config=check_config,
+        )
 
-    if format_names:
-        reformat_names(context, store.manifest)
+        if format_names:
+            reformat_names(context, store.manifest)
 
     return store.manifest
 
@@ -171,15 +189,16 @@ def _read_and_return_rows(
     verbose: bool = True,
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
-    store = load_manifest(
-        context,
-        rename_duplicates=rename_duplicates,
-        load_internal=False,
-        verbose=verbose,
-        full_load=True,
-    )
-    if format_names:
-        reformat_names(context, store.manifest)
+    with wsdl_schema_diagnostics(context):
+        store = load_manifest(
+            context,
+            rename_duplicates=rename_duplicates,
+            load_internal=False,
+            verbose=verbose,
+            full_load=True,
+        )
+        if format_names:
+            reformat_names(context, store.manifest)
 
     yield from datasets_to_tabular(
         context,

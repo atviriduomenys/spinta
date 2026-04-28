@@ -2,8 +2,10 @@ from pathlib import Path
 
 import pytest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest_and_context
 
 
 def test_xsd(rc: RawConfig, tmp_path: Path):
@@ -67,6 +69,50 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+def test_xsd_partial_model_sources_remain_blank_for_inline_and_referenced_nested_models(rc: RawConfig, tmp_path: Path):
+    xsd = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+            <xs:complexType name="AddressType">
+                <xs:sequence>
+                    <xs:element name="city" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:element name="GetNestedResponse">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="location">
+                            <xs:complexType>
+                                <xs:sequence>
+                                    <xs:element name="city" type="xs:string" />
+                                </xs:sequence>
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="GetReferencedResponse">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="address" type="AddressType" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>
+        """
+
+    path = tmp_path / "nested_sources.xsd"
+    path.write_text(xsd)
+
+    context, manifest = load_manifest_and_context(rc, path)
+
+    nested_model = commands.get_model(context, manifest, "nested_sources/Location")
+    referenced_model = commands.get_model(context, manifest, "nested_sources/AddressType")
+
+    assert (nested_model.external.name if nested_model.external else None) in {None, ""}
+    assert nested_model.features == "/:part"
+    assert (referenced_model.external.name if referenced_model.external else None) in {None, ""}
 
 
 def test_xsd_backref(rc: RawConfig, tmp_path: Path):

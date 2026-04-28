@@ -50,6 +50,7 @@ CONFIG = {
             "gsheets": "spinta.manifests.tabular.components:GsheetsManifest",
             "sql": "spinta.manifests.sql.components:SqlManifest",
             "memory": "spinta.manifests.memory.components:MemoryManifest",
+            "wsdl": "spinta.manifests.wsdl.components:WsdlManifest",
             "json": "spinta.manifests.dict.components:JsonManifest",
             "xml": "spinta.manifests.dict.components:XmlManifest",
             "internal": "spinta.manifests.internal_sql.components:InternalSQLManifest",
