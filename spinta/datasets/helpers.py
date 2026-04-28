@@ -211,7 +211,7 @@ def decode_id_value(id_prop: Property, value):
         if isinstance(id_prop.dtype, Base32):
             decoded_value = cbor2.loads(base64.b32decode(value.encode("utf-8")))
         else:
-            decoded_value = [part for part in value.split(",")]
+            decoded_value = value.split(",")
 
     elif isinstance(id_prop.dtype, Base32):
         decoded_value = base64.b32decode(value.encode("utf-8")).decode("utf-8")

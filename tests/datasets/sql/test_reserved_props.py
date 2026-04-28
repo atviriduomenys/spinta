@@ -68,15 +68,15 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "ORD001"
-        assert rows[1]["_id"]["value"] == "ORD002"
-        assert rows[0]["_id"]["link"] == "/example/Region/=ORD001"
-        assert rows[1]["_id"]["link"] == "/example/Region/=ORD002"
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["_id"]["value"] == "ORD001"
+        assert second_row_data["_id"]["value"] == "ORD002"
+        assert first_row_data["_id"]["link"] == "/example/Region/=ORD001"
+        assert second_row_data["_id"]["link"] == "/example/Region/=ORD002"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD001"
 
@@ -99,16 +99,16 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "123"
-        assert rows[1]["_id"]["value"] == "1234"
-        assert rows[0]["_id"]["link"] == "/example/Region/=123"
-        assert rows[1]["_id"]["link"] == "/example/Region/=1234"
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == "123"
+        assert second_row_data["_id"]["value"] == "1234"
+        assert first_row_data["_id"]["link"] == "/example/Region/=123"
+        assert second_row_data["_id"]["link"] == "/example/Region/=1234"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["id"] == 123
 
@@ -131,15 +131,15 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
-        assert rows[0]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[1]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[0]["_id"]["value"] == "8f5773d6"
-        assert rows[1]["_id"]["value"] == "d6420786"
-        assert rows[0]["_id"]["link"] == "/example/Region/=8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[1]["_id"]["link"] == "/example/Region/=d6420786-082f-4ee4-9624-7a559f31d032"
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert first_row_data["_id"]["value"] == "8f5773d6"
+        assert second_row_data["_id"]["value"] == "d6420786"
+        assert first_row_data["_id"]["link"] == "/example/Region/=8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert second_row_data["_id"]["link"] == "/example/Region/=d6420786-082f-4ee4-9624-7a559f31d032"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
 
@@ -162,15 +162,15 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
-        assert rows[0]["comma_code"]["value"] == "OR,D001"
-        assert rows[1]["comma_code"]["value"] == "OR,D002"
-        assert rows[0]["_id"]["value"] == "OR,D001"
-        assert rows[1]["_id"]["value"] == "OR,D002"
-        assert rows[0]["_id"]["link"] == "/example/Region/=OR,D001"
-        assert rows[1]["_id"]["link"] == "/example/Region/=OR,D002"
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        assert first_row_data["comma_code"]["value"] == "OR,D001"
+        assert second_row_data["comma_code"]["value"] == "OR,D002"
+        assert first_row_data["_id"]["value"] == "OR,D001"
+        assert second_row_data["_id"]["value"] == "OR,D002"
+        assert first_row_data["_id"]["link"] == "/example/Region/=OR,D001"
+        assert second_row_data["_id"]["link"] == "/example/Region/=OR,D002"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["comma_code"] == "OR,D001"
 
@@ -195,16 +195,16 @@ class TestIdInt:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == 123
-        assert rows[1]["_id"]["value"] == 1234
-        assert rows[0]["_id"]["link"] == "/example/Region/123"
-        assert rows[1]["_id"]["link"] == "/example/Region/1234"
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == 123
+        assert second_row_data["_id"]["value"] == 1234
+        assert first_row_data["_id"]["link"] == "/example/Region/123"
+        assert second_row_data["_id"]["link"] == "/example/Region/1234"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["id"] == 123
 
@@ -259,16 +259,16 @@ class TestIdUuid:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[1]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[0]["_id"]["value"] == "8f5773d6"
-        assert rows[1]["_id"]["value"] == "d6420786"
-        assert rows[0]["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[1]["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
+        assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert first_row_data["_id"]["value"] == "8f5773d6"
+        assert second_row_data["_id"]["value"] == "d6420786"
+        assert first_row_data["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert second_row_data["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
 
@@ -324,18 +324,18 @@ class TestIdComp:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "123,ORD0"
-        assert rows[1]["_id"]["value"] == "1234,ORD"
-        assert rows[0]["_id"]["link"] == "/example/Region/123,ORD001"
-        assert rows[1]["_id"]["link"] == "/example/Region/1234,ORD002"
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == "123,ORD0"
+        assert second_row_data["_id"]["value"] == "1234,ORD"
+        assert first_row_data["_id"]["link"] == "/example/Region/123,ORD001"
+        assert second_row_data["_id"]["link"] == "/example/Region/1234,ORD002"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD001"
         assert resp.json()["id"] == 123
@@ -393,16 +393,16 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "J5JEIMBQ"
-        assert rows[1]["_id"]["value"] == "J5JEIMBQ"
-        assert rows[0]["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
-        assert rows[1]["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["_id"]["value"] == "J5JEIMBQ"
+        assert second_row_data["_id"]["value"] == "J5JEIMBQ"
+        assert first_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
+        assert second_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD001"
 
@@ -425,16 +425,16 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "GEZDG==="
-        assert rows[1]["_id"]["value"] == "GEZDGNA="
-        assert rows[0]["_id"]["link"] == "/example/Region/=GEZDG==="
-        assert rows[1]["_id"]["link"] == "/example/Region/=GEZDGNA="
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == "GEZDG==="
+        assert second_row_data["_id"]["value"] == "GEZDGNA="
+        assert first_row_data["_id"]["link"] == "/example/Region/=GEZDG==="
+        assert second_row_data["_id"]["link"] == "/example/Region/=GEZDGNA="
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["id"] == 123
 
@@ -457,22 +457,22 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[1]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[0]["_id"]["value"] == "HBTDKNZX"
-        assert rows[1]["_id"]["value"] == "MQ3DIMRQ"
+        assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert first_row_data["_id"]["value"] == "HBTDKNZX"
+        assert second_row_data["_id"]["value"] == "MQ3DIMRQ"
         assert (
-            rows[0]["_id"]["link"]
+            first_row_data["_id"]["link"]
             == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA======"
         )
         assert (
-            rows[1]["_id"]["link"]
+            second_row_data["_id"]["link"]
             == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI======"
         )
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
 
@@ -496,22 +496,22 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[1]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[0]["code"]["value"] == "ORD002"
-        assert rows[1]["code"]["value"] == "ORD001"
-        assert rows[0]["_id"]["value"] == "QJ4CIODG"
-        assert rows[1]["_id"]["value"] == "QJ4CIZBW"
-        assert rows[0]["_id"]["link"] == (
+        assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert first_row_data["code"]["value"] == "ORD002"
+        assert second_row_data["code"]["value"] == "ORD001"
+        assert first_row_data["_id"]["value"] == "QJ4CIODG"
+        assert second_row_data["_id"]["value"] == "QJ4CIZBW"
+        assert first_row_data["_id"]["link"] == (
             "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI======"
         )
-        assert rows[1]["_id"]["link"] == (
+        assert second_row_data["_id"]["link"] == (
             "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGE======"
         )
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD002"
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
@@ -566,16 +566,16 @@ class TestManifestLoading:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["_id"]["value"] == "d6420786"
-        assert rows[1]["_id"]["value"] == "8f5773d6"
-        assert rows[0]["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["_id"]["value"] == "d6420786"
+        assert second_row_data["_id"]["value"] == "8f5773d6"
+        assert first_row_data["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "d6420786-082f-4ee4-9624-7a559f31d032"
 
@@ -635,20 +635,20 @@ class TestManifestLoading:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["_id"]["value"] == "QJ4CIODG"
-        assert rows[1]["_id"]["value"] == "QJ4CIZBW"
-        assert rows[0]["comma_code"]["value"] == "OR,D002"
-        assert rows[1]["comma_code"]["value"] == "OR,D001"
-        assert rows[0]["_id"]["link"] == (
+        assert first_row_data["_id"]["value"] == "QJ4CIODG"
+        assert second_row_data["_id"]["value"] == "QJ4CIZBW"
+        assert first_row_data["comma_code"]["value"] == "OR,D002"
+        assert second_row_data["comma_code"]["value"] == "OR,D001"
+        assert first_row_data["_id"]["link"] == (
             "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA===="
         )
-        assert rows[1]["_id"]["link"] == (
+        assert second_row_data["_id"]["link"] == (
             "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ===="
         )
 
-        resp = app.get(rows[0]["_id"]["link"])
+        resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["comma_code"] == "OR,D002"
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
