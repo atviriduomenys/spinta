@@ -6,6 +6,7 @@ import sys
 import traceback
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from spinta.cli import main
@@ -32,6 +33,18 @@ def _prepare_args(args: List[Any]) -> List[str]:
             arg = [arg]
         result += ["" if a is None else str(a) for a in arg]
     return result
+
+
+def message_in_result(
+    result: Result,
+    message: str,
+    *,
+    error_stream: bool = True,
+) -> bool:
+    if error_stream:
+        return message in result.stderr
+
+    return message in result.stdout
 
 
 class SpintaCliRunner(CliRunner):

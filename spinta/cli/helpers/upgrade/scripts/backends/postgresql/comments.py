@@ -140,7 +140,7 @@ def table_contains_all_comments(backend: PostgreSQL, inspector: PGInspector, tab
     return True
 
 
-def migrate_comments(context: Context, **kwargs):
+def migrate_comments(context: Context, verbose: bool = True, **kwargs) -> None:
     ensure_store_is_loaded(context)
     store = context.get("store")
 
@@ -157,7 +157,7 @@ def migrate_comments(context: Context, **kwargs):
 
     affected_models = list(collect_models_without_comments(context, inspectors))
 
-    progress_bar = tqdm(affected_models)
+    progress_bar = tqdm(affected_models, desc="Applying table comments")
     for model in progress_bar:
         backend = model.backend
         with backend.begin() as conn:
@@ -166,19 +166,28 @@ def migrate_comments(context: Context, **kwargs):
             redirect_identifier = table_identifier.change_table_type(new_type=TableType.REDIRECT)
             inspector = inspectors[backend.name]
 
-            progress_bar.display(model.model_type())
+            if verbose:
+                progress_bar.display(model.model_type())
 
-            apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar)
+            apply_missing_table_comments(
+                conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose
+            )
 
             for prop in model.flatprops.values():
-                apply_custom_property_table_comments(conn, backend, inspector, prop, progress_bar)
+                apply_custom_property_table_comments(
+                    conn, backend, inspector, prop, progress_bar=progress_bar, verbose=verbose
+                )
 
             if table_identifier.logical_qualified_name.startswith("_"):
                 continue
 
             # Specialized tables for normal models
-            apply_missing_table_comments(conn, backend, inspector, changes_identifier, progress_bar=progress_bar)
-            apply_missing_table_comments(conn, backend, inspector, redirect_identifier, progress_bar=progress_bar)
+            apply_missing_table_comments(
+                conn, backend, inspector, changes_identifier, progress_bar=progress_bar, verbose=verbose
+            )
+            apply_missing_table_comments(
+                conn, backend, inspector, redirect_identifier, progress_bar=progress_bar, verbose=verbose
+            )
 
 
 def cleanup_comment(comment: str) -> str:
@@ -194,15 +203,16 @@ def apply_missing_table_comments(
     inspector: PGInspector,
     table_identifier: TableIdentifier,
     progress_bar: tqdm = None,
-):
+    verbose: bool = True,
+) -> None:
     bootstrap_table = backend.tables.get(table_identifier.logical_qualified_name)
     if bootstrap_table is None:
-        if progress_bar:
+        if progress_bar and verbose:
             progress_bar.write(f"COULD NOT FIND '{table_identifier.logical_qualified_name}' TABLE")
         return
 
     if not table_contains_comment(inspector, bootstrap_table):
-        if progress_bar:
+        if progress_bar and verbose:
             progress_bar.write(f"'{table_identifier.pg_qualified_name}' <- {cleanup_comment(bootstrap_table.comment)}")
 
         conn.execute(
@@ -220,7 +230,7 @@ def apply_missing_table_comments(
             continue
 
         if column["comment"] != bootstrap_column.comment:
-            if progress_bar:
+            if progress_bar and verbose:
                 progress_bar.write(
                     f"'{table_identifier.pg_qualified_name}'.'{column['name']}' <- {cleanup_comment(bootstrap_column.comment)}"
                 )
@@ -229,31 +239,57 @@ def apply_missing_table_comments(
             )
 
 
-@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, Property, object)
+@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, Property)
 def apply_custom_property_table_comments(
-    conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, prop: Property, progress_bar: tqdm
-):
-    return apply_custom_property_table_comments(conn, backend, inspector, prop.dtype, progress_bar)
+    conn: sa.engine.Connection,
+    backend: PostgreSQL,
+    inspector: PGInspector,
+    prop: Property,
+    *,
+    progress_bar: tqdm = None,
+    verbose: bool = True,
+) -> None:
+    apply_custom_property_table_comments(
+        conn, backend, inspector, prop.dtype, progress_bar=progress_bar, verbose=verbose
+    )
 
 
-@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, DataType, object)
+@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, DataType)
 def apply_custom_property_table_comments(
-    conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, dtype: DataType, progress_bar: tqdm
-):
+    conn: sa.engine.Connection,
+    backend: PostgreSQL,
+    inspector: PGInspector,
+    dtype: DataType,
+    *,
+    progress_bar: tqdm = None,
+    verbose: bool = True,
+) -> None:
     return
 
 
-@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, Array, object)
+@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, Array)
 def apply_custom_property_table_comments(
-    conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, dtype: Array, progress_bar: tqdm
-):
+    conn: sa.engine.Connection,
+    backend: PostgreSQL,
+    inspector: PGInspector,
+    dtype: Array,
+    *,
+    progress_bar: tqdm = None,
+    verbose: bool = True,
+) -> None:
     table_identifier = get_table_identifier(dtype.prop, TableType.LIST)
-    return apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar)
+    apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose)
 
 
-@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, File, object)
+@dispatch(sa.engine.Connection, PostgreSQL, PGInspector, File)
 def apply_custom_property_table_comments(
-    conn: sa.engine.Connection, backend: PostgreSQL, inspector: PGInspector, dtype: File, progress_bar: tqdm
-):
+    conn: sa.engine.Connection,
+    backend: PostgreSQL,
+    inspector: PGInspector,
+    dtype: File,
+    *,
+    progress_bar: tqdm = None,
+    verbose: bool = True,
+) -> None:
     table_identifier = get_table_identifier(dtype.prop, TableType.FILE)
-    return apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar)
+    apply_missing_table_comments(conn, backend, inspector, table_identifier, progress_bar=progress_bar, verbose=verbose)

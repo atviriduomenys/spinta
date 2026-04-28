@@ -133,3 +133,59 @@ def test_configure_missing_type_parameter(tmp_path, rc):
         """,
             tmp_path=tmp_path,
         )
+
+
+def test_configure_missing_distribution_type_parameter(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "distribute": {"property": "_id"},
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter,
+        match="Model 'datasets/gov/example/Country' configuration is missing parameter: 'distribute.type'.",
+    ):
+        load_manifest(
+            rc,
+            manifest=""" d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
+         datasets/gov/example     |             |           |            |         |       | open   |     | Example |
+           | data                 |             |           | postgresql | default |       | open   |     | Data    |
+                                  |             |           |            |         |       |        |     |         |
+           |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
+           |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
+           |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+        """,
+            tmp_path=tmp_path,
+        )
+
+
+def test_configure_missing_distribution_property_parameter(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "distribute": {"type": "table"},
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter,
+        match="Model 'datasets/gov/example/Country' configuration is missing parameter: 'distribute.property'.",
+    ):
+        load_manifest(
+            rc,
+            manifest=""" d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
+         datasets/gov/example     |             |           |            |         |       | open   |     | Example |
+           | data                 |             |           | postgresql | default |       | open   |     | Data    |
+                                  |             |           |            |         |       |        |     |         |
+           |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
+           |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
+           |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+        """,
+            tmp_path=tmp_path,
+        )

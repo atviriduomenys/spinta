@@ -10,7 +10,7 @@ from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.cli.helpers.upgrade.scripts.clients import client_migration_status_message, CLIENT_STATUS_SUCCESS
 from spinta.exceptions import ScriptNotFound
-from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.cli import SpintaCliRunner, message_in_result
 from spinta.testing.client import create_old_client_file
 from spinta.utils.config import get_clients_path, get_keymap_path
 
@@ -40,7 +40,7 @@ def test_upgrade_check_only(
 
     result = cli.invoke(rc, ["upgrade", Script.CLIENTS.value, "-c"])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED))
     assert client_migration_status_message("TEST.yml", CLIENT_STATUS_SUCCESS) not in result.stdout
     assert "Created keymap with 1 users" not in result.stdout
 
@@ -58,12 +58,12 @@ def test_upgrade_all(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
     assert result.exit_code == 0
 
     for script in upgrade_script_registry.get_all_names():
-        assert script_check_status_message(script, ScriptStatus.PASSED) in result.stderr
+        assert message_in_result(result, script_check_status_message(script, ScriptStatus.PASSED))
 
 
 def test_upgrade_multiple(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
     result = cli.invoke(rc, ["upgrade", Script.SQL_KEYMAP_REDIRECT.value, Script.SQL_KEYMAP_INITIAL.value, "-c"])
     assert result.exit_code == 0
 
-    assert script_check_status_message(Script.SQL_KEYMAP_INITIAL.value, ScriptStatus.PASSED) in result.stderr
-    assert script_check_status_message(Script.SQL_KEYMAP_REDIRECT.value, ScriptStatus.PASSED) in result.stderr
+    assert message_in_result(result, script_check_status_message(Script.SQL_KEYMAP_INITIAL.value, ScriptStatus.PASSED))
+    assert message_in_result(result, script_check_status_message(Script.SQL_KEYMAP_REDIRECT.value, ScriptStatus.PASSED))
