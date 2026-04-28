@@ -231,8 +231,16 @@ class MermaidRelationship:
 
 
 def write_mermaid_manifest(
-    context: Context, output: str, manifest: InlineManifest, main_dataset: str | None = None
-) -> None:
+    context: Context,
+    manifest: InlineManifest,
+    main_dataset: str | None = None,
+    output: str | None = None,
+) -> str | None:
+    """Generate a Mermaid class diagram from the given manifest.
+
+    If `output` is specified, writes the diagram to that file and returns None.
+    Otherwise returns the diagram as a string.
+    """
     mermaid = MermaidClassDiagram()
     concept_definition = MermaidClassDef(name=CONCEPT_NAME, styles=CONCEPT_STYLES)
     entity_definition = MermaidClassDef(name=ENTITY_NAME, styles=ENTITY_STYLES)
@@ -344,6 +352,9 @@ def write_mermaid_manifest(
             )
 
     mermaid.collect_definitions()
+
+    if not output:
+        return str(mermaid)
 
     with open(output, "w") as file:
         file.write(str(mermaid))
