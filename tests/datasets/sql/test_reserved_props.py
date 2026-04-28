@@ -68,7 +68,9 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
         assert first_row_data["code"]["value"] == "ORD001"
         assert second_row_data["code"]["value"] == "ORD002"
         assert first_row_data["_id"]["value"] == "ORD001"
@@ -99,7 +101,9 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["id"]["value"] == 123
         assert second_row_data["id"]["value"] == 1234
@@ -131,7 +135,9 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
         assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
         assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
         assert first_row_data["_id"]["value"] == "8f5773d6"
@@ -162,7 +168,9 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
         assert first_row_data["comma_code"]["value"] == "OR,D001"
         assert second_row_data["comma_code"]["value"] == "OR,D002"
         assert first_row_data["_id"]["value"] == "OR,D001"
@@ -195,7 +203,9 @@ class TestIdInt:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["id"]["value"] == 123
         assert second_row_data["id"]["value"] == 1234
@@ -259,7 +269,9 @@ class TestIdUuid:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
         assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
@@ -324,7 +336,9 @@ class TestIdComp:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["code"]["value"] == "ORD001"
         assert second_row_data["code"]["value"] == "ORD002"
@@ -393,7 +407,9 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["code"]["value"] == "ORD001"
         assert second_row_data["code"]["value"] == "ORD002"
@@ -425,7 +441,9 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["id"]["value"] == 123
         assert second_row_data["id"]["value"] == 1234
@@ -457,7 +475,9 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
         assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
@@ -496,7 +516,9 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
         assert second_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
@@ -566,7 +588,9 @@ class TestManifestLoading:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
         assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
@@ -635,7 +659,9 @@ class TestManifestLoading:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [
+            {k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]
+        ]
 
         assert first_row_data["_id"]["value"] == "QJ4CIODG"
         assert second_row_data["_id"]["value"] == "QJ4CIZBW"
