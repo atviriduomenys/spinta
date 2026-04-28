@@ -1,27 +1,33 @@
+import base64
 from typing import Any
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Set
 
+import cbor2
+from spinta.exceptions import ValuesForIdCantHaveSpecialSymbols
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.backends.helpers import load_backend
+from spinta.backends.helpers import load_backend, check_if_model_primary_key_is_composite
 from spinta.core.enums import Action
-from spinta.components import Context
+from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ShortExpr
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, Base32
 from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
 from spinta.utils.naming import to_code_name
+
+
+INVALID_PREFIXES = ("/", "@", ":", "?")
 
 
 def load_resource_backend(
@@ -189,3 +195,27 @@ def get_ref_filters(
             )
 
     return query
+
+
+def encode_composite_string_id(values: list, pkeys: list) -> str:
+    for primary_key, value in zip(pkeys, values):
+        if "," in value or value.startswith(INVALID_PREFIXES):
+            raise ValuesForIdCantHaveSpecialSymbols(value=value, property=primary_key.name or primary_key)
+    return ",".join(value for value in values)
+
+
+def decode_id_value(id_prop: Property, value):
+    decoded_value = value
+    if check_if_model_primary_key_is_composite(id_prop.model):
+        if isinstance(id_prop.dtype, Base32):
+            decoded_value = cbor2.loads(base64.b32decode(value.encode("utf-8"))).split(",")
+        else:
+            decoded_value = [part for part in value.split(",")]
+
+    elif isinstance(id_prop.dtype, Base32):
+        decoded_value = base64.b32decode(value.encode("utf-8")).decode("utf-8")
+
+    if not isinstance(decoded_value, list):
+        decoded_value = [decoded_value]
+
+    return decoded_value

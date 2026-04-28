@@ -17,14 +17,14 @@ from spinta.datasets.backends.dataframe.backends.memory.components import Memory
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource
-from spinta.datasets.helpers import get_enum_filters, get_ref_filters
+from spinta.datasets.helpers import get_enum_filters, get_ref_filters, encode_composite_string_id
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Base32
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
@@ -272,6 +272,7 @@ def dask_get_all(
         res = {
             "_type": model.model_type(),
         }
+        id_prop = getattr(model.external, "id_prop", None)
         for key, sel in env.selected.items():
             val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
@@ -284,6 +285,8 @@ def dask_get_all(
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
+                elif sel.prop is id_prop and isinstance(val, list) and not isinstance(id_prop.dtype, Base32):
+                    val = encode_composite_string_id(val, model.external.pkeys)
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res

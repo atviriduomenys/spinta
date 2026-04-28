@@ -213,6 +213,8 @@ class Entity(External):
     name: str  # model.source
     prepare: Expr  # model.prepare
     params: List[Param]
+    id_prop: Property | None = None
+    revision_prop: Property | None = None
 
     schema = {
         "model": {"parent": True},
