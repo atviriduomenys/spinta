@@ -368,8 +368,8 @@ def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
 
     resp = app.get("/example/csv/City")
     assert listdata(resp) == [
-        (1, "test"),
-        (2, "---"),
-        (3, "---"),
-        (4, "---"),
+        ("1", "test"),
+        ("2", "---"),
+        ("3", "---"),
+        ("4", "---"),
     ]

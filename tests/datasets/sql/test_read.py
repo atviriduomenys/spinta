@@ -793,10 +793,18 @@ def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geo
 
     assert resp.status_code == 200
     assert listdata(resp, "id", "name", "languages", full=True) == [
-        {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
-        {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
-        {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
-        {"id": 3, "name": "Empty", "languages": []},
+        {"id": "0", "name": "United Kingdoms", "languages": [{"_id": lang_mapping["0"]["_id"]}]},
+        {
+            "id": "1",
+            "name": "Lithuania",
+            "languages": [{"_id": lang_mapping["0"]["_id"]}, {"_id": lang_mapping["1"]["_id"]}],
+        },
+        {
+            "id": "2",
+            "name": "Poland",
+            "languages": [{"_id": lang_mapping["0"]["_id"]}, {"_id": lang_mapping["2"]["_id"]}],
+        },
+        {"id": "3", "name": "Empty", "languages": []},
     ]
 
 
