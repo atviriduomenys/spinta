@@ -212,7 +212,7 @@ def decode_id_value(id_prop: Property, value):
             padded = value + "=" * (-len(value) % 8)
             decoded_value = cbor2.loads(base64.b32decode(padded.encode("utf-8"))).split(",")
         else:
-            decoded_value = [part for part in value.split(",")]
+            decoded_value = value.split(",")
 
     elif isinstance(id_prop.dtype, Base32):
         padded = value + "=" * (-len(value) % 8)
