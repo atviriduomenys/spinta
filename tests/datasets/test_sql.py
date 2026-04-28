@@ -4489,7 +4489,7 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
             "country.c": "LV",
             "country.code": "LV",
             "country.meta.name": "Latvia",
-            "country.meta.year": 1408,
+            "country.meta.year": "1408",
         },
         {
             "code": "TLN",
@@ -4497,7 +4497,7 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
             "country.c": "EE",
             "country.code": "EE",
             "country.meta.name": "Estija",
-            "country.meta.year": 1784,
+            "country.meta.year": "1784",
         },
         {
             "code": "VLN",
@@ -4505,7 +4505,7 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
             "country.c": "LT",
             "country.code": "LT",
             "country.meta.name": "Lietuva",
-            "country.meta.year": 1204,
+            "country.meta.year": "1204",
         },
     ]
 
