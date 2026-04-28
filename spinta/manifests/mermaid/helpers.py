@@ -31,12 +31,12 @@ class MermaidClassDiagram:
     relationships: list[MermaidRelationship]
     definitions: set[MermaidClassDef]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.namespaces = {}
         self.relationships = []
         self.definitions = set()
 
-    def __str__(self):
+    def __str__(self) -> str:
         text = f"{MERMAID_CONFIG}\n"
         text += "classDiagram\n"
 
@@ -67,11 +67,11 @@ class MermaidNameSpace:
     name: str | None
     classes: list[MermaidClass]
 
-    def __init__(self, name: str | None = None):
+    def __init__(self, name: str | None = None) -> None:
         self.name = name
         self.classes = []
 
-    def __str__(self):
+    def __str__(self) -> str:
         text = f"namespace `{self.name}` {{\n" if self.name else ""
         for mermaid_class in self.classes:
             text += f"{str(mermaid_class)}\n"
@@ -87,7 +87,7 @@ class MermaidClassDef:
     name: str
     styles: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"classDef {self.name} {self.styles};"
 
     def __eq__(self, other: object) -> bool:
@@ -102,8 +102,9 @@ class MermaidClass:
     label: str
     definition: MermaidClassDef
     properties: list[MermaidProperty]
+    is_enum: bool
 
-    def __init__(self, name: str, label: str, definition: MermaidClassDef, is_enum: bool = False):
+    def __init__(self, name: str, label: str, definition: MermaidClassDef, is_enum: bool = False) -> None:
         self.name = name
         self.label = label
         self.definition = definition
@@ -113,7 +114,7 @@ class MermaidClass:
     def add_property(self, prop: MermaidProperty) -> None:
         self.properties.append(prop)
 
-    def __str__(self):
+    def __str__(self) -> str:
         class_text = f'class `{self.name}`["{self.label}"]:::{self.definition.name}'
 
         if not self.properties:
@@ -147,7 +148,7 @@ class MermaidClass:
 @dataclass
 class MermaidProperty:
     name: str
-    visibility: Visibility | str = None
+    visibility: Visibility | None = None
     type: str | None = None
     cardinality: bool | None = None
     multiplicity: str | None = None
@@ -159,7 +160,7 @@ class MermaidProperty:
         Visibility.private: "-",
     }
 
-    def __str__(self):
+    def __str__(self) -> str:
         property_string = self.name
 
         if self.visibility is not None:
@@ -196,7 +197,7 @@ class MermaidRelationship:
     multiplicity: str = ""
     label: str = ""
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.direction == RelationshipDirection.FORWARD:
             if self.type == RelationshipType.ASSOCIATION:
                 arrow = "-->"
@@ -229,7 +230,9 @@ class MermaidRelationship:
         return relationship_text
 
 
-def write_mermaid_manifest(context: Context, output: str, manifest: InlineManifest, main_dataset: str | None = None):
+def write_mermaid_manifest(
+    context: Context, output: str, manifest: InlineManifest, main_dataset: str | None = None
+) -> None:
     mermaid = MermaidClassDiagram()
     concept_definition = MermaidClassDef(name=CONCEPT_NAME, styles=CONCEPT_STYLES)
     entity_definition = MermaidClassDef(name=ENTITY_NAME, styles=ENTITY_STYLES)
