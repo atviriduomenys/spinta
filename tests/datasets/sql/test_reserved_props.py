@@ -31,8 +31,18 @@ def db():
         db.write(
             "order",
             [
-                {"code": "ORD001", "id": 123, "uuid_id": "d6420786-082f-4ee4-9624-7a559f31d032", "comma_code": "OR,D001"},
-                {"code": "ORD002", "id": 1234, "uuid_id": "8f5773d6-a5eb-4409-8f88-aca874e27200", "comma_code": "OR,D002"},
+                {
+                    "code": "ORD001",
+                    "id": 123,
+                    "uuid_id": "d6420786-082f-4ee4-9624-7a559f31d032",
+                    "comma_code": "OR,D001",
+                },
+                {
+                    "code": "ORD002",
+                    "id": 1234,
+                    "uuid_id": "8f5773d6-a5eb-4409-8f88-aca874e27200",
+                    "comma_code": "OR,D002",
+                },
             ],
         )
         yield db
