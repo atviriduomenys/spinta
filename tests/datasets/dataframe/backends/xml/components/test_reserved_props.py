@@ -70,16 +70,16 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "ORD001"
-        assert rows[1]["_id"]["value"] == "ORD002"
-        assert rows[0]["_id"]["link"] == "/example/Region/=ORD001"
-        assert rows[1]["_id"]["link"] == "/example/Region/=ORD002"
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["_id"]["value"] == "ORD001"
+        assert second_row_data["_id"]["value"] == "ORD002"
+        assert first_row_data["_id"]["link"] == "/example/Region/=ORD001"
+        assert second_row_data["_id"]["link"] == "/example/Region/=ORD002"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_string_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -105,17 +105,17 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "123"
-        assert rows[1]["_id"]["value"] == "1234"
-        assert rows[0]["_id"]["link"] == "/example/Region/=123"
-        assert rows[1]["_id"]["link"] == "/example/Region/=1234"
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == "123"
+        assert second_row_data["_id"]["value"] == "1234"
+        assert first_row_data["_id"]["link"] == "/example/Region/=123"
+        assert second_row_data["_id"]["link"] == "/example/Region/=1234"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_string_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -141,17 +141,17 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["_id"]["value"] == "d6420786"
-        assert rows[1]["_id"]["value"] == "8f5773d6"
-        assert rows[0]["_id"]["link"] == "/example/Region/=d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["_id"]["link"] == "/example/Region/=8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["_id"]["value"] == "d6420786"
+        assert second_row_data["_id"]["value"] == "8f5773d6"
+        assert first_row_data["_id"]["link"] == "/example/Region/=d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["_id"]["link"] == "/example/Region/=8f5773d6-a5eb-4409-8f88-aca874e27200"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_string_with_string_correct_equal_sing(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -177,17 +177,17 @@ class TestIdStr:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["code"]["value"] == "OR,D001"
-        assert rows[1]["code"]["value"] == "OR,D002"
-        assert rows[0]["_id"]["value"] == "OR,D001"
-        assert rows[1]["_id"]["value"] == "OR,D002"
-        assert rows[0]["_id"]["link"] == "/example/Region/=OR,D001"
-        assert rows[1]["_id"]["link"] == "/example/Region/=OR,D002"
+        assert first_row_data["code"]["value"] == "OR,D001"
+        assert second_row_data["code"]["value"] == "OR,D002"
+        assert first_row_data["_id"]["value"] == "OR,D001"
+        assert second_row_data["_id"]["value"] == "OR,D002"
+        assert first_row_data["_id"]["link"] == "/example/Region/=OR,D001"
+        assert second_row_data["_id"]["link"] == "/example/Region/=OR,D002"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
 
@@ -223,17 +223,17 @@ class TestIdInt:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == 123
-        assert rows[1]["_id"]["value"] == 1234
-        assert rows[0]["_id"]["link"] == "/example/Region/123"
-        assert rows[1]["_id"]["link"] == "/example/Region/1234"
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == 123
+        assert second_row_data["_id"]["value"] == 1234
+        assert first_row_data["_id"]["link"] == "/example/Region/123"
+        assert second_row_data["_id"]["link"] == "/example/Region/1234"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_integer_errors_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -299,17 +299,17 @@ class TestIdUuid:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["_id"]["value"] == "d6420786"
-        assert rows[1]["_id"]["value"] == "8f5773d6"
-        assert rows[0]["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["_id"]["value"] == "d6420786"
+        assert second_row_data["_id"]["value"] == "8f5773d6"
+        assert first_row_data["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_uuid_errors_with_string(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -376,19 +376,19 @@ class TestIdComp:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "123,ORD0"
-        assert rows[1]["_id"]["value"] == "1234,ORD"
-        assert rows[0]["_id"]["link"] == "/example/Region/123,ORD001"
-        assert rows[1]["_id"]["link"] == "/example/Region/1234,ORD002"
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == "123,ORD0"
+        assert second_row_data["_id"]["value"] == "1234,ORD"
+        assert first_row_data["_id"]["link"] == "/example/Region/123,ORD001"
+        assert second_row_data["_id"]["link"] == "/example/Region/1234,ORD002"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_comp_error_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -456,17 +456,17 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "J5JEIMBQ"
-        assert rows[1]["_id"]["value"] == "J5JEIMBQ"
-        assert rows[0]["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
-        assert rows[1]["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["_id"]["value"] == "J5JEIMBQ"
+        assert second_row_data["_id"]["value"] == "J5JEIMBQ"
+        assert first_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
+        assert second_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_base32_with_integer(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -492,17 +492,17 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["id"]["value"] == 123
-        assert rows[1]["id"]["value"] == 1234
-        assert rows[0]["_id"]["value"] == "GEZDG==="
-        assert rows[1]["_id"]["value"] == "GEZDGNA="
-        assert rows[0]["_id"]["link"] == "/example/Region/=GEZDG==="
-        assert rows[1]["_id"]["link"] == "/example/Region/=GEZDGNA="
+        assert first_row_data["id"]["value"] == 123
+        assert second_row_data["id"]["value"] == 1234
+        assert first_row_data["_id"]["value"] == "GEZDG==="
+        assert second_row_data["_id"]["value"] == "GEZDGNA="
+        assert first_row_data["_id"]["link"] == "/example/Region/=GEZDG==="
+        assert second_row_data["_id"]["link"] == "/example/Region/=GEZDGNA="
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_base32_with_uuid(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -528,23 +528,23 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["_id"]["value"] == "MQ3DIMRQ"
-        assert rows[1]["_id"]["value"] == "HBTDKNZX"
+        assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["_id"]["value"] == "MQ3DIMRQ"
+        assert second_row_data["_id"]["value"] == "HBTDKNZX"
         assert (
-            rows[0]["_id"]["link"]
+            first_row_data["_id"]["link"]
             == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI======"
         )
         assert (
-            rows[1]["_id"]["link"]
+            second_row_data["_id"]["link"]
             == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA======"
         )
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_for_id_base32_with_composite(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -572,23 +572,23 @@ class TestIdBase:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["code"]["value"] == "ORD001"
-        assert rows[1]["code"]["value"] == "ORD002"
-        assert rows[0]["_id"]["value"] == "QJ4CIZBW"
-        assert rows[1]["_id"]["value"] == "QJ4CIODG"
-        assert rows[0]["_id"]["link"] == (
+        assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["code"]["value"] == "ORD001"
+        assert second_row_data["code"]["value"] == "ORD002"
+        assert first_row_data["_id"]["value"] == "QJ4CIZBW"
+        assert second_row_data["_id"]["value"] == "QJ4CIODG"
+        assert first_row_data["_id"]["link"] == (
             "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGE======"
         )
-        assert rows[1]["_id"]["link"] == (
+        assert second_row_data["_id"]["link"] == (
             "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI======"
         )
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
 
@@ -654,17 +654,17 @@ class TestManifestLoading:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        rows = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert rows[0]["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
-        assert rows[0]["_id"]["value"] == "d6420786"
-        assert rows[1]["_id"]["value"] == "8f5773d6"
-        assert rows[0]["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
-        assert rows[1]["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["uuid_id"]["value"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["uuid_id"]["value"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert first_row_data["_id"]["value"] == "d6420786"
+        assert second_row_data["_id"]["value"] == "8f5773d6"
+        assert first_row_data["_id"]["link"] == "/example/Region/d6420786-082f-4ee4-9624-7a559f31d032"
+        assert second_row_data["_id"]["link"] == "/example/Region/8f5773d6-a5eb-4409-8f88-aca874e27200"
 
         with pytest.raises(NotImplementedError):
-            app.get(rows[0]["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
 
     def test_only_id_can_have_base32_type(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
@@ -732,21 +732,21 @@ class TestManifestLoading:
         resp = app.get("/example/Region/:format/html")
         assert resp.status_code == 200
         header = resp.context["header"]
-        first_row, second_row = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
+        first_row_data, second_row_data = [{k: cell.as_dict() for k, cell in zip(header, row)} for row in resp.context["data"]]
 
-        assert first_row["_id"]["value"] == "QJ4CIZBW"
-        assert second_row["_id"]["value"] == "QJ4CIODG"
-        assert first_row["code"]["value"] == "OR,D001"
-        assert second_row["code"]["value"] == "OR,D002"
+        assert first_row_data["_id"]["value"] == "QJ4CIZBW"
+        assert second_row_data["_id"]["value"] == "QJ4CIODG"
+        assert first_row_data["code"]["value"] == "OR,D001"
+        assert second_row_data["code"]["value"] == "OR,D002"
         assert (
-            first_row["_id"]["link"]
+            first_row_data["_id"]["link"]
             == "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ===="
         )
         assert (
-            second_row["_id"]["link"]
+            second_row_data["_id"]["link"]
             == "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA===="
         )
 
         with pytest.raises(NotImplementedError):
-            app.get(first_row["_id"]["link"])
+            app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
