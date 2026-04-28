@@ -401,6 +401,13 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
+        elif prop.name == "_id" and prop is getattr(prop.model.external, "id_prop", None):
+            pkeys = prop.model.external.pkeys
+            if len(pkeys) == 1:
+                prep = env.call("select", pkeys[0])
+            else:
+                prep = [env.call("select", pk) for pk in pkeys]
+            result = Selected(prop=prop, prep=prep)
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call("select", prop.dtype)
