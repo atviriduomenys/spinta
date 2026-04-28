@@ -9,7 +9,7 @@ from typer import Typer
 from typer import echo
 
 from spinta import exceptions
-from spinta.cli.helpers.wsdl import wsdl_schema_diagnostics
+from spinta.manifests.wsdl import wsdl_schema_diagnostics
 from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
