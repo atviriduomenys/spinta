@@ -21,3 +21,4 @@ class Comment(Component):
     given: CommentGiven
     prepare: str | None = None
     level: int | None = None
+    uri: str | None = None
