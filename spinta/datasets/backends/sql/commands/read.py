@@ -3,7 +3,11 @@ from typing import Iterator
 
 
 from spinta import commands
-from spinta.backends.helpers import validate_and_return_begin, check_if_model_primary_key_is_composite, is_custom_id_prop
+from spinta.backends.helpers import (
+    validate_and_return_begin,
+    check_if_model_primary_key_is_composite,
+    is_custom_id_prop,
+)
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -67,7 +71,9 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
-                    elif is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32):
+                    elif (
+                        is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32)
+                    ):
                         val = encode_composite_string_id(val, model.external.pkeys)
                 res[key] = val
             if is_page_enabled:
