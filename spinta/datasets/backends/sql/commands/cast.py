@@ -4,6 +4,7 @@ from typing import List, Any
 
 from spinta import commands
 from spinta.backends import Backend
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Context, Model
 from spinta.core.enums import Mode
 from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
@@ -70,7 +71,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
     # Backwards compatibility, all nested values are converted to list values without keys
     encoding_values = flatten_keymap_encoding_values(encoding_values)
 
-    if getattr(ref_model.external, "id_prop", None) is not None:
+    if is_custom_id_prop(ref_model.properties["_id"]):
         id_value = generate_ref_id_using_select(context, dtype, values)
     else:
         contains = keymap.contains(keymap_name, encoding_values)

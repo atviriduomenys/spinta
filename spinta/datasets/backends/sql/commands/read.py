@@ -3,7 +3,7 @@ from typing import Iterator
 
 
 from spinta import commands
-from spinta.backends.helpers import validate_and_return_begin, check_if_model_primary_key_is_composite
+from spinta.backends.helpers import validate_and_return_begin, check_if_model_primary_key_is_composite, is_custom_id_prop
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -59,7 +59,6 @@ def getall(
         list_keys = extract_list_property_names(model, env_selected.keys())
         is_page_enabled = env.page.page_.enabled
 
-        id_prop = getattr(model.external, "id_prop", None)
         for row in conn.execute(qry):
             res = {}
 
@@ -68,7 +67,7 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
-                    elif sel.prop is id_prop and isinstance(val, list) and not isinstance(id_prop.dtype, Base32):
+                    elif is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32):
                         val = encode_composite_string_id(val, model.external.pkeys)
                 res[key] = val
             if is_page_enabled:
@@ -88,17 +87,17 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    id_prop = model.external.id_prop
+    _id_prop = model.properties["_id"]
     raw_id = id_
-    if id_prop is not None:
-        decoded_id = decode_id_value(id_prop, id_)
-        key = [id_prop]
-        if not id_prop.external.name:
+    if is_custom_id_prop(_id_prop):
+        decoded_id = decode_id_value(_id_prop, id_)
+        key = [_id_prop]
+        if not _id_prop.external.name:
             key = model.external.pkeys
 
         query = {pk.external.name: value for pk, value in zip(key, decoded_id)}
 
-        if isinstance(id_prop.dtype, Base32):
+        if isinstance(_id_prop.dtype, Base32):
             raw_id = decoded_id if check_if_model_primary_key_is_composite(model) else decoded_id[0]
 
     else:

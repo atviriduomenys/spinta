@@ -3,6 +3,7 @@ import pathlib
 from typing import Any
 
 from spinta import commands, spyna
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Property, Model, Context
 from spinta.core.enums import Mode
 from spinta.core.ufuncs import Env, asttoexpr
@@ -49,7 +50,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
 
         val = None
         contains = None
-        if ref.refprops[0].name != "_id" and getattr(ref.model.external, "id_prop", None) is None:
+        if ref.refprops[0].name != "_id" and not is_custom_id_prop(ref.model.properties["_id"]):
             contains = keymap.contains(keymap_name, target_value)
         if not contains:
             if target_value is None:
