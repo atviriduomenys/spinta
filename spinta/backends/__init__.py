@@ -604,22 +604,29 @@ def is_object_id(context: Context, value: str):
 
 @is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
-    id_prop = getattr(model.external, "id_prop", None) if model.external else None
-    if id_prop is not None:
-        candidate = value
-        if is_accessible_by_equals_sign(id_prop, value):
-            if not value.startswith("="):
-                return False
-            candidate = value[1:]
-        try:
-            id_prop.dtype.load(candidate)
-        except exceptions.InvalidValue:
-            return False
-        return True
+    return is_object_id(context, backend, model.properties["_id"].dtype, value)
+
+
+@is_object_id.register(Context, Backend, PrimaryKey, str)
+def is_object_id(context: Context, backend: Backend, dtype: PrimaryKey, value: str):
     try:
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
+
+
+@is_object_id.register(Context, Backend, DataType, str)
+def is_object_id(context: Context, backend: Backend, dtype: DataType, value: str):
+    candidate = value
+    if is_accessible_by_equals_sign(dtype.prop, value):
+        if not value.startswith("="):
+            return False
+        candidate = value[1:]
+    try:
+        dtype.load(candidate)
+    except exceptions.InvalidValue:
+        return False
+    return True
 
 
 @is_object_id.register(Context, Backend, Model, uuid.UUID)
