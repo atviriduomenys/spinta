@@ -9,6 +9,7 @@ from typing import Tuple
 from typing import TypedDict
 
 from spinta import commands
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -187,8 +188,10 @@ def get_model_link_params(
             "args": (model.name.split("/") + ([pk] if pk is not None else []) + ([prop] if prop is not None else [])),
         }
     ]
-    if isinstance(model, Model) and model.external is not None and (id_prop := model.external.id_prop):
-        ptree[0]["id_prop"] = id_prop
+    if isinstance(model, Model) and model.external is not None:
+        _id = model.properties.get("_id")
+        if _id and is_custom_id_prop(_id):
+            ptree[0]["id_prop"] = _id
 
     for k, v in extra.items():
         ptree.append(
