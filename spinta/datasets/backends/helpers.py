@@ -49,7 +49,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
 
         val = None
         contains = None
-        if ref.refprops[0].name != "_id":
+        if ref.refprops[0].name != "_id" and getattr(ref.model.external, "id_prop", None) is None:
             contains = keymap.contains(keymap_name, target_value)
         if not contains:
             if target_value is None:

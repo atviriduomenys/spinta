@@ -3,7 +3,7 @@ from typing import Iterator
 
 
 from spinta import commands
-from spinta.backends.helpers import validate_and_return_begin
+from spinta.backends.helpers import validate_and_return_begin, check_if_model_primary_key_is_composite
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -89,13 +89,17 @@ def getone(
     id_: str,
 ) -> ObjectData:
     id_prop = model.external.id_prop
+    raw_id = id_
     if id_prop is not None:
-        value = decode_id_value(id_prop, id_)
+        decoded_id = decode_id_value(id_prop, id_)
         key = [id_prop]
         if not id_prop.external.name:
             key = model.external.pkeys
 
-        query = {pk.external.name: value for pk, value in zip(key, value)}
+        query = {pk.external.name: value for pk, value in zip(key, decoded_id)}
+
+        if isinstance(id_prop.dtype, Base32):
+            raw_id = decoded_id if check_if_model_primary_key_is_composite(model) else decoded_id[0]
 
     else:
         keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
@@ -134,7 +138,7 @@ def getone(
             value = row[field]
             data[field] = value
 
-    additional_data = {"_type": model.model_type(), "_id": id_}
+    additional_data = {"_type": model.model_type(), "_id": raw_id}
     data.update(additional_data)
     data = flat_dicts_to_nested(data)
     return commands.cast_backend_to_python(context, model, backend, data)

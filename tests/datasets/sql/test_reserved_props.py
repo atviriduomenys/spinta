@@ -81,6 +81,7 @@ class TestIdStr:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD001"
+        assert resp.json()["_id"] == "ORD001"
 
     def test_for_id_string_with_integer(self, context, rc: RawConfig, tmp_path: Path, db):
         create_tabular_manifest(
@@ -115,6 +116,7 @@ class TestIdStr:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["id"] == 123
+        assert resp.json()["_id"] == "123"
 
     def test_for_id_string_with_uuid(self, context, rc: RawConfig, tmp_path: Path, db):
         create_tabular_manifest(
@@ -148,6 +150,7 @@ class TestIdStr:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert resp.json()["_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
 
     def test_for_id_string_with_string_correct_equal_sign(self, context, rc: RawConfig, tmp_path: Path, db):
         create_tabular_manifest(
@@ -181,6 +184,7 @@ class TestIdStr:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["comma_code"] == "OR,D001"
+        assert resp.json()["_id"] == "OR,D001"
 
 
 class TestIdInt:
@@ -217,6 +221,7 @@ class TestIdInt:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["id"] == 123
+        assert resp.json()["_id"] == 123
 
     def test_for_id_integer_errors_with_string(self, rc: RawConfig):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
@@ -283,6 +288,7 @@ class TestIdUuid:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert resp.json()["_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
 
     def test_for_id_uuid_errors_with_string(self, rc: RawConfig):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
@@ -353,6 +359,7 @@ class TestIdComp:
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD001"
         assert resp.json()["id"] == 123
+        assert resp.json()["_id"] == "123,ORD001"
 
     def test_for_id_comp_error_with_integer(self, rc: RawConfig):
         with pytest.raises(ReservedPropertyTypeShouldMatchPrimaryKey):
@@ -415,12 +422,13 @@ class TestIdBase:
         assert second_row_data["code"]["value"] == "ORD002"
         assert first_row_data["_id"]["value"] == "J5JEIMBQ"
         assert second_row_data["_id"]["value"] == "J5JEIMBQ"
-        assert first_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
-        assert second_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
+        assert first_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGE"
+        assert second_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGI"
 
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD001"
+        assert resp.json()["_id"] == "J5JEIMBQGE"
 
     def test_for_id_base32_with_integer(self, context, rc: RawConfig, tmp_path: Path, db):
         create_tabular_manifest(
@@ -447,14 +455,15 @@ class TestIdBase:
 
         assert first_row_data["id"]["value"] == 123
         assert second_row_data["id"]["value"] == 1234
-        assert first_row_data["_id"]["value"] == "GEZDG==="
-        assert second_row_data["_id"]["value"] == "GEZDGNA="
-        assert first_row_data["_id"]["link"] == "/example/Region/=GEZDG==="
-        assert second_row_data["_id"]["link"] == "/example/Region/=GEZDGNA="
+        assert first_row_data["_id"]["value"] == "GEZDG"
+        assert second_row_data["_id"]["value"] == "GEZDGNA"
+        assert first_row_data["_id"]["link"] == "/example/Region/=GEZDG"
+        assert second_row_data["_id"]["link"] == "/example/Region/=GEZDGNA"
 
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["id"] == 123
+        assert resp.json()["_id"] == "GEZDG"
 
     def test_for_id_base32_with_uuid(self, context, rc: RawConfig, tmp_path: Path, db):
         create_tabular_manifest(
@@ -485,16 +494,17 @@ class TestIdBase:
         assert second_row_data["_id"]["value"] == "MQ3DIMRQ"
         assert (
             first_row_data["_id"]["link"]
-            == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA======"
+            == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA"
         )
         assert (
             second_row_data["_id"]["link"]
-            == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI======"
+            == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI"
         )
 
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert resp.json()["_id"] == "HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA"
 
     def test_for_id_base32_with_composite(self, context, rc: RawConfig, tmp_path: Path, db):
         create_tabular_manifest(
@@ -527,16 +537,17 @@ class TestIdBase:
         assert first_row_data["_id"]["value"] == "QJ4CIODG"
         assert second_row_data["_id"]["value"] == "QJ4CIZBW"
         assert first_row_data["_id"]["link"] == (
-            "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI======"
+            "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI"
         )
         assert second_row_data["_id"]["link"] == (
-            "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGE======"
+            "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGE"
         )
 
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["code"] == "ORD002"
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert resp.json()["_id"] == "QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI"
 
 
 class TestManifestLoading:
@@ -602,6 +613,7 @@ class TestManifestLoading:
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["uuid_id"] == "d6420786-082f-4ee4-9624-7a559f31d032"
+        assert resp.json()["_id"] == "d6420786-082f-4ee4-9624-7a559f31d032"
 
     def test_only_id_can_have_base32_type(self, rc: RawConfig):
         with pytest.raises(Base32TypeOnlyAllowedOnId):
@@ -668,13 +680,252 @@ class TestManifestLoading:
         assert first_row_data["comma_code"]["value"] == "OR,D002"
         assert second_row_data["comma_code"]["value"] == "OR,D001"
         assert first_row_data["_id"]["link"] == (
-            "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA===="
+            "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA"
         )
         assert second_row_data["_id"]["link"] == (
-            "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ===="
+            "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ"
         )
 
         resp = app.get(first_row_data["_id"]["link"])
         assert resp.status_code == 200
         assert resp.json()["comma_code"] == "OR,D002"
         assert resp.json()["uuid_id"] == "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        assert resp.json()["_id"] == "QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA"
+
+
+class TestIdRef:
+    def test_ref_to_string_id_model(self, context, rc: RawConfig, tmp_path: Path):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("code", sa.Text),
+                ],
+                "city": [
+                    sa.Column("id", sa.Integer),
+                    sa.Column("region_code", sa.Text),
+                ],
+            }
+        ) as db:
+            db.write("region", [{"code": "ORD001"}, {"code": "ORD002"}])
+            db.write("city", [{"id": 1, "region_code": "ORD001"}, {"id": 2, "region_code": "ORD002"}])
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property   | type       | ref       | source       | level      | access
+            example                   |            |           |              |            |
+              | data                  |            | sqlite    |              |            |
+              |   |   | Region        |            | code      | region       |            |
+              |   |   |   | code      | string     |           | code         |            | open
+              |   |   |   | _id       | string     |           |              |            | open
+              |   |   | City          |            | id        | city         |            |
+              |   |   |   | id        | integer    |           | id           |            | open
+              |   |   |   | region    | ref        | Region    | region_code  |            | open
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall"])
+            app.authmodel("example/City", ["getall"])
+
+            resp = app.get("/example/Region")
+            assert resp.status_code == 200
+            region_rows = {r["code"]: r["_id"] for r in resp.json()["_data"]}
+
+            resp = app.get("/example/City")
+            assert resp.status_code == 200
+            city_by_id = {r["id"]: r for r in resp.json()["_data"]}
+            assert city_by_id[1]["region"]["_id"] == region_rows["ORD001"]
+            assert city_by_id[2]["region"]["_id"] == region_rows["ORD002"]
+
+    def test_ref_to_integer_id_model(self, context, rc: RawConfig, tmp_path: Path):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("id", sa.Integer),
+                ],
+                "city": [
+                    sa.Column("id", sa.Integer),
+                    sa.Column("region_id", sa.Integer),
+                ],
+            }
+        ) as db:
+            db.write("region", [{"id": 123}, {"id": 1234}])
+            db.write("city", [{"id": 1, "region_id": 123}, {"id": 2, "region_id": 1234}])
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property   | type       | ref       | source       | level      | access
+            example                   |            |           |              |            |
+              | data                  |            | sqlite    |              |            |
+              |   |   | Region        |            | id        | region       |            |
+              |   |   |   | id        | integer    |           | id           |            | open
+              |   |   |   | _id       | integer    |           |              |            | open
+              |   |   | City          |            | id        | city         |            |
+              |   |   |   | id        | integer    |           | id           |            | open
+              |   |   |   | region    | ref        | Region    | region_id    |            | open
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall"])
+            app.authmodel("example/City", ["getall"])
+
+            resp = app.get("/example/Region")
+            assert resp.status_code == 200
+            region_rows = {r["id"]: r["_id"] for r in resp.json()["_data"]}
+
+            resp = app.get("/example/City")
+            assert resp.status_code == 200
+            city_by_id = {r["id"]: r for r in resp.json()["_data"]}
+            assert city_by_id[1]["region"]["_id"] == region_rows[123]
+            assert city_by_id[2]["region"]["_id"] == region_rows[1234]
+
+    def test_ref_to_uuid_id_model(self, context, rc: RawConfig, tmp_path: Path):
+        uuid1 = "8f5773d6-a5eb-4409-8f88-aca874e27200"
+        uuid2 = "d6420786-082f-4ee4-9624-7a559f31d032"
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("uuid_id", sa.String),
+                ],
+                "city": [
+                    sa.Column("id", sa.Integer),
+                    sa.Column("region_uuid", sa.String),
+                ],
+            }
+        ) as db:
+            db.write("region", [{"uuid_id": uuid1}, {"uuid_id": uuid2}])
+            db.write("city", [{"id": 1, "region_uuid": uuid1}, {"id": 2, "region_uuid": uuid2}])
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property   | type       | ref       | source       | level      | access
+            example                   |            |           |              |            |
+              | data                  |            | sqlite    |              |            |
+              |   |   | Region        |            | uuid_id   | region       |            |
+              |   |   |   | uuid_id   | uuid       |           | uuid_id      |            | open
+              |   |   |   | _id       | uuid       |           |              |            | open
+              |   |   | City          |            | id        | city         |            |
+              |   |   |   | id        | integer    |           | id           |            | open
+              |   |   |   | region    | ref        | Region    | region_uuid  |            | open
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall"])
+            app.authmodel("example/City", ["getall"])
+
+            resp = app.get("/example/Region")
+            assert resp.status_code == 200
+            region_rows = {r["uuid_id"]: r["_id"] for r in resp.json()["_data"]}
+
+            resp = app.get("/example/City")
+            assert resp.status_code == 200
+            city_by_id = {r["id"]: r for r in resp.json()["_data"]}
+            assert city_by_id[1]["region"]["_id"] == region_rows[uuid1]
+            assert city_by_id[2]["region"]["_id"] == region_rows[uuid2]
+
+    def test_ref_to_composite_id_model(self, context, rc: RawConfig, tmp_path: Path):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("id", sa.Integer),
+                    sa.Column("code", sa.Text),
+                ],
+                "city": [
+                    sa.Column("id", sa.Integer),
+                    sa.Column("region_id", sa.Integer),
+                    sa.Column("region_code", sa.Text),
+                ],
+            }
+        ) as db:
+            db.write("region", [{"id": 123, "code": "ORD001"}, {"id": 1234, "code": "ORD002"}])
+            db.write(
+                "city",
+                [
+                    {"id": 1, "region_id": 123, "region_code": "ORD001"},
+                    {"id": 2, "region_id": 1234, "region_code": "ORD002"},
+                ],
+            )
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property   | type       | ref       | source       | prepare                  | level | access
+            example                    |            |           |              |                          |       |
+              | data                   |            | sqlite    |              |                          |       |
+              |   |   | Region         |            | id, code  | region       |                          |       |
+              |   |   |   | id         | integer    |           | id           |                          |       | open
+              |   |   |   | code       | string     |           | code         |                          |       | open
+              |   |   |   | _id        | string     |           |              |                          |       | open
+              |   |   | City           |            | id        | city         |                          |       |
+              |   |   |   | id         | integer    |           | id           |                          |       | open
+              |   |   |   | region     | ref        | Region    |              | region_id, region_code   |       | open
+              |   |   |   | region_id  | integer    |           | region_id    |                          |       | open
+              |   |   |   | region_code| string     |           | region_code  |                          |       | open
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall"])
+            app.authmodel("example/City", ["getall", "search"])
+
+            resp = app.get("/example/Region")
+            assert resp.status_code == 200
+            region_rows = {(r["id"], r["code"]): r["_id"] for r in resp.json()["_data"]}
+
+            resp = app.get("/example/City")
+
+            assert resp.status_code == 200
+            city_by_id = {r["id"]: r for r in resp.json()["_data"]}
+            assert city_by_id[1]["region"]["_id"] == region_rows[(123, "ORD001")]
+            assert city_by_id[2]["region"]["_id"] == region_rows[(1234, "ORD002")]
+
+    def test_ref_to_base32_model_produces_correct_id(self, context, rc: RawConfig, tmp_path: Path):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("code", sa.Text),
+                ],
+                "city": [
+                    sa.Column("id", sa.Integer),
+                    sa.Column("region_code", sa.Text),
+                ],
+            }
+        ) as db:
+            db.write("region", [{"code": "ORD001"}, {"code": "ORD002"}])
+            db.write("city", [{"id": 1, "region_code": "ORD001"}, {"id": 2, "region_code": "ORD002"}])
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property   | type       | ref       | source       | level      | access
+            example                   |            |           |              |            |
+              | data                  |            | sqlite    |              |            |
+              |   |   | Region        |            | code      | region       |            |
+              |   |   |   | code      | string     |           | code         |            | open
+              |   |   |   | _id       | base32     |           |              |            | open
+              |   |   | City          |            | id        | city         |            |
+              |   |   |   | id        | integer    |           | id           |            | open
+              |   |   |   | region    | ref        | Region    | region_code  |            | open
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall"])
+            app.authmodel("example/City", ["getall"])
+
+            resp = app.get("/example/Region")
+            assert resp.status_code == 200
+            region_rows = {r["code"]: r["_id"] for r in resp.json()["_data"]}
+
+            resp = app.get("/example/City")
+            assert resp.status_code == 200
+            city_rows = resp.json()["_data"]
+
+            city_by_id = {r["id"]: r for r in city_rows}
+            assert city_by_id[1]["region"]["_id"] == region_rows["ORD001"]
+            assert city_by_id[2]["region"]["_id"] == region_rows["ORD002"]

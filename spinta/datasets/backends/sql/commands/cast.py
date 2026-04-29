@@ -69,25 +69,27 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
 
     # Backwards compatibility, all nested values are converted to list values without keys
     encoding_values = flatten_keymap_encoding_values(encoding_values)
-    contains = keymap.contains(keymap_name, encoding_values)
 
-    if contains:
-        id_value = keymap.encode(keymap_name, encoding_values)
-    elif encoding_values is None:
-        id_value = None
-    elif ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
-        raise KeymapValueNotFound(
-            dtype,
-            keymap=keymap.name,
-            model_name=dtype.model.name,
-            values=encoding_values,
-        )
-    else:
+    if getattr(ref_model.external, "id_prop", None) is not None:
         id_value = generate_ref_id_using_select(context, dtype, values)
+    else:
+        contains = keymap.contains(keymap_name, encoding_values)
 
-    processed_data["_id"] = commands.cast_backend_to_python(
-        context, ref_model.properties["_id"], backend, id_value, keymap=keymap, **kwargs
-    )
+        if contains:
+            id_value = keymap.encode(keymap_name, encoding_values)
+        elif encoding_values is None:
+            id_value = None
+        elif ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
+            raise KeymapValueNotFound(
+                dtype,
+                keymap=keymap.name,
+                model_name=dtype.model.name,
+                values=encoding_values,
+            )
+        else:
+            id_value = generate_ref_id_using_select(context, dtype, values)
+
+    processed_data["_id"] = id_value
 
     if not processed_data or all(value is None for value in processed_data.values()):
         return None

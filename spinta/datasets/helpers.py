@@ -210,7 +210,7 @@ def decode_id_value(id_prop: Property, value: str | list) -> list:
     if check_if_model_primary_key_is_composite(id_prop.model):
         if isinstance(id_prop.dtype, Base32):
             padded = value + "=" * (-len(value) % 8)
-            decoded_value = cbor2.loads(base64.b32decode(padded.encode("utf-8"))).split(",")
+            decoded_value = cbor2.loads(base64.b32decode(padded.encode("utf-8")))
         else:
             decoded_value = value.split(",")
 
