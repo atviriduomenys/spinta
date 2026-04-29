@@ -208,12 +208,14 @@ def decode_id_value(id_prop: Property, value):
     decoded_value = value
     if check_if_model_primary_key_is_composite(id_prop.model):
         if isinstance(id_prop.dtype, Base32):
-            decoded_value = cbor2.loads(base64.b32decode(value.encode("utf-8"))).split(",")
+            padded = value + "=" * (-len(value) % 8)
+            decoded_value = cbor2.loads(base64.b32decode(padded.encode("utf-8"))).split(",")
         else:
             decoded_value = [part for part in value.split(",")]
 
     elif isinstance(id_prop.dtype, Base32):
-        decoded_value = base64.b32decode(value.encode("utf-8")).decode("utf-8")
+        padded = value + "=" * (-len(value) % 8)
+        decoded_value = base64.b32decode(padded.encode("utf-8")).decode("utf-8")
 
     if not isinstance(decoded_value, list):
         decoded_value = [decoded_value]
