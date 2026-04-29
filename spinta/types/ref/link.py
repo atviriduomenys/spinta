@@ -3,9 +3,10 @@ from typing import List
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.types.datatype import Ref
-from spinta.exceptions import ModelReferenceNotFound, MissingRefModel
+from spinta.exceptions import MissingRefModel
 from spinta.exceptions import ModelReferenceKeyNotFound
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
+from spinta.types.ref import TYPE_REF
 
 
 @commands.link.register(Context, Ref)
@@ -28,7 +29,8 @@ def link(context: Context, dtype: Ref) -> None:
         if isinstance(rmodel, Model):
             rmodel = rmodel.name
         if not commands.has_model(context, dtype.prop.model.manifest, rmodel):
-            raise ModelReferenceNotFound(dtype, ref=rmodel)
+            replace_undeclared_ref_with_object(context, dtype.prop, TYPE_REF, rmodel, dtype.refprops or [])
+            return
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, rmodel)
 
     if dtype.refprops:

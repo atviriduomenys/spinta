@@ -5,14 +5,14 @@ from typing import List
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import (
-    ModelReferenceNotFound,
     ModelReferenceKeyNotFound,
     InvalidIntermediateTableMappingRefCount,
     UnableToMapIntermediateTable,
     SameModelIntermediateTableMapping,
 )
+from spinta.types.array import TYPE_ARRAY
 from spinta.types.datatype import Array, PartialArray, ArrayBackRef, Ref
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
 
 
 @commands.link.register(Context, Array)
@@ -31,7 +31,10 @@ def link(context: Context, dtype: Array) -> None:
         dtype.model = dtype.prop.model
     else:
         if not commands.has_model(context, dtype.prop.model.manifest, intermediate_model):
-            raise ModelReferenceNotFound(dtype, ref=intermediate_model)
+            replace_undeclared_ref_with_object(
+                context, dtype.prop, TYPE_ARRAY, intermediate_model, dtype.refprops or []
+            )
+            return
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, intermediate_model)
 
     intermediate_model: Model = dtype.model

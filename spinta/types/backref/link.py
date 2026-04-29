@@ -1,14 +1,14 @@
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import (
-    ModelReferenceNotFound,
     MultipleBackRefReferencesFound,
     NoReferencesFound,
     OneToManyBackRefNotSupported,
 )
 from spinta.manifests.tabular.constants import DataTypeEnum
+from spinta.types.backref import TYPE_BACKREF
 from spinta.types.datatype import BackRef, Ref, Array, Object, Denorm, DataType
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
 
 
 @commands.find_backref_ref.register(Model, str, object)
@@ -71,7 +71,9 @@ def _link_backref(context: Context, dtype: BackRef):
         dtype.model = dtype.prop.model
     else:
         if not commands.has_model(context, dtype.prop.model.manifest, backref_target_model):
-            raise ModelReferenceNotFound(dtype, ref=backref_target_model)
+            replace_undeclared_ref_with_object(context, dtype.prop, TYPE_BACKREF, backref_target_model)
+            dtype.refprop = None
+            return
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, backref_target_model)
     given_refprop = dtype.refprop
     if dtype.refprop:
