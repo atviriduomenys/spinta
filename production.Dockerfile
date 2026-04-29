@@ -10,18 +10,11 @@ RUN useradd -m -s /bin/bash spinta
 RUN chmod +x /app/startup.sh
 RUN chown -R spinta:spinta /app
 
+ARG VERSION
+
 WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        gcc \
-        g++ \
-        cmake \
-        make \
-        git \
-        libboost-all-dev \
-        libsnappy-dev \
-        libgflags-dev \
-        libgoogle-glog-dev \
         libpq-dev \
         postgresql-client \
         default-libmysqlclient-dev \
@@ -29,13 +22,8 @@ RUN apt-get update && \
         unixodbc-dev \
         libsqlite3-dev && \
     pip install --upgrade pip wheel setuptools && \
-    pip install --upgrade poetry && \
-    su - spinta -c "cd /app; poetry install --no-interaction --all-extras --no-cache" && \
-    apt-get purge -y \
-        gcc \
-        g++ \
-        cmake && \
-    apt-get autoremove -y && \
+    pip install --require-hashes -r /app/requirements/spinta-${VERSION}.txt && \
+    pip install uvicorn && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
