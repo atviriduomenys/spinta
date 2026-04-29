@@ -1974,7 +1974,7 @@ def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, da
     else:
         data = str(data).encode("utf-8")
     encoded = base64.b32encode(data)
-    return encoded.decode("utf-8")
+    return encoded.rstrip(b"=").decode("utf-8")
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)

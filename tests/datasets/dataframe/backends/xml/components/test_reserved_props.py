@@ -478,8 +478,8 @@ class TestIdBase:
         assert second_row_data["code"]["value"] == "ORD002"
         assert first_row_data["_id"]["value"] == "J5JEIMBQ"
         assert second_row_data["_id"]["value"] == "J5JEIMBQ"
-        assert first_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGE======"
-        assert second_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGI======"
+        assert first_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGE"
+        assert second_row_data["_id"]["link"] == "/example/Region/=J5JEIMBQGI"
 
         with pytest.raises(NotImplementedError):
             app.get(first_row_data["_id"]["link"])
@@ -514,10 +514,10 @@ class TestIdBase:
 
         assert first_row_data["id"]["value"] == 123
         assert second_row_data["id"]["value"] == 1234
-        assert first_row_data["_id"]["value"] == "GEZDG==="
-        assert second_row_data["_id"]["value"] == "GEZDGNA="
-        assert first_row_data["_id"]["link"] == "/example/Region/=GEZDG==="
-        assert second_row_data["_id"]["link"] == "/example/Region/=GEZDGNA="
+        assert first_row_data["_id"]["value"] == "GEZDG"
+        assert second_row_data["_id"]["value"] == "GEZDGNA"
+        assert first_row_data["_id"]["link"] == "/example/Region/=GEZDG"
+        assert second_row_data["_id"]["link"] == "/example/Region/=GEZDGNA"
 
         with pytest.raises(NotImplementedError):
             app.get(first_row_data["_id"]["link"])
@@ -556,11 +556,11 @@ class TestIdBase:
         assert second_row_data["_id"]["value"] == "HBTDKNZX"
         assert (
             first_row_data["_id"]["link"]
-            == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI======"
+            == "/example/Region/=MQ3DIMRQG44DMLJQHAZGMLJUMVSTILJZGYZDILJXME2TKOLGGMYWIMBTGI"
         )
         assert (
             second_row_data["_id"]["link"]
-            == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA======"
+            == "/example/Region/=HBTDKNZXGNSDMLLBGVSWELJUGQYDSLJYMY4DQLLBMNQTQNZUMUZDOMRQGA"
         )
 
         with pytest.raises(NotImplementedError):
@@ -603,10 +603,10 @@ class TestIdBase:
         assert first_row_data["_id"]["value"] == "QJ4CIZBW"
         assert second_row_data["_id"]["value"] == "QJ4CIODG"
         assert first_row_data["_id"]["link"] == (
-            "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGE======"
+            "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTGJ5JEIMBQGE"
         )
         assert second_row_data["_id"]["link"] == (
-            "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI======"
+            "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDGJ5JEIMBQGI"
         )
 
         with pytest.raises(NotImplementedError):
@@ -766,11 +766,11 @@ class TestManifestLoading:
         assert second_row_data["code"]["value"] == "OR,D002"
         assert (
             first_row_data["_id"]["link"]
-            == "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ===="
+            == "/example/Region/=QJ4CIZBWGQZDANZYGYWTAOBSMYWTIZLFGQWTSNRSGQWTOYJVGU4WMMZRMQYDGMTHJ5JCYRBQGAYQ"
         )
         assert (
             second_row_data["_id"]["link"]
-            == "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA===="
+            == "/example/Region/=QJ4CIODGGU3TOM3EGYWWCNLFMIWTINBQHEWTQZRYHAWWCY3BHA3TIZJSG4ZDAMDHJ5JCYRBQGAZA"
         )
 
         with pytest.raises(NotImplementedError):
