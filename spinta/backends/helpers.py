@@ -418,7 +418,7 @@ class TableIdentifier:
             else pg_identifier_preparer.quote(pg_table_name)
         )
 
-        # This is need because we want to make this dataclass hashable (frozen=True, does that)
+        # This is needed because we want to make this dataclass hashable (frozen=True, does that)
         # But because it becomes immutable, we need to set all the attributes manually (the same way dataclass __init__ does).
         object.__setattr__(self, "logical_name", logical_name)
         object.__setattr__(self, "logical_qualified_name", logical_qualified_name)
