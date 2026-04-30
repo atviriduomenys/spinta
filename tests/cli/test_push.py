@@ -657,7 +657,7 @@ def test_push_ref_with_level_no_source(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel("leveldataset", ["getall"])
     resp = app.get("leveldataset/City")
-    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": 2})
+    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": "2"})
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
@@ -711,7 +711,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel("leveldataset", ["getall"])
     resp = app.get("leveldataset/City")
-    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": 2})
+    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": "2"})
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb, "external")
