@@ -17,7 +17,6 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import (
-    GivenValueCountMissmatch,
     PropertyNotFound,
     SourceCannotBeList,
     SourceOrPrepareNotAllowed,
@@ -356,22 +355,6 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selecte
     return Selected(prop=dtype.prop, prep=result)
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, (list, tuple))
-def select(env: DaskDataFrameQueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
-    if len(dtype.refprops) != len(data):
-        raise GivenValueCountMissmatch(dtype, given_count=len(data), expected_count=len(dtype.refprops))
-    refprop_prep = {}
-    for refprop, item in zip(dtype.refprops, data):
-        sel = env.call("select", item)
-        if sel.prop is None:
-            sel = Selected(item=sel.item, prop=refprop, prep=sel.prep)
-        refprop_prep[refprop.name] = sel
-    prep = {"_id": Selected(prop=dtype.prop, prep=refprop_prep)}
-    for prop in dtype.properties.values():
-        prep[prop.name] = env.call("select", prop)
-    return Selected(prop=dtype.prop, prep=prep)
-
-
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
     fpr = ForeignProperty(None, dtype, dtype.model.properties["_id"].dtype)
@@ -391,12 +374,6 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
         prep[prop.name] = sel
 
     return Selected(prop=dtype.prop, prep=prep)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="testlist")
-def testlist(env: DaskDataFrameQueryBuilder, expr: Expr) -> tuple:
-    args, kwargs = expr.resolve(env)
-    return tuple(args)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
@@ -551,10 +528,7 @@ def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any)
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object, name="eq")
 def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object) -> Series:
     name = dtype.prop.external.name
-    column = env.dataframe[name]
-    if column.dtype == object:
-        return column.astype(str) == str(obj)
-    return column == str(obj)
+    return env.dataframe[name] == str(obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Param, name="eval")
