@@ -39,41 +39,33 @@ def _get_prop_full_source(source: str, prop_source: str) -> str:
 
 def _parse_json_with_params(data: list | dict, source: list, model_props: dict) -> Iterator[dict[str, Any]]:
     def get_prop_value(items: dict, pkeys: list, prop_source: list) -> Any:
-        new_value = items
-
         # Remove empty values from split()
         prop_source = [prop for prop in prop_source if prop]
-        if pkeys:
+        new_value = items
+        for prop in prop_source:
+            if isinstance(new_value, dict) and prop in new_value.keys():
+                new_value = new_value[prop]
+            else:
+                new_value = None
+                break
+
+        if pkeys and isinstance(new_value, dict):
+            # Ref's source pointed at a sub-object; extract refprop values from it.
             ref_keys = []
             for key in pkeys:
-                split = key.split(".")
-                split = [prop for prop in split if prop]
-                new_value = items
-                for id, prop in enumerate(split):
-                    if isinstance(new_value, dict):
-                        if prop in new_value.keys():
-                            new_value = new_value[prop]
-                        else:
-                            break
+                split = [prop for prop in key.split(".") if prop]
+                sub_value = new_value
+                for prop in split:
+                    if isinstance(sub_value, dict) and prop in sub_value.keys():
+                        sub_value = sub_value[prop]
                     else:
+                        sub_value = None
                         break
-                    if id == len(split) - 1:
-                        ref_keys.append(new_value)
+                ref_keys.append(sub_value)
             if len(ref_keys) == 1:
                 return ref_keys[0]
-            else:
-                return ref_keys
-        else:
-            for id, prop in enumerate(prop_source):
-                if isinstance(new_value, dict):
-                    if prop in new_value.keys():
-                        new_value = new_value[prop]
-                    else:
-                        return None
-                else:
-                    return None
-                if id == len(prop_source) - 1:
-                    return new_value
+            return ref_keys
+        return new_value
 
     def traverse_json(
         items: list | dict, current_value: dict, current_path: int = 0, in_model: bool = False
