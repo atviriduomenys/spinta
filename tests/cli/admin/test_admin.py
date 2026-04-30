@@ -12,7 +12,7 @@ from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.exceptions import ScriptNotFound
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.cli import SpintaCliRunner, message_in_result
+from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -29,7 +29,7 @@ def test_admin_all_error(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Pa
     assert "At least one script needs to be specified" in result.stderr
 
     for script in upgrade_script_registry.get_all_names():
-        assert not message_in_result(result, script_check_status_message(script, ScriptStatus.PASSED))
+        assert not result_contains(result, script_check_status_message(script, ScriptStatus.PASSED))
 
 
 def test_admin_multiple(
@@ -66,5 +66,5 @@ def test_admin_multiple(
     )
     assert result.exit_code == 0
 
-    assert message_in_result(result, script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED))
-    assert message_in_result(result, script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED))
+    assert result_contains(result, script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED))
+    assert result_contains(result, script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED))

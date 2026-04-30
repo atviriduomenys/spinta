@@ -35,7 +35,7 @@ def _prepare_args(args: List[Any]) -> List[str]:
     return result
 
 
-def message_in_result(
+def result_contains(
     result: Result,
     message: str,
     *,

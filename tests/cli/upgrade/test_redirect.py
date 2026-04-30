@@ -11,7 +11,7 @@ from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.cli import SpintaCliRunner, message_in_result
+from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -64,7 +64,7 @@ def test_upgrade_redirect_pass(
 
     result = cli.invoke(rc, ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
-    assert message_in_result(result, script_check_status_message(Script.REDIRECT.value, ScriptStatus.PASSED))
+    assert result_contains(result, script_check_status_message(Script.REDIRECT.value, ScriptStatus.PASSED))
 
 
 def test_upgrade_redirect_required(
@@ -121,7 +121,7 @@ def test_upgrade_redirect_required(
     assert not insp.has_table(random_redirect.pg_table_name, schema=random_redirect.pg_schema_name)
     result = cli.invoke(context.get("rc"), ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
-    assert message_in_result(result, script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED))
+    assert result_contains(result, script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED))
 
     assert insp.has_table(country_redirect.pg_table_name, schema=country_redirect.pg_schema_name)
     assert insp.has_table(city_redirect.pg_table_name, schema=city_redirect.pg_schema_name)
