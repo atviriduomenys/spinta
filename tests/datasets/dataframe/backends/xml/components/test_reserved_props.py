@@ -38,6 +38,39 @@ JSON_DATA = {
 }
 
 
+XML_DATA_NESTED = """
+<root>
+    <region>
+        <item>
+            <code>ORD001</code>
+            <id>123</id>
+            <uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</uuid_id>
+        </item>
+        <item>
+            <code>ORD002</code>
+            <id>1234</id>
+            <uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</uuid_id>
+        </item>
+    </region>
+
+    <city>
+        <item>
+            <id>1</id>
+            <region_code>ORD001</region_code>
+            <region_id>123</region_id>
+            <region_uuid>d6420786-082f-4ee4-9624-7a559f31d032</region_uuid>
+        </item>
+        <item>
+            <id>2</id>
+            <region_code>ORD002</region_code>
+            <region_id>1234</region_id>
+            <region_uuid>8f5773d6-a5eb-4409-8f88-aca874e27200</region_uuid>
+        </item>
+    </city>
+</root>
+"""
+
+
 @pytest.mark.parametrize(
     "fmt,data,source",
     [
@@ -776,3 +809,131 @@ class TestManifestLoading:
         with pytest.raises(NotImplementedError):
             app.get(first_row_data["_id"]["link"])
             # Expected, XML does not support getone operations
+
+
+class TestIdRef:
+    def test_ref_to_string_id_model(self, rc: RawConfig, tmp_path: Path):
+        data_path = tmp_path / "data.xml"
+        data_path.write_text(XML_DATA_NESTED)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property   | type       | ref    | source      | level | access
+        example                    |            |        |             |       |
+          | region_data            | dask/xml   |        | {data_path} |       |
+          |   |   | Region         |            | code   | /root/region/item        |       |
+          |   |   |   | code       | string     |        | code        |       | open
+          |   |   |   | _id        | string     |        |             |       | open
+          | city_data              | dask/xml   |        | {data_path} |       |
+          |   |   | City           |            | id     | /root/city/item        |       |
+          |   |   |   | id         | integer    |        | id          |       | open
+          |   |   |   | region     | ref        | Region | region_code |       | open
+        """,
+            mode=Mode.external,
+        )
+
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall"])
+        app.authmodel("example/City", ["getall"])
+
+        region_rows = {r["code"]: r["_id"] for r in app.get("/example/Region").json()["_data"]}
+        city_rows = {r["id"]: r for r in app.get("/example/City").json()["_data"]}
+        assert city_rows[1]["region"]["_id"] == region_rows["ORD001"]
+        assert city_rows[2]["region"]["_id"] == region_rows["ORD002"]
+
+    def test_ref_to_integer_id_model(self, rc: RawConfig, tmp_path: Path):
+        data_path = tmp_path / "data.xml"
+        data_path.write_text(XML_DATA_NESTED)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property   | type       | ref    | source      | level | access
+        example                    |            |        |             |       |
+          | region_data            | dask/xml   |        | {data_path} |       |
+          |   |   | Region         |            | id     | /root/region/item        |       |
+          |   |   |   | id         | integer    |        | id          |       | open
+          |   |   |   | _id        | integer    |        |             |       | open
+          | city_data              | dask/xml   |        | {data_path} |       |
+          |   |   | City           |            | id     | /root/city/item        |       |
+          |   |   |   | id         | integer    |        | id          |       | open
+          |   |   |   | region     | ref        | Region | region_id   |       | open
+        """,
+            mode=Mode.external,
+        )
+
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall"])
+        app.authmodel("example/City", ["getall"])
+
+        region_rows = {r["id"]: r["_id"] for r in app.get("/example/Region").json()["_data"]}
+        city_rows = {r["id"]: r for r in app.get("/example/City").json()["_data"]}
+
+        assert city_rows[1]["region"]["_id"] == region_rows[123]
+        assert city_rows[2]["region"]["_id"] == region_rows[1234]
+
+    def test_ref_to_uuid_id_model(self, rc: RawConfig, tmp_path: Path):
+        data_path = tmp_path / "data.xml"
+        data_path.write_text(XML_DATA_NESTED)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property   | type       | ref     | source      | level | access
+        example                    |            |         |             |       |
+          | region_data            | dask/xml   |         | {data_path} |       |
+          |   |   | Region         |            | uuid_id | /root/region/item        |       |
+          |   |   |   | uuid_id    | uuid       |         | uuid_id     |       | open
+          |   |   |   | _id        | uuid       |         |             |       | open
+          | city_data              | dask/xml   |         | {data_path} |       |
+          |   |   | City           |            | id      | /root/city/item        |       |
+          |   |   |   | id         | integer    |         | id          |       | open
+          |   |   |   | region     | ref        | Region  | region_uuid |       | open
+        """,
+            mode=Mode.external,
+        )
+
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall"])
+        app.authmodel("example/City", ["getall"])
+
+        region_rows = {r["uuid_id"]: r["_id"] for r in app.get("/example/Region").json()["_data"]}
+        city_rows = {r["id"]: r for r in app.get("/example/City").json()["_data"]}
+
+        assert city_rows[1]["region"]["_id"] == region_rows["d6420786-082f-4ee4-9624-7a559f31d032"]
+        assert city_rows[2]["region"]["_id"] == region_rows["8f5773d6-a5eb-4409-8f88-aca874e27200"]
+
+    def test_ref_to_base32_model_produces_correct_id(self, rc: RawConfig, tmp_path: Path):
+        data_path = tmp_path / "data.xml"
+        data_path.write_text(XML_DATA_NESTED)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property   | type       | ref    | source      | level | access
+        example                    |            |        |             |       |
+          | region_data            | dask/xml   |        | {data_path} |       |
+          |   |   | Region         |            | code   | /root/region/item        |       |
+          |   |   |   | code       | string     |        | code        |       | open
+          |   |   |   | _id        | base32     |        |             |       | open
+          | city_data              | dask/xml   |        | {data_path} |       |
+          |   |   | City           |            | id     | /root/city/item        |       |
+          |   |   |   | id         | integer    |        | id          |       | open
+          |   |   |   | region     | ref        | Region | region_code |       | open
+        """,
+            mode=Mode.external,
+        )
+
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall"])
+        app.authmodel("example/City", ["getall"])
+
+        region_rows = {r["code"]: r["_id"] for r in app.get("/example/Region").json()["_data"]}
+        city_rows = {r["id"]: r for r in app.get("/example/City").json()["_data"]}
+        assert city_rows[1]["region"]["_id"] == region_rows["ORD001"]
+        assert city_rows[2]["region"]["_id"] == region_rows["ORD002"]
