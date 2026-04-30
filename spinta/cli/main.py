@@ -33,7 +33,7 @@ from spinta.core.context import create_context
 
 log = logging.getLogger(__name__)
 
-app = Typer()
+app = Typer(pretty_exceptions_show_locals=True, pretty_exceptions_short=False, pretty_exceptions_enable=True)
 
 add(app, "config", config.config, short_help="Show current configuration values")
 add(app, "check", config.check, short_help="Check configuration and manifests")
