@@ -1931,6 +1931,13 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data:
 
     processed_data = {}
     for key in data:
+        if key == "_id":
+            # _id reaches this dispatch already in its final form — produced by
+            # handle_ref_key_assignment for external readers, or read directly
+            # from the storage column for internal backends. Re-applying the
+            # referenced model's _id cast double-encodes Base32 ids.
+            processed_data[key] = data[key]
+            continue
         prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
         if prop is not None:
             processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)
