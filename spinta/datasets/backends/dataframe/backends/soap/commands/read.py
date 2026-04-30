@@ -21,7 +21,9 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
-def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_headers: dict) -> list[dict]:
+def _get_data_soap(
+    url: str, backend: Soap, soap_request_body: dict, extra_headers: dict, source: str | None = None
+) -> list[dict]:
     for key, value in soap_request_body.items():
         if isinstance(value, MakeCDATA):
             soap_request_body[key] = value()
@@ -38,6 +40,15 @@ def _get_data_soap(url: str, backend: Soap, soap_request_body: dict, extra_heade
     except zeep.exceptions.Error as e:
         raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
 
+    if isinstance(response_data, dict):
+        for part in source.split("/"):
+            if not part:
+                continue
+            if part in response_data:
+                response_data = response_data[part]
+            else:
+                response_data = []
+                break
     if response_data and not isinstance(response_data, list):
         response_data = [response_data]
 
@@ -137,6 +148,7 @@ def getall(
             backend=backend,
             soap_request_body=builder.soap_request_body,
             extra_headers=http_headers,
+            source=model.external.name,
         )
         .flatten()
         .to_dataframe(meta=meta)

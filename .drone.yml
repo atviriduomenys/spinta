@@ -61,7 +61,7 @@ steps:
       - docker login
       - export REGISTRY=vssadevops/spinta
       - export SHORT_SHA=${DRONE_COMMIT_SHA:0:8}
-      - docker build -f production.Dockerfile -t $${REGISTRY}:latest -t $${REGISTRY}:$${SHORT_SHA} -t $${REGISTRY}:$${DRONE_TAG##refs/tags/:-latest} .
+      - docker build -f production.Dockerfile --build-arg VERSION=$${DRONE_TAG##refs/tags/} -t $${REGISTRY}:latest -t $${REGISTRY}:$${SHORT_SHA} -t $${REGISTRY}:$${DRONE_TAG##refs/tags/:-latest} .
       - docker push $${REGISTRY}:$${SHORT_SHA}
       - docker push $${REGISTRY}:latest
       - docker push $${REGISTRY}:$${DRONE_TAG##refs/tags/:-latest}

@@ -1,14 +1,36 @@
 Changes
 #######
 
-0.2dev23 (unreleased)
+0.2dev24 (unreleased)
 =====================
+
+New Features:
+
+- Adding implicit `link` changes; Implicitly change the `property` of type `ref` that refers a model, that does not exist in the file (`#1872`_).
+- Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
+  - `spinta comment` comments the requested parts (argument) of the manifest;
+  - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
+
+.. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
+.. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
+
+
+0.2dev22 (2026-04-23)
+=====================
+
+Bug fixes:
+
+- Fixed a bug where nested SOAP data was not read properly (`#1866`_).
+
+.. _#1866: https://github.com/atviriduomenys/spinta/issues/1866
+
 
 New Features:
 
 - Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
 
 .. _#1790: https://github.com/atviriduomenys/spinta/issues/1790
+
 
 Improvements:
 

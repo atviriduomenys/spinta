@@ -1,16 +1,23 @@
 from __future__ import annotations
 
-
-from typing import TYPE_CHECKING, Iterable
+import logging
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Iterable, List
 
 from spinta import exceptions
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
+from spinta.core.enums import Access, load_level, Level
+from spinta.dimensions.comments.components import Comment, CommentGiven
 from spinta.exceptions import BackendNotFound
 from spinta.exceptions import InvalidName
+from spinta.types import TYPE_OBJECT
 from spinta.utils.naming import is_valid_model_name, is_valid_property_name
+
+logger = logging.getLogger(__name__)
+
 
 if TYPE_CHECKING:
     from spinta.types.datatype import DataType
@@ -38,6 +45,8 @@ RESERVED_PROPERTY_NAMES = {
 
 C_LANG = "C"
 
+SYSTEMIC_COMMENT_AUTHOR = "author"
+
 
 def check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
     unknown = set(data) - set(schema)
@@ -60,6 +69,53 @@ def set_dtype_backend(dtype: DataType):
             dtype.backend = backends[dtype.backend]
     else:
         dtype.backend = dtype.prop.model.backend
+
+
+def replace_undeclared_ref_with_object(
+    context: Context,
+    prop: Property,
+    original_type: str,
+    original_model: str,
+    refprops: List[str] | None = None,
+) -> None:
+    from spinta.types.datatype import Object
+
+    ref_str = f"{original_model}[{','.join(refprops)}]" if refprops else original_model
+
+    logger.warning(
+        "Model %r referenced by %r property %r was not found in the manifest. Downgrading to object (level 2).",
+        original_model,
+        original_type,
+        prop.place,
+    )
+
+    new_dtype = Object()
+    new_dtype.name = TYPE_OBJECT
+    new_dtype.type = TYPE_OBJECT
+    new_dtype.type_args = []
+    new_dtype.prop = prop
+    new_dtype.properties = {}
+    prop.dtype = new_dtype
+    set_dtype_backend(new_dtype)
+
+    load_level(context, prop, Level.structured)
+
+    if prop.comments is None:
+        prop.comments = []
+
+    prop.comments.append(
+        Comment(
+            id=None,
+            parent="type",
+            author=SYSTEMIC_COMMENT_AUTHOR,
+            access=Access.private,
+            created=datetime.now(timezone.utc).isoformat(),
+            comment="",
+            given=CommentGiven(access=None),
+            prepare=f'update(type:"{original_type}", ref:"{ref_str}")',
+            level=4,
+        )
+    )
 
 
 def check_model_name(context: Context, model: Model):

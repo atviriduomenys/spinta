@@ -1627,6 +1627,9 @@ class CommentReader(TabularReader):
                 # TODO: parse datetime
                 "created": row[TITLE],
                 "comment": row[DESCRIPTION],
+                "prepare": row[PREPARE],
+                "level": row[LEVEL],
+                "uri": row[URI],
             }
         )
 
@@ -2260,6 +2263,9 @@ def _comments_to_tabular(
                 "ref": comment.parent,
                 "source": comment.author,
                 "access": comment.given.access,
+                "prepare": comment.prepare,
+                "level": comment.level,
+                "uri": comment.uri,
                 "title": comment.created,
                 "description": comment.comment,
             },

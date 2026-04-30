@@ -20,12 +20,14 @@ def load_comments(
             access_given = params.pop("access")
             access = enum_by_name(parent, "access", Access, access_given)
             access = access or Access.private
+            level = int(level) if (level := params.pop("level", None)) else None
             comments.append(
                 Comment(
                     access=access,
                     given=CommentGiven(
                         access=access_given,
                     ),
+                    level=level,
                     **params,
                 )
             )
