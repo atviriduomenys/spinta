@@ -95,23 +95,6 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 # arba turėti atskirą dev serverį, kaip ir katalogui
 
 
-pasiruo
-
-Palausti Manto ar gali spinta tur4ti du maniestus vienoj spintoj - Mantas sakė kad taip
-
-gal galima būtų turėt du backendus
-
-arba tur4t dev environment
-
-reikėt sukurti atskirą duomenų bazę, ir atskirą backendą
-
-Sugalvoti planą, kaip geriausiai ištestuoti
-
-1. pritaikyt testus egzistuojantiems datasetams
-2. sukuriam atskirą maniestą ir jį naudojam, kas neįtakoja kitų sukurti atsirą DB, pridėti į configą ją kaip atskirą backend, ir atskirą manifest)
-
-
-
 cat > "$BASEDIR"/sdsa.txt <<EOF
 d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access
 datasets/gov/ivpk/ar/adresai          |         |                                               |                |         |       |
@@ -400,4 +383,42 @@ AUTH="Authorization: Bearer $TOKEN"
 echo "$AUTH"
 
 
-užkomentavom naują manifestą, paleidom spinta bootstrap, tada atkomentavom ir paleidom spinta migrate
+# užkomentavom naują manifestą, paleidom spinta bootstrap, tada atkomentavom ir paleidom spinta migrate
+
+
+# Manifestas su sync:
+
+cat > "$BASEDIR"/config.yml <<EOF
+env: production
+data_path: $BASEDIR
+default_auth_client: default
+
+keymaps:
+  default:
+    type: sqlalchemy
+    dsn: sqlite:///$BASEDIR/keymap.db
+
+backends:
+  default:
+    type: postgresql
+    dsn: postgresql://admin:admin123@localhost:54321/spinta
+
+  external:
+    type: sql
+    dsn: postgresql://admin:admin123@localhost:54321/spinta_external
+
+manifest: default
+manifests:
+  default:
+    type: csv
+    path: $BASEDIR/manifest.csv
+    backend: default
+    keymap: default
+    mode: internal
+
+accesslog:
+  type: file
+  file: $BASEDIR/accesslog.json
+EOF
+export SPINTA_CONFIG=$BASEDIR/config.yml
+
