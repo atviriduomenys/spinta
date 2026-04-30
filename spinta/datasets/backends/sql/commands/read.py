@@ -1,18 +1,23 @@
 import logging
 from typing import Iterator
 
+
 from spinta import commands
-from spinta.backends.helpers import validate_and_return_begin
+from spinta.backends.helpers import (
+    validate_and_return_begin,
+    check_if_model_primary_key_is_composite,
+    is_custom_id_prop,
+)
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import generate_pk_for_row
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.helpers import get_enum_filters
+from spinta.datasets.helpers import get_enum_filters, decode_id_value, encode_composite_string_id
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import Base32, PrimaryKey
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.ufuncs.querybuilder.helpers import get_page_values
@@ -66,6 +71,10 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
+                    elif (
+                        is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32)
+                    ):
+                        val = encode_composite_string_id(val, model.external.pkeys)
                 res[key] = val
             if is_page_enabled:
                 res["_page"] = get_page_values(env, row)
@@ -84,18 +93,32 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
-    _id = keymap.decode(model.name, id_)
+    _id_prop = model.properties["_id"]
+    raw_id = id_
+    if is_custom_id_prop(_id_prop):
+        decoded_id = decode_id_value(_id_prop, id_)
+        key = [_id_prop]
+        if not _id_prop.external.name:
+            key = model.external.pkeys
 
-    # preparing query for retrieving item by pk (single column or multi column)
-    query = {}
-    if isinstance(_id, list):
-        pkeys = model.external.pkeys
-        for index, pk in enumerate(pkeys):
-            query[pk.name] = _id[index]
+        query = {pk.external.name: value for pk, value in zip(key, decoded_id)}
+
+        if isinstance(_id_prop.dtype, Base32):
+            raw_id = decoded_id if check_if_model_primary_key_is_composite(model) else decoded_id[0]
+
     else:
-        pk = model.external.pkeys[0].name
-        query[pk] = _id
+        keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
+        _id = keymap.decode(model.name, id_)
+
+        # preparing query for retrieving item by pk (single column or multi column)
+        query = {}
+        if isinstance(_id, list):
+            pkeys = model.external.pkeys
+            for index, pk in enumerate(pkeys):
+                query[pk.name] = _id[index]
+        else:
+            pk = model.external.pkeys[0].name
+            query[pk] = _id
 
     # building sqlalchemy query
     context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
@@ -120,7 +143,7 @@ def getone(
             value = row[field]
             data[field] = value
 
-    additional_data = {"_type": model.model_type(), "_id": id_}
+    additional_data = {"_type": model.model_type(), "_id": raw_id}
     data.update(additional_data)
     data = flat_dicts_to_nested(data)
     return commands.cast_backend_to_python(context, model, backend, data)
