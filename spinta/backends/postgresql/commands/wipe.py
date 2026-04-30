@@ -48,7 +48,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
             if changelog_table_identifier.pg_schema_name
             else f'"{seqname}"'
         )
-        connection.execute(f"ALTER SEQUENCE {seq_escaped_named} RESTART")
+        connection.execute(sa.func.setval(seq_escaped_named, 1, False))
 
     # Delete data table
     table = backend.get_table(model)

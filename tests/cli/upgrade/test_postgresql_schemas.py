@@ -9,7 +9,7 @@ from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -75,7 +75,7 @@ def test_upgrade_postgresql_schemas_pass(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED))
 
 
 def test_upgrade_postgresql_schemas_required_table(
@@ -135,7 +135,7 @@ def test_upgrade_postgresql_schemas_required_table(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
 
     insp = sa.inspect(backend.engine)
     assert {
@@ -206,7 +206,7 @@ def test_upgrade_postgresql_schemas_required_changelog(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
 
     insp = sa.inspect(backend.engine)
     assert {
@@ -277,7 +277,7 @@ def test_upgrade_postgresql_schemas_required_redirect(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
 
     insp = sa.inspect(backend.engine)
     assert {
@@ -350,7 +350,7 @@ def test_upgrade_postgresql_schemas_required_file(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
 
     insp = sa.inspect(backend.engine)
     assert {
@@ -424,7 +424,7 @@ def test_upgrade_postgresql_schemas_required_list(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
 
     insp = sa.inspect(backend.engine)
     assert {
@@ -514,7 +514,7 @@ def test_upgrade_postgresql_schemas_required_same_ref(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
     insp = sa.inspect(backend.engine)
 
     assert {
@@ -541,7 +541,7 @@ def test_upgrade_postgresql_schemas_required_same_ref(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED))
 
 
 def test_upgrade_postgresql_schemas_required_different_ref(
@@ -614,7 +614,7 @@ def test_upgrade_postgresql_schemas_required_different_ref(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.REQUIRED))
     insp = sa.inspect(backend.engine)
 
     assert {
@@ -637,4 +637,4 @@ def test_upgrade_postgresql_schemas_required_different_ref(
 
     result = cli.invoke(context.get("rc"), ["upgrade", Script.POSTGRESQL_SCHEMAS.value])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED) in result.stderr
+    assert result_contains(result, script_check_status_message(Script.POSTGRESQL_SCHEMAS.value, ScriptStatus.PASSED))

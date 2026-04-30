@@ -10,9 +10,12 @@ New Features:
 - Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
   - `spinta comment` comments the requested parts (argument) of the manifest;
   - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
+- Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
+- Added ability to configure default and model specific distribution strategy (`#1691`_).
 
 .. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
 .. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
+.. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
 
 
 0.2dev22 (2026-04-23)

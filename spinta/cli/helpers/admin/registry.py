@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from spinta.cli.helpers.admin.components import AdminScript, Script, ADMIN_SCRIPT_TYPE
 from spinta.cli.helpers.admin.scripts.changelog import migrate_changelog_duplicates, cli_requires_changelog_migrations
+from spinta.cli.helpers.admin.scripts.citus_shard import migrate_citus_distributions, cli_requires_citus_distribution
 from spinta.cli.helpers.admin.scripts.deduplicate import migrate_duplicates, cli_requires_deduplicate_migrations
 from spinta.cli.helpers.admin.scripts.enums import gather_invalid_enum_values
 from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
@@ -32,4 +33,13 @@ script_registry.register(
 )
 script_registry.register(
     AdminScript(name=Script.ENUM_LIST.value, run=gather_invalid_enum_values, targets={ScriptTarget.BACKEND.value})
+)
+script_registry.register(
+    AdminScript(
+        name=Script.CITUS_DISTRIBUTION.value,
+        run=migrate_citus_distributions,
+        check=cli_requires_citus_distribution,
+        required=[(UPGRADE_SCRIPT_TYPE, UpgradeScript.POSTGRESQL_SCHEMAS.value)],
+        targets={ScriptTarget.BACKEND.value},
+    )
 )

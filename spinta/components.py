@@ -25,7 +25,7 @@ from spinta.utils.schema import NA
 from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
-    from spinta.backends.components import Backend
+    from spinta.backends.components import Backend, DistributionStrategy
     from spinta.types.datatype import DataType
     from spinta.manifests.components import Manifest
     from spinta.manifests.internal.components import InternalManifest
@@ -658,6 +658,8 @@ class Model(MetaData):
     count: int | None = None
     origin: str | None = None
 
+    # Systemic fields that are not part of the model definition.
+    distribution_strategy: DistributionStrategy = None
     required_keymap_properties = None
 
     schema = {
@@ -1133,6 +1135,8 @@ class Config:
     log_level: str
     file_log_level: str
     file_log_path: pathlib.Path
+
+    default_distribution_strategy: DistributionStrategy | None = None
 
     def __init__(self):
         self.commands = _CommandsConfig()
