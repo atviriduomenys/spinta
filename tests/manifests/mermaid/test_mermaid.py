@@ -4,7 +4,7 @@ from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.manifests.mermaid.helpers import write_mermaid_manifest
-from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, ENTITY_STYLES, CONCEPT_STYLES
+from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef
 
 
 def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -49,7 +49,8 @@ class `datasets/gov/example/Country`["Country"]:::Entity {{
 + name : string [0..1]
 }}
 }}
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -100,7 +101,8 @@ class `datasets/gov/example/Country`["Country"]:::Entity {{
 - population : integer [0..1]
 }}
 }}
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -147,7 +149,8 @@ class `datasets/gov/example/Country`["Country"]:::Entity {{
 + name : string [0..*]
 }}
 }}
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -191,23 +194,22 @@ def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/CountryContinent`["Continent"]:::Concept {{
-<<enumeration>>
-«optional»
-Africa
-Asia
-Europe
-}}
 class `datasets/gov/example/Country`["Country"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
 + name : string [0..1]
 }}
+class `datasets/gov/example/CountryContinent`["Continent"]:::Concept {{
+<<enumeration>>
+Africa
+Asia
+Europe
 }}
-`datasets/gov/example/Country` ..> "[1..1]" `datasets/gov/example/CountryContinent` : continent<br/>«mandatory»
-classDef Concept {CONCEPT_STYLES};
-classDef Entity {ENTITY_STYLES};
+}}
+`datasets/gov/example/Country` ..> "[0..1]" `datasets/gov/example/CountryContinent` : continent<br/>«optional»
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -265,7 +267,8 @@ name : string [0..1]
 }}
 }}
 `datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -323,7 +326,8 @@ name : string [0..1]
 }}
 }}
 `datasets/gov/example/City` --> "[1..1]" `datasets/gov/example/Country` : country<br/>«mandatory»
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -381,9 +385,10 @@ id : integer [1..1]
 name : string [0..1]
 }}
 }}
-`datasets/gov/example/Country` --> "[0..*]" `datasets/gov/example/City` : cities<br/>«optional»
 `datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-classDef Entity {ENTITY_STYLES};
+`datasets/gov/example/Country` --> "[0..*]" `datasets/gov/example/City` : cities<br/>«optional»
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -441,9 +446,10 @@ id : integer [1..1]
 name : string [0..1]
 }}
 }}
-`datasets/gov/example/Country` --> "[0..1]" `datasets/gov/example/City` : capital<br/>«optional»
 `datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-classDef Entity {ENTITY_STYLES};
+`datasets/gov/example/Country` --> "[0..1]" `datasets/gov/example/City` : capital<br/>«optional»
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -460,7 +466,7 @@ def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, t
           |   |   | Country      |                  |           | salis       |         |
           |   |   |   | name     | string           |           | pavadinimas |         | public
           |   |   |   | id       | integer required |           | id          |         | public
-          |   |   |   | cities[] | backref required | City      |             |         | 
+          |   |   |   | cities   | backref required | City      |             |         | 
           |   |   | City         |                  |           | salis       |         |
           |   |   |   | name     | string           |           | pavadinimas |         | public
           |   |   |   | country  | ref              | Country   |             |         | 
@@ -501,9 +507,10 @@ class `datasets/gov/example/City`["City"]:::Entity {{
 + name : string [0..1]
 }}
 }}
-`datasets/gov/example/Country` --> "[1..*]" `datasets/gov/example/City` : cities<br/>«mandatory»
 `datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-classDef Entity {ENTITY_STYLES};
+`datasets/gov/example/Country` --> "[1..1]" `datasets/gov/example/City` : cities<br/>«mandatory»
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -559,7 +566,8 @@ class `datasets/gov/example/City`["City"]:::Entity {{
 }}
 }}
 `datasets/gov/example/City` --|> `datasets/gov/example/Settlement`
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -615,7 +623,8 @@ class `datasets/gov/example/City`["City"]:::Entity {{
 }}
 }}
 `datasets/gov/example/City` --|> `datasets/gov/example/Settlement` : id<br/>«optional»
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -675,7 +684,8 @@ class `datasets/gov/example2/Country`["Country"]:::Entity {{
 + id : string [0..1]
 }}
 }}
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
         )
 
@@ -721,6 +731,63 @@ class `datasets/gov/example2/Country`["Country"]:::Entity {{
 + id : string [0..1]
 }}
 }}
-classDef Entity {ENTITY_STYLES};
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
+"""
+    )
+
+
+def test_write_mermaid_manifest_nested_properties(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property                      | type             | ref       | source      
+            datasets/gov/example                        |                  |           |             
+            | data                                      | sql              |           |             
+            |   |   | Country                           |                  |           | salis       
+            |   |   |   | name                          | string           |           | pavadinimas 
+            |   |   |   | id                            | integer required |           | id     
+            |   |   |   | continent                     | ref              | Continent |     
+            |   |   | City                              |                  |           | salis       
+            |   |   |   | id                            | integer required |           | id     
+            |   |   |   | name                          | string           |           | pavadinimas 
+            |   |   |   | country                       | ref              | Country   |
+            |   |   |   | country.size                  | integer          |           |   
+            |   |   |   | country.continent.population  | integer          |           |                  
+            |   |   | Continent                         |                  |           | salis       
+            |   |   |   | name                          | string           |           | pavadinimas    
+            """),
+    )
+    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+
+    assert (
+        mermaid
+        == f"""{MERMAID_CONFIG}
+classDiagram
+class `datasets/gov/example/Country`["Country"]:::Entity {{
+«mandatory»
+id : integer [1..1]
+«optional»
+name : string [0..1]
+size : integer [0..1]
+}}
+class `datasets/gov/example/City`["City"]:::Entity {{
+«mandatory»
+id : integer [1..1]
+«optional»
+name : string [0..1]
+}}
+class `datasets/gov/example/Continent`["Continent"]:::Entity {{
+«optional»
+population : integer [0..1]
+name : string [0..1]
+}}
+
+`datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
+`datasets/gov/example/Country` --> "[0..1]" `datasets/gov/example/Continent` : continent<br/>«optional»
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
 """
     )
