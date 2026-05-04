@@ -214,10 +214,6 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property, keys: set) -> Selecte
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
 def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
-    import traceback
-    print(f"DEBUG_SELECT prop={prop.name} ext_name={getattr(prop.external, 'name', None) if prop.external else None} prep={getattr(prop.external, 'prepare', None) if prop.external else None}")
-    if prop.name == "_revision":
-        traceback.print_stack()
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)

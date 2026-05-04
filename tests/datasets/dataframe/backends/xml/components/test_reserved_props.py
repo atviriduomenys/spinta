@@ -952,11 +952,11 @@ class TestRevisionProp:
             ("string", "1", "2", "1", "2"),
             ("integer", 1, 2, 1, 2),
             (
-                    "uuid",
-                    "67ba327b-9acb-4036-acd8-d4f9c7739783",
-                    "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
-                    "67ba327b-9acb-4036-acd8-d4f9c7739783",
-                    "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+                "uuid",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
             ),
             ("base32", "13", "14", "GEZQ", "GE2A"),
         ],
@@ -990,16 +990,18 @@ class TestRevisionProp:
 
         context, manifest = prepare_manifest(
             rc,
-            (f"""
+            (
+                f"""
             d | r | b | m | property                      | type            | ref                  | source               | level      | access
             example                                       |                 |                      |                      |            |
               | data                                      |  dask/xml       |                      |  {data_path}                    |            |
               |   |   | Region                            |                 | code                 | /root/order               |            |
               |   |   |   | code                          | string          |                      | code                 |            | open
               |   |   |   | _revision                     | {cast_type}     |                      | version              |            | open
-            """),
+            """
+            ),
             mode=Mode.external,
-            )
+        )
 
         context.loaded = True
         app = create_test_client(context)
@@ -1028,7 +1030,8 @@ class TestRevisionProp:
         data_path.write_text(XML_DATA)
         context, manifest = prepare_manifest(
             rc,
-            (f"""
+            (
+                f"""
             d | r | b | m | property                      | type            | ref                  | source               | prepare      | access
             example                                       |                 |                      |                      |              |
               | data                                      | dask/xml        |                      |  {data_path}         |              |
@@ -1037,9 +1040,10 @@ class TestRevisionProp:
               |   |   |   | major                         | string          |                      | major                |              | open
               |   |   |   | minor                         | integer         |                      | minor                |              | open
               |   |   |   | _revision                     | string          |                      |                      | major, minor | open
-            """),
+            """
+            ),
             mode=Mode.external,
-            )
+        )
         context.loaded = True
         app = create_test_client(context)
         app.authmodel("example/Region", ["getall", "getone"])
@@ -1065,14 +1069,14 @@ class TestRevisionProp:
             },
         ]
 
-
     @pytest.mark.skip(reason="Multiple properties in prepare not supported yet")
     def test_revision_prop_is_composite_and_base32(self, context, rc: RawConfig, tmp_path: Path):
         data_path = tmp_path / "data.xml"
         data_path.write_text(XML_DATA)
         context, manifest = prepare_manifest(
             rc,
-            (f"""
+            (
+                f"""
             d | r | b | m | property                      | type            | ref                  | source               | prepare      | access
             example                                       |                 |                      |                      |              |
               | data                                      | dask/xml        |                      |  {data_path}         |              |
@@ -1081,9 +1085,10 @@ class TestRevisionProp:
               |   |   |   | major                         | string          |                      | major                |              | open
               |   |   |   | minor                         | integer         |                      | minor                |              | open
               |   |   |   | _revision                     | base32          |                      |                      | major, minor | open
-            """),
+            """
+            ),
             mode=Mode.external,
-            )
+        )
         context.loaded = True
         app = create_test_client(context)
         app.authmodel("example/Region", ["getall", "getone"])

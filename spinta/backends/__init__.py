@@ -24,7 +24,6 @@ from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import check_if_model_primary_key_is_composite
 from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response, is_accessible_by_equals_sign
 from spinta.backends.helpers import flat_select_to_nested
 from spinta.backends.helpers import get_model_reserved_props
