@@ -9,6 +9,7 @@ from typing import Tuple
 from typing import TypedDict
 
 from spinta import commands
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -83,8 +84,9 @@ def get_current_location(
 
 
 def short_id(value: Optional[str]) -> Optional[str]:
-    if value is not None:
+    if value is not None and isinstance(value, str):
         return value[:8]
+    return value
 
 
 def get_cell(
@@ -186,6 +188,10 @@ def get_model_link_params(
             "args": (model.name.split("/") + ([pk] if pk is not None else []) + ([prop] if prop is not None else [])),
         }
     ]
+    if isinstance(model, Model) and model.external is not None:
+        _id = model.properties.get("_id")
+        if _id and is_custom_id_prop(_id):
+            ptree[0]["id_prop"] = _id
 
     for k, v in extra.items():
         ptree.append(

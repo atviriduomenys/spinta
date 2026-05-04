@@ -13,6 +13,7 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 
+from cbor2 import dumps as cbor_dumps
 import dateutil
 import shapely.geometry.base
 from geoalchemy2.elements import WKTElement, WKBElement
@@ -23,7 +24,8 @@ from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response
+from spinta.backends.helpers import check_if_model_primary_key_is_composite
+from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response, is_accessible_by_equals_sign
 from spinta.backends.helpers import flat_select_to_nested
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import get_select_prop_names
@@ -58,7 +60,19 @@ from spinta.exceptions import (
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
+from spinta.types.datatype import (
+    Array,
+    ExternalRef,
+    Inherit,
+    PageType,
+    BackRef,
+    ArrayBackRef,
+    Integer,
+    Boolean,
+    Denorm,
+    Base32,
+    String,
+)
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -590,10 +604,29 @@ def is_object_id(context: Context, value: str):
 
 @is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
+    return is_object_id(context, backend, model.properties["_id"].dtype, value)
+
+
+@is_object_id.register(Context, Backend, PrimaryKey, str)
+def is_object_id(context: Context, backend: Backend, dtype: PrimaryKey, value: str):
     try:
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
+
+
+@is_object_id.register(Context, Backend, DataType, str)
+def is_object_id(context: Context, backend: Backend, dtype: DataType, value: str):
+    candidate = value
+    if is_accessible_by_equals_sign(dtype.prop, value):
+        if not value.startswith("="):
+            return False
+        candidate = value[1:]
+    try:
+        dtype.load(candidate)
+    except exceptions.InvalidValue:
+        return False
+    return True
 
 
 @is_object_id.register(Context, Backend, Model, uuid.UUID)
@@ -1750,6 +1783,13 @@ def cast_backend_to_python(context: Context, dtype: DataType, backend: Backend, 
     return data
 
 
+@commands.cast_backend_to_python.register(Context, String, Backend, object)
+def cast_backend_to_python(context: Context, dtype: String, backend: Backend, data: Any, **kwargs) -> Any:
+    if data is None or is_nan(data):
+        return None
+    return str(data)
+
+
 @commands.cast_backend_to_python.register(Context, UUID, Backend, object)
 def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data: Any, **kwargs) -> Any:
     if is_nan(data):
@@ -1891,6 +1931,13 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data:
 
     processed_data = {}
     for key in data:
+        if key == "_id":
+            # _id reaches this dispatch already in its final form — produced by
+            # handle_ref_key_assignment for external readers, or read directly
+            # from the storage column for internal backends. Re-applying the
+            # referenced model's _id cast double-encodes Base32 ids.
+            processed_data[key] = data[key]
+            continue
         prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
         if prop is not None:
             processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)
@@ -1937,6 +1984,18 @@ def cast_backend_to_python(context: Context, dtype: Array, backend: Backend, dat
 @commands.cast_backend_to_python.register(Context, Denorm, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, data: Any, **kwargs) -> Any:
     return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
+
+
+@commands.cast_backend_to_python.register(Context, Base32, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
+    if is_nan(data):
+        return None
+    if check_if_model_primary_key_is_composite(dtype.prop.model):
+        data = cbor_dumps(data)
+    else:
+        data = str(data).encode("utf-8")
+    encoded = base64.b32encode(data)
+    return encoded.rstrip(b"=").decode("utf-8")
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)

@@ -6,6 +6,7 @@ from typing import Dict, Any, Tuple, List, Iterator
 from dask.dataframe import Series
 
 from spinta.auth import authorized
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
@@ -238,6 +239,13 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
+        elif is_custom_id_prop(prop):
+            pkeys = prop.model.external.pkeys or list(take(prop.model.properties).values())
+            if len(pkeys) == 1:
+                prep = env.call("select", pkeys[0])
+            else:
+                prep = [env.call("select", pk) for pk in pkeys]
+            result = Selected(prop=prop, prep=prep)
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call("select", prop.dtype)
