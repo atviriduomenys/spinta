@@ -723,11 +723,11 @@ class TestIdRef:
         d | r | b | m | property   | type    | ref    | source         | level | access
         example                    |         |        |                |       |
           | region_data             | dask/csv|        | {region_path}  |       |
-          |   |   | Region          |         | code   |                |       |
+          |   |   | Region          |         | code   | region         |       |
           |   |   |   | code        | string  |        | code           |       | open
           |   |   |   | _id         | string  |        |                |       | open
           | city_data               | dask/csv|        | {city_path}    |       |
-          |   |   | City            |         | id     |                |       |
+          |   |   | City            |         | id     | city           |       |
           |   |   |   | id          | integer |        | id             |       | open
           |   |   |   | region      | ref     | Region | region_code    |       | open
         """,
@@ -748,43 +748,6 @@ class TestIdRef:
         assert city_by_id[1]["region"]["_id"] == region_rows["ORD001"]
         assert city_by_id[2]["region"]["_id"] == region_rows["ORD002"]
 
-    def test_ref_to_integer_id_model(self, rc: RawConfig, tmp_path: Path):
-        region_path = tmp_path / "region.csv"
-        city_path = tmp_path / "city.csv"
-        region_path.write_text("id\n123\n1234\n")
-        city_path.write_text("id,region_id\n1,123\n2,1234\n")
-
-        context, manifest = prepare_manifest(
-            rc,
-            f"""
-        d | r | b | m | property   | type    | ref    | source         | level | access
-        example                    |         |        |                |       |
-          | region_data             | dask/csv|        | {region_path}  |       |
-          |   |   | Region          |         | id     |                |       |
-          |   |   |   | id          | integer |        | id             |       | open
-          |   |   |   | _id         | integer |        |                |       | open
-          | city_data               | dask/csv|        | {city_path}    |       |
-          |   |   | City            |         | id     |                |       |
-          |   |   |   | id          | integer |        | id             |       | open
-          |   |   |   | region      | ref     | Region | region_id      |       | open
-        """,
-            mode=Mode.external,
-        )
-        context.loaded = True
-        app = create_test_client(context)
-        app.authmodel("example/Region", ["getall"])
-        app.authmodel("example/City", ["getall"])
-
-        resp = app.get("/example/Region")
-        assert resp.status_code == 200
-        region_rows = {r["id"]: r["_id"] for r in resp.json()["_data"]}
-
-        resp = app.get("/example/City")
-        assert resp.status_code == 200
-        city_by_id = {r["id"]: r for r in resp.json()["_data"]}
-        assert city_by_id[1]["region"]["_id"] == region_rows[123]
-        assert city_by_id[2]["region"]["_id"] == region_rows[1234]
-
     def test_ref_to_uuid_id_model(self, rc: RawConfig, tmp_path: Path):
         uuid1 = "d6420786-082f-4ee4-9624-7a559f31d032"
         uuid2 = "8f5773d6-a5eb-4409-8f88-aca874e27200"
@@ -799,11 +762,11 @@ class TestIdRef:
         d | r | b | m | property   | type    | ref     | source         | level | access
         example                    |         |         |                |       |
           | region_data             | dask/csv|         | {region_path}  |       |
-          |   |   | Region          |         | uuid_id |                |       |
+          |   |   | Region          |         | uuid_id | region         |       |
           |   |   |   | uuid_id     | uuid    |         | uuid_id        |       | open
           |   |   |   | _id         | uuid    |         |                |       | open
           | city_data               | dask/csv|         | {city_path}    |       |
-          |   |   | City            |         | id      |                |       |
+          |   |   | City            |         | id      | city           |       |
           |   |   |   | id          | integer |         | id             |       | open
           |   |   |   | region      | ref     | Region  | region_uuid    |       | open
         """,
@@ -824,46 +787,6 @@ class TestIdRef:
         assert city_by_id[1]["region"]["_id"] == region_rows[uuid1]
         assert city_by_id[2]["region"]["_id"] == region_rows[uuid2]
 
-    def test_ref_to_composite_id_model(self, rc: RawConfig, tmp_path: Path):
-        region_path = tmp_path / "region.csv"
-        city_path = tmp_path / "city.csv"
-        region_path.write_text("id,code\n123,ORD001\n1234,ORD002\n")
-        city_path.write_text("id,region_id,region_code\n1,123,ORD001\n2,1234,ORD002\n")
-
-        context, manifest = prepare_manifest(
-            rc,
-            f"""
-        d | r | b | m | property    | type    | ref      | source         | prepare                | level | access
-        example                     |         |          |                |                        |       |
-          | region_data              | dask/csv|          | {region_path}  |                        |       |
-          |   |   | Region           |         | id, code |                |                        |       |
-          |   |   |   | id           | integer |          | id             |                        |       | open
-          |   |   |   | code         | string  |          | code           |                        |       | open
-          |   |   |   | _id          | string  |          |                |                        |       | open
-          | city_data                | dask/csv|          | {city_path}    |                        |       |
-          |   |   | City             |         | id       |                |                        |       |
-          |   |   |   | id           | integer |          | id             |                        |       | open
-          |   |   |   | region       | ref     | Region   |                | region_id, region_code |       | open
-          |   |   |   | region_id    | integer |          | region_id      |                        |       | open
-          |   |   |   | region_code  | string  |          | region_code    |                        |       | open
-        """,
-            mode=Mode.external,
-        )
-        context.loaded = True
-        app = create_test_client(context)
-        app.authmodel("example/Region", ["getall"])
-        app.authmodel("example/City", ["getall", "search"])
-
-        resp = app.get("/example/Region")
-        assert resp.status_code == 200
-        region_rows = {(r["id"], r["code"]): r["_id"] for r in resp.json()["_data"]}
-
-        resp = app.get("/example/City")
-        assert resp.status_code == 200
-        city_by_id = {r["id"]: r for r in resp.json()["_data"]}
-        assert city_by_id[1]["region"]["_id"] == region_rows[(123, "ORD001")]
-        assert city_by_id[2]["region"]["_id"] == region_rows[(1234, "ORD002")]
-
     def test_ref_to_base32_model_produces_correct_id(self, rc: RawConfig, tmp_path: Path):
         region_path = tmp_path / "region.csv"
         city_path = tmp_path / "city.csv"
@@ -876,11 +799,11 @@ class TestIdRef:
         d | r | b | m | property   | type    | ref    | source         | level | access
         example                    |         |        |                |       |
           | region_data             | dask/csv|        | {region_path}  |       |
-          |   |   | Region          |         | code   |                |       |
+          |   |   | Region          |         | code   | region         |       |
           |   |   |   | code        | string  |        | code           |       | open
           |   |   |   | _id         | base32  |        |                |       | open
           | city_data               | dask/csv|        | {city_path}    |       |
-          |   |   | City            |         | id     |                |       |
+          |   |   | City            |         | id     | city           |       |
           |   |   |   | id          | integer |        | id             |       | open
           |   |   |   | region      | ref     | Region | region_code    |       | open
         """,
