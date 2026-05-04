@@ -306,7 +306,7 @@ class CommentData(TypedDict, total=False):
 
 class ScopeRow(TypedDict, total=False):
     id: str
-    name: str  # scope name
+    name: str
     prepare: Dict[str, Any]  # formula
     title: str
     description: str

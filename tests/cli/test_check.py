@@ -717,10 +717,12 @@ def test_check_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     """),
     )
 
-    cli.invoke(
+    result = cli.invoke(
         rc,
         ["check", tmp_path / "manifest.csv"],
     )
+
+    assert result.exit_code == 0
 
 
 def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):

@@ -1653,17 +1653,19 @@ class ScopeReader(TabularReader):
     def read(self, row: ManifestRow) -> None:
         node = self.state.model
 
-        if node is None:
-            raise NoModelDefined(dimension="Scope", name=row[REF])
+        self.name = row[REF]
+        prepare = row[PREPARE]
 
-        if not row[REF]:
+        if not self.name:
             self.error("Scope must have a ref.")
             return
-        if not row[PREPARE]:
+
+        if node is None:
+            raise NoModelDefined(dimension="Scope", name=self.name)
+
+        if not prepare:
             self.error("Scope must have a prepare row.")
             return
-
-        self.name = row[REF]
 
         if "scopes" not in node.data:
             node.data["scopes"] = {}
@@ -1674,7 +1676,7 @@ class ScopeReader(TabularReader):
             self.error(f"Scope {self.name!r} with the same name is already defined for this {node.name!r} {node.type}.")
             return
 
-        parsed_prepare = _parse_spyna(self, row[PREPARE])
+        parsed_prepare = _parse_spyna(self, prepare)
         if parsed_prepare is NA:
             return
 
@@ -2563,7 +2565,7 @@ def _prepare_to_tabular(data, prop):
     return data, prep_rows
 
 
-def _scopes_to_tabular(scopes: Dict[str, Scope]) -> Iterator[ManifestRow]:
+def _scopes_to_tabular(scopes: Dict[str, Scope]) -> Iterator[ManifestRow] | None:
     if not scopes:
         return
     for scope in scopes.values():

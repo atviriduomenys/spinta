@@ -92,7 +92,7 @@ def check_property_name(context: Context, prop: Property):
         raise InvalidName(prop, name=prop.name, type="property")
 
 
-def check_scope_name(context: Context, scope: Scope):
+def check_scope_name(context: Context, scope: Scope) -> None:
     config: Config = context.get("config")
     # Scope names follow the same naming rules as property names,
     # so we reuse `is_valid_property_name` for validation.
