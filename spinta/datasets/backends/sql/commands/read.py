@@ -75,6 +75,12 @@ def getall(
                         is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32)
                     ):
                         val = encode_composite_string_id(val, model.external.pkeys)
+                    elif (
+                        sel.prop.name == "_revision"
+                        and isinstance(val, (list, tuple))
+                        and not isinstance(sel.prop.dtype, Base32)
+                    ):
+                        val = encode_composite_string_id(val, model.external.pkeys)
                 res[key] = val
             if is_page_enabled:
                 res["_page"] = get_page_values(env, row)
@@ -142,6 +148,14 @@ def getone(
         if not field.startswith("_"):
             value = row[field]
             data[field] = value
+
+    revision = model.properties.get("_revision")
+    if revision and revision.explicitly_given and revision.external:
+        if revision.external.name:
+            data["_revision"] = row[revision.external.name]
+        elif isinstance(revision.external.prepare, Expr) and revision.external.prepare.name == "testlist":
+            values = [row[model.properties[arg.args[0]].external.name] for arg in revision.external.prepare.args]
+            data["_revision"] = values if isinstance(revision.dtype, Base32) else ",".join(str(v) for v in values)
 
     additional_data = {"_type": model.model_type(), "_id": raw_id}
     data.update(additional_data)

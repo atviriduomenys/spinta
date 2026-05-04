@@ -167,7 +167,9 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
             else:
                 raise PropertyNotFound(env.model, property=resolved[selected_key])
     else:
-        for prop in take(["_id", all], env.model.properties).values():
+        for prop in take(["_id", "_revision", all], env.model.properties).values():
+            if prop.name == "_revision" and not prop.explicitly_given:
+                continue
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
 
@@ -212,6 +214,10 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property, keys: set) -> Selecte
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
 def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
+    import traceback
+    print(f"DEBUG_SELECT prop={prop.name} ext_name={getattr(prop.external, 'name', None) if prop.external else None} prep={getattr(prop.external, 'prepare', None) if prop.external else None}")
+    if prop.name == "_revision":
+        traceback.print_stack()
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)

@@ -1990,8 +1990,8 @@ def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, da
 def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
     if is_nan(data):
         return None
-    if check_if_model_primary_key_is_composite(dtype.prop.model):
-        data = cbor_dumps(data)
+    if isinstance(data, (list, tuple)):
+        data = cbor_dumps(list(data))
     else:
         data = str(data).encode("utf-8")
     encoded = base64.b32encode(data)

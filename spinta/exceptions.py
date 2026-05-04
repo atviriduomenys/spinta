@@ -1248,3 +1248,7 @@ class Base32TypeOnlyAllowedOnId(BaseError):
 
 class ValuesForIdCantHaveSpecialSymbols(BaseError):
     template = "The value used for _id can not have special symbols. Found {value} value on {property} property. Change _id type to Base32 or remove the special symbol."
+
+
+class RevisionSourceOrPrepareHasToBeSet(BaseError):
+    template = "The revision source or prepare has to be set, set source or prepare for {property}. "

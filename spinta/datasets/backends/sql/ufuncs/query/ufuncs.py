@@ -348,7 +348,9 @@ def select(env: SqlQueryBuilder, expr: Expr):
             if selected is not None:
                 env.selected[key] = selected
     else:
-        for prop in take(["_id", all], env.model.properties).values():
+        for prop in take(["_id", "_revision", all], env.model.properties).values():
+            if prop.name == "_revision" and not prop.explicitly_given:
+                continue
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call("select", prop)
                 if not prop.dtype.inherited or processed.prep is not None:
