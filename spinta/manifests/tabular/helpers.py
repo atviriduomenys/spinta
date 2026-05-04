@@ -2831,6 +2831,8 @@ def write_tabular_manifest(
     rows = ({c: row[c] for c in cols} for row in rows)
     if path.endswith(".csv"):
         write_csv(pathlib.Path(path), rows, cols)
+    elif path.endswith(".txt"):
+        write_ascii(pathlib.Path(path), rows, cols)
     elif path.endswith(".xlsx"):
         write_xlsx(pathlib.Path(path), rows, cols)
     else:
@@ -2846,6 +2848,14 @@ def write_csv(
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def write_ascii(
+    path: pathlib.Path,
+    rows: Iterator[ManifestRow],
+    cols: List[ManifestColumn],
+) -> None:
+    path.write_text(render_tabular_manifest_rows(rows, cols))
 
 
 def write_xlsx(

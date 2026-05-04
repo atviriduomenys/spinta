@@ -75,6 +75,7 @@ New Features:
 - Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
   schemas (`#598`_).
 - New type - `unknown`. Used for to replace unrecognized column types while reading with `spinta inspect` (`#1848`_).
+- Added WSDL-to-DSA generation support for `spinta copy`, including supported WSDL 1.1 and 2.0 inputs, delegated XSD handling, and SOAP metadata preservation (`#1824`).
 
 Improvements:
 

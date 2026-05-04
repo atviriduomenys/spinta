@@ -1093,6 +1093,61 @@ class WsdlClientError(Exception):
     pass
 
 
+class UnsupportedWsdlVersion(UserError):
+    status_code = 400
+    template = "Unsupported WSDL document namespace {namespace!r} for {path!r}. Expected WSDL 1.1 or WSDL 2.0."
+
+
+class RemoteWsdlResourceUnavailable(UserError):
+    status_code = 503
+    template = "Remote WSDL resource {path!r} is unavailable. {error}"
+
+
+class RemoteWsdlAuthenticationError(UserError):
+    status_code = 401
+    template = "Authentication failed while reading remote WSDL resource {path!r}. HTTP status: {status}. {error}"
+
+
+class RemoteWsdlServerError(UserError):
+    status_code = 502
+    template = "Remote WSDL server error while reading resource {path!r}. HTTP status: {status}. {error}"
+
+
+class MalformedWsdlFile(UserError):
+    status_code = 400
+    template = "Malformed WSDL XML in {path!r}. {error}"
+
+
+class AmbiguousWsdlReference(UserError):
+    status_code = 400
+    template = "Ambiguous WSDL QName {qname!r} in {scope!r} for {path!r}. {error}"
+
+
+class ReferencedSchemaFileDoesNotExist(UserError):
+    status_code = 404
+    template = "Referenced schema file {path!r} does not exist."
+
+
+class MalformedReferencedSchema(UserError):
+    status_code = 400
+    template = "Malformed referenced schema XML in {path!r}. {error}"
+
+
+class RemoteSchemaResourceUnavailable(UserError):
+    status_code = 503
+    template = "Remote schema resource {path!r} is unavailable. {error}"
+
+
+class RemoteSchemaAuthenticationError(UserError):
+    status_code = 401
+    template = "Authentication failed while reading remote schema resource {path!r}. HTTP status: {status}. {error}"
+
+
+class RemoteSchemaServerError(UserError):
+    status_code = 502
+    template = "Remote schema server error while reading resource {path!r}. HTTP status: {status}. {error}"
+
+
 class SoapServiceError(Exception):
     pass
 
