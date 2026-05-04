@@ -287,6 +287,12 @@ def dask_get_all(
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 elif is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32):
                     val = encode_composite_string_id(val, model.external.pkeys)
+                elif (
+                    sel.prop.name == "_revision"
+                    and isinstance(val, (list, tuple))
+                    and not isinstance(sel.prop.dtype, Base32)
+                ):
+                    val = encode_composite_string_id(val, model.external.pkeys)
             res[key] = val
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
