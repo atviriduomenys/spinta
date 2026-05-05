@@ -893,6 +893,7 @@ class UrlParseNode(TypedDict):
     name: str
     args: List[Any]
     id_prop: Property
+    revision_prop: Property
 
 
 class UrlParams:
