@@ -32,7 +32,6 @@ from spinta.backends.constants import TableType, BackendOrigin
 
 
 from sqlalchemy.dialects import postgresql
-from spinta.utils.schema import NA
 
 pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
@@ -603,25 +602,14 @@ def is_custom_id_prop(prop: Property) -> bool:
     return prop.name == "_id" and not isinstance(prop.dtype, PrimaryKey)
 
 
-def is_custom_revision_prop(prop: Property) -> bool:
-    return prop.name == "_revision" and prop.explicitly_given
-
-
-def is_accessible_by_equals_sign(prop: Property, value: str | int) -> bool:
-    if isinstance(prop.dtype, Base32):
+def is_accessible_by_equals_sign(id_prop: Property, value: str | int) -> bool:
+    if isinstance(id_prop.dtype, Base32):
         return True
 
-    if isinstance(prop.dtype, String):
-        if check_if_property_prepare_composite(prop):
-            return False
-        return not check_if_model_primary_key_is_composite(prop.model)
+    if isinstance(id_prop.dtype, String):
+        return not check_if_model_primary_key_is_composite(id_prop.model)
 
     return False
-
-
-def check_if_property_prepare_composite(prop: Property) -> bool:
-    prepare_count = 0 if prop.external.prepare is NA else len(prop.external.prepare)
-    return prepare_count > 1
 
 
 def check_if_model_primary_key_is_composite(model: Model) -> bool:

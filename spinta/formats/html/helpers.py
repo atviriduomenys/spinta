@@ -9,7 +9,7 @@ from typing import Tuple
 from typing import TypedDict
 
 from spinta import commands
-from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -178,7 +178,6 @@ def get_model_link_params(
     *,
     pk: Optional[str] = None,
     prop: Optional[str] = None,
-    reserved_prop_name: Optional[str] = None,
     **extra,
 ) -> List[_ParsedNode]:
     assert prop is None or (prop and pk), "If prop is given, pk must be given too."
@@ -191,9 +190,6 @@ def get_model_link_params(
     ]
     if isinstance(model, Model) and model.external is not None:
         _id = model.properties.get("_id")
-        _revision = model.properties.get("_revision")
-        if _revision and reserved_prop_name == "_revision" and is_custom_revision_prop(_revision):
-            ptree[0]["revision_prop"] = _revision
         if _id and is_custom_id_prop(_id):
             ptree[0]["id_prop"] = _id
 
