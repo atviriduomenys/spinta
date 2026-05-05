@@ -11,7 +11,7 @@ from spinta.core.enums import Mode
 from spinta.exceptions import (
     ReservedPropertyTypeShouldMatchPrimaryKey,
     ReservedPropertySourceOrModelRefShouldBeSet,
-    Base32TypeOnlyAllowedOnId,
+    Base32TypeOnlyAllowedOnIdOrRevision,
 )
 from spinta.testing.client import create_client
 from spinta.testing.datasets import create_sqlite_db
@@ -620,7 +620,7 @@ class TestManifestLoading:
         assert resp.json()["_id"] == "d6420786-082f-4ee4-9624-7a559f31d032"
 
     def test_only_id_can_have_base32_type(self, rc: RawConfig):
-        with pytest.raises(Base32TypeOnlyAllowedOnId):
+        with pytest.raises(Base32TypeOnlyAllowedOnIdOrRevision):
             prepare_manifest(
                 rc,
                 """
