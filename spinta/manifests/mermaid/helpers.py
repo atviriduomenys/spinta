@@ -82,8 +82,10 @@ class MermaidNameSpace:
             self.classes[name] = MermaidClass(name=name, **kwargs)
         return self.classes[name]
 
-    def process_property(self, model: Model, prop: Property, update: bool = True) -> None:
-        mermaid_class = self.get_or_create_class(name=model.name, label=model.basename)
+    def process_property(
+        self, model: Model, prop: Property, update: bool = True, mermaid_class: MermaidClass | None = None
+    ) -> None:
+        mermaid_class = mermaid_class or self.get_or_create_class(name=model.name, label=model.basename)
         if prop.enum:
             enum_class = self.get_or_create_class(
                 name=f"{model.name}{to_model_name(prop.name)}",
@@ -305,6 +307,7 @@ def write_mermaid_manifest(
         dataset_name = model.external.dataset.name
         namespace_name = dataset_name if dataset_name != main_dataset else None
         namespace = mermaid.get_namespace(namespace_name)
+        mermaid_class = namespace.get_or_create_class(name=model.name, label=model.basename)
 
         if model.base:
             label = ", ".join(pk.name for pk in model.base.pk)
@@ -318,7 +321,7 @@ def write_mermaid_manifest(
             )
 
         for model_property in model.get_given_properties().values():
-            namespace.process_property(model, model_property)
+            namespace.process_property(model, model_property, mermaid_class)
 
     if not output:
         return str(mermaid)

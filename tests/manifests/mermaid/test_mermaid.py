@@ -791,3 +791,35 @@ classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
     )
+
+
+def test_write_mermaid_manifest_model_without_properties(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property                      | type             | ref       | source      
+          datasets/gov/example                        |                  |           |             
+          | data                                      |                  |           |             
+          |   |   | Country                           |                  |           | salis       
+          |   |   |   | name                          | string           |           | pavadinimas 
+          |   |   | City                              |                  |           | salis       
+        """),
+    )
+    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+
+    assert (
+        mermaid
+        == f"""{MERMAID_CONFIG}
+classDiagram
+class `datasets/gov/example/Country`["Country"]:::Entity {{
+«optional»
+name : string [0..1]
+}}
+class `datasets/gov/example/City`["City"]:::Entity
+
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
+"""
+    )
