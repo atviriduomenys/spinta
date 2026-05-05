@@ -432,9 +432,6 @@ def prepare_dtype_for_response(
                 pk=value,
             ),
         )
-    if dtype.prop.name == "_revision":
-        return Cell(short_id(str(value)))
-
     return Cell(str(value))
 
 
