@@ -620,6 +620,14 @@ def page_in_data(data: dict) -> bool:
     return "_page" in data
 
 
+def revision_in_data(data: dict) -> bool:
+    return "_revision" in data
+
+
+def check_if_revision_explicit(prop: Property) -> bool:
+    return prop.name == "_revision" and prop.explicitly_given
+
+
 class ParamsPage:
     values: List[Any]
     size: int
