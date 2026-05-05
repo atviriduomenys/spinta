@@ -349,7 +349,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
                 env.selected[key] = selected
     else:
         for prop in take(["_id", "_revision", all], env.model.properties).values():
-            if not is_custom_revision_prop(prop):
+            if prop.name == "_revision" and not is_custom_revision_prop(prop):
                 continue
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call("select", prop)
