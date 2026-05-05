@@ -409,15 +409,6 @@ def prepare_dtype_for_response(
                 pk=value,
             ),
         )
-    if dtype.prop.name == "_revision" and link:
-        _id_link = get_model_link(
-            dtype.prop.model,
-            pk=data.get("_id"),
-        )
-        _revision_link = get_model_link(dtype.prop.model, pk=value)
-        full_link = _id_link + "/" + _revision_link.split("/")[-1]
-        return Cell(short_id(str(value)), link=full_link)
-
     return Cell(value)
 
 
@@ -439,18 +430,10 @@ def prepare_dtype_for_response(
             link=get_model_link(
                 dtype.prop.model,
                 pk=value,
-                reserved_prop_name=dtype.prop.name,
             ),
         )
-    if dtype.prop.name == "_revision" and link:
-        _id_link = get_model_link(
-            dtype.prop.model,
-            pk=data.get("_id"),
-            reserved_prop_name="_id",
-        )
-        _revision_link = get_model_link(dtype.prop.model, pk=value, reserved_prop_name=dtype.prop.name)
-        full_link = _id_link + "/" + _revision_link.split("/")[-1]
-        return Cell(short_id(str(value)), link=full_link)
+    if dtype.prop.name == "_revision":
+        return Cell(short_id(str(value)))
 
     return Cell(str(value))
 

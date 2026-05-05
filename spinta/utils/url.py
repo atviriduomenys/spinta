@@ -101,11 +101,8 @@ def build_url_path(query: List[UrlParseNode]):
     for param in query:
         name = param["name"]
         args = param["args"]
-        if revision_prop := param.get("revision_prop"):
-            if is_accessible_by_equals_sign(revision_prop, args[-1]):
-                args[-1] = "=" + str(args[-1])
-        elif (id_prop := param.get("id_prop")) and is_accessible_by_equals_sign(id_prop, args[-1]):
-            args[-1] = "=" + str(args[-1])
+        if (id_prop := param.get("id_prop")) and is_accessible_by_equals_sign(id_prop, args[-1]):
+            args[-1] = "=" + args[-1]
         if name == "path":
             parts.extend(args)
         elif name in ("format", "ns", "changes"):
