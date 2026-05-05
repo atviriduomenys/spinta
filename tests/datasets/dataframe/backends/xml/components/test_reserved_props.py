@@ -8,7 +8,7 @@ from spinta.core.enums import Mode
 from spinta.exceptions import (
     ReservedPropertyTypeShouldMatchPrimaryKey,
     ReservedPropertySourceOrModelRefShouldBeSet,
-    Base32TypeOnlyAllowedOnId,
+    Base32TypeOnlyAllowedOnIdOrRevision,
 )
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
@@ -731,7 +731,7 @@ class TestManifestLoading:
             # Expected, XML does not support getone operations
 
     def test_only_id_can_have_base32_type(self, fmt, data, source, rc: RawConfig, tmp_path: Path):
-        with pytest.raises(Base32TypeOnlyAllowedOnId):
+        with pytest.raises(Base32TypeOnlyAllowedOnIdOrRevision):
             prepare_manifest(
                 rc,
                 f"""
