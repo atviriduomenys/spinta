@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 
 from spinta.core.config import RawConfig, Path
@@ -5,7 +7,7 @@ from spinta.core.enums import Mode
 from spinta.exceptions import (
     ReservedPropertyTypeShouldMatchPrimaryKey,
     ReservedPropertySourceOrModelRefShouldBeSet,
-    Base32TypeOnlyAllowedOnId,
+    Base32TypeOnlyAllowedOnIdOrRevision,
 )
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
@@ -624,7 +626,7 @@ class TestManifestLoading:
             # Expected, CSV does not support getone operations
 
     def test_only_id_can_have_base32_type(self, rc: RawConfig):
-        with pytest.raises(Base32TypeOnlyAllowedOnId):
+        with pytest.raises(Base32TypeOnlyAllowedOnIdOrRevision):
             prepare_manifest(
                 rc,
                 """
@@ -823,3 +825,152 @@ class TestIdRef:
         city_by_id = {r["id"]: r for r in resp.json()["_data"]}
         assert city_by_id[1]["region"]["_id"] == region_rows["ORD001"]
         assert city_by_id[2]["region"]["_id"] == region_rows["ORD002"]
+
+
+class TestRevisionProp:
+    @pytest.mark.parametrize(
+        "cast_type, value1, value2, exp_val1, exp_val2",
+        [
+            ("string", "1", "2", "1", "2"),
+            ("integer", 1, 2, 1, 2),
+            (
+                "uuid",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+            ),
+            ("base32", "13", "14", "GEZQ", "GE2A"),
+        ],
+    )
+    def test_revision_prop_is_simple_type(
+        self,
+        rc: RawConfig,
+        tmp_path: Path,
+        cast_type: str,
+        value1: str,
+        value2: str,
+        exp_val1: str,
+        exp_val2: str,
+    ):
+        path = tmp_path / "region.csv"
+        path.write_text(f"code,version\nORD001,{value1}\nORD002,{value2}\n")
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                      | type            | ref      | source        | level      | access
+        example                                       |                 |          |               |            |
+          | data                                      | dask/csv        |          | {path}        |            |
+          |   |   | Region                            |                 | code     |               |            |
+          |   |   |   | code                          | string          |          | code          |            | open
+          |   |   |   | _revision                     | {cast_type}     |          | version       |            | open
+        """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall"])
+
+        resp = app.get("/example/Region/")
+        assert resp.json()["_data"] == [
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": exp_val1,
+                "code": "ORD001",
+            },
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": exp_val2,
+                "code": "ORD002",
+            },
+        ]
+
+    @pytest.mark.skip(reason="Multiple properties in prepare not supported yet")
+    def test_revision_prop_is_composite(self, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / "region.csv"
+        path.write_text("code,major,minor\nORD001,123,14\nORD002,123,13\n")
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                      | type            | ref      | source        | prepare      | access
+        example                                       |                 |          |               |              |
+          | data                                      | dask/csv        |          | {path}        |              |
+          |   |   | Region                            |                 | code     |               |              |
+          |   |   |   | code                          | string          |          | code          |              | open
+          |   |   |   | major                         | string          |          | major         |              | open
+          |   |   |   | minor                         | integer         |          | minor         |              | open
+          |   |   |   | _revision                     | string          |          |               | major, minor | open
+        """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall", "search"])
+
+        resp = app.get("/example/Region/")
+        print("DEBUG_RESP:", resp.status_code, resp.json())
+        assert resp.json()["_data"] == [
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "123,14",
+                "code": "ORD001",
+                "major": "123",
+                "minor": 14,
+            },
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "123,13",
+                "code": "ORD002",
+                "major": "123",
+                "minor": 13,
+            },
+        ]
+
+    @pytest.mark.skip(reason="Multiple properties in prepare not supported yet")
+    def test_revision_prop_is_composite_and_base32(self, rc: RawConfig, tmp_path: Path):
+        path = tmp_path / "region.csv"
+        path.write_text("code,major,minor\nORD001,123,14\nORD002,123,13\n")
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                      | type            | ref      | source        | prepare      | access
+        example                                       |                 |          |               |              |
+          | data                                      | dask/csv        |          | {path}        |              |
+          |   |   | Region                            |                 | code     |               |              |
+          |   |   |   | code                          | string          |          | code          |              | open
+          |   |   |   | major                         | string          |          | major         |              | open
+          |   |   |   | minor                         | integer         |          | minor         |              | open
+          |   |   |   | _revision                     | base32          |          |               | major, minor | open
+        """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall", "search"])
+
+        resp = app.get("/example/Region/")
+        assert resp.json()["_data"] == [
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "QJRTCMRTMIYTI",
+                "code": "ORD001",
+                "major": "123",
+                "minor": 14,
+            },
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "QJRTCMRTMIYTG",
+                "code": "ORD002",
+                "major": "123",
+                "minor": 13,
+            },
+        ]

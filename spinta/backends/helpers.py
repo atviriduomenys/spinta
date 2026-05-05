@@ -602,6 +602,10 @@ def is_custom_id_prop(prop: Property) -> bool:
     return prop.name == "_id" and not isinstance(prop.dtype, PrimaryKey)
 
 
+def is_custom_revision_prop(prop: Property) -> bool:
+    return prop.name == "_revision" and prop.explicitly_given
+
+
 def is_accessible_by_equals_sign(id_prop: Property, value: str | int) -> bool:
     if isinstance(id_prop.dtype, Base32):
         return True

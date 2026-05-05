@@ -6,7 +6,7 @@ from typing import Dict, Any, Tuple, List, Iterator
 from dask.dataframe import Series
 
 from spinta.auth import authorized
-from spinta.backends.helpers import is_custom_id_prop
+from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
@@ -167,7 +167,9 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
             else:
                 raise PropertyNotFound(env.model, property=resolved[selected_key])
     else:
-        for prop in take(["_id", all], env.model.properties).values():
+        for prop in take(["_id", "_revision", all], env.model.properties).values():
+            if prop.name == "_revision" and not is_custom_revision_prop(prop):
+                continue
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
 

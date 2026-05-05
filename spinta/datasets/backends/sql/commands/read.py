@@ -7,6 +7,7 @@ from spinta.backends.helpers import (
     validate_and_return_begin,
     check_if_model_primary_key_is_composite,
     is_custom_id_prop,
+    is_custom_revision_prop,
 )
 from spinta.components import Context, Property
 from spinta.components import Model
@@ -72,7 +73,9 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
                     elif (
-                        is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32)
+                        (is_custom_id_prop(sel.prop) or is_custom_revision_prop(sel.prop))
+                        and isinstance(val, (list, tuple))
+                        and not isinstance(sel.prop.dtype, Base32)
                     ):
                         val = encode_composite_string_id(val, model.external.pkeys)
                 res[key] = val
@@ -142,6 +145,14 @@ def getone(
         if not field.startswith("_"):
             value = row[field]
             data[field] = value
+
+    revision = model.properties.get("_revision")
+    if revision and revision.explicitly_given and revision.external:
+        if revision.external.name:
+            data["_revision"] = row[revision.external.name]
+        elif isinstance(revision.external.prepare, Expr) and revision.external.prepare.name == "testlist":
+            values = [row[model.properties[arg.args[0]].external.name] for arg in revision.external.prepare.args]
+            data["_revision"] = values if isinstance(revision.dtype, Base32) else ",".join(str(v) for v in values)
 
     additional_data = {"_type": model.model_type(), "_id": raw_id}
     data.update(additional_data)

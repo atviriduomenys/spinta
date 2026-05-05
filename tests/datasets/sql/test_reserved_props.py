@@ -1,13 +1,17 @@
+from unittest.mock import ANY
+
 import pytest
 import sqlalchemy as sa
 
 from pathlib import Path
+
+
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.exceptions import (
     ReservedPropertyTypeShouldMatchPrimaryKey,
     ReservedPropertySourceOrModelRefShouldBeSet,
-    Base32TypeOnlyAllowedOnId,
+    Base32TypeOnlyAllowedOnIdOrRevision,
 )
 from spinta.testing.client import create_client
 from spinta.testing.datasets import create_sqlite_db
@@ -616,7 +620,7 @@ class TestManifestLoading:
         assert resp.json()["_id"] == "d6420786-082f-4ee4-9624-7a559f31d032"
 
     def test_only_id_can_have_base32_type(self, rc: RawConfig):
-        with pytest.raises(Base32TypeOnlyAllowedOnId):
+        with pytest.raises(Base32TypeOnlyAllowedOnIdOrRevision):
             prepare_manifest(
                 rc,
                 """
@@ -929,3 +933,190 @@ class TestIdRef:
             city_by_id = {r["id"]: r for r in city_rows}
             assert city_by_id[1]["region"]["_id"] == region_rows["ORD001"]
             assert city_by_id[2]["region"]["_id"] == region_rows["ORD002"]
+
+
+class TestRevisionProp:
+    @pytest.mark.parametrize(
+        "cast_type, value1, value2, exp_val1, exp_val2",
+        [
+            ("string", "1", "2", "1", "2"),
+            ("integer", 1, 2, 1, 2),
+            (
+                "uuid",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+            ),
+            ("base32", "13", "14", "GEZQ", "GE2A"),
+        ],
+    )
+    def test_revision_prop_is_simple_type(
+        self,
+        context,
+        rc: RawConfig,
+        tmp_path: Path,
+        cast_type: str,
+        value1: str,
+        value2: str,
+        exp_val1: str,
+        exp_val2: str,
+    ):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("code", sa.Text),
+                    sa.Column("version", sa.Text),
+                ],
+            }
+        ) as db:
+            db.write("region", [{"code": "ORD001", "version": value1}, {"code": "ORD002", "version": value2}])
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable(f"""
+            d | r | b | m | property                      | type            | ref                  | source               | level      | access
+            example                                       |                 |                      |                      |            |
+              | data                                      |                 | sqlite               |                      |            |
+              |   |   | Region                            |                 | code                 | region               |            |
+              |   |   |   | code                          | string          |                      | code                 |            | open
+              |   |   |   | _revision                     | {cast_type}     |                      | version              |            | open
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall", "getone"])
+
+            resp = app.get("/example/Region/")
+            data = resp.json()["_data"]
+            assert data == [
+                {
+                    "_type": "example/Region",
+                    "_id": ANY,
+                    "_revision": exp_val1,
+                    "code": "ORD001",
+                },
+                {
+                    "_type": "example/Region",
+                    "_id": ANY,
+                    "_revision": exp_val2,
+                    "code": "ORD002",
+                },
+            ]
+
+            getone = app.get(f"/example/Region/{data[0]['_id']}").json()
+            assert getone["_revision"] == exp_val1
+
+    def test_revision_prop_is_composite(self, context, rc: RawConfig, tmp_path: Path):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("code", sa.Text),
+                    sa.Column("major", sa.Text),
+                    sa.Column("minor", sa.Text),
+                ],
+            }
+        ) as db:
+            db.write(
+                "region",
+                [{"code": "ORD001", "major": 123, "minor": "14"}, {"code": "ORD002", "major": 123, "minor": "13"}],
+            )
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property                      | type            | ref                  | source               | prepare      | access
+            example                                       |                 |                      |                      |              |
+              | data                                      |                 | sqlite               |                      |              |
+              |   |   | Region                            |                 | code                 | region               |              |
+              |   |   |   | code                          | string          |                      | code                 |              | open
+              |   |   |   | major                         | string          |                      | major                |              | open
+              |   |   |   | minor                         | integer         |                      | minor                |              | open
+              |   |   |   | _revision                     | string          |                      |                      | major, minor | open
+              
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall", "getone", "search"])
+
+            resp = app.get("/example/Region/")
+            data = resp.json()["_data"]
+            assert data == [
+                {
+                    "_type": "example/Region",
+                    "_id": ANY,
+                    "_revision": "123,14",
+                    "code": "ORD001",
+                    "major": "123",
+                    "minor": 14,
+                },
+                {
+                    "_type": "example/Region",
+                    "_id": ANY,
+                    "_revision": "123,13",
+                    "code": "ORD002",
+                    "major": "123",
+                    "minor": 13,
+                },
+            ]
+
+            getone = app.get(f"/example/Region/{data[0]['_id']}").json()
+            assert getone["_revision"] == "123,14"
+
+    def test_revision_prop_is_composite_and_base32(self, context, rc: RawConfig, tmp_path: Path):
+        with create_sqlite_db(
+            {
+                "region": [
+                    sa.Column("code", sa.Text),
+                    sa.Column("major", sa.Text),
+                    sa.Column("minor", sa.Text),
+                ],
+            }
+        ) as db:
+            db.write(
+                "region",
+                [{"code": "ORD001", "major": 123, "minor": "14"}, {"code": "ORD002", "major": 123, "minor": "13"}],
+            )
+
+            create_tabular_manifest(
+                context,
+                tmp_path / "manifest.csv",
+                striptable("""
+            d | r | b | m | property                      | type            | ref                  | source               | prepare      | access
+            example                                       |                 |                      |                      |              |
+              | data                                      |                 | sqlite               |                      |              |
+              |   |   | Region                            |                 | code                 | region               |              |
+              |   |   |   | code                          | string          |                      | code                 |              | open
+              |   |   |   | major                         | string          |                      | major                |              | open
+              |   |   |   | minor                         | integer         |                      | minor                |              | open
+              |   |   |   | _revision                     | base32          |                      |                      | major, minor | open
+
+            """),
+            )
+            app = create_client(rc, tmp_path, db, mode="external")
+            app.authmodel("example/Region", ["getall", "getone", "search"])
+
+            resp = app.get("/example/Region/")
+            data = resp.json()["_data"]
+            assert data == [
+                {
+                    "_type": "example/Region",
+                    "_id": ANY,
+                    "_revision": "QJRTCMRTMIYTI",
+                    "code": "ORD001",
+                    "major": "123",
+                    "minor": 14,
+                },
+                {
+                    "_type": "example/Region",
+                    "_id": ANY,
+                    "_revision": "QJRTCMRTMIYTG",
+                    "code": "ORD002",
+                    "major": "123",
+                    "minor": 13,
+                },
+            ]
+
+            getone = app.get(f"/example/Region/{data[0]['_id']}").json()
+            assert getone["_revision"] == "QJRTCMRTMIYTI"
