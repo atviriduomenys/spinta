@@ -709,11 +709,12 @@ def test_check_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property | type   | ref  | source | prepare             | access
-    datasets/gov/example     |        |      |        |                     |
-      |   |   | Country      |        | code |        |                     |
-      |   |   |   |          | scope  | ltu  |        | country.code='lt'   | private
-      |   |   |   | code     | string |      | kodas  |                     | public
+    d | r | b | m | property | type    | ref  | source | prepare             | access
+    datasets/gov/example     |         |      |        |                     |
+      |   |   | Country      |         | code |        |                     |
+      |   |   |   |          | scope   | ids  |        | select(id)          | private
+      |   |   |   | id       | integer |      |        |                     | public
+      |   |   |   | code     | string |       | kodas  |                     | public
     """),
     )
 
@@ -730,11 +731,11 @@ def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property | type   | ref  | source | prepare             | access
-    datasets/gov/example     |        |      |        |                     |
-      |   |   | Country      |        | code |        |                     |
-      |   |   |   |          | scope  | LTU  |        | country.code='lt'   | private
-      |   |   |   | code     | string |      | kodas  |                     | public
+    d | r | b | m | property | type    | ref  | source | prepare             | access
+    datasets/gov/example     |         |      |        |                     |
+      |   |   | Country      |         | code |        |                     |
+      |   |   |   |          | scope   | IDS  |        | select(id)          | private
+      |   |   |   | id       | integer |      | kodas  |                     | public
     """),
     )
 
@@ -750,7 +751,7 @@ def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner
 
     assert result.exit_code != 0
     assert result.exc_info[0] is InvalidName
-    assert "LTU" in str(result.exception)
+    assert "IDS" in str(result.exception)
 
 
 def test_check_scope_no_model_defined_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):

@@ -1,5 +1,8 @@
+from pathlib import Path
+
 import pytest
 
+from spinta.core.config import RawConfig
 from spinta.exceptions import (
     NoModelDefined,
     InvalidManifestFile,
@@ -2090,7 +2093,7 @@ def test_no_model_defined_error(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests("csv")
-def test_scope_loaded_with_prepare(manifest_type, tmp_path, rc):
+def test_scope_loaded_with_prepare(manifest_type: str, tmp_path: Path, rc: RawConfig):
     check(
         tmp_path,
         rc,
