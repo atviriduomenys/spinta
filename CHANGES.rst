@@ -4,6 +4,16 @@ Changes
 0.2dev24 (unreleased)
 =====================
 
+Improvements:
+
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_): 
+  - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
+  - updated code to correctly display visibility, relationships, cardinality.
+  - added custom diagram styling.
+  - added namespaces.
+  - added dot-notated properties.
+
+
 New Features:
 
 - Adding implicit `link` changes; Implicitly change the `property` of type `ref` that refers a model, that does not exist in the file (`#1872`_).
