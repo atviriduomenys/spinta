@@ -37,6 +37,7 @@ def copy(
     access: str = Option("private", help=("Copy properties with at least specified access")),
     format_names: bool = Option(False, help=("Reformat model and property names.")),
     output: Optional[str] = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
+    dataset: Optional[str] = Option(None, "-d", "--dataset", help=("Main dataset name")),
     columns: Optional[str] = Option(None, "-c", "--columns", help=("Comma separated list of columns")),
     order_by: Optional[str] = Option(
         None, help=("Order by a specified column (currently only access column is supported)")
@@ -57,6 +58,7 @@ def copy(
         order_by=order_by,
         rename_duplicates=rename_duplicates,
         manifests=manifests,
+        dataset=dataset,
     )
 
 
@@ -71,6 +73,7 @@ def copy_manifest(
     rename_duplicates: bool = False,
     manifests: List[str] = None,
     output_type: Optional[str] = None,
+    dataset: str | None = None,
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     access = get_enum_by_name(Access, access)
@@ -113,7 +116,7 @@ def copy_manifest(
         )
     if output:
         if output_type == "mermaid":
-            write_mermaid_manifest(context, output, rows)
+            write_mermaid_manifest(context, rows, dataset, output)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:
