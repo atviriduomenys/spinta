@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta.auth import authorized
-from spinta.backends.helpers import is_custom_id_prop
+from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Page
 from spinta.core.enums import Action
 from spinta.components import Property
@@ -349,7 +349,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
                 env.selected[key] = selected
     else:
         for prop in take(["_id", "_revision", all], env.model.properties).values():
-            if prop.name == "_revision" and not prop.explicitly_given:
+            if not is_custom_revision_prop(prop):
                 continue
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call("select", prop)
