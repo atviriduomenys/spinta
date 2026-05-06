@@ -21,10 +21,12 @@ New Features:
   - `spinta comment` comments the requested parts (argument) of the manifest;
   - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
 - Added support for explicitly defined _id fields in the manifest file. Now external backends can include these fields and use them as _id. (`#1905`_).
+- Added support for new `scope` dimension on tabular format. Now scope is understandable by spinta `check` and `copy` commands (`#1882`_).
 
 .. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
 .. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
 .. _#1905: https://github.com/atviriduomenys/spinta/issues/1905
+.. _#1882: https://github.com/atviriduomenys/spinta/issues/1882
 
 0.2dev22 (2026-04-23)
 =====================
