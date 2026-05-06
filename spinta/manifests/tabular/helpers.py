@@ -1687,10 +1687,15 @@ class ScopeReader(TabularReader):
             "id": row[ID],
             "name": self.name,
             "prepare": parsed_prepare,
+            "access": row[ACCESS],
+            "level": row[LEVEL],
+            "status": row[STATUS],
+            "visibility": row[VISIBILITY],
+            "count": row[COUNT],
+            "eli": row[ELI],
+            "uri": row[URI],
             "title": row[TITLE],
             "description": row[DESCRIPTION],
-            "access": row[ACCESS],
-            "eli": row[ELI],
         }
 
         scopes[self.name] = self.data
@@ -2581,10 +2586,15 @@ def _scopes_to_tabular(scopes: Dict[str, Scope]) -> Iterator[ManifestRow] | None
                 "type": "scope",
                 "ref": scope.name,
                 "prepare": spyna.unparse(scope.prepare),
+                "access": scope.given.access,
+                "level": scope.level.value if scope.level else "",
+                "status": scope.status.name if scope.status else "",
+                "visibility": scope.visibility.name if scope.visibility else "",
+                "count": scope.count,
+                "eli": scope.eli,
+                "uri": scope.uri if scope.uri else "",
                 "title": scope.title,
                 "description": scope.description,
-                "access": scope.given.access,
-                "eli": scope.eli,
             },
         )
 
