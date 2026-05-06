@@ -759,7 +759,7 @@ def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner
         striptable("""
     d | r | b | m | property | type    | ref  | source | prepare             | access
     datasets/gov/example     |         |      |        |                     |
-      |   |   | Country      |         | code |        |                     |
+      |   |   | Country      |         | id   |        |                     |
       |   |   |   |          | scope   | IDS  |        | select(id)          | private
       |   |   |   | id       | integer |      | kodas  |                     | public
     """),
