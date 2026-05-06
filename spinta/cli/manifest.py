@@ -1,6 +1,5 @@
 from typing import Iterator, Union
 from typing import List
-from typing import Optional
 
 from typer import Argument
 from typer import Context as TyperContext
@@ -36,10 +35,10 @@ def copy(
     #       https://github.com/tiangolo/typer/issues/151
     access: str = Option("private", help=("Copy properties with at least specified access")),
     format_names: bool = Option(False, help=("Reformat model and property names.")),
-    output: Optional[str] = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
-    dataset: Optional[str] = Option(None, "-d", "--dataset", help=("Main dataset name")),
-    columns: Optional[str] = Option(None, "-c", "--columns", help=("Comma separated list of columns")),
-    order_by: Optional[str] = Option(
+    output: str | None = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
+    dataset: str | None = Option(None, "-d", "--dataset", help=("Main dataset name")),
+    columns: str | None = Option(None, "-c", "--columns", help=("Comma separated list of columns")),
+    order_by: str | None = Option(
         None, help=("Order by a specified column (currently only access column is supported)")
     ),
     rename_duplicates: bool = Option(False, help=("Rename duplicate model names by adding number suffix")),
@@ -67,12 +66,12 @@ def copy_manifest(
     source: bool = True,
     access: str = "private",
     format_names: bool = False,
-    output: Optional[str] = None,
-    columns: Optional[str] = None,
-    order_by: Optional[str] = None,
+    output: str | None = None,
+    columns: str | None = None,
+    order_by: str | None = None,
     rename_duplicates: bool = False,
     manifests: List[str] = None,
-    output_type: Optional[str] = None,
+    output_type: str | None = None,
     dataset: str | None = None,
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
