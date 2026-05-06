@@ -1289,11 +1289,12 @@ def test_copy_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property | type   | ref  | source | prepare             | access
-    datasets/gov/example     |        |      |        |                     |
-      |   |   | Country      |        | code | salis  |                     |
-      |   |   |   |          | scope  | ltu  |        | country.code='lt'   | public
-      |   |   |   | code     | string |      | kodas  |                     | public
+    d | r | b | m | property | type   | ref    | source | prepare           | level | status  | visibility | access | uri                       | eli                       | count | title      | description
+    datasets/gov/example     |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+                             |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+      |   |   | Country      |        | code   | salis  |                   |       |         |            |        |                           |                           |       |            |
+                             | scope  | codes  |        | select(code)      | 3     | develop | public     | public | https://example.org/s/ltu | http://data.europa.eu/eli | 100   | Code scope | Scope for codes
+      |   |   |   | code     | string |        | kodas  |                   |       |         |            | public |                           |                           |       |            |
     """),
     )
 
@@ -1311,12 +1312,12 @@ def test_copy_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     assert (
         manifest
         == """
-    d | r | b | m | property | type   | ref  | source | prepare             | access
-    datasets/gov/example     |        |      |        |                     |
-                             |        |      |        |                     |
-      |   |   | Country      |        | code | salis  |                     |
-                             | scope  | ltu  |        | country.code='lt'   | public
-      |   |   |   | code     | string |      | kodas  |                     | public
+    d | r | b | m | property | type   | ref    | source | prepare           | level | status  | visibility | access | uri                       | eli                       | count | title      | description
+    datasets/gov/example     |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+                             |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+      |   |   | Country      |        | code   | salis  |                   |       |         |            |        |                           |                           |       |            |
+                             | scope  | codes  |        | select(code)      | 3     | develop | public     | public | https://example.org/s/ltu | http://data.europa.eu/eli | 100   | Code scope | Scope for codes
+      |   |   |   | code     | string |        | kodas  |                   |       |         |            | public |                           |                           |       |            |
     """
     )
 
