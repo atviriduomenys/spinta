@@ -1260,8 +1260,8 @@ def test_backref_many_to_one_level_4_rdf(
         f"</rdf:RDF>\n"
     )
 
-def test_backref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
 
+def test_backref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     manifest = striptable(
         """
 id | d | r | b | m | property                | type     | ref    | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
@@ -1295,7 +1295,6 @@ id | d | r | b | m | property                | type     | ref    | source       
 
 
 def test_backref_and_ref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-
     manifest = striptable(
         """
 id | d | r | b | m | property                 | type     | ref     | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
@@ -1329,7 +1328,6 @@ id | d | r | b | m | property                 | type     | ref     | source     
 
 
 def test_backref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-
     manifest = striptable(
         """
 id | d | r | b | m | property                | type     | ref    | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
@@ -1363,7 +1361,6 @@ id | d | r | b | m | property                | type     | ref    | source       
 
 
 def test_backref_and_ref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-
     manifest = striptable(
         """
 id | d | r | b | m | property                 | type     | ref     | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
