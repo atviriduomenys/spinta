@@ -146,6 +146,7 @@ def getone(
             value = row[field]
             data[field] = value
 
+    # TODO: getone needs a ResultBuilder or SqlResultBuilder which would handle expr. This is a hack
     revision = model.properties.get("_revision")
     if revision and revision.explicitly_given and revision.external:
         if revision.external.name:
