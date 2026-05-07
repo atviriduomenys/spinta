@@ -1,6 +1,15 @@
 Changes
 #######
 
+0.2dev25 (unreleased)
+=====================
+
+Bug fixes:
+
+- Fixed a bug where nested backrefs where causing an error (`#1608`_).
+
+.. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
+
 0.2dev24 (unreleased)
 =====================
 
