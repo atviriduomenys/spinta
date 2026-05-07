@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from spinta.cli.helpers.admin.components import AdminScript, Script, ADMIN_SCRIPT_TYPE
+from spinta.cli.helpers.admin.scripts.add_local_ids import add_local_ids
 from spinta.cli.helpers.admin.scripts.changelog import migrate_changelog_duplicates, cli_requires_changelog_migrations
 from spinta.cli.helpers.admin.scripts.citus_shard import migrate_citus_distributions, cli_requires_citus_distribution
 from spinta.cli.helpers.admin.scripts.deduplicate import migrate_duplicates, cli_requires_deduplicate_migrations
 from spinta.cli.helpers.admin.scripts.enums import gather_invalid_enum_values
+from spinta.cli.helpers.admin.scripts.remove_local_ids import remove_local_ids
 from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
 from spinta.cli.helpers.script.registry import script_registry
 from spinta.cli.helpers.upgrade.components import Script as UpgradeScript, UPGRADE_SCRIPT_TYPE
@@ -43,3 +45,5 @@ script_registry.register(
         targets={ScriptTarget.BACKEND.value},
     )
 )
+script_registry.register(AdminScript(name=Script.ADD_LOCAL_IDS.value, run=add_local_ids, required=[]))
+script_registry.register(AdminScript(name=Script.REMOVE_LOCAL_IDS.value, run=remove_local_ids, required=[]))

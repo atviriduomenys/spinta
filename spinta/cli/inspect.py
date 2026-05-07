@@ -7,6 +7,7 @@ from typer import Option
 from typer import echo
 
 from spinta import commands
+from spinta.cli.helpers.admin.scripts.add_local_ids import add_explicit_id_properties
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
 from spinta.manifests.tabular.helpers import render_tabular_manifest
@@ -44,6 +45,8 @@ def inspect(
         auth=auth,
         priority=priority,
     )
+
+    add_explicit_id_properties(context, manifest, verbose=False)
 
     if output:
         output_type = output.split(".")[-1]
