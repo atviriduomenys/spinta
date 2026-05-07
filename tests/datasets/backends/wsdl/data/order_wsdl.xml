@@ -35,6 +35,9 @@
                     <xs:element name="id" type="xs:int"/>
                     <xs:element name="uuid_id" type="xs:string"/>
                     <xs:element name="comma_code" type="xs:string"/>
+                    <xs:element name="version" type="xs:string" minOccurs="0" nillable="true"/>
+                    <xs:element name="major" type="xs:string" minOccurs="0" nillable="true"/>
+                    <xs:element name="minor" type="xs:int" minOccurs="0" nillable="true"/>
                 </xs:sequence>
             </xs:complexType>
 

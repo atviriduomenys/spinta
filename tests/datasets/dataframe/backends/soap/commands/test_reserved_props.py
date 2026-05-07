@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 from responses import RequestsMock, POST
 
@@ -6,7 +8,7 @@ from spinta.core.enums import Mode
 from spinta.exceptions import (
     ReservedPropertyTypeShouldMatchPrimaryKey,
     ReservedPropertySourceOrModelRefShouldBeSet,
-    Base32TypeOnlyAllowedOnId,
+    Base32TypeOnlyAllowedOnIdOrRevision,
 )
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
@@ -654,7 +656,7 @@ class TestManifestLoading:
             app.get(first_row_data["_id"]["link"])
 
     def test_only_id_can_have_base32_type(self, rc: RawConfig):
-        with pytest.raises(Base32TypeOnlyAllowedOnId):
+        with pytest.raises(Base32TypeOnlyAllowedOnIdOrRevision):
             prepare_manifest(
                 rc,
                 f"""
@@ -846,3 +848,221 @@ class TestIdRef:
         city_rows = {r["id"]: r for r in app.get("/example/City").json()["_data"]}
         assert city_rows[1]["region"]["_id"] == region_rows["ORD001"]
         assert city_rows[2]["region"]["_id"] == region_rows["ORD002"]
+
+
+class TestRevisionProp:
+    @pytest.mark.parametrize(
+        "cast_type, value1, value2, exp_val1, exp_val2",
+        [
+            ("string", "1", "2", "1", "2"),
+            ("integer", 1, 2, 1, 2),
+            (
+                "uuid",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+                "67ba327b-9acb-4036-acd8-d4f9c7739783",
+                "cb82043b-2bf0-4360-a96c-7372c7a2ae6c",
+            ),
+            ("base32", "13", "14", "GEZQ", "GE2A"),
+        ],
+    )
+    def test_revision_prop_is_simple_type(
+        self,
+        rc: RawConfig,
+        responses: RequestsMock,
+        cast_type: str,
+        value1: str,
+        value2: str,
+        exp_val1: str,
+        exp_val2: str,
+    ):
+        soap_response = f"""
+            <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="order_app">
+                <ns0:Body>
+                    <ns1:OrderOutputResponse>
+                        <ns1:OrderOutput>
+                            <ns1:code>ORD001</ns1:code>
+                            <ns1:id>123</ns1:id>
+                            <ns1:uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</ns1:uuid_id>
+                            <ns1:comma_code>OR,D001</ns1:comma_code>
+                            <ns1:version>{value1}</ns1:version>
+                        </ns1:OrderOutput>
+                        <ns1:OrderOutput>
+                            <ns1:code>ORD002</ns1:code>
+                            <ns1:id>1234</ns1:id>
+                            <ns1:uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</ns1:uuid_id>
+                            <ns1:comma_code>OR,D002</ns1:comma_code>
+                            <ns1:version>{value2}</ns1:version>
+                        </ns1:OrderOutput>
+                    </ns1:OrderOutputResponse>
+                </ns0:Body>
+            </ns0:Envelope>
+        """
+        responses.add(POST, ENDPOINT_URL, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property  | type        | ref  | source        | access | prepare
+            example                   |             |      |               |        |
+              | wsdl_resource         | wsdl        |      | {WSDL_SOURCE} |        |
+              | soap_resource         | soap        |      | {SOAP_SOURCE} |        | wsdl(wsdl_resource)
+              |   |   | Region        |             | code | /             |        |
+              |   |   |   | code      | string      |      | code          | open   |
+              |   |   |   | _revision | {cast_type} |      | version       | open   |
+            """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall"])
+
+        resp = app.get("/example/Region/")
+        assert resp.json()["_data"] == [
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": exp_val1,
+                "code": "ORD001",
+            },
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": exp_val2,
+                "code": "ORD002",
+            },
+        ]
+
+    @pytest.mark.skip(reason="Multiple properties in prepare not supported yet")
+    def test_revision_prop_is_composite(self, rc: RawConfig, responses: RequestsMock):
+        soap_response = """
+            <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="order_app">
+                <ns0:Body>
+                    <ns1:OrderOutputResponse>
+                        <ns1:OrderOutput>
+                            <ns1:code>ORD001</ns1:code>
+                            <ns1:id>123</ns1:id>
+                            <ns1:uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</ns1:uuid_id>
+                            <ns1:comma_code>OR,D001</ns1:comma_code>
+                            <ns1:major>123</ns1:major>
+                            <ns1:minor>14</ns1:minor>
+                        </ns1:OrderOutput>
+                        <ns1:OrderOutput>
+                            <ns1:code>ORD002</ns1:code>
+                            <ns1:id>1234</ns1:id>
+                            <ns1:uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</ns1:uuid_id>
+                            <ns1:comma_code>OR,D002</ns1:comma_code>
+                            <ns1:major>123</ns1:major>
+                            <ns1:minor>13</ns1:minor>
+                        </ns1:OrderOutput>
+                    </ns1:OrderOutputResponse>
+                </ns0:Body>
+            </ns0:Envelope>
+        """
+        responses.add(POST, ENDPOINT_URL, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property  | type    | ref  | source        | access | prepare
+            example                   |         |      |               |        |
+              | wsdl_resource         | wsdl    |      | {WSDL_SOURCE} |        |
+              | soap_resource         | soap    |      | {SOAP_SOURCE} |        | wsdl(wsdl_resource)
+              |   |   | Region        |         | code | /             |        |
+              |   |   |   | code      | string  |      | code          | open   |
+              |   |   |   | major     | string  |      | major         | open   |
+              |   |   |   | minor     | integer |      | minor         | open   |
+              |   |   |   | _revision | string  |      |               | open   | major, minor
+            """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall", "search"])
+
+        resp = app.get("/example/Region/")
+        assert resp.json()["_data"] == [
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "123,14",
+                "code": "ORD001",
+                "major": "123",
+                "minor": 14,
+            },
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "123,13",
+                "code": "ORD002",
+                "major": "123",
+                "minor": 13,
+            },
+        ]
+
+    @pytest.mark.skip(reason="Multiple properties in prepare not supported yet")
+    def test_revision_prop_is_composite_and_base32(self, rc: RawConfig, responses: RequestsMock):
+        soap_response = """
+            <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="order_app">
+                <ns0:Body>
+                    <ns1:OrderOutputResponse>
+                        <ns1:OrderOutput>
+                            <ns1:code>ORD001</ns1:code>
+                            <ns1:id>123</ns1:id>
+                            <ns1:uuid_id>d6420786-082f-4ee4-9624-7a559f31d032</ns1:uuid_id>
+                            <ns1:comma_code>OR,D001</ns1:comma_code>
+                            <ns1:major>123</ns1:major>
+                            <ns1:minor>14</ns1:minor>
+                        </ns1:OrderOutput>
+                        <ns1:OrderOutput>
+                            <ns1:code>ORD002</ns1:code>
+                            <ns1:id>1234</ns1:id>
+                            <ns1:uuid_id>8f5773d6-a5eb-4409-8f88-aca874e27200</ns1:uuid_id>
+                            <ns1:comma_code>OR,D002</ns1:comma_code>
+                            <ns1:major>123</ns1:major>
+                            <ns1:minor>13</ns1:minor>
+                        </ns1:OrderOutput>
+                    </ns1:OrderOutputResponse>
+                </ns0:Body>
+            </ns0:Envelope>
+        """
+        responses.add(POST, ENDPOINT_URL, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property  | type    | ref  | source        | access | prepare
+            example                   |         |      |               |        |
+              | wsdl_resource         | wsdl    |      | {WSDL_SOURCE} |        |
+              | soap_resource         | soap    |      | {SOAP_SOURCE} |        | wsdl(wsdl_resource)
+              |   |   | Region        |         | code | /             |        |
+              |   |   |   | code      | string  |      | code          | open   |
+              |   |   |   | major     | string  |      | major         | open   |
+              |   |   |   | minor     | integer |      | minor         | open   |
+              |   |   |   | _revision | base32  |      |               | open   | major, minor
+            """,
+            mode=Mode.external,
+        )
+        context.loaded = True
+        app = create_test_client(context)
+        app.authmodel("example/Region", ["getall", "search"])
+
+        resp = app.get("/example/Region/")
+        assert resp.json()["_data"] == [
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "QJRTCMRTMIYTI",
+                "code": "ORD001",
+                "major": "123",
+                "minor": 14,
+            },
+            {
+                "_type": "example/Region",
+                "_id": ANY,
+                "_revision": "QJRTCMRTMIYTG",
+                "code": "ORD002",
+                "major": "123",
+                "minor": 13,
+            },
+        ]
