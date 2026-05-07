@@ -8,18 +8,16 @@ from pytest import FixtureRequest
 
 from spinta.components import Context
 from spinta.core.config import RawConfig, Path
-from spinta.core.enums import Mode
 from spinta.exceptions import (
     NoReferencesFound,
     MultipleBackRefReferencesFound,
     OneToManyBackRefNotSupported,
 )
-from spinta.manifests.tabular.helpers import render_tabular_manifest, striptable
-from spinta.testing import cli
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client
 from spinta.testing.data import are_lists_of_dicts_equal
-from spinta.testing.manifest import bootstrap_manifest, prepare_manifest
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 
@@ -1265,7 +1263,7 @@ def test_backref_many_to_one_level_4_rdf(
 def test_backref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
 
     manifest = striptable(
-        f"""
+        """
 id | d | r | b | m | property                | type     | ref    | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
    | datasets/backref/example                |          |        |                                                  |             |         |        |       |       |        |            |        |     |     |       |
    |   | data                                | dask/xml |        | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
@@ -1299,7 +1297,7 @@ id | d | r | b | m | property                | type     | ref    | source       
 def test_backref_and_ref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
 
     manifest = striptable(
-        f"""
+        """
 id | d | r | b | m | property                 | type     | ref     | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
    | datasets/backref/example                 |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
    |   | data                                 | dask/xml |         | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
@@ -1333,7 +1331,7 @@ id | d | r | b | m | property                 | type     | ref     | source     
 def test_backref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
 
     manifest = striptable(
-        f"""
+        """
 id | d | r | b | m | property                | type     | ref    | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
    | datasets/backref/example                |          |        |                                                  |             |         |        |       |       |        |            |        |     |     |       |
    |   | data                                | dask/xml |        | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
@@ -1367,7 +1365,7 @@ id | d | r | b | m | property                | type     | ref    | source       
 def test_backref_and_ref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
 
     manifest = striptable(
-        f"""
+        """
 id | d | r | b | m | property                 | type     | ref     | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
    | datasets/backref/example                 |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
    |   | data                                 | dask/xml |         | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
