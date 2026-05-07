@@ -207,6 +207,7 @@ class ModelRow(TypedDict, total=False):
     title: str
     description: str
     properties: Dict[str, PropertyRow]
+    scopes: Dict[str, ScopeRow]
     external: ModelExternalRow
     backend: str
     lang: LangData
@@ -304,3 +305,18 @@ class CommentRow(TypedDict, total=False):
 
 class CommentData(TypedDict, total=False):
     comments: Optional[List[CommentRow]]
+
+
+class ScopeRow(TypedDict, total=False):
+    id: str
+    name: str
+    prepare: Dict[str, Any]  # formula
+    access: str
+    level: str
+    status: str
+    visibility: str
+    count: int
+    eli: str
+    uri: str
+    title: str
+    description: str
