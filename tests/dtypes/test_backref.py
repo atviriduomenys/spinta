@@ -1294,3 +1294,105 @@ id | d | r | b | m | property                | type     | ref    | source       
     result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
 
     assert striptable(result.stdout) == manifest
+
+
+def test_backref_and_ref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+
+    manifest = striptable(
+        f"""
+id | d | r | b | m | property                 | type     | ref     | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
+   | datasets/backref/example                 |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   | data                                 | dask/xml |         | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
+   |                                          |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | Country                      |          | code    | /salys/salis                                     |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | code                     | string   |         | @kodas                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[]                 | backref  | City    | miestai/miestas                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[].council         | backref  | Council | gatves/gatve                                     |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[].council.address | string   |         | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |                                          |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | City                         |          | name    | /salys/salis/miestai/miestas                     |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | council                  | backref  | Council | gatves/gatve                                     |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | council.address          | string   |         | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |                                          |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | Council                      |          | address | /salys/salis/miestai/miestas/taryba/taryba       |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | address                  | string   |         | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
+
+    assert striptable(result.stdout) == manifest
+
+
+def test_backref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+
+    manifest = striptable(
+        f"""
+id | d | r | b | m | property                | type     | ref    | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
+   | datasets/backref/example                |          |        |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   | data                                | dask/xml |        | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
+   |                                         |          |        |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | Country                     |          | code   | /salys/salis                                     |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | code                    | string   |        | @kodas                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | name                    | string   |        | pavadinimas                                      |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[]                | backref  | City   | miestai/miestas                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[].streets[]      | backref  | Street | gatves/gatve                                     |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[].streets[].name | string   |        | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |                                         |          |        |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | City                        |          | name   | /salys/salis/miestai/miestas                     |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | name                    | string   |        | pavadinimas                                      |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | streets[]               | backref  | Street | gatves/gatve                                     |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | streets[].name          | string   |        | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |                                         |          |        |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | Street                      |          | name   | /salys/salis/miestai/miestas/gatves/gatve        |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | name                    | string   |        | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["copy", tmp_path / "manifest.csv"])
+
+    assert striptable(result.stdout) == manifest
+
+
+def test_backref_and_ref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+
+    manifest = striptable(
+        f"""
+id | d | r | b | m | property                 | type     | ref     | source                                           | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
+   | datasets/backref/example                 |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   | data                                 | dask/xml |         | /home/karina/work/vssa/spinta/demo/1608/1608.xml |             |         |        |       |       |        |            |        |     |     |       |
+   |                                          |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | Country                      |          | code    | /salys/salis                                     |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | code                     | string   |         | @kodas                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[]                 | backref  | City    | miestai/miestas                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[].council         | backref  | Council | gatves/gatve                                     |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | cities[].council.address | string   |         | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |                                          |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | City                         |          | name    | /salys/salis/miestai/miestas                     |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | council                  | backref  | Council | gatves/gatve                                     |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   |   | council.address          | string   |         | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+   |                                          |          |         |                                                  |             |         |        |       |       |        |            |        |     |     |       |
+   |   |   |   | Council                      |          | address | /salys/salis/miestai/miestas/taryba/taryba       |             |         |        |       |       |        |            | open   |     |     |       |
+   |   |   |   |   | address                  | string   |         | text()                                           |             |         |        |       |       |        |            |        |     |     |       |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["copy", tmp_path / "manifest.csv"])
+
+    assert striptable(result.stdout) == manifest
