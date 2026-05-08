@@ -23,7 +23,6 @@ RUN apt-get update && \
         libsqlite3-dev && \
     pip install --upgrade pip wheel setuptools && \
     pip install --require-hashes -r /app/requirements/spinta-${VERSION}.txt && \
-    pip install uvicorn && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
