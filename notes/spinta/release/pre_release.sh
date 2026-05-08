@@ -8,9 +8,9 @@ test -n "$PID" && kill "$PID"
 # Setup versions and create prepare branch
 # Change version numbers here
 export MAJOR=0
-export MINOR=2dev23
-export OLD_MINOR=2dev22
-export FUTURE_MINOR=2dev24
+export MINOR=2dev24
+export OLD_MINOR=2dev23
+export FUTURE_MINOR=2dev25
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -126,7 +126,11 @@ EOF
 # generate hashed requirements file
 
 poetry export -f requirements.txt \
-  --output requirements/spinta-${NEW_VERSION}.txt
+  --all-extras \
+  --all-groups \
+  -o requirements/spinta-${NEW_VERSION}.txt
+
+todo ištestuoti https://github.com/atviriduomenys/spinta/pull/1912
 
 # get hashes to spinta itself
 
