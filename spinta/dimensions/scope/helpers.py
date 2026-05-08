@@ -3,8 +3,30 @@ from typing import cast
 from spinta.components import Context, Model
 from spinta.core.access import load_access_param
 from spinta.core.enums import load_level, load_status, load_visibility
-from spinta.dimensions.scope.components import Scope
+from spinta.core.ufuncs import asttoexpr, Expr
+from spinta.dimensions.scope.components import Scope, ScopeLoader
+from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
+from spinta.ufuncs.loadbuilder.components import LoadBuilder
+
+
+def link_scopes(context: Context, manifest: Manifest, scopes: dict[str, Scope]) -> None:
+    if not scopes:
+        return
+    loader = ScopeLoader(context)
+    loader.update(manifest=manifest)
+    loader.resolve(Expr("resolve_scope", list(scopes.values())))
+
+
+def load_prepare(context: Context, scope: Scope, prepare: dict) -> None:
+    expr = asttoexpr(prepare)
+    builder = LoadBuilder(context)
+    builder.update(this=scope)
+
+    if isinstance(expr, Expr):
+        scope.prepare = builder.resolve(expr) or expr
+    else:
+        scope.prepare = expr
 
 
 def _load_scope(
@@ -25,6 +47,7 @@ def _load_scope(
     load_status(scope, data.get("status"))
     load_visibility(scope, data.get("visibility"))
     load_access_param(scope, data.get("access"), parents)
+    load_prepare(context, scope, data.get("prepare"))
 
     return scope
 

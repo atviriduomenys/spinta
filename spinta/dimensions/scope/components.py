@@ -1,6 +1,11 @@
 from spinta.components import ExtraMetaData
 from spinta.core.enums import Access, Visibility, Status
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, Env
+from spinta.manifests.components import Manifest
+
+
+class ScopeLoader(Env):
+    manifest: Manifest
 
 
 class ScopeGiven:
