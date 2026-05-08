@@ -522,7 +522,6 @@ def handle_internal_ref_to_scalar_conversion(
             columns={column_name: ref_primary_column},
             target="_id",
         ),
-        foreign_key=True,
     )
     commands.migrate(context, backend, migration_context, model_context, ref_col, NA, **updated_kwargs)
     return True
@@ -675,7 +674,6 @@ def handle_unique_constraint_migration(
     new_column: sa.Column,
     handler: MigrationHandler,
     inspector: Inspector,
-    foreign_key: bool,
     renamed: bool,
     model_context: ModelMigrationContext,
 ):
@@ -719,7 +717,6 @@ def handle_unique_constraint_migration(
             ma.CreateUniqueConstraintMigrationAction(
                 constraint_name=unique_name, table_identifier=target_table_identifier, columns=[new_column_name]
             ),
-            foreign_key,
         )
         return
 
@@ -729,14 +726,12 @@ def handle_unique_constraint_migration(
                 table_identifier=target_table_identifier,
                 constraint_name=unique_name,
             ),
-            foreign_key,
         )
 
         handler.add_action(
             ma.CreateUniqueConstraintMigrationAction(
                 constraint_name=unique_name, table_identifier=target_table_identifier, columns=[new_column_name]
             ),
-            foreign_key,
         )
 
 
@@ -765,7 +760,6 @@ def handle_index_migration(
     new_column: sa.Column,
     handler: MigrationHandler,
     inspector: Inspector,
-    foreign_key: bool,
     renamed: bool,
     model_context: ModelMigrationContext,
 ):
@@ -812,9 +806,7 @@ def handle_index_migration(
         if existing_index["column_names"] == [constraint_column]:
             return
 
-        handler.add_action(
-            ma.DropIndexMigrationAction(index_name=index_name, table_identifier=target_table_identifier), foreign_key
-        )
+        handler.add_action(ma.DropIndexMigrationAction(index_name=index_name, table_identifier=target_table_identifier))
         handler.add_action(
             ma.CreateIndexMigrationAction(
                 index_name=index_name,
@@ -822,7 +814,6 @@ def handle_index_migration(
                 columns=[constraint_column],
                 using=using,
             ),
-            foreign_key,
         )
         return
 
@@ -830,7 +821,6 @@ def handle_index_migration(
         ma.CreateIndexMigrationAction(
             index_name=index_name, table_identifier=target_table_identifier, columns=[constraint_column], using=using
         ),
-        foreign_key,
     )
 
 

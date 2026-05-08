@@ -110,7 +110,6 @@ def migrate(
     property_ctx: PropertyMigrationContext,
     old: sa.Column,
     new: sa.Column,
-    foreign_key: bool = False,
     **kwargs,
 ):
     inspector = migration_ctx.inspector
@@ -154,7 +153,6 @@ def migrate(
                 comment=new.comment if new.comment != old.comment else False,
                 using=using,
             ),
-            foreign_key,
         )
 
     is_renamed = name_changed(
@@ -170,7 +168,6 @@ def migrate(
         new_column=new,
         handler=handler,
         inspector=inspector,
-        foreign_key=foreign_key,
         renamed=is_renamed,
         model_context=property_ctx.model_context,
     )
@@ -181,7 +178,6 @@ def migrate(
         new_column=new,
         handler=handler,
         inspector=inspector,
-        foreign_key=foreign_key,
         renamed=is_renamed,
         model_context=property_ctx.model_context,
     )
@@ -197,7 +193,6 @@ def migrate(
     property_ctx: PropertyMigrationContext,
     old: NotAvailable,
     new: sa.Column,
-    foreign_key: bool = False,
     **kwargs,
 ):
     inspector = migration_ctx.inspector
@@ -212,7 +207,6 @@ def migrate(
             table_identifier=target_table_identifier,
             column=new,
         ),
-        foreign_key,
     )
 
     new_column_name = new.name
@@ -300,7 +294,6 @@ def migrate(
     node_ctx: PropertyMigrationContext | ModelMigrationContext,
     old: sa.Column,
     new: NotAvailable,
-    foreign_key: bool = False,
     **kwargs,
 ):
     model_ctx = node_ctx
@@ -328,7 +321,7 @@ def migrate(
 
     if any(remove_name == column["name"] for column in columns):
         handler.add_action(
-            ma.DropColumnMigrationAction(table_identifier=target_table_identifier, column_name=remove_name), foreign_key
+            ma.DropColumnMigrationAction(table_identifier=target_table_identifier, column_name=remove_name)
         )
     handler.add_action(
         ma.AlterColumnMigrationAction(
@@ -337,7 +330,6 @@ def migrate(
             new_column_name=remove_name,
             comment=get_removed_name(old.comment or old.name),
         ),
-        foreign_key,
     )
     indexes = inspector.get_indexes(table_name=source_table_name, schema=source_table.schema)
     for index in indexes:
@@ -348,7 +340,6 @@ def migrate(
                     table_identifier=target_table_identifier,
                     index_name=index["name"],
                 ),
-                foreign_key,
             )
     if old.unique:
         unique_constraints = inspector.get_unique_constraints(table_name=source_table_name, schema=source_table.schema)
@@ -360,7 +351,6 @@ def migrate(
                         table_identifier=target_table_identifier,
                         constraint_name=constraint["name"],
                     ),
-                    foreign_key,
                 )
 
 
@@ -374,8 +364,7 @@ def migrate(
     property_ctx: PropertyMigrationContext,
     old: NotAvailable,
     new: List[sa.Column],
-    foreign_key: bool = False,
     **kwargs,
 ):
     for column in new:
-        commands.migrate(context, backend, migration_ctx, property_ctx, old, column, foreign_key=foreign_key, **kwargs)
+        commands.migrate(context, backend, migration_ctx, property_ctx, old, column, **kwargs)

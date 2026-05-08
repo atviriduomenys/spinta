@@ -361,7 +361,6 @@ def _clean_up_old_constraints(
             model_context.mark_foreign_constraint_handled(constrained_table, constraint)
             handler.add_action(
                 ma.DropConstraintMigrationAction(table_identifier=table_identifier, constraint_name=constraint),
-                foreign_key=True,
             )
 
         for index, state in constraint_states.index.items():
@@ -492,7 +491,6 @@ def _handle_model_foreign_key_constraints(
                     ma.DropConstraintMigrationAction(
                         table_identifier=target_table_identifier, constraint_name=id_constraint["name"]
                     ),
-                    True,
                 )
                 handler.add_action(
                     ma.CreateForeignKeyMigrationAction(
@@ -502,7 +500,6 @@ def _handle_model_foreign_key_constraints(
                         local_cols=["_id"],
                         remote_cols=["_id"],
                     ),
-                    True,
                 )
                 return
 
@@ -528,7 +525,6 @@ def _handle_model_foreign_key_constraints(
                 ma.DropConstraintMigrationAction(
                     table_identifier=target_table_identifier, constraint_name=id_constraint["name"]
                 ),
-                True,
             )
             handler.add_action(
                 ma.CreateForeignKeyMigrationAction(
@@ -538,7 +534,6 @@ def _handle_model_foreign_key_constraints(
                     local_cols=["_id"],
                     remote_cols=["_id"],
                 ),
-                True,
             )
             return
 
@@ -551,7 +546,6 @@ def _handle_model_foreign_key_constraints(
                 local_cols=["_id"],
                 remote_cols=["_id"],
             ),
-            True,
         )
 
 
