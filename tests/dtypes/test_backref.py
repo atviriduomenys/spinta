@@ -6,15 +6,19 @@ import pytest
 
 from pytest import FixtureRequest
 
-from spinta.core.config import RawConfig
+from spinta.components import Context
+from spinta.core.config import RawConfig, Path
 from spinta.exceptions import (
     NoReferencesFound,
     MultipleBackRefReferencesFound,
     OneToManyBackRefNotSupported,
 )
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client
 from spinta.testing.data import are_lists_of_dicts_equal
-from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import bootstrap_manifest, compare_manifest, load_manifest_and_context
+from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 
 
@@ -1255,3 +1259,143 @@ def test_backref_many_to_one_level_4_rdf(
         f"</rdf:Description>\n"
         f"</rdf:RDF>\n"
     )
+
+
+def test_backref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    manifest = striptable(
+        """
+id | d | r | b | m | property                | type     | ref    | source                                           |access
+   | datasets/backref/example                |          |        |                                                  |
+   |   | data                                | dask/xml |        | /home/karina/work/vssa/spinta/demo/1608/1608.xml |
+   |                                         |          |        |                                                  |
+   |   |   |   | Country                     |          | code   | /salys/salis                                     |open  
+   |   |   |   |   | code                    | string   |        | @kodas                                           |
+   |   |   |   |   | name                    | string   |        | pavadinimas                                      |
+   |   |   |   |   | cities[]                | backref  | City   | miestai/miestas                                  |
+   |   |   |   |   | cities[].streets[]      | backref  | Street | gatves/gatve                                     |
+   |   |   |   |   | cities[].streets[].name | string   |        | text()                                           |
+   |                                         |          |        |                                                  |
+   |   |   |   | City                        |          | name   | /salys/salis/miestai/miestas                     |open  
+   |   |   |   |   | name                    | string   |        | pavadinimas                                      |
+   |   |   |   |   | streets[]               | backref  | Street | gatves/gatve                                     |
+   |   |   |   |   | streets[].name          | string   |        | text()                                           |
+   |                                         |          |        |                                                  |
+   |   |   |   | Street                      |          | name   | /salys/salis/miestai/miestas/gatves/gatve        |open  
+   |   |   |   |   | name                    | string   |        | text()                                           |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
+
+    _, loaded_manifest = load_manifest_and_context(rc, tmp_path / "manifest.csv")
+    a, b = compare_manifest(loaded_manifest, result.stdout)
+    assert a == b
+
+
+def test_backref_and_ref_nested_show(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    manifest = striptable(
+        """
+id | d | r | b | m | property                 | type     | ref     | source                                           |access
+   | datasets/backref/example                 |          |         |                                                  |
+   |   | data                                 | dask/xml |         | /home/karina/work/vssa/spinta/demo/1608/1608.xml |
+   |                                          |          |         |                                                  |
+   |   |   |   | Country                      |          | code    | /salys/salis                                     |open  
+   |   |   |   |   | code                     | string   |         | @kodas                                           |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |
+   |   |   |   |   | cities[]                 | backref  | City    | miestai/miestas                                  |
+   |   |   |   |   | cities[].council         | backref  | Council | gatves/gatve                                     |
+   |   |   |   |   | cities[].council.address | string   |         | text()                                           |
+   |                                          |          |         |                                                  |
+   |   |   |   | City                         |          | name    | /salys/salis/miestai/miestas                     |open  
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |
+   |   |   |   |   | council                  | backref  | Council | gatves/gatve                                     |
+   |   |   |   |   | council.address          | string   |         | text()                                           |
+   |                                          |          |         |                                                  |
+   |   |   |   | Council                      |          | address | /salys/salis/miestai/miestas/taryba/taryba       |open  
+   |   |   |   |   | address                  | string   |         | text()                                           |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
+
+    _, loaded_manifest = load_manifest_and_context(rc, tmp_path / "manifest.csv")
+    a, b = compare_manifest(loaded_manifest, result.stdout)
+    assert a == b
+
+
+def test_backref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    manifest = striptable(
+        """
+id | d | r | b | m | property                | type     | ref    | source                                           | access
+   | datasets/backref/example                |          |        |                                                  |
+   |   | data                                | dask/xml |        | /home/karina/work/vssa/spinta/demo/1608/1608.xml |
+   |                                         |          |        |                                                  |
+   |   |   |   | Country                     |          | code   | /salys/salis                                     | open  
+   |   |   |   |   | code                    | string   |        | @kodas                                           |
+   |   |   |   |   | name                    | string   |        | pavadinimas                                      |
+   |   |   |   |   | cities[]                | backref  | City   | miestai/miestas                                  |
+   |   |   |   |   | cities[].streets[]      | backref  | Street | gatves/gatve                                     |
+   |   |   |   |   | cities[].streets[].name | string   |        | text()                                           |
+   |                                         |          |        |                                                  |
+   |   |   |   | City                        |          | name   | /salys/salis/miestai/miestas                     | open  
+   |   |   |   |   | name                    | string   |        | pavadinimas                                      |
+   |   |   |   |   | streets[]               | backref  | Street | gatves/gatve                                     |
+   |   |   |   |   | streets[].name          | string   |        | text()                                           |
+   |                                         |          |        |                                                  |
+   |   |   |   | Street                      |          | name   | /salys/salis/miestai/miestas/gatves/gatve        | open  
+   |   |   |   |   | name                    | string   |        | text()                                           |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["copy", tmp_path / "manifest.csv"])
+
+    _, loaded_manifest = load_manifest_and_context(rc, tmp_path / "manifest.csv")
+    a, b = compare_manifest(loaded_manifest, result.stdout)
+    assert a == b
+
+
+def test_backref_and_ref_nested_copy(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    manifest = striptable(
+        """
+id | d | r | b | m | property                 | type     | ref     | source                                           | access
+   | datasets/backref/example                 |          |         |                                                  |
+   |   | data                                 | dask/xml |         | /home/karina/work/vssa/spinta/demo/1608/1608.xml |
+   |                                          |          |         |                                                  |
+   |   |   |   | Country                      |          | code    | /salys/salis                                     | open  
+   |   |   |   |   | code                     | string   |         | @kodas                                           |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |
+   |   |   |   |   | cities[]                 | backref  | City    | miestai/miestas                                  |
+   |   |   |   |   | cities[].council         | backref  | Council | gatves/gatve                                     |
+   |   |   |   |   | cities[].council.address | string   |         | text()                                           |
+   |                                          |          |         |                                                  |
+   |   |   |   | City                         |          | name    | /salys/salis/miestai/miestas                     | open  
+   |   |   |   |   | name                     | string   |         | pavadinimas                                      |
+   |   |   |   |   | council                  | backref  | Council | gatves/gatve                                     |
+   |   |   |   |   | council.address          | string   |         | text()                                           |
+   |                                          |          |         |                                                  |
+   |   |   |   | Council                      |          | address | /salys/salis/miestai/miestas/taryba/taryba       | open  
+   |   |   |   |   | address                  | string   |         | text()                                           |
+    """,
+    )
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["copy", tmp_path / "manifest.csv"])
+
+    _, loaded_manifest = load_manifest_and_context(rc, tmp_path / "manifest.csv")
+    a, b = compare_manifest(loaded_manifest, result.stdout)
+    assert a == b

@@ -100,6 +100,10 @@ def _link_backref(context: Context, dtype: BackRef):
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
+    if dtype.properties:
+        for inner_prop in dtype.properties.values():
+            commands.link(context, inner_prop)
+
     if _is_parent_array_backref(dtype) or dtype.refprop is None or dtype.refprop.list is None:
         return
 
