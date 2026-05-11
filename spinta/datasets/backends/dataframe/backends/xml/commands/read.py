@@ -14,11 +14,12 @@ from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     dask_get_all,
     get_pkeys_if_ref,
-    get_dask_dataframe_meta,
+    OBJECT_DTYPE,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
+from spinta.types.datatype import Denorm
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
 
@@ -70,7 +71,7 @@ def _parse_xml_loop_model_properties(
                 new_value = str(v)
             else:
                 new_value = None
-        new_dict[prop["source"]] = new_value
+        new_dict[prop.get("column", prop["source"])] = new_value
 
     added_root_elements.append(value)
     return new_dict
@@ -132,15 +133,27 @@ def getall(
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
+    meta = {}
 
     for prop in model.flatprops.values():
         if prop.external and prop.external.name:
+            if isinstance(prop.dtype, Denorm) and prop.parent.external and prop.parent.external.name:
+                # Denorm property (no explicit type, inherited from ref model):
+                # XPath must be relative to the parent ref's element, not the model's element.
+                # Use `prop.place` as column name to avoid collision with properties sharing the same `external.name`.
+                parent_source = prop.parent.external.name
+                source = f"{parent_source}/{prop.external.name}"
+                column = prop.place
+            else:
+                source = prop.external.name
+                column = prop.external.name
+
             props[prop.place] = {
-                "source": prop.external.name,
+                "source": source,
+                "column": column,
                 "pkeys": get_pkeys_if_ref(prop),
             }
-
-    meta = get_dask_dataframe_meta(model)
+            meta[column] = OBJECT_DTYPE
 
     if resource.external:
         data_source = parametrize_bases(context, model, model.external.resource, resolved_params)

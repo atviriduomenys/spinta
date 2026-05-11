@@ -14,6 +14,39 @@ from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.schema import NA
 
 
+NESTED_XML_EXAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
+<countries>
+    <country>
+        <name>Lithuania</name>
+        <code>LT</code>
+        <cities>
+            <city>
+                <name>Vilnius</name>
+                <code>VNO</code>
+            </city>
+            <city>
+                <name>Kaunas</name>
+                <code>KNS</code>
+            </city>
+        </cities>
+    </country>
+    <country>
+        <name>United Kingdom</name>
+        <code>UK</code>
+        <cities>
+            <city>
+                <name>London</name>
+                <code>LND</code>
+            </city>
+            <city>
+                <name>Manchester</name>
+                <code>MAN</code>
+            </city>
+        </cities>
+    </country>
+</countries>"""
+
+
 def test_xml_read(rc: RawConfig, tmp_path: Path):
     xml = """
         <cities>
@@ -1952,4 +1985,88 @@ def test_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Pa
                 "country": {"code": "PL", "region": {"code": "REG002", "name": "Warsaw Region"}},
             },
         },
+    ]
+
+
+def test_xml_read_denorm_ref_no_type(rc: RawConfig, tmp_path: Path):
+    """Denorm properties without explicit type should resolve relative to the parent ref's XPath source."""
+    path = tmp_path / "countries.xml"
+    path.write_text(NESTED_XML_EXAMPLE)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property     | type     | ref     | source                            | access
+    example/xml                  |          |         |                                   |
+      | res                      | dask/xml |         | {path}                            |
+      |   |   | Country          |          | code    | countries/country                 |
+      |   |   |   | name         | string   |         | name                              | open
+      |   |   |   | code         | string   |         | code                              | open
+      |   |   | City             |          |         | countries/country/cities/city     |
+      |   |   |   | name         | string   |         | name                              | open
+      |   |   |   | code         | string   |         | code                              | open
+      |   |   |   | country      | ref      | Country | ../..                             | open
+      |   |   |   | country.code |          |         | code                              | open
+      |   |   |   | country.name |          |         | name                              | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml", ["getall"])
+
+    response = app.get("/example/xml/City")
+
+    assert response.status_code == 200
+    data = sorted(
+        listdata(response, "name", "code", "country.code", "country.name", full=True),
+        key=lambda x: x["name"],
+    )
+    assert data == [
+        {"name": "Kaunas", "code": "KNS", "country.code": "LT", "country.name": "Lithuania"},
+        {"name": "London", "code": "LND", "country.code": "UK", "country.name": "United Kingdom"},
+        {"name": "Manchester", "code": "MAN", "country.code": "UK", "country.name": "United Kingdom"},
+        {"name": "Vilnius", "code": "VNO", "country.code": "LT", "country.name": "Lithuania"},
+    ]
+
+
+def test_xml_read_denorm_ref_with_type(rc: RawConfig, tmp_path: Path):
+    """Denorm properties WITH explicit type should resolve relative to the model element."""
+    path = tmp_path / "countries.xml"
+    path.write_text(NESTED_XML_EXAMPLE)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property     | type     | ref     | source                            | access
+    example/xml                  |          |         |                                   |
+      | res                      | dask/xml |         | {path}                            |
+      |   |   | Country          |          | code    | countries/country                 |
+      |   |   |   | name         | string   |         | name                              | open
+      |   |   |   | code         | string   |         | code                              | open
+      |   |   | City             |          |         | countries/country/cities/city     |
+      |   |   |   | name         | string   |         | name                              | open
+      |   |   |   | code         | string   |         | code                              | open
+      |   |   |   | country      | ref      | Country | ../..                             | open
+      |   |   |   | country.code | string   |         | code                              | open
+      |   |   |   | country.name | string   |         | name                              | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/xml", ["getall"])
+
+    response = app.get("/example/xml/City")
+
+    assert response.status_code == 200
+    data = sorted(
+        listdata(response, "name", "code", "country.code", "country.name", full=True),
+        key=lambda x: x["name"],
+    )
+    assert data == [
+        {"name": "Kaunas", "code": "KNS", "country.code": "KNS", "country.name": "Kaunas"},
+        {"name": "London", "code": "LND", "country.code": "LND", "country.name": "London"},
+        {"name": "Manchester", "code": "MAN", "country.code": "MAN", "country.name": "Manchester"},
+        {"name": "Vilnius", "code": "VNO", "country.code": "VNO", "country.name": "Vilnius"},
     ]

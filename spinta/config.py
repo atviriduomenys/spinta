@@ -105,6 +105,7 @@ CONFIG = {
             "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder",
             "sql/sas": "spinta.datasets.backends.sql.backends.sas.ufuncs.query.components:SASQueryBuilder",
             "dask": "spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder",
+            "dask/xml": "spinta.datasets.backends.dataframe.backends.xml.ufuncs.query.components:XmlQueryBuilder",
             "soap": "spinta.datasets.backends.dataframe.backends.soap.ufuncs.components:SoapQueryBuilder",
         },
         "resultbuilders": {

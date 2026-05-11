@@ -10,6 +10,12 @@ Bug fixes:
 
 .. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
 
+Improvements:
+
+- Add XML denorm property XPath resolution to parent ref source (`#1884`_).
+
+.. _#1884: https://github.com/atviriduomenys/spinta/issues/1884
+
 0.2dev24 (2026-05-08)
 =====================
 
