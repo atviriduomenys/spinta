@@ -37,6 +37,7 @@ from spinta.testing.migration import (
     rename_redirect,
     drop_index,
     add_schema,
+    rename_constraint,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
@@ -1033,12 +1034,9 @@ def test_migrate_rename_model(migration_db: Engine, rc: RawConfig, cli: SpintaCl
         f"{rename_changelog(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
         f"{rename_redirect(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
         f"{rename_table(old_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), new_table_identifier=new_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'))}"
-        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someRef._id', new_index_name='ix_New_someRef._id')}"
-        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test__txn', new_index_name='ix_New__txn')}"
-        'ALTER TABLE "migrate/example"."New" RENAME CONSTRAINT '
-        '"fk_Test_someRef._id_Ref" TO '
-        '"fk_New_someRef._id_NewRef";\n'
-        "\n"
+        f"{rename_index(table_identifier=new_table_identifier, old_index_name='ix_Test_someRef._id', new_index_name='ix_New_someRef._id')}"
+        f"{rename_constraint(table_identifier=new_table_identifier, old_constraint_name='fk_Test_someRef._id_Ref', new_constraint_name='fk_New_someRef._id_NewRef')}"
+        f"{rename_index(table_identifier=new_table_identifier, old_index_name='ix_Test__txn', new_index_name='ix_New__txn')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1161,9 +1159,7 @@ def test_migrate_rename_property(migration_db: Engine, rc: RawConfig, cli: Spint
     assert result.output.endswith(
         "BEGIN;\n\n"
         f"{rename_column(table_identifier=ref_table_identifier, column='someText', new_name='newText')}"
-        'ALTER TABLE "migrate/example"."Ref" RENAME CONSTRAINT '
-        '"uq_Ref_someText" TO "uq_Ref_newText";\n'
-        "\n"
+        f"{rename_constraint(table_identifier=ref_table_identifier, old_constraint_name='uq_Ref_someText', new_constraint_name='uq_Ref_newText')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someText', new_name='newText')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._id', new_name='newFile._id')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._content_type', new_name='newFile._content_type')}"
@@ -1171,13 +1167,10 @@ def test_migrate_rename_property(migration_db: Engine, rc: RawConfig, cli: Spint
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._bsize', new_name='newFile._bsize')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._blocks', new_name='newFile._blocks')}"
         f"{rename_table(old_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), new_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='newFile'))}"
-        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someOther._id', new_index_name='ix_Test_newOther._id')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someRef.someText', new_name='newRef.newText')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someOther._id', new_name='newOther._id')}"
-        'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT '
-        '"fk_Test_someOther._id_Ref" TO '
-        '"fk_Test_newOther._id_Ref";\n'
-        "\n"
+        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someOther._id', new_index_name='ix_Test_newOther._id')}"
+        f"{rename_constraint(table_identifier=test_table_identifier, old_constraint_name='fk_Test_someOther._id_Ref', new_constraint_name='fk_Test_newOther._id_Ref')}"
         "COMMIT;\n"
         "\n"
     )

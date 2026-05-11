@@ -83,10 +83,10 @@ def change_index_schema(table_identifier: TableIdentifier, index_name: str, new_
 
 
 # Constraint migration helpers
-def rename_constraint(table_identifier: TableIdentifier, constraint_name: str, new_constraint_name: str) -> str:
+def rename_constraint(table_identifier: TableIdentifier, old_constraint_name: str, new_constraint_name: str) -> str:
     return (
         f"ALTER TABLE {table_identifier.pg_escaped_qualified_name} "
-        f"RENAME CONSTRAINT {pg_identifier_preparer.quote(constraint_name)} TO {pg_identifier_preparer.quote(new_constraint_name)};\n\n"
+        f"RENAME CONSTRAINT {pg_identifier_preparer.quote(old_constraint_name)} TO {pg_identifier_preparer.quote(new_constraint_name)};\n\n"
     )
 
 
@@ -248,7 +248,7 @@ def rename_table(
     if rename_pk_constraint:
         old_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": old_table_identifier.pg_table_name}
         new_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": new_table_identifier.pg_table_name}
-        query += f"{rename_constraint(table_identifier=new_table_identifier, constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
+        query += f"{rename_constraint(table_identifier=new_table_identifier, old_constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
     return query
 
 
@@ -282,7 +282,7 @@ def rename_changelog(
     return (
         f"{rename_table(old_table_identifier=old_table_identifier, new_table_identifier=new_table_identifier, comment=comment, rename_pk_constraint=False)}"
         f"{sequence_rename}"
-        f"{rename_constraint(table_identifier=new_table_identifier, constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
+        f"{rename_constraint(table_identifier=new_table_identifier, old_constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
         f"{index_rename}"
     )
 
