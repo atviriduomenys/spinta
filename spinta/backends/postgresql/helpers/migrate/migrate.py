@@ -27,6 +27,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
+from spinta.backends.postgresql.helpers.migrate.citus import ShardingPlan, handle_ordered_distribution_strategies
 from spinta.backends.postgresql.helpers.migrate.name import (
     RenameMap,
     get_full_name,
@@ -71,6 +72,10 @@ class PostgresqlMigrationContext(MigrationContext):
 
     # Live metadata
     metadata: sa.MetaData
+
+    # Citus distribution plans
+    distribute_plan: ShardingPlan = dataclasses.field(default=None)
+    undistribute_plan: ShardingPlan = dataclasses.field(default=None)
 
     _table_identifier_cache: dict[str, TableIdentifier] = dataclasses.field(default_factory=dict)
 
@@ -1321,7 +1326,12 @@ def generate_model_tables_mapping(
     return mapped_tables
 
 
-def create_table_migration(table: sa.Table, handler: MigrationHandler, table_identifier: TableIdentifier = None):
+def create_table_migration(
+    migration_ctx: PostgresqlMigrationContext,
+    table: sa.Table,
+    table_identifier: TableIdentifier = None,
+):
+    handler = migration_ctx.handler
     columns = list(table.columns)
     constraints = list(table.constraints)
     indexes = list(table.indexes)
@@ -1350,6 +1360,7 @@ def create_table_migration(table: sa.Table, handler: MigrationHandler, table_ide
             table_identifier=table_identifier, columns=all_columns, comment=table.comment, indexes=filtered_indexes
         )
     )
+    handle_ordered_distribution_strategies(migration_ctx, table_identifier)
 
 
 def rank_model_names(name: str) -> int:

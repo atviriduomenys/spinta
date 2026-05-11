@@ -1,10 +1,22 @@
+from copy import deepcopy
+
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
 from spinta import commands
 from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.actions import (
+    MigrationHandler,
+    UndistributeSchema,
+)
+from spinta.backends.postgresql.helpers.migrate.citus import (
+    create_sharding_plan,
+    gather_current_sharding_plan,
+    undistribute_all,
+    distribute_all,
+    ShardingPlan,
+)
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
     validate_rename_map,
@@ -81,6 +93,29 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
     sorted_models_mapping = {model.model_type(): model for model in sorted_models}
+
+    allowed_old_namespaces = list(
+        set(
+            model_table.main_table.schema
+            for model_table in tables.values()
+            if model_table.main_table is not None and model_table.main_table.schema
+        )
+    )
+    sharding_plan = create_sharding_plan(context, sorted_models).get(backend.name, ShardingPlan())
+    current_sharding_plan = gather_current_sharding_plan(context, schemas=allowed_old_namespaces).get(
+        backend.name, ShardingPlan()
+    )
+
+    undistribute_plan = current_sharding_plan - sharding_plan
+    distribute_plan = sharding_plan - current_sharding_plan
+    migration_ctx.distribute_plan = distribute_plan
+    migration_ctx.undistribute_plan = undistribute_plan
+
+    # Undistribute schemas first (always)
+    for schema in deepcopy(undistribute_plan.schemas):
+        handler.add_action(UndistributeSchema(schema_name=schema))
+        undistribute_plan.schemas.discard(schema)
+
     # Do reverse zip, to ensure that sorted models get selected first
     zipped_names = zipitems(sorted_models_mapping.keys(), tables.keys(), name_key)
     for zipped_name in zipped_names:
@@ -92,6 +127,10 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
             if model_tables_name:
                 model_tables = tables[model_tables_name]
             commands.migrate(context, backend, migration_ctx, model_tables, model)
+
+
+    undistribute_all(context, backend, undistribute_plan, handler)
+    distribute_all(context, backend, distribute_plan, handler)
 
     try:
         # Handle autocommit migrations differently
@@ -164,6 +203,14 @@ def _filter_models_and_tables(
 ) -> tuple[dict[str, Model], dict[str, ModelTables]]:
     # tables = []
 
+    remapped_tables = {}
+    for name, table in model_tables.items():
+        table_identifier = rename.to_new_table(name)
+        table_name = table_identifier.logical_qualified_name
+        if table_name not in models.keys():
+            table_name = name
+        remapped_tables[table_name] = table
+
     # Filter if only specific dataset can be changed
     if filtered_datasets:
         filtered_models = {}
@@ -173,18 +220,10 @@ def _filter_models_and_tables(
         models = filtered_models
 
         filtered_names = {}
-        for table_name in model_tables:
+        for table_name in remapped_tables:
             for dataset_name in filtered_datasets:
                 if part_of_dataset(table_name, dataset_name):
-                    filtered_names[table_name] = model_tables[table_name]
-        model_tables = filtered_names
-
-    remapped_tables = {}
-    for name, table in model_tables.items():
-        table_identifier = rename.to_new_table(name)
-        table_name = table_identifier.logical_qualified_name
-        if table_name not in models.keys():
-            table_name = name
-        remapped_tables[table_name] = table
+                    filtered_names[table_name] = remapped_tables[table_name]
+        remapped_tables = filtered_names
 
     return models, remapped_tables

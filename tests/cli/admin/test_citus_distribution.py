@@ -5,11 +5,12 @@ from sqlalchemy.engine import Engine
 
 from spinta import commands
 from spinta.backends.helpers import get_table_identifier
+from spinta.backends.postgresql.helpers.migrate.citus import gather_current_sharding_plan
 from spinta.cli.helpers.admin.components import Script
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.core.config import RawConfig
-from spinta.testing.citus import gather_citus_state, bootstrap_distribute_manifest
+from spinta.testing.citus import bootstrap_distribute_manifest
 from spinta.testing.cli import SpintaCliRunner, result_contains
 
 
@@ -50,7 +51,7 @@ def test_default_distribution_schema(
 
     manifest = context.get("store").manifest
     backend = manifest.backend
-    current_citus_state = gather_citus_state(context, backend)
+    current_citus_state = gather_current_sharding_plan(context, backend)
 
     test_model = commands.get_model(context, manifest, "distribute/example/Test")
     data_model = commands.get_model(context, manifest, "distribute/data/Data")
@@ -69,7 +70,7 @@ def test_default_distribution_schema(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.CITUS_DISTRIBUTION.value])
     assert result.exit_code == 0
-    updated_citus_state = gather_citus_state(context, backend)
+    updated_citus_state = gather_current_sharding_plan(context, backend)
 
     if result_mapping[0] is not None:
         assert updated_citus_state.schemas == set(result_mapping[0])
@@ -82,9 +83,9 @@ def test_default_distribution_schema(
         assert not updated_citus_state.references
 
     if result_mapping[2] is not None:
-        assert updated_citus_state.distributed == set(
-            (identifier_mapping[result], prop) for result, prop in result_mapping[2]
-        )
+        assert updated_citus_state.distributed == {
+            identifier_mapping[result]: prop for result, prop in result_mapping[2]
+        }
     else:
         assert not updated_citus_state.distributed
 
@@ -144,7 +145,7 @@ def test_undistribute_from_default_distribution(
 
     result = cli.invoke(context.get("rc"), ["admin", Script.CITUS_DISTRIBUTION.value])
     assert result.exit_code == 0
-    updated_citus_state = gather_citus_state(context, backend)
+    updated_citus_state = gather_current_sharding_plan(context, backend)
 
     if result_mapping[0] is not None:
         assert updated_citus_state.schemas == set(result_mapping[0])
@@ -157,9 +158,9 @@ def test_undistribute_from_default_distribution(
         assert not updated_citus_state.references
 
     if result_mapping[2] is not None:
-        assert updated_citus_state.distributed == set(
-            (identifier_mapping[result], prop) for result, prop in result_mapping[2]
-        )
+        assert updated_citus_state.distributed == {
+            identifier_mapping[result]: prop for result, prop in result_mapping[2]
+        }
     else:
         assert not updated_citus_state.distributed
 
@@ -173,7 +174,7 @@ def test_undistribute_from_default_distribution(
         ["admin", Script.CITUS_DISTRIBUTION.value],
     )
     assert result.exit_code == 0
-    updated_citus_state = gather_citus_state(context, backend)
+    updated_citus_state = gather_current_sharding_plan(context, backend)
 
     assert not updated_citus_state.schemas
     assert not updated_citus_state.references
@@ -227,7 +228,7 @@ def test_mixed_distribution(
     data_table_identifier = get_table_identifier(data_model)
     new_table_identifier = get_table_identifier(new_model)
 
-    current_citus_state = gather_citus_state(context, backend)
+    current_citus_state = gather_current_sharding_plan(context, backend)
     assert not current_citus_state.schemas
     assert not current_citus_state.references
     assert not current_citus_state.distributed
@@ -237,10 +238,10 @@ def test_mixed_distribution(
     assert result.exit_code == 0
     assert result_contains(result, script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED))
 
-    updated_citus_state = gather_citus_state(context, backend)
+    updated_citus_state = gather_current_sharding_plan(context, backend)
     assert updated_citus_state.schemas == {"distribute/example"}
     assert updated_citus_state.references == {new_table_identifier}
-    assert updated_citus_state.distributed == {(data_table_identifier, "_id")}
+    assert updated_citus_state.distributed == {data_table_identifier: "_id"}
     assert not {test_table_identifier, data_table_identifier, new_table_identifier}.issubset(updated_citus_state.local)
 
 
@@ -281,7 +282,7 @@ def test_default_schema_distribution_invalidation(
     data_table_identifier = get_table_identifier(data_model)
     new_table_identifier = get_table_identifier(new_model)
 
-    current_citus_state = gather_citus_state(context, backend)
+    current_citus_state = gather_current_sharding_plan(context, backend)
     assert not current_citus_state.schemas
     assert not current_citus_state.references
     assert not current_citus_state.distributed
@@ -291,7 +292,7 @@ def test_default_schema_distribution_invalidation(
     assert result.exit_code == 0
     assert result_contains(result, script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED))
 
-    updated_citus_state = gather_citus_state(context, backend)
+    updated_citus_state = gather_current_sharding_plan(context, backend)
     assert updated_citus_state.schemas == {"distribute/new"}
     assert not updated_citus_state.references
     assert not updated_citus_state.distributed
@@ -305,7 +306,7 @@ def test_default_schema_distribution_invalidation(
     assert result.exit_code == 0
     assert result_contains(result, script_check_status_message(Script.CITUS_DISTRIBUTION.value, ScriptStatus.REQUIRED))
 
-    updated_citus_state = gather_citus_state(context, backend)
+    updated_citus_state = gather_current_sharding_plan(context, backend)
     assert updated_citus_state.schemas == {"distribute/new", "distribute/example"}
     assert updated_citus_state.references == {data_table_identifier}
     assert not updated_citus_state.distributed

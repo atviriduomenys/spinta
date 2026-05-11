@@ -4,6 +4,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.migrate.citus import handle_ordered_distribution_strategies
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
     PropertyMigrationContext,
@@ -50,7 +51,7 @@ def migrate(
     array_table = backend.get_table(new.prop, TableType.LIST)
     array_table_identifier = migration_ctx.get_table_identifier(new.prop, TableType.LIST)
     if not inspector.has_table(array_table_identifier.pg_table_name, schema=array_table_identifier.pg_schema_name):
-        create_table_migration(array_table, handler=handler, table_identifier=array_table_identifier)
+        create_table_migration(migration_ctx=migration_ctx, table=array_table, table_identifier=array_table_identifier)
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Column, Array)
@@ -199,3 +200,4 @@ def migrate(
         new.items,
         **kwargs,
     )
+    handle_ordered_distribution_strategies(migration_ctx, target_array_identifier)

@@ -9,6 +9,7 @@ from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.citus import handle_ordered_distribution_strategies
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     drop_all_indexes_and_constraints,
     get_prop_names,
@@ -169,6 +170,10 @@ def migrate(
         handler=handler,
         model_context=model_ctx,
     )
+    handle_ordered_distribution_strategies(
+        migration_ctx=migration_ctx,
+        table_identifier=target_table_identifier,
+    )
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, NotAvailable, Model)
@@ -180,10 +185,9 @@ def migrate(
     new: Model,
     **kwargs,
 ):
-    handler = migration_ctx.handler
     related_tables = filter_related_tables(new, backend.tables)
     for table in related_tables.values():
-        create_table_migration(table=table, handler=handler)
+        create_table_migration(migration_ctx=migration_ctx, table=table)
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, ModelTables, NotAvailable)
@@ -594,7 +598,7 @@ def _handle_changelog_migration(
     changelog_table = model_tables.reserved.get(TableType.CHANGELOG)
     target_table = backend.get_table(model, TableType.CHANGELOG)
     if changelog_table is None:
-        create_table_migration(table=target_table, handler=handler)
+        create_table_migration(migration_ctx=migration_context, table=target_table)
     else:
         old_table_identifier = migration_context.get_table_identifier(changelog_table)
         new_table_identifier = migration_context.get_table_identifier(model, TableType.CHANGELOG)
@@ -623,6 +627,7 @@ def _handle_changelog_migration(
             handler=handler,
             inspector=inspector,
         )
+        handle_ordered_distribution_strategies(migration_context, new_table_identifier)
 
 
 def _handle_redirect_migration(
@@ -637,7 +642,7 @@ def _handle_redirect_migration(
     redirect_table = model_tables.reserved.get(TableType.REDIRECT)
     target_table = backend.get_table(model, TableType.REDIRECT)
     if redirect_table is None:
-        create_table_migration(table=target_table, handler=handler)
+        create_table_migration(migration_ctx=migration_context, table=target_table)
     else:
         old_table_identifier = migration_context.get_table_identifier(redirect_table)
         new_table_identifier = migration_context.get_table_identifier(model, TableType.REDIRECT)
@@ -658,6 +663,7 @@ def _handle_redirect_migration(
             handler=handler,
             inspector=inspector,
         )
+        handle_ordered_distribution_strategies(migration_context, new_table_identifier)
 
 
 def _generic_reserved_table_constraint_flag(

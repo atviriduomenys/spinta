@@ -1,81 +1,16 @@
-import dataclasses
 from pathlib import Path
 
 from sqlalchemy.engine.url import make_url
 
 from spinta import commands
-from spinta.backends.helpers import TableIdentifier, get_table_identifier
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.store import load_store
-from spinta.components import Context
 
-import sqlalchemy as sa
 
 from spinta.core.config import RawConfig
-from spinta.manifests.sql.helpers import is_internal_schema
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.context import create_test_context
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
-
-
-@dataclasses.dataclass
-class CitusState:
-    local: set[TableIdentifier] = dataclasses.field(default_factory=set)
-    distributed: set[tuple[TableIdentifier, str]] = dataclasses.field(default_factory=set)
-    references: set[TableIdentifier] = dataclasses.field(default_factory=set)
-    schemas: set[str] = dataclasses.field(default_factory=set)
-
-
-def gather_citus_state(context: Context, backend: PostgreSQL) -> CitusState:
-    citus_state = CitusState()
-    with backend.begin() as conn:
-        result = conn.execute(
-            sa.text("""
-                    SELECT
-                        n.nspname AS schema_name,
-                        c.relname AS table_name,
-                        format('%I.%I', n.nspname, c.relname) AS full_table_name,
-                        d.description AS table_comment,
-
-                        COALESCE(ct.citus_table_type, 'local') AS distribution_type,
-                        ct.distribution_column
-
-                    FROM pg_class c
-                             JOIN pg_namespace n ON n.oid = c.relnamespace
-
-                             LEFT JOIN citus_tables ct
-                                       ON ct.table_name = c.oid::regclass
-
-    LEFT JOIN pg_description d
-                    ON d.objoid = c.oid
-                        AND d.objsubid = 0
-
-                    WHERE c.relkind = 'r'
-                      AND n.nspname NOT LIKE 'pg_%'
-                      AND n.nspname <> 'information_schema'
-
-                    ORDER BY n.nspname, c.relname;""")
-        ).fetchall()
-
-        for row in result:
-            if is_internal_schema(backend.engine, row["schema_name"]):
-                continue
-
-            if not row["table_comment"]:
-                continue
-
-            table_identifier = get_table_identifier(row["table_comment"])
-            match row["distribution_type"]:
-                case "schema":
-                    citus_state.schemas.add(row["schema_name"])
-                case "distributed":
-                    citus_state.distributed.add((table_identifier, row["distribution_column"]))
-                case "reference":
-                    citus_state.references.add(table_identifier)
-                case _:
-                    citus_state.local.add(table_identifier)
-    return citus_state
 
 
 def configure_distribute(
