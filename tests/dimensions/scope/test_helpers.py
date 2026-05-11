@@ -4,8 +4,11 @@ import pytest
 
 from spinta.components import Context, Model
 from spinta.core.access import Access
+from spinta.core.ufuncs import Expr, Bind
 from spinta.dimensions.scope.components import Scope
-from spinta.dimensions.scope.helpers import load_scopes
+from spinta.dimensions.scope.helpers import load_scopes, load_prepare, link_scopes
+from spinta.exceptions import PropertyNotFound
+from spinta.manifests.components import Manifest
 from spinta.spyna import parse
 
 
@@ -101,3 +104,186 @@ class TestLoadScopes:
         assert set(result.keys()) == {"ltu", "eu"}
         assert result["ltu"].given.access == "private"
         assert result["eu"].given.access == "protected"
+
+
+class TestLoadPrepare:
+    def test_sets_prepare_as_expr(
+        self,
+        context: Context,
+        model: Model,
+    ) -> None:
+        scope = Scope()
+        scope.name = "ltu"
+        scope.model = model
+
+        load_prepare(context, scope, parse("code = 'lt'"))
+
+        assert isinstance(scope.prepare, Expr)
+
+    def test_top_level_op_name_matches_formula(
+        self,
+        context: Context,
+        model: Model,
+    ) -> None:
+        scope = Scope()
+        scope.name = "ltu"
+        scope.model = model
+
+        load_prepare(context, scope, parse("code = 'lt'"))
+
+        assert scope.prepare.name == "eq"
+
+    def test_nested_getattr_preserved(
+        self,
+        context: Context,
+        model: Model,
+    ) -> None:
+        scope = Scope()
+        scope.name = "ltu"
+        scope.model = model
+
+        load_prepare(context, scope, parse("country.code = 'lt'"))
+
+        assert scope.prepare.name == "eq"
+        assert isinstance(scope.prepare.args[0], Expr)
+        assert scope.prepare.args[0].name == "getattr"
+
+    def test_bind_arg_inside_expr(
+        self,
+        context: Context,
+        model: Model,
+    ) -> None:
+        scope = Scope()
+        scope.name = "ltu"
+        scope.model = model
+
+        load_prepare(context, scope, parse("select(code)"))
+
+        assert scope.prepare.name == "select"
+        inner = scope.prepare.args[0]
+        assert isinstance(inner, Expr)
+        assert inner.name == "bind"
+        assert inner.args[0] == "code"
+
+
+class TestLinkScopes:
+    @pytest.fixture
+    def model_with_props(self) -> Model:
+        model = Model()
+        model.name = "example/City"
+        model.eid = "test/example/City"
+        model.properties = {"id": None, "code": None, "name": None}
+        return model
+
+    @pytest.fixture
+    def manifest(self) -> Manifest:
+        return Manifest()
+
+    def _build_scope(self, model: Model, name: str, prepare: Expr) -> Scope:
+        scope = Scope()
+        scope.name = name
+        scope.model = model
+        scope.prepare = prepare
+        return scope
+
+    def test_unknown_property_inside_select_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = Scope()
+        scope.name = "bad_scope"
+        scope.model = model_with_props
+        load_prepare(context, scope, parse("select(country)"))
+
+        with pytest.raises(PropertyNotFound):
+            link_scopes(context, manifest, {"bad_scope": scope})
+
+    def test_valid_bind_passes(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "valid_scope",
+            Expr("eq", Bind("code"), "lt"),
+        )
+        # Should not raise.
+        link_scopes(context, manifest, {"valid_scope": scope})
+
+    def test_unknown_property_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            Expr("eq", Bind("country"), "lt"),
+        )
+        with pytest.raises(PropertyNotFound):
+            link_scopes(context, manifest, {"bad_scope": scope})
+
+    def test_nested_expr_is_walked(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            Expr("select", Bind("country")),
+        )
+        with pytest.raises(PropertyNotFound):
+            link_scopes(context, manifest, {"bad_scope": scope})
+
+    def test_getattr_head_validated(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            Expr("getattr", Bind("country"), Bind("name")),
+        )
+        with pytest.raises(PropertyNotFound):
+            link_scopes(context, manifest, {"bad_scope": scope})
+
+    def test_literal_args_ignored(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "good_scope",
+            Expr("eq", Bind("code"), "lt"),
+        )
+        link_scopes(context, manifest, {"good_scope": scope})
+
+    def test_first_invalid_scope_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        good_scope = self._build_scope(
+            model_with_props,
+            "good_scope",
+            Expr("eq", Bind("code"), "lt"),
+        )
+        bad_scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            Expr("eq", Bind("country"), "lt"),
+        )
+        with pytest.raises(PropertyNotFound):
+            link_scopes(context, manifest, {"good_scope": good_scope, "bad_scope": bad_scope})

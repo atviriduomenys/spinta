@@ -23,6 +23,10 @@ def validate_prepare(env: ScopeLoader, model: Model, expr: Expr):
         if expr.args:
             env.call("validate_prepare", model, expr.args[0])
         return
+    if expr.name == "bind":
+        if expr.args and isinstance(expr.args[0], str):
+            env.call("validate_prepare", model, Bind(expr.args[0]))
+        return
     for arg in expr.args:
         env.call("validate_prepare", model, arg)
     for value in expr.kwargs.values():
