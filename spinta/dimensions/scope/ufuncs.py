@@ -1,5 +1,5 @@
 from spinta.components import Model
-from spinta.core.ufuncs import ufunc, Expr, Bind
+from spinta.core.ufuncs import ufunc, Expr, Bind, asttoexpr
 from spinta.dimensions.scope.components import ScopeLoader, Scope
 from spinta.exceptions import PropertyNotFound
 
@@ -12,9 +12,12 @@ def resolve_scope(env: ScopeLoader, scopes: list):
 
 @ufunc.resolver(ScopeLoader, Scope)
 def resolve_scope(env: ScopeLoader, scope: Scope):
-    if scope.prepare is None:
+    prepare = scope.prepare
+    if not prepare:
         return
-    env.call("validate_prepare", scope.model, scope.prepare)
+    if isinstance(prepare, dict):
+        prepare = asttoexpr(prepare)
+    env.call("validate_prepare", scope.model, prepare)
 
 
 @ufunc.resolver(ScopeLoader, Model, Expr)

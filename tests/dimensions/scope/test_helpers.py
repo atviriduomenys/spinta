@@ -6,7 +6,7 @@ from spinta.components import Context, Model
 from spinta.core.access import Access
 from spinta.core.ufuncs import Expr, Bind
 from spinta.dimensions.scope.components import Scope
-from spinta.dimensions.scope.helpers import load_scopes, load_prepare, link_scopes
+from spinta.dimensions.scope.helpers import load_scopes, link_scopes
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse
@@ -75,6 +75,17 @@ class TestLoadScopes:
 
         assert result["ltu"].given.access == "private"
 
+    def test_prepare_stored_as_ast_dict(
+        self,
+        context: Context,
+        model: Model,
+        scope_data: dict[str, dict[str, Any]],
+    ) -> None:
+        result = load_scopes(context, [model], scope_data)
+
+        assert isinstance(result["ltu"].prepare, dict)
+        assert result["ltu"].prepare["name"] == "eq"
+
     def test_loads_multiple_scopes(
         self,
         context: Context,
@@ -106,66 +117,6 @@ class TestLoadScopes:
         assert result["eu"].given.access == "protected"
 
 
-class TestLoadPrepare:
-    def test_sets_prepare_as_expr(
-        self,
-        context: Context,
-        model: Model,
-    ) -> None:
-        scope = Scope()
-        scope.name = "ltu"
-        scope.model = model
-
-        load_prepare(context, scope, parse("code = 'lt'"))
-
-        assert isinstance(scope.prepare, Expr)
-
-    def test_top_level_op_name_matches_formula(
-        self,
-        context: Context,
-        model: Model,
-    ) -> None:
-        scope = Scope()
-        scope.name = "ltu"
-        scope.model = model
-
-        load_prepare(context, scope, parse("code = 'lt'"))
-
-        assert scope.prepare.name == "eq"
-
-    def test_nested_getattr_preserved(
-        self,
-        context: Context,
-        model: Model,
-    ) -> None:
-        scope = Scope()
-        scope.name = "ltu"
-        scope.model = model
-
-        load_prepare(context, scope, parse("country.code = 'lt'"))
-
-        assert scope.prepare.name == "eq"
-        assert isinstance(scope.prepare.args[0], Expr)
-        assert scope.prepare.args[0].name == "getattr"
-
-    def test_bind_arg_inside_expr(
-        self,
-        context: Context,
-        model: Model,
-    ) -> None:
-        scope = Scope()
-        scope.name = "ltu"
-        scope.model = model
-
-        load_prepare(context, scope, parse("select(code)"))
-
-        assert scope.prepare.name == "select"
-        inner = scope.prepare.args[0]
-        assert isinstance(inner, Expr)
-        assert inner.name == "bind"
-        assert inner.args[0] == "code"
-
-
 class TestLinkScopes:
     @pytest.fixture
     def model_with_props(self) -> Model:
@@ -179,7 +130,7 @@ class TestLinkScopes:
     def manifest(self) -> Manifest:
         return Manifest()
 
-    def _build_scope(self, model: Model, name: str, prepare: Expr) -> Scope:
+    def _build_scope(self, model: Model, name: str, prepare) -> Scope:
         scope = Scope()
         scope.name = name
         scope.model = model
@@ -192,10 +143,11 @@ class TestLinkScopes:
         manifest: Manifest,
         model_with_props: Model,
     ) -> None:
-        scope = Scope()
-        scope.name = "bad_scope"
-        scope.model = model_with_props
-        load_prepare(context, scope, parse("select(country)"))
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            parse("select(country)"),
+        )
 
         with pytest.raises(PropertyNotFound):
             link_scopes(context, manifest, {"bad_scope": scope})
@@ -211,7 +163,6 @@ class TestLinkScopes:
             "valid_scope",
             Expr("eq", Bind("code"), "lt"),
         )
-        # Should not raise.
         link_scopes(context, manifest, {"valid_scope": scope})
 
     def test_unknown_property_raises(
@@ -255,19 +206,6 @@ class TestLinkScopes:
         )
         with pytest.raises(PropertyNotFound):
             link_scopes(context, manifest, {"bad_scope": scope})
-
-    def test_literal_args_ignored(
-        self,
-        context: Context,
-        manifest: Manifest,
-        model_with_props: Model,
-    ) -> None:
-        scope = self._build_scope(
-            model_with_props,
-            "good_scope",
-            Expr("eq", Bind("code"), "lt"),
-        )
-        link_scopes(context, manifest, {"good_scope": scope})
 
     def test_first_invalid_scope_raises(
         self,

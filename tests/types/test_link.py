@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import MissingRefModel
+from spinta.exceptions import MissingRefModel, PropertyNotFound
 from spinta.testing.manifest import load_manifest, load_manifest_get_context
 from spinta.types.datatype import Object
 
@@ -180,3 +180,82 @@ def test_undeclared_array_model_transforms_to_object(manifest_type, tmp_path, rc
     prepare = comment.prepare.replace(" ", "").replace('"', "").replace("'", "")
     assert "type:array" in prepare
     assert "ref:example2/CityCountry[city,country]" in prepare
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_valid_property_loads(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property | type   | ref | prepare       | access
+    example                  |        |     |               |
+      |   |   | City         |        | id  |               |
+      |   |   |              | scope  | ltu | code = 'lt'   | private
+      |   |   |   | id       | string |     |               | private
+      |   |   |   | code     | string |     |               | private
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    store = context.get("store")
+    city = store.manifest.get_objects()["model"]["example/City"]
+    print("properties:", list(city.properties.keys()))
+    print("scopes:", list(city.scopes.keys()))
+
+    assert "ltu" in city.scopes
+    assert city.scopes["ltu"].model is city
+    assert city.scopes["ltu"].prepare is not None
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_unknown_property_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    with pytest.raises(PropertyNotFound):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref | prepare           | access
+    example                  |        |     |                   |
+      |   |   | City         |        | id  |                   |
+      |   |   |              | scope  | bad | country = 'lt'    | private
+      |   |   |   | id       | string |     |                   | private
+      |   |   |   | code     | string |     |                   | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_select_bare_identifier_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    with pytest.raises(PropertyNotFound):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref | prepare         | access
+    example                  |        |     |                 |
+      |   |   | City         |        | id  |                 |
+      |   |   |              | scope  | bad | select(country) | private
+      |   |   |   | id       | string |     |                 | private
+      |   |   |   | code     | string |     |                 | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_getattr_head_against_missing_property_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    with pytest.raises(PropertyNotFound):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref | prepare              | access
+    example                  |        |     |                      |
+      |   |   | City         |        | id  |                      |
+      |   |   |              | scope  | bad | country.name = 'lt'  | private
+      |   |   |   | id       | string |     |                      | private
+      |   |   |   | code     | string |     |                      | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
