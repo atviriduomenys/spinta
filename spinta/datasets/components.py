@@ -213,7 +213,6 @@ class Entity(External):
     name: str  # model.source
     prepare: Expr  # model.prepare
     params: List[Param]
-
     schema = {
         "model": {"parent": True},
         "dataset": {"type": "ref", "ref": "context.nodes.dataset"},

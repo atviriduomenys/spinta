@@ -14,6 +14,7 @@ from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import Base32TypeOnlyAllowedOnIdOrRevision
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.types.helpers import check_no_extra_keys
@@ -172,6 +173,10 @@ class URL(String):
 
 
 class URI(String):
+    pass
+
+
+class Base32(DataType):
     pass
 
 
@@ -381,6 +386,12 @@ class Unknown(DataType):
 @commands.check.register(Context, DataType)
 def check(context: Context, dtype: DataType):
     pass
+
+
+@commands.check.register(Context, Base32)
+def check(context: Context, dtype: Base32):
+    if dtype.prop.name != "_id" and dtype.prop.name != "_revision":
+        raise Base32TypeOnlyAllowedOnIdOrRevision(dtype.prop, property=dtype.prop.place)
 
 
 @load.register(Context, DataType, dict, Manifest)

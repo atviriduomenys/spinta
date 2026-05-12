@@ -1,8 +1,34 @@
 Changes
 #######
 
-0.2dev24 (unreleased)
+0.2dev25 (unreleased)
 =====================
+
+New Features:
+
+- Added support for explicitly defined _id fields in the manifest file. Now external backends can include these fields and use them as _id. (`#1905`_).
+- Added support for new `scope` dimension on tabular format. Now scope is understandable by spinta `check` and `copy` commands (`#1882`_).
+
+.. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
+
+Bug fixes:
+
+- Fixed a bug where nested backrefs where causing an error (`#1608`_).
+
+.. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
+
+0.2dev24 (2026-05-08)
+=====================
+
+Improvements:
+
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_):
+  - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
+  - updated code to correctly display visibility, relationships, cardinality.
+  - added custom diagram styling.
+  - added namespaces.
+  - added dot-notated properties.
+
 
 New Features:
 
@@ -10,13 +36,12 @@ New Features:
 - Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
   - `spinta comment` comments the requested parts (argument) of the manifest;
   - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
-- Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
-- Added ability to configure default and model specific distribution strategy (`#1691`_).
 
 .. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
 .. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
-.. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
-
+.. _#1905: https://github.com/atviriduomenys/spinta/issues/1905
+.. _#1882: https://github.com/atviriduomenys/spinta/issues/1882
+.. _#1888: https://github.com/atviriduomenys/spinta/issues/1888
 
 0.2dev22 (2026-04-23)
 =====================

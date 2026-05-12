@@ -45,6 +45,7 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import (
     MultipleErrors,
     InvalidBackRefReferenceAmount,
@@ -56,7 +57,7 @@ from spinta.exceptions import (
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN
+from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN, ScopeRow
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -111,6 +112,7 @@ EXTRA_DIMENSIONS = [
     "ns",
     "lang",
     "unique",
+    "scope",
 ]
 
 ALLOWED_PARTIAL_TYPES = [
@@ -477,6 +479,7 @@ class ModelReader(TabularReader):
             "title": row["title"],
             "description": row["description"],
             "properties": {},
+            "scopes": {},
             "uri": row["uri"],
             "unique": [([x.strip().split("@")[0] for x in row["ref"].split(",")])] if row["ref"] else [],
             "external": {
@@ -921,7 +924,7 @@ DATATYPE_HANDLERS = {
 
 def _get_root_prop(reader: PropertyReader, name: str):
     if reader.state.model is None:
-        raise NoModelDefined(property=name)
+        raise NoModelDefined(dimension="Property", name=name)
     if name in reader.state.model.data["properties"]:
         return reader.state.model.data["properties"][name]
     return None
@@ -1646,6 +1649,70 @@ class CommentReader(TabularReader):
         pass
 
 
+class ScopeReader(TabularReader):
+    type: str = "scope"
+    data: ScopeRow
+
+    def read(self, row: ManifestRow) -> None:
+        node = self.state.model
+
+        self.name = row[REF]
+        prepare = row[PREPARE]
+
+        if not self.name:
+            self.error("Scope must have a ref.")
+            return
+
+        if node is None:
+            raise NoModelDefined(dimension="Scope", name=self.name)
+
+        if not prepare:
+            self.error("Scope must have a prepare row.")
+            return
+
+        if "scopes" not in node.data:
+            node.data["scopes"] = {}
+
+        scopes = node.data["scopes"]
+
+        if self.name in scopes:
+            self.error(f"Scope {self.name!r} with the same name is already defined for this {node.name!r} {node.type}.")
+            return
+
+        parsed_prepare = _parse_spyna(self, prepare)
+        if parsed_prepare is NA:
+            return
+
+        self.data = {
+            "id": row[ID],
+            "name": self.name,
+            "prepare": parsed_prepare,
+            "access": row[ACCESS],
+            "level": row[LEVEL],
+            "status": row[STATUS],
+            "visibility": row[VISIBILITY],
+            "count": row[COUNT],
+            "eli": row[ELI],
+            "uri": row[URI],
+            "title": row[TITLE],
+            "description": row[DESCRIPTION],
+        }
+
+        scopes[self.name] = self.data
+
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return True
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
 READERS = {
     # Main dimensions
     "dataset": DatasetReader,
@@ -1662,6 +1729,7 @@ READERS = {
     "lang": LangReader,
     "comment": CommentReader,
     "unique": UniqueReader,
+    "scope": ScopeReader,
 }
 
 
@@ -2508,6 +2576,29 @@ def _prepare_to_tabular(data, prop):
     return data, prep_rows
 
 
+def _scopes_to_tabular(scopes: Dict[str, Scope]) -> Iterator[ManifestRow] | None:
+    if not scopes:
+        return
+    for scope in scopes.values():
+        yield torow(
+            DATASET,
+            {
+                "type": "scope",
+                "ref": scope.name,
+                "prepare": spyna.unparse(scope.prepare),
+                "access": scope.given.access,
+                "level": scope.level.value if scope.level else "",
+                "status": scope.status.name if scope.status else "",
+                "visibility": scope.visibility.name if scope.visibility else "",
+                "count": scope.count,
+                "eli": scope.eli,
+                "uri": scope.uri if scope.uri else "",
+                "title": scope.title,
+                "description": scope.description,
+            },
+        )
+
+
 def _model_to_tabular(
     model: Model,
     *,
@@ -2544,16 +2635,23 @@ def _model_to_tabular(
                 "prepare": unparse(model.external.prepare or NA),
             }
         )
-        if not model.external.unknown_primary_key and all(p.access >= access for p in model.external.pkeys):
-            # Add `ref` only if all properties are available in the
-            # resulting manifest.
-            data["ref"] = ", ".join([p.given.name or p.name for p in model.external.pkeys])
+    if (
+        model.external
+        and not model.external.unknown_primary_key
+        and all(p.access >= access for p in model.external.pkeys)
+    ):
+        # Add `ref` only if all properties are available in the
+        # resulting manifest. `ref` lists the model's primary-key
+        # property names and is preserved even when source metadata
+        # is stripped (e.g. `copy --no-source`).
+        data["ref"] = ", ".join([p.given.name or p.name for p in model.external.pkeys])
 
     hide_list = []
     if model.external:
         if not model.external.unknown_primary_key:
             hide_list = [model.external.pkeys]
     yield torow(DATASET, data)
+    yield from _scopes_to_tabular(model.scopes)
     yield from _params_to_tabular(model.params)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
