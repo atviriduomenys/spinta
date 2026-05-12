@@ -52,6 +52,40 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     model.ns = ns
 
 
+def _parse_distribution_strategy(
+    model: Model,
+    distribute: dict,
+) -> DistributionStrategy:
+    if len(distribute) == 1:
+        distribute_type_str, value = next(iter(distribute.items()))
+        if value is NA:
+            distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
+            return DistributionStrategy(distribute_type)
+
+    distribute_type_str = distribute.get("type", None)
+    if distribute_type_str is None:
+        raise MissingConfigurationParameter(
+            model,
+            config_type="Model",
+            config_object=model.model_type(),
+            missing_params="distribute.type",
+        )
+
+    distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
+    match distribute_type:
+        case DistributionType.TABLE:
+            if (prop := distribute.get("property", None)) is None:
+                raise MissingConfigurationParameter(
+                    model,
+                    config_type="Model",
+                    config_object=model.model_type(),
+                    missing_params="distribute.property",
+                )
+            return DistributionStrategy(distribute_type, prop)
+        case _:
+            return DistributionStrategy(distribute_type)
+
+
 @configure.register(Context, Model)
 def configure(context: Context, model: Model):
     rc: RawConfig = context.get("rc")
@@ -68,33 +102,8 @@ def configure(context: Context, model: Model):
         model.backend = backend
 
     if distribute := model_config.get("distribute"):
-        if (
-            len(distribute) == 1
-            and (distribute_type := tuple(distribute.keys())[0])
-            and distribute[distribute_type] == NA
-        ):
-            model.distribution_strategy = DistributionStrategy(get_enum_by_value(DistributionType, distribute_type))
-        else:
-            distribute_type = distribute.pop("type", None)
+        model.distribution_strategy = _parse_distribution_strategy(model, distribute)
 
-            if distribute_type is None:
-                raise MissingConfigurationParameter(
-                    model, config_type="Model", config_object=model.model_type(), missing_params="distribute.type"
-                )
-            distribute_type = get_enum_by_value(DistributionType, distribute_type)
-
-            match distribute_type:
-                case DistributionType.TABLE:
-                    if (prop := distribute.pop("property", None)) is None:
-                        raise MissingConfigurationParameter(
-                            model,
-                            config_type="Model",
-                            config_object=model.model_type(),
-                            missing_params="distribute.property",
-                        )
-                    model.distribution_strategy = DistributionStrategy(distribute_type, prop)
-                case _:
-                    model.distribution_strategy = DistributionStrategy(distribute_type)
 
 
 @load.register(Context, Model, dict, Manifest)

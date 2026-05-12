@@ -659,7 +659,7 @@ class Model(MetaData):
     origin: str | None = None
 
     # Systemic fields that are not part of the model definition.
-    distribution_strategy: DistributionStrategy = None
+    distribution_strategy: DistributionStrategy | None = None
     required_keymap_properties = None
 
     schema = {
