@@ -13,15 +13,14 @@ from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def configure_distribute(
+def _build_distribute_rc(
     rc: RawConfig,
-    manifest: str,
     path: Path,
     *,
     default_distribution_strategy: str | None = None,
     default_distribution_property: str | None = None,
     model_distribution: dict | None = None,
-):
+) -> RawConfig:
     url = make_url(rc.get("backends", "default", "dsn", required=True))
     # Reusing migration database, since it gets recreated each new test
     url = url.set(database=MIGRATION_DATABASE)
@@ -46,7 +45,25 @@ def configure_distribute(
         updated_dict["default_distribution_property"] = default_distribution_property
     if model_distribution is not None:
         updated_dict["models"] = model_distribution
-    rc = rc.fork(updated_dict)
+    return rc.fork(updated_dict)
+
+
+def configure_distribute(
+    rc: RawConfig,
+    manifest: str,
+    path: Path,
+    *,
+    default_distribution_strategy: str | None = None,
+    default_distribution_property: str | None = None,
+    model_distribution: dict | None = None,
+):
+    rc = _build_distribute_rc(
+        rc,
+        path,
+        default_distribution_property=default_distribution_property,
+        default_distribution_strategy=default_distribution_strategy,
+        model_distribution=model_distribution,
+    )
     context = create_test_context(rc, name="pytest/cli")
     create_tabular_manifest(context, f"{path}/manifest.csv", striptable(manifest))
     return context, rc

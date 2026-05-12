@@ -20,6 +20,8 @@ from spinta.dimensions.enum.components import Enums, EnumValue
 from spinta.dimensions.enum.helpers import link_enums, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
+from spinta.dimensions.scope.components import Scope
+from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
@@ -28,12 +30,15 @@ from spinta.exceptions import (
     PropertyNotFound,
     UndefinedEnum,
     UnknownPropertyType,
+    ReservedPropertyTypeShouldMatchPrimaryKey,
+    ReservedPropertySourceOrModelRefShouldBeSet,
 )
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.helpers import check_model_name, check_property_name
+from spinta.types.datatype import String, Integer, UUID
+from spinta.types.helpers import check_model_name, check_property_name, check_scope_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
@@ -45,11 +50,47 @@ from spinta.utils.schema import NA
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
 
+INCORRECT_DTYPE_COUPLES = [(Integer, UUID), (Integer, String), (UUID, String), (UUID, Integer)]
+
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
     ns = load_namespace_from_name(context, manifest, model.name)
     ns.models[model.model_type()] = model
     model.ns = ns
+
+
+def _parse_distribution_strategy(
+    model: Model,
+    distribute: dict,
+) -> DistributionStrategy:
+    if len(distribute) == 1:
+        distribute_type_str, value = next(iter(distribute.items()))
+        if value is NA:
+            distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
+            return DistributionStrategy(distribute_type)
+
+    distribute_type_str = distribute.get("type", None)
+    if distribute_type_str is None:
+        raise MissingConfigurationParameter(
+            model,
+            config_type="Model",
+            config_object=model.model_type(),
+            missing_params="distribute.type",
+        )
+
+    distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
+    match distribute_type:
+        case DistributionType.TABLE:
+            if (prop := distribute.get("property", None)) is None:
+                raise MissingConfigurationParameter(
+                    model,
+                    config_type="Model",
+                    config_object=model.model_type(),
+                    missing_params="distribute.property",
+                )
+            return DistributionStrategy(distribute_type, prop)
+        case _:
+            return DistributionStrategy(distribute_type)
 
 
 @configure.register(Context, Model)
@@ -68,33 +109,7 @@ def configure(context: Context, model: Model):
         model.backend = backend
 
     if distribute := model_config.get("distribute"):
-        if (
-            len(distribute) == 1
-            and (distribute_type := tuple(distribute.keys())[0])
-            and distribute[distribute_type] == NA
-        ):
-            model.distribution_strategy = DistributionStrategy(get_enum_by_value(DistributionType, distribute_type))
-        else:
-            distribute_type = distribute.pop("type", None)
-
-            if distribute_type is None:
-                raise MissingConfigurationParameter(
-                    model, config_type="Model", config_object=model.model_type(), missing_params="distribute.type"
-                )
-            distribute_type = get_enum_by_value(DistributionType, distribute_type)
-
-            match distribute_type:
-                case DistributionType.TABLE:
-                    if (prop := distribute.pop("property", None)) is None:
-                        raise MissingConfigurationParameter(
-                            model,
-                            config_type="Model",
-                            config_object=model.model_type(),
-                            missing_params="distribute.property",
-                        )
-                    model.distribution_strategy = DistributionStrategy(distribute_type, prop)
-                case _:
-                    model.distribution_strategy = DistributionStrategy(distribute_type)
+        model.distribution_strategy = _parse_distribution_strategy(model, distribute)
 
 
 @load.register(Context, Model, dict, Manifest)
@@ -139,6 +154,8 @@ def load(
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
     model.properties["_id"].access = model.access
+
+    model.scopes = load_scopes(context, [model], data.get("scopes"))
 
     config = context.get("config")
 
@@ -187,6 +204,7 @@ def load(
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
         model.given.pkeys = external.get("pk", [])
+        _detect_cooperating_reserved_properties_and_check_validity(model)
     else:
         model.external = None
         model.given.pkeys = []
@@ -500,6 +518,32 @@ def link(context: Context, prop: Property):
     prop.enum = _link_prop_enum(prop)
 
 
+def _detect_cooperating_reserved_properties_and_check_validity(model: Model) -> None:
+    prop = model.properties.get("_id")
+    if prop is None or not prop.explicitly_given:
+        return
+
+    model_ref_set = prop.model.unique
+    reserved_id_source_set = prop.external.name
+
+    if (not model_ref_set and not reserved_id_source_set) or (model_ref_set and reserved_id_source_set):
+        raise ReservedPropertySourceOrModelRefShouldBeSet(property=prop)
+
+    if model_ref_set:
+        if len(model_ref_set[0]) > 1:
+            model_primary_key_dtype = String()
+            model_primary_key_dtype.name = "string"
+        else:
+            model_primary_key_dtype = model_ref_set[0][0].dtype
+        if model_ref_set and (type(prop.dtype), type(model_primary_key_dtype)) in INCORRECT_DTYPE_COUPLES:
+            raise ReservedPropertyTypeShouldMatchPrimaryKey(
+                property=prop,
+                model=model.name,
+                reserved_type=prop.dtype.name,
+                primary_type=model_primary_key_dtype.name,
+            )
+
+
 def _load_property_external(
     context: Context,
     manifest: Manifest,
@@ -568,7 +612,8 @@ def check(context: Context, model: Model):
     check_model_name(context, model)
     if "_id" not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop="_id")
-
+    for scope in model.scopes.values():
+        commands.check(context, scope)
     for prop in model.properties.values():
         commands.check(context, prop)
 
@@ -588,6 +633,11 @@ def check(context: Context, model: Model):
 @check.register(Context, Model, Backend)
 def check(context: Context, model: Model, backend: Backend) -> None:
     pass
+
+
+@check.register(Context, Scope)
+def check(context: Context, scope: Scope) -> None:
+    check_scope_name(context, scope)
 
 
 @check.register(Context, Property)

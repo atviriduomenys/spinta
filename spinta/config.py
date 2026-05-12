@@ -165,6 +165,7 @@ CONFIG = {
             "partial_array": "spinta.types.datatype:PartialArray",
             "uuid": "spinta.types.datatype:UUID",
             "unknown": "spinta.types.datatype:Unknown",
+            "base32": "spinta.types.datatype:Base32",
         },
         "urlparams": {
             "component": "spinta.urlparams:UrlParams",

@@ -22,7 +22,7 @@ from spinta.components import Context
 from spinta.exceptions import NotImplementedFeature
 
 
-def _gather_current_sharding_plan(context: Context, verbose: bool = True, **kwargs):
+def _gather_current_sharding_plan(context: Context, verbose: bool = True, **kwargs) -> ShardingPlan:
     if verbose:
         cli_message("Extracting already distributed schemas")
 
@@ -45,7 +45,7 @@ def _invalidate_default_distribution(
     if verbose:
         cli_message("Invalidating default distribution")
 
-    return invalidate_default_distribution(context, backend, plan, **kwargs)
+    return invalidate_default_distribution(context, backend, plan, verbose=verbose, **kwargs)
 
 
 @dispatch(Context, Backend, ShardingPlan, ShardingPlan, MigrationHandler)
@@ -72,9 +72,9 @@ def generate_citus_migrations(
     undistributed_plan = existing_plan - new_plan
     diff_plan = new_plan - existing_plan
 
-    progress_bar = tqdm(desc="Generating citus migrations")
-    undistribute_all(context, backend, undistributed_plan, handler, progress_bar)
-    distribute_all(context, backend, diff_plan, handler, progress_bar)
+    with tqdm(desc="Generating citus migrations") as progress_bar:
+        undistribute_all(context, backend, undistributed_plan, handler, progress_bar)
+        distribute_all(context, backend, diff_plan, handler, progress_bar)
 
 
 def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -> None:
@@ -95,14 +95,13 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -
         validated_plan = _invalidate_default_distribution(context, backend, plan, verbose=True)
         handler = MigrationHandler()
         generate_citus_migrations(context, backend, sharded_plan[backend_name], validated_plan, handler)
-        progress_bar = tqdm(desc=f"Updating distributions for '{backend_name}' backend", total=handler.count())
-        with backend.begin() as conn:
-            ctx = MigrationContext.configure(conn)
-            operations = Operations(ctx)
-            for migration in handler.gather_migrations():
-                migration.execute(operations)
-                progress_bar.update(1)
-        progress_bar.close()
+        with tqdm(desc=f"Updating distributions for '{backend_name}' backend", total=handler.count()) as progress_bar:
+            with backend.begin() as conn:
+                ctx = MigrationContext.configure(conn)
+                operations = Operations(ctx)
+                for migration in handler.gather_migrations():
+                    migration.execute(operations)
+                    progress_bar.update(1)
     cli_message("Reapplying removed comments")
     migrate_comments(context, verbose=False)
 

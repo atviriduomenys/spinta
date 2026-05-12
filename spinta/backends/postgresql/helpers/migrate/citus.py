@@ -19,6 +19,7 @@ from spinta.backends.postgresql.helpers.migrate.actions import (
     DistributeTable,
     DistributeSchema,
 )
+from spinta.cli.helpers.message import cli_message
 from spinta.backends.postgresql.helpers.migrate.migrate import PostgresqlMigrationContext
 from spinta.components import Context, Model
 from spinta.exceptions import NotImplementedFeature
@@ -73,8 +74,35 @@ class ShardingPlan:
                 self.local.discard(key)
 
 
+def _generate_current_distribution_query(schemas: list[str] | None = None) -> (str, dict):
+    base_query = """
+    SELECT
+        n.nspname AS schema_name,
+        c.relname AS table_name,
+        format('%I.%I', n.nspname, c.relname) AS full_table_name,
+        d.description AS table_comment,
+        COALESCE(ct.citus_table_type, 'local') AS distribution_type,
+        ct.distribution_column
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN citus_tables ct ON ct.table_name = c.oid::regclass
+    LEFT JOIN pg_description d ON d.objoid = c.oid AND d.objsubid = 0
+    WHERE c.relkind = 'r'
+      AND n.nspname NOT LIKE 'pg_%'
+      AND n.nspname <> 'information_schema'
+    """
+
+    params = {}
+    if schemas:
+        base_query += " AND n.nspname = ANY(:schemas)"
+        params["schemas"] = schemas
+
+    base_query += " ORDER BY n.nspname, c.relname"
+    return base_query, params
+
+
 @dispatch(Context)
-def gather_current_sharding_plan(context: Context, **kwargs):
+def gather_current_sharding_plan(context: Context, **kwargs) -> dict[str, ShardingPlan]:
     store = context.get("store")
     backends = store.backends
 
@@ -85,42 +113,21 @@ def gather_current_sharding_plan(context: Context, **kwargs):
 
 
 @dispatch(Context, Backend)
-def gather_current_sharding_plan(context: Context, backend: Backend, **kwargs):
+def gather_current_sharding_plan(context: Context, backend: Backend, **kwargs) -> ShardingPlan:
     # Currently, only postgresql backend supports citus distribution, instead of erroring, return empty plan.
     return ShardingPlan()
 
 
 @dispatch(Context, PostgreSQL)
-def gather_current_sharding_plan(context: Context, backend: PostgreSQL, schemas: list[str] | None = None, **kwargs):
+def gather_current_sharding_plan(
+    context: Context, backend: PostgreSQL, schemas: list[str] | None = None, **kwargs
+) -> ShardingPlan:
     plan = ShardingPlan()
     with backend.begin() as conn:
-        base_sql = """
-        SELECT
-            n.nspname AS schema_name,
-            c.relname AS table_name,
-            format('%I.%I', n.nspname, c.relname) AS full_table_name,
-            d.description AS table_comment,
-            COALESCE(ct.citus_table_type, 'local') AS distribution_type,
-            ct.distribution_column
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        LEFT JOIN citus_tables ct ON ct.table_name = c.oid::regclass
-        LEFT JOIN pg_description d ON d.objoid = c.oid AND d.objsubid = 0
-        WHERE c.relkind = 'r'
-          AND n.nspname NOT LIKE 'pg_%'
-          AND n.nspname <> 'information_schema'
-        """
+        query, params = _generate_current_distribution_query(schemas)
+        rows = conn.execute(sa.text(query), params).fetchall()
 
-        params = {}
-        if schemas:
-            base_sql += " AND n.nspname = ANY(:schemas)"
-            params["schemas"] = schemas
-
-        base_sql += " ORDER BY n.nspname, c.relname"
-
-        result = conn.execute(sa.text(base_sql), params).fetchall()
-
-        for row in result:
+        for row in rows:
             if not row["table_comment"]:
                 continue
 
@@ -163,7 +170,7 @@ def create_sharding_plan(context: Context, models: list[Model], **kwargs) -> dic
 
 
 def invalidate_default_distribution(
-    context: Context, backend: PostgreSQL, plan: ShardingPlan, **kwargs
+    context: Context, backend: PostgreSQL, plan: ShardingPlan, verbose: bool = False, **kwargs
 ) -> ShardingPlan:
     default_distribution = context.get("config").default_distribution_strategy
     if not default_distribution:
@@ -173,6 +180,11 @@ def invalidate_default_distribution(
         case DistributionType.SCHEMA:
             return invalidate_default_schema_distributions(context, backend, plan)
         case _:
+            if verbose:
+                cli_message(
+                    f"Skipped invalidation of default distribution for {default_distribution.distribution_type.value} type"
+                )
+
             return plan
 
 
@@ -231,34 +243,28 @@ def invalidate_default_schema_distributions(
     return plan_copy
 
 
-def build_fk_components(conn, tables: set[TableIdentifier]) -> dict[TableIdentifier, set[TableIdentifier]]:
-    """
-    Build FK-connected components using FULL DB graph,
-    then return mapping only for given `tables`.
-    """
-
-    target_map = {(t.pg_schema_name, t.pg_table_name): t for t in tables}
+def _build_fk_graph(conn: sa.engine.Connection) -> dict[tuple[str, str], set[tuple[str, str]]]:
     graph: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
 
-    result = conn.execute("""
-        SELECT
-            src_ns.nspname AS source_schema,
-            src.relname    AS source_table,
-            tgt_ns.nspname AS target_schema,
-            tgt.relname    AS target_table
-        FROM pg_constraint con
-        JOIN pg_class src
-            ON src.oid = con.conrelid
-        JOIN pg_namespace src_ns
-            ON src_ns.oid = src.relnamespace
-        JOIN pg_class tgt
-            ON tgt.oid = con.confrelid
-        JOIN pg_namespace tgt_ns
-            ON tgt_ns.oid = tgt.relnamespace
-        WHERE con.contype = 'f'
-    """)
+    rows = conn.execute("""
+                        SELECT
+                            src_ns.nspname AS source_schema,
+                            src.relname    AS source_table,
+                            tgt_ns.nspname AS target_schema,
+                            tgt.relname    AS target_table
+                        FROM pg_constraint con
+                                 JOIN pg_class src
+                                      ON src.oid = con.conrelid
+                                 JOIN pg_namespace src_ns
+                                      ON src_ns.oid = src.relnamespace
+                                 JOIN pg_class tgt
+                                      ON tgt.oid = con.confrelid
+                                 JOIN pg_namespace tgt_ns
+                                      ON tgt_ns.oid = tgt.relnamespace
+                        WHERE con.contype = 'f'
+                        """)
 
-    for src_schema, src_table, tgt_schema, tgt_table in result.fetchall():
+    for src_schema, src_table, tgt_schema, tgt_table in rows.fetchall():
         src = (src_schema, src_table)
         tgt = (tgt_schema, tgt_table)
 
@@ -290,10 +296,23 @@ def build_fk_components(conn, tables: set[TableIdentifier]) -> dict[TableIdentif
         for n in component:
             key_to_component[n] = component
 
-    result: dict[TableIdentifier, set[TableIdentifier]] = {}
+    return key_to_component
 
+
+def build_fk_components(
+    conn: sa.engine.Connection, tables: set[TableIdentifier]
+) -> dict[TableIdentifier, set[TableIdentifier]]:
+    """
+    Build FK-connected components using FULL DB graph,
+    then return mapping only for given `tables`.
+    """
+
+    target_map = {(t.pg_schema_name, t.pg_table_name): t for t in tables}
+    graph = _build_fk_graph(conn)
+
+    result = {}
     for key, table in target_map.items():
-        full_component = key_to_component.get(key, {key})
+        full_component = graph.get(key, {key})
         result[table] = {target_map[k] for k in full_component if k in target_map}
 
     return result
@@ -309,13 +328,12 @@ def undistribute_all(
 ) -> None:
     for schema in plan.schemas:
         handler.add_action(UndistributeSchema(schema_name=schema))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
     if not (plan.references or plan.distributed):
         return
 
-    component_map = {}
     processed = set()
     undistributed_tables = plan.references | set(table for table in plan.distributed.keys())
     with backend.begin() as conn:
@@ -326,7 +344,7 @@ def undistribute_all(
             continue
 
         handler.add_action(UndistributeTable(table_identifier=table))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
         component = component_map[table]
         processed.update(component)
@@ -336,7 +354,7 @@ def undistribute_all(
             continue
 
         handler.add_action(UndistributeTable(table_identifier=table))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
         component = component_map[table]
         processed.update(component)
@@ -352,17 +370,17 @@ def distribute_all(
 ) -> None:
     for table in plan.references:
         handler.add_action(DistributeReference(table_identifier=table))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
     for table, column in plan.distributed.items():
         handler.add_action(DistributeTable(table_identifier=table, column=column))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
     for schema in plan.schemas:
         handler.add_action(DistributeSchema(schema_name=schema))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
 
