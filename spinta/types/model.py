@@ -112,7 +112,6 @@ def configure(context: Context, model: Model):
         model.distribution_strategy = _parse_distribution_strategy(model, distribute)
 
 
-
 @load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
