@@ -207,12 +207,12 @@ def apply_missing_table_comments(
 ) -> None:
     bootstrap_table = backend.tables.get(table_identifier.logical_qualified_name)
     if bootstrap_table is None:
-        if progress_bar and verbose:
+        if progress_bar is not None and verbose:
             progress_bar.write(f"COULD NOT FIND '{table_identifier.logical_qualified_name}' TABLE")
         return
 
     if not table_contains_comment(inspector, bootstrap_table):
-        if progress_bar and verbose:
+        if progress_bar is not None and verbose:
             progress_bar.write(f"'{table_identifier.pg_qualified_name}' <- {cleanup_comment(bootstrap_table.comment)}")
 
         conn.execute(
@@ -230,7 +230,7 @@ def apply_missing_table_comments(
             continue
 
         if column["comment"] != bootstrap_column.comment:
-            if progress_bar and verbose:
+            if progress_bar is not None and verbose:
                 progress_bar.write(
                     f"'{table_identifier.pg_qualified_name}'.'{column['name']}' <- {cleanup_comment(bootstrap_column.comment)}"
                 )

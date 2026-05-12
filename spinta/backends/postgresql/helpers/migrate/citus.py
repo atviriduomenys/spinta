@@ -327,7 +327,7 @@ def undistribute_all(
 ) -> None:
     for schema in plan.schemas:
         handler.add_action(UndistributeSchema(schema_name=schema))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
     if not (plan.references or plan.distributed):
@@ -343,7 +343,7 @@ def undistribute_all(
             continue
 
         handler.add_action(UndistributeTable(table_identifier=table))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
         component = component_map[table]
         processed.update(component)
@@ -353,7 +353,7 @@ def undistribute_all(
             continue
 
         handler.add_action(UndistributeTable(table_identifier=table))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
         component = component_map[table]
         processed.update(component)
@@ -369,15 +369,15 @@ def distribute_all(
 ) -> None:
     for table in plan.references:
         handler.add_action(DistributeReference(table_identifier=table))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
     for table, column in plan.distributed.items():
         handler.add_action(DistributeTable(table_identifier=table, column=column))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
 
     for schema in plan.schemas:
         handler.add_action(DistributeSchema(schema_name=schema))
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.update(1)
