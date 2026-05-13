@@ -9,7 +9,6 @@ from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.citus import handle_ordered_distribution_strategies
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     drop_all_indexes_and_constraints,
     get_prop_names,
@@ -25,6 +24,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     revalidate_table_identifier,
     extract_sequence_name,
     update_primary_key,
+    handle_ordered_distribution_strategies,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (

@@ -15,7 +15,7 @@ from sqlalchemy.sql.elements import TextClause
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import TableType
+from spinta.backends.constants import TableType, DistributionType
 from spinta.backends.helpers import (
     get_table_name,
     get_table_identifier,
@@ -25,9 +25,9 @@ from spinta.backends.helpers import (
 )
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name, get_pg_sequence_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler, UndistributeTable, DistributeReference
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
-from spinta.backends.postgresql.helpers.migrate.citus import ShardingPlan, handle_ordered_distribution_strategies
+from spinta.backends.postgresql.helpers.migrate.citus import ShardingPlan
 from spinta.backends.postgresql.helpers.migrate.name import (
     RenameMap,
     get_full_name,
@@ -1528,3 +1528,38 @@ def update_primary_key(
                 % {"table_name": target_table_identifier.pg_table_name},
             )
         )
+
+
+def handle_ordered_distribution_strategies(
+    migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier
+) -> None:
+    _handle_ordered_undistribute(migration_ctx, table_identifier)
+    _handle_ordered_distribute(migration_ctx, table_identifier)
+
+
+def _handle_ordered_undistribute(migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier) -> None:
+    distribution_type = migration_ctx.undistribute_plan.distribution_type(table_identifier)
+    if distribution_type is None:
+        return
+
+    handler = migration_ctx.handler
+    match distribution_type:
+        case DistributionType.TABLE:
+            handler.add_action(UndistributeTable(table_identifier=table_identifier))
+            migration_ctx.undistribute_plan.discard(table_identifier)
+        case _:
+            pass
+
+
+def _handle_ordered_distribute(migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier) -> None:
+    distribution_type = migration_ctx.distribute_plan.distribution_type(table_identifier)
+    if distribution_type is None:
+        return
+
+    handler = migration_ctx.handler
+    match distribution_type:
+        case DistributionType.COPY:
+            handler.add_action(DistributeReference(table_identifier=table_identifier))
+            migration_ctx.distribute_plan.discard(table_identifier)
+        case _:
+            pass

@@ -4,7 +4,6 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.citus import handle_ordered_distribution_strategies
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     get_root_attr,
     PostgresqlMigrationContext,
@@ -13,6 +12,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     gather_prepare_columns,
     get_source_table,
     update_primary_key,
+    handle_ordered_distribution_strategies,
 )
 from spinta.backends.postgresql.helpers.name import name_changed
 from spinta.components import Context

@@ -128,7 +128,6 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
                 model_tables = tables[model_tables_name]
             commands.migrate(context, backend, migration_ctx, model_tables, model)
 
-
     undistribute_all(context, backend, undistribute_plan, handler)
     distribute_all(context, backend, distribute_plan, handler)
 

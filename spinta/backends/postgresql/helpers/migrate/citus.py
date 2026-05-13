@@ -20,7 +20,6 @@ from spinta.backends.postgresql.helpers.migrate.actions import (
     DistributeSchema,
 )
 from spinta.cli.helpers.message import cli_message
-from spinta.backends.postgresql.helpers.migrate.migrate import PostgresqlMigrationContext
 from spinta.components import Context, Model
 from spinta.exceptions import NotImplementedFeature
 
@@ -382,38 +381,3 @@ def distribute_all(
         handler.add_action(DistributeSchema(schema_name=schema))
         if progress_bar is not None:
             progress_bar.update(1)
-
-
-def handle_ordered_distribution_strategies(
-    migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier
-) -> None:
-    _handle_ordered_undistribute(migration_ctx, table_identifier)
-    _handle_ordered_distribute(migration_ctx, table_identifier)
-
-
-def _handle_ordered_undistribute(migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier) -> None:
-    distribution_type = migration_ctx.undistribute_plan.distribution_type(table_identifier)
-    if distribution_type is None:
-        return
-
-    handler = migration_ctx.handler
-    match distribution_type:
-        case DistributionType.TABLE:
-            handler.add_action(UndistributeTable(table_identifier=table_identifier))
-            migration_ctx.undistribute_plan.discard(table_identifier)
-        case _:
-            pass
-
-
-def _handle_ordered_distribute(migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier) -> None:
-    distribution_type = migration_ctx.distribute_plan.distribution_type(table_identifier)
-    if distribution_type is None:
-        return
-
-    handler = migration_ctx.handler
-    match distribution_type:
-        case DistributionType.COPY:
-            handler.add_action(DistributeReference(table_identifier=table_identifier))
-            migration_ctx.distribute_plan.discard(table_identifier)
-        case _:
-            pass
