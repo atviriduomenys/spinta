@@ -21,7 +21,7 @@ from spinta.dimensions.enum.helpers import link_enums, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.scope.components import Scope
-from spinta.dimensions.scope.helpers import load_scopes, link_scopes
+from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
