@@ -199,8 +199,6 @@ def test_scope_with_valid_property_loads(manifest_type: str, tmp_path: Path, rc:
     )
     store = context.get("store")
     city = store.manifest.get_objects()["model"]["example/City"]
-    print("properties:", list(city.properties.keys()))
-    print("scopes:", list(city.scopes.keys()))
 
     assert "ltu" in city.scopes
     assert city.scopes["ltu"].model is city
