@@ -1,7 +1,26 @@
-from spinta.components import Model
-from spinta.core.ufuncs import ufunc, Expr, Bind, asttoexpr
+from spinta.core.ufuncs import ufunc, Expr, Bind, GetAttr, asttoexpr
 from spinta.dimensions.scope.components import ScopeLoader, Scope
-from spinta.exceptions import PropertyNotFound
+
+
+@ufunc.resolver(ScopeLoader, str, name="bind")
+def bind_(env: ScopeLoader, name: str) -> Bind:
+    return Bind(name)
+
+
+@ufunc.resolver(ScopeLoader, Bind, Bind, name="getattr")
+def getattr_(env: ScopeLoader, field: Bind, attr: Bind) -> GetAttr:
+    return GetAttr(field.name, attr)
+
+
+@ufunc.resolver(ScopeLoader, Bind, GetAttr, name="getattr")
+def getattr_(env: ScopeLoader, obj: Bind, attr: GetAttr) -> GetAttr:
+    return GetAttr(obj.name, attr)
+
+
+@ufunc.resolver(ScopeLoader, GetAttr, Bind, name="getattr")
+def getattr_(env: ScopeLoader, obj: GetAttr, attr: Bind) -> GetAttr:
+    leaf = env.call("getattr", obj.name, attr)
+    return GetAttr(obj.obj, leaf)
 
 
 @ufunc.resolver(ScopeLoader, list)
@@ -15,33 +34,24 @@ def resolve_scope(env: ScopeLoader, scope: Scope):
     prepare = scope.prepare
     if not prepare:
         return
+    env.update(model=scope.model, property_resolver=None)
     if isinstance(prepare, dict):
         prepare = asttoexpr(prepare)
-    env.call("validate_prepare", scope.model, prepare)
+    env.call("validate_prepare", prepare)
 
 
-@ufunc.resolver(ScopeLoader, Model, Expr)
-def validate_prepare(env: ScopeLoader, model: Model, expr: Expr):
-    if expr.name == "getattr":
-        if expr.args:
-            env.call("validate_prepare", model, expr.args[0])
-        return
-    if expr.name == "bind":
-        if expr.args and isinstance(expr.args[0], str):
-            env.call("validate_prepare", model, Bind(expr.args[0]))
+@ufunc.resolver(ScopeLoader, Expr)
+def validate_prepare(env: ScopeLoader, expr: Expr):
+    if expr.name in ("bind", "getattr"):
+        result = env.resolve(expr)
+        env.resolve_property(result)
         return
     for arg in expr.args:
-        env.call("validate_prepare", model, arg)
+        env.call("validate_prepare", arg)
     for value in expr.kwargs.values():
-        env.call("validate_prepare", model, value)
+        env.call("validate_prepare", value)
 
 
-@ufunc.resolver(ScopeLoader, Model, Bind)
-def validate_prepare(env: ScopeLoader, model: Model, bind: Bind):
-    if bind.name not in model.properties:
-        raise PropertyNotFound(model, property=bind.name)
-
-
-@ufunc.resolver(ScopeLoader, Model, object)
-def validate_prepare(env: ScopeLoader, model: Model, value: object):
+@ufunc.resolver(ScopeLoader, object)
+def validate_prepare(env: ScopeLoader, value: object):
     return

@@ -236,8 +236,6 @@ def link(context: Context, model: Model):
     for prop in model.properties.values():
         commands.link(context, prop)
 
-    link_scopes(context, model.manifest, model.scopes)
-
     _link_model_page(model)
 
 

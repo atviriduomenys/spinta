@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import MissingRefModel, PropertyNotFound
+from spinta.exceptions import MissingRefModel, PropertyNotFound, FieldNotInResource
 from spinta.testing.manifest import load_manifest, load_manifest_get_context
 from spinta.types.datatype import Object
 
@@ -208,7 +208,7 @@ def test_scope_with_valid_property_loads(manifest_type: str, tmp_path: Path, rc:
 
 
 @pytest.mark.manifests("csv")
-def test_scope_with_unknown_property_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+def test_scope_with_unknown_property_raises(manifest_type, tmp_path, rc):
     with pytest.raises(PropertyNotFound):
         load_manifest_get_context(
             rc,
@@ -216,7 +216,7 @@ def test_scope_with_unknown_property_raises(manifest_type: str, tmp_path: Path, 
     d | r | b | m | property | type   | ref | prepare           | access
     example                  |        |     |                   |
       |   |   | City         |        | id  |                   |
-      |   |   |              | scope  | bad | country = 'lt'    | private
+      |   |   |              | scope  | bad | foo = 'lt'        | private
       |   |   |   | id       | string |     |                   | private
       |   |   |   | code     | string |     |                   | private
             """,
@@ -244,18 +244,167 @@ def test_scope_with_select_bare_identifier_raises(manifest_type: str, tmp_path: 
 
 
 @pytest.mark.manifests("csv")
-def test_scope_getattr_head_against_missing_property_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
-    with pytest.raises(PropertyNotFound):
+def test_scope_with_valid_denorm_property_loads(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property     | type   | ref     | prepare              | access
+    example                      |        |         |                      |
+      |   |   | City             |        | id      |                      |
+      |   |   |                  | scope  | denorm  | country.code = 'lt'  | private
+      |   |   |   | id           | string |         |                      | private
+      |   |   |   | country      | ref    | Country |                      | private
+      |   |   |   | country.code | string |         |                      | private
+      |   |   | Country          |        | id      |                      |
+      |   |   |   | id           | string |         |                      | private
+      |   |   |   | code         | string |         |                      | private
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    city = context.get("store").manifest.get_objects()["model"]["example/City"]
+    assert "denorm" in city.scopes
+    assert city.scopes["denorm"].model is city
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_invalid_denorm_subproperty_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    with pytest.raises((PropertyNotFound, FieldNotInResource)):
         load_manifest_get_context(
             rc,
             manifest="""
-    d | r | b | m | property | type   | ref | prepare              | access
-    example                  |        |     |                      |
-      |   |   | City         |        | id  |                      |
-      |   |   |              | scope  | bad | country.name = 'lt'  | private
-      |   |   |   | id       | string |     |                      | private
-      |   |   |   | code     | string |     |                      | private
+    d | r | b | m | property     | type   | ref     | prepare               | access
+    example                      |        |         |                       |
+      |   |   | City             |        | id      |                       |
+      |   |   |                  | scope  | bad     | country.foo = 'x'     | private
+      |   |   |   | id           | string |         |                       | private
+      |   |   |   | country      | ref    | Country |                       | private
+      |   |   |   | country.code | string |         |                       | private
+      |   |   | Country          |        | id      |                       |
+      |   |   |   | id           | string |         |                       | private
+      |   |   |   | code         | string |         |                       | private
             """,
             manifest_type=manifest_type,
             tmp_path=tmp_path,
         )
+
+@pytest.mark.manifests("csv")
+def test_scope_with_valid_object_subproperty_loads(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property       | type   | ref | prepare                  | access
+    example                        |        |     |                          |
+      |   |   | City               |        | id  |                          |
+      |   |   |                    | scope  | obj | address.street = 'Main'  | private
+      |   |   |   | id             | string |     |                          | private
+      |   |   |   | address        | object |     |                          | private
+      |   |   |   | address.street | string |     |                          | private
+      |   |   |   | address.city   | string |     |                          | private
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    city = context.get("store").manifest.get_objects()["model"]["example/City"]
+    assert "obj" in city.scopes
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_invalid_object_subproperty_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    with pytest.raises((PropertyNotFound, FieldNotInResource)):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property       | type   | ref | prepare              | access
+    example                        |        |     |                      |
+      |   |   | City               |        | id  |                      |
+      |   |   |                    | scope  | bad | address.foo = 'x'    | private
+      |   |   |   | id             | string |     |                      | private
+      |   |   |   | address        | object |     |                      | private
+      |   |   |   | address.street | string |     |                      | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+
+@pytest.mark.manifests("csv")
+def test_scope_with_valid_text_property_loads(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property | type   | ref  | prepare           | access
+    example                  |        |      |                   |
+      |   |   | City         |        | id   |                   |
+      |   |   |              | scope  | text | name = 'Vilnius'  | private
+      |   |   |   | id       | string |      |                   | private
+      |   |   |   | name@lt  | string |      |                   | private
+      |   |   |   | name@en  | string |      |                   | private
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    city = context.get("store").manifest.get_objects()["model"]["example/City"]
+    assert "text" in city.scopes
+
+@pytest.mark.manifests("csv")
+def test_scope_with_invalid_text_property_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    with pytest.raises((PropertyNotFound, FieldNotInResource)):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref | prepare         | access
+    example                  |        |     |                 |
+      |   |   | City         |        | id  |                 |
+      |   |   |              | scope  | bad | foo = 'x'       | private
+      |   |   |   | id       | string |     |                 | private
+      |   |   |   | name@lt  | string |     |                 | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_multiple_scopes_on_same_model_load(manifest_type, tmp_path, rc):
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property | type   | ref  | prepare         | access
+    example                  |        |      |                 |
+      |   |   | City         |        | id   |                 |
+      |   |   |              | scope  | ids  | select(id)      | private
+      |   |   |              | scope  | code | code = 'lt'     | private
+      |   |   |              | scope  | name | select(name)    | private
+      |   |   |   | id       | string |      |                 | private
+      |   |   |   | code     | string |      |                 | private
+      |   |   |   | name     | string |      |                 | private
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    city = context.get("store").manifest.get_objects()["model"]["example/City"]
+    assert set(city.scopes.keys()) == {"ids", "code", "name"}
+
+@pytest.mark.manifests("csv")
+def test_cross_model_scope_3_level_chain_loads(manifest_type, tmp_path, rc):
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property | type   | ref       | prepare                        | access
+    example                  |        |           |                                |
+      |   |   | City         |        | id        |                                |
+      |   |   |              | scope  | continent | select(country.continent.name) | private
+      |   |   |   | id       | string |           |                                | private
+      |   |   |   | country  | ref    | Country   |                                | private
+      |   |   | Country      |        | id        |                                |
+      |   |   |   | id       | string |           |                                | private
+      |   |   |   | continent| ref    | Continent |                                | private
+      |   |   | Continent    |        | id        |                                |
+      |   |   |   | id       | string |           |                                | private
+      |   |   |   | name     | string |           |                                | private
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    city = context.get("store").manifest.get_objects()["model"]["example/City"]
+    assert "continent" in city.scopes

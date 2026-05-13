@@ -7,7 +7,7 @@ from spinta.core.access import Access
 from spinta.core.ufuncs import Expr, Bind
 from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import load_scopes, link_scopes
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import PropertyNotFound, FieldNotInResource
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse
 
@@ -123,7 +123,9 @@ class TestLinkScopes:
         model = Model()
         model.name = "example/City"
         model.eid = "test/example/City"
-        model.properties = {"id": None, "code": None, "name": None}
+        props = {"id": None, "code": None, "name": None}
+        model.properties = props
+        model.flatprops = props
         return model
 
     @pytest.fixture
@@ -137,6 +139,33 @@ class TestLinkScopes:
         scope.prepare = prepare
         return scope
 
+    def test_valid_local_property_passes(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "valid_scope",
+            parse("code = 'lt'"),
+        )
+        link_scopes(context, manifest, {"valid_scope": scope})
+
+    def test_unknown_local_property_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            parse("country = 'lt'"),
+        )
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
+            link_scopes(context, manifest, {"bad_scope": scope})
+
     def test_unknown_property_inside_select_raises(
         self,
         context: Context,
@@ -148,49 +177,7 @@ class TestLinkScopes:
             "bad_scope",
             parse("select(country)"),
         )
-
-        with pytest.raises(PropertyNotFound):
-            link_scopes(context, manifest, {"bad_scope": scope})
-
-    def test_valid_bind_passes(
-        self,
-        context: Context,
-        manifest: Manifest,
-        model_with_props: Model,
-    ) -> None:
-        scope = self._build_scope(
-            model_with_props,
-            "valid_scope",
-            Expr("eq", Bind("code"), "lt"),
-        )
-        link_scopes(context, manifest, {"valid_scope": scope})
-
-    def test_unknown_property_raises(
-        self,
-        context: Context,
-        manifest: Manifest,
-        model_with_props: Model,
-    ) -> None:
-        scope = self._build_scope(
-            model_with_props,
-            "bad_scope",
-            Expr("eq", Bind("country"), "lt"),
-        )
-        with pytest.raises(PropertyNotFound):
-            link_scopes(context, manifest, {"bad_scope": scope})
-
-    def test_nested_expr_is_walked(
-        self,
-        context: Context,
-        manifest: Manifest,
-        model_with_props: Model,
-    ) -> None:
-        scope = self._build_scope(
-            model_with_props,
-            "bad_scope",
-            Expr("select", Bind("country")),
-        )
-        with pytest.raises(PropertyNotFound):
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
             link_scopes(context, manifest, {"bad_scope": scope})
 
     def test_getattr_head_validated(
@@ -202,9 +189,9 @@ class TestLinkScopes:
         scope = self._build_scope(
             model_with_props,
             "bad_scope",
-            Expr("getattr", Bind("country"), Bind("name")),
+            parse("country.name = 'lt'"),
         )
-        with pytest.raises(PropertyNotFound):
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
             link_scopes(context, manifest, {"bad_scope": scope})
 
     def test_first_invalid_scope_raises(
@@ -216,12 +203,16 @@ class TestLinkScopes:
         good_scope = self._build_scope(
             model_with_props,
             "good_scope",
-            Expr("eq", Bind("code"), "lt"),
+            parse("code = 'lt'"),
         )
         bad_scope = self._build_scope(
             model_with_props,
             "bad_scope",
-            Expr("eq", Bind("country"), "lt"),
+            parse("country = 'lt'"),
         )
-        with pytest.raises(PropertyNotFound):
-            link_scopes(context, manifest, {"good_scope": good_scope, "bad_scope": bad_scope})
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
+            link_scopes(
+                context,
+                manifest,
+                {"good_scope": good_scope, "bad_scope": bad_scope},
+            )

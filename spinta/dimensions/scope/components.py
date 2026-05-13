@@ -1,11 +1,8 @@
-from spinta.components import ExtraMetaData
+from spinta.components import ExtraMetaData, Model
 from spinta.core.enums import Access, Visibility, Status
 from spinta.core.ufuncs import Expr, Env
 from spinta.manifests.components import Manifest
-
-
-class ScopeLoader(Env):
-    manifest: Manifest
+from spinta.ufuncs.propertyresolver.components import PropertyResolver
 
 
 class ScopeGiven:
@@ -49,3 +46,17 @@ class Scope(ExtraMetaData):
 
     def __init__(self):
         self.given = ScopeGiven()
+
+
+class ScopeLoader(Env):
+    manifest: Manifest
+    model: Model
+    property_resolver: PropertyResolver | None
+
+    def resolve_property(self, *args, **kwargs):
+        resolver = self._scope.get("property_resolver")
+        if resolver is None:
+            resolver = PropertyResolver(self.context)
+            resolver = resolver.init(model=self.model, ufunc_types=False)
+            self.update(property_resolver=resolver)
+        return resolver.resolve_property(*args, **kwargs)

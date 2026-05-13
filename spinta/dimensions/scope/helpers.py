@@ -1,5 +1,6 @@
 from typing import cast
 
+from spinta import commands
 from spinta.components import Context, Model
 from spinta.core.access import load_access_param
 from spinta.core.enums import load_level, load_status, load_visibility
@@ -7,14 +8,6 @@ from spinta.core.ufuncs import Expr
 from spinta.dimensions.scope.components import Scope, ScopeLoader
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
-
-
-def link_scopes(context: Context, manifest: Manifest, scopes: dict[str, Scope]) -> None:
-    if not scopes:
-        return
-    loader = ScopeLoader(context)
-    loader.update(manifest=manifest)
-    loader.resolve(Expr("resolve_scope", list(scopes.values())))
 
 
 def _load_scope(
@@ -47,3 +40,17 @@ def load_scopes(
     if not scopes:
         return {}
     return {name: _load_scope(context, parents, name, data) for name, data in scopes.items()}
+
+
+def link_scopes(context: Context, manifest: Manifest, scopes: dict[str, Scope]) -> None:
+    if not scopes:
+        return
+    loader = ScopeLoader(context)
+    loader.update(manifest=manifest)
+    loader.resolve(Expr("resolve_scope", list(scopes.values())))
+
+
+def finalize_scope_link(context: Context, manifest: Manifest) -> None:
+    for model in commands.get_models(context, manifest).values():
+        if model.scopes:
+            link_scopes(context, manifest, model.scopes)
