@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import MissingRefModel, PropertyNotFound, FieldNotInResource
+from spinta.exceptions import MissingRefModel, PropertyNotFound, FieldNotInResource, LangNotDeclared
 from spinta.testing.manifest import load_manifest, load_manifest_get_context
 from spinta.types.datatype import Object
 
@@ -334,13 +334,13 @@ def test_scope_with_valid_text_property_loads(manifest_type: str, tmp_path: Path
     context = load_manifest_get_context(
         rc,
         manifest="""
-    d | r | b | m | property | type   | ref  | prepare           | access
-    example                  |        |      |                   |
-      |   |   | City         |        | id   |                   |
-      |   |   |              | scope  | text | name = 'Vilnius'  | private
-      |   |   |   | id       | string |      |                   | private
-      |   |   |   | name@lt  | string |      |                   | private
-      |   |   |   | name@en  | string |      |                   | private
+    d | r | b | m | property | type   | ref  | prepare             | access
+    example                  |        |      |                     |
+      |   |   | City         |        | id   |                     | 
+      |   |   |              | scope  | text | name@lt = 'Vilnius' | private
+      |   |   |   | id       | string |      |                     | private
+      |   |   |   | name@lt  | string |      |                     | private
+      |   |   |   | name@en  | string |      |                     | private
         """,
         manifest_type=manifest_type,
         tmp_path=tmp_path,
@@ -412,3 +412,72 @@ def test_cross_model_scope_3_level_chain_loads(manifest_type, tmp_path, rc):
     )
     city = context.get("store").manifest.get_objects()["model"]["example/City"]
     assert "continent" in city.scopes
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_invalid_lang_tag_raises(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    with pytest.raises(LangNotDeclared):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref  | prepare              | access
+    example                  |        |      |                      |
+      |   |   | City         |        | id   |                      |
+      |   |   |              | scope  | text | name@fr = 'Vilnius'  | private
+      |   |   |   | id       | string |      |                      | private
+      |   |   |   | name@lt  | string |      |                      | private
+      |   |   |   | name@en  | string |      |                      | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_or_invalid_property_raises(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    with pytest.raises((PropertyNotFound, FieldNotInResource)):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref  | prepare                            | access
+    example                  |        |      |                                    |
+      |   |   | City         |        | id   |                                    |
+      |   |   |              | scope  | text | or(name@lt = 'Vilnius', foo = 'x') | private
+      |   |   |   | id       | string |      |                                    | private
+      |   |   |   | name@lt  | string |      |                                    | private
+      |   |   |   | name@en  | string |      |                                    | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_scope_with_and_invalid_lang_tag_raises(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    with pytest.raises(LangNotDeclared):
+        load_manifest_get_context(
+            rc,
+            manifest="""
+    d | r | b | m | property | type   | ref  | prepare                                       | access
+    example                  |        |      |                                               |
+      |   |   | City         |        | id   |                                               |
+      |   |   |              | scope  | text | and(name@lt = 'Vilnius', name@xx = 'Vilnius') | private
+      |   |   |   | id       | string |      |                                               | private
+      |   |   |   | name@lt  | string |      |                                               | private
+      |   |   |   | name@en  | string |      |                                               | private
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
