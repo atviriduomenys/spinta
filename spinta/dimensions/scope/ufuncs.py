@@ -2,11 +2,6 @@ from spinta.core.ufuncs import ufunc, Expr, Bind, GetAttr, asttoexpr
 from spinta.dimensions.scope.components import ScopeLoader, Scope
 
 
-@ufunc.resolver(ScopeLoader, str, name="bind")
-def bind_(env: ScopeLoader, name: str) -> Bind:
-    return Bind(name)
-
-
 @ufunc.resolver(ScopeLoader, Bind, Bind, name="getattr")
 def getattr_(env: ScopeLoader, field: Bind, attr: Bind) -> GetAttr:
     return GetAttr(field.name, attr)
@@ -34,7 +29,6 @@ def resolve_scope(env: ScopeLoader, scope: Scope):
     prepare = scope.prepare
     if not prepare:
         return
-    env.update(model=scope.model, property_resolver=None)
     if isinstance(prepare, dict):
         prepare = asttoexpr(prepare)
     env.call("validate_prepare", prepare)

@@ -149,7 +149,7 @@ class TestLinkScopes:
             "valid_scope",
             parse("code = 'lt'"),
         )
-        link_scopes(context, manifest, {"valid_scope": scope})
+        link_scopes(context, model_with_props, {"valid_scope": scope})
 
     def test_unknown_local_property_raises(
         self,
@@ -163,7 +163,7 @@ class TestLinkScopes:
             parse("country = 'lt'"),
         )
         with pytest.raises((PropertyNotFound, FieldNotInResource)):
-            link_scopes(context, manifest, {"bad_scope": scope})
+            link_scopes(context, model_with_props, {"bad_scope": scope})
 
     def test_unknown_property_inside_select_raises(
         self,
@@ -177,7 +177,7 @@ class TestLinkScopes:
             parse("select(country)"),
         )
         with pytest.raises((PropertyNotFound, FieldNotInResource)):
-            link_scopes(context, manifest, {"bad_scope": scope})
+            link_scopes(context, model_with_props, {"bad_scope": scope})
 
     def test_getattr_head_validated(
         self,
@@ -191,7 +191,7 @@ class TestLinkScopes:
             parse("country.name = 'lt'"),
         )
         with pytest.raises((PropertyNotFound, FieldNotInResource)):
-            link_scopes(context, manifest, {"bad_scope": scope})
+            link_scopes(context, model_with_props, {"bad_scope": scope})
 
     def test_first_invalid_scope_raises(
         self,
@@ -212,6 +212,6 @@ class TestLinkScopes:
         with pytest.raises((PropertyNotFound, FieldNotInResource)):
             link_scopes(
                 context,
-                manifest,
+                model_with_props,
                 {"good_scope": good_scope, "bad_scope": bad_scope},
             )

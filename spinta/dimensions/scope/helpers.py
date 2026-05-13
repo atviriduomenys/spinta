@@ -42,15 +42,15 @@ def load_scopes(
     return {name: _load_scope(context, parents, name, data) for name, data in scopes.items()}
 
 
-def link_scopes(context: Context, manifest: Manifest, scopes: dict[str, Scope]) -> None:
+def link_scopes(context: Context, model: Model, scopes: dict[str, Scope]) -> None:
     if not scopes:
         return
     loader = ScopeLoader(context)
-    loader.update(manifest=manifest)
+    loader.update(model=model)
     loader.resolve(Expr("resolve_scope", list(scopes.values())))
 
 
 def finalize_scope_link(context: Context, manifest: Manifest) -> None:
     for model in commands.get_models(context, manifest).values():
         if model.scopes:
-            link_scopes(context, manifest, model.scopes)
+            link_scopes(context, model, model.scopes)
