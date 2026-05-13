@@ -17,6 +17,8 @@ from spinta.cli import data
 from spinta.cli import inspect
 from spinta.cli import manifest
 from spinta.cli import migrate
+from spinta.cli.comment import comment
+from spinta.cli.uncomment import uncomment
 from spinta.cli import pii
 from spinta.cli import pull
 from spinta.cli import push
@@ -45,12 +47,13 @@ add(app, "inspect", inspect.inspect, short_help=("Update manifest schema from an
 add(app, "pii", pii.app, short_help="Manage Person Identifying Information")
 
 add(app, "copy", manifest.copy, short_help="Copy only specified metadata from a manifest")
+add(app, "comment", comment, short_help="Comment unsupported functionality in a manifest")
+add(app, "uncomment", uncomment, short_help="Restore commented parts of a manifest")
 add(app, "show", show, short_help="Show manifest as ascii table")
 
 add(app, "bootstrap", migrate.bootstrap, short_help="Initialize backends")
 add(app, "sync", migrate.sync, short_help="Sync source manifests into main manifest")
 add(app, "migrate", migrate.migrate, short_help="Migrate schema changes to backends")
-add(app, "freeze", migrate.freeze, short_help=("Detect schema changes and create new schema version"))
 
 add(app, "import", data.import_, short_help="Import data from a file")
 add(app, "export", data.export_, short_help="Export data to specific format")
@@ -77,15 +80,17 @@ def main(
     ),
     env_file: Optional[pathlib.Path] = Option(None, "--env-file", help=("Load configuration from a given .env file.")),
     version: bool = Option(False, help="Show version number."),
+    tb: Optional[str] = Option("pretty", "--tb", help=("Exception style: pretty, native.")),
+    # Deprecated. Use env file instead
     log_file: Optional[pathlib.Path] = Option(
         None, "--log-file", help=("Write log messages to a specified file, if not given, writes logs to STDERR.")
     ),
+    # Deprecated. Use env file instead
     log_level: Optional[str] = Option(
-        "warning",
+        None,
         "--log-level",
         help=("Log level. Possible levels: fatal, error, warning, info, debug. Default: warning."),
     ),
-    tb: Optional[str] = Option("pretty", "--tb", help=("Exception style: pretty, native.")),
 ):
     if tb == "pretty":
         app.pretty_exceptions_enable = True
@@ -94,15 +99,18 @@ def main(
     else:
         raise ValueError("Unknown value {tb!r} for --tb option. Possible values are: pretty, native.")
 
-    logging.basicConfig(
-        level=logging.getLevelName(log_level.upper()),
-        format="%(asctime)s %(levelname)s: %(message)s",
-        filename=log_file,
-    )
-
-    log.debug("log file set to: %s", log_file or "STDERR")
-    log.debug("log level set to: %s", log_level)
-
     ctx.obj = ctx.obj or create_context("cli", args=option, envfile=env_file)
+
+    if log_file:
+        log.warning(
+            "Deprecation warning: log_file option is deprecated and will be removed in a future version. "
+            "Set file_log_path via env file instead."
+        )
+    if log_level:
+        log.warning(
+            "Deprecation warning:log_level option is deprecated and will be removed in a future version. "
+            "Set log_level and file_log_level via env file instead."
+        )
+
     if version:
         echo(spinta.__version__)

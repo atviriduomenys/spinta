@@ -55,8 +55,6 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
             },
         },
     )
-    cli.invoke(rc, ["freeze"])
-
     context = create_test_context(rc)
 
     config = context.get("config")

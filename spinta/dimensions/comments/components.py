@@ -19,3 +19,6 @@ class Comment(Component):
     created: str
     comment: str
     given: CommentGiven
+    prepare: str | None = None
+    level: int | None = None
+    uri: str | None = None

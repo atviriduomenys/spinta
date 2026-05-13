@@ -4,13 +4,12 @@ from typing import overload
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.components import Context, Model
 from spinta.types.datatype import DataType
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_sequence_name, get_pg_name
+from spinta.backends.postgresql.helpers import get_pg_sequence_name
 
 log = logging.getLogger(__name__)
 
@@ -31,21 +30,25 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
     connection = context.get("transaction").connection
     insp = sa.inspect(backend.engine)
     # Delete redirect table
-    redirect_table_name = get_pg_table_name(model, TableType.REDIRECT)
-    if insp.has_table(redirect_table_name):
+    redirect_table_identifier = get_table_identifier(model, TableType.REDIRECT)
+    if insp.has_table(redirect_table_identifier.pg_table_name, schema=redirect_table_identifier.pg_schema_name):
         table = backend.get_table(model, TableType.REDIRECT)
         connection.execute(table.delete())
 
     # Delete changelog table
-    changelog_table_name = get_pg_table_name(model, TableType.CHANGELOG)
-    if insp.has_table(changelog_table_name):
+    changelog_table_identifier = get_table_identifier(model, TableType.CHANGELOG)
+    if insp.has_table(changelog_table_identifier.pg_table_name, schema=changelog_table_identifier.pg_schema_name):
         table = backend.get_table(model, TableType.CHANGELOG)
         connection.execute(table.delete())
 
         # Reset changelog table sequence
-        table_name = get_table_name(model, TableType.CHANGELOG)
-        seqname = get_pg_sequence_name(get_pg_name(table_name))
-        connection.execute(f'ALTER SEQUENCE "{seqname}" RESTART')
+        seqname = get_pg_sequence_name(changelog_table_identifier.pg_table_name)
+        seq_escaped_named = (
+            f'"{changelog_table_identifier.pg_schema_name}"."{seqname}"'
+            if changelog_table_identifier.pg_schema_name
+            else f'"{seqname}"'
+        )
+        connection.execute(f"ALTER SEQUENCE {seq_escaped_named} RESTART")
 
     # Delete data table
     table = backend.get_table(model)

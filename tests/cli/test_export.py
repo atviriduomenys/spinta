@@ -1188,6 +1188,7 @@ def test_export_postgresql_access_private(
     export_db: Sqlite,
     responses,
 ):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -1451,6 +1452,7 @@ def test_export_postgresql_access_protected(
     export_db: Sqlite,
     responses,
 ):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -1651,6 +1653,7 @@ def test_export_postgresql_access_public(
     export_db: Sqlite,
     responses,
 ):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",

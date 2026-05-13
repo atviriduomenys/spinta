@@ -4,19 +4,16 @@ from pathlib import Path
 import psycopg2
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    cleanup_tables,
     configure_migrate,
 )
 
 
-def test_migrate_custom_big_integer(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
-
+def test_migrate_custom_big_integer(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property | type    | ref      | level
      migrate/example |   |      |      |          |         |          |
@@ -28,12 +25,12 @@ def test_migrate_custom_big_integer(postgresql_migration: URL, rc: RawConfig, cl
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "id"}.issubset(columns.keys())
 
@@ -68,21 +65,21 @@ def test_migrate_custom_big_integer(postgresql_migration: URL, rc: RawConfig, cl
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN id TYPE BIGINT USING '
-        'CAST("migrate/example/Test".id AS BIGINT);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN id TYPE BIGINT USING '
+        'CAST("migrate/example"."Test".id AS BIGINT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc_updated, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"text", "id"}.issubset(columns.keys())
 

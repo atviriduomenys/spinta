@@ -2,67 +2,54 @@ from __future__ import annotations
 
 import itertools
 import pydoc
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import TYPE_CHECKING
-from typing import Union
-from typing import cast
-from typing import overload
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast, overload
 
-from spinta import commands
-from spinta import exceptions
+from spinta import commands, exceptions
 from spinta.auth import authorized
+from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
-from spinta.commands import authorize
-from spinta.commands import check
-from spinta.commands import load
-from spinta.commands import configure
-from spinta.components import PageBy, Page, PageInfo, UrlParams, pagination_enabled
-from spinta.components import Base
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Property
-from spinta.core.access import link_access_param
-from spinta.core.access import load_access_param
+from spinta.commands import authorize, check, configure, load
+from spinta.components import Base, Context, Model, Page, PageBy, PageInfo, Property, UrlParams, pagination_enabled
+from spinta.core.access import link_access_param, load_access_param
 from spinta.core.config import RawConfig
-from spinta.core.enums import Level, load_level, load_status, load_visibility, Action, Mode
+from spinta.core.enums import Action, Level, Mode, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
-from spinta.dimensions.enum.components import EnumValue
-from spinta.dimensions.enum.components import Enums
-from spinta.dimensions.enum.helpers import link_enums
-from spinta.dimensions.enum.helpers import load_enums
+from spinta.dimensions.enum.components import Enums, EnumValue
+from spinta.dimensions.enum.helpers import link_enums, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
+from spinta.dimensions.scope.components import Scope
+from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
-    KeymapNotSet,
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
+    KeymapNotSet,
     MissingConfigurationParameter,
+    PropertyNotFound,
+    UndefinedEnum,
+    UnknownPropertyType,
+    ReservedPropertyTypeShouldMatchPrimaryKey,
+    ReservedPropertySourceOrModelRefShouldBeSet,
 )
-from spinta.exceptions import PropertyNotFound
-from spinta.exceptions import UndefinedEnum
-from spinta.exceptions import UnknownPropertyType
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
-from spinta.nodes import get_node
-from spinta.nodes import load_model_properties
-from spinta.nodes import load_node
-from spinta.types.helpers import check_model_name
-from spinta.types.helpers import check_property_name
+from spinta.nodes import get_node, load_model_properties, load_node
+from spinta.types.datatype import String, Integer, UUID
+from spinta.types.helpers import check_model_name, check_property_name, check_scope_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
-from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
+from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
+
+INCORRECT_DTYPE_COUPLES = [(Integer, UUID), (Integer, String), (UUID, String), (UUID, Integer)]
 
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
@@ -126,6 +113,8 @@ def load(
     # XXX: Maybe it is worth to leave possibility to override _id access?
     model.properties["_id"].access = model.access
 
+    model.scopes = load_scopes(context, [model], data.get("scopes"))
+
     config = context.get("config")
 
     if model.base:
@@ -173,6 +162,7 @@ def load(
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
         model.given.pkeys = external.get("pk", [])
+        _detect_cooperating_reserved_properties_and_check_validity(model)
     else:
         model.external = None
         model.given.pkeys = []
@@ -198,6 +188,7 @@ def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
 @commands.link.register(Context, Model)
 def link(context: Context, model: Model):
     # Link external source.
+    config = context.get("config")
     if model.external:
         commands.link(context, model.external)
 
@@ -225,6 +216,7 @@ def link(context: Context, model: Model):
                 [model.ns],
                 model.ns.parents(),
             ),
+            default_access=config.default_access_level,
         )
     else:
         link_access_param(
@@ -233,6 +225,7 @@ def link(context: Context, model: Model):
                 [model.ns],
                 model.ns.parents(),
             ),
+            default_access=config.default_access_level,
         )
 
     # Link base
@@ -356,7 +349,6 @@ def load(
         )
     )
     load_access_param(prop, prop.access, parents)
-    prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
     if prop.prepare_given:
@@ -416,6 +408,7 @@ def load(
         prop.given.enum = unit
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     prop.given.name = prop.given_name
+    prop.enums = load_enums(context, [prop] + parents, prop.enums)
     return prop
 
 
@@ -436,6 +429,10 @@ def _link_prop_enum(
             raise UndefinedEnum(prop, name=prop.given.enum)
     elif prop.enums:
         return prop.enums.get("")
+
+
+def property_is_private(prop: Property) -> bool:
+    return prop.name.startswith("_")
 
 
 @overload
@@ -468,9 +465,38 @@ def link(context: Context, prop: Property):
                 model.ns.parents(),
             )
         )
-    link_access_param(prop, parents, use_given=not prop.name.startswith("_"))
+    config = context.get("config")
+    link_access_param(
+        prop, parents, use_given=not property_is_private(prop), default_access=config.default_access_level
+    )
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
+
+
+def _detect_cooperating_reserved_properties_and_check_validity(model: Model) -> None:
+    prop = model.properties.get("_id")
+    if prop is None or not prop.explicitly_given:
+        return
+
+    model_ref_set = prop.model.unique
+    reserved_id_source_set = prop.external.name
+
+    if (not model_ref_set and not reserved_id_source_set) or (model_ref_set and reserved_id_source_set):
+        raise ReservedPropertySourceOrModelRefShouldBeSet(property=prop)
+
+    if model_ref_set:
+        if len(model_ref_set[0]) > 1:
+            model_primary_key_dtype = String()
+            model_primary_key_dtype.name = "string"
+        else:
+            model_primary_key_dtype = model_ref_set[0][0].dtype
+        if model_ref_set and (type(prop.dtype), type(model_primary_key_dtype)) in INCORRECT_DTYPE_COUPLES:
+            raise ReservedPropertyTypeShouldMatchPrimaryKey(
+                property=prop,
+                model=model.name,
+                reserved_type=prop.dtype.name,
+                primary_type=model_primary_key_dtype.name,
+            )
 
 
 def _load_property_external(
@@ -541,7 +567,8 @@ def check(context: Context, model: Model):
     check_model_name(context, model)
     if "_id" not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop="_id")
-
+    for scope in model.scopes.values():
+        commands.check(context, scope)
     for prop in model.properties.values():
         commands.check(context, prop)
 
@@ -556,6 +583,16 @@ def check(context: Context, model: Model):
         for prop in properties:
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
+
+
+@check.register(Context, Model, Backend)
+def check(context: Context, model: Model, backend: Backend) -> None:
+    pass
+
+
+@check.register(Context, Scope)
+def check(context: Context, scope: Scope) -> None:
+    check_scope_name(context, scope)
 
 
 @check.register(Context, Property)

@@ -1,7 +1,11 @@
 import enum
 from typing import Any
 
-from sqlalchemy.cimmutabledict import immutabledict
+try:
+    from sqlalchemy.cimmutabledict import immutabledict
+except ModuleNotFoundError:
+    from sqlalchemy.util import immutabledict
+
 from sqlalchemy.dialects import registry
 from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect

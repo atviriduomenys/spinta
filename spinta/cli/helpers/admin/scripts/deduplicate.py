@@ -11,16 +11,15 @@ from typer import echo
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.backends.helpers import validate_and_return_transaction
+from spinta.backends.helpers import validate_and_return_transaction, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import extract_sqlalchemy_columns, get_prop_names
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, get_pg_constraint_name
+from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names, gather_prepare_columns
+from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_constraint_name
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, move_stream
 from spinta.components import Context, Model, DataItem
 from spinta.core.enums import Action
-from spinta.utils.itertools import ensure_list
 
 
 @dataclasses.dataclass
@@ -88,9 +87,9 @@ def _fulfills_unique_constraint(context: Context, backend: Backend, model: Model
 
 @dispatch(Context, PostgreSQL, Model)
 def _fulfills_unique_constraint(context: Context, backend: PostgreSQL, model: Model) -> bool:
-    table_name = get_pg_table_name(model)
+    table_identifier = get_table_identifier(model)
     insp = sa.inspect(backend.engine)
-    constraints = insp.get_unique_constraints(table_name)
+    constraints = insp.get_unique_constraints(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name)
     pkey_columns = list()
     for pkey in model.external.pkeys:
         for name in get_prop_names(pkey):
@@ -121,9 +120,7 @@ def _create_duplicate_entries(context: Context, backend: PostgreSQL, dmodel: _Du
         for name in get_prop_names(pkey):
             pkey_column_names.append(get_pg_column_name(name))
 
-        columns = commands.prepare(context, backend, pkey)
-        columns = ensure_list(columns)
-        columns = extract_sqlalchemy_columns(columns)
+        columns = gather_prepare_columns(context, backend, pkey)
         columns = [_ensure_table_set(col, table) for col in columns]
         pkey_columns.extend(columns)
 
@@ -154,14 +151,14 @@ def _add_uniqueness(context: Context, backend: Backend, model: Model):
 
 @dispatch(Context, PostgreSQL, Model)
 def _add_uniqueness(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_pg_table_name(model)
+    table_identifier = get_table_identifier(model)
     column_name_list = list()
     for prop in model.external.pkeys:
         column_name_list.append(get_pg_column_name(prop.place))
 
-    constraint_name = get_pg_constraint_name(table_name, column_name_list)
+    constraint_name = get_pg_constraint_name(table_identifier.pg_table_name, column_name_list)
     query = sa.text(f'''
-        ALTER TABLE "{table_name}"
+        ALTER TABLE {table_identifier.pg_escaped_qualified_name}
         ADD CONSTRAINT "{constraint_name}" UNIQUE ({",".join(f'"{col}"' for col in column_name_list)});
     ''')
     transaction = context.get("transaction")

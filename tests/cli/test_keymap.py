@@ -9,7 +9,8 @@ import uuid
 import pytest
 import sqlalchemy as sa
 
-from spinta.backends.postgresql.helpers.name import get_pg_constraint_name, get_pg_table_name
+from spinta.backends.helpers import get_table_identifier
+from spinta.backends.postgresql.helpers.name import get_pg_constraint_name
 from spinta.components import Context
 from spinta.core.enums import Action
 from spinta.exceptions import KeymapDuplicateMapping
@@ -1306,12 +1307,14 @@ def test_keymap_sync_invalid_changelog_validation(
     request.addfinalizer(remote.app.context.wipe_all)
     with backend.begin() as conn:
         insp = sa.inspect(backend.engine)
-        table_name = get_pg_table_name("syncdataset/countries/Country")
-        constraint_name = get_pg_constraint_name(table_name, ["code"])
-        for constraint in insp.get_unique_constraints(table_name):
+        table_identifier = get_table_identifier("syncdataset/countries/Country")
+        constraint_name = get_pg_constraint_name(table_identifier.pg_table_name, ["code"])
+        for constraint in insp.get_unique_constraints(
+            table_identifier.pg_table_name, schema=table_identifier.pg_schema_name
+        ):
             if constraint["name"] == constraint_name:
                 conn.execute(f'''
-                    ALTER TABLE "{table_name}" DROP CONSTRAINT "{constraint_name}";
+                    ALTER TABLE {table_identifier.pg_escaped_qualified_name} DROP CONSTRAINT "{constraint_name}";
                 ''')
 
     model = "syncdataset/countries/Country"

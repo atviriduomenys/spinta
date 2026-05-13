@@ -14,8 +14,8 @@ from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.commands.read import (
     parametrize_bases,
     get_pkeys_if_ref,
-    get_dask_dataframe_meta,
     dask_get_all,
+    get_dask_dataframe_meta,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
@@ -164,7 +164,7 @@ def getall(
     builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
 
     props = {}
-    for prop in model.properties.values():
+    for prop in model.flatprops.values():
         if prop.external and prop.external.name:
             root_source = _get_prop_full_source(model.external.name, prop.external.name)
             props[prop.external.name] = {

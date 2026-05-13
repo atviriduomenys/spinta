@@ -36,6 +36,16 @@ class Sql(ExternalBackend):
             raise BackendUnavailable(self)
 
     def get_table(self, model: Model, name: str = None) -> sa.Table:
+        """
+        Get or create a SQLAlchemy Table object for a model.
+
+        Args:
+            model: The model to get the table for
+            name: Optional table name override
+
+        Returns:
+            SQLAlchemy Table object
+        """
         name = name or model.external.name
 
         if self.dbschema:

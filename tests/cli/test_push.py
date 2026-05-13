@@ -573,17 +573,17 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property  | type   | ref     | source       | access
-    datasets/gov/exampleRes   |        |         |              |
-      | data                  | sql    |         |              |
-      |   |   | CountryRes    |        | code    | salis        |
-      |   |   |   | code      | string |         | kodas        | open
-      |   |   |   | name      | string |         | pavadinimas  | open
-      |   |                   |        |         |              |
-    datasets/gov/exampleNoRes |        |         |              |
-      |   |   | CountryNoRes  |        |         |              |
-      |   |   |   | code      | string |         |              | open
-      |   |   |   | name      | string |         |              | open
+    d | r | b | m | property    | type   | ref     | source       | access
+    datasets/gov/example_res    |        |         |              |
+      | data                    | sql    |         |              |
+      |   |   | CountryRes      |        | code    | salis        |
+      |   |   |   | code        | string |         | kodas        | open
+      |   |   |   | name        | string |         | pavadinimas  | open
+      |   |                     |        |         |              |
+    datasets/gov/example_no_res |        |         |              |
+      |   |   | CountryNoRes    |        |         |              |
+      |   |   |   | code        | string |         |              | open
+      |   |   |   | name        | string |         |              | open
     """),
     )
 
@@ -601,7 +601,7 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         [
             "push",
             "-d",
-            "datasets/gov/exampleRes",
+            "datasets/gov/example_res",
             "-o",
             remote.url,
             "--credentials",
@@ -616,7 +616,7 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         [
             "push",
             "-d",
-            "datasets/gov/exampleNoRes",
+            "datasets/gov/example_no_res",
             "-o",
             remote.url,
             "--credentials",
@@ -626,12 +626,12 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
     )
     assert result.exit_code == 0
 
-    remote.app.authmodel("datasets/gov/exampleRes/CountryRes", ["getall"])
-    resp_res = remote.app.get("/datasets/gov/exampleRes/CountryRes")
+    remote.app.authmodel("datasets/gov/example_res/CountryRes", ["getall"])
+    resp_res = remote.app.get("/datasets/gov/example_res/CountryRes")
     assert len(listdata(resp_res)) == 3
 
-    remote.app.authmodel("datasets/gov/exampleNoRes/CountryNoRes", ["getall"])
-    resp_no_res = remote.app.get("/datasets/gov/exampleNoRes/CountryNoRes")
+    remote.app.authmodel("datasets/gov/example_no_res/CountryNoRes", ["getall"])
+    resp_no_res = remote.app.get("/datasets/gov/example_no_res/CountryNoRes")
     assert len(listdata(resp_no_res)) == 0
 
 
@@ -657,7 +657,7 @@ def test_push_ref_with_level_no_source(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel("leveldataset", ["getall"])
     resp = app.get("leveldataset/City")
-    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": 2})
+    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": "2"})
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
@@ -711,7 +711,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel("leveldataset", ["getall"])
     resp = app.get("leveldataset/City")
-    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": 2})
+    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": "2"})
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb, "external")
@@ -2677,7 +2677,7 @@ def test_push_sync_state_skip_no_auth(
         ],
     )
     assert result.exit_code == 0
-    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stdout
+    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stderr
 
     compare_push_state_rows(
         engine,

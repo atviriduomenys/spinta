@@ -762,7 +762,7 @@ def test_push_delete_with_dependent_objects(
 ):
     table = """
      d | r | b | m  | property         | type   | ref                     | source     | access
-     datasets/gov/deleteTest           |        |                         |            |
+     datasets/gov/delete_test          |        |                         |            |
        | data                          | sql    |                         |            |
        |   |                           |        |                         |            |
        |   |   | Country               |        | code                    | salis      | open
@@ -786,7 +786,7 @@ def test_push_delete_with_dependent_objects(
         [
             "push",
             "-d",
-            "datasets/gov/deleteTest",
+            "datasets/gov/delete_test",
             "-o",
             remote.url,
             "--credentials",
@@ -796,12 +796,12 @@ def test_push_delete_with_dependent_objects(
     )
     assert result.exit_code == 0
 
-    remote.app.authmodel("datasets/gov/deleteTest/Country", ["getall"])
-    resp = remote.app.get("/datasets/gov/deleteTest/Country")
+    remote.app.authmodel("datasets/gov/delete_test/Country", ["getall"])
+    resp = remote.app.get("/datasets/gov/delete_test/Country")
     assert len(listdata(resp)) == 3
 
-    remote.app.authmodel("datasets/gov/deleteTest/City", ["getall"])
-    resp = remote.app.get("/datasets/gov/deleteTest/City")
+    remote.app.authmodel("datasets/gov/delete_test/City", ["getall"])
+    resp = remote.app.get("/datasets/gov/delete_test/City")
     assert len(listdata(resp)) == 3
 
     conn = geodb.engine.connect()
@@ -814,7 +814,7 @@ def test_push_delete_with_dependent_objects(
         [
             "push",
             "-d",
-            "datasets/gov/deleteTest",
+            "datasets/gov/delete_test",
             "-o",
             remote.url,
             "--credentials",
@@ -825,12 +825,12 @@ def test_push_delete_with_dependent_objects(
     )
     assert result.exit_code == 0
 
-    remote.app.authmodel("datasets/gov/deleteTest/Country", ["getall"])
-    resp = remote.app.get("/datasets/gov/deleteTest/Country")
+    remote.app.authmodel("datasets/gov/delete_test/Country", ["getall"])
+    resp = remote.app.get("/datasets/gov/delete_test/Country")
     assert len(listdata(resp)) == 2
 
-    remote.app.authmodel("datasets/gov/deleteTest/City", ["getall"])
-    resp = remote.app.get("/datasets/gov/deleteTest/City")
+    remote.app.authmodel("datasets/gov/delete_test/City", ["getall"])
+    resp = remote.app.get("/datasets/gov/delete_test/City")
     assert len(listdata(resp)) == 1
 
 

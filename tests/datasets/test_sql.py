@@ -550,6 +550,7 @@ def test_private_property(context, rc, tmp_path, geodb):
 
 
 def test_all_private_properties(context, rc, tmp_path, geodb):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -571,6 +572,12 @@ def test_all_private_properties(context, rc, tmp_path, geodb):
 
 
 def test_default_access(context, rc, tmp_path, geodb):
+    rc = rc.fork(
+        {
+            "default_access_level": "protected",
+            "access": "protected",
+        }
+    )
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -3357,6 +3364,42 @@ def test_cast_integer_error(
     assert error(resp) == "UnableToCast"
 
 
+def test_cast_with_arguments_error(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    sqlite: Sqlite,
+):
+    dataset = "example/func/cast/integer/error"
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        f"""
+        d | r | b | m | property | type    | ref | source | prepare
+        {dataset}                |         |     |        |
+          | resource             | sql     | sql |        |
+          |   |   | Data         |         | id  | DATA   |
+          |   |   |   | id       | integer |     | ID     | cast("string")
+        """,
+    )
+
+    # Configure local server with SQL backend
+    sqlite.init({"DATA": [sa.Column("ID", sa.Integer)]})
+    sqlite.write("DATA", [{"ID": 123}])
+
+    app = create_client(rc, tmp_path, sqlite)
+    app.authmodel(dataset, ["getall"])
+
+    resp = app.get(f"/{dataset}/Data")
+    assert error(resp, "code", "message") == {
+        "code": "InvalidArgumentInExpression",
+        "message": "Invalid ['string'] arguments given to cast expression.",
+    }
+
+
 def test_point(
     context,
     postgresql,
@@ -4446,7 +4489,7 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
             "country.c": "LV",
             "country.code": "LV",
             "country.meta.name": "Latvia",
-            "country.meta.year": 1408,
+            "country.meta.year": "1408",
         },
         {
             "code": "TLN",
@@ -4454,7 +4497,7 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
             "country.c": "EE",
             "country.code": "EE",
             "country.meta.name": "Estija",
-            "country.meta.year": 1784,
+            "country.meta.year": "1784",
         },
         {
             "code": "VLN",
@@ -4462,7 +4505,7 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
             "country.c": "LT",
             "country.code": "LT",
             "country.meta.name": "Lietuva",
-            "country.meta.year": 1204,
+            "country.meta.year": "1204",
         },
     ]
 

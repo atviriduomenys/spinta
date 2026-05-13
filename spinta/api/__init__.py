@@ -422,7 +422,7 @@ async def error(request, exc):
 
 async def srid_check(request: Request):
     from shapely.geometry import Point
-    from spinta.backends.postgresql.types.geometry.helpers import get_osm_link
+    from spinta.types.geometry.helpers import get_osm_link
 
     srid = request.path_params["srid"]
     x = request.path_params["x"]

@@ -14,7 +14,7 @@ from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.prefix.helpers import load_prefixes
-from spinta.exceptions import MultipleErrors
+from spinta.exceptions import MultipleErrors, RequiredConfigParam
 from spinta.exceptions import PropertyNotFound
 from spinta.nodes import get_node, load_node
 from spinta.components import Context
@@ -91,13 +91,17 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     resource.lang = load_lang_data(context, resource.lang)
     resource.comments = load_comments(resource, resource.comments)
     config = context.get("config")
-    if config.load_backends:
+
+    try:
         resource.backend = load_resource_backend(
             context,
             resource,
             # First backend is loaded as string and later becomes Backend.
             resource.backend,
         )
+    except RequiredConfigParam as e:
+        if config.ensure_backends:
+            raise e
     resource.given.name = data.get("given_name", None)
     # Models will be added on `link` command.
     resource.models = {}

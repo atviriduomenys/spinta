@@ -21,7 +21,7 @@ from spinta.testing.client import TestClient, get_yaml_data
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
 from spinta.testing.context import create_test_context
-from spinta.testing.utils import get_error_codes, get_error_context, error
+from spinta.testing.utils import get_error_codes, error
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.data import pushdata
 from spinta.utils.nestedstruct import flatten
@@ -410,7 +410,14 @@ def test_dataset(app):
     }
 
 
-def test_dataset_with_show(context, app):
+@pytest.mark.parametrize(
+    "select_syntax",
+    [
+        "select(pavadinimas)",
+        "_select=pavadinimas",
+    ],
+)
+def test_dataset_with_show(context, app, select_syntax):
     app.authmodel("/datasets/json/Rinkimai", ["insert", "search"])
 
     resp = app.post(
@@ -424,7 +431,7 @@ def test_dataset_with_show(context, app):
     assert resp.status_code == 201, data
 
     resp = app.get(
-        "/datasets/json/Rinkimai?select(pavadinimas)",
+        f"/datasets/json/Rinkimai?{select_syntax}",
         headers={
             "accept": "text/html",
         },
@@ -735,7 +742,14 @@ def test_changes_object_list(app, mocker):
     }
 
 
-def test_count(app):
+@pytest.mark.parametrize(
+    "count_syntax",
+    [
+        "count()",
+        "_count",
+    ],
+)
+def test_count(app, count_syntax):
     app.authmodel("/datasets/json/Rinkimai", ["upsert", "search"])
 
     resp = app.post(
@@ -763,17 +777,26 @@ def test_count(app):
     assert resp.status_code == 200, resp.json()
 
     # Backwards compatibility support
-    resp = app.get("/datasets/json/Rinkimai?count()", headers={"accept": "text/html"})
+    resp = app.get(f"/datasets/json/Rinkimai?{count_syntax}", headers={"accept": "text/html"})
     assert resp.status_code == 200
 
-    resp = app.get("/datasets/json/Rinkimai?select(count())", headers={"accept": "text/html"})
+    resp = app.get(f"/datasets/json/Rinkimai?select({count_syntax})", headers={"accept": "text/html"})
     assert resp.status_code == 200
 
     context = _cleaned_context(resp)
     assert context["data"] == [{"count()": 2}]
 
 
-def test_select_with_function(app):
+@pytest.mark.parametrize(
+    "select_syntax",
+    [
+        "select(_type,count())",
+        "select(_type,_count)",
+        "_select=_type, count()",
+        "_select=_type,_count",
+    ],
+)
+def test_select_with_function(app, select_syntax):
     app.authmodel("/datasets/json/Rinkimai", ["upsert", "search"])
 
     resp = app.post(
@@ -801,11 +824,101 @@ def test_select_with_function(app):
     assert resp.status_code == 200, resp.json()
 
     # Backwards compatibility support
-    resp = app.get("/datasets/json/Rinkimai/:format/json?select(_type,count())", headers={"accept": "text/html"})
-    assert resp.status_code == 200
+    resp = app.get(f"/datasets/json/Rinkimai/:format/json?{select_syntax}", headers={"accept": "text/html"})
+    assert resp.status_code == 200, resp.status_code
 
     context = resp.json()
-    assert context["_data"] == [{"_type": "datasets/json/Rinkimai", "count()": 2}]
+    assert context["_data"] == [{"_type": "datasets/json/Rinkimai", "count()": 2}], context["_data"]
+
+
+@pytest.mark.parametrize(
+    "sort_syntax, expected_titles",
+    [
+        ("sort(pavadinimas)", ["Apskričių rinkimai", "Savivaldybių Rinkimai"]),
+        ("_sort=pavadinimas", ["Apskričių rinkimai", "Savivaldybių Rinkimai"]),
+        ("sort(-pavadinimas)", ["Savivaldybių Rinkimai", "Apskričių rinkimai"]),
+        ("_sort=-pavadinimas", ["Savivaldybių Rinkimai", "Apskričių rinkimai"]),
+    ],
+)
+def test_sort(app, sort_syntax, expected_titles):
+    app.authmodel("/datasets/json/Rinkimai", ["upsert", "search"])
+
+    resp = app.post(
+        "/datasets/json/Rinkimai",
+        json={
+            "_data": [
+                {
+                    "_op": "upsert",
+                    "_type": "datasets/json/Rinkimai",
+                    "_where": 'id="1"',
+                    "id": "1",
+                    "pavadinimas": "Savivaldybių Rinkimai",
+                },
+                {
+                    "_op": "upsert",
+                    "_type": "datasets/json/Rinkimai",
+                    "_where": 'id="2"',
+                    "id": "2",
+                    "pavadinimas": "Apskričių rinkimai",
+                },
+            ]
+        },
+    )
+    assert resp.status_code == 200, resp.json()
+    resp = app.get(
+        f"/datasets/json/Rinkimai/:format/json?_select=pavadinimas&{sort_syntax}", headers={"accept": "text/html"}
+    )
+
+    context = resp.json()
+    titles = list(data["pavadinimas"] for data in context["_data"])
+    assert titles == expected_titles
+
+
+@pytest.mark.parametrize(
+    "limit_syntax, expected_count",
+    [
+        ("limit(1)", 1),
+        ("limit(2)", 2),
+        ("_limit=1", 1),
+        ("_limit=2", 2),
+    ],
+)
+def test_limit(app, limit_syntax, expected_count):
+    app.authmodel("/datasets/json/Rinkimai", ["upsert", "search"])
+
+    resp = app.post(
+        "/datasets/json/Rinkimai",
+        json={
+            "_data": [
+                {
+                    "_op": "upsert",
+                    "_type": "datasets/json/Rinkimai",
+                    "_where": 'id="1"',
+                    "id": "1",
+                    "pavadinimas": "Savivaldybių Rinkimai",
+                },
+                {
+                    "_op": "upsert",
+                    "_type": "datasets/json/Rinkimai",
+                    "_where": 'id="2"',
+                    "id": "2",
+                    "pavadinimas": "Apskričių rinkimai",
+                },
+                {
+                    "_op": "upsert",
+                    "_type": "datasets/json/Rinkimai",
+                    "_where": 'id="3"',
+                    "id": "2",
+                    "pavadinimas": "Kaimų rinkimai",
+                },
+            ]
+        },
+    )
+    assert resp.status_code == 200, resp.json()
+    resp = app.get(f"/datasets/json/Rinkimai/:format/json?{limit_syntax}", headers={"accept": "text/html"})
+
+    context = resp.json()
+    assert len(context["_data"]) == expected_count
 
 
 @pytest.mark.models(
@@ -1198,26 +1311,6 @@ def test_post_missing_auth_header(model, context, app, mocker):
 def test_post_invalid_report_schema(model, app):
     # tests validation of correct value types according to manifest's schema
     app.authmodel(model, ["insert", "getone"])
-
-    # test integer validation
-    resp = app.post(
-        f"/{model}",
-        json={
-            "count": "123",
-        },
-    )
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(
-        resp.json(),
-        "InvalidValue",
-        ["manifest", "model", "property", "type"],
-    ) == {
-        "manifest": "default",
-        "model": model,
-        "property": "count",
-        "type": "integer",
-    }
 
     resp = app.post(
         f"/{model}",

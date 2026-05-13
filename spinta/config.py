@@ -54,7 +54,6 @@ CONFIG = {
             "xml": "spinta.manifests.dict.components:XmlManifest",
             "internal": "spinta.manifests.internal_sql.components:InternalSQLManifest",
             "xsd": "spinta.manifests.xsd.components:XsdManifest",
-            "xsd2": "spinta.manifests.xsd2.components:XsdManifest2",
             "openapi": "spinta.manifests.open_api.components:OpenAPIManifest",
         },
         "backends": {
@@ -73,6 +72,7 @@ CONFIG = {
             "sql/mysql": "spinta.datasets.backends.sql.backends.mysql.components:MySQL",
             "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.components:MariaDB",
             "sql/oracle": "spinta.datasets.backends.sql.backends.oracle.components:Oracle",
+            "sql/sas": "spinta.datasets.backends.sql.backends.sas.components:SAS",
             "sqldump": "spinta.datasets.backends.sqldump.components:SqlDump",
             "dask": "spinta.datasets.backends.dataframe.components:DaskBackend",
             "dask/csv": "spinta.datasets.backends.dataframe.backends.csv.components:Csv",
@@ -103,6 +103,7 @@ CONFIG = {
             "sql/oracle": "spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components:OracleQueryBuilder",
             "sql/mysql": "spinta.datasets.backends.sql.backends.mysql.ufuncs.query.components:MySQLQueryBuilder",
             "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder",
+            "sql/sas": "spinta.datasets.backends.sql.backends.sas.ufuncs.query.components:SASQueryBuilder",
             "dask": "spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder",
             "soap": "spinta.datasets.backends.dataframe.backends.soap.ufuncs.components:SoapQueryBuilder",
         },
@@ -113,9 +114,6 @@ CONFIG = {
             "postgresql": "spinta.backends.postgresql.ufuncs.result.components:PgResultBuilder",
             # External result builders
             "sql": "spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder",
-        },
-        "migrations": {
-            "alembic": "spinta.migrations.schema.alembic:Alembic",
         },
         "nodes": {
             "ns": "spinta.components:Namespace",
@@ -166,6 +164,8 @@ CONFIG = {
             "partial": "spinta.types.datatype:Partial",
             "partial_array": "spinta.types.datatype:PartialArray",
             "uuid": "spinta.types.datatype:UUID",
+            "unknown": "spinta.types.datatype:Unknown",
+            "base32": "spinta.types.datatype:Base32",
         },
         "urlparams": {
             "component": "spinta.urlparams:UrlParams",
@@ -264,8 +264,8 @@ CONFIG = {
     "max_file_size": 100,
     # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
     "max_error_count_on_insert": 100,
-    # Enables setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
-    "load_backends": True,
+    # Ensures setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
+    "ensure_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
     "environments": {
@@ -345,6 +345,8 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+            "default_access_level": "open",
+            "access": "open",
             "sync_retry_count": 0,
         },
     },

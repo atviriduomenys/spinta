@@ -1,15 +1,14 @@
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import (
-    ModelReferenceNotFound,
     MultipleBackRefReferencesFound,
-    NoBackRefReferencesFound,
     NoReferencesFound,
     OneToManyBackRefNotSupported,
 )
 from spinta.manifests.tabular.constants import DataTypeEnum
+from spinta.types.backref import TYPE_BACKREF
 from spinta.types.datatype import BackRef, Ref, Array, Object, Denorm, DataType
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
 
 
 @commands.find_backref_ref.register(Model, str, object)
@@ -72,7 +71,9 @@ def _link_backref(context: Context, dtype: BackRef):
         dtype.model = dtype.prop.model
     else:
         if not commands.has_model(context, dtype.prop.model.manifest, backref_target_model):
-            raise ModelReferenceNotFound(dtype, ref=backref_target_model)
+            replace_undeclared_ref_with_object(context, dtype.prop, TYPE_BACKREF, backref_target_model)
+            dtype.refprop = None
+            return
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, backref_target_model)
     given_refprop = dtype.refprop
     if dtype.refprop:
@@ -83,21 +84,27 @@ def _link_backref(context: Context, dtype: BackRef):
     if not result:
         if given_refprop is not None:
             raise NoReferencesFound(dtype, prop_name=given_refprop, model=dtype.model)
-        raise NoBackRefReferencesFound(dtype, model=dtype.model.name)
-    for prop in result:
-        if count < 1:
-            if given_refprop and prop.name == given_refprop or given_refprop is None:
-                dtype.refprop = prop
-                count += 1
-        else:
-            raise MultipleBackRefReferencesFound(dtype, model=dtype.model.name)
+        # Allow backref without a corresponding ref property
+        dtype.refprop = None
+    else:
+        for prop in result:
+            if count < 1:
+                if given_refprop and prop.name == given_refprop or given_refprop is None:
+                    dtype.refprop = prop
+                    count += 1
+            else:
+                raise MultipleBackRefReferencesFound(dtype, model=dtype.model.name)
 
 
 @commands.link.register(Context, BackRef)
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
-    if _is_parent_array_backref(dtype) or dtype.refprop.list is None:
+    if dtype.properties:
+        for inner_prop in dtype.properties.values():
+            commands.link(context, inner_prop)
+
+    if _is_parent_array_backref(dtype) or dtype.refprop is None or dtype.refprop.list is None:
         return
 
     raise OneToManyBackRefNotSupported(dtype)

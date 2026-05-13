@@ -33,3 +33,19 @@ def test_limit(context):
         _parse(context, "limit(0)")
     with pytest.raises(InvalidValue):
         _parse(context, "limit(-1)")
+
+
+@pytest.mark.parametrize(
+    "url_query",
+    [
+        "format(csv,title(%27%3c%3fxml+version%3d%221.0%22+encoding%3d%22UTF-8%22+standalone%3d%22yes%22%3f%3e%27))",
+        "format(csv,title(%27%3c%3fxml version%3d%221.0%22 encoding%3d%22UTF-8%22 standalone%3d%22yes%22%3f%3e%27))",
+        (
+            "format(csv,title(%27%3c%3fxml%20version%3d%221.0%22%20encoding%3d%22UTF-8%22%20"
+            "standalone%3d%22yes%22%3f%3e%27))"
+        ),
+    ],
+)
+def test_encoded_plus_for(context: Context, url_query: str):
+    params_space = _parse(context, url_query)
+    assert params_space.formatparams["title"] == '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

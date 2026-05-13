@@ -11,6 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta.auth import authorized
+from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Page
 from spinta.core.enums import Action
 from spinta.components import Property
@@ -347,7 +348,9 @@ def select(env: SqlQueryBuilder, expr: Expr):
             if selected is not None:
                 env.selected[key] = selected
     else:
-        for prop in take(["_id", all], env.model.properties).values():
+        for prop in take(["_id", "_revision", all], env.model.properties).values():
+            if prop.name == "_revision" and not is_custom_revision_prop(prop):
+                continue
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call("select", prop)
                 if not prop.dtype.inherited or processed.prep is not None:
@@ -401,6 +404,13 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
+        elif is_custom_id_prop(prop):
+            pkeys = prop.model.external.pkeys
+            if len(pkeys) == 1:
+                prep = env.call("select", pkeys[0])
+            else:
+                prep = [env.call("select", pk) for pk in pkeys]
+            result = Selected(prop=prop, prep=prep)
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call("select", prop.dtype)
@@ -850,12 +860,6 @@ def file(env: SqlQueryBuilder, expr: Expr) -> Expr:
         name=env.call("select", kwargs["name"], nested=True),
         content=env.call("select", kwargs["content"], nested=True),
     )
-
-
-@overload
-@ufunc.resolver(SqlQueryBuilder)
-def cast(env: SqlQueryBuilder) -> Expr:
-    return Expr("cast")
 
 
 @overload

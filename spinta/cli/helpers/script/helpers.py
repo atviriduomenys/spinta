@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 
-from typer import echo
 
+from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.upgrade.components import UpgradeScript
 from spinta.components import Context, Store
@@ -44,7 +44,7 @@ def sort_scripts_by_required(scripts: dict[str, UpgradeScript]) -> dict:
 
     if len(result) != len(data):
         unresolved = set(data) - set(result)
-        echo(f"Warning: Dependency cycle detected or unresolved dependencies in: {unresolved}", err=True)
+        cli_message(f"Warning: Dependency cycle detected or unresolved dependencies in: {unresolved}")
         # Extend results, potentially might cause errors, because of cycles
         result.extend(unresolved)
 

@@ -1,0 +1,50 @@
+# Should be ran on server before deployments
+# docker network create spinta
+# docker compose -f docker-compose.nginx.yml up -d
+
+services:
+  spinta-${BRANCH}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - ./entrypoint-internal.sh
+    environment:
+      - AUTHLIB_INSECURE_TRANSPORT=1
+      - DB_HOST=spinta-${BRANCH}-database
+      - DB_PORT=5432
+    networks:
+       spinta:
+          aliases:
+             - spinta-${BRANCH}-app
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+  spinta-${BRANCH}-database:
+    image: postgis/postgis:16-3.4
+    environment:
+      - TZ=UTC
+      - POSTGRES_DB=spinta
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+    volumes:
+      - ${BRANCH}-postgres:/var/lib/postgresql/data
+    networks:
+      - spinta
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/internal.Dockerfile
+    volumes:
+      - ${BRANCH}-nginx_cache:/data/nginx_cache
+    networks:
+       spinta:
+          aliases:
+             - spinta-${BRANCH}
+networks:
+  spinta:
+    external: true
+volumes:
+  ${BRANCH}-postgres:
+  ${BRANCH}-nginx_cache:

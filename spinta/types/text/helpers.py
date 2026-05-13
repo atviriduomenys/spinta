@@ -21,6 +21,6 @@ def determine_langauge_for_text(existing_langs: List[str], prioritized_langs: Li
             if lang in existing_langs:
                 selected_lang = lang
                 break
-    if not selected_lang:
+    if not selected_lang and existing_langs:
         selected_lang = existing_langs[0]
     return selected_lang

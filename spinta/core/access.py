@@ -9,6 +9,7 @@ from spinta.utils.enums import enum_by_name, get_enum_by_name
 
 if TYPE_CHECKING:
     from spinta.dimensions.enum.components import EnumItem
+    from spinta.dimensions.scope.components import Scope
     from spinta.components import Model
     from spinta.components import Namespace
     from spinta.components import Property
@@ -25,6 +26,7 @@ def load_access_param(
         Model,
         Property,
         EnumItem,
+        Scope,
     ],
     given_access: Union[str, Access],
     parents: Iterable[
@@ -73,6 +75,7 @@ def link_access_param(
     ] = (),
     *,
     use_given: bool = True,
+    default_access: Access = Access.private,
 ) -> None:
     if component.access is None:
         for parent in parents:
@@ -83,4 +86,4 @@ def link_access_param(
                 component.access = candidate
                 break
         else:
-            component.access = Access.protected
+            component.access = default_access

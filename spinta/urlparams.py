@@ -31,7 +31,7 @@ from spinta.utils.encoding import is_url_safe_base64
 @prepare.register(Context, UrlParams, Version, Request)
 def prepare(context: Context, params: UrlParams, version: Version, request: Request, **kwargs) -> UrlParams:
     params.parsetree = urlutil.parse_url_path(request.path_params["path"].strip("/")) + parse_url_query(
-        urllib.parse.unquote(request.url.query)
+        urllib.parse.unquote_plus(request.url.query)
     )
     prepare_urlparams(context, params, request)
     params.head = request.method == "HEAD"
@@ -303,6 +303,8 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
         if not is_object_id(context, params.model.backend, params.model, params.pk):
             given_path = "/".join(params.path_parts)
             raise ModelNotFound(model=given_path)
+        if params.pk.startswith("="):
+            params.pk = params.pk[1:]
 
     if parts:
         # Resolve property (subresource).

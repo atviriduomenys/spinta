@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from spinta.accesslog import AccessLog
     from spinta.formats.components import Format
     from spinta.dimensions.comments.components import Comment
+    from spinta.dimensions.scope.components import Scope
 
 
 class Context:
@@ -620,6 +621,14 @@ def page_in_data(data: dict) -> bool:
     return "_page" in data
 
 
+def revision_in_data(data: dict) -> bool:
+    return "_revision" in data
+
+
+def check_if_revision_explicit(prop: Property) -> bool:
+    return prop.name == "_revision" and prop.explicitly_given
+
+
 class ParamsPage:
     values: List[Any]
     size: int
@@ -642,6 +651,7 @@ class Model(MetaData):
     description: str
     ns: Namespace
     external: Entity = None
+    scopes: Dict[str, Scope]
     properties: Dict[str, Property]
     mode: Mode = None
     given: ModelGiven
@@ -666,6 +676,7 @@ class Model(MetaData):
         "unique": {"default": []},
         "base": {},
         "link": {},
+        "scopes": {"default": {}},
         "properties": {"default": {}},
         "external": {},
         "level": {
@@ -731,6 +742,19 @@ class Model(MetaData):
 
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith("_")}
+
+    def get_namespaces(self, include_self: bool = True) -> set[str]:
+        namespaces = []
+        if include_self:
+            namespaces.append(self.name)
+
+        if self.ns:
+            namespaces.append(self.ns.name)
+            namespaces.extend(
+                [parent_namespace.name for parent_namespace in self.ns.parents() if parent_namespace.name]
+            )
+
+        return set(namespaces)
 
 
 class PropertyGiven:
@@ -871,6 +895,7 @@ class Attachment:
 class UrlParseNode(TypedDict):
     name: str
     args: List[Any]
+    id_prop: Property
 
 
 class UrlParams:
@@ -1080,7 +1105,10 @@ class Config:
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
     scope_log: bool
+    check_contract_scopes: bool
     default_auth_client: str
+    default_access_level: Access
+    access: Access
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
@@ -1101,6 +1129,7 @@ class Config:
     sync_retry_count: int
     sync_retry_delay_range: tuple[float]
     languages: List[str]
+    # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
     # MB
     max_api_file_size: int
@@ -1112,6 +1141,10 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    log_level: str
+    file_log_level: str
+    file_log_path: pathlib.Path
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -2,11 +2,13 @@ import logging
 
 from typer import echo, Context as TyperContext
 
+import spinta
 from spinta.cli.helpers.sync.api_helpers import get_base_path_and_headers
 from spinta.cli.helpers.sync.controllers.data_service import get_data_service_children_dataset_ids
-from spinta.cli.helpers.sync.controllers.synchronization.catalog_to_agent import (
-    execute_synchronization_catalog_to_agent,
+from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
+    execute_manifest_synchronization_catalog_to_agent,
 )
+from spinta.cli.helpers.sync.controllers.synchronization.connection import connection_check
 from spinta.cli.helpers.sync.helpers import (
     get_configuration_credentials,
     validate_credentials,
@@ -20,6 +22,12 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 
 logger = logging.getLogger(__name__)
+
+
+def validate_connection(base_path: str, headers: dict[str, str]) -> None:
+    connection_check(base_path, headers, data={"spinta_version": spinta.__version__})
+    echo("✓ Connection with Catalog established successfully!")
+    return None
 
 
 def prepare_synchronization(ctx: TyperContext) -> tuple[Context, str, str]:
@@ -42,9 +50,12 @@ def prepare_api_context(context: Context) -> tuple[str, dict[str, str], str]:
 def sync(ctx: TyperContext) -> None:
     context, data_source_name, manifest_path = prepare_synchronization(ctx)
     base_path, headers, agent_name = prepare_api_context(context)
+    validate_connection(base_path, headers)
 
     dataset_ids = get_data_service_children_dataset_ids(base_path, headers, agent_name)
-    manifest = execute_synchronization_catalog_to_agent(context, base_path, headers, manifest_path, dataset_ids)
+    manifest = execute_manifest_synchronization_catalog_to_agent(
+        context, base_path, headers, manifest_path, dataset_ids
+    )
     echo(render_tabular_manifest(context, manifest))
 
     # TODO: Part 2: Source -> Agent: https://github.com/atviriduomenys/spinta/issues/1489.

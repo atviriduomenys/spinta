@@ -41,7 +41,7 @@ from spinta.manifests.tabular.helpers import (
 from sqlalchemy_utils import UUIDType
 
 from spinta.nodes import get_node
-from spinta.spyna import unparse
+from spinta.spyna import parse as spyna_parse, unparse
 from spinta.types.datatype import ArrayBackRef, Ref, Array, BackRef, Object
 from spinta.types.text.components import Text
 from spinta.utils.data import take
@@ -744,9 +744,11 @@ def _comments_to_sql(
                 "ref": comment.parent,
                 "source": comment.author,
                 "access": comment.given.access,
+                "level": comment.level,
+                "uri": comment.uri,
                 "title": comment.created,
                 "description": comment.comment,
-                "prepare": _handle_prepare(NA),
+                "prepare": _handle_prepare(spyna_parse(comment.prepare)) if comment.prepare else _handle_prepare(NA),
             },
         )
 

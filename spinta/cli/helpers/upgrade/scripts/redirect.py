@@ -8,8 +8,8 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model
 
@@ -44,9 +44,9 @@ def _validate_redirect_implementation(backend: PostgreSQL, model: Model):
 
 @dispatch(PostgreSQL, Model)
 def _validate_redirect_implementation(backend: PostgreSQL, model: Model):
-    table_name = get_pg_table_name(model, TableType.REDIRECT)
+    table_identifier = get_table_identifier(model, TableType.REDIRECT)
     insp = sa.inspect(backend.engine)
-    return insp.has_table(table_name)
+    return insp.has_table(table_identifier.pg_table_name, schema=table_identifier.pg_schema_name)
 
 
 def models_missing_redirect(context: Context, **kwargs) -> Iterator[Model]:

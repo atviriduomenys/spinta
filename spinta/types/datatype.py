@@ -14,7 +14,9 @@ from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import Base32TypeOnlyAllowedOnIdOrRevision
 from spinta.manifests.components import Manifest
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.types.helpers import check_no_extra_keys
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
@@ -152,6 +154,8 @@ class Integer(DataType):
 
         if isinstance(value, int) and not isinstance(value, bool):
             return value
+        elif isinstance(value, str) and (value.removeprefix("-").isdigit() or value.removeprefix("+").isdigit()):
+            return int(value)
         else:
             raise exceptions.InvalidValue(self, value=value)
 
@@ -169,6 +173,10 @@ class URL(String):
 
 
 class URI(String):
+    pass
+
+
+class Base32(DataType):
     pass
 
 
@@ -370,9 +378,20 @@ class UUID(DataType):
         raise exceptions.InvalidValue(self, value=value)
 
 
+class Unknown(DataType):
+    def get_type_repr(self) -> str:
+        return DataTypeEnum.UNKNOWN.value
+
+
 @commands.check.register(Context, DataType)
 def check(context: Context, dtype: DataType):
     pass
+
+
+@commands.check.register(Context, Base32)
+def check(context: Context, dtype: Base32):
+    if dtype.prop.name != "_id" and dtype.prop.name != "_revision":
+        raise Base32TypeOnlyAllowedOnIdOrRevision(dtype.prop, property=dtype.prop.place)
 
 
 @load.register(Context, DataType, dict, Manifest)

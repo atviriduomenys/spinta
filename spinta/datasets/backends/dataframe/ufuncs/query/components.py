@@ -8,6 +8,7 @@ from spinta.components import Model, Property
 from spinta.core.ufuncs import Env, Expr
 
 from spinta.exceptions import UnknownMethod
+from spinta.ufuncs.propertyresolver.components import PropertyResolver
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.utils.schema import NA
 from spinta.datasets.backends.dataframe.components import DaskBackend
@@ -19,6 +20,7 @@ class DaskDataFrameQueryBuilder(Env):
     dataframe: DataFrame
     params: dict
     url_query_params: Expr | None
+    property_resolver: PropertyResolver = None
 
     def init(self, backend: DaskBackend, dataframe: DataFrame, params: dict) -> DaskDataFrameQueryBuilder:
         return self(
@@ -54,6 +56,14 @@ class DaskDataFrameQueryBuilder(Env):
 
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
+
+    def resolve_property(self, *args, **kwargs) -> Property:
+        if self.property_resolver is None:
+            resolver = PropertyResolver(self.context)
+            resolver = resolver.init(model=self.model, ufunc_types=True)
+            self.property_resolver = resolver
+        result = self.property_resolver.resolve_property(*args, **kwargs)
+        return result
 
 
 class DaskSelected(Selected):

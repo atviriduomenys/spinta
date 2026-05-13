@@ -1,14 +1,17 @@
 from pathlib import Path
+from pytest import mark
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.exceptions import InvalidName, NoModelDefined
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
 
 def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    rc = rc.fork({"default_access_level": "protected"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -60,7 +63,7 @@ def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
                              | enum   |         |        | 'left'  | open
                              |        |         |        | 'right' | open
                              |        |         |        |         |
-      |   |   | City         |        |         |        |         |
+      |   |   | City         |        | name    |        |         |
       |   |   |   | name     | string |         |        |         | open
       |   |   |   | country  | ref    | Country |        |         | open
     """
@@ -104,7 +107,7 @@ def test_copy_enum_0(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     d | r | b | m | property | type    | ref     | source | prepare | access
     datasets/gov/example     |         |         |        |         |
                              |         |         |        |         |
-      |   |   | Country      |         |         |        |         |
+      |   |   | Country      |         | name    |        |         |
       |   |   |   | name     | string  |         |        |         | open
       |   |   |   | driving  | integer |         |        |         | open
                              | enum    |         |        | 0       | open
@@ -152,21 +155,23 @@ def test_copy_global_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
                              | enum    | direction |        | 0       |
                              |         |           |        | 1       |
                              |         |           |        |         |
-      |   |   | Country      |         |           |        |         |
+      |   |   | Country      |         | name      |        |         |
       |   |   |   | name     | string  |           |        |         | open
       |   |   |   | driving  | integer | direction |        |         | open
     """
     )
 
 
-def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
+@mark.parametrize("type", ["dask/xml", "sql/sqlite"])
+def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path, type: str):
+    rc = rc.fork({"default_access_level": "protected"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
-        striptable("""
+        striptable(f"""
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
-      | data                 | sql    |         |             |           |
+      | data                 | {type} |         |             |           |
                              |        |         |             |           |
       |   |   | Country      |        | code    | salis       | code='lt' |
       |   |   |   | code     | string |         | kodas       |           | private
@@ -200,10 +205,10 @@ def test_copy_with_filters_and_externals(context: Context, rc, cli, tmp_path):
     manifest = load_manifest(rc, tmp_path / "result.csv")
     assert (
         manifest
-        == """
+        == f"""
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
     datasets/gov/example     |        |         |             |           |       |
-      | data                 | sql    |         |             |           |       |
+      | data                 | {type} |         |             |           |       |
                              |        |         |             |           |       |
       |   |   | Country      |        |         | salis       | code='lt' |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
@@ -1115,5 +1120,299 @@ def test_copy_with_resource_no_models(context: Context, rc, cli: SpintaCliRunner
       |   |   |   | code     | string |         | kodas
       |   |   |   | name     | string |         | pavadinimas
       |   |   |   | driving  | string |         | vairavimas
+    """
+    )
+
+
+def test_copy_property_with_underscore(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _id, _created, _updated, _label, _revision are allowed property names
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property  | type   | ref     | source      | prepare | access
+    datasets/gov/example      |        |         |             |         |
+      | data                  | sql    |         |             |         |
+                              |        |         |             |         |
+      |   |   | Country       |        | code    | salis       |         |
+      |   |   |   | _id       | string |         |             |         | open
+      |   |   |   | code      | string |         | kodas       |         | public
+      |   |   |   | name      | string |         | pavadinimas |         | open
+      |   |   |   | _updated  | string |         | atnaujinta  |         | open
+      |   |   |   | _created  | string |         | sukurta     |         | open
+      |   |   |   | _label    | string |         | zyme        |         | public
+      |   |   |   | _revision | string |         | versija     |         | public
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property  | type   | ref     | source | prepare | access
+    datasets/gov/example      |        |         |        |         |
+                              |        |         |        |         |
+      |   |   | Country       |        | code    |        |         |
+      |   |   |   | _id       | string |         |        |         | open
+      |   |   |   | _revision | string |         |        |         | public
+      |   |   |   | _created  | string |         |        |         | open
+      |   |   |   | code      | string |         |        |         | public
+      |   |   |   | name      | string |         |        |         | open
+      |   |   |   | _updated  | string |         |        |         | open
+      |   |   |   | _label    | string |         |        |         | public
+    """
+    )
+
+
+def test_copy_property_with_underscore_reserved(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _op is a reserved property name for internal use only
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property   | type   | source | access
+    datasets/gov/example       |        |        |
+      |   |   | Country        |        | salis  |
+      |   |   |   | code       | string | kodas  | public
+      |   |   |   | _label     | string | zyme   | public
+      |   |   |   | _op        | string | op     | public
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert "_op" in str(result.exception)
+
+
+def test_copy_property_with_underscore_wrong(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # _* property names are not allowed in the manifest except for the allowed ones
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property   | type   | source | access
+    datasets/gov/example       |        |        |
+      |   |   | Country        |        | salis  |
+      |   |   |   | code       | string | kodas  | public
+      |   |   |   | _test123   | string | test   | public
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "public",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert "_test" in str(result.exception)
+
+
+def test_copy_undeclared_ref_transforms_to_object(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """When a ref points to an undeclared model, copy should output the property
+    as object (level=2) and append a restore comment row."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref              | access
+    example                  |        |                  |
+                             |        |                  |
+      |   |   | City         |        |                  |
+      |   |   |   | name     | string |                  | private
+      |   |   |   | country  | ref    | example2/Country | private
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "private",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type    | ref  | source | prepare                                | level | access
+    example                  |         |      |        |                                        |       |
+                             |         |      |        |                                        |       |
+      |   |   | City         |         |      |        |                                        |       |
+      |   |   |   | name     | string  |      |        |                                        |       | private
+      |   |   |   | country  | object  |      |        |                                        | 2     | private
+                             | comment | type | author | update(type:"ref", ref:"example2/Country") | 4     |
+    """
+    )
+
+
+def test_copy_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref    | source | prepare           | level | status  | visibility | access | uri                       | eli                       | count | title      | description
+    datasets/gov/example     |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+                             |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+      |   |   | Country      |        | code   | salis  |                   |       |         |            |        |                           |                           |       |            |
+                             | scope  | codes  |        | select(code)      | 3     | develop | public     | public | https://example.org/s/ltu | http://data.europa.eu/eli | 100   | Code scope | Scope for codes
+      |   |   |   | code     | string |        | kodas  |                   |       |         |            | public |                           |                           |       |            |
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type   | ref    | source | prepare           | level | status  | visibility | access | uri                       | eli                       | count | title      | description
+    datasets/gov/example     |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+                             |        |        |        |                   |       |         |            |        |                           |                           |       |            |
+      |   |   | Country      |        | code   | salis  |                   |       |         |            |        |                           |                           |       |            |
+                             | scope  | codes  |        | select(code)      | 3     | develop | public     | public | https://example.org/s/ltu | http://data.europa.eu/eli | 100   | Code scope | Scope for codes
+      |   |   |   | code     | string |        | kodas  |                   |       |         |            | public |                           |                           |       |            |
+    """
+    )
+
+
+def test_copy_scope_invalid_name(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code | salis  |                     |
+      |   |   |   |          | scope  | LTU  |        | country.code='lt'   | public
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert "LTU" in str(result.exception)
+
+
+def test_copy_scope_no_model_defined(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+                             | scope  | ltu  |        | country.code='lt'   |
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, NoModelDefined)
+
+
+def test_copy_multiple_scopes(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare                | access
+    datasets/gov/example     |        |      |        |                        |
+      |   |   | Country      |        | code | salis  |                        |
+      |   |   |   |          | scope  | ltu  |        | country.code='lt'      | public
+      |   |   |   |          | scope  | eu   |        | country.region='EU'    | public
+      |   |   |   | code     | string |      | kodas  |                        | public
+      |   |   |   | region   | string |      | region |                        | public
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type   | ref  | source | prepare                | access
+    datasets/gov/example     |        |      |        |                        |
+                             |        |      |        |                        |
+      |   |   | Country      |        | code | salis  |                        |
+                             | scope  | ltu  |        | country.code='lt'      | public
+                             | scope  | eu   |        | country.region='EU'    | public
+      |   |   |   | code     | string |      | kodas  |                        | public
+      |   |   |   | region   | string |      | region |                        | public
     """
     )

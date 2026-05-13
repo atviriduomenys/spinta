@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from operator import itemgetter
 from typing import Any, TypedDict
 from typing import Dict
@@ -18,13 +19,18 @@ from sqlalchemy.types import TypeEngine
 from spinta import spyna
 from spinta.components import Context
 from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.sql.backends.oracle.helpers import SDO_GEOMETRY
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
 from spinta.exceptions import UnexpectedFormulaResult
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.imports import full_class_name
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_dataset_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
+
+
+logger = logging.getLogger(__name__)
 
 
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
@@ -260,6 +266,7 @@ TYPES = [
     (postgresql.INTERVAL, "integer"),  # total number of seconds
     (postgresql.OID, "integer"),  # four-byte integer, https://www.postgresql.org/docs/current/datatype-oid.html
     (Geometry, "geometry"),
+    (SDO_GEOMETRY, "geometry"),
     (oracle.ROWID, "string"),
     (mssql.MONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
     (mssql.SMALLMONEY, "number"),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
@@ -271,12 +278,15 @@ class _Column(TypedDict):
     type: TypeEngine
 
 
-def _get_column_type(column: _Column, table: str = None) -> str:
+def _get_column_type(column: _Column, table: str | None = None) -> str:
     column_type: TypeEngine = column["type"]
     for cls, name in TYPES:
         if isinstance(column_type, cls):
             return name
-    raise TypeError(f"Unknown type {column_type!r} of column {column!r} in table {table!r}.")
+    logger.warning(
+        f"Unknown type {column_type!r} of column {column!r} in table {table!r}. Column registered as UNKNOWN."
+    )
+    return DataTypeEnum.UNKNOWN.value
 
 
 class _Ref(NamedTuple):
@@ -380,15 +390,63 @@ def _create_dataset_for_schema(
 
 
 @cachetools.cached(cache=cachetools.LRUCache(maxsize=1024))
-def oracle_maintained_schemas(engine: Engine) -> Iterator[str]:
-    query = sa.text("""
-        SELECT USERNAME 
-        FROM ALL_USERS
-        WHERE ORACLE_MAINTAINED = 'Y'
-    """)
-    with engine.connect() as conn:
-        rows = conn.execute(query).fetchall()
-        return {r[0].upper() for r in rows}
+def oracle_maintained_schemas(engine: Engine) -> set[str]:
+    try:
+        query = sa.text("""
+            SELECT USERNAME 
+            FROM ALL_USERS
+            WHERE ORACLE_MAINTAINED = 'Y'
+        """)
+        with engine.connect() as conn:
+            rows = conn.execute(query).fetchall()
+            return {r[0].upper() for r in rows}
+    except sa.exc.DatabaseError as _:
+        # Fallback in case users do not have access to the ALL_USERS table or ORACLE_MAINTAINED column.
+
+        # https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_user_accounts.htm#BABJGDJF
+        predefined_admin_accounts = {
+            "ANONYMOUS",
+            "CTXSYS",
+            "DBSNMP",
+            "EXFSYS",
+            "LBACSYS",
+            "MDSYS",
+            "MGMT_VIEW",
+            "OLAPSYS",
+            "ORDDATA",
+            "OWBSYS",
+            "ORDPLUGINS",
+            "ORDSYS",
+            "OUTLN",
+            "SI_INFORMTN_SCHEMA",
+            "SYS",
+            "SYSMAN",
+            "SYSTEM",
+            "WK_TEST",
+            "WKSYS",
+            "WKPROXY",
+            "WMSYS",
+            "XDB",
+            "OPS$ORACLE",
+        }
+
+        # https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_user_accounts.htm#BABGJDJC
+        predefined_non_admin_accounts = {
+            "APEX_PUBLIC_USER",
+            "DIP",
+            "FLOWS_040100",
+            "FLOWS_FILES",
+            "MDDATA",
+            "ORACLE_OCM",
+            "SPATIAL_CSW_ADMIN_USR",
+            "SPATIAL_WFS_ADMIN_USR",
+            "XS$NULL",
+        }
+
+        # https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_user_accounts.htm#TDPSG20024
+        predefined_sample_accounts = {"BI", "HR", "OE", "PM", "IX", "SH"}
+
+        return predefined_admin_accounts | predefined_non_admin_accounts | predefined_sample_accounts
 
 
 def is_internal_schema(engine: Engine, schema: str) -> bool:
@@ -401,6 +459,12 @@ def is_internal_schema(engine: Engine, schema: str) -> bool:
             return True
         if schema.startswith("pg_"):
             return True
+
+        # Commonly used postgresql extensions (used by spinta)
+        common_psql_extension_schemas = {"tiger", "tiger_data", "topology"}
+        if schema in common_psql_extension_schemas:
+            return True
+
         return False
 
     elif isinstance(dialect, mysql.dialect):

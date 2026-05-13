@@ -3,6 +3,7 @@ import os
 import pathlib
 import tempfile
 from pathlib import Path
+from typing import Callable
 
 import sqlalchemy as sa
 
@@ -57,6 +58,34 @@ def rc_new(rc, tmp_path: pathlib.Path):
             },
         }
     )
+
+
+@pytest.fixture()
+def make_inspect_db(postgresql):
+    """Factory fixture: call with a function that defines DDL via (engine, meta)."""
+    created_dbs = []
+
+    def factory(db_name: str, setup: Callable[[sa.engine.Connection, sa.MetaData], None]) -> str:
+        db = f"{postgresql}/{db_name}"
+        if su.database_exists(db):
+            su.drop_database(db)
+        su.create_database(db)
+
+        engine = sa.create_engine(db)
+        with engine.begin() as conn:
+            meta = sa.MetaData()
+            setup(conn, meta)
+            meta.create_all(conn)
+
+        created_dbs.append((db, engine))
+        return db
+
+    yield factory
+
+    for db, engine in created_dbs:
+        engine.dispose()
+        if su.database_exists(db):
+            su.drop_database(db)
 
 
 def test_inspect(
@@ -2005,6 +2034,80 @@ def test_inspect_with_views(rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: P
     assert a == b
 
 
+def test_inspect_with_postgresql_cross_schema_foreign_key(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    make_inspect_db,
+):
+    def setup(conn: sa.engine.Connection, meta: sa.MetaData):
+        conn.execute(sa.schema.CreateSchema("geography"))
+        conn.execute(sa.schema.CreateSchema("urban"))
+        sa.Table(
+            "country",
+            meta,
+            sa.Column("country_id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.String(100), nullable=False),
+            sa.Column("iso_code", sa.String(2), unique=True, nullable=False),
+            schema="geography",
+        )
+        sa.Table(
+            "city",
+            meta,
+            sa.Column("city_id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.String(100), nullable=False),
+            sa.Column("population", sa.BigInteger),
+            sa.Column(
+                "country_id",
+                sa.Integer,
+                sa.ForeignKey("geography.country.country_id", ondelete="CASCADE"),
+                nullable=False,
+            ),
+            schema="urban",
+        )
+
+    db = make_inspect_db("db", setup)
+    result_file_path = tmp_path / "result.csv"
+
+    cli.invoke(
+        rc_new,
+        [
+            "inspect",
+            "-r",
+            "sql",
+            db,
+            "-o",
+            result_file_path,
+        ],
+    )
+
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, "db/geography").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "db/urban").resources["resource1"].external = "postgresql"
+
+    assert (
+        manifest
+        == """
+    d | r | m | property    | type    | ref                      | source                  | prepare | access  | title
+    db/geography            |         |                          |                         |         |         |
+      | resource1           | sql     |                          | postgresql              |         |         |
+                            |         |                          |                         |         |         |
+      |   | Country         |         | country_id               | geography.country       |         |         |
+      |   |   | country_id  | integer |                          | country_id              |         |         |
+      |   |   | iso_code    | string  |                          | iso_code                |         |         |
+      |   |   | name        | string  |                          | name                    |         |         |
+    db/urban                |         |                          |                         |         |         |
+      | resource1           | sql     |                          | postgresql              |         |         |
+                            |         |                          |                         |         |         |
+      |   | City            |         | city_id                  | urban.city              |         |         |
+      |   |   | city_id     | integer |                          | city_id                 |         |         |
+      |   |   | country_id  | ref     | /db/geography/Country    | country_id              |         |         |
+      |   |   | name        | string  |                          | name                    |         |         |
+      |   |   | population  | integer |                          | population              |         |         |
+    """
+    )
+
+
 @pytest.mark.skip(reason="Requires #440 task")
 def test_inspect_with_manifest_backends(
     rc_new: RawConfig,
@@ -2553,5 +2656,103 @@ def test_inspect_blob_types(
        |   |   |   |   | id        | integer |     | ID        |             |         |        |       |       | develop | private    |        |     |     |       |
        |   |   |   |   | logo      | binary  |     | LOGO      |             |         |        |       |       | develop | private    |        |     |     |       |
        |   |   |   |   | name      | string  |     | NAME      |             |         |        |       |       | develop | private    |        |     |     |       |
+    """
+    )
+
+
+def test_inspect_unrecognized_types_are_mapped_to_unknown(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    # Create a table with an unsupported column directly to skip SQLite's type affinity.
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID   INTEGER PRIMARY KEY,
+                CODE TEXT,
+                NAME TEXT,
+                "NULL" BLOB SUBTYPE UNKNOWN
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    # Reset resource.source to a specific value for evaluation.
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property   | type    | ref     | source     | prepare
+    db_sqlite                  |         |         |            |
+      | resource1              | sql     |         | sqlite     |
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | code       | string  |         | CODE       |
+      |   |   |   | id         | integer |         | ID         |
+      |   |   |   | name       | string  |         | NAME       |
+      |   |   |   | null       | unknown |         | NULL       |
+    """
+    )
+
+
+def test_inspect_unknown_type_with_relations(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE CATEGORY
+            (
+                ID   BLOB SUBTYPE UNKNOWN PRIMARY KEY,
+                NAME TEXT
+            )
+        """)
+        )
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID          INTEGER PRIMARY KEY,
+                NAME        TEXT,
+                CATEGORY_ID BLOB SUBTYPE UNKNOWN,
+                FOREIGN KEY (CATEGORY_ID) REFERENCES CATEGORY (ID)
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property    | type    | ref      | source      | prepare
+    db_sqlite                   |         |          |             |
+      | resource1               | sql     |          | sqlite      |
+                                |         |          |             |
+      |   |   | Category        |         | id       | CATEGORY    |
+      |   |   |   | id          | unknown |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+                                |         |          |             |
+      |   |   | Country         |         | id       | COUNTRY     |
+      |   |   |   | category_id | ref     | Category | CATEGORY_ID |
+      |   |   |   | id          | integer |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
     """
     )
