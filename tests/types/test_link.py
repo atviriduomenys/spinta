@@ -288,6 +288,7 @@ def test_scope_with_invalid_denorm_subproperty_raises(manifest_type: str, tmp_pa
             tmp_path=tmp_path,
         )
 
+
 @pytest.mark.manifests("csv")
 def test_scope_with_valid_object_subproperty_loads(manifest_type: str, tmp_path: Path, rc: RawConfig):
     context = load_manifest_get_context(
@@ -327,6 +328,7 @@ def test_scope_with_invalid_object_subproperty_raises(manifest_type: str, tmp_pa
             tmp_path=tmp_path,
         )
 
+
 @pytest.mark.manifests("csv")
 def test_scope_with_valid_text_property_loads(manifest_type: str, tmp_path: Path, rc: RawConfig):
     context = load_manifest_get_context(
@@ -345,6 +347,7 @@ def test_scope_with_valid_text_property_loads(manifest_type: str, tmp_path: Path
     )
     city = context.get("store").manifest.get_objects()["model"]["example/City"]
     assert "text" in city.scopes
+
 
 @pytest.mark.manifests("csv")
 def test_scope_with_invalid_text_property_raises(manifest_type: str, tmp_path: Path, rc: RawConfig):
@@ -384,6 +387,7 @@ def test_multiple_scopes_on_same_model_load(manifest_type, tmp_path, rc):
     )
     city = context.get("store").manifest.get_objects()["model"]["example/City"]
     assert set(city.scopes.keys()) == {"ids", "code", "name"}
+
 
 @pytest.mark.manifests("csv")
 def test_cross_model_scope_3_level_chain_loads(manifest_type, tmp_path, rc):
