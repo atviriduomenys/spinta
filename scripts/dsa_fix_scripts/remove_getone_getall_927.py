@@ -43,7 +43,7 @@ def process_csv_file(file_path):
             output_lines.append(data_lines[i])
             continue
 
-        if (not "/:getone" in row["model"]) and (not "/:getall" in row["model"]):
+        if ("/:getone" not in row["model"]) and ("/:getall" not in row["model"]):
             output_lines.append(data_lines[i])
             continue
         function = row["model"].split("/:")[1].split("?")[0]

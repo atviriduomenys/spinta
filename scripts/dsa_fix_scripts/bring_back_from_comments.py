@@ -55,9 +55,9 @@ def process_csv_file(file_path, issue_number, output_dir=None, debug=False):
             if exact_issue_url == uri_text:
                 issue_match = True
                 if debug:
-                    print(f"  ✓ Exact match for issue URL in URI")
+                    print("  ✓ Exact match for issue URL in URI")
             elif debug:
-                print(f"  ✗ No exact match for issue URL in URI")
+                print("  ✗ No exact match for issue URL in URI")
 
             if issue_match:
                 # Find the target row (non-comment row before this comment)
@@ -166,7 +166,7 @@ def main():
     debug = args.debug
 
     if debug:
-        print(f"Debug mode enabled")
+        print("Debug mode enabled")
         print(f"Issue number: {issue_number}")
         print(f"Path: {path}")
 

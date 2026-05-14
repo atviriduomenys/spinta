@@ -102,7 +102,7 @@ def main():
     total_count, q_mark_models = count_question_mark_models(args.directory)
 
     # Print results
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"Total number of models with question marks: {total_count}")
     print(f"Number of unique models with question marks: {len(q_mark_models)}")
 

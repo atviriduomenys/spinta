@@ -87,7 +87,7 @@ def main():
     total_model_values = count_model_values(args.directory)
 
     # Print results
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"Total number of values in 'model' column across all CSV files: {total_model_values}")
 
 

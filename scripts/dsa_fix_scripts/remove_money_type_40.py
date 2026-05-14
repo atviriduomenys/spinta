@@ -1,7 +1,6 @@
 import io
 import os
 import csv
-import re
 
 
 def process_csv_files(directory):
