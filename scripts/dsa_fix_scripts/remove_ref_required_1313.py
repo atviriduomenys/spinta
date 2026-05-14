@@ -1,7 +1,6 @@
 import io
 import os
 import csv
-import re
 
 
 def process_csv_files(directory):
@@ -57,7 +56,6 @@ def process_csv_file(file_path):
 
         # Change type from money to string
         old_type = row["type"]
-        old_level = row["level"]
         row["type"] = row["type"].replace("ref required", "ref")
         # row["level"] = 2
 

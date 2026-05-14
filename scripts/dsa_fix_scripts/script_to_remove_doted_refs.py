@@ -1,5 +1,4 @@
 import csv
-import os
 
 
 def remove_dot_refs(file_path):

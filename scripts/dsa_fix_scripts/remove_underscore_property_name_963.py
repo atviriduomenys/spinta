@@ -61,11 +61,11 @@ def process_csv_file(file_path):
 
         if (
             not row["property"].startswith("_")
-            and not "._" in row["property"]
-            and not " _" in row["ref"]
-            and not "[_" in row["ref"]
-            and not " _" in row["base"]
-            and not "[_" in row["base"]
+            and "._" not in row["property"]
+            and " _" not in row["ref"]
+            and "[_" not in row["ref"]
+            and " _" not in row["base"]
+            and "[_" not in row["base"]
         ):
             output_lines.append(data_lines[i])
             continue

@@ -1,7 +1,6 @@
 import io
 import os
 import csv
-import re
 
 
 def process_csv_files(directory):
@@ -42,7 +41,7 @@ def process_csv_file(file_path):
             output_lines.append(data_lines[i])
             continue
 
-        if not "/:part" in row["model"]:
+        if "/:part" not in row["model"]:
             output_lines.append(data_lines[i])
             continue
 
