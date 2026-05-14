@@ -19,13 +19,13 @@ def remove_bracket_content_for_backref(text):
     """
     # Apply regex to remove any bracket content in the entire text
     original_text = text
-    modified_text = re.sub(r'\[.*?\]', '', text)
+    modified_text = re.sub(r"\[.*?\]", "", text)
     changes_made = original_text != modified_text
-    
+
     # Clean up extra spaces and commas
-    clean_result = re.sub(r'\s{2,}', ' ', modified_text)
-    clean_result = re.sub(r',\s*,', ',', clean_result)
-    clean_result = clean_result.strip(', ')
+    clean_result = re.sub(r"\s{2,}", " ", modified_text)
+    clean_result = re.sub(r",\s*,", ",", clean_result)
+    clean_result = clean_result.strip(", ")
 
     if changes_made:
         print(f"Found brackets in: '{original_text}'")
@@ -39,14 +39,14 @@ def process_csv_file(file_path):
     print(f"\nProcessing file: {file_path}")
 
     # Read original file lines as text
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         original_lines = f.readlines()
 
     if not original_lines:
         return  # Skip empty files
 
     # Parse with csv.DictReader using StringIO
-    reader = csv.DictReader(io.StringIO(''.join(original_lines)))
+    reader = csv.DictReader(io.StringIO("".join(original_lines)))
     fieldnames = reader.fieldnames
     rows = list(reader)
 
@@ -57,17 +57,17 @@ def process_csv_file(file_path):
     changes_made = 0
 
     for i, row in enumerate(rows):
-        if 'ref' not in row or 'type' not in row:
+        if "ref" not in row or "type" not in row:
             output_lines.append(data_lines[i])
             continue
 
         # Only process rows where type is 'backref'
-        if row.get('type') != 'backref':
+        if row.get("type") != "backref":
             output_lines.append(data_lines[i])
             continue
 
-        original_ref = row['ref']
-        original_level = row['level']
+        original_ref = row["ref"]
+        original_level = row["level"]
 
         # Use the new function for cleaning backref rows
         ref_value, brackets_removed = remove_bracket_content_for_backref(original_ref)
@@ -81,8 +81,8 @@ def process_csv_file(file_path):
         print(f"Change #{changes_made} - Removing brackets from backref ref value")
 
         # Replace the old ref with the cleaned one inside the original line
-        row['level'] = 1
-        row['ref'] = ref_value
+        row["level"] = 1
+        row["ref"] = ref_value
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
             writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
@@ -92,12 +92,12 @@ def process_csv_file(file_path):
 
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
-            'type': 'comment',
-            'ref': 'ref',
-            'prepare': f'update(ref: "{original_ref}")',
-            'level': original_level,
-            'visibility': 'protected',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/1459'
+            "type": "comment",
+            "ref": "ref",
+            "prepare": f'update(ref: "{original_ref}")',
+            "level": original_level,
+            "visibility": "protected",
+            "uri": "https://github.com/atviriduomenys/spinta/issues/1459",
         }
 
         # Write comment row using csv to match format
@@ -113,27 +113,28 @@ def process_csv_file(file_path):
         print(f"Made {changes_made} changes in the file.")
 
     # Write back to file
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.writelines(output_lines)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Remove references containing brackets from backref type columns in CSV files')
-    parser.add_argument('path', help='Path to a CSV file or directory containing CSV files')
+        description="Remove references containing brackets from backref type columns in CSV files"
+    )
+    parser.add_argument("path", help="Path to a CSV file or directory containing CSV files")
     args = parser.parse_args()
 
     path = Path(args.path)
 
-    if path.is_file() and path.suffix.lower() == '.csv':
+    if path.is_file() and path.suffix.lower() == ".csv":
         process_csv_file(path)
     elif path.is_dir():
-        for csv_file in path.glob('**/*.csv'):
+        for csv_file in path.glob("**/*.csv"):
             process_csv_file(csv_file)
     else:
         print(f"Error: {path} is not a CSV file or directory")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

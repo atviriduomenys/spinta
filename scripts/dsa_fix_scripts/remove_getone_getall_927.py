@@ -7,7 +7,7 @@ def process_csv_files(directory):
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith('.csv'):
+            if file.endswith(".csv"):
                 file_path = os.path.join(root, file)
                 process_csv_file(file_path)
                 print(f"Processed: {file_path}")  # Add debug output
@@ -15,14 +15,14 @@ def process_csv_files(directory):
 
 def process_csv_file(file_path):
     # Read original file lines as text
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         original_lines = f.readlines()
 
     if not original_lines:
         return  # Skip empty files
 
     # Parse with csv.DictReader using StringIO
-    reader = csv.DictReader(io.StringIO(''.join(original_lines)))
+    reader = csv.DictReader(io.StringIO("".join(original_lines)))
     fieldnames = reader.fieldnames
     rows = list(reader)
 
@@ -34,21 +34,20 @@ def process_csv_file(file_path):
     model_with_functions_counts = {}
 
     for i, row in enumerate(rows):
-
-        if 'type' not in row:
+        if "type" not in row:
             output_lines.append(data_lines[i])
             continue
 
         # we don't need comments for comments
-        if row["type"] == 'comment':
+        if row["type"] == "comment":
             output_lines.append(data_lines[i])
             continue
 
         if (not "/:getone" in row["model"]) and (not "/:getall" in row["model"]):
             output_lines.append(data_lines[i])
             continue
-        function = row["model"].split('/:')[1].split('?')[0]
-        model_name = row["model"].split('/:')[0]
+        function = row["model"].split("/:")[1].split("?")[0]
+        model_name = row["model"].split("/:")[0]
         # Change type from money to string
         old_model = row["model"]
 
@@ -59,8 +58,7 @@ def process_csv_file(file_path):
             model_with_functions_counts[model_name] += 1
             if model_with_functions_counts[model_name] > 0:
                 model_number = str(model_with_functions_counts[model_name])
-        row["model"] = row["model"].replace(f'/:{function}', model_number)
-
+        row["model"] = row["model"].replace(f"/:{function}", model_number)
 
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
@@ -71,11 +69,11 @@ def process_csv_file(file_path):
 
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
-            'type': 'comment',
-            'ref': 'model',
-            'prepare': f'update(model: "{old_model}")',
-            'visibility': 'public',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/927'
+            "type": "comment",
+            "ref": "model",
+            "prepare": f'update(model: "{old_model}")',
+            "visibility": "public",
+            "uri": "https://github.com/atviriduomenys/spinta/issues/927",
         }
 
         # Write comment row using csv to match format
@@ -86,7 +84,7 @@ def process_csv_file(file_path):
         output_lines.append(comment_line)
 
     # Write back to file
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.writelines(output_lines)
 
 

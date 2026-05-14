@@ -17,7 +17,7 @@ def trim_csv_spaces(directory):
     # Walk through all files in directory and subdirectories
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith('.csv'):
+            if file.endswith(".csv"):
                 file_path = os.path.join(root, file)
                 if process_file(file_path):
                     processed_count += 1
@@ -37,7 +37,7 @@ def process_file(file_path):
     """
     try:
         # Read the file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         if not content.strip():
@@ -61,7 +61,7 @@ def process_file(file_path):
             return False
 
         # Write back to the file
-        with open(file_path, 'w', encoding='utf-8', newline='') as f:
+        with open(file_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerows(trimmed_rows)
 

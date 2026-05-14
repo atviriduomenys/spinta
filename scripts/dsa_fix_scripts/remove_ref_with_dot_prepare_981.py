@@ -14,27 +14,27 @@ def remove_dot_words(text):
     Also handles bracket notations properly, removing items like dokumentai[].nr
     """
     # First, split by commas and process each part separately
-    parts = [part.strip() for part in text.split(',')]
+    parts = [part.strip() for part in text.split(",")]
     filtered_parts = []
-    
+
     for part in parts:
         # Check if this part contains any form of dot notation (including after brackets)
-        if re.search(r'\.[\w]+', part):
+        if re.search(r"\.[\w]+", part):
             continue  # Skip parts with dots
-            
+
         # Handle brackets but without dots in the complete expression
-        if '[' in part and ']' in part and '.' not in part:
+        if "[" in part and "]" in part and "." not in part:
             # Process content inside brackets
-            bracket_pattern = r'(.*?)\[(.*?)\]'
+            bracket_pattern = r"(.*?)\[(.*?)\]"
             match = re.search(bracket_pattern, part)
             if match:
                 prefix = match.group(1)
                 content = match.group(2)
-                
+
                 # Split by comma and filter out dot-containing parts inside brackets
-                inner_parts = [inner_part.strip() for inner_part in content.split(',')]
-                filtered_inner_parts = [inner_part for inner_part in inner_parts if '.' not in inner_part]
-                
+                inner_parts = [inner_part.strip() for inner_part in content.split(",")]
+                filtered_inner_parts = [inner_part for inner_part in inner_parts if "." not in inner_part]
+
                 if not filtered_inner_parts:
                     # If all inner parts were removed, keep just the prefix without brackets
                     filtered_parts.append(prefix)
@@ -42,30 +42,30 @@ def remove_dot_words(text):
                     # Otherwise, rebuild with the remaining content
                     filtered_parts.append(f"{prefix}[{', '.join(filtered_inner_parts)}]")
             continue
-            
+
         # If we got here, the part has no dots and no brackets, so keep it
         filtered_parts.append(part)
-    
-    clean_result = ', '.join(filtered_parts)
-    
+
+    clean_result = ", ".join(filtered_parts)
+
     # Clean up extra spaces and commas
-    clean_result = re.sub(r'\s{2,}', ' ', clean_result)
-    clean_result = re.sub(r',\s*,', ',', clean_result)
-    clean_result = clean_result.strip(', ')
-    
+    clean_result = re.sub(r"\s{2,}", " ", clean_result)
+    clean_result = re.sub(r",\s*,", ",", clean_result)
+    clean_result = clean_result.strip(", ")
+
     return clean_result
 
 
 def process_csv_file(file_path):
     # Read original file lines as text
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         original_lines = f.readlines()
 
     if not original_lines:
         return  # Skip empty files
 
     # Parse with csv.DictReader using StringIO
-    reader = csv.DictReader(io.StringIO(''.join(original_lines)))
+    reader = csv.DictReader(io.StringIO("".join(original_lines)))
     fieldnames = reader.fieldnames
     rows = list(reader)
 
@@ -75,17 +75,17 @@ def process_csv_file(file_path):
     output_lines = [header_line]  # Start with header
 
     for i, row in enumerate(rows):
-        if 'prepare' not in row:
+        if "prepare" not in row:
             output_lines.append(data_lines[i])
             continue
 
         # we don't need comments for comments
-        if row.get('type') == 'comment':
+        if row.get("type") == "comment":
             output_lines.append(data_lines[i])
             continue
 
-        original_prepare = row['prepare']
-        original_level = row['level']
+        original_prepare = row["prepare"]
+        original_level = row["level"]
 
         # Use the improved function for cleaning
         prepare_value = remove_dot_words(original_prepare)
@@ -96,8 +96,8 @@ def process_csv_file(file_path):
             continue
 
         # Replace the old ref with the cleaned one inside the original line
-        row['level'] = 1
-        row['prepare'] = prepare_value
+        row["level"] = 1
+        row["prepare"] = prepare_value
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
             writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
@@ -107,12 +107,12 @@ def process_csv_file(file_path):
 
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
-            'type': 'comment',
-            'ref': 'prepare',
-            'prepare': f'update(prepare: "{original_prepare}")',
-            'level': original_level,
-            'visibility': 'protected',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/981'
+            "type": "comment",
+            "ref": "prepare",
+            "prepare": f'update(prepare: "{original_prepare}")',
+            "level": original_level,
+            "visibility": "protected",
+            "uri": "https://github.com/atviriduomenys/spinta/issues/981",
         }
 
         # Write comment row using csv to match format
@@ -123,22 +123,22 @@ def process_csv_file(file_path):
         output_lines.append(comment_line)
 
     # Write back to file
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.writelines(output_lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Remove references containing dots from CSV files')
-    parser.add_argument('path', help='Path to a CSV file or directory containing CSV files')
+    parser = argparse.ArgumentParser(description="Remove references containing dots from CSV files")
+    parser.add_argument("path", help="Path to a CSV file or directory containing CSV files")
     args = parser.parse_args()
 
     path = Path(args.path)
 
-    if path.is_file() and path.suffix.lower() == '.csv':
+    if path.is_file() and path.suffix.lower() == ".csv":
         print(f"Processing file: {path}")
         process_csv_file(path)
     elif path.is_dir():
-        for csv_file in path.glob('**/*.csv'):
+        for csv_file in path.glob("**/*.csv"):
             print(f"Processing file: {csv_file}")
             process_csv_file(csv_file)
     else:
@@ -146,5 +146,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

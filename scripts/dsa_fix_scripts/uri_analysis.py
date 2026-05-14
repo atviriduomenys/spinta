@@ -1,4 +1,4 @@
-#%%
+# %%
 #!/usr/bin/env python3
 """
 URI Analysis Script for CSV Files
@@ -15,6 +15,7 @@ from collections import Counter
 import glob
 import argparse
 import sys
+
 
 def analyze_csv_files(root_dir):
     """
@@ -38,7 +39,7 @@ def analyze_csv_files(root_dir):
     print(f"Searching for CSV files in {root_dir}...")
 
     # Find all CSV files recursively
-    csv_files = glob.glob(os.path.join(root_dir, '**', '*.csv'), recursive=True)
+    csv_files = glob.glob(os.path.join(root_dir, "**", "*.csv"), recursive=True)
 
     if not csv_files:
         print(f"No CSV files found in {root_dir}")
@@ -52,12 +53,12 @@ def analyze_csv_files(root_dir):
             df = pd.read_csv(csv_file)
 
             # Check if 'uri' column exists
-            if 'uri' not in df.columns:
+            if "uri" not in df.columns:
                 print(f"Warning: No 'uri' column in {csv_file}")
                 continue
 
             # Extract URI values
-            uris = df['uri'].dropna().tolist()
+            uris = df["uri"].dropna().tolist()
 
             # Count occurrences in this file
             file_counter = Counter(uris)
@@ -76,6 +77,7 @@ def analyze_csv_files(root_dir):
     print(f"Successfully processed {processed_files} CSV files")
     return total_frequency, file_occurrence
 
+
 def print_results(total_freq, file_occur, top_n=20):
     """Print the analysis results"""
     if not total_freq:
@@ -90,6 +92,7 @@ def print_results(total_freq, file_occur, top_n=20):
     for uri, count in file_occur.most_common(top_n):
         print(f"URI: {uri} - Found in {count} files")
 
+
 def save_results(total_freq, file_occur, output_file):
     """Save results to a CSV file"""
     if not total_freq:
@@ -97,27 +100,31 @@ def save_results(total_freq, file_occur, output_file):
         return
 
     # Convert counters to DataFrames
-    freq_df = pd.DataFrame(total_freq.items(), columns=['URI', 'Total_Frequency'])
-    occur_df = pd.DataFrame(file_occur.items(), columns=['URI', 'File_Occurrences'])
+    freq_df = pd.DataFrame(total_freq.items(), columns=["URI", "Total_Frequency"])
+    occur_df = pd.DataFrame(file_occur.items(), columns=["URI", "File_Occurrences"])
 
     # Merge the two DataFrames on URI
-    result_df = pd.merge(freq_df, occur_df, on='URI')
+    result_df = pd.merge(freq_df, occur_df, on="URI")
 
     # Sort by total frequency, descending
-    result_df = result_df.sort_values('Total_Frequency', ascending=False)
+    result_df = result_df.sort_values("Total_Frequency", ascending=False)
 
     # Save to CSV
     result_df.to_csv(output_file, index=False)
     print(f"Saved results to {output_file}")
 
+
 def main():
     # Set up command line arguments
-    parser = argparse.ArgumentParser(description='Analyze URI values in CSV files.')
-    parser.add_argument('directory', help='Root directory containing CSV files')
-    parser.add_argument('-o', '--output', default='uri_analysis_results.csv',
-                        help='Output file name (default: uri_analysis_results.csv)')
-    parser.add_argument('-n', '--top', type=int, default=20,
-                        help='Number of top results to display (default: 20)')
+    parser = argparse.ArgumentParser(description="Analyze URI values in CSV files.")
+    parser.add_argument("directory", help="Root directory containing CSV files")
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="uri_analysis_results.csv",
+        help="Output file name (default: uri_analysis_results.csv)",
+    )
+    parser.add_argument("-n", "--top", type=int, default=20, help="Number of top results to display (default: 20)")
 
     args = parser.parse_args()
 
@@ -134,6 +141,7 @@ def main():
 
     # Save results
     save_results(total_freq, file_occur, args.output)
+
 
 if __name__ == "__main__":
     main()

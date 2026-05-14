@@ -3,17 +3,18 @@ import sys
 import csv
 import re
 
+
 def process_csv_files(directory):
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith('.csv'):
+            if file.endswith(".csv"):
                 file_path = os.path.join(root, file)
                 apply_ref_updates_in_csv(file_path)
 
 
 def apply_ref_updates_in_csv(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     reader = csv.DictReader(lines)
@@ -26,19 +27,19 @@ def apply_ref_updates_in_csv(file_path):
     while i < len(rows):
         row = rows[i]
 
-        if row.get('type') == 'comment' and "@" in row.get('prepare', ''):
+        if row.get("type") == "comment" and "@" in row.get("prepare", ""):
             # Extract the update(ref: "value") content
-            match = re.search(r'update\(ref:\s*"([^"]+)"\)', row['prepare'])
+            match = re.search(r'update\(ref:\s*"([^"]+)"\)', row["prepare"])
             if match:
                 new_ref = match.group(1)
                 if i > 0:
                     prev_row = rows[i - 1]
-                    old_ref = prev_row.get('ref', '')
+                    old_ref = prev_row.get("ref", "")
 
                     # If new_ref is like "prefix@suffix"
-                    if '@' in new_ref:
-                        prefix = new_ref.split('@')[0]
-                        parts = [part.strip() for part in old_ref.split(',') if part.strip()]
+                    if "@" in new_ref:
+                        prefix = new_ref.split("@")[0]
+                        parts = [part.strip() for part in old_ref.split(",") if part.strip()]
                         replaced = False
                         for j, part in enumerate(parts):
                             if part == prefix:
@@ -46,7 +47,7 @@ def apply_ref_updates_in_csv(file_path):
                                 replaced = True
                         if not replaced:
                             parts.append(new_ref)
-                        prev_row['ref'] = ', '.join(parts)
+                        prev_row["ref"] = ", ".join(parts)
                         updated_rows[-1] = prev_row  # Update last written row
                         number_changed_rows += 1
 
@@ -58,9 +59,8 @@ def apply_ref_updates_in_csv(file_path):
         i += 1
 
     if number_changed_rows:
-    # Write back to file
-        with open(file_path, 'w', encoding='utf-8', newline='') as f:
-
+        # Write back to file
+        with open(file_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
             writer.writeheader()
             writer.writerows(updated_rows)

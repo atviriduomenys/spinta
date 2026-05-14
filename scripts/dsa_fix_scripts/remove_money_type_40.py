@@ -3,25 +3,27 @@ import os
 import csv
 import re
 
+
 def process_csv_files(directory):
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith('.csv'):
+            if file.endswith(".csv"):
                 file_path = os.path.join(root, file)
                 process_csv_file(file_path)
                 print(f"Processed: {file_path}")  # Add debug output
 
+
 def process_csv_file(file_path):
     # Read original file lines as text
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         original_lines = f.readlines()
 
     if not original_lines:
         return  # Skip empty files
 
     # Parse with csv.DictReader using StringIO
-    reader = csv.DictReader(io.StringIO(''.join(original_lines)))
+    reader = csv.DictReader(io.StringIO("".join(original_lines)))
     fieldnames = reader.fieldnames
     rows = list(reader)
 
@@ -31,26 +33,25 @@ def process_csv_file(file_path):
     output_lines = [header_line]  # Start with header
 
     for i, row in enumerate(rows):
-        if 'type' not in row:
+        if "type" not in row:
             output_lines.append(data_lines[i])
             continue
 
         # we don't need comments for comments
-        if row["type"] == 'comment':
+        if row["type"] == "comment":
             output_lines.append(data_lines[i])
             continue
 
-        if not row["type"].startswith('money'):
-
+        if not row["type"].startswith("money"):
             output_lines.append(data_lines[i])
             continue
 
         # Change type from money to string
         old_type = row["type"]
         old_level = row["level"]
-        row["type"] = row["type"].replace('money', 'string')
+        row["type"] = row["type"].replace("money", "string")
         row["level"] = 2
-        
+
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
             writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
@@ -60,12 +61,12 @@ def process_csv_file(file_path):
 
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
-            'type': 'comment',
-            'ref': 'type',
-            'prepare': f'update(type: ""{old_type}"")',
-            'visibility': 'protected',
-            'level': old_level,
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/40'
+            "type": "comment",
+            "ref": "type",
+            "prepare": f'update(type: ""{old_type}"")',
+            "visibility": "protected",
+            "level": old_level,
+            "uri": "https://github.com/atviriduomenys/spinta/issues/40",
         }
 
         # Write comment row using csv to match format
@@ -76,7 +77,7 @@ def process_csv_file(file_path):
         output_lines.append(comment_line)
 
     # Write back to file
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.writelines(output_lines)
 
 

@@ -1,4 +1,4 @@
-#%%
+# %%
 #!/usr/bin/env python3
 """
 Question Mark Model Counter Script
@@ -13,6 +13,7 @@ import pandas as pd
 import glob
 import argparse
 import sys
+
 
 def count_question_mark_models(root_dir):
     """
@@ -35,7 +36,7 @@ def count_question_mark_models(root_dir):
     print(f"Searching for CSV files in {root_dir}...")
 
     # Find all CSV files recursively
-    csv_files = glob.glob(os.path.join(root_dir, '**', '*.csv'), recursive=True)
+    csv_files = glob.glob(os.path.join(root_dir, "**", "*.csv"), recursive=True)
 
     if not csv_files:
         print(f"No CSV files found in {root_dir}")
@@ -49,12 +50,12 @@ def count_question_mark_models(root_dir):
             df = pd.read_csv(csv_file)
 
             # Check if 'model' column exists
-            if 'model' not in df.columns:
+            if "model" not in df.columns:
                 print(f"Warning: No 'model' column in {csv_file}")
                 continue
 
             # Get models with question marks
-            question_mark_df = df[df['model'].fillna('').astype(str).str.contains(r'\?')]
+            question_mark_df = df[df["model"].fillna("").astype(str).str.contains(r"\?")]
 
             # Count question mark models
             file_q_mark_count = len(question_mark_df)
@@ -62,7 +63,7 @@ def count_question_mark_models(root_dir):
 
             # Track specific models with question marks
             if file_q_mark_count > 0:
-                model_counts = question_mark_df['model'].value_counts().to_dict()
+                model_counts = question_mark_df["model"].value_counts().to_dict()
                 for model, count in model_counts.items():
                     if model in question_mark_models:
                         question_mark_models[model] += count
@@ -80,13 +81,15 @@ def count_question_mark_models(root_dir):
 
     return total_question_mark_count, question_mark_models
 
+
 def main():
     # Set up command line arguments
-    parser = argparse.ArgumentParser(description='Count models with question marks in CSV files.')
-    parser.add_argument('directory', help='Root directory containing CSV files')
-    parser.add_argument('-t', '--top', type=int, default=10,
-                      help='Number of top question mark models to display (default: 10)')
-    parser.add_argument('-o', '--output', help='Output file for question mark models (optional)')
+    parser = argparse.ArgumentParser(description="Count models with question marks in CSV files.")
+    parser.add_argument("directory", help="Root directory containing CSV files")
+    parser.add_argument(
+        "-t", "--top", type=int, default=10, help="Number of top question mark models to display (default: 10)"
+    )
+    parser.add_argument("-o", "--output", help="Output file for question mark models (optional)")
 
     args = parser.parse_args()
 
@@ -107,17 +110,18 @@ def main():
         print(f"\nTop {min(args.top, len(q_mark_models))} models with question marks:")
         sorted_models = sorted(q_mark_models.items(), key=lambda x: x[1], reverse=True)
 
-        for i, (model, count) in enumerate(sorted_models[:args.top]):
-            print(f"{i+1}. '{model}' - {count} occurrences")
+        for i, (model, count) in enumerate(sorted_models[: args.top]):
+            print(f"{i + 1}. '{model}' - {count} occurrences")
 
         # Save to file if requested
         if args.output:
             try:
-                df = pd.DataFrame(sorted_models, columns=['Model', 'Count'])
+                df = pd.DataFrame(sorted_models, columns=["Model", "Count"])
                 df.to_csv(args.output, index=False)
                 print(f"\nSaved all {len(q_mark_models)} question mark models to {args.output}")
             except Exception as e:
                 print(f"Error saving to file: {str(e)}")
+
 
 if __name__ == "__main__":
     main()

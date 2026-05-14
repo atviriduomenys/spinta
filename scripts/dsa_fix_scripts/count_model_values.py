@@ -1,4 +1,4 @@
-#%%
+# %%
 #!/usr/bin/env python3
 """
 Model Values Counter Script
@@ -13,6 +13,7 @@ import pandas as pd
 import glob
 import argparse
 import sys
+
 
 def count_model_values(root_dir):
     """
@@ -34,7 +35,7 @@ def count_model_values(root_dir):
     print(f"Searching for CSV files in {root_dir}...")
 
     # Find all CSV files recursively
-    csv_files = glob.glob(os.path.join(root_dir, '**', '*.csv'), recursive=True)
+    csv_files = glob.glob(os.path.join(root_dir, "**", "*.csv"), recursive=True)
 
     if not csv_files:
         print(f"No CSV files found in {root_dir}")
@@ -48,12 +49,12 @@ def count_model_values(root_dir):
             df = pd.read_csv(csv_file)
 
             # Check if 'model' column exists
-            if 'model' not in df.columns:
+            if "model" not in df.columns:
                 print(f"Warning: No 'model' column in {csv_file}")
                 continue
 
             # Count non-null values in the model column
-            model_count = df['model'].count()
+            model_count = df["model"].count()
             total_count += model_count
 
             if model_count > 0:
@@ -69,10 +70,11 @@ def count_model_values(root_dir):
 
     return total_count
 
+
 def main():
     # Set up command line arguments
-    parser = argparse.ArgumentParser(description='Count values in the model column of CSV files.')
-    parser.add_argument('directory', help='Root directory containing CSV files')
+    parser = argparse.ArgumentParser(description="Count values in the model column of CSV files.")
+    parser.add_argument("directory", help="Root directory containing CSV files")
 
     args = parser.parse_args()
 
@@ -87,6 +89,7 @@ def main():
     # Print results
     print(f"\nResults:")
     print(f"Total number of values in 'model' column across all CSV files: {total_model_values}")
+
 
 if __name__ == "__main__":
     main()
