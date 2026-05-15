@@ -19,13 +19,13 @@ def getattr_(env: ScopeLoader, obj: GetAttr, attr: Bind) -> GetAttr:
 
 
 @ufunc.resolver(ScopeLoader, list)
-def resolve_scope(env: ScopeLoader, scopes: list):
+def resolve_scope(env: ScopeLoader, scopes: list) -> None:
     for scope in scopes:
         env.call("resolve_scope", scope)
 
 
 @ufunc.resolver(ScopeLoader, Scope)
-def resolve_scope(env: ScopeLoader, scope: Scope):
+def resolve_scope(env: ScopeLoader, scope: Scope) -> None:
     prepare = scope.prepare
     if not prepare:
         return
@@ -35,7 +35,7 @@ def resolve_scope(env: ScopeLoader, scope: Scope):
 
 
 @ufunc.resolver(ScopeLoader, Expr)
-def validate_prepare(env: ScopeLoader, expr: Expr):
+def validate_prepare(env: ScopeLoader, expr: Expr) -> None:
     if expr.name in ("bind", "getattr"):
         result = env.resolve(expr)
         env.resolve_property(result)
@@ -47,5 +47,5 @@ def validate_prepare(env: ScopeLoader, expr: Expr):
 
 
 @ufunc.resolver(ScopeLoader, object)
-def validate_prepare(env: ScopeLoader, value: object):
+def validate_prepare(env: ScopeLoader, value: object) -> None:
     return

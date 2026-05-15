@@ -1,3 +1,5 @@
+from typing import Any
+
 from spinta.components import ExtraMetaData, Model
 from spinta.core.enums import Access, Visibility, Status
 from spinta.core.ufuncs import Expr, Env
@@ -53,7 +55,7 @@ class ScopeLoader(Env):
     model: Model
     property_resolver: PropertyResolver | None
 
-    def resolve_property(self, *args, **kwargs):
+    def resolve_property(self, *args, **kwargs) -> Any:
         resolver = self._scope.get("property_resolver")
         if resolver is None:
             resolver = PropertyResolver(self.context)
