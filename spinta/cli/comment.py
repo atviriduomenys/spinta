@@ -5,7 +5,7 @@ from typer import echo
 
 from spinta.cli.helpers.enums import CommentPart
 from spinta.cli.helpers.store import load_manifest
-from spinta.components import Context, Property
+from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
 from spinta.dimensions.comments.components import Comment
