@@ -1416,3 +1416,44 @@ def test_copy_multiple_scopes(context: Context, rc, cli: SpintaCliRunner, tmp_pa
       |   |   |   | region   | string |      | region |                        | public
     """
     )
+
+
+def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """When a model declares an undeclared base, copy should output the model
+    without that base and append a restore comment row."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | access
+    example                                |         |          |        |     |
+                                           |         |          |        |     |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |
+      |   |                                | Country |          |        |     |
+      |   |                                |         | name     | string |     | private
+    """),
+    )
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "private",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | model    | property | type  | ref    | source| prepare                                        | level | access
+    example              |          |       |        |       |                                                |       |
+                         |          |       |        |       |                                                |       |
+      |   |   | Country  |          |       |        |       |                                                |       |
+                         | comment  | base  | author |       | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
+      |   |   |   | name | string   |       |        |       |                                                |       | private
+    """
+    )

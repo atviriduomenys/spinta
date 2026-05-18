@@ -119,6 +119,36 @@ def replace_undeclared_ref_with_object(
     )
 
 
+def replace_undeclared_base_with_comment(
+    model: Model,
+    base_model: str,
+) -> None:
+    logger.warning(
+        "Base %r used by model %r was not found in the manifest. Dropping base reference.",
+        base_model,
+        model.name,
+    )
+
+    model.base = None
+
+    if model.comments is None:
+        model.comments = []
+
+    model.comments.append(
+        Comment(
+            id=None,
+            parent="base",
+            author=SYSTEMIC_COMMENT_AUTHOR,
+            access=Access.private,
+            created=datetime.now(timezone.utc).isoformat(),
+            comment="",
+            given=CommentGiven(access=None),
+            prepare=f'insert(base: "{base_model}")',
+            level=4,
+        )
+    )
+
+
 def check_model_name(context: Context, model: Model):
     config: Config = context.get("config")
     if config.check_names:

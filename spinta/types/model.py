@@ -33,13 +33,19 @@ from spinta.exceptions import (
     UnknownPropertyType,
     ReservedPropertyTypeShouldMatchPrimaryKey,
     ReservedPropertySourceOrModelRefShouldBeSet,
+    ModelNotFound,
 )
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
 from spinta.types.datatype import String, Integer, UUID
-from spinta.types.helpers import check_model_name, check_property_name, check_scope_name
+from spinta.types.helpers import (
+    check_model_name,
+    check_property_name,
+    check_scope_name,
+    replace_undeclared_base_with_comment,
+)
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
@@ -320,7 +326,11 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.parent = commands.get_model(context, base.model.manifest, base.parent)
+    try:
+        base.parent = commands.get_model(context, base.model.manifest, base.parent)
+    except ModelNotFound:
+        replace_undeclared_base_with_comment(base.model, base.parent)
+        return
     base.pk = [base.parent.properties[pk] for pk in base.pk] if base.pk else []
     if commands.identifiable(base):
         if base.pk and base.pk != base.parent.external.pkeys:
