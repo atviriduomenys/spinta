@@ -1449,11 +1449,11 @@ def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: Spin
     assert (
         manifest
         == """
-    d | r | b | model    | property | type  | ref    | source| prepare                                        | level | access
-    example              |          |       |        |       |                                                |       |
-                         |          |       |        |       |                                                |       |
-      |   |   | Country  |          |       |        |       |                                                |       |
-                         | comment  | base  | author |       | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
-      |   |   |   | name | string   |       |        |       |                                                |       | private
+    d | r | b | model    | property | type    | ref    | source | prepare                                        | level | access
+    example                  |         |        |        |                                                |       |
+                             |         |        |        |                                                |       |
+      |   |   | Country      |         |        |        |                                                |       |
+                             | comment | base   | author | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
+      |   |   |   | name     | string  |        |        |                                                |       | private
     """
     )
