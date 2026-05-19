@@ -323,3 +323,24 @@ def drop_table(table_identifier: TableIdentifier, remove_model_only: bool = Fals
         comment=comment,
         rename_pk_constraint=False,
     )
+
+
+# Citus migration helpers
+def add_schema_distribution(schema: str) -> str:
+    return f"SELECT citus_schema_distribute('{pg_identifier_preparer.quote(schema)}');\n\n"
+
+
+def add_reference_distribution(table_identifier: TableIdentifier) -> str:
+    return f"SELECT create_reference_table('{table_identifier.pg_escaped_qualified_name}');\n\n"
+
+
+def add_table_distribution(table_identifier: TableIdentifier, column: str) -> str:
+    return f"SELECT create_distributed_table('{table_identifier.pg_escaped_qualified_name}', '{column}');\n\n"
+
+
+def remove_schema_distribution(schema: str) -> str:
+    return f"SELECT citus_schema_undistribute('{pg_identifier_preparer.quote(schema)}');\n\n"
+
+
+def remove_table_distribution(table_identifier: TableIdentifier) -> str:
+    return f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}', cascade_via_foreign_keys=>true);\n\n"

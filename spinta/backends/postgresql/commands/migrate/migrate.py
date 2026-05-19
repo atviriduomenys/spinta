@@ -16,6 +16,7 @@ from spinta.backends.postgresql.helpers.migrate.citus import (
     undistribute_all,
     distribute_all,
     ShardingPlan,
+    invalidate_default_schema_distributions,
 )
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
@@ -33,6 +34,7 @@ from spinta.backends.postgresql.helpers.name import (
     PG_NAMING_CONVENTION,
 )
 from spinta.cli.helpers.migrate import MigrationConfig
+from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import migrate_comments
 from spinta.commands import create_exception
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
@@ -93,7 +95,6 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
     sorted_models_mapping = {model.model_type(): model for model in sorted_models}
-
     allowed_old_namespaces = list(
         set(
             model_table.main_table.schema
@@ -102,17 +103,20 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         )
     )
     sharding_plan = create_sharding_plan(context, sorted_models).get(backend.name, ShardingPlan())
+    sharding_plan = invalidate_default_schema_distributions(context, backend, sharding_plan)
     current_sharding_plan = gather_current_sharding_plan(context, schemas=allowed_old_namespaces).get(
         backend.name, ShardingPlan()
     )
 
     undistribute_plan = current_sharding_plan - sharding_plan
+    requires_undistribute = undistribute_plan.empty()
+
     distribute_plan = sharding_plan - current_sharding_plan
     migration_ctx.distribute_plan = distribute_plan
     migration_ctx.undistribute_plan = undistribute_plan
 
     # Undistribute schemas first (always)
-    for schema in deepcopy(undistribute_plan.schemas):
+    for schema in deepcopy(sorted(undistribute_plan.schemas)):
         handler.add_action(UndistributeSchema(schema_name=schema))
         undistribute_plan.schemas.discard(schema)
 
@@ -173,7 +177,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         except Exception:
             trx.rollback()
             raise
-
+        if requires_undistribute and not migration_config.plan:
+            migrate_comments(context, verbose=False)
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
