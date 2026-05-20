@@ -341,6 +341,17 @@ def test_invalid_access_token(app):
     assert get_error_codes(resp.json()) == ["InvalidToken"]
 
 
+def test_expired_token_rejected_at_api_level(app):
+    import time as time_module
+
+    confdir = pathlib.Path(__file__).parent
+    prvkey = JsonWebKey.import_key(json.loads((confdir / "config/keys/private.json").read_text()))
+    token = _make_jwt(prvkey, {"exp": int(time_module.time()) - 10})
+    resp = app.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+    assert get_error_codes(resp.json()) == ["InvalidToken"]
+
+
 @pytest.mark.parametrize("scopes", [["spinta_report_getall"], ["uapi:/Report/:getall"]])
 def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: list):
     confdir = pathlib.Path(__file__).parent
@@ -1290,3 +1301,112 @@ class TestTokenCheckContractScopes:
         context.set("auth.token", token)
 
         assert token.check_contract_scopes(context) is None
+
+
+def _make_jwt(private_key, payload_overrides=None):
+    import time
+    from authlib.jose import jwt as jose_jwt
+
+    now = int(time.time())
+    payload = {
+        "sub": "testclient",
+        "aud": "testclient",
+        "iss": "https://example.com",
+        "iat": now,
+        "exp": now + 600,
+        "scope": "spinta_getall",
+    }
+    if payload_overrides:
+        payload.update(payload_overrides)
+    return jose_jwt.encode({"alg": "RS512"}, payload, private_key).decode("ascii")
+
+
+class TestIssuerValidation:
+    def _make_context(self, rc, tmp_path, request, extra_config=None):
+        from spinta.cli.helpers.store import load_config
+
+        confdir = pathlib.Path(__file__).parent
+        private_key_data = json.loads((confdir / "config/keys/private.json").read_text())
+        pubkey_data = json.loads((confdir / "config/keys/public.json").read_text())
+
+        cfg = {
+            "config_path": str(tmp_path),
+            "default_auth_client": None,
+            "token_validation_key": json.dumps(pubkey_data),
+        }
+        if extra_config:
+            cfg.update(extra_config)
+
+        context = create_test_context(rc.fork(cfg))
+        load_config(context, ensure_config_dir=True, check_config=False)
+        return context, JsonWebKey.import_key(private_key_data)
+
+    def test_correct_iss_accepted(self, rc, tmp_path, request):
+        context, private_key = self._make_context(rc, tmp_path, request, {"token_issuer": "https://example.com"})
+        token_string = _make_jwt(private_key)
+        token = Token(token_string, BearerTokenValidator(context))
+        assert token.get_sub() == "testclient"
+
+    def test_wrong_iss_rejected(self, rc, tmp_path, request):
+        from spinta.exceptions import InvalidToken
+
+        context, private_key = self._make_context(rc, tmp_path, request, {"token_issuer": "https://other.com"})
+        token_string = _make_jwt(private_key)
+        with pytest.raises(InvalidToken):
+            Token(token_string, BearerTokenValidator(context))
+
+    def test_missing_iss_rejected(self, rc, tmp_path, request):
+        from spinta.exceptions import InvalidToken
+
+        context, private_key = self._make_context(rc, tmp_path, request, {"token_issuer": "https://example.com"})
+        token_string = _make_jwt(private_key, {"iss": None})
+        with pytest.raises(InvalidToken):
+            Token(token_string, BearerTokenValidator(context))
+
+    def test_no_token_issuer_config_skips_iss_check(self, rc, tmp_path, request):
+        context, private_key = self._make_context(rc, tmp_path, request)
+        token_string = _make_jwt(private_key, {"iss": "https://anything-goes.example"})
+        token = Token(token_string, BearerTokenValidator(context))
+        assert token.get_sub() == "testclient"
+
+    def test_expired_token_rejected(self, rc, tmp_path, request):
+        import time
+        from spinta.exceptions import InvalidToken
+
+        context, private_key = self._make_context(rc, tmp_path, request)
+        token_string = _make_jwt(private_key, {"exp": int(time.time()) - 10})
+        with pytest.raises(InvalidToken):
+            Token(token_string, BearerTokenValidator(context))
+
+    def test_issuer_derived_from_download_url(self, rc, tmp_path, request, requests_mock):
+        confdir = pathlib.Path(__file__).parent
+        private_key_data = json.loads((confdir / "config/keys/private.json").read_text())
+        pubkey_data = json.loads((confdir / "config/keys/public.json").read_text())
+
+        mock_url = "https://example.com/.well-known/jwks.json"
+        requests_mock.get(mock_url, json={"keys": [pubkey_data]})
+
+        downloaded_file = tmp_path / "downloaded-well-knows.json"
+        downloaded_file.write_text(json.dumps({"keys": [pubkey_data]}))
+
+        from spinta.cli.helpers.store import load_config
+
+        cfg = {
+            "config_path": str(tmp_path),
+            "default_auth_client": None,
+            "token_validation_keys_download_url": mock_url,
+            "downloaded_public_keys_file": str(downloaded_file),
+        }
+        context = create_test_context(rc.fork(cfg))
+        load_config(context, ensure_config_dir=True, check_config=False)
+
+        from spinta.exceptions import InvalidToken
+
+        private_key_obj = JsonWebKey.import_key(private_key_data)
+        good_token = _make_jwt(private_key_obj, {"iss": "https://example.com"})
+        token = Token(good_token, BearerTokenValidator(context))
+        assert token.get_sub() == "testclient"
+
+        bad_token = _make_jwt(private_key_obj, {"iss": "https://wrong.com"})
+        with pytest.raises(InvalidToken):
+            Token(bad_token, BearerTokenValidator(context))

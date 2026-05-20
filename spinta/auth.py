@@ -23,6 +23,7 @@ import ruamel.yaml
 from authlib.jose import JsonWebKey, RSAKey, JWTClaims
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError, DecodeError, InvalidTokenError, BadSignatureError
+from urllib.parse import urlparse
 from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
@@ -263,17 +264,31 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._context = context
         self._default_public_key: RSAKey = load_key(context, KeyType.public)
         self._all_public_keys: list[RSAKey] = load_all_public_keys(context)
+        config = context.get("config")
+        if config.token_issuer:
+            self._issuer = config.token_issuer
+        elif config.token_validation_keys_download_url:
+            parsed = urlparse(config.token_validation_keys_download_url)
+            self._issuer = f"{parsed.scheme}://{parsed.netloc}"
+        else:
+            self._issuer = None
 
     def decode_token(self, token_string: str) -> JWTClaims:
         if not token_string:
             raise InvalidToken("Token string is required")
+
+        claims_options = {}
+        if self._issuer:
+            claims_options["iss"] = {"essential": True, "value": self._issuer}
 
         try:
             token_header = decode_unverified_header(token_string)
             if kid := token_header.get("key"):
                 for key in self._all_public_keys:
                     if key.kid and str(key.kid) == str(kid):
-                        return jwt.decode(token_string, key)
+                        decoded = jwt.decode(token_string, key, claims_options=claims_options)
+                        decoded.validate()
+                        return decoded
 
             token_kty = decode_kty_from_alg(token_header["alg"])
             for key in self._all_public_keys:
@@ -283,7 +298,9 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
                 is_same_algorithm_type = key.kty and key.kty == token_kty
                 if is_not_encryption_key and (is_same_algorithm or is_same_algorithm_type):
                     try:
-                        return jwt.decode(token_string, key)
+                        decoded = jwt.decode(token_string, key, claims_options=claims_options)
+                        decoded.validate()
+                        return decoded
                     except BadSignatureError:
                         continue
         except (JoseError, DecodeError, InvalidTokenError) as e:

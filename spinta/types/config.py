@@ -94,7 +94,8 @@ def load(context: Context, config: Config) -> Config:
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
-    config.downloaded_public_keys_file = (
+    config.token_issuer = rc.get("token_issuer")
+    config.downloaded_public_keys_file = pathlib.Path(
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )
     config.datasets = rc.get("datasets", default={})
