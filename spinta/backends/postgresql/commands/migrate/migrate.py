@@ -178,7 +178,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
             trx.rollback()
             raise
         if requires_undistribute and not migration_config.plan:
-            migrate_comments(context, verbose=False)
+            migrate_comments(context, manifest=manifest, verbose=False)
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception

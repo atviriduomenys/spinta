@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql.base import PGInspector
 
 import sqlalchemy as sa
 
+from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, Array, File
 
 
@@ -32,16 +33,15 @@ def cli_requires_comments_migration(context: Context, **kwargs) -> bool:
     if not inspectors:
         return False
 
-    models = collect_models_without_comments(context, inspectors)
+    models = collect_models_without_comments(context, store.manifest, inspectors)
     if next(models, None):
         return True
 
     return False
 
 
-def collect_models_without_comments(context: Context, inspectors: dict) -> Generator:
-    store = context.get("store")
-    models = commands.get_models(context, store.manifest).values()
+def collect_models_without_comments(context: Context, manifest: Manifest, inspectors: dict) -> Generator:
+    models = commands.get_models(context, manifest).values()
 
     for model in models:
         if model_missing_comment(model, inspectors):
@@ -140,9 +140,11 @@ def table_contains_all_comments(backend: PostgreSQL, inspector: PGInspector, tab
     return True
 
 
-def migrate_comments(context: Context, verbose: bool = True, **kwargs) -> None:
+def migrate_comments(context: Context, manifest: Manifest | None = None, verbose: bool = True, **kwargs) -> None:
     ensure_store_is_loaded(context)
     store = context.get("store")
+    if manifest is None:
+        manifest = store.manifest
 
     inspectors = {}
     for name, backend in store.backends.items():
@@ -155,7 +157,7 @@ def migrate_comments(context: Context, verbose: bool = True, **kwargs) -> None:
     if not inspectors:
         return
 
-    affected_models = list(collect_models_without_comments(context, inspectors))
+    affected_models = list(collect_models_without_comments(context, manifest, inspectors))
 
     progress_bar = tqdm(affected_models, desc="Applying table comments")
     for model in progress_bar:
