@@ -356,7 +356,7 @@ CONFIG = {
     "texts": {
         "front_page_warning": """
         <div class="warning">
-            <strong>A Dėmesio!</strong>
+            <strong>Dėmesio!</strong>
             <a href="https://data.gov.lt/page/saugykla" target="_blank">Atvirų
             duomenų saugykla</a> šiuo metu yra
             <a href="https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas" target="_blank">aktyviai vystoma</a>,
@@ -364,6 +364,5 @@ CONFIG = {
             kuriuos maloniai prašome pranešti <a href="mailto: atviriduomenys@vssa.lt" target="_blank">atviriduomenys@vssa.lt</a>.
         </div>
         """
-
-    }
+    },
 }

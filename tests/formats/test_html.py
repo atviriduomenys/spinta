@@ -31,6 +31,7 @@ from spinta.formats.html.components import Color
 from spinta.formats.html.components import Html
 from spinta.formats.html.helpers import CurrentLocation
 from spinta.formats.html.helpers import get_current_location
+from spinta.formats.html.helpers import get_front_page_warning
 from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
@@ -1328,3 +1329,76 @@ def test_html_changes_corrupt_data(
     }
     assert value["country.test"] == {"color": Color.null.value, "value": ""}
     assert value["obj.test"] == {"value": "t_obj_updated"}
+
+
+def test_front_page_warning_default(rc: RawConfig):
+    # When `texts.front_page_warning` is not overridden, the default value
+    # defined in `spinta/config.py` is used.
+    context, _ = load_manifest_and_context(
+        rc,
+        """
+        d | r | b | m | property | type
+        example/warning           |
+        """,
+    )
+    warning = get_front_page_warning(context)["front_page_warning"]
+    assert '<div class="warning">' in warning
+
+
+def test_front_page_warning_from_config(rc: RawConfig):
+    # A value set in the config (e.g. `config.yml`) overrides the default
+    # from `spinta/config.py`.
+    rc = rc.fork(
+        {
+            "texts": {
+                "front_page_warning": "<div>Custom warning</div>",
+            },
+        }
+    )
+    context, _ = load_manifest_and_context(
+        rc,
+        """
+        d | r | b | m | property | type
+        example/warning           |
+        """,
+    )
+    warning = get_front_page_warning(context)["front_page_warning"]
+    assert warning == "<div>Custom warning</div>"
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_front_page_warning_rendered(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    # The warning configured via `texts.front_page_warning` is passed to the
+    # template context of pages that extend `base.html`.
+    rc = rc.fork(
+        {
+            "texts": {
+                "front_page_warning": "<div>Custom warning</div>",
+            },
+        }
+    )
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property | type    | ref  | access
+    example/html/warning      |         |      |
+      |   |   | Country       |         | name |
+      |   |   |   | name      | string  |      | open
+    """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True,
+    )
+    app = create_test_client(context)
+    app.authmodel("example/html/warning", ["getall", "search"])
+
+    resp = app.get("/example/html/warning/Country/:format/html")
+    assert resp.context["front_page_warning"] == "<div>Custom warning</div>"

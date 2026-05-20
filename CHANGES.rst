@@ -53,6 +53,15 @@ Bug fixes:
 0.2dev25 (2026-05-22)
 =====================
 
+New Features:
+
+- Added `texts.front_page_warning` configuration option, which lets you set the
+  warning message shown on HTML pages. The value is read from the configuration
+  (e.g. `config.yml`), falling back to the default defined in `spinta/config.py`
+  (`#1876`_).
+
+.. _#1876: https://github.com/atviriduomenys/spinta/issues/1876
+
 Improvements:
 
 - Added validation in `scope` dimension (`#1922`_):
@@ -88,7 +97,7 @@ Bug fixes:
 
 Improvements:
 
-- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_): 
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_):
   - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
   - updated code to correctly display visibility, relationships, cardinality.
   - added custom diagram styling.
