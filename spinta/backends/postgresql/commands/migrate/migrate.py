@@ -107,9 +107,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
     current_sharding_plan = gather_current_sharding_plan(context, schemas=allowed_old_namespaces).get(
         backend.name, ShardingPlan()
     )
-
     undistribute_plan = current_sharding_plan - sharding_plan
-    requires_undistribute = undistribute_plan.empty()
+    requires_undistribute = not undistribute_plan.empty()
 
     distribute_plan = sharding_plan - current_sharding_plan
     migration_ctx.distribute_plan = distribute_plan
