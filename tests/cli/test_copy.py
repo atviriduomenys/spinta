@@ -1330,7 +1330,7 @@ def test_copy_scope_invalid_name(context: Context, rc, cli: SpintaCliRunner, tmp
     d | r | b | m | property | type   | ref  | source | prepare             | access
     datasets/gov/example     |        |      |        |                     |
       |   |   | Country      |        | code | salis  |                     |
-      |   |   |   |          | scope  | LTU  |        | country.code='lt'   | public
+      |   |   |   |          | scope  | LTU  |        | code='lt'           | public
       |   |   |   | code     | string |      | kodas  |                     | public
     """),
     )
@@ -1385,8 +1385,8 @@ def test_copy_multiple_scopes(context: Context, rc, cli: SpintaCliRunner, tmp_pa
     d | r | b | m | property | type   | ref  | source | prepare                | access
     datasets/gov/example     |        |      |        |                        |
       |   |   | Country      |        | code | salis  |                        |
-      |   |   |   |          | scope  | ltu  |        | country.code='lt'      | public
-      |   |   |   |          | scope  | eu   |        | country.region='EU'    | public
+      |   |   |   |          | scope  | ltu  |        | code='lt'              | public
+      |   |   |   |          | scope  | eu   |        | region='EU'            | public
       |   |   |   | code     | string |      | kodas  |                        | public
       |   |   |   | region   | string |      | region |                        | public
     """),
@@ -1410,8 +1410,8 @@ def test_copy_multiple_scopes(context: Context, rc, cli: SpintaCliRunner, tmp_pa
     datasets/gov/example     |        |      |        |                        |
                              |        |      |        |                        |
       |   |   | Country      |        | code | salis  |                        |
-                             | scope  | ltu  |        | country.code='lt'      | public
-                             | scope  | eu   |        | country.region='EU'    | public
+                             | scope  | ltu  |        | code='lt'              | public
+                             | scope  | eu   |        | region='EU'            | public
       |   |   |   | code     | string |      | kodas  |                        | public
       |   |   |   | region   | string |      | region |                        | public
     """

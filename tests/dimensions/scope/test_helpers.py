@@ -5,7 +5,9 @@ import pytest
 from spinta.components import Context, Model
 from spinta.core.access import Access
 from spinta.dimensions.scope.components import Scope
-from spinta.dimensions.scope.helpers import load_scopes
+from spinta.dimensions.scope.helpers import load_scopes, link_scopes
+from spinta.exceptions import PropertyNotFound, FieldNotInResource
+from spinta.manifests.components import Manifest
 from spinta.spyna import parse
 
 
@@ -72,6 +74,17 @@ class TestLoadScopes:
 
         assert result["ltu"].given.access == "private"
 
+    def test_prepare_stored_as_ast_dict(
+        self,
+        context: Context,
+        model: Model,
+        scope_data: dict[str, dict[str, Any]],
+    ) -> None:
+        result = load_scopes(context, [model], scope_data)
+
+        assert isinstance(result["ltu"].prepare, dict)
+        assert result["ltu"].prepare["name"] == "eq"
+
     def test_loads_multiple_scopes(
         self,
         context: Context,
@@ -101,3 +114,104 @@ class TestLoadScopes:
         assert set(result.keys()) == {"ltu", "eu"}
         assert result["ltu"].given.access == "private"
         assert result["eu"].given.access == "protected"
+
+
+class TestLinkScopes:
+    @pytest.fixture
+    def model_with_props(self) -> Model:
+        model = Model()
+        model.name = "example/City"
+        model.eid = "test/example/City"
+        props = {"id": None, "code": None, "name": None}
+        model.properties = props
+        model.flatprops = props
+        return model
+
+    @pytest.fixture
+    def manifest(self) -> Manifest:
+        return Manifest()
+
+    def _build_scope(self, model: Model, name: str, prepare) -> Scope:
+        scope = Scope()
+        scope.name = name
+        scope.model = model
+        scope.prepare = prepare
+        return scope
+
+    def test_valid_local_property_passes(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "valid_scope",
+            parse("code = 'lt'"),
+        )
+        link_scopes(context, model_with_props, {"valid_scope": scope})
+
+    def test_unknown_local_property_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            parse("country = 'lt'"),
+        )
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
+            link_scopes(context, model_with_props, {"bad_scope": scope})
+
+    def test_unknown_property_inside_select_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            parse("select(country)"),
+        )
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
+            link_scopes(context, model_with_props, {"bad_scope": scope})
+
+    def test_getattr_head_validated(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            parse("country.name = 'lt'"),
+        )
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
+            link_scopes(context, model_with_props, {"bad_scope": scope})
+
+    def test_first_invalid_scope_raises(
+        self,
+        context: Context,
+        manifest: Manifest,
+        model_with_props: Model,
+    ) -> None:
+        good_scope = self._build_scope(
+            model_with_props,
+            "good_scope",
+            parse("code = 'lt'"),
+        )
+        bad_scope = self._build_scope(
+            model_with_props,
+            "bad_scope",
+            parse("country = 'lt'"),
+        )
+        with pytest.raises((PropertyNotFound, FieldNotInResource)):
+            link_scopes(
+                context,
+                model_with_props,
+                {"good_scope": good_scope, "bad_scope": bad_scope},
+            )
