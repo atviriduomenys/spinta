@@ -60,15 +60,17 @@
     </head>
     <body>
 
-
+        {% front_page_warning %}
 
         {% if access == "open" %}
             saugykla - open
             išoriniai - public
             vidiniai - protected
             IS - private
+
+
+
         <div class="warning">
-            {{ access }}
             <strong>A Dėmesio!</strong>
             <a href="https://data.gov.lt/page/saugykla" target="_blank">Atvirų
             duomenų saugykla</a> šiuo metu yra
