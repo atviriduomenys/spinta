@@ -45,7 +45,7 @@ from spinta.commands import prepare, get_version
 from spinta.components import Context, UrlParams
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, ClientValidationError
 from spinta.exceptions import NoAuthServer
-from spinta.formats.html.helpers import get_access_level
+from spinta.formats.html.helpers import get_front_page_warning
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -409,7 +409,7 @@ async def error(request, exc):
         )
     else:
         response = {
-            **get_access_level(request.state.context),
+            **get_front_page_warning(request.state.context),
             **response,
             "request": request,
         }

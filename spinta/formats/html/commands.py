@@ -35,7 +35,7 @@ from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
 from spinta.formats.html.components import ComplexCell
 from spinta.formats.html.components import Html
-from spinta.formats.html.helpers import get_access_level
+from spinta.formats.html.helpers import get_front_page_warning
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
@@ -94,7 +94,7 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     return templates.TemplateResponse(
         "form.html",
         {
-            **get_access_level(request.state.context),
+            **get_front_page_warning(request.state.context),
             "request": request,
             "title": "Duomenų struktūros aprašo tikrinimas",
             "description": (

@@ -245,18 +245,18 @@ def _split_path(
     return result
 
 
-def get_access_level(context: Context) -> dict:
+def get_front_page_warning(context: Context) -> dict:
     """Template context shared by all templates that extend `base.html`."""
     config: Config = context.get("config")
     return {
-        "access": config.access.name,
+        "front_page_warning": config.rc.get("texts", "front_page_warning", default=""),
     }
 
 
 def get_template_context(context: Context, model, params: UrlParams):
     config: Config = context.get("config")
     return {
-        **get_access_level(context),
+        **get_front_page_warning(context),
         "location": get_current_location(context, config, model, params),
     }
 
