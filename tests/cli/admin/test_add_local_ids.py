@@ -126,7 +126,9 @@ def test_add_local_ids_no_manifest_errors(context: Context, cli: SpintaCliRunner
     assert "`add_local_ids` requires at least one source manifest path." in result.stderr
 
 
-def test_add_local_ids_cli_multiple_files_writes_to_first(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+def test_add_local_ids_cli_multiple_files_writes_to_first(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+):
     create_tabular_manifest(
         context,
         tmp_path / "a.csv",
