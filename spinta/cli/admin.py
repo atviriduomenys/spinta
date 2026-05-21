@@ -55,7 +55,7 @@ def admin(
         "-i",
         "--input",
         help="Path to input file (some scripts might require extra data). If not given, script will read from stdin.",
-    ),  # TODO: should always use manifests parameter and not input_path
+    ),
     output_path: Optional[pathlib.Path] = Option(
         None,
         "-o",
