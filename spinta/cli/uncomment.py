@@ -37,7 +37,7 @@ def uncomment_manifest(
     output: str | None = None,
     manifests: list[str] | None = None,
 ) -> None:
-    """Read raw CSV rows, remove `update` comments, and write the result."""
+    """Read raw CSV rows, remove `update`, `insert` comments, and write the result."""
     rows = _read_raw_manifest_rows(manifests or [])
     result = _uncomment_rows(rows, uri_filter=uri)
     if output:
@@ -119,6 +119,10 @@ def _insert_base_resets(result: list[ManifestRow]) -> list[ManifestRow]:
 
 
 def _uncomment_rows(rows: list[ManifestRow], uri_filter: str | None) -> list[ManifestRow]:
+    """
+    Walk rows in order. When an `update` or `insert` comment is found (and passes the URI filter),
+    patch the most recent property row in `update` case, insert a new base row before the model in `insert` case and drop the comment row.
+    """
     result: list[ManifestRow] = []
     last_property_index: int | None = None
     last_model_index: int | None = None
@@ -152,7 +156,7 @@ def _uncomment_rows(rows: list[ManifestRow], uri_filter: str | None) -> list[Man
                 base_was_inserted = True
 
         else:
-            # If it's not an `update` comment, append to the result as-is;
+            # If it's not an `update` or `insert` comment, append as-is;
             if row.get("model"):
                 last_model_index = len(result)
             if row.get("property"):
