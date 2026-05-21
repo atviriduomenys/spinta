@@ -56,7 +56,6 @@ psql -h localhost -p 54321 -U admin spinta_external -c 'select * from iregistruo
 # BASEDIR should be set by respective release type (patch, rc, etc.)
 # export BASEDIR=x (newly created release dir, better add full path)
 mkdir -p "$BASEDIR"
-#cat "$BASEDIR"/config.yml
 cat > "$BASEDIR"/config.yml <<EOF
 env: production
 data_path: $BASEDIR
