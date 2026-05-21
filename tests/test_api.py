@@ -87,6 +87,8 @@ def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page
     del context["zip"]
     if "request" in context:
         del context["request"]
+    if "front_page_warning" in context:
+        del context["front_page_warning"]
     return context
 
 
@@ -488,6 +490,7 @@ def test_nested_dataset(app):
     assert resp.status_code == 200
 
     resp.context.pop("request")
+    resp.context.pop("front_page_warning")
     assert _cleaned_context(resp, data=False) == {
         "location": [
             ("🏠", "/"),
