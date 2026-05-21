@@ -1,4 +1,5 @@
 import datetime
+import bleach
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -248,8 +249,15 @@ def _split_path(
 def get_front_page_warning(context: Context) -> dict:
     """Template context shared by all templates that extend `base.html`."""
     config: Config = context.get("config")
+    front_page_warning = config.rc.get("texts", "front_page_warning", default="")
+    front_page_warning = bleach.clean(
+        front_page_warning,
+        tags=['div', 'a', 'strong'],
+        attributes={'a': ['href', 'target'], 'div': ['class']},  # allow 'class' on div for styling
+        strip=True
+    )
     return {
-        "front_page_warning": config.rc.get("texts", "front_page_warning", default=""),
+        "front_page_warning": front_page_warning,
     }
 
 
