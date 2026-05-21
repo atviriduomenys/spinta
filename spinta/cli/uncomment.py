@@ -129,36 +129,36 @@ def _uncomment_rows(rows: list[ManifestRow], uri_filter: str | None) -> list[Man
     base_was_inserted: bool = False
 
     for row in rows:
-        if _is_restore_comment(row, UPDATE_FUNCTION):
+        if _is_restore_comment(row, UPDATE_FUNCTION) or _is_restore_comment(row, INSERT_FUNCTION):
+            # Restore only rows that match the `uri` if it is given by input;
             if uri_filter is not None and row.get("uri") != uri_filter:
                 result.append(row)
                 continue
-            fields = _parse_update_fields(row.get("prepare", ""))
-            if fields and last_property_index is not None:
-                prop_row: dict = dict(result[last_property_index])
-                for key, value in fields.items():
-                    prop_row[key] = value
-                prop_row["level"] = row.get("level") or ""
-                result[last_property_index] = prop_row
+            if _is_restore_comment(row, UPDATE_FUNCTION):
+                fields = _parse_update_fields(row.get("prepare", ""))
+                if fields and last_property_index is not None:
+                    prop_row: dict = dict(result[last_property_index])
+                    for key, value in fields.items():
+                        prop_row[key] = value
+                    prop_row["level"] = row.get("level") or ""
+                    result[last_property_index] = prop_row
 
-        elif _is_restore_comment(row, INSERT_FUNCTION):
-            if uri_filter is not None and row.get("uri") != uri_filter:
-                result.append(row)
-                continue
-            fields = _parse_insert_fields(row.get("prepare", ""))
-            if fields and last_model_index is not None:
-                base_row: dict = {col: "" for col in row.keys()}
-                for key, value in fields.items():
-                    base_row[key] = value
-                base_row["level"] = row.get("level") or ""
-                result.insert(last_model_index, base_row)
-                last_model_index += 1
-                base_was_inserted = True
+            elif _is_restore_comment(row, INSERT_FUNCTION):
+                fields = _parse_insert_fields(row.get("prepare", ""))
+                if fields and last_model_index is not None:
+                    base_row: dict = {col: "" for col in row.keys()}
+                    for key, value in fields.items():
+                        base_row[key] = value
+                    base_row["level"] = row.get("level") or ""
+                    result.insert(last_model_index, base_row)
+                    last_model_index += 1
+                    base_was_inserted = True
 
         else:
             # If it's not an `update` or `insert` comment, append as-is;
             if row.get("model"):
                 last_model_index = len(result)
+                last_property_index = None
             if row.get("property"):
                 last_property_index = len(result)
             result.append(row)
