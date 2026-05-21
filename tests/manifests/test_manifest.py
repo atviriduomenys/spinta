@@ -2102,7 +2102,7 @@ def test_scope_loaded_with_prepare(manifest_type: str, tmp_path: Path, rc: RawCo
         example                  |         |     |
                                  |         |     |
           |   |   | Country      |         |     |
-                                 | scope   | ltu | country.code='lt'
+                                 | scope   | ltu | code='lt'
           |   |   |   | code     | string  |     |
     """,
         manifest_type,
@@ -2119,8 +2119,8 @@ def test_multiple_scopes_on_model(manifest_type, tmp_path, rc):
         example                  |         |     |
                                  |         |     |
           |   |   | Country      |         |     |
-                                 | scope   | ltu | country.code='lt'
-                                 | scope   | eu  | country.region='EU'
+                                 | scope   | ltu | code='lt'
+                                 | scope   | eu  | region='EU'
           |   |   |   | code     | string  |     |
           |   |   |   | region   | string  |     |
     """,
@@ -2138,7 +2138,7 @@ def test_scope_with_full_metadata(manifest_type, tmp_path, rc):
         example                  |         |     |                   |         |         |           |
                                  |         |     |                   |         |         |           |
           |   |   | Country      |         |     |                   |         |         |           |
-                                 | scope   | ltu | country.code='lt' | private | eli:eli | Lithuania | Lietuvos scope
+                                 | scope   | ltu | code='lt'         | private | eli:eli | Lithuania | Lietuvos scope
           |   |   |   | code     | string  |     |                   |         |         |           |
     """,
         manifest_type,
