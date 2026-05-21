@@ -248,7 +248,7 @@ def test_migrate_remove_array_type(migration_db: Engine, rc: RawConfig, cli: Spi
     assert result.output.endswith(
         "BEGIN;\n\n"
         f"{drop_column(table_identifier=table_identifier, column='new')}"
-        f"{drop_table(table_identifier=list_table_identifier)}"
+        f"{drop_table(table_identifier=list_table_identifier, contains_pkey=False)}"
         f"{drop_constraint(table_identifier=removed_list_table_identifier, constraint_name='fk_Test/:list/new__rid_Test')}"
         f"{drop_index(table_identifier=removed_list_table_identifier, index_name='ix_Test/:list/new__txn')}"
         "COMMIT;\n"

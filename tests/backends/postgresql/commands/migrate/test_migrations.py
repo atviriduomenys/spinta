@@ -38,6 +38,7 @@ from spinta.testing.migration import (
     drop_index,
     add_schema,
     rename_constraint,
+    drop_changelog,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
@@ -848,11 +849,7 @@ def test_migrate_remove_model(migration_db: Engine, rc: RawConfig, cli: SpintaCl
         "\n"
         f"{drop_table(table_identifier=test_table_identifier, remove_model_only=True)}"
         f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test__txn')}"
-        f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.CHANGELOG), remove_model_only=True)}"
-        'ALTER SEQUENCE "migrate/example"."Test/:changelog__id_seq" RENAME TO '
-        '"__Test/:changelog__id_seq";\n'
-        "\n"
-        f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test/:changelog__txn')}"
+        f"{drop_changelog(table_identifier=test_table_identifier.change_table_type(new_type=TableType.CHANGELOG), remove_model_only=True)}"
         f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.REDIRECT), remove_model_only=True)}"
         f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test/:redirect_redirect')}"
         f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), remove_model_only=True)}"

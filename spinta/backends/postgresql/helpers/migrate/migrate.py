@@ -38,6 +38,7 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_index_name,
     get_pg_column_name,
     PG_NAMING_CONVENTION,
+    get_pg_pkey_name,
 )
 from spinta.cli.helpers.migrate import MigrationContext
 from spinta.components import Context, Model, Property
@@ -278,9 +279,20 @@ def drop_all_indexes_and_constraints(
     table_schema = source_table_identifier.pg_schema_name
     logical_name = source_table_identifier.logical_qualified_name
     removed = []
+    pkey_constraint = inspector.get_pk_constraint(table_name, schema=table_schema)
     constraints = inspector.get_unique_constraints(table_name, schema=table_schema)
     foreign_keys = inspector.get_foreign_keys(table_name, schema=table_schema)
     indexes = inspector.get_indexes(table_name, schema=table_schema)
+
+    if pkey_constraint and pkey_constraint["name"]:
+        handler.add_action(
+            ma.RenameConstraintMigrationAction(
+                table_identifier=target_table_identifier,
+                old_constraint_name=pkey_constraint["name"],
+                new_constraint_name=get_pg_pkey_name(target_table_identifier.pg_table_name),
+            ),
+        )
+
     for key in foreign_keys:
         constraint_name = key["name"]
         if model_ctx is not None:
