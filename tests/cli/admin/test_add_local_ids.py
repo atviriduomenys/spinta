@@ -12,7 +12,7 @@ from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
-from spinta.testing.tabular import convert_ascii_manifest_to_csv
+from spinta.testing.tabular import create_tabular_manifest
 from spinta.types.datatype import Base32, String, Integer, UUID
 
 
@@ -126,26 +126,26 @@ def test_add_local_ids_no_manifest_errors(context: Context, cli: SpintaCliRunner
     assert "`add_local_ids` requires at least one source manifest path." in result.stderr
 
 
-def test_add_local_ids_cli_multiple_files_writes_to_first(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    (tmp_path / "a.csv").write_bytes(
-        convert_ascii_manifest_to_csv(
-            striptable("""
+def test_add_local_ids_cli_multiple_files_writes_to_first(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "a.csv",
+        striptable("""
     d | r | b | m | property  | type   | ref  | access
     ds/a                      |        |      |
       |   |   | Alpha         |        | code |
       |   |   |   | code      | string |      | open
-    """)
-        )
+    """),
     )
-    (tmp_path / "b.csv").write_bytes(
-        convert_ascii_manifest_to_csv(
-            striptable("""
+    create_tabular_manifest(
+        context,
+        tmp_path / "b.csv",
+        striptable("""
     d | r | b | m | property  | type | ref  | access
     ds/b                      |      |      |
       |   |   | Beta          |      | id   |
       |   |   |   | id        | uuid |      | open
-    """)
-        )
+    """),
     )
 
     result = cli.invoke(
@@ -182,16 +182,16 @@ def test_add_local_ids_cli_multiple_files_writes_to_first(rc: RawConfig, cli: Sp
     )
 
 
-def test_add_local_ids_cli_with_output_file(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    (tmp_path / "manifest.csv").write_bytes(
-        convert_ascii_manifest_to_csv(
-            striptable("""
+def test_add_local_ids_cli_with_output_file(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property  | type | ref | access
     ds/local_ids              |      |     |
       |   |   | Country       |      | id  |
       |   |   |   | id        | uuid |     | open
-    """)
-        )
+    """),
     )
 
     result = cli.invoke(
@@ -223,17 +223,17 @@ def test_add_local_ids_cli_with_output_file(rc: RawConfig, cli: SpintaCliRunner,
     )
 
 
-def test_add_local_ids_cli_nothing_to_add(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    (tmp_path / "manifest.csv").write_bytes(
-        convert_ascii_manifest_to_csv(
-            striptable("""
+def test_add_local_ids_cli_nothing_to_add(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property  | type   | ref  | access
     ds/local_ids              |        |      |
       |   |   | Country       |        | code |
       |   |   |   | _id       | base32 |      | open
       |   |   |   | code      | string |      | open
-    """)
-        )
+    """),
     )
 
     result = cli.invoke(
