@@ -252,9 +252,9 @@ def get_front_page_warning(context: Context) -> dict:
     front_page_warning = config.rc.get("texts", "front_page_warning", default="")
     front_page_warning = bleach.clean(
         front_page_warning,
-        tags=['div', 'a', 'strong'],
-        attributes={'a': ['href', 'target'], 'div': ['class']},  # allow 'class' on div for styling
-        strip=True
+        tags=["div", "a", "strong"],
+        attributes={"a": ["href", "target"], "div": ["class"]},  # allow 'class' on div for styling
+        strip=True,
     )
     return {
         "front_page_warning": front_page_warning,
