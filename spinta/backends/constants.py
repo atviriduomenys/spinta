@@ -35,3 +35,13 @@ class BackendFeatures(enum.Enum):
 
     # Backend supports
     EXPAND = "EXPAND"
+
+    # Backend supports sharding
+    DISTRIBUTE = "DISTRIBUTE"
+
+
+class DistributionType(enum.Enum):
+    SCHEMA = "schema"
+    TABLE = "table"
+    COPY = "copy"
+    UNDISTRIBUTED = "undistributed"

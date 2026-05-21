@@ -26,7 +26,13 @@ class PostgreSQL(Backend):
         },
     }
 
-    features = {BackendFeatures.FILE_BLOCKS, BackendFeatures.WRITE, BackendFeatures.EXPAND, BackendFeatures.PAGINATION}
+    features = {
+        BackendFeatures.FILE_BLOCKS,
+        BackendFeatures.WRITE,
+        BackendFeatures.EXPAND,
+        BackendFeatures.PAGINATION,
+        BackendFeatures.DISTRIBUTE,
+    }
 
     engine: Engine = None
     schema: sa.MetaData = None

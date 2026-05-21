@@ -2,7 +2,7 @@ version: "3"
 
 services:
   db:
-    image: postgis/postgis:16-3.4
+    build: ./.docker/citus-postgis
     ports:
       - "54321:5432"
     environment:
@@ -11,6 +11,7 @@ services:
       - POSTGRES_PASSWORD=admin123
     volumes:
       - postgres:/var/lib/postgresql/data
+      - ./.docker/citus-postgis/init:/docker-entrypoint-initdb.d
   mongo:
     image: mongo:4.0.9-xenial
     ports:

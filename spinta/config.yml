@@ -150,7 +150,12 @@ models:
             type: string
           values:
             type: any
-
+      distribute:
+        type: object
+        keys:
+          type: string
+        values:
+          type: any
 manifest:
   type: ref
   ref: manifests
@@ -196,6 +201,12 @@ default_auth_client:
   type: string
 
 default_access_level:
+  type: string
+
+default_distribution_strategy:
+  type: string
+
+default_distribution_property:
   type: string
 
 check:
