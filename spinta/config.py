@@ -320,7 +320,7 @@ CONFIG = {
             "backends": {
                 "default": {
                     "type": "postgresql",
-                    "dsn": "postgresql://admin:admin123@localhost:15432/spinta_tests",
+                    "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
                 },
                 "mongo": {
                     "type": "mongo",
@@ -353,7 +353,6 @@ CONFIG = {
             "default_access_level": "open",
             "access": "open",
             "sync_retry_count": 0,
-            "default_distribution_strategy": "undistributed",
         },
     },
 }
