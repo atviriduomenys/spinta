@@ -20,6 +20,7 @@ Improvements:
     new expression shapes can be added without touching the loader.
   - Invalid `prepare` expressions raise a clear `ModelNotFound` `PropertyNotFound`
     error pointing at the offending scope.
+- Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
 
 New Features:
 
@@ -27,6 +28,7 @@ New Features:
 - Added ability to configure default and model specific distribution strategy (`#1691`_).
 
 .. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
+.. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 
 Bug fixes:
 
