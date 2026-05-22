@@ -353,8 +353,7 @@ def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
       |   |   | City         |          | name |                     |                    |
       |   |   |   | id       | string   |      | id                  |                    | open
       |   |   |   | name     | string   |      | name                |                    | open
-      |   |   |   |          | enum     |      |                     |                    | open
-      |   |   |   |          |          |      |                     |  swap('nan', '---')  | open
+      |   |   |   |          | enum     |      |                     |  swap('nan', '---')  | open
       |   |   |   |          |          |      |                     |  swap(null, '---') | open
       |   |   |   |          |          |      |                     |  swap('', '---')   | open
       |   |   |   |          |          |      |                     |  '---'             | open
