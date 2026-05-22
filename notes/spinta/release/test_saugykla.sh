@@ -1,5 +1,7 @@
 # susikurti venv ir suinstaliuoti spinta
-pip install spinta==0.1.85
+python -m venv .venv
+source .venv/bin/activate
+env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest-pre.txt
 
 # Reset EXTERNAL (source) database
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_external'
@@ -147,8 +149,6 @@ spinta run &>> "$BASEDIR"/spinta.log & PID=$!
 tail -50 "$BASEDIR"/spinta.log
 
 
-# TĘSTI NUO ČIA
-
 # Setup INTERNAL server data
 SERVER=https://put-test.data.gov.lt
 CLIENT=TestVSSA
@@ -213,24 +213,6 @@ test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
 test -f "$BASEDIR"/keymap.db && rm "$BASEDIR"/keymap.db
 test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 
-# configure credentials.cfg according to this: https://spinta.readthedocs.io/en/latest/manual/access.html#client-credentials
-# add ~/.config/spinta/credentials.cfg with this content:
-#[test@localhost]
-#server = http://localhost:8000
-#client = client
-#secret = secret
-#scopes =
-#  spinta_set_meta_fields
-#  spinta_getone
-#  spinta_getall
-#  spinta_search
-#  spinta_changes
-#  spinta_insert
-#  spinta_upsert
-#  spinta_update
-#  spinta_patch
-#  spinta_delete
-#  spinta_wipe
 
 
 spinta push "$BASEDIR"/sdsa.txt -o test@localhost
@@ -380,9 +362,6 @@ TOKEN=$(
 )
 AUTH="Authorization: Bearer $TOKEN"
 echo "$AUTH"
-
-
-# užkomentavom naują manifestą, paleidom spinta bootstrap, tada atkomentavom ir paleidom spinta migrate
 
 
 # Manifestas su sync:
