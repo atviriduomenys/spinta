@@ -498,3 +498,45 @@ def test_jsonl_changes_corrupt_data(
     assert value["name"] == "Vilnius"
     assert value["country"] == {"_id": country_id}
     assert value["obj"] == {"test": "t_obj_updated"}
+
+
+@pytest.mark.parametrize(
+    "accept_encoding,content_encoding",
+    [
+        ("gzip", "gzip"),
+        ("identity", None),
+    ],
+)
+def test_jsonl_gzip(
+    accept_encoding: str,
+    content_encoding: str | None,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property | type   | ref     | access
+    example/jsonl/gzip         |        |         |
+      |   |   | Country      |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   |   | code     | string |         | open
+
+    """,
+        backend=postgresql,
+        request=request,
+    )
+    app = create_test_client(context)
+    app.authmodel("example/jsonl/gzip", ["getall", "insert", "search"])
+
+    # Add data
+    pushdata(app, "/example/jsonl/gzip/Country", {"name": "Lithuania", "code": "LT"})
+    pushdata(app, "/example/jsonl/gzip/Country", {"name": "Latvia", "code": "LV"})
+    pushdata(app, "/example/jsonl/gzip/Country", {"name": "Poland", "code": "PL"})
+
+    result = app.get("/example/jsonl/gzip/Country/:format/jsonl", headers={"Accept-Encoding": accept_encoding})
+    assert result.status_code == 200
+    assert result.headers.get("Content-Encoding", None) == content_encoding
+    assert result.headers["Vary"] == "Accept-Encoding"
+    assert "application/x-json-stream" in result.headers["Content-Type"]

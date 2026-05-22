@@ -262,6 +262,8 @@ CONFIG = {
     # Used to determine max file size (MB) that can be uploaded using API (to prevent DoS attacks)
     # If nothing is set, default is 100 MB
     "max_file_size": 100,
+    # Minimum bytes that are required for gzip encoding to take effect (can use b, k, m and other suffixes, e.g. 10k or 10m, etc).
+    "minimum_encoding_size": 512,
     # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
     "max_error_count_on_insert": 100,
     # Ensures setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
@@ -318,7 +320,7 @@ CONFIG = {
             "backends": {
                 "default": {
                     "type": "postgresql",
-                    "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
+                    "dsn": "postgresql://admin:admin123@localhost:15432/spinta_tests",
                 },
                 "mongo": {
                     "type": "mongo",
@@ -351,6 +353,7 @@ CONFIG = {
             "default_access_level": "open",
             "access": "open",
             "sync_retry_count": 0,
+            "default_distribution_strategy": "undistributed",
         },
     },
 }

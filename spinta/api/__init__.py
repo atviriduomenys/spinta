@@ -10,6 +10,7 @@ from starlette.applications import Starlette
 from starlette.datastructures import FormData
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response, JSONResponse
@@ -460,7 +461,10 @@ def init(context: Context):
         Route("/{path:path}", homepage, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]),
     ]
 
-    middleware = [Middleware(ContextMiddleware, context=context)]
+    middleware = [
+        Middleware(ContextMiddleware, context=context),
+        Middleware(GZipMiddleware, minimum_size=config.minimum_encoding_size),
+    ]
 
     exception_handlers = {
         Exception: error,

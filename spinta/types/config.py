@@ -21,6 +21,7 @@ from spinta.commands import load, check
 from spinta.components import Context, Config
 from spinta import components
 from spinta.core.ufuncs import ufunc
+from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
 
@@ -110,6 +111,7 @@ def load(context: Context, config: Config) -> Config:
     config.check_names = rc.get("check", "names", default=False)
     config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
+    config.minimum_encoding_size = rc.get("minimum_encoding_size", default=512, cast=tobytes)
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
     config.ensure_backends = rc.get("ensure_backends", default=True)
