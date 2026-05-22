@@ -4,7 +4,7 @@ import pytest
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.exceptions import InvalidName, InvalidValue
+from spinta.exceptions import InlineEnumWithName, InvalidName, InvalidValue
 from spinta.testing.manifest import load_manifest_and_context, load_manifest, load_manifest_get_context
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -385,3 +385,27 @@ def test_check_enum_empty_string_prepare(manifest_type, tmp_path, rc):
         tmp_path=tmp_path,
     )
     commands.check(context, manifest)
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_check_enum_named_under_property_raises_error(manifest_type, tmp_path, rc):
+    with pytest.raises(InlineEnumWithName) as e:
+        load_manifest(
+            rc,
+            """
+        d | r | b | m | property | type    | ref        | source    | prepare
+        dataset1                 |         |            |           |
+          | resource1            | sql     |            |           |
+          |   |   | City         |         | id         |           |
+          |   |   |   | id       | integer |            |           |
+          |   |   |   | status   | string  |            |           |
+          |   |   |   |          | enum    | my_status  | 'active'  |
+          |   |   |   |          |         |            | 'inactive'|
+            """,
+            manifest_type=manifest_type,
+            tmp_path=tmp_path,
+        )
+    assert e.value.message == (
+        "Named enum 'my_status' is declared directly under property 'status'. "
+        "Either remove the name to make it an inline enum, or move it to dataset dimension."
+    )

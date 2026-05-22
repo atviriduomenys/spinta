@@ -1215,6 +1215,13 @@ class EnumPrepareMissing(UserError):
     """
 
 
+class InlineEnumWithName(UserError):
+    template = (
+        "Named enum {enum!r} is declared directly under property {property!r}. "
+        "Either remove the name to make it an inline enum, or move it to dataset dimension."
+    )
+
+
 class SourceOrPrepareNotAllowed(UserError):
     template = """
         The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
