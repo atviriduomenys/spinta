@@ -1477,9 +1477,9 @@ class EnumReader(TabularReader):
                     prepare = -prepare["args"][0]
                 else:
                     prepare = row[PREPARE]
-            source = str(prepare)
+            source = str(prepare) if prepare is not NA else None
 
-        if not source:
+        if source is None:
             self.error("At least source or prepare must be specified for an enum.")
 
         self.data = {
