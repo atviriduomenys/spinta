@@ -127,7 +127,11 @@ EOF
 # generate hashed requirements file
 
 poetry export -f requirements.txt \
-  --output requirements/spinta-${NEW_VERSION}.txt
+  --all-extras \
+  --all-groups \
+  -o requirements/spinta-${NEW_VERSION}.txt
+
+todo ištestuoti https://github.com/atviriduomenys/spinta/pull/1912
 
 # get hashes to spinta itself
 

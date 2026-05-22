@@ -11,20 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: postgis/postgis:16-3.4
-        env:
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: secret
-          POSTGRES_DB: spinta
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
       mongo:
         image: mongo:4.0.9
         ports:
@@ -37,6 +23,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Build Citus + PostGIS image
+        run: |
+          docker build -t citus-postgis:ci .docker/citus-postgis
+
+      - name: Start PostgreSQL (Citus + PostGIS)
+        run: |
+          docker run -d \
+            --name postgres \
+            -p 5432:5432 \
+            -e POSTGRES_DB=spinta \
+            -e POSTGRES_USER=ci \
+            -e POSTGRES_PASSWORD=secret \
+            -v "$PWD/.docker/citus-postgis/init:/docker-entrypoint-initdb.d" \
+            citus-postgis:ci
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

@@ -15,6 +15,17 @@ from spinta.testing.context import create_test_context
 from spinta.types.model import load_level
 
 
+_GENERIC_COUNTRY_MANIFEST = """ 
+ d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
+ datasets/gov/example     |             |           |            |         |       | open   |     | Example |
+   | data                 |             |           | postgresql | default |       | open   |     | Data    |
+                          |             |           |            |         |       |        |     |         |
+   |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
+   |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
+   |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+"""
+
+
 @pytest.mark.parametrize("level", [Level.open, 3, "3"])
 def test_load_level(level, rc):
     context = create_test_context(rc)
@@ -27,14 +38,7 @@ def test_configure_unknown_model(tmp_path, rc):
     rc = rc.fork({"models": {"data/City": {"properties": {"code": {"type": "string"}}}}})
     context, manifest = load_manifest_and_context(
         rc,
-        manifest=""" d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
-     datasets/gov/example     |             |           |            |         |       | open   |     | Example |
-       | data                 |             |           | postgresql | default |       | open   |     | Data    |
-                              |             |           |            |         |       |        |     |         |
-       |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
-       |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
-       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-    """,
+        manifest=_GENERIC_COUNTRY_MANIFEST,
         tmp_path=tmp_path,
     )
     with pytest.raises(ModelNotFound, match="Model 'data/City' not found"):
@@ -57,14 +61,7 @@ def test_configure_unknown_property(tmp_path, rc):
     )
     context, manifest = load_manifest_and_context(
         rc,
-        manifest=""" d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
-     datasets/gov/example     |             |           |            |         |       | open   |     | Example |
-       | data                 |             |           | postgresql | default |       | open   |     | Data    |
-                              |             |           |            |         |       |        |     |         |
-       |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
-       |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
-       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-    """,
+        manifest=_GENERIC_COUNTRY_MANIFEST,
         tmp_path=tmp_path,
     )
     with pytest.raises(PropertyNotFound, match="Property 'test' not found"):
@@ -90,14 +87,7 @@ def test_configure_invalid_type_import(tmp_path, rc):
     ):
         load_manifest(
             rc,
-            manifest=""" d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
-         datasets/gov/example     |             |           |            |         |       | open   |     | Example |
-           | data                 |             |           | postgresql | default |       | open   |     | Data    |
-                                  |             |           |            |         |       |        |     |         |
-           |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
-           |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
-           |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-        """,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
             tmp_path=tmp_path,
         )
 
@@ -123,13 +113,48 @@ def test_configure_missing_type_parameter(tmp_path, rc):
     ):
         load_manifest(
             rc,
-            manifest=""" d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
-         datasets/gov/example     |             |           |            |         |       | open   |     | Example |
-           | data                 |             |           | postgresql | default |       | open   |     | Data    |
-                                  |             |           |            |         |       |        |     |         |
-           |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
-           |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
-           |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-        """,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
+            tmp_path=tmp_path,
+        )
+
+
+def test_configure_missing_distribution_type_parameter(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "distribute": {"property": "_id"},
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter,
+        match="Model 'datasets/gov/example/Country' configuration is missing parameter: 'distribute.type'.",
+    ):
+        load_manifest(
+            rc,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
+            tmp_path=tmp_path,
+        )
+
+
+def test_configure_missing_distribution_property_parameter(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "distribute": {"type": "table"},
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter,
+        match="Model 'datasets/gov/example/Country' configuration is missing parameter: 'distribute.property'.",
+    ):
+        load_manifest(
+            rc,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
             tmp_path=tmp_path,
         )

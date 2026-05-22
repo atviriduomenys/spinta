@@ -30,6 +30,7 @@ def admin(
         """
         ),
     ),
+    manifests: Optional[List[str]] = Option(None, help=("Source manifest files for scripts that need them")),
     ensure_config_dir: bool = Option(True, "--ensure-config", help=("Ensures that all config files are created.")),
     force: bool = Option(False, "-f", "--force", help=("Skips all checks when running scripts.")),
     destructive: bool = Option(
@@ -90,5 +91,6 @@ def admin(
             check_only=check_only,
             input_path=input_path,
             output_path=output_path,
+            manifests=manifests,
             status_cache=status_cache,
         )

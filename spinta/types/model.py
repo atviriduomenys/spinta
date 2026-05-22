@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast, overlo
 
 from spinta import commands, exceptions
 from spinta.auth import authorized
-from spinta.backends.components import Backend
-from spinta.backends.constants import BackendFeatures
+from spinta.backends.components import Backend, DistributionStrategy
+from spinta.backends.constants import BackendFeatures, DistributionType
 from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize, check, configure, load
 from spinta.components import Base, Context, Model, Page, PageBy, PageInfo, Property, UrlParams, pagination_enabled
@@ -43,6 +43,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
+from spinta.utils.enums import get_enum_by_value
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
 
@@ -58,9 +59,47 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     model.ns = ns
 
 
+def _parse_distribution_strategy(
+    model: Model,
+    distribute: dict,
+) -> DistributionStrategy:
+    if len(distribute) == 1:
+        distribute_type_str, value = next(iter(distribute.items()))
+        if value is NA:
+            distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
+            return DistributionStrategy(distribute_type)
+
+    distribute_type_str = distribute.get("type", None)
+    if distribute_type_str is None:
+        raise MissingConfigurationParameter(
+            model,
+            config_type="Model",
+            config_object=model.model_type(),
+            missing_params="distribute.type",
+        )
+
+    distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
+    match distribute_type:
+        case DistributionType.TABLE:
+            if (prop := distribute.get("property", None)) is None:
+                raise MissingConfigurationParameter(
+                    model,
+                    config_type="Model",
+                    config_object=model.model_type(),
+                    missing_params="distribute.property",
+                )
+            return DistributionStrategy(distribute_type, prop)
+        case _:
+            return DistributionStrategy(distribute_type)
+
+
 @configure.register(Context, Model)
 def configure(context: Context, model: Model):
     rc: RawConfig = context.get("rc")
+    model_path = ("models", model.name)
+    if not rc.has(*model_path):
+        return
+
     model_config = rc.to_dict("models", model.name)
     model_config = flat_dicts_to_nested(model_config)
     if not model_config:
@@ -68,6 +107,9 @@ def configure(context: Context, model: Model):
 
     if backend := model_config.get("backend"):
         model.backend = backend
+
+    if distribute := model_config.get("distribute"):
+        model.distribution_strategy = _parse_distribution_strategy(model, distribute)
 
 
 @load.register(Context, Model, dict, Manifest)
@@ -175,6 +217,9 @@ def load(
 
     if not model.name.startswith("_") and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
+
+    if not model.distribution_strategy:
+        model.distribution_strategy = config.default_distribution_strategy
 
     return model
 

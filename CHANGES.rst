@@ -4,11 +4,32 @@ Changes
 0.2dev25 (2026-05-22)
 =====================
 
+Improvements:
+
+- Added validation in `scope` dimension (`#1922`_):
+
+  - Added `ScopeLoader` class which loads on link and validates each scope's
+    `prepare` expression. It walks `bind` and `getattr` expressions,
+    resolves them against the manifest, and ensures every referenced property
+    actually exists.
+  - Bind/getattr resolution is implemented via `ufunc.resolver` overloads so
+    new expression shapes can be added without touching the loader.
+  - Invalid `prepare` expressions raise a clear `ModelNotFound` `PropertyNotFound`
+error pointing at the offending scope.
+
+New Features:
+
+- Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
+- Added ability to configure default and model specific distribution strategy (`#1691`_).
+
+.. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
+
 Bug fixes:
 
 - Fixed a bug where nested backrefs where causing an error (`#1608`_).
 
 .. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
+.. _#1922: https://github.com/atviriduomenys/spinta/issues/1922
 
 0.2dev24 (2026-05-08)
 =====================
