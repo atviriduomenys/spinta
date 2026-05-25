@@ -8,9 +8,9 @@ test -n "$PID" && kill "$PID"
 # Setup versions and create prepare branch
 # Change version numbers here
 export MAJOR=0
-export MINOR=2dev24
-export OLD_MINOR=2dev23
-export FUTURE_MINOR=2dev25
+export MINOR=2dev25
+export OLD_MINOR=2dev24
+export FUTURE_MINOR=2dev26
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -62,6 +62,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Generate and check changes and readme html files
 
 # notes/docker.sh                   Start docker compose
+# docker stop spinta-app-1
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests

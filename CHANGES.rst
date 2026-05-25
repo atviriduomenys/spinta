@@ -1,7 +1,11 @@
 Changes
 #######
 
-0.2dev25 (unreleased)
+0.2dev26 (unreleased)
+=====================
+
+
+0.2dev25 (2026-05-22)
 =====================
 
 Improvements:
@@ -15,7 +19,7 @@ Improvements:
   - Bind/getattr resolution is implemented via `ufunc.resolver` overloads so
     new expression shapes can be added without touching the loader.
   - Invalid `prepare` expressions raise a clear `ModelNotFound` `PropertyNotFound`
-error pointing at the offending scope.
+    error pointing at the offending scope.
 
 New Features:
 
