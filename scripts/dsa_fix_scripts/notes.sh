@@ -2,8 +2,6 @@
 # atitikti gerąsias praktikas
 
 # paleisti šitą komandą, kad pridėtų .gitattributes failą, kad nesugadintų failų galūnių ir nebūtų bereikalingai
-
-
 # išpūstas diff'as
 # tik rc direktorijoj, kad nedarytų įtakos kitiems failams.
 echo "* text=auto" > .gitattributes
