@@ -87,9 +87,9 @@ def _params(
     params = UrlParams()
     params.model = model
     params.custom_scope = scope
-    params.query = [spyna.parse(q) for query in query] if query else None
-    params.select = [spyna.parse(s) for select in select] if select else None
-    params.sort = [spyna.parse(s) for sort in sort] if sort else None
+    params.query = [spyna.parse(q) for q in query] if query else None
+    params.select = [spyna.parse(s) for s in select] if select else None
+    params.sort = [spyna.parse(s) for s in sort] if sort else None
     return params
 
 
