@@ -15,7 +15,7 @@ import argparse
 import sys
 
 
-def count_model_values(root_dir):
+def count_model_values(root_dir: str) -> int:
     """
     Count the total number of values in the 'model' column across all CSV files
 
@@ -71,7 +71,7 @@ def count_model_values(root_dir):
     return total_count
 
 
-def main():
+def main() -> None:
     # Set up command line arguments
     parser = argparse.ArgumentParser(description="Count values in the model column of CSV files.")
     parser.add_argument("directory", help="Root directory containing CSV files")

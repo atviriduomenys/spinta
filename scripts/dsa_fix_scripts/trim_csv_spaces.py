@@ -4,7 +4,7 @@ import io
 import sys
 
 
-def trim_csv_spaces(directory):
+def trim_csv_spaces(directory: str) -> None:
     """
     Recursively process all CSV files in a directory, trimming spaces
     before and after values in each field.
@@ -25,7 +25,7 @@ def trim_csv_spaces(directory):
     print(f"Processed {processed_count} CSV files")
 
 
-def process_file(file_path):
+def process_file(file_path: str) -> bool:
     """
     Process a single CSV file, trimming spaces from all field values.
 

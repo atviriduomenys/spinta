@@ -4,7 +4,7 @@ import csv
 import io
 
 
-def normalize_column_names(directory):
+def normalize_column_names(directory: str) -> None:
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
@@ -13,7 +13,7 @@ def normalize_column_names(directory):
                 normalize_column_names_in_file(file_path)
 
 
-def normalize_column_names_in_file(file_path):
+def normalize_column_names_in_file(file_path: str) -> None:
     try:
         # Read the CSV file
         with open(file_path, mode="r", newline="", encoding="utf-8") as file:

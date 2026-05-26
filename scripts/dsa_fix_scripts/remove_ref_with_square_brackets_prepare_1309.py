@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-def remove_empty_bracket_words(text):
+def remove_empty_bracket_words(text: str) -> tuple[str, bool]:
     """
     Remove words containing empty square brackets '[]' from the text.
     For example, "word1, word2[], word3" -> "word1, word3"
@@ -41,7 +41,7 @@ def remove_empty_bracket_words(text):
     return clean_result, removed_parts
 
 
-def process_csv_file(file_path):
+def process_csv_file(file_path: str | Path) -> None:
     print(f"\nProcessing file: {file_path}")
 
     # Read original file lines as text
@@ -123,7 +123,7 @@ def process_csv_file(file_path):
         f.writelines(output_lines)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Remove references containing empty square brackets from CSV files")
     parser.add_argument("path", help="Path to a CSV file or directory containing CSV files")
     args = parser.parse_args()

@@ -2,7 +2,7 @@ import os
 import sys
 
 
-def reverse_process_files_recursively(directory):
+def reverse_process_files_recursively(directory: str) -> None:
     # Walk through the directory tree
     for root, _, files in os.walk(directory):
         for filename in files:

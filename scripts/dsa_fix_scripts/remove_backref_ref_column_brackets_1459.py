@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-def remove_bracket_content_for_backref(text):
+def remove_bracket_content_for_backref(text: str) -> tuple[str, bool]:
     """
     Remove only the bracket content from words in the text
     when the type column is 'backref'.
@@ -34,7 +34,7 @@ def remove_bracket_content_for_backref(text):
     return clean_result, changes_made
 
 
-def process_csv_file(file_path):
+def process_csv_file(file_path: str | Path) -> None:
     print(f"\nProcessing file: {file_path}")
 
     # Read original file lines as text
@@ -116,7 +116,7 @@ def process_csv_file(file_path):
         f.writelines(output_lines)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Remove references containing brackets from backref type columns in CSV files"
     )

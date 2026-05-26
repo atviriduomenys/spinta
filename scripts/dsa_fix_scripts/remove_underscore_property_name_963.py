@@ -2,10 +2,11 @@
 
 import io
 import os
+import sys
 import csv
 
 
-def process_csv_files(directory):
+def process_csv_files(directory: str) -> None:
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
@@ -15,7 +16,7 @@ def process_csv_files(directory):
                 print(f"Processed: {file_path}")  # Add debug output
 
 
-def get_level(property_name):
+def get_level(property_name: str) -> int:
     # underscored property can be in the middle of the property name
     property_names = property_name.split(".")
 
@@ -29,7 +30,7 @@ def get_level(property_name):
         return 2
 
 
-def process_csv_file(file_path):
+def process_csv_file(file_path: str) -> None:
     # Read original file lines as text
     with open(file_path, "r", encoding="utf-8") as f:
         original_lines = f.readlines()
@@ -169,11 +170,8 @@ def process_csv_file(file_path):
 
 
 if __name__ == "__main__":
-    # if len(sys.argv) != 2:
-    #     print("Usage: python script.py <directory>")
-    # else:
-    #     directory = sys.argv[1]
-    #     process_csv_files(directory)
-    directory = "/home/karina/work/vssa/metadata/datasets/gov/rc"
-    # directory = "/home/karina/work/vssa/metadata/datasets/gov/rc/stsr_ws/n903_hipotekos_duomenu_israsas_is_ntr_ir_stsr_su_pateiktu_dokumentu_kopijomis_pagal_hipotekos_idk"
+    if len(sys.argv) != 2:
+        print("Usage: python remove_underscore_property_name_963.py <directory>")
+        sys.exit(1)
+    directory = sys.argv[1]
     process_csv_files(directory)

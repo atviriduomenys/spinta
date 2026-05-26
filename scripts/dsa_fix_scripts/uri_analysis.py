@@ -17,7 +17,7 @@ import argparse
 import sys
 
 
-def analyze_csv_files(root_dir):
+def analyze_csv_files(root_dir: str) -> tuple[Counter, Counter]:
     """
     Analyze CSV files in a directory structure to find frequencies of uri values
 
@@ -78,7 +78,7 @@ def analyze_csv_files(root_dir):
     return total_frequency, file_occurrence
 
 
-def print_results(total_freq, file_occur, top_n=20):
+def print_results(total_freq: Counter, file_occur: Counter, top_n: int = 20) -> None:
     """Print the analysis results"""
     if not total_freq:
         print("No URI data found in the processed files.")
@@ -93,7 +93,7 @@ def print_results(total_freq, file_occur, top_n=20):
         print(f"URI: {uri} - Found in {count} files")
 
 
-def save_results(total_freq, file_occur, output_file):
+def save_results(total_freq: Counter, file_occur: Counter, output_file: str) -> None:
     """Save results to a CSV file"""
     if not total_freq:
         print("No data to save.")
@@ -114,7 +114,7 @@ def save_results(total_freq, file_occur, output_file):
     print(f"Saved results to {output_file}")
 
 
-def main():
+def main() -> None:
     # Set up command line arguments
     parser = argparse.ArgumentParser(description="Analyze URI values in CSV files.")
     parser.add_argument("directory", help="Root directory containing CSV files")

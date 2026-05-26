@@ -5,7 +5,7 @@ import re
 import io
 
 
-def process_csv_files(directory):
+def process_csv_files(directory: str) -> None:
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
@@ -14,7 +14,7 @@ def process_csv_files(directory):
                 process_csv_file(file_path)
 
 
-def process_csv_file(file_path):
+def process_csv_file(file_path: str) -> None:
     try:
         # First, read the file line by line to preserve original formatting
         with open(file_path, mode="r", newline="", encoding="utf-8") as file:

@@ -15,7 +15,7 @@ import argparse
 import sys
 
 
-def count_question_mark_models(root_dir):
+def count_question_mark_models(root_dir: str) -> tuple[int, dict[str, int]]:
     """
     Count the number of values in the 'model' column that contain a question mark
 
@@ -82,7 +82,7 @@ def count_question_mark_models(root_dir):
     return total_question_mark_count, question_mark_models
 
 
-def main():
+def main() -> None:
     # Set up command line arguments
     parser = argparse.ArgumentParser(description="Count models with question marks in CSV files.")
     parser.add_argument("directory", help="Root directory containing CSV files")

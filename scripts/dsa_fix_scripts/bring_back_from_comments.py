@@ -6,7 +6,12 @@ import sys
 from pathlib import Path
 
 
-def process_csv_file(file_path, issue_number, output_dir=None, debug=False):
+def process_csv_file(
+    file_path: str | Path,
+    issue_number: str,
+    output_dir: str | None = None,
+    debug: bool = False,
+) -> None:
     # Read original file
     with open(file_path, "r", encoding="utf-8") as f:
         original_content = f.read()
@@ -149,7 +154,7 @@ def process_csv_file(file_path, issue_number, output_dir=None, debug=False):
         print(f"No changes made to {file_path} (no matching issue found or no actions needed)")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Process comments with instructions in CSV files")
     parser.add_argument("path", help="Path to a CSV file or directory containing CSV files")
     parser.add_argument("--issue", "-i", required=True, help="Issue number to process")

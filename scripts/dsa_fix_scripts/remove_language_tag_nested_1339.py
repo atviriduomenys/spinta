@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-def remove_dot_words(text):
+def remove_dot_words(text: str) -> str:
     """
     Remove words containing dots from the text.
     For example, "word1, word2.field1, word3" -> "word1, word3"
@@ -14,7 +14,7 @@ def remove_dot_words(text):
     """
 
     # Handle the bracket content specifically
-    def process_bracket_content(match):
+    def process_bracket_content(match: re.Match) -> str:
         prefix = match.group(1)  # Everything before the opening bracket
         content = match.group(2)  # Content inside brackets
 
@@ -46,7 +46,7 @@ def remove_dot_words(text):
     return clean_result
 
 
-def process_csv_file(file_path):
+def process_csv_file(file_path: str | Path) -> None:
     # Read original file lines as text
     with open(file_path, "r", encoding="utf-8") as f:
         original_lines = f.readlines()
@@ -117,7 +117,7 @@ def process_csv_file(file_path):
         f.writelines(output_lines)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Remove references containing dots from CSV files")
     parser.add_argument("path", help="Path to a CSV file or directory containing CSV files")
     args = parser.parse_args()

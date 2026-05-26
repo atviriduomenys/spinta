@@ -1,7 +1,8 @@
 import csv
+import sys
 
 
-def process_csv(file_path):
+def process_csv(file_path: str) -> int:
     # Read all lines from the CSV file
     with open(file_path, "r", newline="") as infile:
         reader = csv.reader(infile)
@@ -76,7 +77,10 @@ def process_csv(file_path):
 
 # Usage
 if __name__ == "__main__":
-    file_path = "manifest.csv"  # Path to your CSV file
+    if len(sys.argv) != 2:
+        print("Usage: python script_to_remove_refs.py <csv_file>")
+        sys.exit(1)
+    file_path = sys.argv[1]
 
     num_modified = process_csv(file_path)
     print(f"Processing complete. Modified {num_modified} rows.")

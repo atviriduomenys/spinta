@@ -46,7 +46,8 @@ def getall(
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
-    query = merge_formulas(query, get_ref_filters(context, model))
+    if context.get("config").check_ref_filters:
+        query = merge_formulas(query, get_ref_filters(context, model))
     keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
 
     result_builder_getter = backend_result_builder_getter(context, backend)

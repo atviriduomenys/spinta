@@ -4,7 +4,7 @@ import csv
 import re
 
 
-def process_csv_files(directory):
+def process_csv_files(directory: str) -> None:
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
@@ -13,7 +13,7 @@ def process_csv_files(directory):
                 apply_ref_updates_in_csv(file_path)
 
 
-def apply_ref_updates_in_csv(file_path):
+def apply_ref_updates_in_csv(file_path: str) -> None:
     with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 

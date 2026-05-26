@@ -2,7 +2,7 @@ import os
 import sys
 
 
-def replace_quotation_marks_in_files(directory):
+def replace_quotation_marks_in_files(directory: str) -> None:
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
         for file in files:
@@ -10,7 +10,7 @@ def replace_quotation_marks_in_files(directory):
             process_file(file_path)
 
 
-def process_file(file_path):
+def process_file(file_path: str) -> None:
     # Read the file content
     with open(file_path, "r", encoding="utf-8") as file:
         content = file.read()
