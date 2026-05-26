@@ -89,11 +89,6 @@ def process_csv_file(file_path):
 
 
 if __name__ == "__main__":
-    # if len(sys.argv) != 2:
-    #     print("Usage: python script.py <directory>")
-    # else:
-    #     directory = sys.argv[1]
-    #     process_csv_files(directory)
     directory = "/home/karina/work/vssa/metadata/datasets/gov/rc"
     # directory = "/home/karina/work/vssa/metadata/datasets/gov/rc/stsr_ws/n903_hipotekos_duomenu_israsas_is_ntr_ir_stsr_su_pateiktu_dokumentu_kopijomis_pagal_hipotekos_idk"
     process_csv_files(directory)
