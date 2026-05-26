@@ -1,8 +1,7 @@
 import re
 import urllib.parse
 from collections import OrderedDict
-from typing import List
-from typing import Union
+from typing import Any, List, Union
 
 from starlette.requests import Request
 
@@ -18,6 +17,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import UrlParams, Version
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
+from spinta.dimensions.scope.helpers import get_active_custom_scope
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.querybuilder.components import QueryBuilder
@@ -84,6 +84,8 @@ def parse_url_query(query):
 def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
+    _apply_custom_scope(params)
+
     params.format = get_response_type(context, request, params)
     params.accept_langs = get_preferred_accept_lang(request, params)
     params.content_langs = get_preferred_content_lang(request, params)
@@ -256,6 +258,18 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 params.lang = args
             else:
                 params.lang += args
+        elif name == "custom-scope":
+            if params.custom_scope is not None:
+                raise exceptions.InvalidValue(
+                    operator="custom_scope",
+                    message="Custom scope can be set only once per request.",
+                )
+            if len(args) != 1:
+                raise exceptions.InvalidValue(
+                    operator="custom_scope",
+                    message="Custom scope expects exactly one name.",
+                )
+            params.custom_scope = args[0]
         else:
             if params.query is None:
                 params.query = []
@@ -319,6 +333,74 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
     if parts:
         given_path = "/".join(params.path_parts)
         raise ModelNotFound(model=given_path)
+
+
+def _extract_scope_parts(prepare: dict) -> tuple[list[dict] | None, list[dict]]:
+    # Top-level `and` is flattened; `select(...)` is pulled out as field restriction.
+    conditions = prepare.get("args", []) if prepare.get("name") == "and" else [prepare]
+
+    select_args = None
+    filter_exprs = []
+    for condition in conditions:
+        if isinstance(condition, dict) and condition.get("name") == "select":
+            select_args = condition.get("args", [])
+        else:
+            filter_exprs.append(condition)
+
+    return select_args, filter_exprs
+
+
+def _collect_field_refs(expr: Any) -> set[str]:
+    if not isinstance(expr, dict):
+        return set()
+    name = expr.get("name")
+    if name in ("bind", "getattr"):
+        return {spyna.unparse(expr)}
+    return {ref for arg in expr.get("args", []) for ref in _collect_field_refs(arg)}
+
+
+def _check_field_access(params: UrlParams, allowed_args: list[dict]) -> None:
+    allowed = {spyna.unparse(a) for a in allowed_args}
+
+    if params.sort:
+        for sort_item in params.sort:
+            for field in _collect_field_refs(sort_item) - allowed:
+                raise exceptions.PropertyNotFound(property=field)
+
+    if params.query:
+        for condition in params.query:
+            for field in _collect_field_refs(condition) - allowed:
+                raise exceptions.PropertyNotFound(property=field)
+
+
+def _apply_scope_select(params: UrlParams, allowed_args: list[dict]) -> None:
+    if params.select is None:
+        params.select = list(allowed_args)
+        return
+
+    allowed = {spyna.unparse(allowed) for allowed in allowed_args}
+    intersection = [select for select in params.select if spyna.unparse(select) in allowed]
+    if not intersection:
+        first_requested = spyna.unparse(params.select[0])
+        raise exceptions.PropertyNotFound(property=first_requested)
+    params.select = intersection
+
+
+def _apply_custom_scope(params: UrlParams) -> None:
+    if not isinstance(params.model, Model):
+        return
+    scope = get_active_custom_scope(params.model, params)
+    if scope is None:
+        return
+
+    select_args, filter_exprs = _extract_scope_parts(scope.prepare)
+
+    if select_args is not None:
+        _apply_scope_select(params, select_args)
+        _check_field_access(params, select_args)
+
+    if filter_exprs:
+        params.query = (params.query or []) + filter_exprs
 
 
 def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
