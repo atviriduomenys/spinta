@@ -1,9 +1,7 @@
 # Disclaimer - šie scriptai rašyti su LLM'ų pagalba ir mažai peržiūrėti bei modifikuoti, todėl gali nebūtinai
-# atitiks gerąsias praktikas
+# atitikti gerąsias praktikas
 
 # paleisti šitą komandą, kad pridėtų .gitattributes failą, kad nesugadintų failų galūnių ir nebūtų bereikalingai
-
-
 # išpūstas diff'as
 # tik rc direktorijoj, kad nedarytų įtakos kitiems failams.
 echo "* text=auto" > .gitattributes
