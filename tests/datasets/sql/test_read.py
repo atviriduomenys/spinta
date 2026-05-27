@@ -1239,3 +1239,72 @@ def test_array_ref_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_a
     app.get("/example/Language")
     resp = app.get("/example/Country")
     assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
+
+
+@pytest.fixture(scope="module")
+def geodb_ref_filters():
+    with create_sqlite_db(
+        {
+            "countries": [
+                sa.Column("id", sa.Integer, primary_key=True),
+                sa.Column("code", sa.Text),
+                sa.Column("name", sa.Text),
+            ],
+            "cities": [
+                sa.Column("id", sa.Integer, primary_key=True),
+                sa.Column("name", sa.Text),
+                sa.Column("country_id", sa.Integer),
+            ],
+        }
+    ) as db:
+        db.write(
+            "countries",
+            [
+                {"id": 1, "code": "lt", "name": "Lietuva"},
+                {"id": 2, "code": "lv", "name": "Latvija"},
+            ],
+        )
+        db.write(
+            "cities",
+            [
+                {"id": 1, "name": "Vilnius", "country_id": 1},
+                {"id": 2, "name": "Kaunas", "country_id": 1},
+                {"id": 3, "name": "Ryga", "country_id": 2},
+            ],
+        )
+        yield db
+
+
+_REF_FILTERS_MANIFEST = """
+d | r | b | m | property | type    | ref     | source     | prepare     | access
+example                  |         |         |            |             |
+  | db                   |         | sql     |            |             |
+  |                      |         |         |            |             |
+  |   |   | Country      |         | id      | countries  | code = 'lt' |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | code     | string  |         | code       |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   | City         |         | id      | cities     |             |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   |   | country  | ref     | Country | country_id |             | open
+"""
+
+
+def test_getall_implicit_ref_filters_enabled_by_default(context, rc, tmp_path, geodb_ref_filters):
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+    resp = app.get("/example/City?select(name)")
+    assert resp.status_code == 200
+    assert sorted(listdata(resp, "name")) == ["Kaunas", "Vilnius"]
+
+
+def test_getall_implicit_ref_filters_disabled(context, rc, tmp_path, geodb_ref_filters):
+    rc = rc.fork({"check_ref_filters": False})
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+    resp = app.get("/example/City")
+    assert resp.status_code == 200
+    assert sorted(listdata(resp, "name")) == ["Kaunas", "Ryga", "Vilnius"]
+
+

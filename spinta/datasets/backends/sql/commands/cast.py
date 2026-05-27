@@ -74,6 +74,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
     if is_custom_id_prop(ref_model.properties["_id"]):
         id_value = generate_ref_id_using_select(context, dtype, values)
     else:
+        # TODO tikrinti tik tada, jei išorinis raktas nesutampa su modelio pirminiu raktu
         contains = keymap.contains(keymap_name, encoding_values)
 
         if contains:
