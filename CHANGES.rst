@@ -30,10 +30,12 @@ New Features:
 
 Bug fixes:
 
+- Fixed a bug where an empty string literal (``""``) in the ``prepare`` column of an enum row was incorrectly rejected with "At least source or prepare must be specified" (`#1936`_).
 - Fixed a bug where nested backrefs where causing an error (`#1608`_).
 
 .. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
 .. _#1922: https://github.com/atviriduomenys/spinta/issues/1922
+.. _#1936: https://github.com/atviriduomenys/spinta/issues/1936
 
 0.2dev24 (2026-05-08)
 =====================

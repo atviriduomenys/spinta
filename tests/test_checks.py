@@ -366,3 +366,22 @@ def test_check_enum_no_operation_prepare_integer(manifest_type, tmp_path, rc):
         tmp_path=tmp_path,
     )
     commands.check(context, manifest)
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_check_enum_empty_string_prepare(manifest_type, tmp_path, rc):
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+        d | r | b | m | property | type    | ref | source       | prepare
+        dataset1                 |         |     |              |
+          | resource1            | sql     |     |              |
+          |   |   | City         |         | id  | CITIES       |
+          |   |   |   | id       | integer |     | ID           |
+          |   |   |   | country  | string  |     | COUNTRY_CODE |
+          |   |   |   |          | enum    |     |              | ""
+        """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    commands.check(context, manifest)
