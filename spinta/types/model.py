@@ -326,10 +326,12 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
+    parent_name: str = base.parent
     try:
-        base.parent = commands.get_model(context, base.model.manifest, base.parent)
+        base.parent = commands.get_model(context, base.model.manifest, parent_name)
     except ModelNotFound:
-        replace_undeclared_base_with_comment(base.model, base.parent)
+        base.parent = parent_name
+        replace_undeclared_base_with_comment(context, base)
         return
     base.pk = [base.parent.properties[pk] for pk in base.pk] if base.pk else []
     if commands.identifiable(base):

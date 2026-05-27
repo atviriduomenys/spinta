@@ -218,3 +218,25 @@ def test_undeclared_base_run_does_not_fail_xml(rc: RawConfig, tmp_path: Path):
     resp = app.get("/example/City")
     assert resp.status_code == 200
     assert listdata(resp, "name") == ["Riga", "Vilnius"]
+
+
+def test_undeclared_base_with_ref_and_level_comment_prepare(rc: RawConfig):
+    from spinta import commands as spinta_commands
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b                              | m       | property | type   | ref | level | access
+        example                                |         |          |        |     |       |
+                                               |         |          |        |     |       |
+          |   | dataset/gov/vssa/is/ds/Address |         |          |        | id  | 4     |
+          |   |                                | Country |          |        |     |       |
+          |   |                                |         | name     | string |     |       | open
+        """,
+        mode=Mode.internal,
+    )
+    model = spinta_commands.get_models(context, manifest)["example/Country"]
+    assert model.base is None, "undeclared base should be dropped"
+    assert model.comments, "restore comment should be added"
+    comment = model.comments[0]
+    assert comment.prepare == 'insert(base: "dataset/gov/vssa/is/ds/Address", ref: "id", level: 4)'

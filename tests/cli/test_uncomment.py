@@ -212,7 +212,7 @@ def test_uncomment_base_direct_input(context: Context, rc, cli: SpintaCliRunner,
 
     assert len(base_rows) == 1, "base should be restored as its own row"
     assert base_rows[0]["base"] == "dataset/gov/vssa/is/ds/Address"
-    assert base_rows[0]["level"] == "4"
+    assert base_rows[0]["level"] == ""
     assert len(comment_rows) == 0, "restore comment should have been removed"
 
 
@@ -247,7 +247,7 @@ def test_comment_uncomment_base_roundtrip(context: Context, rc, cli: SpintaCliRu
 
     assert len(base_rows) == 1, "base row should be restored above the model"
     assert base_rows[0]["base"] == "dataset/gov/vssa/is/ds/Address"
-    assert base_rows[0]["level"] == "4"
+    assert base_rows[0]["level"] == ""
     assert len(comment_rows) == 0, "restore comment should have been removed"
 
 
@@ -410,3 +410,69 @@ def test_uncomment_ref_only_does_not_insert_base_resets(context: Context, rc, cl
     rows = _read_csv(tmp_path / "restored.csv")
     reset_rows = [row for row in rows if row.get("base") == "/"]
     assert reset_rows == [], "ref-only uncomment must not insert `/` rows"
+
+
+def test_uncomment_base_with_ref_and_level_direct_input(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | model   | property  | type    | ref  | source | prepare                                                              | level | access
+    example              |          |         |      |        |                                                                      |       |
+                         |          |         |      |        |                                                                      |       |
+      |   |   | Country  |          |         |      |        |                                                                      |       |
+                         |          | comment | base |        | insert(base: "dataset/gov/vssa/is/ds/Address", ref: "id", level: 4)  | 4     |
+      |   |   |          | name     | string  |      |        |                                                                      |       | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        ["uncomment", "-o", tmp_path / "restored.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "restored.csv")
+    base_rows = [row for row in rows if row.get("base") and not row.get("model") and not row.get("property")]
+    comment_rows = [row for row in rows if row.get("type") == "comment"]
+
+    assert len(base_rows) == 1
+    assert base_rows[0]["base"] == "dataset/gov/vssa/is/ds/Address"
+    assert base_rows[0]["ref"] == "id"
+    assert base_rows[0]["level"] == "4"
+    assert len(comment_rows) == 0
+
+
+def test_comment_uncomment_base_with_ref_and_level_roundtrip(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path: Path
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | level | access
+    example                                |         |          |        |     |       |
+                                           |         |          |        |     |       |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        | id  | 4     |
+      |   |                                | Country |          |        |     |       |
+      |   |                                |         | name     | string |     |       | private
+    """),
+    )
+    cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "commented.csv", tmp_path / "manifest.csv"],
+    )
+    result = cli.invoke(
+        rc,
+        ["uncomment", "-o", tmp_path / "restored.csv", tmp_path / "commented.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "restored.csv")
+    base_rows = [row for row in rows if row.get("base") and not row.get("model") and not row.get("property")]
+    comment_rows = [row for row in rows if row.get("type") == "comment"]
+
+    assert len(base_rows) == 1
+    assert base_rows[0]["base"] == "dataset/gov/vssa/is/ds/Address"
+    assert base_rows[0]["ref"] == "id"
+    assert base_rows[0]["level"] == "4"
+    assert len(comment_rows) == 0

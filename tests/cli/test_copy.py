@@ -1279,7 +1279,7 @@ def test_copy_undeclared_ref_transforms_to_object(context: Context, rc, cli: Spi
       |   |   | City         |         |      |        |                                        |       |
       |   |   |   | name     | string  |      |        |                                        |       | private
       |   |   |   | country  | object  |      |        |                                        | 2     | private
-                             | comment | type | author | update(type:"ref", ref:"example2/Country") | 4     |
+                             | comment | type |        | update(type:"ref", ref:"example2/Country") | 4     |
     """
     )
 
@@ -1453,7 +1453,7 @@ def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: Spin
     example                  |         |        |        |                                                |       |
                              |         |        |        |                                                |       |
       |   |   | Country      |         |        |        |                                                |       |
-                             | comment | base   | author | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
+                             | comment | base   |        | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
       |   |   |   | name     | string  |        |        |                                                |       | private
     """
     )

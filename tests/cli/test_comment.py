@@ -46,7 +46,7 @@ def test_comment_missing_external_refs(context: Context, rc, cli: SpintaCliRunne
       |   |   | City         |         |      |        |                                        |       |         |
       |   |   |   | name     | string  |      |        |                                        |       | private |
       |   |   |   | country  | object  |      |        |                                        | 2     | private |
-                             | comment | type | author | update(type:"ref", ref:"example2/Country") | 4     |         |
+                             | comment | type |        | update(type:"ref", ref:"example2/Country") | 4     |         |
     """
     )
 
@@ -200,7 +200,7 @@ def test_comment_missing_external_bases(context: Context, rc, cli: SpintaCliRunn
     example                  |         |      |        |                                                |       |         |
                              |         |      |        |                                                |       |         |
       |   |   | Country      |         |      |        |                                                |       |         |
-                             | comment | base | author | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |         |
+                             | comment | base |        | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |         |
       |   |   |   | name     | string  |      |        |                                                |       | private |
     """
     )
@@ -323,3 +323,27 @@ def test_comment_uncomment_base_reset_roundtrip(context: Context, rc, cli: Spint
     assert len(base_rows) == 1, "Building's Other base should be restored"
     assert base_rows[0]["base"] == "dataset/gov/vssa/is/ds/Other"
     assert len(reset_rows) == 1, "Region should still have `/` so it doesn't inherit Other"
+
+
+def test_comment_base_with_ref_and_level(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | level | access
+    example                                |         |          |        |     |       |
+                                           |         |          |        |     |       |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        | id  | 4     |
+      |   |                                | Country |          |        |     |       |
+      |   |                                |         | name     | string |     |       | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "result.csv")
+    comment_row = next(row for row in rows if row.get("type") == "comment")
+    assert comment_row["prepare"] == 'insert(base: "dataset/gov/vssa/is/ds/Address", ref: "id", level: 4)'
