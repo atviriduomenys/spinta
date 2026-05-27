@@ -14,7 +14,7 @@ from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.core.enums import load_level, load_status, load_visibility
-from spinta.core.ufuncs import asttoexpr
+from spinta.core.ufuncs import asttoexpr, Expr
 from spinta.dimensions.enum.components import EnumFormula
 from spinta.dimensions.enum.components import EnumItem
 from spinta.dimensions.enum.components import EnumValue
@@ -24,6 +24,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
 from spinta.types.datatype import String
+from spinta.ufuncs.resultbuilder.components import EnumResultBuilder
 from spinta.utils.schema import NA
 
 
@@ -83,9 +84,10 @@ def link_enums(
             link_access_param(item, parents)
 
 
-def get_prop_enum(prop: Optional[Property]) -> EnumValue:
+def get_prop_enum(prop: Optional[Property]) -> EnumValue | None:
     if prop and prop.enum:
         return prop.enum
+    return None
 
 
 T = TypeVar("T")
@@ -104,3 +106,50 @@ def prepare_enum_value(prop: Property, value: T) -> Union[T, List[T]]:
             return source
     else:
         return value
+
+
+def get_enum_value(
+    context: Context,
+    prop: Property,
+    value: object,
+    *,
+    validate: bool = True,
+) -> object:
+    """
+    Returns the expected enum value for a given source value.
+    `validate` flag is used to raise an exception if the value is not in enum.
+    """
+    if (enum_options := get_prop_enum(prop)) is None:
+        return value
+
+    value_not_given = value is None or value is NA
+    if not value_not_given and str(value) in enum_options:
+        prepare_value = enum_options[str(value)].prepare
+        if prepare_value is NA:
+            return value
+        return prepare_value
+
+    check_value = value
+    enum_contains_expr = any(isinstance(enum.prepare, Expr) for enum in enum_options.values())
+    if enum_contains_expr:
+        for enum in enum_options.values():
+            if not isinstance(enum.prepare, Expr):
+                continue
+
+            env = EnumResultBuilder(context).init(value)
+            val = env.resolve(enum.prepare)
+            if env.has_value_changed:
+                check_value = val
+                break
+
+    if str(check_value) in enum_options:
+        prepare_value = enum_options[str(check_value)].prepare
+        if prepare_value is NA:
+            return check_value
+        return prepare_value
+
+    if validate:
+        if value_not_given and not prop.dtype.required:
+            return check_value
+        raise ValueNotInEnum(prop, value=value)
+    return check_value

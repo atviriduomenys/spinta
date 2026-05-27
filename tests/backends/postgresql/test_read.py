@@ -1468,13 +1468,11 @@ def test_replace_source_with_prepare(
     app = create_test_client(context)
     app.authorize(scope)
 
-    for _id in range(1, 5):
+    for _id in range(1, 4):
         resp = app.post("/datasets/geometry/point/Country", json={"id": _id, "name": str(_id)})
         assert resp.status_code == 201, resp.text
 
-    resp = app.post("/datasets/geometry/point/Country", json={"id": 6, "name": None})
-    assert resp.status_code == 201, resp.text
-    resp = app.post("/datasets/geometry/point/Country", json={"id": 7, "name": ""})
+    resp = app.post("/datasets/geometry/point/Country", json={"id": 4, "name": None})
     assert resp.status_code == 201, resp.text
 
     resp = app.get("/datasets/geometry/point/Country")
@@ -1483,9 +1481,7 @@ def test_replace_source_with_prepare(
         {"id": 1, "name": "x1"},
         {"id": 2, "name": "x2"},
         {"id": 3, "name": "x3"},
-        {"id": 4, "name": "4"},
-        {"id": 6, "name": None},
-        {"id": 7, "name": ""},
+        {"id": 4, "name": None},
     ]
 
 
@@ -1527,14 +1523,11 @@ def test_null_under_prepare(
 
     resp = app.post("/datasets/geometry/point/Country", json={"id": 1, "name": None})
     assert resp.status_code == 201, resp.text
-    resp = app.post("/datasets/geometry/point/Country", json={"id": 2, "name": ""})
-    assert resp.status_code == 201, resp.text
 
     resp = app.get("/datasets/geometry/point/Country")
     assert resp.status_code == 200, resp.text
     assert listdata(resp, "id", "name", full=True) == [
         {"id": 1, "name": None},
-        {"id": 2, "name": ""},
     ]
 
 
