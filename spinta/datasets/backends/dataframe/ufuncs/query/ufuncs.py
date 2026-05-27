@@ -14,6 +14,7 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskDataFrameQueryBuilder,
     DaskSelected as Selected,
     Count,
+    RESERVED_COUNT_PROP,
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
@@ -27,7 +28,6 @@ from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
-from spinta.utils.naming import Deduplicator
 from spinta.utils.schema import NA
 
 
@@ -130,10 +130,7 @@ def _resolve_unresolved(env: DaskDataFrameQueryBuilder, field: Bind) -> str:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder)
 def count(env: DaskDataFrameQueryBuilder) -> Count:
-    deduplicator = Deduplicator()
-    for key in env.dataframe.columns:
-        deduplicator(key)
-    return Count(deduplicator("_dask_count"))
+    return Count()
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
@@ -490,8 +487,8 @@ def select(
     env: DaskDataFrameQueryBuilder,
     value: Count,
 ) -> Selected:
-    env.count_prop = value.prop_name
-    return Selected(item=value.prop_name)
+    env.count = True
+    return Selected(item=RESERVED_COUNT_PROP)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr)

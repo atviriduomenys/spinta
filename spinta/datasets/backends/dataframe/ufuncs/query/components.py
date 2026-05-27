@@ -36,7 +36,7 @@ class DaskDataFrameQueryBuilder(Env):
             offset=None,
             params=params,
             url_query=None,
-            count_prop="",
+            count=False,
         )
 
     def build(self, where):
@@ -53,14 +53,16 @@ class DaskDataFrameQueryBuilder(Env):
         if where is not None:
             df = df[where]
 
-        if self.count_prop:
+        if self.count:
             # To only return one row, we need to calculate the count first and then transform it back to dataframe
             # Otherwise iterrows will duplicate the result with the number of rows equal to count.
             # Dask allows delayed calculations which ar lazy.
 
             # Create a delayed scalar function that returns the count of the dataframe as a new one-column dataframe
-            count_scalar = delayed(lambda value: pd.DataFrame({self.count_prop: [value]}))(df.map_partitions(len).sum())
-            df = from_delayed([count_scalar], meta=pd.DataFrame({self.count_prop: pd.Series(dtype="int64")}))
+            count_scalar = delayed(lambda value: pd.DataFrame({RESERVED_COUNT_PROP: [value]}))(
+                df.map_partitions(len).sum()
+            )
+            df = from_delayed([count_scalar], meta=pd.DataFrame({RESERVED_COUNT_PROP: pd.Series(dtype="int64")}))
 
         return df
 
@@ -89,6 +91,9 @@ class DaskSelected(Selected):
     prep: Any = NA
 
 
+RESERVED_COUNT_PROP = "__dask_count"
+
+
 @dataclasses.dataclass
 class Count(Func):
-    prop_name: str
+    pass
