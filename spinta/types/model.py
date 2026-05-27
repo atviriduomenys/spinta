@@ -647,7 +647,8 @@ def check(context: Context, prop: Property):
     if prop.enums:
         for enum_name in prop.enums:
             if enum_name:
-                raise InlineEnumWithName(prop, enum=enum_name)
+                manager = context.get("error_manager")
+                manager.handle_error(InlineEnumWithName(prop, enum=enum_name))
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)

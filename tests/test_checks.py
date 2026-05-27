@@ -3,8 +3,11 @@ from pathlib import Path
 import pytest
 
 from spinta import commands
+from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.exceptions import InlineEnumWithName, InvalidName, InvalidValue
+from spinta.exceptions import InvalidName, InvalidValue
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest_and_context, load_manifest, load_manifest_get_context
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -387,25 +390,28 @@ def test_check_enum_empty_string_prepare(manifest_type, tmp_path, rc):
     commands.check(context, manifest)
 
 
-@pytest.mark.manifests("internal_sql", "csv")
-def test_check_enum_named_under_property_raises_error(manifest_type, tmp_path, rc):
-    with pytest.raises(InlineEnumWithName) as e:
-        load_manifest(
-            rc,
-            """
-        d | r | b | m | property | type    | ref        | source    | prepare
-        dataset1                 |         |            |           |
-          | resource1            | sql     |            |           |
-          |   |   | City         |         | id         |           |
-          |   |   |   | id       | integer |            |           |
-          |   |   |   | status   | string  |            |           |
-          |   |   |   |          | enum    | my_status  | 'active'  |
-          |   |   |   |          |         |            | 'inactive'|
-            """,
-            manifest_type=manifest_type,
-            tmp_path=tmp_path,
-        )
-    assert e.value.message == (
-        "Named enum 'my_status' is declared directly under property 'status'. "
-        "Either remove the name to make it an inline enum, or move it to dataset dimension."
+def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref        | source    | prepare
+    dataset1                 |         |            |           |
+      | resource1            | sql     |            |           |
+      |   |   | City         |         | id         |           |
+      |   |   |   | id       | integer |            |           |
+      |   |   |   | status   | string  |            |           |
+      |   |   |   |          | enum    | my_status  | 'active'  |
+      |   |   |   |          |         |            | 'inactive'|
+        """),
     )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code == 0
+    assert "Named enum 'my_status' is declared directly under property 'status'" in result.stdout
+    assert "Total errors: 1" in result.stdout
