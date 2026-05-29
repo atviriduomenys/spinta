@@ -535,7 +535,171 @@ def test_get_one(context, rc, tmp_path):
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f"/example/City/{_id}")
         result = getone_response.json()
-        assert result == {"_id": _id, "_type": "example/City", "id": 0, "name": "Vilnius"}
+        assert result == {"_id": _id, "_revision": None, "_type": "example/City", "id": 0, "name": "Vilnius"}
+
+
+def test_get_one_ref_level_3(context, rc, tmp_path):
+    with create_sqlite_db(
+        {
+            "countries": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text)],
+            "cities": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text), sa.Column("country_id", sa.Integer)],
+        }
+    ) as db:
+        db.write(
+            "countries",
+            [
+                {"id": 0, "name": "Lietuva"},
+            ],
+        )
+        db.write(
+            "cities",
+            [
+                {"id": 0, "name": "Vilnius", "country_id": 0},
+            ],
+        )
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        id | d | r | b | m | property | type    | ref     | level | source     | access
+           | example                  |         |         |       |            |
+           |   |   |   | City         |         | id      |       | cities     | open
+           |   |   |   |   | id       | integer |         | 3     | id         |
+           |   |   |   |   | name     | string  |         | 3     | name       |
+           |   |   |   |   | country  | ref     | Country | 3     | country_id |
+           |   |   |   | Country      |         | id      |       | countries  | open
+           |   |   |   |   | id       | integer |         | 3     | id         |
+           |   |   |   |   | name     | string  |         | 3     | name       |
+        """),
+        )
+        app = create_client(rc, tmp_path, db)
+        _id = app.get("/example/City").json()["_data"][0]["_id"]
+
+        response = app.get(f"/example/City/{_id}").json()
+        assert response == {
+            "_id": _id,
+            "_revision": None,
+            "_type": "example/City",
+            "id": 0,
+            "name": "Vilnius",
+            "country": {"id": 0},
+        }
+
+
+def test_get_one_ref_level_4(context, rc, tmp_path):
+    with create_sqlite_db(
+        {
+            "countries": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text)],
+            "cities": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text), sa.Column("country_id", sa.Integer)],
+        }
+    ) as db:
+        db.write(
+            "countries",
+            [
+                {"id": 0, "name": "Lietuva"},
+            ],
+        )
+        db.write(
+            "cities",
+            [
+                {"id": 0, "name": "Vilnius", "country_id": 0},
+            ],
+        )
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        id | d | r | b | m | property | type    | ref     | level | source     | access
+           | example                  |         |         |       |            |
+           |   |   |   | City         |         | id      |       | cities     | open
+           |   |   |   |   | id       | integer |         | 4     | id         |
+           |   |   |   |   | name     | string  |         | 4     | name       |
+           |   |   |   |   | country  | ref     | Country | 4     | country_id |
+           |   |   |   | Country      |         | id      |       | countries  | open
+           |   |   |   |   | id       | integer |         | 4     | id         |
+           |   |   |   |   | name     | string  |         | 4     | name       |
+        """),
+        )
+        app = create_client(rc, tmp_path, db)
+
+        _id_city = app.get("/example/City").json()["_data"][0]["_id"]
+        _id_country = app.get("/example/Country").json()["_data"][0]["_id"]
+
+        response = app.get(f"/example/City/{_id_city}").json()
+        assert response == {
+            "_id": _id_city,
+            "_revision": None,
+            "_type": "example/City",
+            "id": 0,
+            "name": "Vilnius",
+            "country": {"_id": _id_country},
+        }
+
+
+def test_getone_geometry_prepare_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    id | d | r | b | m | property | type              | ref | level | source  | access | prepare
+       | example                  |                   |     |       |         |        |
+       |   |   |   | City         |                   | id  |       | cities  |        |
+       |   |   |   |   | id       | integer           |     | 4     | id      | open   |
+       |   |   |   |   | name     | string            |     | 4     | name    | open   |
+       |   |   |   |   | poly     | geometry(polygon) |     | 4     | poly    | open   | flip()
+       |   |   |   |   | geo_lt   | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+    """),
+    )
+    app = create_client(rc, tmp_path, geodb_geometry)
+    _id = app.get("/example/City").json()["_data"][0]["_id"]
+
+    response = app.get(f"/example/City/{_id}").json()
+    assert response == {
+        "_type": "example/City",
+        "_id": _id,
+        "_revision": None,
+        "id": 0,
+        "name": "Vilnius",
+        "poly": "POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))",
+        "geo_lt": "POINT (200000 5980000)",
+    }
+
+
+def test_getone_model_prepare_filter(context, rc, tmp_path):
+    with create_sqlite_db(
+        {"cities": [sa.Column("name", sa.Text), sa.Column("id", sa.Integer), sa.Column("active", sa.Integer)]}
+    ) as db:
+        db.write(
+            "cities",
+            [
+                {"name": "Vilnius", "id": 0, "active": 1},
+                {"name": "Kaunas", "id": 1, "active": 0},
+            ],
+        )
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+          id | d | r | b | m | property | type    | ref | level | source | access | prepare
+             | example                  |         |     |       |        |        |
+             |   |   |   | City         |         | id  |       | cities |        | eq(active,1)
+             |   |   |   |   | id       | integer |     | 4     | id     | open   |
+             |   |   |   |   | name     | string  |     | 4     | name   | open   |
+             |   |   |   |   | active   | integer |     | 4     | active | open   |
+          """),
+        )
+        app = create_client(rc, tmp_path, db)
+        _id = app.get("/example/City").json()["_data"][0]["_id"]
+
+        response = app.get(f"/example/City/{_id}").json()
+        assert response == {
+            "_type": "example/City",
+            "_id": _id,
+            "_revision": None,
+            "id": 0,
+            "name": "Vilnius",
+            "active": 1,
+        }
 
 
 def test_get_one_compound_pk(context, rc, tmp_path):
@@ -567,7 +731,14 @@ def test_get_one_compound_pk(context, rc, tmp_path):
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f"/example/City/{_id}")
         result = getone_response.json()
-        assert result == {"_id": _id, "_type": "example/City", "code": "city", "id": 2, "name": "Kaunas"}
+        assert result == {
+            "_id": _id,
+            "_revision": None,
+            "_type": "example/City",
+            "code": "city",
+            "id": 2,
+            "name": "Kaunas",
+        }
 
 
 def test_getall_geometry_manifest_flip_select(context, rc, tmp_path, geodb_geometry):
