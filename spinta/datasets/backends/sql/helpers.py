@@ -45,13 +45,6 @@ def build_row_result(
                 and not isinstance(sel.prop.dtype, Base32)
             ):
                 val = encode_composite_string_id(val, model.external.pkeys)
-                val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
-            elif (
-                (is_custom_id_prop(sel.prop) or is_custom_revision_prop(sel.prop))
-                and isinstance(val, (list, tuple))
-                and not isinstance(sel.prop.dtype, Base32)
-            ):
-                val = encode_composite_string_id(val, model.external.pkeys)
         res[key] = val
 
     res["_type"] = model.model_type()
