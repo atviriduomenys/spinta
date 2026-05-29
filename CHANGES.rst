@@ -8,7 +8,12 @@ Improvements:
 
 - Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
 
+Bug fixes:
+
+- Fixed a bug where getone method in sql backend did not get any ref data (`#1900`_)
+
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
+.. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
 
 0.2dev25 (2026-05-22)
 =====================
