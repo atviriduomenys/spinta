@@ -4,7 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
-COPY . /app/
+COPY requirements /app/requirements
+COPY startup.sh /app/startup.sh
 RUN useradd -m -s /bin/bash spinta
 
 RUN chmod +x /app/startup.sh
