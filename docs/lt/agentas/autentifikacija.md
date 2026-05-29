@@ -16,7 +16,7 @@ Komandos skiriasi priklausomai nuo diegimo būdo:
 **Docker diegimas:**
 
 ```bash
-OUTPUT=$(docker exec -i spinta poetry run spinta client add -n test --scope - << 'EOF'
+OUTPUT=$(docker exec -i spinta spinta client add -n test --scope - << 'EOF'
 uapi:/:getone
 uapi:/:getall
 uapi:/:search
