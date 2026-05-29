@@ -147,11 +147,11 @@ def replace_undeclared_base_with_comment(
     if model.comments is None:
         model.comments = []
 
-    prepare_parts = [f'base: "{base_model}"']
+    prepare_parts = [f'base:"{base_model}"']
     if pk:
-        prepare_parts.append(f'ref: "{", ".join(pk)}"')
+        prepare_parts.append(f'ref:"{", ".join(pk)}"')
     if base_level is not None:
-        prepare_parts.append(f"level: {base_level.value}")
+        prepare_parts.append(f"level:{base_level.value}")
     prepare = f"insert({', '.join(prepare_parts)})"
     model.comments.append(
         Comment(
