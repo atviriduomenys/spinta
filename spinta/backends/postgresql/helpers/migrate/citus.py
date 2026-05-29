@@ -33,6 +33,9 @@ class ShardingPlan:
 
     _lookup: dict[TableIdentifier | str, DistributionType] = dataclasses.field(init=False, default_factory=dict)
 
+    def empty(self) -> bool:
+        return not (self.schemas or self.references or self.distributed)
+
     def __sub__(self, other) -> "ShardingPlan":
         return ShardingPlan(
             schemas=self.schemas - other.schemas,
@@ -325,7 +328,8 @@ def undistribute_all(
     progress_bar: tqdm | None = None,
     **kwargs,
 ) -> None:
-    for schema in plan.schemas:
+    # Adding sorting for test reproducibility, since the order for mass undistribution does not matter
+    for schema in sorted(plan.schemas):
         handler.add_action(UndistributeSchema(schema_name=schema))
         if progress_bar is not None:
             progress_bar.update(1)
@@ -338,7 +342,7 @@ def undistribute_all(
     with backend.begin() as conn:
         component_map = build_fk_components(conn, undistributed_tables)
 
-    for table in plan.distributed.keys():
+    for table in sorted(plan.distributed.keys()):
         if table in processed:
             continue
 
@@ -348,7 +352,7 @@ def undistribute_all(
         component = component_map[table]
         processed.update(component)
 
-    for table in plan.references:
+    for table in sorted(plan.references):
         if table in processed:
             continue
 
@@ -367,17 +371,18 @@ def distribute_all(
     progress_bar: tqdm | None = None,
     **kwargs,
 ) -> None:
-    for table in plan.references:
+    # Adding sorting for test reproducibility, since the order for mass distribution does not matter
+    for table in sorted(plan.references):
         handler.add_action(DistributeReference(table_identifier=table))
         if progress_bar is not None:
             progress_bar.update(1)
 
-    for table, column in plan.distributed.items():
+    for table, column in sorted(plan.distributed.items()):
         handler.add_action(DistributeTable(table_identifier=table, column=column))
         if progress_bar is not None:
             progress_bar.update(1)
 
-    for schema in plan.schemas:
+    for schema in sorted(plan.schemas):
         handler.add_action(DistributeSchema(schema_name=schema))
         if progress_bar is not None:
             progress_bar.update(1)

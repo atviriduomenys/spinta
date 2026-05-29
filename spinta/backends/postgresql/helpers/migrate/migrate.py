@@ -15,7 +15,7 @@ from sqlalchemy.sql.elements import TextClause
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import TableType
+from spinta.backends.constants import TableType, DistributionType
 from spinta.backends.helpers import (
     get_table_name,
     get_table_identifier,
@@ -25,8 +25,9 @@ from spinta.backends.helpers import (
 )
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name, get_pg_sequence_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler, UndistributeTable, DistributeReference
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
+from spinta.backends.postgresql.helpers.migrate.citus import ShardingPlan
 from spinta.backends.postgresql.helpers.migrate.name import (
     RenameMap,
     get_full_name,
@@ -37,6 +38,7 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_index_name,
     get_pg_column_name,
     PG_NAMING_CONVENTION,
+    get_pg_pkey_name,
 )
 from spinta.cli.helpers.migrate import MigrationContext
 from spinta.components import Context, Model, Property
@@ -71,6 +73,10 @@ class PostgresqlMigrationContext(MigrationContext):
 
     # Live metadata
     metadata: sa.MetaData
+
+    # Citus distribution plans
+    distribute_plan: ShardingPlan = dataclasses.field(default=None)
+    undistribute_plan: ShardingPlan = dataclasses.field(default=None)
 
     _table_identifier_cache: dict[str, TableIdentifier] = dataclasses.field(default_factory=dict)
 
@@ -273,9 +279,20 @@ def drop_all_indexes_and_constraints(
     table_schema = source_table_identifier.pg_schema_name
     logical_name = source_table_identifier.logical_qualified_name
     removed = []
+    pkey_constraint = inspector.get_pk_constraint(table_name, schema=table_schema)
     constraints = inspector.get_unique_constraints(table_name, schema=table_schema)
     foreign_keys = inspector.get_foreign_keys(table_name, schema=table_schema)
     indexes = inspector.get_indexes(table_name, schema=table_schema)
+
+    if pkey_constraint and pkey_constraint["name"]:
+        handler.add_action(
+            ma.RenameConstraintMigrationAction(
+                table_identifier=target_table_identifier,
+                old_constraint_name=pkey_constraint["name"],
+                new_constraint_name=get_pg_pkey_name(target_table_identifier.pg_table_name),
+            ),
+        )
+
     for key in foreign_keys:
         constraint_name = key["name"]
         if model_ctx is not None:
@@ -522,7 +539,6 @@ def handle_internal_ref_to_scalar_conversion(
             columns={column_name: ref_primary_column},
             target="_id",
         ),
-        foreign_key=True,
     )
     commands.migrate(context, backend, migration_context, model_context, ref_col, NA, **updated_kwargs)
     return True
@@ -675,7 +691,6 @@ def handle_unique_constraint_migration(
     new_column: sa.Column,
     handler: MigrationHandler,
     inspector: Inspector,
-    foreign_key: bool,
     renamed: bool,
     model_context: ModelMigrationContext,
 ):
@@ -719,7 +734,6 @@ def handle_unique_constraint_migration(
             ma.CreateUniqueConstraintMigrationAction(
                 constraint_name=unique_name, table_identifier=target_table_identifier, columns=[new_column_name]
             ),
-            foreign_key,
         )
         return
 
@@ -729,14 +743,12 @@ def handle_unique_constraint_migration(
                 table_identifier=target_table_identifier,
                 constraint_name=unique_name,
             ),
-            foreign_key,
         )
 
         handler.add_action(
             ma.CreateUniqueConstraintMigrationAction(
                 constraint_name=unique_name, table_identifier=target_table_identifier, columns=[new_column_name]
             ),
-            foreign_key,
         )
 
 
@@ -765,7 +777,6 @@ def handle_index_migration(
     new_column: sa.Column,
     handler: MigrationHandler,
     inspector: Inspector,
-    foreign_key: bool,
     renamed: bool,
     model_context: ModelMigrationContext,
 ):
@@ -812,9 +823,7 @@ def handle_index_migration(
         if existing_index["column_names"] == [constraint_column]:
             return
 
-        handler.add_action(
-            ma.DropIndexMigrationAction(index_name=index_name, table_identifier=target_table_identifier), foreign_key
-        )
+        handler.add_action(ma.DropIndexMigrationAction(index_name=index_name, table_identifier=target_table_identifier))
         handler.add_action(
             ma.CreateIndexMigrationAction(
                 index_name=index_name,
@@ -822,7 +831,6 @@ def handle_index_migration(
                 columns=[constraint_column],
                 using=using,
             ),
-            foreign_key,
         )
         return
 
@@ -830,7 +838,6 @@ def handle_index_migration(
         ma.CreateIndexMigrationAction(
             index_name=index_name, table_identifier=target_table_identifier, columns=[constraint_column], using=using
         ),
-        foreign_key,
     )
 
 
@@ -1331,7 +1338,12 @@ def generate_model_tables_mapping(
     return mapped_tables
 
 
-def create_table_migration(table: sa.Table, handler: MigrationHandler, table_identifier: TableIdentifier = None):
+def create_table_migration(
+    migration_ctx: PostgresqlMigrationContext,
+    table: sa.Table,
+    table_identifier: TableIdentifier = None,
+):
+    handler = migration_ctx.handler
     columns = list(table.columns)
     constraints = list(table.constraints)
     indexes = list(table.indexes)
@@ -1360,6 +1372,7 @@ def create_table_migration(table: sa.Table, handler: MigrationHandler, table_ide
             table_identifier=table_identifier, columns=all_columns, comment=table.comment, indexes=filtered_indexes
         )
     )
+    handle_ordered_distribution_strategies(migration_ctx, table_identifier)
 
 
 def rank_model_names(name: str) -> int:
@@ -1527,3 +1540,38 @@ def update_primary_key(
                 % {"table_name": target_table_identifier.pg_table_name},
             )
         )
+
+
+def handle_ordered_distribution_strategies(
+    migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier
+) -> None:
+    _handle_ordered_undistribute(migration_ctx, table_identifier)
+    _handle_ordered_distribute(migration_ctx, table_identifier)
+
+
+def _handle_ordered_undistribute(migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier) -> None:
+    distribution_type = migration_ctx.undistribute_plan.distribution_type(table_identifier)
+    if distribution_type is None:
+        return
+
+    handler = migration_ctx.handler
+    match distribution_type:
+        case DistributionType.TABLE:
+            handler.add_action(UndistributeTable(table_identifier=table_identifier))
+            migration_ctx.undistribute_plan.discard(table_identifier)
+        case _:
+            pass
+
+
+def _handle_ordered_distribute(migration_ctx: PostgresqlMigrationContext, table_identifier: TableIdentifier) -> None:
+    distribution_type = migration_ctx.distribute_plan.distribution_type(table_identifier)
+    if distribution_type is None:
+        return
+
+    handler = migration_ctx.handler
+    match distribution_type:
+        case DistributionType.COPY:
+            handler.add_action(DistributeReference(table_identifier=table_identifier))
+            migration_ctx.distribute_plan.discard(table_identifier)
+        case _:
+            pass

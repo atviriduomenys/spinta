@@ -12,6 +12,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     gather_prepare_columns,
     get_source_table,
     update_primary_key,
+    handle_ordered_distribution_strategies,
 )
 from spinta.backends.postgresql.helpers.name import name_changed
 from spinta.components import Context
@@ -44,7 +45,11 @@ def migrate(
         handler.add_action(ma.AddColumnMigrationAction(table_identifier=target_file_identifier, column=column))
 
     if not inspector.has_table(target_file_identifier.pg_table_name, schema=target_file_identifier.pg_schema_name):
-        create_table_migration(target_file_table, handler, table_identifier=target_file_identifier)
+        create_table_migration(
+            migration_ctx=migration_ctx,
+            table=target_file_table,
+            table_identifier=target_file_identifier,
+        )
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, list, File)
@@ -111,3 +116,4 @@ def migrate(
             target_table_identifier=target_file_identifier,
             handler=handler,
         )
+    handle_ordered_distribution_strategies(migration_ctx, target_file_table)

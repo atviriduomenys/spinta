@@ -351,6 +351,7 @@ CONFIG = {
             "default_access_level": "open",
             "access": "open",
             "sync_retry_count": 0,
+            "default_distribution_strategy": "undistributed",
         },
     },
 }

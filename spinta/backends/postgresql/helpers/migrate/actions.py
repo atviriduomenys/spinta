@@ -622,13 +622,9 @@ class UndistributeTable(MigrationAction):
 class MigrationHandler:
     def __init__(self) -> None:
         self.migrations: list[MigrationAction] = []
-        self.foreign_key_migration: list[MigrationAction] = []
 
-    def add_action(self, action: MigrationAction, foreign_key: bool = False) -> "MigrationHandler":
-        if foreign_key:
-            self.foreign_key_migration.append(action)
-        else:
-            self.migrations.append(action)
+    def add_action(self, action: MigrationAction) -> "MigrationHandler":
+        self.migrations.append(action)
 
         return self
 
@@ -637,16 +633,10 @@ class MigrationHandler:
             if isinstance(migration, DropConstraintMigrationAction):
                 if migration.constraint_name == constraint_name:
                     return True
-        for migration in self.foreign_key_migration:
-            if isinstance(migration, DropConstraintMigrationAction):
-                if migration.constraint_name == constraint_name:
-                    return True
         return False
 
     def gather_migrations(self) -> Generator[MigrationAction, None, None]:
         for migration in self.migrations:
-            yield migration
-        for migration in self.foreign_key_migration:
             yield migration
 
     def run_migrations(self, op: "Operations") -> None:

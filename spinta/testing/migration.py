@@ -83,10 +83,10 @@ def change_index_schema(table_identifier: TableIdentifier, index_name: str, new_
 
 
 # Constraint migration helpers
-def rename_constraint(table_identifier: TableIdentifier, constraint_name: str, new_constraint_name: str) -> str:
+def rename_constraint(table_identifier: TableIdentifier, old_constraint_name: str, new_constraint_name: str) -> str:
     return (
         f"ALTER TABLE {table_identifier.pg_escaped_qualified_name} "
-        f"RENAME CONSTRAINT {pg_identifier_preparer.quote(constraint_name)} TO {pg_identifier_preparer.quote(new_constraint_name)};\n\n"
+        f"RENAME CONSTRAINT {pg_identifier_preparer.quote(old_constraint_name)} TO {pg_identifier_preparer.quote(new_constraint_name)};\n\n"
     )
 
 
@@ -245,15 +245,19 @@ def rename_table(
         f"{add_table_comment(table_identifier=new_table_identifier, comment=comment)}"
     )
 
+    # if rename_pk_constraint:
     if rename_pk_constraint:
         old_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": old_table_identifier.pg_table_name}
         new_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": new_table_identifier.pg_table_name}
-        query += f"{rename_constraint(table_identifier=new_table_identifier, constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
+        query += f"{rename_constraint(table_identifier=new_table_identifier, old_constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
     return query
 
 
 def rename_changelog(
-    old_table_identifier: TableIdentifier, new_table_identifier: TableIdentifier, comment: str = None
+    old_table_identifier: TableIdentifier,
+    new_table_identifier: TableIdentifier,
+    comment: str = None,
+    rename_txn_index: bool = True,
 ) -> str:
     if old_table_identifier.table_type != TableType.CHANGELOG:
         old_table_identifier = old_table_identifier.change_table_type(new_type=TableType.CHANGELOG)
@@ -264,27 +268,28 @@ def rename_changelog(
     old_sequence_name = get_pg_sequence_name(name=old_table_identifier.pg_table_name)
     new_sequence_name = get_pg_sequence_name(name=new_table_identifier.pg_table_name)
 
-    old_txn_index_name = get_pg_index_name(old_table_identifier.pg_table_name, "_txn")
-    new_txn_index_name = get_pg_index_name(new_table_identifier.pg_table_name, "_txn")
-
     sequence_rename = ""
-    index_rename = ""
     sequence_rename += rename_sequence(
         table_identifier=new_table_identifier, sequence_name=old_sequence_name, new_sequence_name=new_sequence_name
     )
-    index_rename += rename_index(
-        table_identifier=new_table_identifier, old_index_name=old_txn_index_name, new_index_name=new_txn_index_name
-    )
-
     old_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": old_table_identifier.pg_table_name}
     new_pk_constraint = PG_NAMING_CONVENTION[Convention.PK] % {"table_name": new_table_identifier.pg_table_name}
-
-    return (
+    result = (
         f"{rename_table(old_table_identifier=old_table_identifier, new_table_identifier=new_table_identifier, comment=comment, rename_pk_constraint=False)}"
         f"{sequence_rename}"
-        f"{rename_constraint(table_identifier=new_table_identifier, constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
-        f"{index_rename}"
+        f"{rename_constraint(table_identifier=new_table_identifier, old_constraint_name=old_pk_constraint, new_constraint_name=new_pk_constraint)}"
     )
+
+    if rename_txn_index:
+        old_txn_index_name = get_pg_index_name(old_table_identifier.pg_table_name, "_txn")
+        new_txn_index_name = get_pg_index_name(new_table_identifier.pg_table_name, "_txn")
+
+        index_rename = ""
+        index_rename += rename_index(
+            table_identifier=new_table_identifier, old_index_name=old_txn_index_name, new_index_name=new_txn_index_name
+        )
+        result += f"{index_rename}"
+    return result
 
 
 def rename_redirect(
@@ -312,7 +317,9 @@ def rename_redirect(
     )
 
 
-def drop_table(table_identifier: TableIdentifier, remove_model_only: bool = False, comment: str = None) -> str:
+def drop_table(
+    table_identifier: TableIdentifier, remove_model_only: bool = False, contains_pkey: bool = True, comment: str = None
+) -> str:
     removed_table_identifier = table_identifier.apply_removed_prefix(remove_model_only=remove_model_only)
     if comment is None:
         comment = removed_table_identifier.logical_qualified_name
@@ -321,5 +328,41 @@ def drop_table(table_identifier: TableIdentifier, remove_model_only: bool = Fals
         old_table_identifier=table_identifier,
         new_table_identifier=removed_table_identifier,
         comment=comment,
-        rename_pk_constraint=False,
+        rename_pk_constraint=contains_pkey,
     )
+
+
+def drop_changelog(table_identifier: TableIdentifier, remove_model_only: bool = False, comment: str = None) -> str:
+    removed_table_identifier = table_identifier.apply_removed_prefix(remove_model_only=remove_model_only)
+    if comment is None:
+        comment = removed_table_identifier.logical_qualified_name
+
+    result = rename_changelog(
+        old_table_identifier=table_identifier,
+        new_table_identifier=removed_table_identifier,
+        comment=comment,
+        rename_txn_index=False,
+    )
+    result += f"{drop_index(table_identifier=removed_table_identifier, index_name=get_pg_index_name(table_identifier.pg_table_name, '_txn'))}"
+    return result
+
+
+# Citus migration helpers
+def add_schema_distribution(schema: str) -> str:
+    return f"SELECT citus_schema_distribute('{pg_identifier_preparer.quote(schema)}');\n\n"
+
+
+def add_reference_distribution(table_identifier: TableIdentifier) -> str:
+    return f"SELECT create_reference_table('{table_identifier.pg_escaped_qualified_name}');\n\n"
+
+
+def add_table_distribution(table_identifier: TableIdentifier, column: str) -> str:
+    return f"SELECT create_distributed_table('{table_identifier.pg_escaped_qualified_name}', '{column}');\n\n"
+
+
+def remove_schema_distribution(schema: str) -> str:
+    return f"SELECT citus_schema_undistribute('{pg_identifier_preparer.quote(schema)}');\n\n"
+
+
+def remove_table_distribution(table_identifier: TableIdentifier) -> str:
+    return f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}', cascade_via_foreign_keys=>true);\n\n"

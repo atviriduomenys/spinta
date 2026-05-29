@@ -204,7 +204,6 @@ def _migrate_scalar_to_ref_4(
             ref_column=ref_column,
             columns={key: column},
         ),
-        True,
     )
 
     # Drop old column after migration
@@ -287,7 +286,6 @@ def _migrate_scalar_to_ref_3(
             columns={ref_column.name: sa.Column(target, type_=ref_column.type)},
             target=target,
         ),
-        True,
     )
 
     # Drop old column after migration
@@ -418,7 +416,6 @@ def migrate(
                         ref_column=primary_column,
                         columns=column_mapping,
                     ),
-                    True,
                 )
 
                 # Drop old columns
@@ -491,7 +488,6 @@ def _handle_property_foreign_key_constraint(
                     old_constraint_name=constraint["name"],
                     new_constraint_name=foreign_key_name,
                 ),
-                foreign_key=True,
             )
             return
 
@@ -503,7 +499,6 @@ def _handle_property_foreign_key_constraint(
                 local_cols=[primary_column.name],
                 remote_cols=[_IDENTIFIABLE_REF_KEY],
             ),
-            foreign_key=True,
         )
         return
 
@@ -518,7 +513,6 @@ def _handle_property_foreign_key_constraint(
             ma.DropConstraintMigrationAction(
                 table_identifier=target_table_identifier, constraint_name=constraint["name"]
             ),
-            foreign_key=True,
         )
         handler.add_action(
             ma.CreateForeignKeyMigrationAction(
@@ -528,7 +522,6 @@ def _handle_property_foreign_key_constraint(
                 local_cols=[primary_column.name],
                 remote_cols=[_IDENTIFIABLE_REF_KEY],
             ),
-            foreign_key=True,
         )
 
 
@@ -625,7 +618,6 @@ def migrate(
                         columns=column_mapping,
                         target=_IDENTIFIABLE_REF_KEY,
                     ),
-                    True,
                 )
 
                 # Drop old column

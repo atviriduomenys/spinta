@@ -14,6 +14,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     index_not_handled_condition,
     constraint_with_foreign_key_columns,
     update_primary_key,
+    handle_ordered_distribution_strategies,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_column_name,
@@ -50,7 +51,7 @@ def migrate(
     array_table = backend.get_table(new.prop, TableType.LIST)
     array_table_identifier = migration_ctx.get_table_identifier(new.prop, TableType.LIST)
     if not inspector.has_table(array_table_identifier.pg_table_name, schema=array_table_identifier.pg_schema_name):
-        create_table_migration(array_table, handler=handler, table_identifier=array_table_identifier)
+        create_table_migration(migration_ctx=migration_ctx, table=array_table, table_identifier=array_table_identifier)
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Column, Array)
@@ -199,3 +200,4 @@ def migrate(
         new.items,
         **kwargs,
     )
+    handle_ordered_distribution_strategies(migration_ctx, target_array_identifier)

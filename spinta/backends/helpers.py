@@ -389,7 +389,7 @@ class TableIdentifier:
     base_name: str
     table_type: TableType = dataclasses.field(default=TableType.MAIN)
     table_arg: str | None = dataclasses.field(default=None)
-    default_pg_schema: str | None = dataclasses.field(default=None)
+    default_pg_schema: str | None = dataclasses.field(default=None, compare=False)
 
     logical_name: str = dataclasses.field(init=False, compare=False)
     # Name with namespace connected with '/', like it is used with Model class
@@ -439,6 +439,9 @@ class TableIdentifier:
         if not self.table_arg.startswith("__"):
             return dataclasses.replace(self, table_arg=f"__{self.table_arg}")
         return self
+
+    def __lt__(self, other: "TableIdentifier") -> bool:
+        return self.logical_qualified_name < other.logical_qualified_name
 
 
 @dispatch(str)
