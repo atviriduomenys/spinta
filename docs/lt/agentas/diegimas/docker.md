@@ -26,7 +26,7 @@ PASTABA: Ši komanda neveiks, kol nebus paleistas Spinta konteineris
 :::
 
 ```bash
-docker exec spinta poetry run spinta config config
+docker exec spinta spinta config config
 ```
 
 Kadangi Spintos konfigūracijos failas neegzistuoja, reikia jį sukurti:
@@ -100,34 +100,6 @@ Jei neturite `Redis` serviso, rekomenduojame diegti Docker konteineryje.
 
 ## Docker konteinerio paleidimas
 
-Norint paleisti Spintos docker konteinerį, reikia sukurti paleidimo scriptą. Tai galite padaryti taip:
-
-```bash
-cat > startup.sh << 'EOF'
-#!/bin/bash
-
-CONFIG_DIR="/app/spinta_config/config"
-
-if [ -z "$(ls -A $CONFIG_DIR 2>/dev/null)" ]; then
-    poetry run spinta check
-fi
-
-exec poetry run spinta -o config=/app/spinta_config/config.yml run /app/spinta_config/manifest.csv --mode external --host 0.0.0.0 --port 8000
-EOF
-```
-
-Patikrinkite spinta vartotojo UID ir GID:
-
-```bash
-id spinta
-```
-
-Rezultato pavyzdys
-
-```
-uid=997(spinta) gid=33(www-data) groups=33(www-data),124(docker)
-```
-
 Sukurkite docker-compose.yml konfigūraciją:
 
 :::{note}
@@ -151,7 +123,6 @@ services:
     restart: always
     ports:
       - "8000:8000"
-    user: "997:33" # įrašykite spinta vartotojo UID:GID
     environment:
       HOME: /app/spinta_config
       SPINTA_CONFIG: /app/spinta_config/config.yml
@@ -192,14 +163,14 @@ docker logs spinta
 ## Konfigūracijos tikrinimas
 
 ```bash
-docker exec spinta poetry run spinta config config backends manifests accesslog
+docker exec spinta spinta config config backends manifests accesslog
 ```
 
 :::{note}
 Jei jūsų duomenų šaltinis - reliacinė duomenų bazė, patikriname ar Spinta gali prisijungti prie duomenų bazės.
 
 ```bash
-docker exec spinta poetry run spinta wait 1
+docker exec spinta spinta wait 1
 ```
 
 :::
