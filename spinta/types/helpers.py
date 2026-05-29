@@ -128,8 +128,9 @@ def replace_undeclared_base_with_comment(
     base_level: Level | None = base.level
 
     model.base = None
+    model_level = model.level if model.level and model.level > Level.structured else None
 
-    if model.level and model.level > Level.structured:
+    if model_level:
         logger.warning(
             "Base %r used by model %r was not found in the manifest. Dropping base reference and downgrading model level to %d.",
             base_model,
@@ -163,7 +164,7 @@ def replace_undeclared_base_with_comment(
             comment="",
             given=CommentGiven(access=None),
             prepare=prepare,
-            level=4,
+            level=model_level.value if model_level else None,
         )
     )
 

@@ -476,3 +476,59 @@ def test_comment_uncomment_base_with_ref_and_level_roundtrip(
     assert base_rows[0]["ref"] == "id"
     assert base_rows[0]["level"] == "4"
     assert len(comment_rows) == 0
+
+
+def test_uncomment_base_restores_model_level(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """When an INSERT comment carries a level, uncomment writes that level back to the model row."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | model    | property | type    | ref  | source | prepare                                        | level | access
+    example              |          |         |      |        |                                                |       |
+                         |          |         |      |        |                                                |       |
+      |   |   | Country  |          |         |      |        |                                                |       |
+                         |          | comment | base | author | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
+      |   |   |          | name     | string  |      |        |                                                |       | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        ["uncomment", "-o", tmp_path / "restored.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "restored.csv")
+    model_rows = [row for row in rows if row.get("model") and not row.get("property")]
+    comment_rows = [row for row in rows if row.get("type") == "comment"]
+
+    assert len(model_rows) == 1
+    assert model_rows[0]["level"] == "4"
+    assert len(comment_rows) == 0
+
+
+def test_uncomment_base_without_level_does_not_change_model_level(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path: Path
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | model    | property | type    | ref  | source | prepare                                        | level | access
+    example              |          |         |      |        |                                                |       |
+                         |          |         |      |        |                                                |       |
+      |   |   | Country  |          |         |      |        |                                                |       |
+                         |          | comment | base | author | insert(base: "dataset/gov/vssa/is/ds/Address") |       |
+      |   |   |          | name     | string  |      |        |                                                |       | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        ["uncomment", "-o", tmp_path / "restored.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "restored.csv")
+    model_rows = [row for row in rows if row.get("model") and not row.get("property")]
+
+    assert model_rows[0]["level"] == ""

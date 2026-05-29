@@ -149,6 +149,10 @@ def _uncomment_rows(rows: list[ManifestRow], uri_filter: str | None) -> list[Man
                     base_row: dict = {col: "" for col in row.keys()}
                     for key, value in fields.items():
                         base_row[key] = value
+                    if row.get("level"):
+                        model_row = result[last_model_index]
+                        model_row["level"] = row.get("level")
+                        result[last_model_index] = model_row
                     result.insert(last_model_index, base_row)
                     last_model_index += 1
                     base_was_inserted = True

@@ -239,4 +239,4 @@ def test_undeclared_base_with_ref_and_level_comment_prepare(rc: RawConfig):
     assert model.base is None, "undeclared base should be dropped"
     assert model.comments, "restore comment should be added"
     comment = model.comments[0]
-    assert comment.prepare == 'insert(base: "dataset/gov/vssa/is/ds/Address", ref: "id", level: 4)'
+    assert comment.prepare == 'insert(base:"dataset/gov/vssa/is/ds/Address", ref:"id", level:4)'

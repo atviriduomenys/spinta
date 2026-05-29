@@ -1,6 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from spinta.components import Context
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
@@ -200,7 +202,7 @@ def test_comment_missing_external_bases(context: Context, rc, cli: SpintaCliRunn
     example                  |         |      |        |                                                |       |         |
                              |         |      |        |                                                |       |         |
       |   |   | Country      |         |      |        |                                                |       |         |
-                             | comment | base |        | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |         |
+                             | comment | base |        | insert(base:"dataset/gov/vssa/is/ds/Address")  |       |         |
       |   |   |   | name     | string  |      |        |                                                |       | private |
     """
     )
@@ -251,7 +253,7 @@ def test_comment_base_all_optional_values_given(context: Context, rc, cli: Spint
     assert comment_row["source"] == "john"
     assert comment_row["uri"] == "http://example.com/issue/1"
     assert comment_row["description"] == "Waiting for Address dataset"
-    assert comment_row["prepare"] == 'insert(base: "dataset/gov/vssa/is/ds/Address")'
+    assert comment_row["prepare"] == 'insert(base:"dataset/gov/vssa/is/ds/Address")'
     assert comment_row["title"], "comment title (creation date) must be set"
     datetime.fromisoformat(comment_row["title"])
 
@@ -346,4 +348,97 @@ def test_comment_base_with_ref_and_level(context: Context, rc, cli: SpintaCliRun
 
     rows = _read_csv(tmp_path / "result.csv")
     comment_row = next(row for row in rows if row.get("type") == "comment")
-    assert comment_row["prepare"] == 'insert(base: "dataset/gov/vssa/is/ds/Address", ref: "id", level: 4)'
+    assert comment_row["prepare"] == 'insert(base:"dataset/gov/vssa/is/ds/Address", ref:"id", level:4)'
+
+
+def test_comment_base_saves_model_level_when_above_structured(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path: Path
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | level | access
+    example                                |         |          |        |     |       |
+                                           |         |          |        |     |       |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |       |
+      |   |                                | Country |          |        |     | 4     |
+      |   |                                |         | name     | string |     |       | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "result.csv")
+    comment_row = next(row for row in rows if row.get("type") == "comment")
+    model_rows = [row for row in rows if row.get("model") and not row.get("property")]
+
+    assert comment_row["level"] == "4"
+    assert model_rows[0]["level"] == "2"
+
+
+def test_comment_uncomment_base_roundtrip_with_model_level(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """Full round-trip: model with level > structured gets its level restored after comment + uncomment."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | level | access
+    example                                |         |          |        |     |       |
+                                           |         |          |        |     |       |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |       |
+      |   |                                | Country |          |        |     | 4     |
+      |   |                                |         | name     | string |     |       | private
+    """),
+    )
+    cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "commented.csv", tmp_path / "manifest.csv"],
+    )
+    result = cli.invoke(
+        rc,
+        ["uncomment", "-o", tmp_path / "restored.csv", tmp_path / "commented.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "restored.csv")
+    model_rows = [row for row in rows if row.get("model") and not row.get("property")]
+    comment_rows = [row for row in rows if row.get("type") == "comment"]
+
+    assert model_rows[0]["level"] == "4"
+    assert len(comment_rows) == 0
+
+
+@pytest.mark.parametrize("model_level", ["", "1", "2"])
+def test_comment_base_does_not_save_model_level_when_not_above_structured(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path: Path, model_level: str
+):
+    """When model.level <= structured (2) or not set, comment does not write level to the comment row
+    and the model level is left unchanged."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(f"""
+    d | r | b                              | m       | property | type   | ref | level      | access
+    example                                |         |          |        |     |            |
+                                           |         |          |        |     |            |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |            |
+      |   |                                | Country |          |        |     | {model_level} |
+      |   |                                |         | name     | string |     |            | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "result.csv")
+    comment_row = next(row for row in rows if row.get("type") == "comment")
+    model_rows = [row for row in rows if row.get("model") and not row.get("property")]
+
+    assert comment_row["level"] == ""
+    assert model_rows[0]["level"] == model_level

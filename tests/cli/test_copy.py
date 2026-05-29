@@ -1453,7 +1453,7 @@ def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: Spin
     example                  |         |        |        |                                                |       |
                              |         |        |        |                                                |       |
       |   |   | Country      |         |        |        |                                                |       |
-                             | comment | base   |        | insert(base: "dataset/gov/vssa/is/ds/Address") | 4     |
+                             | comment | base   |        | insert(base:"dataset/gov/vssa/is/ds/Address")  |       |
       |   |   |   | name     | string  |        |        |                                                |       | private
     """
     )
