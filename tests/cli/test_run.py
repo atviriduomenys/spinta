@@ -909,3 +909,57 @@ def test_scope_select_blocks_filter_by_hidden_field(context: Context, rc: RawCon
     # Filtering by a hidden field must be rejected
     resp = app.get("/example/City/@pub?country_code='lt'")
     assert resp.status_code == 404
+
+
+def test_scope_or_filter_blocks_outside_countries_sqlite(
+    context: Context, rc: RawConfig, tmp_path: Path, sqlite: Sqlite
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property      | type   | ref | source       | prepare                                         | access
+    example                       |        |     |              |                                                 |
+      | resource                  | sql    |     |              |                                                 |
+      |   |   | City              |        |     | CITY         |                                                 |
+                                  | scope  | baltic |           | or(country_code='lt',country_code='lv')         |
+      |   |   |   | name          | string |     | NAME         |                                                 | open
+      |   |   |   | country_code  | string |     | COUNTRY_CODE |                                                 | open
+    """),
+    )
+
+    sqlite.init(
+        {
+            "CITY": [
+                sa.Column("NAME", sa.Text),
+                sa.Column("COUNTRY_CODE", sa.Text),
+            ],
+        }
+    )
+    sqlite.write(
+        "CITY",
+        [
+            {"NAME": "Vilnius", "COUNTRY_CODE": "lt"},
+            {"NAME": "Riga", "COUNTRY_CODE": "lv"},
+            {"NAME": "Berlin", "COUNTRY_CODE": "de"},
+        ],
+    )
+
+    app = create_client(rc, tmp_path, sqlite)
+    app.authmodel("example/City", ["getall", "search"])
+
+    # Scope alone: Baltic cities only
+    resp = app.get("/example/City/@baltic")
+    assert resp.status_code == 200
+    assert sorted(listdata(resp, "name")) == ["Riga", "Vilnius"]
+
+    # User requests a non-Baltic country directly — scope blocks it
+    resp = app.get('/example/City/@baltic?country_code="de"')
+    assert resp.status_code == 200
+    assert listdata(resp, "name") == []
+
+    # User constructs an OR query mixing an allowed and a disallowed country —
+    # scope AND-combines with the user OR, so only the allowed branch survives
+    resp = app.get('/example/City/@baltic?or(country_code="lt",country_code="de")')
+    assert resp.status_code == 200
+    assert listdata(resp, "name") == ["Vilnius"]

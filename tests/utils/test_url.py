@@ -59,3 +59,16 @@ def test_parse_url_path_recognizes_custom_scope():
         {"name": "path", "args": ["example", "City"]},
         {"name": "custom-scope", "args": ["ltu"]},
     ]
+
+
+def test_build_url_path_serializes_custom_scope():
+    query = [
+        {"name": "path", "args": ["example", "City"]},
+        {"name": "custom-scope", "args": ["ltu"]},
+    ]
+    assert build_url_path(query) == "example/City/@ltu"
+
+
+def test_custom_scope_round_trip():
+    path = "example/City/@ltu"
+    assert build_url_path(parse_url_path(path)) == path

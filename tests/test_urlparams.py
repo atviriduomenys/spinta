@@ -3,6 +3,7 @@ import pytest
 from spinta import spyna
 from spinta.components import Context
 from spinta.components import Model
+from spinta.components import Namespace
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.commands import prepare
@@ -63,6 +64,27 @@ def test_prepare_urlparams_sets_custom_scope():
     ]
     _prepare_urlparams_from_path(params)
     assert params.custom_scope == "ltu"
+
+
+def test_prepare_urlparams_raises_if_custom_scope_set_twice():
+    params = UrlParams()
+    params.parsetree = [
+        {"name": "path", "args": ["example", "City"]},
+        {"name": "custom-scope", "args": ["ltu"]},
+        {"name": "custom-scope", "args": ["est"]},
+    ]
+    with pytest.raises(InvalidValue):
+        _prepare_urlparams_from_path(params)
+
+
+def test_prepare_urlparams_raises_if_custom_scope_has_no_args():
+    params = UrlParams()
+    params.parsetree = [
+        {"name": "path", "args": ["example", "City"]},
+        {"name": "custom-scope", "args": []},
+    ]
+    with pytest.raises(InvalidValue):
+        _prepare_urlparams_from_path(params)
 
 
 def _make_model(*scope_names_and_prepares: tuple[str, str]) -> Model:
@@ -352,3 +374,16 @@ class TestApplyCustomScopeFieldAccess:
 
         result = [spyna.unparse(s) for s in params.select]
         assert result == ["name", "status", "population"]
+
+
+class TestApplyCustomScopeWithNamespace:
+    def test_namespace_model_is_ignored(self):
+        ns = Namespace()
+        params = UrlParams()
+        params.model = ns
+        params.custom_scope = "ltu"
+        params.query = None
+
+        _apply_custom_scope(params)
+
+        assert params.query is None
