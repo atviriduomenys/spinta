@@ -4,6 +4,11 @@ Changes
 0.2dev26 (unreleased)
 =====================
 
+Improvements:
+
+- Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
+
+.. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 
 0.2dev25 (2026-05-22)
 =====================
