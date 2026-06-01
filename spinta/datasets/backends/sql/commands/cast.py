@@ -88,6 +88,13 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
                 model_name=dtype.model.name,
                 values=encoding_values,
             )
+        elif not context.get("config").check_ref_filters:
+            # When implicit ref filters are disabled, the referenced row might be
+            # filtered out at the source (e.g. by an explicit filter on the ref
+            # model), so selecting it could find nothing. The `_id` of a keymap
+            # based model is deterministic, so encode it directly instead of
+            # requiring the row to be selectable.
+            id_value = keymap.encode(keymap_name, encoding_values)
         else:
             id_value = generate_ref_id_using_select(context, dtype, values)
 
