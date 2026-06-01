@@ -4,6 +4,12 @@ Changes
 0.2dev26 (unreleased)
 =====================
 
+Improvements:
+
+- Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
+
+.. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
+
 Bug fixes:
 
 - Fixed `count()` function not working properly with `dask` backends (`#1950`_).
@@ -35,10 +41,12 @@ New Features:
 
 Bug fixes:
 
+- Fixed a bug where an empty string literal (``""``) in the ``prepare`` column of an enum row was incorrectly rejected with "At least source or prepare must be specified" (`#1936`_).
 - Fixed a bug where nested backrefs where causing an error (`#1608`_).
 
 .. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
 .. _#1922: https://github.com/atviriduomenys/spinta/issues/1922
+.. _#1936: https://github.com/atviriduomenys/spinta/issues/1936
 
 0.2dev24 (2026-05-08)
 =====================

@@ -869,3 +869,30 @@ def test_check_scope_duplicate_err(context: Context, rc, cli: SpintaCliRunner, t
 
     assert result.exit_code != 0
     assert "already defined" in str(result.exception).lower()
+
+
+def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref        | source    | prepare
+    dataset1                 |         |            |           |
+      | resource1            | sql     |            |           |
+      |   |   | City         |         | id         |           |
+      |   |   |   | id       | integer |            |           |
+      |   |   |   | status   | string  |            |           |
+      |   |   |   |          | enum    | my_status  | 'active'  |
+      |   |   |   |          |         |            | 'inactive'|
+        """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code == 0
+    assert "Named enum 'my_status' is declared directly under property 'status'" in result.stdout
+    assert "Total errors: 1" in result.stdout

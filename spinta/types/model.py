@@ -23,6 +23,7 @@ from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
+    InlineEnumWithName,
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
     KeymapNotSet,
@@ -643,6 +644,11 @@ def check(context: Context, scope: Scope) -> None:
 @check.register(Context, Property)
 def check(context: Context, prop: Property):
     check_property_name(context, prop)
+    if prop.enums:
+        for enum_name in prop.enums:
+            if enum_name:
+                manager = context.get("error_manager")
+                manager.handle_error(InlineEnumWithName(prop, enum=enum_name))
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)

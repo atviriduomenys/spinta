@@ -1464,7 +1464,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
     {model_1_id}          |              |          |      | New   |          |         |      |                         |         |                             |                     |
     {comment_id}          |              |          |      |       |          | comment | TEXT |                         |         |                             | Example             | Comment
     {property_1_id}       |              |          |      |       | text     | string  |      |                         |         |                             |                     |
-    {enum_item_0_id}      |              |          |      |       |          | enum    | side | l                       | 'left'  |                             | Left                | Left side.
+    {enum_item_0_id}      |              |          |      |       |          | enum    |      | l                       | 'left'  |                             | Left                | Left side.
     {enum_item_1_id}      |              |          |      |       |          |         |      | r                       | 'right' |                             | Right               | Right side.
     """
 
@@ -1732,11 +1732,11 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
             property_1_id,
             5,
             "data/New/text",
-            "data/res/Test/New/text/side",
+            "data/res/Test/New/text/{13}",
             "enum",
-            "side",
+            None,
             "enum",
-            "side",
+            None,
             None,
             None,
             None,
@@ -1751,7 +1751,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
             13,
             6,
             "data/New/text",
-            f"data/res/Test/New/text/side/{enum_item_0_id}",
+            f"data/res/Test/New/text/{{13}}/{enum_item_0_id}",
             "enum.item",
             None,
             None,
@@ -1770,7 +1770,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
             13,
             6,
             "data/New/text",
-            f"data/res/Test/New/text/side/{enum_item_1_id}",
+            f"data/res/Test/New/text/{{13}}/{enum_item_1_id}",
             "enum.item",
             None,
             None,
