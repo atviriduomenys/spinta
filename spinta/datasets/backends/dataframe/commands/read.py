@@ -31,6 +31,7 @@ from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
+from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 from spinta.utils.schema import NA
 
 OBJECT_DTYPE = "object"
@@ -268,12 +269,14 @@ def dask_get_all(
     where = env.execute(expr)
     qry = env.build(where)
 
+    env_selected = env.selected
+    list_keys = extract_list_property_names(model, env_selected.keys())
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {
             "_type": model.model_type(),
         }
-        for key, sel in env.selected.items():
+        for key, sel in env_selected.items():
             val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
@@ -288,6 +291,7 @@ def dask_get_all(
                 elif is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32):
                     val = encode_composite_string_id(val, model.external.pkeys)
             res[key] = val
+        res = flat_dicts_to_nested(res, list_keys=list_keys)
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
 

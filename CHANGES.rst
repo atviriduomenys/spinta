@@ -10,6 +10,12 @@ Improvements:
 
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 
+Bug fixes:
+
+- Fixed `count()` function not working properly with `dask` backends (`#1950`_).
+
+.. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
+
 0.2dev25 (2026-05-22)
 =====================
 

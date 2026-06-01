@@ -13,6 +13,8 @@ from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
 from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskDataFrameQueryBuilder,
     DaskSelected as Selected,
+    Count,
+    RESERVED_COUNT_PROP,
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
@@ -127,8 +129,8 @@ def _resolve_unresolved(env: DaskDataFrameQueryBuilder, field: Bind) -> str:
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder)
-def count(env: DaskDataFrameQueryBuilder):
-    return len(env.dataframe.index)
+def count(env: DaskDataFrameQueryBuilder) -> Count:
+    return Count()
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
@@ -142,30 +144,8 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
 
     env.selected = {}
     if args:
-        resolved = {}
-        selected_keys = set()
-        selected_languages = {}
         for key, arg in args:
-            resolved[key] = env.call("_resolve_property", arg)
-        for key, prop in resolved.items():
-            prop_parent = getattr(prop, "parent", None)
-            if prop_parent and isinstance(prop_parent.dtype, Text):
-                selected_keys.add(prop_parent.place)
-                selected_languages.setdefault(prop_parent.place, set()).add(prop.name)
-            else:
-                selected_keys.add(prop.name)
-        for selected_key in selected_keys:
-            prop = env.model.flatprops.get(selected_key)
-            if isinstance(prop.dtype, Text) and authorized(env.context, prop, Action.GETALL):
-                selected_language = selected_languages.get(prop.place)
-                if not selected_language:
-                    env.selected[prop.place] = env.call("select", prop)
-                else:
-                    env.selected[prop.place] = env.call("select", prop, selected_language)
-            elif authorized(env.context, prop, Action.GETALL):
-                env.selected[resolved[selected_key].place] = env.call("select", resolved[selected_key])
-            else:
-                raise PropertyNotFound(env.model, property=resolved[selected_key])
+            env.selected[key] = env.call("select", arg)
     else:
         for prop in take(["_id", "_revision", all], env.model.properties).values():
             if prop.name == "_revision" and not is_custom_revision_prop(prop):
@@ -500,6 +480,15 @@ def select(
     prep: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {k: env.call("select", v) for k, v in prep.items()}
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Count)
+def select(
+    env: DaskDataFrameQueryBuilder,
+    value: Count,
+) -> Selected:
+    env.count = True
+    return Selected(item=RESERVED_COUNT_PROP)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
