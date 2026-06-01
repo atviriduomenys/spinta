@@ -16,7 +16,6 @@ from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
-from spinta.ufuncs.querybuilder.helpers import get_page_values
 from spinta.ufuncs.resultbuilder.helpers import backend_result_builder_getter
 
 log = logging.getLogger(__name__)
@@ -54,9 +53,9 @@ def getall(
         is_page_enabled = env.page.page_.enabled
 
         for row in conn.execute(qry):
-            res = build_row_result(context, model, backend, row, env, keymap, result_builder_getter, extra_properties)
-            if is_page_enabled:
-                res["_page"] = get_page_values(env, row)
+            res = build_row_result(
+                context, model, backend, row, env, keymap, result_builder_getter, extra_properties, is_page_enabled
+            )
             yield res
 
 

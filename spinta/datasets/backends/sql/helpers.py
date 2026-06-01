@@ -12,6 +12,7 @@ from spinta.datasets.keymaps.components import KeyMap
 from spinta.types.datatype import PrimaryKey, Base32
 from spinta.typing import ObjectData
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 from spinta.ufuncs.resultbuilder.helpers import get_row_value, ResultBuilderGetter
 from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to_nested
 
@@ -32,6 +33,7 @@ def build_row_result(
     keymap: KeyMap,
     result_builder_getter: ResultBuilderGetter,
     extra_properties: dict | None = None,
+    include_page: bool = False,
 ) -> ObjectData:
     env_selected = env.selected
     list_keys = extract_list_property_names(model, env_selected.keys())
@@ -49,6 +51,9 @@ def build_row_result(
             ):
                 val = encode_composite_string_id(val, model.external.pkeys)
         res[key] = val
+
+    if include_page:
+        res["_page"] = get_page_values(env, row)
 
     res["_type"] = model.model_type()
     res = flat_dicts_to_nested(res, list_keys=list_keys)
