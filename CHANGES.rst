@@ -13,8 +13,16 @@ Improvements:
   - `spinta comment` — extended to cover base restore comments
   - `spinta uncomment` — extended to restore base rows
 
+- Added `check_ref_filters` configuration option (defaults to `true`) to disable
+  implicit `ref` filters, so that referencing models are no longer filtered by
+  the filters of the models they refer to (`#1901`_). When disabled, a referenced
+  `_id` is still generated even if the referenced row is filtered out at the
+  source.
+
+.. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
+
 
 New Features:
 
@@ -57,6 +65,7 @@ New Features:
 
 - Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
 - Added ability to configure default and model specific distribution strategy (`#1691`_).
+
 
 .. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
 
