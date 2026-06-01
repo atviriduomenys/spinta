@@ -1306,5 +1306,3 @@ def test_getall_implicit_ref_filters_disabled(context, rc, tmp_path, geodb_ref_f
     resp = app.get("/example/City")
     assert resp.status_code == 200
     assert sorted(listdata(resp, "name")) == ["Kaunas", "Ryga", "Vilnius"]
-
-
