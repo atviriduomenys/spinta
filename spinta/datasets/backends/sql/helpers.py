@@ -1,19 +1,22 @@
+from typing import Any
+
 from spinta import commands
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import generate_pk_for_row
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters, encode_composite_string_id
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.types.datatype import PrimaryKey, Base32
 from spinta.typing import ObjectData
 from spinta.ufuncs.helpers import merge_formulas
-from spinta.ufuncs.resultbuilder.helpers import get_row_value
+from spinta.ufuncs.resultbuilder.helpers import get_row_value, ResultBuilderGetter
 from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to_nested
 
 
-def merge_query_with_filters(context: Context, model: Model, request_query: Expr = None) -> Expr:
+def merge_query_with_filters(context: Context, model: Model, request_query: Expr | None = None) -> Expr:
     query = merge_formulas(model.external.prepare, request_query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
@@ -24,11 +27,11 @@ def build_row_result(
     context: Context,
     model: Model,
     backend: Sql,
-    row,
-    env,
+    row: Any,
+    env: SqlQueryBuilder,
     keymap: KeyMap,
-    result_builder_getter,
-    extra_properties: dict = None,
+    result_builder_getter: ResultBuilderGetter,
+    extra_properties: dict | None = None,
 ) -> ObjectData:
     env_selected = env.selected
     list_keys = extract_list_property_names(model, env_selected.keys())
