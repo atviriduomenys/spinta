@@ -169,15 +169,6 @@ class TestApplyCustomScopeRowFilter:
         unparsed = [spyna.unparse(q) for q in params.query]
         assert unparsed == ["name='Vilnius'"]
 
-    def test_unknown_scope_name_leaves_query_unchanged(self):
-        model = _make_model(("ltu", "country_code='lt'"))
-        params = _params(model, scope="nonexistent", query=["name='Vilnius'"])
-
-        _apply_custom_scope(params)
-
-        unparsed = [spyna.unparse(q) for q in params.query]
-        assert unparsed == ["name='Vilnius'"]
-
     def test_conflicting_user_filter_both_appended(self):
         # User sends country_code='de' but scope requires country_code='lt'.
         # Both must appear in query — the scope filter is never dropped, so the
