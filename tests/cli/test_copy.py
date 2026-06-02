@@ -1279,7 +1279,7 @@ def test_copy_undeclared_ref_transforms_to_object(context: Context, rc, cli: Spi
       |   |   | City         |         |      |        |                                        |       |
       |   |   |   | name     | string  |      |        |                                        |       | private
       |   |   |   | country  | object  |      |        |                                        | 2     | private
-                             | comment | type | author | update(type:"ref", ref:"example2/Country") | 4     |
+                             | comment | type |        | update(type:"ref", ref:"example2/Country") | 4     |
     """
     )
 
@@ -1414,5 +1414,46 @@ def test_copy_multiple_scopes(context: Context, rc, cli: SpintaCliRunner, tmp_pa
                              | scope  | eu   |        | region='EU'            | public
       |   |   |   | code     | string |      | kodas  |                        | public
       |   |   |   | region   | string |      | region |                        | public
+    """
+    )
+
+
+def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """When a model declares an undeclared base, copy should output the model
+    without that base and append a restore comment row."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | access
+    example                                |         |          |        |     |
+                                           |         |          |        |     |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |
+      |   |                                | Country |          |        |     |
+      |   |                                |         | name     | string |     | private
+    """),
+    )
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "private",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    manifest = load_manifest(rc, tmp_path / "result.csv")
+    assert (
+        manifest
+        == """
+    d | r | b | model    | property | type    | ref    | source | prepare                                        | level | access
+    example                  |         |        |        |                                                |       |
+                             |         |        |        |                                                |       |
+      |   |   | Country      |         |        |        |                                                |       |
+                             | comment | base   |        | insert(base:"dataset/gov/vssa/is/ds/Address")  |       |
+      |   |   |   | name     | string  |        |        |                                                |       | private
     """
     )

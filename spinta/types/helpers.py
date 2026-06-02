@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Iterable, List
 
 from spinta import exceptions
+from spinta.components import Base
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -45,8 +46,6 @@ RESERVED_PROPERTY_NAMES = {
 }
 
 C_LANG = "C"
-
-SYSTEMIC_COMMENT_AUTHOR = "author"
 
 
 def check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
@@ -108,13 +107,64 @@ def replace_undeclared_ref_with_object(
         Comment(
             id=None,
             parent="type",
-            author=SYSTEMIC_COMMENT_AUTHOR,
+            author="",
             access=Access.private,
             created=datetime.now(timezone.utc).isoformat(),
             comment="",
             given=CommentGiven(access=None),
             prepare=f'update(type:"{original_type}", ref:"{ref_str}")',
             level=4,
+        )
+    )
+
+
+def replace_undeclared_base_with_comment(
+    context: Context,
+    base: Base,
+) -> None:
+    model = base.model
+    base_model = base.parent
+    pk: list[str] = base.pk
+    base_level: Level | None = base.level
+
+    model.base = None
+    model_level = model.level if model.level and model.level > Level.structured else None
+
+    if model_level:
+        logger.warning(
+            "Base %r used by model %r was not found in the manifest. Dropping base reference and downgrading model level to %d.",
+            base_model,
+            model.name,
+            Level.structured.value,
+        )
+        load_level(context, model, Level.structured)
+    else:
+        logger.warning(
+            "Base %r used by model %r was not found in the manifest. Dropping base reference.",
+            base_model,
+            model.name,
+        )
+
+    if model.comments is None:
+        model.comments = []
+
+    prepare_parts = [f'base:"{base_model}"']
+    if pk:
+        prepare_parts.append(f'ref:"{", ".join(pk)}"')
+    if base_level is not None:
+        prepare_parts.append(f"level:{base_level.value}")
+    prepare = f"insert({', '.join(prepare_parts)})"
+    model.comments.append(
+        Comment(
+            id=None,
+            parent="base",
+            author="",
+            access=Access.private,
+            created=datetime.now(timezone.utc).isoformat(),
+            comment="",
+            given=CommentGiven(access=None),
+            prepare=prepare,
+            level=model_level.value if model_level else None,
         )
     )
 

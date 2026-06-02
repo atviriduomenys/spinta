@@ -7,8 +7,14 @@ Changes
 Improvements:
 
 - Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
+- Added a new helper mirroring the existing replace_undeclared_ref_with_object. When a model's base cannot be resolved in
+  the manifest, instead of raising an error, it drops the base from the model, and append a systemic comment row so it can be restored later. (`#1928`_).
+
+  - `spinta comment` — extended to cover base restore comments
+  - `spinta uncomment` — extended to restore base rows
 
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
+.. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
 
 Bug fixes:
 
