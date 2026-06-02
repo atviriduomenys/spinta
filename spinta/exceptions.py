@@ -231,6 +231,11 @@ class PropertyNotFound(UserError):
     template = "Property {property!r} not found."
 
 
+class PropertiesNotFound(UserError):
+    status_code = 404
+    template = "Properties {properties!r} not found."
+
+
 class NoItemRevision(UserError):
     template = "'_revision' must be given on rewrite operation."
 

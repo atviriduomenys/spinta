@@ -8,7 +8,7 @@ from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.commands import prepare
 from spinta.dimensions.scope.components import Scope
-from spinta.exceptions import InvalidValue, PropertyNotFound
+from spinta.exceptions import InvalidValue, PropertiesNotFound, PropertyNotFound
 from spinta.testing.request import make_get_request
 from spinta.urlparams import _apply_custom_scope, _prepare_urlparams_from_path
 
@@ -294,7 +294,7 @@ class TestApplyCustomScopeFieldAccess:
         model = _make_model(("pub", "select(name)"))
         params = _params(model, scope="pub", query=["country_code='lt'"])
 
-        with pytest.raises(PropertyNotFound):
+        with pytest.raises(PropertiesNotFound):
             _apply_custom_scope(params)
 
     def test_filter_on_allowed_field_passes(self):
@@ -310,7 +310,7 @@ class TestApplyCustomScopeFieldAccess:
         model = _make_model(("pub", "select(name)"))
         params = _params(model, scope="pub", sort=["country_code"])
 
-        with pytest.raises(PropertyNotFound):
+        with pytest.raises(PropertiesNotFound):
             _apply_custom_scope(params)
 
     def test_sort_on_allowed_field_passes(self):
@@ -326,7 +326,7 @@ class TestApplyCustomScopeFieldAccess:
         model = _make_model(("pub", "select(name)&country_code='lt'"))
         params = _params(model, scope="pub", query=["status='active'"])
 
-        with pytest.raises(PropertyNotFound):
+        with pytest.raises(PropertiesNotFound):
             _apply_custom_scope(params)
 
     def test_scope_with_row_filter_and_select_allows_filter_on_visible_field(self):
@@ -349,7 +349,7 @@ class TestApplyCustomScopeFieldAccess:
         model = _make_model(("pub", "select(name)&country_code='lt'"))
         params = _params(model, scope="pub", query=["country_code='lt'"])
 
-        with pytest.raises(PropertyNotFound):
+        with pytest.raises(PropertiesNotFound):
             _apply_custom_scope(params)
 
     def test_scope_row_filter_only_allows_any_field_in_user_query(self):

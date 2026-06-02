@@ -361,16 +361,18 @@ def _collect_field_refs(expr: Any) -> set[str]:
 
 def _check_field_access(params: UrlParams, allowed_args: list[dict]) -> None:
     allowed = {spyna.unparse(a) for a in allowed_args}
+    fields_not_found = []
 
     if params.sort:
         for sort_item in params.sort:
-            for field in _collect_field_refs(sort_item) - allowed:
-                raise exceptions.PropertyNotFound(property=field)
+            fields_not_found.extend(_collect_field_refs(sort_item) - allowed)
 
     if params.query:
         for condition in params.query:
-            for field in _collect_field_refs(condition) - allowed:
-                raise exceptions.PropertyNotFound(property=field)
+            fields_not_found.extend(_collect_field_refs(condition) - allowed)
+
+    if fields_not_found:
+        raise exceptions.PropertiesNotFound(properties=fields_not_found)
 
 
 def _apply_scope_select(params: UrlParams, allowed_args: list[dict]) -> None:
