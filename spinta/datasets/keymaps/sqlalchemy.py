@@ -22,6 +22,7 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
+from spinta.datasets.keymaps.helpers import prepare_keymap_values
 from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapMigrationRequired, KeymapDuplicateMapping
 from spinta.utils.json import fix_data_for_json
 
@@ -161,11 +162,14 @@ class SqlAlchemyKeyMap(KeyMap):
             return
 
         select_query = table.select().where(table.c.key == id_)
-        entry = self.conn.execute(select_query).scalar()
+        entry = self.conn.execute(select_query).one_or_none()
         if entry is None:
             query = insert(table).values(key=id_, value=prepared_value, modified_at=modified)
             self.conn.execute(query)
         else:
+            if entry.value == prepared_value and entry.redirect == redirect and entry.modified_at == modified:
+                return
+
             update_query = (
                 sa.update(table)
                 .values(value=prepared_value, redirect=redirect, modified_at=modified)
@@ -315,6 +319,7 @@ def _valid_keymap_value(value: object) -> bool:
 
 
 def prepare_value(value):
+    value = prepare_keymap_values(value)
     return json.dumps(fix_data_for_json(value))
 
 

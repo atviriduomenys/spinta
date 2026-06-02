@@ -60,9 +60,9 @@ def _iter_model_rows(
         else:
             stream = read_model_data(context, model, limit, stop_on_error, params=params)
             for item in stream:
-                if push_counter:
+                if push_counter is not None:
                     push_counter.update(1)
-                if model_push_counter:
+                if model_push_counter is not None:
                     model_push_counter.update(1)
                 yield PushRow(model, item)
 

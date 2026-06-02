@@ -1,25 +1,21 @@
-from __future__ import annotations
-
-from typing import List, Any
-
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Context, Model
 from spinta.core.enums import Mode
-from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
-from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.helpers import extract_and_cast_properties_from_list, process_data_for_pkey
-from spinta.datasets.backends.sql.ufuncs.query.components import SQL_PK_KEY, SQL_PK_COMBINATION_KEY
+from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DASK_PK_KEY, DASK_PK_COMBINE_KEY
+from spinta.datasets.backends.helpers import flatten_keymap_encoding_values, generate_ref_id_using_select
+from spinta.datasets.helpers import process_data_for_pkey, extract_and_cast_properties_from_list
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound, PropertyNotFound
-from spinta.types.datatype import Ref, ExternalRef, Array, PrimaryKey
+from spinta.exceptions import PropertyNotFound, KeymapValueNotFound, GivenValueCountMissmatch
+from spinta.types.datatype import PrimaryKey, Ref, ExternalRef
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
 
-@commands.cast_backend_to_python.register(Context, Model, Sql, dict)
+@commands.cast_backend_to_python.register(Context, Model, DaskBackend, dict)
 def cast_backend_to_python(
-    context: Context, model: Model, backend: Sql, data: dict, *, keymap: KeyMap = None, **kwargs
+    context: Context, model: Model, backend: DaskBackend, data: dict, *, keymap: KeyMap = None, **kwargs
 ):
     if keymap is None:
         keymap = context.get(f"keymap.{model.keymap.name}")
@@ -28,8 +24,10 @@ def cast_backend_to_python(
     return super_(context, model, backend, data, keymap=keymap, **kwargs)
 
 
-@commands.cast_backend_to_python.register(Context, Ref, Sql, dict)
-def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dict, *, keymap: KeyMap = None, **kwargs):
+@commands.cast_backend_to_python.register(Context, Ref, DaskBackend, dict)
+def cast_backend_to_python(
+    context: Context, dtype: Ref, backend: DaskBackend, data: dict, *, keymap: KeyMap = None, **kwargs
+):
     processed_data = {}
     if keymap is None:
         keymap = context.get(f"keymap.{dtype.prop.model.keymap.name}")
@@ -38,7 +36,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
     model = dtype.prop.model
     for key, value in data.items():
         # Skip '_id', it will be processed below, since it needs to be converted to uuid type
-        if key == SQL_PK_KEY:
+        if key == DASK_PK_KEY:
             continue
 
         dtype_key = f"{dtype.prop.place}.{key}"
@@ -58,7 +56,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
         keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in dtype.refprops)}"
 
     values = {}
-    id_data = data.get(SQL_PK_KEY)
+    id_data = data.get(DASK_PK_KEY)
     if not id_data:
         return processed_data
 
@@ -106,7 +104,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
         else:
             id_value = generate_ref_id_using_select(context, dtype, values)
 
-    processed_data[SQL_PK_KEY] = id_value
+    processed_data[DASK_PK_KEY] = id_value
 
     if not processed_data or all(value is None for value in processed_data.values()):
         return None
@@ -114,8 +112,8 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
     return processed_data
 
 
-@commands.cast_backend_to_python.register(Context, ExternalRef, Sql, dict)
-def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: Sql, data: dict, **kwargs):
+@commands.cast_backend_to_python.register(Context, ExternalRef, DaskBackend, dict)
+def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: DaskBackend, data: dict, **kwargs):
     processed_data = {}
     for key, value in data.items():
         prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
@@ -134,26 +132,26 @@ def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: Sql, d
     return processed_data
 
 
-@commands.cast_backend_to_python.register(Context, Ref, Sql, object)
-def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: object, **kwargs):
+@commands.cast_backend_to_python.register(Context, Ref, DaskBackend, object)
+def cast_backend_to_python(context: Context, dtype: Ref, backend: DaskBackend, data: object, **kwargs):
     if len(dtype.refprops) != 1:
         raise GivenValueCountMissmatch(dtype, given_count=1, expected_count=len(dtype.refprops))
 
     return commands.cast_backend_to_python(
-        context, dtype, backend, {SQL_PK_KEY: {dtype.refprops[0].name: data}}, **kwargs
+        context, dtype, backend, {DASK_PK_KEY: {dtype.refprops[0].name: data}}, **kwargs
     )
 
 
-@commands.cast_backend_to_python.register(Context, ExternalRef, Sql, object)
-def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: object, **kwargs):
+@commands.cast_backend_to_python.register(Context, ExternalRef, DaskBackend, object)
+def cast_backend_to_python(context: Context, dtype: Ref, backend: DaskBackend, data: object, **kwargs):
     if len(dtype.refprops) != 1:
         raise GivenValueCountMissmatch(dtype, given_count=1, expected_count=len(dtype.refprops))
 
     return commands.cast_backend_to_python(context, dtype, backend, {dtype.refprops[0].name: data}, **kwargs)
 
 
-@commands.cast_backend_to_python.register(Context, Ref, Sql, (list, tuple))
-def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: list | tuple, **kwargs):
+@commands.cast_backend_to_python.register(Context, Ref, DaskBackend, (list, tuple))
+def cast_backend_to_python(context: Context, dtype: Ref, backend: DaskBackend, data: list | tuple, **kwargs):
     # This kinda of convertion is not preferred (dict values are better), but it's kept to support
     # dialects that cannot cast to json objects.
     # It will only attempt to map dtype.refprops to given values, meaning Denorm mapping is lost
@@ -165,14 +163,14 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: lis
         dtype,
         backend,
         {
-            SQL_PK_KEY: {prop.name: data[i] for i, prop in enumerate(dtype.refprops)},
+            DASK_PK_KEY: {prop.name: data[i] for i, prop in enumerate(dtype.refprops)},
         },
         **kwargs,
     )
 
 
-@commands.cast_backend_to_python.register(Context, ExternalRef, Sql, (list, tuple))
-def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: Sql, data: list | tuple, **kwargs):
+@commands.cast_backend_to_python.register(Context, ExternalRef, DaskBackend, (list, tuple))
+def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: DaskBackend, data: list | tuple, **kwargs):
     # This kinda of convertion is not preferred (dict values are better), but it's kept to support
     # dialects that cannot cast to json objects.
     # It will only attempt to map dtype.refprops to given values, meaning Denorm mapping is lost
@@ -184,24 +182,9 @@ def cast_backend_to_python(context: Context, dtype: ExternalRef, backend: Sql, d
     )
 
 
-@commands.cast_backend_to_python.register(Context, Array, Sql, list)
-def cast_backend_to_python(context: Context, dtype: Array, backend: Sql, data: List[Any], **kwargs) -> List[Any]:
-    # Edge case, when using intermediate table with Sql backend, None values get returned as [None] instead of None
-    if dtype.model is not None and len(data) == 1 and data[0] is None:
-        return commands.cast_backend_to_python(context, dtype.items.dtype, backend, None, **kwargs)
-
-    if data and dtype:
-        data = [commands.cast_backend_to_python(context, dtype.items.dtype, backend, v, **kwargs) for v in data]
-        if all(v is None for v in data):
-            return None
-        return data
-
-    return data
-
-
-@commands.cast_backend_to_python.register(Context, PrimaryKey, Sql, dict)
+@commands.cast_backend_to_python.register(Context, PrimaryKey, DaskBackend, dict)
 def cast_backend_to_python(
-    context: Context, dtype: PrimaryKey, backend: Sql, data: dict, *, keymap: KeyMap = None, **kwargs
+    context: Context, dtype: PrimaryKey, backend: DaskBackend, data: dict, *, keymap: KeyMap = None, **kwargs
 ):
     if keymap is None:
         keymap = context.get(f"keymap.{dtype.prop.model.keymap.name}")
@@ -210,7 +193,7 @@ def cast_backend_to_python(
 
     pk = None
     cached_results = {}
-    pk_data = data.get(SQL_PK_KEY)
+    pk_data = data.get(DASK_PK_KEY)
     # Extract pkey key data
     processed_data = process_data_for_pkey(
         context=context, backend=backend, model=model, data=pk_data, keymap=keymap, cache=cached_results, **kwargs
@@ -230,7 +213,7 @@ def cast_backend_to_python(
     pk = keymap.encode(model.model_type(), processed_data, pk)
 
     # Handle required keymap properties combinations
-    all_combination_data = data.get(SQL_PK_COMBINATION_KEY)
+    all_combination_data = data.get(DASK_PK_COMBINE_KEY)
     if pk and model.required_keymap_properties and all_combination_data:
         for combination in model.required_keymap_properties:
             joined = "_".join(combination)
@@ -253,4 +236,5 @@ def cast_backend_to_python(
                 continue
 
             keymap.encode(key, processed_data, pk)
-    return None
+
+    return pk

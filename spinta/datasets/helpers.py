@@ -2,30 +2,32 @@ import base64
 from typing import Any
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Set
+from typing import Tuple
 
 import cbor2
-from spinta.exceptions import ValuesForIdCantHaveSpecialSymbols
-from spinta import exceptions
+
+from spinta import exceptions, commands
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend, check_if_model_primary_key_is_composite
-from spinta.core.enums import Action
 from spinta.components import Context, Property
 from spinta.components import Model
+from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ShortExpr
+from spinta.datasets.backends.helpers import flatten_keymap_encoding_values
 from spinta.datasets.components import Resource
+from spinta.datasets.keymaps.components import KeyMap
 from spinta.dimensions.enum.helpers import get_prop_enum
+from spinta.exceptions import ValuesForIdCantHaveSpecialSymbols, PropertyNotFound
 from spinta.types.datatype import Ref, Base32
 from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
 from spinta.utils.naming import to_code_name
-
 
 INVALID_PREFIXES = ("/", "@", ":", "?")
 
@@ -222,3 +224,64 @@ def decode_id_value(id_prop: Property, value: str | list) -> list:
         decoded_value = [decoded_value]
 
     return decoded_value
+
+
+def extract_and_cast_properties_from_list(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    keymap: KeyMap,
+    data: dict,
+    cache: dict = None,
+    prefix: str = "",
+    **kwargs,
+):
+    if cache is None:
+        cache = {}
+
+    result = {}
+
+    for key, value in data.items():
+        key = f"{prefix}.{key}" if prefix else key
+        prop = commands.resolve_property(model, key)
+        if prop is None:
+            raise PropertyNotFound(model, property=key)
+        if key not in cache:
+            cache[key] = commands.cast_backend_to_python(context, prop, backend, value, keymap=keymap, **kwargs)
+        result[key] = cache[key]
+
+    return result
+
+
+def process_data_for_pkey(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    keymap: KeyMap,
+    data: dict,
+    cache: dict = None,
+    prefix: str = "",
+    **kwargs,
+) -> list | object | None:
+    processed_data = extract_and_cast_properties_from_list(
+        context=context,
+        backend=backend,
+        model=model,
+        data=data,
+        keymap=keymap,
+        cache=cache,
+        prefix=prefix,
+        **kwargs,
+    )
+    encoding_values = list(processed_data.values())
+
+    if all(value is None for value in encoding_values):
+        return None
+
+    if len(encoding_values) == 1:
+        encoding_values = encoding_values[0]
+
+    # Backwards compatibility, all nested values are converted to list values without keys
+    encoding_values = flatten_keymap_encoding_values(encoding_values)
+
+    return encoding_values

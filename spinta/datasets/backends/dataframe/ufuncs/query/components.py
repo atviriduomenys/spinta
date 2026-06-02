@@ -17,6 +17,11 @@ from spinta.utils.schema import NA
 from spinta.datasets.backends.dataframe.components import DaskBackend
 
 
+RESERVED_COUNT_PROP = "__dask_count"
+DASK_PK_KEY = "_id"
+DASK_PK_COMBINE_KEY = "_combine"
+
+
 class DaskDataFrameQueryBuilder(Env):
     backend: DaskBackend
     model: Model
@@ -89,9 +94,6 @@ class DaskSelected(Selected):
     prop: Property = None
     # A value or an Expr for further processing on selected value.
     prep: Any = NA
-
-
-RESERVED_COUNT_PROP = "__dask_count"
 
 
 @dataclasses.dataclass

@@ -20,7 +20,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
+from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder, SQL_PK_KEY, SQL_PK_COMBINATION_KEY
 from spinta.datasets.backends.sql.ufuncs.query.helpers import (
     select_ref_foreign_key_properties,
     select_external_ref_foreign_key_properties,
@@ -454,7 +454,7 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
     if not dtype.inherited:
-        prep["_id"] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+        prep[SQL_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
@@ -599,11 +599,13 @@ def select(
         # identify row.
         pkeys = take(model.properties).values()
 
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call("select", prop)
-    else:
-        result = [env.call("select", prop) for prop in pkeys]
+    result = {SQL_PK_KEY: {prop.name: env.call("select", prop) for prop in pkeys}, SQL_PK_COMBINATION_KEY: {}}
+    for required_pk_combination in model.required_keymap_properties:
+        combination_result = {}
+        for prop_name in required_pk_combination:
+            prop = _get_property_for_select(env, prop_name)
+            combination_result[prop.name] = env.call("select", prop)
+        result[SQL_PK_COMBINATION_KEY][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 

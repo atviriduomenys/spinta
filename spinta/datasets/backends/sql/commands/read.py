@@ -12,13 +12,12 @@ from spinta.backends.helpers import (
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import generate_pk_for_row
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.helpers import get_enum_filters, decode_id_value, encode_composite_string_id
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.types.datatype import Base32, PrimaryKey
+from spinta.types.datatype import Base32
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.ufuncs.querybuilder.helpers import get_page_values
@@ -47,7 +46,6 @@ def getall(
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
-    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
 
     result_builder_getter = backend_result_builder_getter(context, backend)
 
@@ -70,9 +68,7 @@ def getall(
             for key, sel in env_selected.items():
                 val = get_row_value(context, result_builder_getter, row, sel)
                 if sel.prop:
-                    if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
-                    elif (
+                    if (
                         (is_custom_id_prop(sel.prop) or is_custom_revision_prop(sel.prop))
                         and isinstance(val, (list, tuple))
                         and not isinstance(sel.prop.dtype, Base32)

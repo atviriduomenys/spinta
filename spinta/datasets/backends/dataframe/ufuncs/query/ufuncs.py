@@ -15,6 +15,8 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskSelected as Selected,
     Count,
     RESERVED_COUNT_PROP,
+    DASK_PK_KEY,
+    DASK_PK_COMBINE_KEY,
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
@@ -23,12 +25,37 @@ from spinta.exceptions import (
     SourceCannotBeList,
     SourceOrPrepareNotAllowed,
     InvalidArgumentInExpression,
+    GivenValueCountMissmatch,
 )
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+
+def select_ref_foreign_key_properties(
+    env: DaskDataFrameQueryBuilder, dtype: Ref, *, properties: list = None
+) -> dict[str, Selected]:
+    if properties is None:
+        if dtype.prop.external and dtype.prop.external.prepare:
+            properties = env(this=dtype.prop).resolve(dtype.prop.external.prepare)
+
+    prep = {}
+    given_mapping_count = len(properties) if properties else 1
+    if len(dtype.refprops) != given_mapping_count:
+        raise GivenValueCountMissmatch(dtype, given_count=given_mapping_count, expected_count=len(dtype.refprops))
+
+    if properties is None:
+        refprop = dtype.refprops[0]
+        prep[refprop.name] = Selected(item=refprop.external.name, prop=refprop)
+    else:
+        for i, prop in enumerate(dtype.refprops):
+            sel = env.call("select", properties[i])
+            if sel.prop is None:
+                sel.prop = prop
+            prep[prop.name] = sel
+    return prep
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
@@ -305,17 +332,18 @@ def select(
 ) -> Selected:
     model = dtype.prop.model
     pkeys = model.external.pkeys
-
     if not pkeys:
         # If primary key is not specified use all properties to uniquely
         # identify row.
         pkeys = take(model.properties).values()
 
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call("select", prop)
-    else:
-        result = [env.call("select", prop) for prop in pkeys]
+    result = {DASK_PK_KEY: {prop.name: env.call("select", prop) for prop in pkeys}, DASK_PK_COMBINE_KEY: {}}
+    for required_pk_combination in model.required_keymap_properties:
+        combination_result = {}
+        for prop_name in required_pk_combination:
+            prop = _get_property_for_select(env, prop_name)
+            combination_result[prop.name] = env.call("select", prop)
+        result[DASK_PK_COMBINE_KEY][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 
@@ -326,10 +354,11 @@ def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
-    resolved_prep = env.call("select", prep)
+    resolved = env.resolve_property(prep)
+    resolved_prep = env.call("select", resolved)
 
     result = {}
-    result["_id"] = Selected(prop=dtype.prop, prep=resolved_prep)
+    result[DASK_PK_KEY] = Selected(prop=dtype.prop, prep={resolved.name: resolved_prep})
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
         result[prop.name] = sel
@@ -349,7 +378,8 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
-    prep["_id"] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
+    if not dtype.inherited:
+        prep[DASK_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
