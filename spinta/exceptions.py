@@ -231,6 +231,11 @@ class PropertyNotFound(UserError):
     template = "Property {property!r} not found."
 
 
+class ScopeNotFound(UserError):
+    status_code = 404
+    template = "Scope {scope!r} not found in model {model!r}."
+
+
 class PropertiesNotFound(UserError):
     status_code = 404
     template = "Properties {properties!r} not found."

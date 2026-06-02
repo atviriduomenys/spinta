@@ -8,7 +8,7 @@ from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.commands import prepare
 from spinta.dimensions.scope.components import Scope
-from spinta.exceptions import InvalidValue, PropertiesNotFound, PropertyNotFound
+from spinta.exceptions import InvalidValue, PropertiesNotFound, PropertyNotFound, ScopeNotFound
 from spinta.testing.request import make_get_request
 from spinta.urlparams import _apply_custom_scope, _prepare_urlparams_from_path
 
@@ -374,6 +374,15 @@ class TestApplyCustomScopeFieldAccess:
 
         result = [spyna.unparse(s) for s in params.select]
         assert result == ["name", "status", "population"]
+
+
+class TestApplyCustomScopeNotFound:
+    def test_raises_when_scope_not_in_model(self):
+        model = _make_model(("ltu", "country_code='lt'"))
+        params = _params(model, scope="deu")
+
+        with pytest.raises(ScopeNotFound):
+            _apply_custom_scope(params)
 
 
 class TestApplyCustomScopeWithNamespace:

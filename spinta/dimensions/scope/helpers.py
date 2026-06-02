@@ -1,6 +1,6 @@
 from typing import cast
 
-from spinta import commands
+from spinta import commands, exceptions
 from spinta.components import Context, Model, UrlParams
 from spinta.core.access import load_access_param
 from spinta.core.enums import load_level, load_status, load_visibility
@@ -13,7 +13,10 @@ from spinta.nodes import load_node
 def get_active_custom_scope(model: Model, params: UrlParams) -> Scope | None:
     if not params.custom_scope:
         return None
-    return model.scopes.get(params.custom_scope)
+    scope = model.scopes.get(params.custom_scope)
+    if scope is None:
+        raise exceptions.ScopeNotFound(scope=params.custom_scope, model=model.name)
+    return scope
 
 
 def _load_scope(
