@@ -13,7 +13,6 @@ from typing import TypeVar
 from itertools import chain
 from itertools import count
 from starlette.requests import Request
-from starlette.templating import Jinja2Templates
 
 from shapely.geometry.base import BaseGeometry
 
@@ -35,6 +34,7 @@ from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
 from spinta.formats.html.components import ComplexCell
 from spinta.formats.html.components import Html
+from spinta.formats.html.helpers import create_templates
 from spinta.formats.html.helpers import get_front_page_warning
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
@@ -90,7 +90,7 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     else:
         result = data
 
-    templates = Jinja2Templates(directory=str(resource_filename("spinta", "templates")))
+    templates = create_templates(str(resource_filename("spinta", "templates")))
     return templates.TemplateResponse(
         "form.html",
         {
@@ -286,7 +286,7 @@ def _render_model(
     if request.url.hostname == "testserver":
         ctx["data"] = list(ctx["data"])
 
-    templates = Jinja2Templates(directory=str(resource_filename("spinta", "templates")))
+    templates = create_templates(str(resource_filename("spinta", "templates")))
     return templates.TemplateResponse("data.html", ctx, headers=http_headers)
 
 

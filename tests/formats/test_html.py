@@ -32,6 +32,7 @@ from spinta.formats.html.components import Html
 from spinta.formats.html.helpers import CurrentLocation
 from spinta.formats.html.helpers import get_current_location
 from spinta.formats.html.helpers import get_front_page_warning
+from spinta.formats.html.helpers import render_markdown
 from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
@@ -1332,8 +1333,8 @@ def test_html_changes_corrupt_data(
 
 
 def test_front_page_warning_default(rc: RawConfig):
-    # When `texts.front_page_warning` is not overridden, the default value
-    # defined in `spinta/config.py` is used.
+    # When `texts.front_page_warning` is not overridden, the raw Markdown
+    # default from `spinta/config.py` is exposed in the template context.
     context, _ = load_manifest_and_context(
         rc,
         """
@@ -1342,16 +1343,17 @@ def test_front_page_warning_default(rc: RawConfig):
         """,
     )
     warning = get_front_page_warning(context)["front_page_warning"]
-    assert '<div class="warning">' in warning
+    assert "**Dėmesio!**" in warning
 
 
 def test_front_page_warning_from_config(rc: RawConfig):
-    # A value set in the config (e.g. `config.yml`) overrides the default
-    # from `spinta/config.py`.
+    # A Markdown value set in the config (e.g. `config.yml`) overrides the
+    # default from `spinta/config.py` and is passed through as-is — the
+    # template applies the `| markdown` filter to render it.
     rc = rc.fork(
         {
             "texts": {
-                "front_page_warning": "<div>Custom warning</div>",
+                "front_page_warning": "**Custom** warning",
             },
         }
     )
@@ -1363,7 +1365,24 @@ def test_front_page_warning_from_config(rc: RawConfig):
         """,
     )
     warning = get_front_page_warning(context)["front_page_warning"]
-    assert warning == "<div>Custom warning</div>"
+    assert warning == "**Custom** warning"
+
+
+def test_render_markdown_filter():
+    # The `markdown` Jinja filter renders Markdown to HTML.
+    assert str(render_markdown("**bold**")) == "<p><strong>bold</strong></p>"
+
+
+def test_render_markdown_filter_strips_disallowed_html():
+    # Raw HTML allowed by the Markdown parser is sanitized by bleach so
+    # that dangerous tags cannot reach the rendered page.
+    rendered = str(render_markdown("ok <script>alert(1)</script>"))
+    assert "<script>" not in rendered
+    assert "alert(1)" in rendered  # text kept, tag stripped
+
+
+def test_render_markdown_filter_empty():
+    assert str(render_markdown("")) == ""
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -1375,11 +1394,12 @@ def test_front_page_warning_rendered(
     request: FixtureRequest,
 ):
     # The warning configured via `texts.front_page_warning` is passed to the
-    # template context of pages that extend `base.html`.
+    # template context of pages that extend `base.html`. The raw Markdown
+    # value reaches the template; the `| markdown` filter renders it.
     rc = rc.fork(
         {
             "texts": {
-                "front_page_warning": "<div>Custom warning</div>",
+                "front_page_warning": "**Custom** warning",
             },
         }
     )
@@ -1401,4 +1421,4 @@ def test_front_page_warning_rendered(
     app.authmodel("example/html/warning", ["getall", "search"])
 
     resp = app.get("/example/html/warning/Country/:format/html")
-    assert resp.context["front_page_warning"] == "<div>Custom warning</div>"
+    assert resp.context["front_page_warning"] == "**Custom** warning"

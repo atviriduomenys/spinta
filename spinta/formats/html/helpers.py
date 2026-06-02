@@ -1,5 +1,8 @@
 import datetime
 import bleach
+import markdown
+from markupsafe import Markup
+from starlette.templating import Jinja2Templates
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -246,18 +249,53 @@ def _split_path(
     return result
 
 
-def get_front_page_warning(context: Context) -> dict:
-    """Template context shared by all templates that extend `base.html`."""
-    config: Config = context.get("config")
-    front_page_warning = config.rc.get("texts", "front_page_warning", default="")
-    front_page_warning = bleach.clean(
-        front_page_warning,
-        tags=["div", "a", "strong"],
-        attributes={"a": ["href", "target"], "div": ["class"]},  # allow 'class' on div for styling
+MARKDOWN_ALLOWED_TAGS = [
+    "p", "br",
+    "strong", "em",
+    "a",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+]
+MARKDOWN_ALLOWED_ATTRS = {
+    "a": ["href", "title", "target", "rel"],
+}
+
+
+def render_markdown(value: str) -> Markup:
+    """Jinja filter: render Markdown to sanitized HTML.
+
+    Renders Markdown to HTML, then sanitizes it with bleach so that the
+    result is safe to mark as HTML in templates. Returns a `Markup` so the
+    template engine does not escape the rendered HTML again.
+    """
+    if not value:
+        return Markup("")
+    html = markdown.markdown(value, output_format="html")
+    sanitized = bleach.clean(
+        html,
+        tags=MARKDOWN_ALLOWED_TAGS,
+        attributes=MARKDOWN_ALLOWED_ATTRS,
         strip=True,
     )
+    return Markup(sanitized)
+
+
+def create_templates(directory: str) -> Jinja2Templates:
+    """Build a Jinja2Templates instance with project-wide custom filters."""
+    templates = Jinja2Templates(directory=directory)
+    templates.env.filters["markdown"] = render_markdown
+    return templates
+
+
+def get_front_page_warning(context: Context) -> dict:
+    """Template context shared by all templates that extend `base.html`.
+
+    Returns the raw Markdown string from config; rendering to HTML is done
+    in the template via the `markdown` Jinja filter.
+    """
+    config: Config = context.get("config")
+    raw = config.rc.get("texts", "front_page_warning", default="")
     return {
-        "front_page_warning": front_page_warning,
+        "front_page_warning": raw,
     }
 
 

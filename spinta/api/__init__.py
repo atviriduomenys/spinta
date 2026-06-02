@@ -15,7 +15,6 @@ from starlette.responses import RedirectResponse
 from starlette.responses import Response, JSONResponse
 from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
 
 from spinta import components, commands
 from spinta.accesslog import create_accesslog
@@ -45,6 +44,7 @@ from spinta.commands import prepare, get_version
 from spinta.components import Context, UrlParams
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, ClientValidationError
 from spinta.exceptions import NoAuthServer
+from spinta.formats.html.helpers import create_templates
 from spinta.formats.html.helpers import get_front_page_warning
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
@@ -53,8 +53,8 @@ from spinta.utils.path import resource_filename
 
 log = logging.getLogger(__name__)
 
-templates = Jinja2Templates(
-    directory=str(resource_filename("spinta", "templates")),
+templates = create_templates(
+    str(resource_filename("spinta", "templates")),
 )
 
 

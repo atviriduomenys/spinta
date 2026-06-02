@@ -41,6 +41,7 @@ aiofiles = "*"
 # 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
 authlib = ">=1.0.0"
 bleach = "*"
+markdown = "*"
 jinja2 = "*"
 jsonpatch = "*"
 lark-parser = "*"
