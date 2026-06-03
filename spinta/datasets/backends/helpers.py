@@ -12,7 +12,7 @@ def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> st
     ref_model = dtype.model
     expr_parts = ["select()"]
     for prop in dtype.refprops:
-        expr_parts.append(f'{prop.place}="{data[prop.name]}"')
+        expr_parts.append(f'{prop.place}="{data[prop.place]}"')
     expr = asttoexpr(spyna.parse("&".join(expr_parts)))
     rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
 

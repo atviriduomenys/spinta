@@ -55,7 +55,6 @@ def cast_backend_to_python(
     if dtype.refprops != ref_model.external.pkeys:
         keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in dtype.refprops)}"
 
-    values = {}
     id_data = data.get(DASK_PK_KEY)
     if not id_data:
         return processed_data
@@ -102,7 +101,7 @@ def cast_backend_to_python(
                 values=encoding_values,
             )
         else:
-            id_value = generate_ref_id_using_select(context, dtype, values)
+            id_value = generate_ref_id_using_select(context, dtype, id_processed_data)
 
     processed_data[DASK_PK_KEY] = id_value
 
@@ -220,7 +219,7 @@ def cast_backend_to_python(
             key = f"{model.model_type()}.{joined}"
 
             combination_data = all_combination_data.get(combination)
-            if combination_data is None or list(combination_data.key()) != list(combination):
+            if combination_data is None or list(combination_data.keys()) != list(combination):
                 continue
 
             processed_data = process_data_for_pkey(

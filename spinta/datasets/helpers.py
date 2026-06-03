@@ -242,13 +242,13 @@ def extract_and_cast_properties_from_list(
     result = {}
 
     for key, value in data.items():
-        key = f"{prefix}.{key}" if prefix else key
-        prop = commands.resolve_property(model, key)
+        prop_key = f"{prefix}.{key}" if prefix else key
+        prop = commands.resolve_property(model, prop_key)
         if prop is None:
-            raise PropertyNotFound(model, property=key)
-        if key not in cache:
-            cache[key] = commands.cast_backend_to_python(context, prop, backend, value, keymap=keymap, **kwargs)
-        result[key] = cache[key]
+            raise PropertyNotFound(model, property=prop_key)
+        if prop_key not in cache:
+            cache[prop_key] = commands.cast_backend_to_python(context, prop, backend, value, keymap=keymap, **kwargs)
+        result[key] = cache[prop_key]
 
     return result
 
