@@ -16,6 +16,17 @@ Improvements:
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
 
+New Features:
+
+- Implemented named scope enforcement for data access restriction.
+  Scopes are defined in the manifest and applied per request to restrict what rows and fields a consumer can see. (`#1937`_).
+
+  - Scope row filters are appended after user conditions are validated — user cannot override or drop them.
+  - A contradicting user filter (country_code='de' against scope country_code='lt') produces zero rows, not a bypass.
+  - When scope defines select(...), user filter/sort on hidden fields raises `PropertyNotFound` — field existence is not revealed
+
+.. _#1937: https://github.com/atviriduomenys/spinta/issues/1937
+
 Bug fixes:
 
 - Fixed `count()` function not working properly with `dask` backends (`#1950`_).
