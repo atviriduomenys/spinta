@@ -933,6 +933,8 @@ class UrlParams:
     select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
     select_funcs: Optional[Dict[str, FuncProperty]] = None
 
+    custom_scope: str | None = None
+
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None

@@ -91,7 +91,7 @@ def get_select_tree(
         select = list(select.keys())
 
     select = _apply_always_show_id(context, action, select)
-    if select is None and action in (Action.GETALL, Action.SEARCH):
+    if select is None and action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         # If select is not given, select everything.
         select = {"*": {}}
     return flat_select_to_nested(select)

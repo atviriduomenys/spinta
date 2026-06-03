@@ -1482,7 +1482,7 @@ def test_missing_fields(context, postgresql, mongo, backend, rc, tmp_path):
     resp = app.get(f"/Missingfields/{pk}")
     data = resp.json()
     assert resp.status_code == 200, data
-    assert take(data) == {"code": "lt"}
+    assert take(data) == {"code": "lt", "name": None}
 
 
 @pytest.mark.parametrize("scopes", [["spinta_set_meta_fields"], ["uapi:/:set_meta_fields"]])

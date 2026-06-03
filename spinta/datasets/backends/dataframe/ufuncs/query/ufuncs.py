@@ -27,7 +27,7 @@ from spinta.exceptions import (
     InvalidArgumentInExpression,
     GivenValueCountMissmatch,
 )
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.types.datatype import DataType, Integer, Number, Boolean, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -554,6 +554,24 @@ def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any)
 def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object) -> Series:
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Integer, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: Integer, obj: object) -> Series:
+    name = dtype.prop.external.name
+    return env.dataframe[name] == obj
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Number, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: Number, obj: object) -> Series:
+    name = dtype.prop.external.name
+    return env.dataframe[name] == obj
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Boolean, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: Boolean, obj: object) -> Series:
+    name = dtype.prop.external.name
+    return env.dataframe[name] == obj
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Param, name="eval")

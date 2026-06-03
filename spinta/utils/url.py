@@ -43,6 +43,9 @@ RULES = {
     "inspect": {"maxargs": 0},
     "schema": {"maxargs": 0},
     "move": {"maxargs": 0},
+    "custom-scope": {
+        "maxargs": 1,
+    },
 }
 
 
@@ -83,6 +86,11 @@ def parse_url_path(path) -> List[UrlParseNode]:
                 )
             name = part[1:]
             args = []
+        elif part.startswith("@"):
+            if name is not None:
+                query.append({"name": name, "args": args})
+            name = "custom-scope"
+            args = [part[1:]]
         else:
             args.append(part)
     query.append(
@@ -107,6 +115,8 @@ def build_url_path(query: List[UrlParseNode]):
             parts.extend(args)
         elif name in ("format", "ns", "changes"):
             parts.extend([f":{name}"] + args)
+        elif name == "custom-scope":
+            parts.append(f"@{args[0]}")
         else:
             other.append(param)
     path = "/".join(map(str, parts))
