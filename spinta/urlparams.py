@@ -381,11 +381,10 @@ def _apply_scope_select(params: UrlParams, allowed_args: list[dict]) -> None:
         return
 
     allowed = {spyna.unparse(allowed) for allowed in allowed_args}
-    intersection = [select for select in params.select if spyna.unparse(select) in allowed]
-    if not intersection:
-        first_requested = spyna.unparse(params.select[0])
-        raise exceptions.PropertyNotFound(property=first_requested)
-    params.select = intersection
+    for select in params.select:
+        name = spyna.unparse(select)
+        if name not in allowed:
+            raise exceptions.PropertyNotFound(property=name)
 
 
 def _apply_custom_scope(params: UrlParams) -> None:

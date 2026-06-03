@@ -215,14 +215,12 @@ class TestApplyCustomScopeSelect:
         assert params.select is not None
         assert [spyna.unparse(s) for s in params.select] == ["name"]
 
-    def test_scope_select_intersected_with_user_select(self):
+    def test_scope_select_raises_if_user_selects_outside_scope(self):
         model = _make_model(("pub", "select(name,country_code)"))
         params = _params(model, scope="pub", select=["name", "country_code", "status"])
 
-        _apply_custom_scope(params)
-
-        result = {spyna.unparse(s) for s in params.select}
-        assert result == {"name", "country_code"}
+        with pytest.raises(PropertyNotFound):
+            _apply_custom_scope(params)
 
     def test_user_select_subset_of_scope_select_kept(self):
         model = _make_model(("pub", "select(name,country_code,status)"))

@@ -7,12 +7,14 @@ import pytest
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.client import create_client, create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.utils import error
 
 
 @pytest.fixture
@@ -424,12 +426,9 @@ def test_scope_select_dotted_path_sqlite(context: Context, rc: RawConfig, tmp_pa
     app = create_client(rc, tmp_path, sqlite)
     app.authmodel("example/City", ["getall", "search"])
 
-    # User requests country.code alongside the scope-allowed fields — blocked
+    # User requests country.code which is outside scope — raises error
     resp = app.get("/example/City/@public?select(name,country.name,country.code)")
-    assert resp.status_code == 200
-    data = resp.json()["_data"]
-    assert sorted(row["name"] for row in data) == ["Kaunas", "Vilnius"]
-    assert all("code" not in row.get("country", {}) for row in data)
+    assert resp.status_code == 404
 
 
 def test_scope_caps_user_filter_csv(rc: RawConfig, fs: MemoryFileSystem):
@@ -843,6 +842,7 @@ def test_scope_select_fallback_when_no_overlap(context: Context, rc: RawConfig, 
     # User asks for a field entirely outside the scope — looks like the property doesn't exist.
     resp = app.get("/example/City/@pub?select(country_code)")
     assert resp.status_code == 404
+    assert error(resp, status=404) == "PropertyNotFound"
 
 
 def test_scope_select_blocks_sort_by_hidden_field(context: Context, rc: RawConfig, tmp_path: Path, sqlite: Sqlite):
@@ -873,6 +873,7 @@ def test_scope_select_blocks_sort_by_hidden_field(context: Context, rc: RawConfi
     # Sorting by a hidden field must be rejected
     resp = app.get("/example/City/@pub?sort(country_code)")
     assert resp.status_code == 404
+    assert error(resp, status=404) == "PropertiesNotFound"
 
 
 def test_scope_select_blocks_filter_by_hidden_field(context: Context, rc: RawConfig, tmp_path: Path, sqlite: Sqlite):
@@ -909,6 +910,7 @@ def test_scope_select_blocks_filter_by_hidden_field(context: Context, rc: RawCon
     # Filtering by a hidden field must be rejected
     resp = app.get("/example/City/@pub?country_code='lt'")
     assert resp.status_code == 404
+    assert error(resp, status=404) == "PropertiesNotFound"
 
 
 def test_scope_or_filter_blocks_outside_countries_sqlite(
