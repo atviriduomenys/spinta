@@ -7,7 +7,6 @@ import pytest
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.exceptions import PropertyNotFound
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.client import create_client, create_test_client
 from spinta.testing.data import listdata
