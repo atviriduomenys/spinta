@@ -18,9 +18,11 @@ Improvements:
 
 Bug fixes:
 
+- Fixed a bug where getone method in sql backend did not get any ref data (`#1900`_)
 - Fixed `count()` function not working properly with `dask` backends (`#1950`_).
 - Fixed `eq` comparison not working properly with `dask` backends on Number, Integer, Boolean values (`#1959`_).
 
+.. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
 .. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
 .. _#1959: https://github.com/atviriduomenys/spinta/issues/1959
 
