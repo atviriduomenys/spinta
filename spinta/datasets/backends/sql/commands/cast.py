@@ -86,7 +86,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
 
     # Backwards compatibility, all nested values are converted to list values without keys
     encoding_values = flatten_keymap_encoding_values(encoding_values)
-    if is_custom_id_prop(ref_model.properties["_id"]):
+    if is_custom_id_prop(ref_model.id_prop):
         id_value = generate_ref_id_using_select(context, dtype, id_processed_data)
     else:
         contains = keymap.contains(keymap_name, encoding_values)

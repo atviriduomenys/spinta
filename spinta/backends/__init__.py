@@ -603,7 +603,7 @@ def is_object_id(context: Context, value: str):
 
 @is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
-    return is_object_id(context, backend, model.properties["_id"].dtype, value)
+    return is_object_id(context, backend, model.id_prop.dtype, value)
 
 
 @is_object_id.register(Context, Backend, PrimaryKey, str)

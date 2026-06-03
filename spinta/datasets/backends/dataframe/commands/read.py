@@ -180,7 +180,7 @@ def _select_primary_key(model: Model, df: DataFrame):
         result = _select(prop, df)
     else:
         result = [_select(prop, df) for prop in pkeys]
-    return Selected(prop=model.properties["_id"], prep=result)
+    return Selected(prop=model.id_prop, prep=result)
 
 
 def get_pkeys_if_ref(prop: Property) -> list[str]:

@@ -92,7 +92,7 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    _id_prop = model.properties["_id"]
+    _id_prop = model.id_prop
     raw_id = id_
     if is_custom_id_prop(_id_prop):
         decoded_id = decode_id_value(_id_prop, id_)
@@ -143,7 +143,7 @@ def getone(
             data[field] = value
 
     # TODO: getone needs a ResultBuilder or SqlResultBuilder which would handle expr. This is a hack
-    revision = model.properties.get("_revision")
+    revision = model.revision_prop
     if revision and revision.explicitly_given and revision.external:
         if revision.external.name:
             data["_revision"] = row[revision.external.name]

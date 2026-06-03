@@ -215,7 +215,7 @@ def _get_model_tabular_header(
         reserved = get_ns_reserved_props(action)
     else:
         reserved = _get_model_reserved_props(
-            action, pagination_enabled(model, params), check_if_revision_explicit(model.properties.get("_revision"))
+            action, pagination_enabled(model, params), check_if_revision_explicit(model.revision_prop)
         )
     return get_model_tabular_header(
         context,

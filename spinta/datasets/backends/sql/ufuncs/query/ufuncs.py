@@ -454,7 +454,11 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
     if not dtype.inherited:
-        prep[SQL_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+        ref_model = dtype.model
+        if is_custom_id_prop(ref_model.id_prop):
+            prep[SQL_PK_KEY] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
+        else:
+            prep[SQL_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
