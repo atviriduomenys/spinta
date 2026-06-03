@@ -193,6 +193,127 @@ def test_xsd_getall_raise_error_if_base64_is_invalid(rc: RawConfig, tmp_path: Pa
         )
 
 
+def test_csv_integer_eq_filter(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe("cities.csv", b"name,population\nVilnius,500000\nRyga,600000\nTallinn,400000")
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+    d | r | b | m | property   | type     | ref  | source                   | access
+    example                    |          |      |                          |
+      | res                    | dask/csv |      | memory://cities.csv      |
+      |   |   | City           |          | name |                          |
+      |   |   |   | name       | string   |      | name                     | open
+      |   |   |   | population | integer  |      | population               | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/City?population=500000")
+    assert listdata(resp, "name") == ["Vilnius"]
+
+
+def test_json_integer_eq_filter(rc: RawConfig, tmp_path: Path):
+    data = '{"cities": [{"name": "Vilnius", "population": 500000}, {"name": "Ryga", "population": 600000}, {"name": "Tallinn", "population": 400000}]}'
+    (tmp_path / "cities.json").write_text(data)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property   | type      | ref  | source                       | access
+    example                    |           |      |                              |
+      | res                    | dask/json |      | {tmp_path}/cities.json       |
+      |   |   | City           |           | name | cities                       |
+      |   |   |   | name       | string    |      | name                         | open
+      |   |   |   | population | integer   |      | population                   | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/City?population=500000")
+    assert listdata(resp, "name") == ["Vilnius"]
+
+
+def test_csv_number_eq_filter(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe("cities.csv", b"name,score\nVilnius,8.5\nRyga,7.2\nTallinn,9.1")
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+    d | r | b | m | property | type     | ref  | source                   | access
+    example                  |          |      |                          |
+      | res                  | dask/csv |      | memory://cities.csv      |
+      |   |   | City         |          | name |                          |
+      |   |   |   | name     | string   |      | name                     | open
+      |   |   |   | score    | number   |      | score                    | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/City?score=9.1")
+    assert listdata(resp, "name") == ["Tallinn"]
+
+
+def test_json_number_eq_filter(rc: RawConfig, tmp_path: Path):
+    data = '{"cities": [{"name": "Vilnius", "score": 8.5}, {"name": "Ryga", "score": 7.2}, {"name": "Tallinn", "score": 9.1}]}'
+    (tmp_path / "cities.json").write_text(data)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type      | ref  | source                       | access
+    example                  |           |      |                              |
+      | res                  | dask/json |      | {tmp_path}/cities.json       |
+      |   |   | City         |           | name | cities                       |
+      |   |   |   | name     | string    |      | name                         | open
+      |   |   |   | score    | number    |      | score                        | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/City?score=9.1")
+    assert listdata(resp, "name") == ["Tallinn"]
+
+
+def test_json_boolean_eq_filter(rc: RawConfig, tmp_path: Path):
+    data = '{"cities": [{"name": "Vilnius", "capital": true}, {"name": "Kaunas", "capital": false}, {"name": "Klaipeda", "capital": false}]}'
+    (tmp_path / "cities.json").write_text(data)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property | type      | ref  | source                       | access
+    example                  |           |      |                              |
+      | res                  | dask/json |      | {tmp_path}/cities.json       |
+      |   |   | City         |           | name | cities                       |
+      |   |   |   | name     | string    |      | name                         | open
+      |   |   |   | capital  | boolean   |      | capital                      | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/City", ["getall", "search"])
+
+    resp = app.get("/example/City?capital=true")
+    assert listdata(resp, "name") == ["Vilnius"]
+
+    resp = app.get("/example/City?capital=false")
+    assert listdata(resp, "name") == ["Kaunas", "Klaipeda"]
+
+
 def test_csv_and_operation(rc: RawConfig, fs: AbstractFileSystem):
     fs.pipe("cities.csv", ("salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin").encode("utf-8"))
 

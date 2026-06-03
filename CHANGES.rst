@@ -19,8 +19,10 @@ Improvements:
 Bug fixes:
 
 - Fixed `count()` function not working properly with `dask` backends (`#1950`_).
+- Fixed `eq` comparison not working properly with `dask` backends on Number, Integer, Boolean values (`#1959`_).
 
 .. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
+.. _#1959: https://github.com/atviriduomenys/spinta/issues/1959
 
 0.2dev25 (2026-05-22)
 =====================
