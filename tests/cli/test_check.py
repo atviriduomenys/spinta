@@ -896,3 +896,26 @@ def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRun
     assert result.exit_code == 0
     assert "Named enum 'my_status' is declared directly under property 'status'" in result.stdout
     assert "Total errors: 1" in result.stdout
+
+
+def test_check_undeclared_base_does_not_fail(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | access
+    example                                |         |          |        |     |
+                                           |         |          |        |     |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |
+      |   |                                | Country |          |        |     |
+      |   |                                |         | name     | string |     | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert result.exit_code == 0

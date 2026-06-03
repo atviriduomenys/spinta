@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
-from dask.dataframe import DataFrame
+import pandas as pd
+from dask.dataframe import DataFrame, from_delayed
+from dask import delayed
 
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Env, Expr
 
 from spinta.exceptions import UnknownMethod
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
-from spinta.ufuncs.querybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected, Func
 from spinta.utils.schema import NA
 from spinta.datasets.backends.dataframe.components import DaskBackend
 
@@ -33,6 +36,7 @@ class DaskDataFrameQueryBuilder(Env):
             offset=None,
             params=params,
             url_query=None,
+            count=False,
         )
 
     def build(self, where):
@@ -48,6 +52,18 @@ class DaskDataFrameQueryBuilder(Env):
 
         if where is not None:
             df = df[where]
+
+        if self.count:
+            # To only return one row, we need to calculate the count first and then transform it back to dataframe
+            # Otherwise iterrows will duplicate the result with the number of rows equal to count.
+            # Dask allows delayed calculations which ar lazy.
+
+            # Create a delayed scalar function that returns the count of the dataframe as a new one-column dataframe
+            count_scalar = delayed(lambda value: pd.DataFrame({RESERVED_COUNT_PROP: [value]}))(
+                df.map_partitions(len).sum()
+            )
+            df = from_delayed([count_scalar], meta=pd.DataFrame({RESERVED_COUNT_PROP: pd.Series(dtype="int64")}))
+
         return df
 
     def execute(self, expr: Any):
@@ -73,3 +89,11 @@ class DaskSelected(Selected):
     prop: Property = None
     # A value or an Expr for further processing on selected value.
     prep: Any = NA
+
+
+RESERVED_COUNT_PROP = "__dask_count"
+
+
+@dataclasses.dataclass
+class Count(Func):
+    pass

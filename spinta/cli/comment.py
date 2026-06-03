@@ -5,13 +5,17 @@ from typer import echo
 
 from spinta.cli.helpers.enums import CommentPart
 from spinta.cli.helpers.store import load_manifest
-from spinta.components import Context, Property
+from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
+from spinta.dimensions.comments.components import Comment
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import render_tabular_manifest_rows
 from spinta.manifests.tabular.helpers import write_tabular_manifest
+
+
+RESTORE_COMMENT_PREFIXES = ("update", "insert")
 
 
 def comment(
@@ -79,7 +83,7 @@ def _update_systemic_comments(
     uri: str | None = None,
     description: str | None = None,
 ) -> None:
-    """Update author/uri/description on comment type properties."""
+    """Update author/uri/description on systemic restore comments (refs and bases)."""
     from spinta import commands
 
     if all(argument is None for argument in [author, uri, description]):
@@ -87,22 +91,24 @@ def _update_systemic_comments(
 
     models = commands.get_models(context, manifest)
     for model in models.values():
+        _patch_restore_comments(model.comments, author=author, uri=uri, description=description)
         for prop in model.properties.values():
-            _patch_property_restore_comments(prop, author=author, uri=uri, description=description)
+            _patch_restore_comments(prop.comments, author=author, uri=uri, description=description)
 
 
-def _patch_property_restore_comments(
-    prop: Property,
+def _patch_restore_comments(
+    comments: list[Comment] | None,
     *,
     author: str | None,
     uri: str | None,
     description: str | None,
 ) -> None:
-    if not prop.comments:
+    if not comments:
         return
 
-    for comment in prop.comments:
-        if not comment.prepare or not comment.prepare.startswith("update"):
+    for comment in comments:
+        prepare = comment.prepare or ""
+        if not prepare.startswith(RESTORE_COMMENT_PREFIXES):
             continue
 
         if author is not None:
