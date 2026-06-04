@@ -6,6 +6,8 @@ try:
 except ModuleNotFoundError:
     from sqlalchemy.util import immutabledict
 
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.dialects import registry
 from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
@@ -50,3 +52,22 @@ class Convention(enum.Enum):
 
 def get_metadata_naming_convention(naming_convention: dict[Convention, Any]) -> immutabledict:
     return immutabledict({key.value: value for key, value in naming_convention.items()})
+
+
+def create_configured_engine(uri: str, connect_args: dict | None = None, **kwargs) -> Engine:
+    default_kwargs = {
+        "pool_pre_ping": True,
+        "pool_recycle": 900,
+    }
+
+    default_kwargs.update(kwargs)
+    default_connect_args = {
+        "keepalives": 1,
+        "keepalives_idle": 60,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    }
+    if connect_args:
+        default_connect_args.update(connect_args)
+
+    return create_engine(uri, connect_args=default_connect_args, **default_kwargs)

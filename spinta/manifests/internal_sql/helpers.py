@@ -46,6 +46,7 @@ from spinta.types.datatype import ArrayBackRef, Ref, Array, BackRef, Object
 from spinta.types.text.components import Text
 from spinta.utils.data import take
 from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.sqlalchemy import create_configured_engine
 from spinta.utils.types import is_str_uuid
 
 
@@ -95,7 +96,7 @@ def internal_to_schema(manifest: InternalSQLManifest, rows):
 
 
 def read_schema(path: str):
-    engine = sa.create_engine(path)
+    engine = create_configured_engine(path)
     with engine.connect() as conn:
         yield from _read_all_sql_manifest_rows(path, conn)
 
@@ -358,7 +359,7 @@ def _read_all_sql_manifest_rows(path: Optional[str], conn: sa.engine.Connection,
 
 
 def write_internal_sql_manifest(context: Context, dsn: str, manifest: Manifest):
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
     inspect = sa.inspect(engine)
     with engine.connect() as conn:
         trans = conn.begin()

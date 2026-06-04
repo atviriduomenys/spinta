@@ -20,6 +20,7 @@ from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
 from spinta.testing.utils import error
 from spinta.utils.schema import NA
+from spinta.utils.sqlalchemy import create_configured_engine
 from tests.manifests.internal_sql.test_internal import compare_sql_to_required
 
 
@@ -410,7 +411,7 @@ def test_schema_create_new_dataset(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
@@ -556,7 +557,7 @@ def test_schema_create_new_dataset_when_not_empty(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
@@ -886,7 +887,7 @@ def test_schema_add_new_model(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
@@ -1223,7 +1224,7 @@ def test_schema_remove_model(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
@@ -1551,7 +1552,7 @@ def test_schema_update_model(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
@@ -1824,7 +1825,7 @@ def test_schema_update_model_multiple_times(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
@@ -2200,7 +2201,7 @@ def test_schema_advanced(
     store = context.get("store")
     manifest = store.manifest
     dsn = manifest.path
-    engine = sa.create_engine(dsn)
+    engine = create_configured_engine(dsn)
 
     app = create_test_client(context)
     app.authorize(scopes)
