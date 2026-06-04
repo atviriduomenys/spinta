@@ -18,6 +18,10 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DASK_PK_KEY,
     DASK_PK_COMBINE_KEY,
 )
+from spinta.datasets.backends.dataframe.ufuncs.query.helpers import (
+    select_ref_foreign_key_properties,
+    select_external_ref_foreign_key_properties,
+)
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import (
@@ -25,37 +29,12 @@ from spinta.exceptions import (
     SourceCannotBeList,
     SourceOrPrepareNotAllowed,
     InvalidArgumentInExpression,
-    GivenValueCountMissmatch,
 )
-from spinta.types.datatype import DataType, Integer, Number, Boolean, PrimaryKey, Ref
+from spinta.types.datatype import DataType, Integer, Number, Boolean, PrimaryKey, Ref, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
-
-
-def select_ref_foreign_key_properties(
-    env: DaskDataFrameQueryBuilder, dtype: Ref, *, properties: list = None
-) -> dict[str, Selected]:
-    if properties is None:
-        if dtype.prop.external and dtype.prop.external.prepare:
-            properties = env(this=dtype.prop).resolve(dtype.prop.external.prepare)
-
-    prep = {}
-    given_mapping_count = len(properties) if properties else 1
-    if len(dtype.refprops) != given_mapping_count:
-        raise GivenValueCountMissmatch(dtype, given_count=given_mapping_count, expected_count=len(dtype.refprops))
-
-    if properties is None:
-        refprop = dtype.refprops[0]
-        prep[refprop.name] = Selected(item=refprop.external.name, prop=refprop)
-    else:
-        for i, prop in enumerate(dtype.refprops):
-            sel = env.call("select", properties[i])
-            if sel.prop is None:
-                sel.prop = prop
-            prep[prop.name] = sel
-    return prep
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
@@ -224,7 +203,7 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.external.name and prop.external.prepare is not NA:
+        if prop.external and prop.external.prepare is not NA:
             # If property doesn't have external name - it describes query parameter
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
@@ -238,13 +217,6 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
             #      properties.
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call("select", prop.dtype, result)
-        elif prop.external.prepare is not NA:
-            # property without external name may be evaluated already, if it is use the value
-            if isinstance(prop.external.prepare, Expr):
-                result = env(this=prop).resolve(prop.external.prepare)
-                result = env.call("select", prop.dtype, result)
-            else:
-                result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
@@ -354,11 +326,11 @@ def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
-    resolved = env.resolve_property(prep)
-    resolved_prep = env.call("select", resolved)
+    resolved_prep = env.call("select", prep)
 
     result = {}
-    result[DASK_PK_KEY] = Selected(prop=dtype.prop, prep={resolved.name: resolved_prep})
+    refprop = dtype.refprops[0]
+    result[DASK_PK_KEY] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
         result[prop.name] = sel
@@ -384,6 +356,47 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
             prep[DASK_PK_KEY] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
         else:
             prep[DASK_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, (list, tuple))
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep[DASK_PK_KEY] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype, properties=data)
+        )
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ExternalRef)
+def select(env: DaskDataFrameQueryBuilder, dtype: ExternalRef) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype))
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ExternalRef, (list, tuple))
+def select(env: DaskDataFrameQueryBuilder, dtype: ExternalRef, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype, properties=data))
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
