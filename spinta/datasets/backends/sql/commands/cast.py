@@ -4,14 +4,15 @@ from typing import List, Any
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.backends.helpers import is_custom_id_prop
+from spinta.backends.helpers import check_if_model_primary_key_is_composite, is_custom_id_prop
 from spinta.components import Context, Model
 from spinta.core.enums import Mode
 from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.helpers import encode_composite_string_id
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound
-from spinta.types.datatype import Ref, ExternalRef, Array
+from spinta.types.datatype import Base32, Ref, ExternalRef, Array
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
 
@@ -71,10 +72,31 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
     # Backwards compatibility, all nested values are converted to list values without keys
     encoding_values = flatten_keymap_encoding_values(encoding_values)
 
-    if is_custom_id_prop(ref_model.properties["_id"]):
-        id_value = generate_ref_id_using_select(context, dtype, values)
+    ref_id_prop = ref_model.properties["_id"]
+    if is_custom_id_prop(ref_id_prop):
+        if not context.get("config").check_ref_filters and dtype.refprops == ref_model.external.pkeys:
+            # When implicit ref filters are disabled, the referenced row might be
+            # filtered out at the source (e.g. by an explicit filter on the ref
+            # model), so selecting it could find nothing. A custom `_id` of the
+            # referenced model is derived from its primary keys, which we already
+            # have via the refprop values, so build it the same way the referenced
+            # model itself would (mirrors `build_row_result`) instead of requiring
+            # the row to be selectable.
+            pk_values = list(values.values())
+            is_composite = check_if_model_primary_key_is_composite(ref_model)
+            if is_composite and not isinstance(ref_id_prop.dtype, Base32):
+                # `build_row_result` joins composite primary keys into a single
+                # string for non Base32 ids.
+                id_value = encode_composite_string_id(pk_values, ref_model.external.pkeys)
+            else:
+                # Single primary key ids (and Base32 ids, which cbor encode
+                # composite keys) are produced by casting the raw primary key
+                # value(s) through the `_id` data type.
+                data = pk_values if is_composite else pk_values[0]
+                id_value = commands.cast_backend_to_python(context, ref_id_prop.dtype, backend, data)
+        else:
+            id_value = generate_ref_id_using_select(context, dtype, values)
     else:
-        # TODO tikrinti tik tada, jei išorinis raktas nesutampa su modelio pirminiu raktu
         contains = keymap.contains(keymap_name, encoding_values)
 
         if contains:
@@ -88,12 +110,20 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
                 model_name=dtype.model.name,
                 values=encoding_values,
             )
-        elif not context.get("config").check_ref_filters:
+        elif not context.get("config").check_ref_filters and not (
+            ref_model.base and commands.identifiable(ref_model.base)
+        ):
             # When implicit ref filters are disabled, the referenced row might be
             # filtered out at the source (e.g. by an explicit filter on the ref
             # model), so selecting it could find nothing. The `_id` of a keymap
-            # based model is deterministic, so encode it directly instead of
-            # requiring the row to be selectable.
+            # based model is deterministic given its primary keys, so encode it
+            # directly instead of requiring the row to be selectable.
+            #
+            # Models with an identifiable `base` are excluded: their `_id` is
+            # seeded by the base's key (see `generate_pk_for_row`), which cannot
+            # be reconstructed from the foreign key alone. Encoding directly would
+            # mint a base-unaware id that diverges from — and later clashes with —
+            # the value the referenced model produces, so fall back to selecting.
             id_value = keymap.encode(keymap_name, encoding_values)
         else:
             id_value = generate_ref_id_using_select(context, dtype, values)

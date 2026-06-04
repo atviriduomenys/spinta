@@ -13,11 +13,9 @@ Improvements:
   - `spinta comment` — extended to cover base restore comments
   - `spinta uncomment` — extended to restore base rows
 
-- Added `check_ref_filters` configuration option (defaults to `true`) to disable
-  implicit `ref` filters, so that referencing models are no longer filtered by
-  the filters of the models they refer to (`#1901`_). When disabled, a referenced
-  `_id` is still generated even if the referenced row is filtered out at the
-  source.
+- Added `check_ref_filters` configuration option (defaults to `true`). Set it to
+  `false` to stop a model from being implicitly filtered by the filters of the
+  models it refers to (`#1901`_).
 
 .. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935

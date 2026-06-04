@@ -20,7 +20,8 @@ from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to
 def merge_query_with_filters(context: Context, model: Model, request_query: Expr | None = None) -> Expr:
     query = merge_formulas(model.external.prepare, request_query)
     query = merge_formulas(query, get_enum_filters(context, model))
-    query = merge_formulas(query, get_ref_filters(context, model))
+    if context.get("config").check_ref_filters:
+        query = merge_formulas(query, get_ref_filters(context, model))
     return query
 
 

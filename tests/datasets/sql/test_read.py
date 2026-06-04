@@ -1306,3 +1306,78 @@ def test_getall_implicit_ref_filters_disabled(context, rc, tmp_path, geodb_ref_f
     resp = app.get("/example/City")
     assert resp.status_code == 200
     assert sorted(listdata(resp, "name")) == ["Kaunas", "Ryga", "Vilnius"]
+
+
+# Country has a custom `_id` sourced from its primary key, so the referenced
+# `_id` is built directly from the primary key value instead of selecting the row.
+_REF_FILTERS_CUSTOM_ID_MANIFEST = """
+d | r | b | m | property | type    | ref     | source     | prepare     | access
+example                  |         |         |            |             |
+  | db                   |         | sql     |            |             |
+  |                      |         |         |            |             |
+  |   |   | Country      |         | id      | countries  | code = 'lt' |
+  |   |   |   | _id      | integer |         |            |             | open
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | code     | string  |         | code       |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   | City         |         | id      | cities     |             |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   |   | country  | ref     | Country | country_id |             | open
+"""
+
+
+# Same as above, but the referenced model uses a Base32 `_id`, which is encoded
+# differently than plain ids.
+_REF_FILTERS_BASE32_ID_MANIFEST = """
+d | r | b | m | property | type    | ref     | source     | prepare     | access
+example                  |         |         |            |             |
+  | db                   |         | sql     |            |             |
+  |                      |         |         |            |             |
+  |   |   | Country      |         | id      | countries  | code = 'lt' |
+  |   |   |   | _id      | base32  |         |            |             | open
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | code     | string  |         | code       |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   | City         |         | id      | cities     |             |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   |   | country  | ref     | Country | country_id |             | open
+"""
+
+
+def test_getall_implicit_ref_filters_disabled_custom_id(context, rc, tmp_path, geodb_ref_filters):
+    rc = rc.fork({"check_ref_filters": False})
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_CUSTOM_ID_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+
+    # Only Lietuva (id=1) passes the `code = 'lt'` filter; its `_id` is its pkey.
+    resp = app.get("/example/Country")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "_id") == [(1, 1)]
+
+    # Ryga references Latvija (id=2), which is filtered out, yet `country._id`
+    # is still produced and matches the (filtered) referenced model's pkey.
+    resp = app.get("/example/City")
+    assert resp.status_code == 200
+    cities = {row["name"]: row["country"]["_id"] for row in resp.json()["_data"]}
+    assert cities == {"Vilnius": 1, "Kaunas": 1, "Ryga": 2}
+
+
+def test_getall_implicit_ref_filters_disabled_base32_id(context, rc, tmp_path, geodb_ref_filters):
+    rc = rc.fork({"check_ref_filters": False})
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_BASE32_ID_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+
+    # Only Lietuva (id=1) passes the filter; capture its Base32 `_id`.
+    resp = app.get("/example/Country")
+    assert resp.status_code == 200
+    country_ids = {row["id"]: row["_id"] for row in resp.json()["_data"]}
+    assert country_ids == {1: "GE"}
+
+    # Ryga references Latvija (id=2), which is filtered out, yet `country._id` is
+    # still produced using the same Base32 encoding as the referenced model.
+    resp = app.get("/example/City")
+    assert resp.status_code == 200
+    cities = {row["name"]: row["country"]["_id"] for row in resp.json()["_data"]}
+    assert cities == {"Vilnius": "GE", "Kaunas": "GE", "Ryga": "GI"}
