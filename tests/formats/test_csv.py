@@ -612,3 +612,45 @@ def test_csv_changes_corrupt_data(
         ["_id", "id", "name", "country._id", "country.test", "obj.test"],
         [city_id, "0", "Vilnius", country_id, "", "t_obj_updated"],
     ]
+
+
+@pytest.mark.parametrize(
+    "accept_encoding,content_encoding",
+    [
+        ("gzip", "gzip"),
+        ("identity", None),
+    ],
+)
+def test_csv_gzip(
+    accept_encoding: str,
+    content_encoding: str | None,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property | type   | ref     | access
+    example/csv/gzip         |        |         |
+      |   |   | Country      |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   |   | code     | string |         | open
+    
+    """,
+        backend=postgresql,
+        request=request,
+    )
+    app = create_test_client(context)
+    app.authmodel("example/csv/gzip", ["getall", "insert", "search"])
+
+    # Add data
+    pushdata(app, "/example/csv/gzip/Country", {"name": "Lithuania", "code": "LT"})
+    pushdata(app, "/example/csv/gzip/Country", {"name": "Latvia", "code": "LV"})
+    pushdata(app, "/example/csv/gzip/Country", {"name": "Poland", "code": "PL"})
+
+    result = app.get("/example/csv/gzip/Country/:format/csv", headers={"Accept-Encoding": accept_encoding})
+    assert result.status_code == 200
+    assert result.headers.get("Content-Encoding", None) == content_encoding
+    assert result.headers["Vary"] == "Accept-Encoding"
+    assert "text/csv" in result.headers["Content-Type"]
