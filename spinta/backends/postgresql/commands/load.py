@@ -5,14 +5,15 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
 from spinta.components import Context
-from spinta.utils.sqlalchemy import get_metadata_naming_convention, create_configured_engine
+from spinta.utils.sqlalchemy import get_metadata_naming_convention
 
 
 @commands.load.register(Context, PostgreSQL, dict)
 def load(context: Context, backend: PostgreSQL, config: Dict[str, Any]):
     backend.dsn = config["dsn"]
-    backend.engine = create_configured_engine(backend.dsn, echo=False)
+    backend.engine = create_postgresql_engine(backend.dsn, echo=False)
     backend.schema = sa.MetaData(backend.engine, naming_convention=get_metadata_naming_convention(PG_NAMING_CONVENTION))
     backend.tables = {}
 

@@ -4,8 +4,6 @@ from typing import Optional, Dict, List, Final, Literal
 from spinta.manifests.components import Manifest
 import sqlalchemy as sa
 
-from spinta.utils.sqlalchemy import create_configured_engine
-
 
 class InternalSQLManifest(Manifest):
     type = "internal"
@@ -22,7 +20,7 @@ class InternalSQLManifest(Manifest):
             if not url:
                 return False
             url.get_dialect()
-            engine = create_configured_engine(url)
+            engine = sa.create_engine(url)
             inspector = sa.inspect(engine)
             return inspector.has_table("_manifest")
         except sa.exc.SQLAlchemyError:

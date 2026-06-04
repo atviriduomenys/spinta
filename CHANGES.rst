@@ -12,9 +12,12 @@ Improvements:
 
   - `spinta comment` — extended to cover base restore comments
   - `spinta uncomment` — extended to restore base rows
+- Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
+
 
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
+.. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
 
 New Features:
 

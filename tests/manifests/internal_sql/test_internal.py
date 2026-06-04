@@ -12,8 +12,6 @@ from spinta.testing.manifest import load_manifest, load_manifest_and_context
 
 import sqlalchemy as sa
 
-from spinta.utils.sqlalchemy import create_configured_engine
-
 db_type = {"sqlite": "sqlite", "postgresql": "postgresql"}
 
 pattern = re.compile(r"\{(\d+)\}")
@@ -242,7 +240,7 @@ def test_internal_store_meta_rows(context, db_type: str, rc: RawConfig, tmp_path
         ],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta)])
@@ -481,7 +479,7 @@ def test_internal_store_dataset_rows(context, db_type: str, rc: RawConfig, tmp_p
         ],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta)])
@@ -737,7 +735,7 @@ def test_internal_store_resource_rows(context, db_type: str, rc: RawConfig, tmp_
         ],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta)])
@@ -1011,7 +1009,7 @@ def test_internal_store_base_rows(context, db_type: str, rc: RawConfig, tmp_path
         ],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta)])
@@ -1382,7 +1380,7 @@ def test_internal_store_properties_rows(context, db_type: str, rc: RawConfig, tm
         ],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta)])
@@ -1418,7 +1416,7 @@ def test_internal_store_json_null_rows(context, db_type: str, rc: RawConfig, tmp
         [3, 3, 0, 1, None, "side/{3}", "enum.item", None, None, None, "r", "right", None, None, None, None, None, 0],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta), sa.literal_column("prepare IS NULL").label("prepare_is_null")])
@@ -1787,7 +1785,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
         ],
     ]
 
-    engine = create_configured_engine(dsn)
+    engine = sa.create_engine(dsn)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
         stmt = sa.select([get_table_structure(meta)])

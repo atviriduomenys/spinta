@@ -12,6 +12,7 @@ import sqlalchemy_utils as su
 from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
 
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
 from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
@@ -24,7 +25,6 @@ from spinta.testing.context import ContextForTests
 from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
-from spinta.utils.sqlalchemy import create_configured_engine
 
 
 @pytest.fixture(autouse=True)
@@ -69,7 +69,7 @@ def sqlite():
 
 
 def _prepare_postgresql(dsn: str) -> None:
-    engine = create_configured_engine(dsn)
+    engine = create_postgresql_engine(dsn)
     with engine.connect() as conn:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
@@ -276,13 +276,13 @@ def postgresql_migration_template(rc: RawConfig) -> URL:
     url = url.set(database=MIGRATION_TEMPLATE_DATABASE)
 
     if su.database_exists(url):
-        tmp_engine = create_configured_engine(url, poolclass=sa.pool.NullPool)
+        tmp_engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
         with tmp_engine.connect() as conn:
             conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = false'))
         su.drop_database(url)
 
     su.create_database(url)
-    engine = create_configured_engine(url, poolclass=sa.pool.NullPool)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
     _prepare_migration_postgresql_template(engine)
     yield url
     with engine.connect() as conn:
@@ -299,7 +299,7 @@ def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> U
         su.drop_database(url)
 
     su.create_database(url, template=MIGRATION_TEMPLATE_DATABASE)
-    engine = create_configured_engine(url, poolclass=sa.pool.NullPool)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
     # Need to add citus extension here, because template database does not support citus
     # Citus creates maintenance daemon, which keeps active connection to db and prevents template reuse.
     with engine.connect() as conn:
@@ -310,7 +310,7 @@ def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> U
 
 @pytest.fixture(scope="function")
 def migration_db(postgresql_migration: URL) -> sa.engine.Engine:
-    engine = create_configured_engine(postgresql_migration)
+    engine = create_postgresql_engine(postgresql_migration)
     yield engine
 
 
