@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: production.Dockerfile
+      args:
+        VERSION: latest-pre
     environment:
       - AUTHLIB_INSECURE_TRANSPORT=1
       - HOME=/app/spinta_config
