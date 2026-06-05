@@ -607,7 +607,7 @@ def select(
     for required_pk_combination in model.required_keymap_properties:
         combination_result = {}
         for prop_name in required_pk_combination:
-            prop = _get_property_for_select(env, prop_name)
+            prop = env.resolve_property(prop_name)
             combination_result[prop.name] = env.call("select", prop)
         result[SQL_PK_COMBINATION_KEY][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
