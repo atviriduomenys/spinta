@@ -115,5 +115,6 @@ trigger:
   ref:
     include:
       - refs/heads/master
+      - refs/heads/1965-pakeisti-aplikacijos-konfiguracija
     exclude:
       - refs/tags/**
