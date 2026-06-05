@@ -100,7 +100,7 @@ steps:
       - apk add gettext
       - export BRANCH=${DRONE_BRANCH/\//-}
       - envsubst < docker-compose.dev.yml > docker-compose.yml
-      - docker compose -f docker-compose.yml build --no-cache
+      - docker compose -f docker-compose.yml build --build-arg VERSION=$${DRONE_TAG##refs/tags/} --no-cache
       - docker compose -f docker-compose.yml down || true
       - docker compose -f docker-compose.yml up -d
       - sleep 30 && docker logs src-spinta-1
