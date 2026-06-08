@@ -37,6 +37,7 @@ def getall(
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
     query = merge_query_with_filters(context, model, query)
+
     keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
 
     result_builder_getter = backend_result_builder_getter(context, backend)

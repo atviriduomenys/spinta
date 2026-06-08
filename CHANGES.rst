@@ -15,9 +15,15 @@ Improvements:
 - Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
 
 
+- Added `check_ref_filters` configuration option (defaults to `true`). Set it to
+  `false` to stop a model from being implicitly filtered by the filters of the
+  models it refers to (`#1901`_).
+
+.. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
 .. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
+
 
 New Features:
 
@@ -60,6 +66,7 @@ New Features:
 
 - Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
 - Added ability to configure default and model specific distribution strategy (`#1691`_).
+
 
 .. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
 
