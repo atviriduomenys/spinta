@@ -27,6 +27,80 @@ def cast_backend_to_python(
     return super_(context, model, backend, data, keymap=keymap, **kwargs)
 
 
+def _cast_custom_ref_id(
+    context: Context,
+    dtype: Ref,
+    backend: Sql,
+    ref_model: Model,
+    ref_id_prop,
+    values: dict,
+    ref_filters_disabled: bool,
+):
+    # A custom `_id` is derived from the referenced model's primary keys. When
+    # implicit ref filters are disabled, the referenced row might be filtered
+    # out at the source (e.g. by an explicit filter on the ref model), so
+    # selecting it could find nothing. Since the refprop values already give us
+    # those primary keys, rebuild the id the same way the referenced model would
+    # (mirrors `build_row_result`) instead of requiring the row to be selectable
+    # -- but only when the refprops are exactly those primary keys.
+    if ref_filters_disabled and dtype.refprops == ref_model.external.pkeys:
+        pk_values = list(values.values())
+        is_composite = check_if_model_primary_key_is_composite(ref_model)
+        if is_composite and not isinstance(ref_id_prop.dtype, Base32):
+            # `build_row_result` joins composite primary keys into a single
+            # string for non Base32 ids.
+            return encode_composite_string_id(pk_values, ref_model.external.pkeys)
+        # Single primary key ids (and Base32 ids, which cbor encode composite
+        # keys) are produced by casting the raw primary key value(s) through the
+        # `_id` data type.
+        data = pk_values if is_composite else pk_values[0]
+        return commands.cast_backend_to_python(context, ref_id_prop.dtype, backend, data)
+
+    return generate_ref_id_using_select(context, dtype, values)
+
+
+def _cast_keymap_ref_id(
+    context: Context,
+    dtype: Ref,
+    ref_model: Model,
+    keymap: KeyMap,
+    keymap_name: str,
+    encoding_values,
+    values: dict,
+    ref_filters_disabled: bool,
+):
+    if keymap.contains(keymap_name, encoding_values):
+        return keymap.encode(keymap_name, encoding_values)
+
+    if encoding_values is None:
+        return None
+
+    if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
+        raise KeymapValueNotFound(
+            dtype,
+            keymap=keymap.name,
+            model_name=dtype.model.name,
+            values=encoding_values,
+        )
+
+    # When implicit ref filters are disabled, the referenced row might be
+    # filtered out at the source (e.g. by an explicit filter on the ref model),
+    # so selecting it could find nothing. The `_id` of a keymap based model is
+    # deterministic given its primary keys, so encode it directly instead of
+    # requiring the row to be selectable.
+    #
+    # Models with an identifiable `base` are excluded: their `_id` is seeded by
+    # the base's key (see `generate_pk_for_row`), which cannot be reconstructed
+    # from the foreign key alone. Encoding directly would mint a base-unaware id
+    # that diverges from -- and later clashes with -- the value the referenced
+    # model produces, so fall back to selecting.
+    base_seeded = ref_model.base and commands.identifiable(ref_model.base)
+    if ref_filters_disabled and not base_seeded:
+        return keymap.encode(keymap_name, encoding_values)
+
+    return generate_ref_id_using_select(context, dtype, values)
+
+
 @commands.cast_backend_to_python.register(Context, Ref, Sql, dict)
 def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dict, *, keymap: KeyMap = None, **kwargs):
     processed_data = {}
@@ -72,61 +146,19 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Sql, data: dic
     # Backwards compatibility, all nested values are converted to list values without keys
     encoding_values = flatten_keymap_encoding_values(encoding_values)
 
+    # First decide where the referenced model's `_id` comes from: a custom `_id`
+    # is derived from its own primary keys, while a default `_id` is resolved
+    # through the keymap. The two are produced differently, so handle each in its
+    # own helper (each also decides whether the id can be rebuilt locally or
+    # whether the referenced row must be selected).
     ref_id_prop = ref_model.properties["_id"]
+    ref_filters_disabled = not context.get("config").check_ref_filters
     if is_custom_id_prop(ref_id_prop):
-        if not context.get("config").check_ref_filters and dtype.refprops == ref_model.external.pkeys:
-            # When implicit ref filters are disabled, the referenced row might be
-            # filtered out at the source (e.g. by an explicit filter on the ref
-            # model), so selecting it could find nothing. A custom `_id` of the
-            # referenced model is derived from its primary keys, which we already
-            # have via the refprop values, so build it the same way the referenced
-            # model itself would (mirrors `build_row_result`) instead of requiring
-            # the row to be selectable.
-            pk_values = list(values.values())
-            is_composite = check_if_model_primary_key_is_composite(ref_model)
-            if is_composite and not isinstance(ref_id_prop.dtype, Base32):
-                # `build_row_result` joins composite primary keys into a single
-                # string for non Base32 ids.
-                id_value = encode_composite_string_id(pk_values, ref_model.external.pkeys)
-            else:
-                # Single primary key ids (and Base32 ids, which cbor encode
-                # composite keys) are produced by casting the raw primary key
-                # value(s) through the `_id` data type.
-                data = pk_values if is_composite else pk_values[0]
-                id_value = commands.cast_backend_to_python(context, ref_id_prop.dtype, backend, data)
-        else:
-            id_value = generate_ref_id_using_select(context, dtype, values)
+        id_value = _cast_custom_ref_id(context, dtype, backend, ref_model, ref_id_prop, values, ref_filters_disabled)
     else:
-        contains = keymap.contains(keymap_name, encoding_values)
-
-        if contains:
-            id_value = keymap.encode(keymap_name, encoding_values)
-        elif encoding_values is None:
-            id_value = None
-        elif ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
-            raise KeymapValueNotFound(
-                dtype,
-                keymap=keymap.name,
-                model_name=dtype.model.name,
-                values=encoding_values,
-            )
-        elif not context.get("config").check_ref_filters and not (
-            ref_model.base and commands.identifiable(ref_model.base)
-        ):
-            # When implicit ref filters are disabled, the referenced row might be
-            # filtered out at the source (e.g. by an explicit filter on the ref
-            # model), so selecting it could find nothing. The `_id` of a keymap
-            # based model is deterministic given its primary keys, so encode it
-            # directly instead of requiring the row to be selectable.
-            #
-            # Models with an identifiable `base` are excluded: their `_id` is
-            # seeded by the base's key (see `generate_pk_for_row`), which cannot
-            # be reconstructed from the foreign key alone. Encoding directly would
-            # mint a base-unaware id that diverges from — and later clashes with —
-            # the value the referenced model produces, so fall back to selecting.
-            id_value = keymap.encode(keymap_name, encoding_values)
-        else:
-            id_value = generate_ref_id_using_select(context, dtype, values)
+        id_value = _cast_keymap_ref_id(
+            context, dtype, ref_model, keymap, keymap_name, encoding_values, values, ref_filters_disabled
+        )
 
     processed_data["_id"] = id_value
 
