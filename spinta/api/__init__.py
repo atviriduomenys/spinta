@@ -50,7 +50,7 @@ from spinta.exceptions import (
     NoAuthServer,
     error_response,
 )
-from spinta.middlewares import ContextMiddleware
+from spinta.middlewares import ContextMiddleware, StrictTransportSecurityMiddleware
 from spinta.urlparams import Version, get_response_type
 from spinta.utils.path import resource_filename
 
@@ -465,7 +465,13 @@ def init(context: Context):
         Route("/{path:path}", homepage, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]),
     ]
 
-    middleware = [Middleware(ContextMiddleware, context=context)]
+    middleware = [
+        Middleware(
+            StrictTransportSecurityMiddleware,
+            value=config.http_strict_transport_security,
+        ),
+        Middleware(ContextMiddleware, context=context),
+    ]
 
     exception_handlers = {
         Exception: error,
