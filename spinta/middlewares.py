@@ -24,9 +24,7 @@ class StrictTransportSecurityMiddleware:
         async def send_with_hsts(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = message.setdefault("headers", [])
-                headers.append(
-                    (b"strict-transport-security", self.value.encode("latin-1"))
-                )
+                headers.append((b"strict-transport-security", self.value.encode("latin-1")))
             await send(message)
 
         await self.app(scope, receive, send_with_hsts)

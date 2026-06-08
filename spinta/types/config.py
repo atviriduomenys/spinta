@@ -125,9 +125,7 @@ def load(context: Context, config: Config) -> Config:
 
     config.cache_control = rc.get("cache_control_header", default="")
 
-    config.http_strict_transport_security = rc.get(
-        "http_strict_transport_security", default=""
-    )
+    config.http_strict_transport_security = rc.get("http_strict_transport_security", default="")
 
     if config.token_validation_keys_download_url and config.token_validation_key:
         raise ValueError(
