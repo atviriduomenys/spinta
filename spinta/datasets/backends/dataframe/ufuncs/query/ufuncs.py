@@ -329,8 +329,10 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selecte
     resolved_prep = env.call("select", prep)
 
     result = {}
-    refprop = dtype.refprops[0]
-    result[DASK_PK_KEY] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
+    if not dtype.inherited:
+        refprop = dtype.refprops[0]
+        result[DASK_PK_KEY] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
+
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
         result[prop.name] = sel

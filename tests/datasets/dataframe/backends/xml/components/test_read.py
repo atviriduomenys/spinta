@@ -1657,16 +1657,9 @@ def test_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
     vendor_resp = app.get("/example/Vendor")
     vendor_ids = [vendor_object["_id"] for vendor_object in vendor_resp.json()["_data"]]
 
-    country_resp = app.get("/example/Country")
-    country_ids = [country_object["_id"] for country_object in country_resp.json()["_data"]]
-
-    region_resp = app.get("/example/Region")
-    region_ids = [region_object["_id"] for region_object in region_resp.json()["_data"]]
-
     resp = app.get("/example/Order")
     assert resp.status_code == 200
     data = resp.json()["_data"]
-
     assert data == [
         {
             "_type": "example/Order",
@@ -1676,10 +1669,8 @@ def test_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[0],
                 "country": {
-                    "_id": country_ids[0],
                     "code": "LT",
                     "region": {
-                        "_id": region_ids[0],
                         "code": "REG001",
                         "name": "Vilnius Region",
                     },
@@ -1694,10 +1685,8 @@ def test_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[1],
                 "country": {
-                    "_id": country_ids[1],
                     "code": "PL",
                     "region": {
-                        "_id": region_ids[1],
                         "code": "REG002",
                         "name": "Warsaw Region",
                     },
