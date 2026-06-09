@@ -250,10 +250,17 @@ def _split_path(
 
 
 MARKDOWN_ALLOWED_TAGS = [
-    "p", "br",
-    "strong", "em",
+    "p",
+    "br",
+    "strong",
+    "em",
     "a",
-    "h1", "h2", "h3", "h4", "h5", "h6",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
 ]
 MARKDOWN_ALLOWED_ATTRS = {
     "a": ["href", "title", "target", "rel"],
