@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.exceptions import (
     DataTypeCannotBeUsedForNesting,
@@ -22,6 +23,9 @@ from spinta.exceptions import (
 )
 from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest, load_manifest_and_context
+from spinta.manifests.tabular.helpers import TabularManifestError
+from spinta.types.datatype import ArrayBackRef, BackRef
 
 
 def check(tmp_path, rc, table, manifest_type: str = "csv"):
@@ -1120,6 +1124,49 @@ def test_prop_array_backref_nested(tmp_path, rc):
           |   |   |   | languages[]   | ref     | Language | open
     """,
     )
+
+
+@pytest.mark.parametrize("modifier", ["required", "unique"])
+def test_prop_array_backref_with_modifier(modifier, rc):
+    # Type modifiers such as `required` or `unique` must not prevent an array of
+    # `backref` from being recognised as an array backref (`#1970`).
+    context, manifest = load_manifest_and_context(
+        rc,
+        f"""
+        d | r | b | m | property    | type            | ref      | access
+        example                     |                 |          |
+          |   |   | Language        |                 |          |
+          |   |   |   | name        | string          |          | open
+          |   |   |   | countries[] | backref {modifier} | Country  | open
+          |   |   | Country         |                 |          |
+          |   |   |   | name        | string          |          | open
+          |   |   |   | languages[] | ref             | Language | open
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/Language")
+    prop = model.properties["countries"]
+    assert isinstance(prop.dtype, ArrayBackRef)
+    assert isinstance(prop.dtype.items.dtype, BackRef)
+
+
+@pytest.mark.parametrize("modifier", ["required", "unique"])
+def test_prop_object_redeclared_with_modifier(modifier, rc):
+    # A nesting type with a modifier (e.g. `object required`) must still be
+    # recognised as a nesting type when an auto-created container is later
+    # re-declared explicitly, instead of raising DataTypeCannotBeUsedForNesting
+    # (`#1970`).
+    context, manifest = load_manifest_and_context(
+        rc,
+        f"""
+        d | r | b | m | property | type            | ref | access
+        example                  |                 |     |
+          |   |   | M            |                 |     |
+          |   |   |   | o.a      | string          |     | open
+          |   |   |   | o        | object {modifier} |     | open
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/M")
+    assert "o" in model.properties
 
 
 @pytest.mark.skip("backref not implemented yet #96")
