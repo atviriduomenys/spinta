@@ -11,7 +11,7 @@ RUN useradd -m -s /bin/bash spinta
 RUN chmod +x /app/startup.sh
 RUN chown -R spinta:spinta /app
 
-ARG VERSION
+ARG VERSION=latest-pre
 
 WORKDIR /app
 RUN apt-get update && \
