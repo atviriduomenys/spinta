@@ -1,18 +1,252 @@
 Changes
 #######
 
-0.2dev18 (unreleased)
+0.2dev26 (unreleased)
+=====================
+
+Improvements:
+
+- Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
+- Added a new helper mirroring the existing replace_undeclared_ref_with_object. When a model's base cannot be resolved in
+  the manifest, instead of raising an error, it drops the base from the model, and append a systemic comment row so it can be restored later. (`#1928`_).
+
+  - `spinta comment` — extended to cover base restore comments
+  - `spinta uncomment` — extended to restore base rows
+- Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
+
+
+- Added `check_ref_filters` configuration option (defaults to `true`). Set it to
+  `false` to stop a model from being implicitly filtered by the filters of the
+  models it refers to (`#1901`_).
+
+- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting 
+   them to `string` using the `cast()` prepare function. (`#1701`_).
+
+.. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
+.. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
+.. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
+.. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
+.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
+
+
+New Features:
+
+- Implemented named scope enforcement for data access restriction.
+  Scopes are defined in the manifest and applied per request to restrict what rows and fields a consumer can see. (`#1937`_).
+
+  - Scope row filters are appended after user conditions are validated — user cannot override or drop them.
+  - A contradicting user filter (country_code='de' against scope country_code='lt') produces zero rows, not a bypass.
+  - When scope defines select(...), user filter/sort on hidden fields raises `PropertyNotFound` — field existence is not revealed
+
+.. _#1937: https://github.com/atviriduomenys/spinta/issues/1937
+
+Bug fixes:
+
+- Fixed a bug where getone method in sql backend did not get any ref data (`#1900`_)
+- Fixed `count()` function not working properly with `dask` backends (`#1950`_).
+- Fixed `eq` comparison not working properly with `dask` backends on Number, Integer, Boolean values (`#1959`_).
+
+.. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
+.. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
+.. _#1959: https://github.com/atviriduomenys/spinta/issues/1959
+
+0.2dev25 (2026-05-22)
+=====================
+
+Improvements:
+
+- Added validation in `scope` dimension (`#1922`_):
+
+  - Added `ScopeLoader` class which loads on link and validates each scope's
+    `prepare` expression. It walks `bind` and `getattr` expressions,
+    resolves them against the manifest, and ensures every referenced property
+    actually exists.
+  - Bind/getattr resolution is implemented via `ufunc.resolver` overloads so
+    new expression shapes can be added without touching the loader.
+  - Invalid `prepare` expressions raise a clear `ModelNotFound` `PropertyNotFound`
+    error pointing at the offending scope.
+
+New Features:
+
+- Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
+- Added ability to configure default and model specific distribution strategy (`#1691`_).
+
+
+.. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
+
+Bug fixes:
+
+- Fixed a bug where an empty string literal (``""``) in the ``prepare`` column of an enum row was incorrectly rejected with "At least source or prepare must be specified" (`#1936`_).
+- Fixed a bug where nested backrefs where causing an error (`#1608`_).
+
+.. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
+.. _#1922: https://github.com/atviriduomenys/spinta/issues/1922
+.. _#1936: https://github.com/atviriduomenys/spinta/issues/1936
+
+0.2dev24 (2026-05-08)
+=====================
+
+Improvements:
+
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_): 
+  - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
+  - updated code to correctly display visibility, relationships, cardinality.
+  - added custom diagram styling.
+  - added namespaces.
+  - added dot-notated properties.
+
+
+New Features:
+
+- Adding implicit `link` changes; Implicitly change the `property` of type `ref` that refers a model, that does not exist in the file (`#1872`_).
+- Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
+  - `spinta comment` comments the requested parts (argument) of the manifest;
+  - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
+- Added support for explicitly defined _id fields in the manifest file. Now external backends can include these fields and use them as _id. (`#1905`_).
+- Added support for new `scope` dimension on tabular format. Now scope is understandable by spinta `check` and `copy` commands (`#1882`_).
+
+.. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
+.. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
+.. _#1905: https://github.com/atviriduomenys/spinta/issues/1905
+.. _#1882: https://github.com/atviriduomenys/spinta/issues/1882
+.. _#1888: https://github.com/atviriduomenys/spinta/issues/1888
+
+0.2dev22 (2026-04-23)
 =====================
 
 Bug fixes:
 
-- Resolved a bug that caused the `spinta inspect`` command to error when processing MySQL databases with `JSON` columns (#1701_).
+- Fixed a bug where nested SOAP data was not read properly (`#1866`_).
 
-.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
+.. _#1866: https://github.com/atviriduomenys/spinta/issues/1866
 
+
+New Features:
+
+- Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
+
+.. _#1790: https://github.com/atviriduomenys/spinta/issues/1790
+
+
+Improvements:
+
+- Added support for `spinta admin` `-o` (`--output`) argument, that can be used for scripts to specify output path (`#1790`_).
+
+
+0.2dev22 (2026-04-19)
+=====================
+
+New Features:
+
+- Added new parameter `access` to spinta configuration with default value set to `open` (`#1807`_).
+  This change affects data access permissions:
+  - If `config.access` is lower than `node`, that client is trying to reach, `access` level, spinta always returns `404 ModelNotFound` error.
+  - Whenever an unauthenticated(default client) request is received and `config.access` is set to lower level than `open`, spinta returns `401 AuthorizedClientsOnly`.
+  - `private` nodes can now be accessed with parent node scopes.
+
+.. _#1807: https://github.com/atviriduomenys/spinta/issues/1807
+
+Bug fixes:
+- Fixed a bug where composite properties like x.y and x.y.z... were not returning any data (`#1843`_).
+- Fixed `postgresql_schemas` globally importing optional `alembic` dependency when running spinta (`#1869`_).
+
+.. _#1869: https://github.com/atviriduomenys/spinta/issues/1869
+.. _#1843: https://github.com/atviriduomenys/spinta/issues/1843
+
+0.2dev21 (2026-04-13)
+=====================
+
+Backwards Incompatible:
+
+- `postgresql` backend no longer stores tables under `public` schema. Each dataset will have their own respective schemas.
+  It means that those tables will no longer include `dataset` names as part of their table names. Any new sqlalchemy
+  inspections will need to include table schemas (for easier use `TableIdentifier` with `get_table_identifier` were introduced).
+  When migrating to new version it is important to run either `spinta upgrade postgresql_schemas` or `spinta migrate` before
+  running `spinta bootstrap` (it is not capable of updating table names / schemas, and it will just create new empty tables,
+  causing issues with other migration steps) (`#598`_).
+
+New Features:
+
+- Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
+  schemas (`#598`_).
+- New type - `unknown`. Used for to replace unrecognized column types while reading with `spinta inspect` (`#1848`_).
+
+Improvements:
+
+- Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
+  using dataset names) (`#598`_).
+- `cast()` prepare function now supports conversions from string to `string`, `integer`, `number`,
+  `boolean`, `date`, `time` and `datetime` fields for all backends. (`#1699`_).
+
+.. _#598: https://github.com/atviriduomenys/spinta/issues/598
+.. _#1699: https://github.com/atviriduomenys/spinta/issues/1699
+.. _#1848: https://github.com/atviriduomenys/spinta/issues/1848
+
+0.2dev20 (2026-03-27)
+=====================
+
+New Features:
+
+- Adding SOAP custom adapters support. Now you can add your own SOAP adapters to the SOAP backend in order to extend
+  the functionality of the SOAP backend. (`#1832`_).
+
+.. _#1832: https://github.com/atviriduomenys/spinta/issues/1832
+
+Improvements:
+
+- Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
+  The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
+- Added configuration value default_access_value and set its default value to `private`.
+  Set default value of Manifest component access value to private (`#1802`_).
+- Improved `spinta inspect` manifest generation from XML files. XML file is now parsed in memory efficient
+  way using `lxml iterparse` (`#1805`_).
+
+.. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
+.. _#1802: https://github.com/atviriduomenys/spinta/issues/1802
+
+Bug Fixes:
+
+- Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
+- Fixed a bug which duplicated pagination filters each time new page was fetched during `getall` (`#1829`_).
+- Fixed a bug where a ref property without a source and with a prepare function caused the prepare function to be ignored (`#1813`_).
+
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
+.. _#1829: https://github.com/atviriduomenys/spinta/issues/1829
+.. _#1813: https://github.com/atviriduomenys/spinta/issues/1813
+
+0.2dev19 (2026-03-18)
+======================
+
+Improvements:
+
+- Improved reading of large XML files (Part 1) (`#1805`_)
+- `spinta inspect` doesn't stop on unrecognized types, but instead generates DSA and prints warnings about which columns were not added. (`#1820`_)
+- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
+
+.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
+.. _#1805: https://github.com/atviriduomenys/spinta/issues/1805
+.. _#1820: https://github.com/atviriduomenys/spinta/issues/1820
+
+
+0.2dev18 (2026-03-12)
+=====================
+
+Bug Fixes:
+
+- Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
+- Fixed a bug where an expression in the prepare column was not being evaluated (`#2460`_).
+
+.. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
+.. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
 
 0.2dev17 (2026-02-26)
 =====================
+
+New Features:
+
+- Generate OpenAPI schemas for dependant ref models  (`#Katalogas2299`_).
+
+.. _#Katalogas2299: https://github.com/atviriduomenys/katalogas/issues/2299
 
 Bug fixes:
 
@@ -34,8 +268,8 @@ New Features:
 
 Bug fixes:
 
-- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore 
-  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`, 
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`,
   strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
 - Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
 
@@ -76,8 +310,6 @@ Bug Fixes:
 .. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
 .. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
 
-
-..
 
 0.2dev13 (2026-01-14)
 =====================

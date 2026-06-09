@@ -2562,6 +2562,107 @@ def test_inspect_column_with_json_type(
     tmp_path: Path,
     sqlite: Sqlite,
 ):
+    # Arrange
+    # Create a table with an unsupported column directly to skip SQLite's type affinity.
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID   INTEGER PRIMARY KEY,
+                CODE TEXT,
+                NAME TEXT,
+                "NULL" BLOB SUBTYPE UNKNOWN
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    # Reset resource.source to a specific value for evaluation.
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property   | type    | ref     | source     | prepare
+    db_sqlite                  |         |         |            |
+      | resource1              | sql     |         | sqlite     |
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | _id        | integer |         |            |
+      |   |   |   | code       | string  |         | CODE       |
+      |   |   |   | id         | integer |         | ID         |
+      |   |   |   | name       | string  |         | NAME       |
+      |   |   |   | null       | unknown |         | NULL       |
+    """
+    )
+
+
+def test_inspect_unknown_type_with_relations(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE CATEGORY
+            (
+                ID   BLOB SUBTYPE UNKNOWN PRIMARY KEY,
+                NAME TEXT
+            )
+        """)
+        )
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID          INTEGER PRIMARY KEY,
+                NAME        TEXT,
+                CATEGORY_ID BLOB SUBTYPE UNKNOWN,
+                FOREIGN KEY (CATEGORY_ID) REFERENCES CATEGORY (ID)
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    assert (
+        manifest
+        == """
+    d | r | b | m | property    | type    | ref      | source      | prepare
+    db_sqlite                   |         |          |             |
+      | resource1               | sql     |          | sqlite      |
+                                |         |          |             |
+      |   |   | Category        |         | id       | CATEGORY    |
+      |   |   |   | _id         | unknown |          |             |
+      |   |   |   | id          | unknown |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+                                |         |          |             |
+      |   |   | Country         |         | id       | COUNTRY     |
+      |   |   |   | _id         | integer |          |             |
+      |   |   |   | category_id | ref     | Category | CATEGORY_ID |
+      |   |   |   | id          | integer |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+    """
+    )
+
+
+def test_inspect_column_with_json_type(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
     """
     Test JSON type inspection via CLI.
 
@@ -2593,6 +2694,7 @@ def test_inspect_column_with_json_type(
       | resource1            | sql     |     | sqlite    |         |         |       |
                              |         |     |           |         |         |       |
       |   |   | Country      |         | id  | COUNTRY   |         |         |       |
+      |   |   |   | _id      | integer |     |           |         |         |       |
       |   |   |   | id       | integer |     | ID        |         |         |       |
       |   |   |   | meta     | object  |     | META      |         |         |       |
       |   |   |   | name     | string  |     | NAME      |         |         |       |
