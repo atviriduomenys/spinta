@@ -1,8 +1,12 @@
 import json
 from pathlib import Path
+from unittest.mock import ANY
+
+import pytest
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
+from spinta.exceptions import PartialIncorrectProperty
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
@@ -1017,3 +1021,471 @@ def test_json_read_error_if_backend_cannot_parse_data(rc: RawConfig, tmp_path: P
     response = app.get("example/Country")
     assert response.status_code == 500
     assert get_error_codes(response.json()) == ["UnexpectedErrorReadingData"]
+
+
+def test_json_composite_ref_two_levels_returns_data(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "participant": [
+            {"code": "P001", "asset_code": "AT001", "asset_name": "Equipment"},
+            {"code": "P002", "asset_code": "AT002", "asset_name": "Building"},
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property             | type         | ref       | source      | access | level
+    example                              |              |           |             |        |
+      | data                             | dask/json    |           | {path}      |        |
+      |   |   | AssetType                |              | code      | participant |        | 5
+      |   |   |   | code                 | string       |           | asset_code  | open   | 5
+      |   |   |   | name                 | string       |           | asset_name  | open   | 5
+      |   |   | Participant              |              |           | participant |        | 5
+      |   |   |   | code                 | string       |           | code        | open   | 5
+      |   |   |   | asset_type           | ref required | AssetType | asset_code  | open   | 5
+      |   |   |   | asset_type.code      | string       |           | asset_code  | open   | 5
+      |   |   |   | asset_type.name      | string       |           | asset_name  | open   | 5
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Participant", ["getall"])
+    app.authmodel("example/AssetType", ["getall"])
+
+    asset_type_resp = app.get("/example/AssetType")
+    asset_type_ids = [asset_type_object["_id"] for asset_type_object in asset_type_resp.json()["_data"]]
+
+    resp = app.get("/example/Participant")
+    assert resp.status_code == 200
+
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/Participant",
+            "_id": ANY,
+            "_revision": None,
+            "code": "P001",
+            "asset_type": {"_id": asset_type_ids[0], "name": "Equipment", "code": "AT001"},
+        },
+        {
+            "_type": "example/Participant",
+            "_id": ANY,
+            "_revision": None,
+            "code": "P002",
+            "asset_type": {"_id": asset_type_ids[1], "name": "Building", "code": "AT002"},
+        },
+    ]
+
+
+def test_json_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "order": [
+            {"id": "ORD001", "vendor_code": "VEND001", "country_code": "LT", "country_name": "Lithuania"},
+            {"id": "ORD002", "vendor_code": "VEND002", "country_code": "PL", "country_name": "Poland"},
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                | type         | ref      | source       | access
+    example                                 |              |          |              |
+      | data                                | dask/json    |          | {path}       |
+      |   |   | Country                     |              | code     | order        |
+      |   |   |   | code                    | string       |          | country_code | open
+      |   |   |   | name                    | string       |          | country_name | open
+      |   |   | Vendor                      |              | code     | order        |
+      |   |   |   | code                    | string       |          | vendor_code  | open
+      |   |   |   | country                 | ref required | Country  | country_code | open
+      |   |   |   | country.code            | string       |          | country_code | open
+      |   |   |   | country.name            | string       |          | country_name | open
+      |   |   | Order                       |              |          | order        |
+      |   |   |   | id                      | string       |          | id           | open
+      |   |   |   | vendor                  | ref required | Vendor   | vendor_code  | open
+      |   |   |   | vendor.country.code     | string       |          | country_code | open
+      |   |   |   | vendor.country.name     | string       |          | country_name | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Order", ["getall"])
+    app.authmodel("example/Vendor", ["getall"])
+    app.authmodel("example/Country", ["getall"])
+
+    vendor_resp = app.get("/example/Vendor")
+    vendor_ids = [vendor_object["_id"] for vendor_object in vendor_resp.json()["_data"]]
+
+    country_resp = app.get("/example/Country")
+    country_ids = [country_object["_id"] for country_object in country_resp.json()["_data"]]
+
+    resp = app.get("/example/Order")
+    assert resp.status_code == 200
+
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/Order",
+            "_id": ANY,
+            "_revision": None,
+            "id": "ORD001",
+            "vendor": {
+                "_id": vendor_ids[0],
+                "country": {
+                    "_id": country_ids[0],
+                    "code": "LT",
+                    "name": "Lithuania",
+                },
+            },
+        },
+        {
+            "_type": "example/Order",
+            "_id": ANY,
+            "_revision": None,
+            "id": "ORD002",
+            "vendor": {
+                "_id": vendor_ids[1],
+                "country": {
+                    "_id": country_ids[1],
+                    "code": "PL",
+                    "name": "Poland",
+                },
+            },
+        },
+    ]
+
+
+def test_json_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "order": [
+            {
+                "id": "ORD001",
+                "vendor_code": "VEND001",
+                "country_code": "LT",
+                "region_code": "REG001",
+                "region_name": "Vilnius Region",
+            },
+            {
+                "id": "ORD002",
+                "vendor_code": "VEND002",
+                "country_code": "PL",
+                "region_code": "REG002",
+                "region_name": "Warsaw Region",
+            },
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type         | ref      | source       | access
+    example                                       |              |          |              |
+      | data                                      | dask/json    |          | {path}       |
+      |   |   | Region                            |              | code     | order        |
+      |   |   |   | code                          | string       |          | region_code  | open
+      |   |   |   | name                          | string       |          | region_name  | open
+      |   |   | Country                           |              | code     | order        |
+      |   |   |   | code                          | string       |          | country_code | open
+      |   |   |   | region                        | ref required | Region   | region_code  | open
+      |   |   |   | region.code                   | string       |          | region_code  | open
+      |   |   |   | region.name                   | string       |          | region_name  | open
+      |   |   | Vendor                            |              | code     | order        |
+      |   |   |   | code                          | string       |          | vendor_code  | open
+      |   |   |   | country                       | ref required | Country  | country_code | open
+      |   |   |   | country.code                  | string       |          | country_code | open
+      |   |   |   | country.region.code           | string       |          | region_code  | open
+      |   |   |   | country.region.name           | string       |          | region_name  | open
+      |   |   | Order                             |              | id       | order        |
+      |   |   |   | id                            | string       |          | id           | open
+      |   |   |   | vendor                        | ref required | Vendor   | vendor_code  | open
+      |   |   |   | vendor.country.code           | string       |          | country_code | open
+      |   |   |   | vendor.country.region.code    | string       |          | region_code  | open
+      |   |   |   | vendor.country.region.name    | string       |          | region_name  | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Order", ["getall"])
+    app.authmodel("example/Vendor", ["getall"])
+    app.authmodel("example/Country", ["getall"])
+    app.authmodel("example/Region", ["getall"])
+
+    vendor_resp = app.get("/example/Vendor")
+    vendor_ids = [vendor_object["_id"] for vendor_object in vendor_resp.json()["_data"]]
+
+    country_resp = app.get("/example/Country")
+    country_ids = [country_object["_id"] for country_object in country_resp.json()["_data"]]
+
+    region_resp = app.get("/example/Region")
+    region_ids = [region_object["_id"] for region_object in region_resp.json()["_data"]]
+
+    resp = app.get("/example/Order")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+
+    assert data == [
+        {
+            "_type": "example/Order",
+            "_id": ANY,
+            "_revision": None,
+            "id": "ORD001",
+            "vendor": {
+                "_id": vendor_ids[0],
+                "country": {
+                    "_id": country_ids[0],
+                    "code": "LT",
+                    "region": {
+                        "_id": region_ids[0],
+                        "code": "REG001",
+                        "name": "Vilnius Region",
+                    },
+                },
+            },
+        },
+        {
+            "_type": "example/Order",
+            "_id": ANY,
+            "_revision": None,
+            "id": "ORD002",
+            "vendor": {
+                "_id": vendor_ids[1],
+                "country": {
+                    "_id": country_ids[1],
+                    "code": "PL",
+                    "region": {
+                        "_id": region_ids[1],
+                        "code": "REG002",
+                        "name": "Warsaw Region",
+                    },
+                },
+            },
+        },
+    ]
+
+
+def test_json_incorrect_composite_property(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "order": [
+            {"id": "ORD001", "vendor_code": "VEND001", "country_code": "LT", "country_name": "Lithuania"},
+            {"id": "ORD002", "vendor_code": "VEND002", "country_code": "PL", "country_name": "Poland"},
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    with pytest.raises(PartialIncorrectProperty):
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+        d | r | b | m | property                | type         | ref      | source       | access
+        example                                 |              |          |              |
+          | data                                | dask/json    |          | {path}       |
+          |   |   | Country                     |              | code     | order        |
+          |   |   |   | code                    | string       |          | country_code | open
+          |   |   |   | name                    | string       |          | country_name | open
+          |   |   | Vendor                      |              | code     | order        |
+          |   |   |   | code                    | string       |          | vendor_code  | open
+          |   |   |   | country                 | ref required | Country  | country_code | open
+          |   |   |   | country.code            | string       |          | country_code | open
+          |   |   |   | country.name            | string       |          | country_name | open
+          |   |   | Order                       |              |          | order        |
+          |   |   |   | id                      | string       |          | id           | open
+          |   |   |   | vendor                  | ref required | Vendor   | vendor_code  | open
+          |   |   |   | vendor.incorrect.code   | string       |          | country_code | open
+          |   |   |   | vendor.country.name     | string       |          | country_name | open
+        """,
+            mode=Mode.external,
+        )
+
+
+def test_json_incorrect_composite_property_primary_key_values(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "order": [
+            {"id": "ORD001", "vendor_code": "VEND001", "country_code": "LT", "country_name": "Lithuania"},
+            {"id": "ORD002", "vendor_code": "VEND002", "country_code": "PL", "country_name": "Poland"},
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                | type         | ref      | source       | access
+    example                                 |              |          |              |
+      | data                                | dask/json    |          | {path}       |
+      |   |   | Country                     |              | code     | order        |
+      |   |   |   | code                    | string       |          | country_code | open
+      |   |   |   | name                    | string       |          | country_name | open
+      |   |   | Vendor                      |              | code     | order        |
+      |   |   |   | code                    | string       |          | vendor_code  | open
+      |   |   |   | country                 | ref required | Country  | vendor_code  | open
+      |   |   |   | country.code            | string       |          | country_code | open
+      |   |   |   | country.name            | string       |          | country_name | open
+      |   |   | Order                       |              |          | order        |
+      |   |   |   | id                      | string       |          | id           | open
+      |   |   |   | vendor                  | ref required | Vendor   | vendor_code  | open
+      |   |   |   | vendor.country.code     | string       |          | country_code | open
+      |   |   |   | vendor.country.name     | string       |          | country_name | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+
+    app.authmodel("example/Order", ["getall"])
+
+    resp = app.get("/example/Order")
+    assert resp.status_code == 400
+    assert resp.json()["errors"][0]["code"] == "NoPrimaryKeyCandidatesFound"
+
+
+def test_json_composite_ref_level_2_no_id(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "order": [
+            {"id": "ORD001", "vendor_code": "VEND001", "country_code": "LT"},
+            {"id": "ORD002", "vendor_code": "VEND002", "country_code": "PL"},
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property              | type         | ref     | source       | level | access
+    example                               |              |         |              |       |
+      | data                              | dask/json    |         | {path}       |       |
+      |   |   | Country                   |              | code    | order        |       |
+      |   |   |   | code                  | string       |         | country_code | 5     | open
+      |   |   | Vendor                    |              | code    | order        |       |
+      |   |   |   | code                  | string       |         | vendor_code  | 5     | open
+      |   |   |   | country               | ref required | Country | country_code | 2     | open
+      |   |   |   | country.code          | string       |         | country_code |       | open
+      |   |   | Item                      |              | code    | order        |       |
+      |   |   |   | code                  | string       |         | id           | 5     | open
+      |   |   |   | vendor                | ref required | Vendor  | vendor_code  | 5     | open
+      |   |   |   | vendor.code           | string       |         | vendor_code  |       | open
+      |   |   |   | vendor.country.code   | string       |         | country_code |       | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Item", ["getall"])
+    app.authmodel("example/Vendor", ["getall"])
+    app.authmodel("example/Country", ["getall"])
+
+    vendor_resp = app.get("/example/Vendor")
+    vendor_ids = [vendor_id["_id"] for vendor_id in vendor_resp.json()["_data"]]
+
+    resp = app.get("/example/Item")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+
+    assert data == [
+        {
+            "_type": "example/Item",
+            "_id": ANY,
+            "_revision": None,
+            "code": "ORD001",
+            "vendor": {"_id": vendor_ids[0], "code": "VEND001", "country": {"code": "LT"}},
+        },
+        {
+            "_type": "example/Item",
+            "_id": ANY,
+            "_revision": None,
+            "code": "ORD002",
+            "vendor": {"_id": vendor_ids[1], "code": "VEND002", "country": {"code": "PL"}},
+        },
+    ]
+
+
+def test_json_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Path):
+    json_data = {
+        "order": [
+            {
+                "id": "ORD001",
+                "vendor_code": "VEND001",
+                "country_code": "LT",
+                "region_code": "REG001",
+                "region_name": "Vilnius Region",
+            },
+            {
+                "id": "ORD002",
+                "vendor_code": "VEND002",
+                "country_code": "PL",
+                "region_code": "REG002",
+                "region_name": "Warsaw Region",
+            },
+        ]
+    }
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(json_data))
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+    d | r | b | m | property                      | type         | ref      | source       | level      | access
+    example                                       |              |          |              |            |
+      | data                                      | dask/json    |          | {path}       |            |
+      |   |   | Region                            |              | code     | order        |            |
+      |   |   |   | code                          | string       |          | region_code  |            | open
+      |   |   |   | name                          | string       |          | region_name  |            | open
+      |   |   | Country                           |              | code     | order        |            |
+      |   |   |   | code                          | string       |          | country_code |            | open
+      |   |   |   | region                        | ref required | Region   | region_code  | 2          | open
+      |   |   |   | region.code                   | string       |          | region_code  |            | open
+      |   |   |   | region.name                   | string       |          | region_name  |            | open
+      |   |   | Vendor                            |              | code     | order        |            |
+      |   |   |   | code                          | string       |          | vendor_code  |            | open
+      |   |   |   | country                       | ref required | Country  | country_code | 2          | open
+      |   |   |   | country.code                  | string       |          | country_code |            | open
+      |   |   |   | country.region.code           | string       |          | region_code  |            | open
+      |   |   |   | country.region.name           | string       |          | region_name  |            | open
+      |   |   | Order                             |              | id       | order        |            |
+      |   |   |   | id                            | string       |          | id           |            | open
+      |   |   |   | vendor                        | ref required | Vendor   | vendor_code  | 2          | open
+      |   |   |   | vendor.country.code           | string       |          | country_code |            | open
+      |   |   |   | vendor.country.region.code    | string       |          | region_code  |            | open
+      |   |   |   | vendor.country.region.name    | string       |          | region_name  |            | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Order", ["getall"])
+
+    resp = app.get("/example/Order")
+    assert resp.status_code == 200
+    data = resp.json()["_data"]
+    assert data == [
+        {
+            "_type": "example/Order",
+            "_id": ANY,
+            "_revision": None,
+            "id": "ORD001",
+            "vendor": {
+                "code": "VEND001",
+                "country": {"code": "LT", "region": {"code": "REG001", "name": "Vilnius Region"}},
+            },
+        },
+        {
+            "_type": "example/Order",
+            "_id": ANY,
+            "_revision": None,
+            "id": "ORD002",
+            "vendor": {
+                "code": "VEND002",
+                "country": {"code": "PL", "region": {"code": "REG002", "name": "Warsaw Region"}},
+            },
+        },
+    ]

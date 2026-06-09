@@ -64,14 +64,6 @@ def manifest_read_current():
 
 
 @command()
-def manifest_read_freezed():
-    """Return last freezed schema by given schema entry id.
-
-    Freezed schema is schema of last freezed version.
-    """
-
-
-@command()
 def manifest_read_versions():
     """Return iterator of all schema versions by given schema entry id."""
 
@@ -90,7 +82,6 @@ def load(
     manifest: Manifest,
     *,
     into: Manifest = None,
-    freezed: bool = True,
     # Do not raise error, when trying to load a node, with a name, that is
     # already loaded, instead rename the new node.
     rename_duplicates: bool = False,
@@ -416,20 +407,6 @@ def prepare_dtype_for_response():
 
     This command is responsible for preparing individual properties for
     response. For the top level data preparation see prepare_data_for_response.
-    """
-
-
-@command()
-def freeze():
-    """Create new schema version.
-
-    Freeze commands receive empty manifest instance, returned by create_manifest
-    helper funciton. Then freeze command should fully load two versions of
-    manijest, one version is current and another is freezed.
-
-    Then these two manifests will be compared and a new version will be produced
-    for each model if current differs from freezed.
-
     """
 
 

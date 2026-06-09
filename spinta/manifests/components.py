@@ -50,7 +50,7 @@ class Manifest(Component):
     store: Store | None = None
     _objects: MetaDataContainer | None = None
     path: str | None = None
-    access: Access = Access.protected
+    access: Access = Access.private
     prefixes: Dict[str, UriPrefix]
     enums: Enums
 

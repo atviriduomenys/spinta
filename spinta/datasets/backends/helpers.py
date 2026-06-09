@@ -3,6 +3,7 @@ import pathlib
 from typing import Any
 
 from spinta import commands, spyna
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.components import Property, Model, Context
 from spinta.core.enums import Mode
 from spinta.core.ufuncs import Env, asttoexpr
@@ -14,6 +15,10 @@ from spinta.utils.schema import NA
 
 
 def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
+    original_value = value
+    if isinstance(value, dict):
+        value = value["_id"]
+
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in ref.refprops)}"
@@ -45,7 +50,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
 
         val = None
         contains = None
-        if ref.refprops[0].name != "_id":
+        if ref.refprops[0].name != "_id" and not is_custom_id_prop(ref.model.properties["_id"]):
             contains = keymap.contains(keymap_name, target_value)
         if not contains:
             if target_value is None:
@@ -55,7 +60,16 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
 
             # FIXME Quick hack when trying to get `Internal` model keys while running in `External` mode (should probably return error, or None)
             if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
-                return {"_id": keymap.encode(keymap_name, target_value)}
+                val = {"_id": keymap.encode(keymap_name, target_value)}
+                if isinstance(original_value, dict):
+                    for nested_prop_name, nested_prop in ref.properties.items():
+                        nested_value = original_value[nested_prop_name]
+                        if isinstance(nested_value, dict):
+                            nested_value = handle_ref_key_assignment(
+                                context, keymap, env, nested_value, nested_prop.dtype
+                            )
+                        val[nested_prop_name] = nested_value
+                return val
 
             expr_parts = ["select()"]
             for i, prop in enumerate(ref.refprops):
@@ -67,7 +81,10 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             for row in rows:
                 if val is not None:
                     raise MultiplePrimaryKeyCandidatesFound(ref, values=target_value)
-                val = row["_id"]
+                if "_id" in row:
+                    val = row["_id"]
+                else:
+                    val = keymap.encode(keymap_name, target_value)
                 found_value = True
 
             if not found_value:
@@ -84,6 +101,13 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
                 values = values[0]
             val[prop] = values
             i = i + count
+
+    if isinstance(original_value, dict):
+        for nested_prop_name, nested_prop in ref.properties.items():
+            nested_value = original_value[nested_prop_name]
+            if isinstance(nested_value, dict):
+                nested_value = handle_ref_key_assignment(context, keymap, env, nested_value, nested_prop.dtype)
+            val[nested_prop_name] = nested_value
     return val
 
 

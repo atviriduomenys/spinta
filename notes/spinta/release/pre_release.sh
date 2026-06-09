@@ -8,9 +8,9 @@ test -n "$PID" && kill "$PID"
 # Setup versions and create prepare branch
 # Change version numbers here
 export MAJOR=0
-export MINOR=2dev17
-export OLD_MINOR=2dev16
-export FUTURE_MINOR=2dev18
+export MINOR=2dev25
+export OLD_MINOR=2dev24
+export FUTURE_MINOR=2dev26
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -62,6 +62,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Generate and check changes and readme html files
 
 # notes/docker.sh                   Start docker compose
+# docker stop spinta-app-1
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
@@ -88,6 +89,8 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Configure spinta
 # notes/spinta/release/common.sh    Create manifest file
+
+# Repeat the same with metadata
 
 # notes/spinta/release/common.sh    Run migrations
 #| (3624 rows)
@@ -124,7 +127,11 @@ EOF
 # generate hashed requirements file
 
 poetry export -f requirements.txt \
-  --output requirements/spinta-${NEW_VERSION}.txt
+  --all-extras \
+  --all-groups \
+  -o requirements/spinta-${NEW_VERSION}.txt
+
+todo ištestuoti https://github.com/atviriduomenys/spinta/pull/1912
 
 # get hashes to spinta itself
 

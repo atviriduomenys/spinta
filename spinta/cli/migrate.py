@@ -91,19 +91,3 @@ def migrate(
         plan=plan, autocommit=autocommit, rename_src=rename, datasets=datasets, raise_error=raise_potential_error
     )
     commands.migrate(context, manifest, migration_config)
-
-
-def freeze(ctx: TyperContext):
-    """Detect schema changes and create new version
-
-    This will read current manifest structure, compare it with a previous
-    freezed version and will generate new migration version if current and last
-    versions do not match.
-    """
-    context = ctx.obj
-    # Load just store, manifests will be loaded by freeze command.
-    store = load_store(context)
-    with context:
-        require_auth(context)
-        commands.freeze(context, store.manifest)
-    click.echo("Done.")

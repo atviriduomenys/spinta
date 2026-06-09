@@ -137,8 +137,14 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
-# switch to a different tab. Export the BASEDIR there and SPINTA_CONFIG.
+
+# switch to a different tab.
+# Export the BASEDIR there.
+# Export SPINTA_CONFIG:
+export SPINTA_CONFIG=$BASEDIR/config.yml
+echo SPINTA_CONFIG
 # Activate the environment.
+
 # this is a directory to which manifest data will be downloaded.
 # If you don't have one, create an empty directory and cs into it.
 # If you create a new directory, do this:
@@ -162,6 +168,17 @@ spinta show \
 
 # go back to previous tab
 spinta check
+
+# go to a different tag
+# check with metadata repository (in a different tab):
+cd ~/dev/data/metadata
+git status
+git checkout main
+git pull
+
+find datasets -iname "dsa.csv" | xargs spinta check
+
+# go back to the main tab
 
 
 cat > "$BASEDIR"/sdsa.txt <<EOF
@@ -218,7 +235,8 @@ psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
 # Run server in INTERNAL mode
 test -n "$PID" && kill "$PID"
 spinta run &>> "$BASEDIR"/spinta.log & PID=$!
-#wait a bit for it to load
+# wait a bit for it to load
+sleep 30
 tail -50 "$BASEDIR"/spinta.log
 
 http :8000
@@ -279,6 +297,7 @@ EOF
 # Temporarily run with port 7000, so we can run another server with 8000 port
 test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
 spinta run --port 7000 --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & EXTERNAL_PID=$!
+sleep 10
 tail -50 "$BASEDIR"/spinta.log
 
 xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Forma

@@ -353,8 +353,7 @@ def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
       |   |   | City         |          | name |                     |                    |
       |   |   |   | id       | string   |      | id                  |                    | open
       |   |   |   | name     | string   |      | name                |                    | open
-      |   |   |   |          | enum     |      |                     |                    | open
-      |   |   |   |          |          |      |                     |  swap('nan', '---')  | open
+      |   |   |   |          | enum     |      |                     |  swap('nan', '---')  | open
       |   |   |   |          |          |      |                     |  swap(null, '---') | open
       |   |   |   |          |          |      |                     |  swap('', '---')   | open
       |   |   |   |          |          |      |                     |  '---'             | open
@@ -368,8 +367,54 @@ def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
 
     resp = app.get("/example/csv/City")
     assert listdata(resp) == [
-        (1, "test"),
-        (2, "---"),
-        (3, "---"),
-        (4, "---"),
+        ("1", "test"),
+        ("2", "---"),
+        ("3", "---"),
+        ("4", "---"),
     ]
+
+
+def test_count(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe("cities.csv", ("id,name\n1,test\n2,\n3,\n4,null").encode("utf-8"))
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+    d | r | b | m | property | type     | ref  | source              | prepare            | access
+    example/csv              |          |      |                     |                    |
+      | csv                  | dask/csv |      | memory://cities.csv |                    |
+      |   |   | City         |          | name |                     |                    |
+      |   |   |   | id       | string   |      | id                  |                    | open
+      |   |   |   | name     | string   |      | name                |                    | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/csv/City", ["search"])
+
+    resp = app.get("/example/csv/City?count()")
+    assert listdata(resp) == [4]
+
+
+def test_select_count(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe("cities.csv", ("id,name\n1,test\n2,\n3,\n4,null").encode("utf-8"))
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+    d | r | b | m | property | type     | ref  | source              | prepare            | access
+    example/csv              |          |      |                     |                    |
+      | csv                  | dask/csv |      | memory://cities.csv |                    |
+      |   |   | City         |          | name |                     |                    |
+      |   |   |   | id       | string   |      | id                  |                    | open
+      |   |   |   | name     | string   |      | name                |                    | open
+    """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/csv/City", ["search"])
+
+    resp = app.get("/example/csv/City?select(count())")
+    assert listdata(resp) == [4]

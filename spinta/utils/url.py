@@ -4,6 +4,7 @@ from typing import List
 from spinta import exceptions
 from spinta.components import UrlParseNode
 from spinta.spyna import unparse
+from spinta.backends.helpers import is_accessible_by_equals_sign
 
 RULES = {
     "path": {
@@ -42,6 +43,9 @@ RULES = {
     "inspect": {"maxargs": 0},
     "schema": {"maxargs": 0},
     "move": {"maxargs": 0},
+    "custom-scope": {
+        "maxargs": 1,
+    },
 }
 
 
@@ -82,6 +86,11 @@ def parse_url_path(path) -> List[UrlParseNode]:
                 )
             name = part[1:]
             args = []
+        elif part.startswith("@"):
+            if name is not None:
+                query.append({"name": name, "args": args})
+            name = "custom-scope"
+            args = [part[1:]]
         else:
             args.append(part)
     query.append(
@@ -100,10 +109,14 @@ def build_url_path(query: List[UrlParseNode]):
     for param in query:
         name = param["name"]
         args = param["args"]
+        if (id_prop := param.get("id_prop")) and is_accessible_by_equals_sign(id_prop, args[-1]):
+            args[-1] = "=" + args[-1]
         if name == "path":
             parts.extend(args)
         elif name in ("format", "ns", "changes"):
             parts.extend([f":{name}"] + args)
+        elif name == "custom-scope":
+            parts.append(f"@{args[0]}")
         else:
             other.append(param)
     path = "/".join(map(str, parts))

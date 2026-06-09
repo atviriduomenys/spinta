@@ -1,8 +1,9 @@
-import pytest
-from _pytest.fixtures import FixtureRequest
-import sqlalchemy as sa
 from pathlib import Path
 
+import pytest
+from _pytest.fixtures import FixtureRequest
+
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import send, listdata
@@ -265,28 +266,28 @@ def test_changes_invalid_ref_changelog(
     test3 = send(app, model, "patch", test2, {"id": 0})
 
     # Imitate incorrect changelog
-    engine = sa.create_engine(postgresql)
+    engine = create_postgresql_engine(postgresql)
     with engine.connect() as conn:
         conn.execute(f"""
-        UPDATE "example/ref/invalid/Test/:changelog" 
+        UPDATE "example/ref/invalid"."Test/:changelog" 
         SET data = \'{{"ref": null}}\'
         WHERE _revision = '{test0.rev}'
         """)
 
         conn.execute(f"""
-        UPDATE "example/ref/invalid/Test/:changelog" 
+        UPDATE "example/ref/invalid"."Test/:changelog" 
         SET data = \'{{"ref": {{"_id": null}}}}\'
         WHERE _revision = '{test1.rev}'
         """)
 
         conn.execute(f"""
-        UPDATE "example/ref/invalid/Test/:changelog" 
+        UPDATE "example/ref/invalid"."Test/:changelog" 
         SET data = \'{{"ref": ""}}\'
         WHERE _revision = '{test2.rev}'
         """)
 
         conn.execute(f"""
-        UPDATE "example/ref/invalid/Test/:changelog" 
+        UPDATE "example/ref/invalid"."Test/:changelog" 
         SET data = \'{{"ref": {{"_id": ""}}}}\'
         WHERE _revision = '{test3.rev}'
         """)

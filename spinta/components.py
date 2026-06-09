@@ -25,7 +25,7 @@ from spinta.utils.schema import NA
 from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
-    from spinta.backends.components import Backend
+    from spinta.backends.components import Backend, DistributionStrategy
     from spinta.types.datatype import DataType
     from spinta.manifests.components import Manifest
     from spinta.manifests.internal.components import InternalManifest
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from spinta.accesslog import AccessLog
     from spinta.formats.components import Format
     from spinta.dimensions.comments.components import Comment
+    from spinta.dimensions.scope.components import Scope
 
 
 class Context:
@@ -620,6 +621,14 @@ def page_in_data(data: dict) -> bool:
     return "_page" in data
 
 
+def revision_in_data(data: dict) -> bool:
+    return "_revision" in data
+
+
+def check_if_revision_explicit(prop: Property) -> bool:
+    return prop.name == "_revision" and prop.explicitly_given
+
+
 class ParamsPage:
     values: List[Any]
     size: int
@@ -642,6 +651,7 @@ class Model(MetaData):
     description: str
     ns: Namespace
     external: Entity = None
+    scopes: Dict[str, Scope]
     properties: Dict[str, Property]
     mode: Mode = None
     given: ModelGiven
@@ -658,6 +668,8 @@ class Model(MetaData):
     count: int | None = None
     origin: str | None = None
 
+    # Systemic fields that are not part of the model definition.
+    distribution_strategy: DistributionStrategy | None = None
     required_keymap_properties = None
 
     schema = {
@@ -666,6 +678,7 @@ class Model(MetaData):
         "unique": {"default": []},
         "base": {},
         "link": {},
+        "scopes": {"default": {}},
         "properties": {"default": {}},
         "external": {},
         "level": {
@@ -884,6 +897,7 @@ class Attachment:
 class UrlParseNode(TypedDict):
     name: str
     args: List[Any]
+    id_prop: Property
 
 
 class UrlParams:
@@ -914,6 +928,8 @@ class UrlParams:
     select: Optional[List[str]] = None
     select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
     select_funcs: Optional[Dict[str, FuncProperty]] = None
+
+    custom_scope: str | None = None
 
     sort: List[dict] = None
     limit: Optional[int] = None
@@ -1095,6 +1111,8 @@ class Config:
     scope_log: bool
     check_contract_scopes: bool
     default_auth_client: str
+    default_access_level: Access
+    access: Access
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
@@ -1131,6 +1149,8 @@ class Config:
     log_level: str
     file_log_level: str
     file_log_path: pathlib.Path
+
+    default_distribution_strategy: DistributionStrategy | None = None
 
     def __init__(self):
         self.commands = _CommandsConfig()

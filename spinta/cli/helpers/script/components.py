@@ -31,7 +31,7 @@ class _ScriptMeta(type):
 
 class ScriptBase(metaclass=_ScriptMeta):
     """
-    Represents an script with optional preconditions and target constraints.
+    Represents a script with optional preconditions and target constraints.
 
     Targets and tags are mainly used to be able to filter specific scripts. Main use case would be to set target as
     specific object, like sqlalchemy keymap and tag as migration, so then you could filter all database migration
@@ -97,6 +97,19 @@ class ScriptBase(metaclass=_ScriptMeta):
     @classmethod
     def get_registered_types(cls) -> dict[str, type]:
         return cls._type_registry
+
+
+class ScriptStatusCache:
+    cache: dict[tuple[str, str], ScriptStatus]
+
+    def __init__(self):
+        self.cache: dict[tuple[str, str], ScriptStatus] = {}
+
+    def get(self, script_type: str, script_name: str) -> ScriptStatus | None:
+        return self.cache.get((script_type, script_name), None)
+
+    def set(self, script_type: str, script_name: str, status: ScriptStatus):
+        self.cache[(script_type, script_name)] = status
 
 
 class ScriptStatus(enum.Enum):

@@ -535,7 +535,171 @@ def test_get_one(context, rc, tmp_path):
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f"/example/City/{_id}")
         result = getone_response.json()
-        assert result == {"_id": _id, "_type": "example/City", "id": 0, "name": "Vilnius"}
+        assert result == {"_id": _id, "_revision": None, "_type": "example/City", "id": 0, "name": "Vilnius"}
+
+
+def test_get_one_ref_level_3(context, rc, tmp_path):
+    with create_sqlite_db(
+        {
+            "countries": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text)],
+            "cities": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text), sa.Column("country_id", sa.Integer)],
+        }
+    ) as db:
+        db.write(
+            "countries",
+            [
+                {"id": 0, "name": "Lietuva"},
+            ],
+        )
+        db.write(
+            "cities",
+            [
+                {"id": 0, "name": "Vilnius", "country_id": 0},
+            ],
+        )
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        id | d | r | b | m | property | type    | ref     | level | source     | access
+           | example                  |         |         |       |            |
+           |   |   |   | City         |         | id      |       | cities     | open
+           |   |   |   |   | id       | integer |         | 3     | id         |
+           |   |   |   |   | name     | string  |         | 3     | name       |
+           |   |   |   |   | country  | ref     | Country | 3     | country_id |
+           |   |   |   | Country      |         | id      |       | countries  | open
+           |   |   |   |   | id       | integer |         | 3     | id         |
+           |   |   |   |   | name     | string  |         | 3     | name       |
+        """),
+        )
+        app = create_client(rc, tmp_path, db)
+        _id = app.get("/example/City").json()["_data"][0]["_id"]
+
+        response = app.get(f"/example/City/{_id}").json()
+        assert response == {
+            "_id": _id,
+            "_revision": None,
+            "_type": "example/City",
+            "id": 0,
+            "name": "Vilnius",
+            "country": {"id": 0},
+        }
+
+
+def test_get_one_ref_level_4(context, rc, tmp_path):
+    with create_sqlite_db(
+        {
+            "countries": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text)],
+            "cities": [sa.Column("id", sa.Integer), sa.Column("name", sa.Text), sa.Column("country_id", sa.Integer)],
+        }
+    ) as db:
+        db.write(
+            "countries",
+            [
+                {"id": 0, "name": "Lietuva"},
+            ],
+        )
+        db.write(
+            "cities",
+            [
+                {"id": 0, "name": "Vilnius", "country_id": 0},
+            ],
+        )
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        id | d | r | b | m | property | type    | ref     | level | source     | access
+           | example                  |         |         |       |            |
+           |   |   |   | City         |         | id      |       | cities     | open
+           |   |   |   |   | id       | integer |         | 4     | id         |
+           |   |   |   |   | name     | string  |         | 4     | name       |
+           |   |   |   |   | country  | ref     | Country | 4     | country_id |
+           |   |   |   | Country      |         | id      |       | countries  | open
+           |   |   |   |   | id       | integer |         | 4     | id         |
+           |   |   |   |   | name     | string  |         | 4     | name       |
+        """),
+        )
+        app = create_client(rc, tmp_path, db)
+
+        _id_city = app.get("/example/City").json()["_data"][0]["_id"]
+        _id_country = app.get("/example/Country").json()["_data"][0]["_id"]
+
+        response = app.get(f"/example/City/{_id_city}").json()
+        assert response == {
+            "_id": _id_city,
+            "_revision": None,
+            "_type": "example/City",
+            "id": 0,
+            "name": "Vilnius",
+            "country": {"_id": _id_country},
+        }
+
+
+def test_getone_geometry_prepare_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    id | d | r | b | m | property | type              | ref | level | source  | access | prepare
+       | example                  |                   |     |       |         |        |
+       |   |   |   | City         |                   | id  |       | cities  |        |
+       |   |   |   |   | id       | integer           |     | 4     | id      | open   |
+       |   |   |   |   | name     | string            |     | 4     | name    | open   |
+       |   |   |   |   | poly     | geometry(polygon) |     | 4     | poly    | open   | flip()
+       |   |   |   |   | geo_lt   | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+    """),
+    )
+    app = create_client(rc, tmp_path, geodb_geometry)
+    _id = app.get("/example/City").json()["_data"][0]["_id"]
+
+    response = app.get(f"/example/City/{_id}").json()
+    assert response == {
+        "_type": "example/City",
+        "_id": _id,
+        "_revision": None,
+        "id": 0,
+        "name": "Vilnius",
+        "poly": "POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))",
+        "geo_lt": "POINT (200000 5980000)",
+    }
+
+
+def test_getone_model_prepare_filter(context, rc, tmp_path):
+    with create_sqlite_db(
+        {"cities": [sa.Column("name", sa.Text), sa.Column("id", sa.Integer), sa.Column("active", sa.Integer)]}
+    ) as db:
+        db.write(
+            "cities",
+            [
+                {"name": "Vilnius", "id": 0, "active": 1},
+                {"name": "Kaunas", "id": 1, "active": 0},
+            ],
+        )
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+          id | d | r | b | m | property | type    | ref | level | source | access | prepare
+             | example                  |         |     |       |        |        |
+             |   |   |   | City         |         | id  |       | cities |        | eq(active,1)
+             |   |   |   |   | id       | integer |     | 4     | id     | open   |
+             |   |   |   |   | name     | string  |     | 4     | name   | open   |
+             |   |   |   |   | active   | integer |     | 4     | active | open   |
+          """),
+        )
+        app = create_client(rc, tmp_path, db)
+        _id = app.get("/example/City").json()["_data"][0]["_id"]
+
+        response = app.get(f"/example/City/{_id}").json()
+        assert response == {
+            "_type": "example/City",
+            "_id": _id,
+            "_revision": None,
+            "id": 0,
+            "name": "Vilnius",
+            "active": 1,
+        }
 
 
 def test_get_one_compound_pk(context, rc, tmp_path):
@@ -567,7 +731,14 @@ def test_get_one_compound_pk(context, rc, tmp_path):
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f"/example/City/{_id}")
         result = getone_response.json()
-        assert result == {"_id": _id, "_type": "example/City", "code": "city", "id": 2, "name": "Kaunas"}
+        assert result == {
+            "_id": _id,
+            "_revision": None,
+            "_type": "example/City",
+            "code": "city",
+            "id": 2,
+            "name": "Kaunas",
+        }
 
 
 def test_getall_geometry_manifest_flip_select(context, rc, tmp_path, geodb_geometry):
@@ -793,10 +964,18 @@ def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geo
 
     assert resp.status_code == 200
     assert listdata(resp, "id", "name", "languages", full=True) == [
-        {"id": 0, "name": "United Kingdoms", "languages": [{"_id": lang_mapping[0]["_id"]}]},
-        {"id": 1, "name": "Lithuania", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[1]["_id"]}]},
-        {"id": 2, "name": "Poland", "languages": [{"_id": lang_mapping[0]["_id"]}, {"_id": lang_mapping[2]["_id"]}]},
-        {"id": 3, "name": "Empty", "languages": []},
+        {"id": "0", "name": "United Kingdoms", "languages": [{"_id": lang_mapping["0"]["_id"]}]},
+        {
+            "id": "1",
+            "name": "Lithuania",
+            "languages": [{"_id": lang_mapping["0"]["_id"]}, {"_id": lang_mapping["1"]["_id"]}],
+        },
+        {
+            "id": "2",
+            "name": "Poland",
+            "languages": [{"_id": lang_mapping["0"]["_id"]}, {"_id": lang_mapping["2"]["_id"]}],
+        },
+        {"id": "3", "name": "Empty", "languages": []},
     ]
 
 
@@ -1060,3 +1239,145 @@ def test_array_ref_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_a
     app.get("/example/Language")
     resp = app.get("/example/Country")
     assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
+
+
+@pytest.fixture(scope="module")
+def geodb_ref_filters():
+    with create_sqlite_db(
+        {
+            "countries": [
+                sa.Column("id", sa.Integer, primary_key=True),
+                sa.Column("code", sa.Text),
+                sa.Column("name", sa.Text),
+            ],
+            "cities": [
+                sa.Column("id", sa.Integer, primary_key=True),
+                sa.Column("name", sa.Text),
+                sa.Column("country_id", sa.Integer),
+            ],
+        }
+    ) as db:
+        db.write(
+            "countries",
+            [
+                {"id": 1, "code": "lt", "name": "Lietuva"},
+                {"id": 2, "code": "lv", "name": "Latvija"},
+            ],
+        )
+        db.write(
+            "cities",
+            [
+                {"id": 1, "name": "Vilnius", "country_id": 1},
+                {"id": 2, "name": "Kaunas", "country_id": 1},
+                {"id": 3, "name": "Ryga", "country_id": 2},
+            ],
+        )
+        yield db
+
+
+_REF_FILTERS_MANIFEST = """
+d | r | b | m | property | type    | ref     | source     | prepare     | access
+example                  |         |         |            |             |
+  | db                   |         | sql     |            |             |
+  |                      |         |         |            |             |
+  |   |   | Country      |         | id      | countries  | code = 'lt' |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | code     | string  |         | code       |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   | City         |         | id      | cities     |             |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   |   | country  | ref     | Country | country_id |             | open
+"""
+
+
+def test_getall_implicit_ref_filters_enabled_by_default(context, rc, tmp_path, geodb_ref_filters):
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+    resp = app.get("/example/City?select(name)")
+    assert resp.status_code == 200
+    assert sorted(listdata(resp, "name")) == ["Kaunas", "Vilnius"]
+
+
+def test_getall_implicit_ref_filters_disabled(context, rc, tmp_path, geodb_ref_filters):
+    rc = rc.fork({"check_ref_filters": False})
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+    resp = app.get("/example/City")
+    assert resp.status_code == 200
+    assert sorted(listdata(resp, "name")) == ["Kaunas", "Ryga", "Vilnius"]
+
+
+# Country has a custom `_id` sourced from its primary key, so the referenced
+# `_id` is built directly from the primary key value instead of selecting the row.
+_REF_FILTERS_CUSTOM_ID_MANIFEST = """
+d | r | b | m | property | type    | ref     | source     | prepare     | access
+example                  |         |         |            |             |
+  | db                   |         | sql     |            |             |
+  |                      |         |         |            |             |
+  |   |   | Country      |         | id      | countries  | code = 'lt' |
+  |   |   |   | _id      | integer |         |            |             | open
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | code     | string  |         | code       |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   | City         |         | id      | cities     |             |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   |   | country  | ref     | Country | country_id |             | open
+"""
+
+
+# Same as above, but the referenced model uses a Base32 `_id`, which is encoded
+# differently than plain ids.
+_REF_FILTERS_BASE32_ID_MANIFEST = """
+d | r | b | m | property | type    | ref     | source     | prepare     | access
+example                  |         |         |            |             |
+  | db                   |         | sql     |            |             |
+  |                      |         |         |            |             |
+  |   |   | Country      |         | id      | countries  | code = 'lt' |
+  |   |   |   | _id      | base32  |         |            |             | open
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | code     | string  |         | code       |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   | City         |         | id      | cities     |             |
+  |   |   |   | id       | integer |         | id         |             | open
+  |   |   |   | name     | string  |         | name       |             | open
+  |   |   |   | country  | ref     | Country | country_id |             | open
+"""
+
+
+def test_getall_implicit_ref_filters_disabled_custom_id(context, rc, tmp_path, geodb_ref_filters):
+    rc = rc.fork({"check_ref_filters": False})
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_CUSTOM_ID_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+
+    # Only Lietuva (id=1) passes the `code = 'lt'` filter; its `_id` is its pkey.
+    resp = app.get("/example/Country")
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "_id") == [(1, 1)]
+
+    # Ryga references Latvija (id=2), which is filtered out, yet `country._id`
+    # is still produced and matches the (filtered) referenced model's pkey.
+    resp = app.get("/example/City")
+    assert resp.status_code == 200
+    cities = {row["name"]: row["country"]["_id"] for row in resp.json()["_data"]}
+    assert cities == {"Vilnius": 1, "Kaunas": 1, "Ryga": 2}
+
+
+def test_getall_implicit_ref_filters_disabled_base32_id(context, rc, tmp_path, geodb_ref_filters):
+    rc = rc.fork({"check_ref_filters": False})
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(_REF_FILTERS_BASE32_ID_MANIFEST))
+    app = create_client(rc, tmp_path, geodb_ref_filters, mode="external")
+
+    # Only Lietuva (id=1) passes the filter; capture its Base32 `_id`.
+    resp = app.get("/example/Country")
+    assert resp.status_code == 200
+    country_ids = {row["id"]: row["_id"] for row in resp.json()["_data"]}
+    assert country_ids == {1: "GE"}
+
+    # Ryga references Latvija (id=2), which is filtered out, yet `country._id` is
+    # still produced using the same Base32 encoding as the referenced model.
+    resp = app.get("/example/City")
+    assert resp.status_code == 200
+    cities = {row["name"]: row["country"]["_id"] for row in resp.json()["_data"]}
+    assert cities == {"Vilnius": "GE", "Kaunas": "GE", "Ryga": "GI"}

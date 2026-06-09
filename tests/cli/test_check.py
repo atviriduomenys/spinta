@@ -1,9 +1,12 @@
 from pathlib import Path
 
+import pytest
+
 from spinta.components import Context
-from spinta.exceptions import InvalidValue, InvalidManifestFile, InvalidName
-from spinta.testing.cli import SpintaCliRunner
+from spinta.core.config import RawConfig
+from spinta.exceptions import InvalidManifestFile, InvalidName, InvalidValue, NoModelDefined
 from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -509,7 +512,7 @@ def test_check_prop_underscore_ok_1(context: Context, rc, cli: SpintaCliRunner, 
       |   |   |   | country   | ref    | Country | salis       |         | open   | withdrawn
       |   |   |   | _revision | string |         | versija     |         | open   | discont
       |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
-      |   |   |   | _id       | uuid   |         | id          |         | open   | develop
+      |   |   |   | _id       | string |         |             |         | open   | develop
     """),
     )
 
@@ -540,7 +543,7 @@ def test_check_prop_underscore_ok_2(context: Context, rc, cli: SpintaCliRunner, 
       |   |   |   | _created  | string |         | sukurta     |         | open   | discont
       |   |   |   | _revision | string |         | versija     |         | open   | discont
       |   |   |   | _updated  | string |         | papildyta   |         | open   | discont
-      |   |   |   | _id       | uuid   |         | id          |         | open   | develop
+      |   |   |   | _id       | string |         |             |         | open   | develop
       |   |   |   | _op       | string |         | op          |         | open   | develop
       |   |   |   | _test123  | string |         | test123     |         | open   | develop
     """),
@@ -619,3 +622,300 @@ def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner,
     assert result.exit_code != 0
     assert result.exc_info[0] is InvalidName
     assert "_test123" in str(result.exception)
+
+
+@pytest.mark.parametrize("type", ["dask/xml", "dask/json", "dask/csv"])
+def test_spinta_check_message_no_filters_support_dask_backend(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path, type: str
+):
+    # Create a manifest (XML, CSV JSON type) using a Dask backend and unsupported comparison filters.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        manifest=striptable(f"""
+    d | r | b | m | property | type     | ref  | source      | prepare                 | access
+    datasets/gov/example     |          |      |             |                         |
+      | data                 | {type}   |      |             |                         |
+      |   |   | Country      |          | code | salis       | or(code>'lt',code<'pl') | open
+      |   |   |   | code     | string   |      | kodas       |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+      |   |   | City         |          | code | miestas     | code='Vilnius'          | open   
+      |   |   |   | code     | string   |      | kodas       |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+      |   |   | Street       |          | id   | gatve       | startswith(name,'V')    | open
+      |   |   |   | id       | integer  |      | id          |                         | open
+      |   |   |   | name     | string   |      | pavadinimas |                         | open
+    """),
+    )
+
+    # Run the check command and verify that warnings about unsupported Dask filters are displayed.
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Dask backend does not support comparison (filter) operators in prepare formula." in result.output
+    assert "operators: ['gt', 'lt']" in result.output
+    assert "operators: ['eq']" in result.output
+    assert "operators: ['startswith']" in result.output
+    assert "model: datasets/gov/example/Country" in result.output
+    assert "model: datasets/gov/example/City" in result.output
+    assert "model: datasets/gov/example/Street" in result.output
+    assert "entity: salis" in result.output
+    assert "entity: miestas" in result.output
+    assert "entity: gatve" in result.output
+    # All models are checked and all problems are shown at once using the ErrorManager.
+    assert "Total errors: 3" in result.output
+
+
+def test_spinta_check_no_message_filters_support_sql_backend(
+    context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path
+):
+    # Create a manifest using a SQL backend with filters.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
+    d | r | b | m | property | type   | ref  | source      | prepare                            | access
+    datasets/gov/example     |        |      |             |                                    |
+      | data                 | sql    |      |             |                                    |
+      |   |   | Country      |        | code | salis       | or(code='lt',startswith(name,'L')) |
+      |   |   |   | code     | string |      | kodas       |                                    | public
+      |   |   |   | name     | string |      | pavadinimas |                                    | open
+    """
+        ),
+    )
+
+    # Run the check command and verify that no Dask-specific messages are shown.
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    # Ensure the command succeeds.
+    assert result.exit_code == 0
+    # Verify that no Dask-related messages are issued.
+    assert "Dask backend does not support" not in result.output
+
+
+def test_check_undeclared_ref_does_not_fail(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """check should succeed when a ref points to an undeclared model,
+    silently downgrading the property to object instead of raising."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref              | access
+    example                  |        |                  |
+                             |        |                  |
+      |   |   | City         |        |                  |
+      |   |   |   | name     | string |                  | private
+      |   |   |   | country  | ref    | example2/Country | private
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert result.exit_code == 0
+
+
+def test_check_scope(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref  | source | prepare             | access
+    datasets/gov/example     |         |      |        |                     |
+      |   |   | Country      |         | code |        |                     |
+      |   |   |   |          | scope   | ids  |        | select(id)          | private
+      |   |   |   | id       | integer |      |        |                     | public
+      |   |   |   | code     | string |       | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+    )
+
+    assert result.exit_code == 0
+
+
+def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref  | source | prepare             | access
+    datasets/gov/example     |         |      |        |                     |
+      |   |   | Country      |         | id   |        |                     |
+      |   |   |   |          | scope   | IDS  |        | select(id)          | private
+      |   |   |   | id       | integer |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            "--check-names",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidName
+    assert "IDS" in str(result.exception)
+
+
+def test_check_scope_no_model_defined_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+                             | scope  | ltu  |        | country.code='lt'   |
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is NoModelDefined
+
+
+def test_check_scope_missing_ref_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  |      |        | country.code='lt'   | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "ref" in str(result.exception).lower()
+
+
+def test_check_scope_missing_prepare_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | ltu  |        |                     | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "prepare" in str(result.exception).lower()
+
+
+def test_check_scope_duplicate_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | ltu  |        | country.code='lt'   | private
+      |   |   |   |          | scope  | ltu  |        | country.code='LT'   | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "already defined" in str(result.exception).lower()
+
+
+def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref        | source    | prepare
+    dataset1                 |         |            |           |
+      | resource1            | sql     |            |           |
+      |   |   | City         |         | id         |           |
+      |   |   |   | id       | integer |            |           |
+      |   |   |   | status   | string  |            |           |
+      |   |   |   |          | enum    | my_status  | 'active'  |
+      |   |   |   |          |         |            | 'inactive'|
+        """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code == 0
+    assert "Named enum 'my_status' is declared directly under property 'status'" in result.stdout
+    assert "Total errors: 1" in result.stdout
+
+
+def test_check_undeclared_base_does_not_fail(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b                              | m       | property | type   | ref | access
+    example                                |         |          |        |     |
+                                           |         |          |        |     |
+      |   | dataset/gov/vssa/is/ds/Address |         |          |        |     |
+      |   |                                | Country |          |        |     |
+      |   |                                |         | name     | string |     | private
+    """),
+    )
+    result = cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+    assert result.exit_code == 0

@@ -12,6 +12,7 @@ import sqlalchemy_utils as su
 from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
 
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
 from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
@@ -68,8 +69,9 @@ def sqlite():
 
 
 def _prepare_postgresql(dsn: str) -> None:
-    engine = sa.create_engine(dsn)
+    engine = create_postgresql_engine(dsn)
     with engine.connect() as conn:
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
@@ -97,8 +99,12 @@ def mongo(rc):
     if dsn and db:
         import pymongo
 
-        client = pymongo.MongoClient(dsn)
-        client.drop_database(db)
+        try:
+            client = pymongo.MongoClient(dsn, serverSelectionTimeoutMS=2000)
+            client.server_info()  # force connection check
+            client.drop_database(db)
+        except pymongo.errors.ServerSelectionTimeoutError:
+            pass  # MongoDB not running, nothing to clean up
 
 
 @pytest.fixture(scope="session")
@@ -261,21 +267,51 @@ def pytest_assertrepr_compare(op: str, left: Any, right: Any):
 
 
 MIGRATION_DATABASE = "spinta_tests_migration"
+MIGRATION_TEMPLATE_DATABASE = "spinta_tests_migration_template"
 
 
-@pytest.fixture(scope="module")
-def postgresql_migration(rc) -> URL:
+@pytest.fixture(scope="session")
+def postgresql_migration_template(rc: RawConfig) -> URL:
+    url = make_url(rc.get("backends", "default", "dsn", required=True))
+    url = url.set(database=MIGRATION_TEMPLATE_DATABASE)
+
+    if su.database_exists(url):
+        tmp_engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
+        with tmp_engine.connect() as conn:
+            conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = false'))
+        su.drop_database(url)
+
+    su.create_database(url)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
+    _prepare_migration_postgresql_template(engine)
+    yield url
+    with engine.connect() as conn:
+        conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = false'))
+    su.drop_database(url)
+
+
+@pytest.fixture(scope="function")
+def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> URL:
     url = make_url(rc.get("backends", "default", "dsn", required=True))
     url = url.set(database=MIGRATION_DATABASE)
 
     if su.database_exists(url):
-        _prepare_migration_postgresql(url)
-        yield url
-    else:
-        su.create_database(url)
-        _prepare_migration_postgresql(url)
-        yield url
         su.drop_database(url)
+
+    su.create_database(url, template=MIGRATION_TEMPLATE_DATABASE)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
+    # Need to add citus extension here, because template database does not support citus
+    # Citus creates maintenance daemon, which keeps active connection to db and prevents template reuse.
+    with engine.connect() as conn:
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
+    yield url
+    su.drop_database(url)
+
+
+@pytest.fixture(scope="function")
+def migration_db(postgresql_migration: URL) -> sa.engine.Engine:
+    engine = create_postgresql_engine(postgresql_migration)
+    yield engine
 
 
 @pytest.fixture(scope="function")
@@ -297,13 +333,12 @@ def reset_keymap(context):
     _reset_keymap(excluded)
 
 
-def _prepare_migration_postgresql(dsn: URL) -> None:
-    engine = sa.create_engine(dsn)
+def _prepare_migration_postgresql_template(engine: sa.engine.Engine) -> None:
     with engine.connect() as conn:
-        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
-        conn.execute(sa.text("CREATE SCHEMA public"))
+        conn.execute(sa.text("CREATE SCHEMA IF NOT EXISTS public"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+        conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = true'))

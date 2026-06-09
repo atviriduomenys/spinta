@@ -15,21 +15,23 @@ from spinta.core.ufuncs import Expr, Env
 from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
+from spinta.backends.helpers import is_custom_id_prop
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource
-from spinta.datasets.helpers import get_enum_filters, get_ref_filters
+from spinta.datasets.helpers import get_enum_filters, get_ref_filters, encode_composite_string_id
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Base32
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
+from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 from spinta.utils.schema import NA
 
 OBJECT_DTYPE = "object"
@@ -267,19 +269,29 @@ def dask_get_all(
     where = env.execute(expr)
     qry = env.build(where)
 
+    env_selected = env.selected
+    list_keys = extract_list_property_names(model, env_selected.keys())
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {
             "_type": model.model_type(),
         }
-        for key, sel in env.selected.items():
+        for key, sel in env_selected.items():
             val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
+                    if isinstance(val, list):
+                        val = [
+                            list_value.get("_id", list_value) if isinstance(list_value, dict) else list_value
+                            for list_value in val
+                        ]
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
+                elif is_custom_id_prop(sel.prop) and isinstance(val, list) and not isinstance(sel.prop.dtype, Base32):
+                    val = encode_composite_string_id(val, model.external.pkeys)
             res[key] = val
+        res = flat_dicts_to_nested(res, list_keys=list_keys)
         res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
 

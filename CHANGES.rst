@@ -19,8 +19,7 @@ Improvements:
   `false` to stop a model from being implicitly filtered by the filters of the
   models it refers to (`#1901`_).
 
-- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting 
-   them to `string` using the `cast()` prepare function. (`#1701`_).
+- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
 
 .. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
@@ -238,6 +237,7 @@ Bug Fixes:
 
 .. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
 .. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
+
 
 0.2dev17 (2026-02-26)
 =====================

@@ -1,8 +1,6 @@
-from typing import Optional, Any, Dict, Iterable, Tuple
-
 import logging
 import re
-
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -225,12 +223,22 @@ class ModelNotFound(UserError):
 
 
 class NoModelDefined(UserError):
-    template = "Property {property!r} must be defined on a concrete model."
+    template = "{dimension} {name!r} must be defined on a concrete model."
 
 
 class PropertyNotFound(UserError):
     status_code = 404
     template = "Property {property!r} not found."
+
+
+class ScopeNotFound(UserError):
+    status_code = 404
+    template = "Scope {scope!r} not found in model {model!r}."
+
+
+class PropertiesNotFound(UserError):
+    status_code = 404
+    template = "Properties {properties!r} not found."
 
 
 class NoItemRevision(UserError):
@@ -306,10 +314,6 @@ class NotFoundError(BaseError):
 
 class NodeNotFound(UserError):
     template = "Node {name!r} of type {type!r} not found."
-
-
-class ModelReferenceNotFound(BaseError):
-    template = "Model reference {ref!r} not found."
 
 
 class ModelReferenceKeyNotFound(BaseError):
@@ -971,6 +975,10 @@ class InvalidClientBackend(UserError):
     template = """Backend "{backend_name}" is not defined in the client file."""
 
 
+class DaskBackendCompareNotSupported(UserError):
+    template = "Dask backend does not support comparison (filter) operators in prepare formula. Found: {operators}."
+
+
 class InvalidClientBackendCredentials(UserError):
     template = """Credential "{key}" is not defined in the client's file's "{backend_name}" backends variable."""
 
@@ -1215,3 +1223,45 @@ class EnumPrepareMissing(UserError):
     template = """
         Enum {enum} is missing a required value in the prepare column.
     """
+
+
+class InlineEnumWithName(UserError):
+    template = (
+        "Named enum {enum!r} is declared directly under property {property!r}. "
+        "Either remove the name to make it an inline enum, or move it to dataset dimension."
+    )
+
+
+class SourceOrPrepareNotAllowed(UserError):
+    template = """
+        The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
+    """
+
+
+class PartialIncorrectProperty(BaseError):
+    template = (
+        "The composite property {property} is not correct. Check if all parts of the composite property are present."
+    )
+
+
+class ReservedPropertySourceShouldBeRemoved(BaseError):
+    template = "The property {property} should not have a source value, if its model has a ref value."
+
+
+class ReservedPropertyTypeShouldMatchPrimaryKey(BaseError):
+    template = (
+        "The property {property} should have the same type as the primary key of the model {model}. "
+        "Reserved property type: {reserved_type}. Model primary key type: {primary_type}."
+    )
+
+
+class ReservedPropertySourceOrModelRefShouldBeSet(BaseError):
+    template = "The reserved property {property} should be in a model which has a ref value or it itself should have a source value."
+
+
+class Base32TypeOnlyAllowedOnIdOrRevision(BaseError):
+    template = "The 'base32' type is only allowed on the '_id' or '_revision' reserved property, got {property}."
+
+
+class ValuesForIdCantHaveSpecialSymbols(BaseError):
+    template = "The value used for _id can not have special symbols. Found {value} value on {property} property. Change _id type to Base32 or remove the special symbol."

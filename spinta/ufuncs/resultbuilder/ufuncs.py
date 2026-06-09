@@ -7,7 +7,7 @@ import binascii
 
 from spinta.core.ufuncs import ufunc, Expr
 from spinta.exceptions import InvalidBase64String, NotImplementedFeature, UnableToCast
-from spinta.types.datatype import String, Binary, DataType, DateTime, Time, Date, Number, Integer, Boolean
+from spinta.types.datatype import String, Binary, Integer, Date, Time, DateTime, Number, Boolean, DataType
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder

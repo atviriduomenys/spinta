@@ -38,11 +38,13 @@ def test_envvars_multipart():
         "envvars",
         {
             "SPINTA_DEFAULT_AUTH_CLIENT": "guest",
+            "SPINTA_DEFAULT_ACCESS_LEVEL": "public",
         },
     )
     config.read(SCHEMA)
     assert config.config == {
         ("default_auth_client",): "guest",
+        ("default_access_level",): "public",
     }
 
 

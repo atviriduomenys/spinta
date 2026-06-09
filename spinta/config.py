@@ -54,7 +54,6 @@ CONFIG = {
             "xml": "spinta.manifests.dict.components:XmlManifest",
             "internal": "spinta.manifests.internal_sql.components:InternalSQLManifest",
             "xsd": "spinta.manifests.xsd.components:XsdManifest",
-            "xsd2": "spinta.manifests.xsd2.components:XsdManifest2",
             "openapi": "spinta.manifests.open_api.components:OpenAPIManifest",
         },
         "backends": {
@@ -116,9 +115,6 @@ CONFIG = {
             # External result builders
             "sql": "spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder",
         },
-        "migrations": {
-            "alembic": "spinta.migrations.schema.alembic:Alembic",
-        },
         "nodes": {
             "ns": "spinta.components:Namespace",
             "model": "spinta.components:Model",
@@ -168,6 +164,8 @@ CONFIG = {
             "partial": "spinta.types.datatype:Partial",
             "partial_array": "spinta.types.datatype:PartialArray",
             "uuid": "spinta.types.datatype:UUID",
+            "unknown": "spinta.types.datatype:Unknown",
+            "base32": "spinta.types.datatype:Base32",
         },
         "urlparams": {
             "component": "spinta.urlparams:UrlParams",
@@ -270,6 +268,9 @@ CONFIG = {
     "ensure_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
+    # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
+    "default_distribution_strategy": "schema",
+    "default_distribution_property": "_id",
     "environments": {
         "dev": {
             "keymaps.default": {
@@ -347,6 +348,8 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+            "default_access_level": "open",
+            "access": "open",
             "sync_retry_count": 0,
         },
     },

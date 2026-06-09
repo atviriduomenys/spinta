@@ -5,12 +5,13 @@ import pytest
 from pathlib import Path
 
 import sqlalchemy as sa
-from sqlalchemy.engine.url import make_url, URL
+from sqlalchemy.engine.url import make_url
+from sqlalchemy.engine import Engine
 
 from spinta import commands
 from spinta.backends.constants import TableType
+from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.cli.helpers.store import load_store
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -35,6 +36,7 @@ from spinta.testing.migration import (
     rename_index,
     rename_redirect,
     drop_index,
+    add_schema,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
@@ -76,7 +78,8 @@ def override_manifest(context: Context, path, manifest):
 def cleanup_table_list(meta: sa.MetaData, tables: list):
     table_list = []
     for table in tables:
-        table_list.append(meta.tables[get_pg_name(table)])
+        table_identifier = get_table_identifier(table)
+        table_list.append(meta.tables[table_identifier.pg_qualified_name])
     meta.drop_all(tables=table_list)
 
 
@@ -84,23 +87,9 @@ def float_equals(a: float, b: float, epsilon=1e-9):
     return abs(a - b) < epsilon
 
 
-def cleanup_tables(postgresql_migration: URL):
-    with sa.create_engine(postgresql_migration).connect() as conn:
-        meta = sa.MetaData(conn)
-        meta.reflect()
-        tables = meta.tables
-        drop_tables = []
-        for table in tables.values():
-            if not table.name.startswith("_"):
-                if table.name != "spatial_ref_sys":
-                    drop_tables.append(table)
-        meta.drop_all(tables=drop_tables)
-
-
 def test_migrate_create_simple_datatype_model(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d | r | b | m | property   | type    | ref     | source     | prepare
     """
@@ -128,10 +117,12 @@ def test_migrate_create_simple_datatype_model(
     )
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'CREATE TABLE "migrate/example/Test" (\n'
+        f"{add_schema(schema='migrate/example')}"
+        'CREATE TABLE "migrate/example"."Test" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -148,46 +139,46 @@ def test_migrate_create_simple_datatype_model(
         '    "someUri" VARCHAR, \n'
         '    "someBinary" BYTEA, \n'
         '    "someJson" JSONB, \n'
-        '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id), \n'
-        '    CONSTRAINT "uq_migrate/example/Test_someUri" UNIQUE ("someUri")\n'
+        '    CONSTRAINT "pk_Test" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_Test_someUri" UNIQUE ("someUri")\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someText')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someInteger')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someNumber')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someDate')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someDateTime')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someTime')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someBoolean')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someUrl')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someUri')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someBinary')}"
-        f"{add_column_comment(table='migrate/example/Test', column='someJson')}"
-        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
-        f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
-        f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
+        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someText')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someInteger')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someNumber')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someDate')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someDateTime')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someTime')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someBoolean')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someUrl')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someUri')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someBinary')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='someJson')}"
+        f"{add_table_comment(table_identifier=test_table_identifier, comment='migrate/example/Test')}"
+        f"{add_changelog_table(table_identifier=test_table_identifier, comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table_identifier=test_table_identifier, comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert not {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert not {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {
             "someText",
             "someInteger",
@@ -249,8 +240,7 @@ def test_migrate_create_simple_datatype_model(
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_add_simple_column(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_add_simple_column(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -261,12 +251,12 @@ def test_migrate_add_simple_column(postgresql_migration: URL, rc: RawConfig, cli
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        columns = tables["migrate/example/Test"].columns
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        columns = tables["migrate/example.Test"].columns
         assert {"someText"}.issubset(columns.keys())
 
         some_text = columns["someText"]
@@ -289,29 +279,30 @@ def test_migrate_add_simple_column(postgresql_migration: URL, rc: RawConfig, cli
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
-        f"BEGIN;\n\n{add_column(table='migrate/example/Test', column='someInteger', column_type='INTEGER')}COMMIT;\n\n"
+        f"BEGIN;\n\n{add_column(table_identifier=test_table_identifier, column='someInteger', column_type='INTEGER')}COMMIT;\n\n"
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText"}.issubset(columns.keys())
 
         assert not {"someInteger"}.issubset(columns.keys())
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger"}.issubset(columns.keys())
 
         some_integer = columns["someInteger"]
@@ -321,8 +312,7 @@ def test_migrate_add_simple_column(postgresql_migration: URL, rc: RawConfig, cli
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_remove_simple_column(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_simple_column(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -334,12 +324,12 @@ def test_migrate_remove_simple_column(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        columns = tables["migrate/example/Test"].columns
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger"}.issubset(columns.keys())
 
         some_text = columns["someText"]
@@ -363,17 +353,18 @@ def test_migrate_remove_simple_column(postgresql_migration: URL, rc: RawConfig, 
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
-        f"BEGIN;\n\n{drop_column(table='migrate/example/Test', column='someInteger')}COMMIT;\n\n"
+        f"BEGIN;\n\n{drop_column(table_identifier=test_table_identifier, column='someInteger')}COMMIT;\n\n"
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger"}.issubset(columns.keys())
 
         some_integer = columns["someInteger"]
@@ -383,13 +374,13 @@ def test_migrate_remove_simple_column(postgresql_migration: URL, rc: RawConfig, 
         assert not {"__someInteger"}.issubset(columns.keys())
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "__someInteger"}.issubset(columns.keys())
 
         some_integer = columns["__someInteger"]
@@ -401,9 +392,8 @@ def test_migrate_remove_simple_column(postgresql_migration: URL, rc: RawConfig, 
 
 
 def test_migrate_multiple_times_remove_simple_column(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -415,12 +405,12 @@ def test_migrate_multiple_times_remove_simple_column(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        columns = tables["migrate/example/Test"].columns
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger"}.issubset(columns.keys())
 
         some_text = columns["someText"]
@@ -444,29 +434,30 @@ def test_migrate_multiple_times_remove_simple_column(
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
-        f"BEGIN;\n\n{drop_column(table='migrate/example/Test', column='someInteger')}COMMIT;\n\n"
+        f"BEGIN;\n\n{drop_column(table_identifier=test_table_identifier, column='someInteger')}COMMIT;\n\n"
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger"}.issubset(columns.keys())
 
         assert not {"__someInteger"}.issubset(columns.keys())
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "__someInteger"}.issubset(columns.keys())
 
         some_integer = columns["__someInteger"]
@@ -489,17 +480,17 @@ def test_migrate_multiple_times_remove_simple_column(
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
     assert result.output.endswith(
-        f"BEGIN;\n\n{add_column(table='migrate/example/Test', column='someInteger', column_type='INTEGER')}COMMIT;\n\n"
+        f"BEGIN;\n\n{add_column(table_identifier=test_table_identifier, column='someInteger', column_type='INTEGER')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger", "__someInteger"}.issubset(columns.keys())
 
         some_integer = columns["someInteger"]
@@ -522,19 +513,18 @@ def test_migrate_multiple_times_remove_simple_column(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" DROP COLUMN "__someInteger";\n\n'
-        f"{drop_column(table='migrate/example/Test', column='someInteger')}"
+        'ALTER TABLE "migrate/example"."Test" DROP COLUMN "__someInteger";\n\n'
+        f"{drop_column(table_identifier=test_table_identifier, column='someInteger')}"
         "COMMIT;\n"
         "\n"
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "someInteger", "__someInteger"}.issubset(columns.keys())
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
@@ -542,20 +532,20 @@ def test_migrate_multiple_times_remove_simple_column(
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" DROP COLUMN "__someInteger";\n\n'
-        f"{drop_column(table='migrate/example/Test', column='someInteger')}"
+        'ALTER TABLE "migrate/example"."Test" DROP COLUMN "__someInteger";\n\n'
+        f"{drop_column(table_identifier=test_table_identifier, column='someInteger')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        columns = tables["migrate/example/Test"].columns
+        columns = tables["migrate/example.Test"].columns
         assert {"someText", "__someInteger"}.issubset(columns.keys())
 
         some_integer = columns["__someInteger"]
@@ -567,8 +557,7 @@ def test_migrate_multiple_times_remove_simple_column(
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_add_unique_constraint(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_add_unique_constraint(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -579,12 +568,12 @@ def test_migrate_add_unique_constraint(postgresql_migration: URL, rc: RawConfig,
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        columns = tables["migrate/example/Test"].columns
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        columns = tables["migrate/example.Test"].columns
         assert {"someText"}.issubset(columns.keys())
 
         some_text = columns["someText"]
@@ -607,39 +596,36 @@ def test_migrate_add_unique_constraint(postgresql_migration: URL, rc: RawConfig,
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
-        '"uq_migrate/example/Test_someText" UNIQUE ("someText");\n'
+        'ALTER TABLE "migrate/example"."Test" ADD CONSTRAINT '
+        '"uq_Test_someText" UNIQUE ("someText");\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert not any(columns == ["someText"] for columns in constraint_columns)
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert any(columns == ["someText"] for columns in constraint_columns)
 
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_remove_unique_constraint(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_unique_constraint(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -650,19 +636,19 @@ def test_migrate_remove_unique_constraint(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        columns = tables["migrate/example/Test"].columns
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        columns = tables["migrate/example.Test"].columns
         assert {"someText"}.issubset(columns.keys())
 
         some_text = columns["someText"]
         assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert any(columns == ["someText"] for columns in constraint_columns)
 
     override_manifest(
@@ -679,41 +665,32 @@ def test_migrate_remove_unique_constraint(
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
     assert result.output.endswith(
-        "BEGIN;\n"
-        "\n"
-        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
-        '"uq_migrate/example/Test_someText";\n'
-        "\n"
-        "COMMIT;\n"
-        "\n"
+        'BEGIN;\n\nALTER TABLE "migrate/example"."Test" DROP CONSTRAINT "uq_Test_someText";\n\nCOMMIT;\n\n'
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert any(columns == ["someText"] for columns in constraint_columns)
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert not any(columns == ["someText"] for columns in constraint_columns)
 
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_create_models_with_base(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_create_models_with_base(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type | ref | level
     """
@@ -740,10 +717,13 @@ def test_migrate_create_models_with_base(
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
+    base_table_identifier = TableIdentifier(schema="migrate/example", base_name="Base")
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'CREATE TABLE "migrate/example/Base" (\n'
+        f"{add_schema(schema='migrate/example')}"
+        'CREATE TABLE "migrate/example"."Base" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -752,60 +732,60 @@ def test_migrate_create_models_with_base(
         '    "someText" TEXT, \n'
         '    "someInteger" INTEGER, \n'
         '    "someNumber" FLOAT, \n'
-        '    CONSTRAINT "pk_migrate/example/Base" PRIMARY KEY (_id), \n'
-        '    CONSTRAINT "uq_migrate/example/Base_someText_someNumber" UNIQUE '
+        '    CONSTRAINT "pk_Base" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_Base_someText_someNumber" UNIQUE '
         '("someText", "someNumber")\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Base__txn', table='migrate/example/Base', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/Base', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/Base', column='_created')}"
-        f"{add_column_comment(table='migrate/example/Base', column='_updated')}"
-        f"{add_column_comment(table='migrate/example/Base', column='_id')}"
-        f"{add_column_comment(table='migrate/example/Base', column='_revision')}"
-        f"{add_column_comment(table='migrate/example/Base', column='someText')}"
-        f"{add_column_comment(table='migrate/example/Base', column='someInteger')}"
-        f"{add_column_comment(table='migrate/example/Base', column='someNumber')}"
-        f"{add_table_comment(table='migrate/example/Base', comment='migrate/example/Base')}"
-        f"{add_changelog_table(table='migrate/example/Base/:changelog', comment='migrate/example/Base/:changelog')}"
-        f"{add_redirect_table(table='migrate/example/Base/:redirect', comment='migrate/example/Base/:redirect')}"
-        'CREATE TABLE "migrate/example/Test" (\n'
+        f"{add_index(table_identifier=base_table_identifier, index_name='ix_Base__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='someText')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='someInteger')}"
+        f"{add_column_comment(table_identifier=base_table_identifier, column='someNumber')}"
+        f"{add_table_comment(table_identifier=base_table_identifier, comment='migrate/example/Base')}"
+        f"{add_changelog_table(table_identifier=base_table_identifier, comment='migrate/example/Base/:changelog')}"
+        f"{add_redirect_table(table_identifier=base_table_identifier, comment='migrate/example/Base/:redirect')}"
+        'CREATE TABLE "migrate/example"."Test" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _id UUID NOT NULL, \n"
         "    _revision TEXT, \n"
-        '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id), \n'
-        '    CONSTRAINT "fk_migrate/example/Base__id" FOREIGN KEY(_id) REFERENCES '
-        '"migrate/example/Base" (_id)\n'
+        '    CONSTRAINT "pk_Test" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "fk_Test__id_Base" FOREIGN KEY(_id) REFERENCES '
+        '"migrate/example"."Base" (_id)\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/Test__txn', table='migrate/example/Test', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/Test', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_created')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_updated')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_id')}"
-        f"{add_column_comment(table='migrate/example/Test', column='_revision')}"
-        f"{add_table_comment(table='migrate/example/Test', comment='migrate/example/Test')}"
-        f"{add_changelog_table(table='migrate/example/Test/:changelog', comment='migrate/example/Test/:changelog')}"
-        f"{add_redirect_table(table='migrate/example/Test/:redirect', comment='migrate/example/Test/:redirect')}"
+        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_revision')}"
+        f"{add_table_comment(table_identifier=test_table_identifier, comment='migrate/example/Test')}"
+        f"{add_changelog_table(table_identifier=test_table_identifier, comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table_identifier=test_table_identifier, comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Base",
-            "migrate/example/Base/:changelog",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Base",
+            "migrate/example.Base/:changelog",
         }.issubset(tables.keys())
 
-        columns = get_table_foreign_key_constraint_columns(tables["migrate/example/Test"])
+        columns = get_table_foreign_key_constraint_columns(tables["migrate/example.Test"])
         assert any(
             [["_id"], ["_id"]] == [constraint["column_names"], constraint["referred_column_names"]]
             for constraint in columns
@@ -822,8 +802,7 @@ def test_migrate_create_models_with_base(
         )
 
 
-def test_migrate_remove_model(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_model(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref | source
      migrate/example |   |      |      |                |          |     |
@@ -838,15 +817,15 @@ def test_migrate_remove_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Ref",
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:file/someFile",
+            "migrate/example.Ref",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:file/someFile",
         }.issubset(tables.keys())
 
     override_manifest(
@@ -861,43 +840,45 @@ def test_migrate_remove_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{drop_table(table='migrate/example/Test', remove_model_only=True)}"
-        f"{drop_index(index_name='ix_migrate/example/Test__txn')}"
-        f"{drop_table(table='migrate/example/Test/:changelog', remove_model_only=True)}"
-        'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
-        '"migrate/example/__Test/:changelog__id_seq";\n'
+        f"{drop_table(table_identifier=test_table_identifier, remove_model_only=True)}"
+        f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test__txn')}"
+        f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.CHANGELOG), remove_model_only=True)}"
+        'ALTER SEQUENCE "migrate/example"."Test/:changelog__id_seq" RENAME TO '
+        '"__Test/:changelog__id_seq";\n'
         "\n"
-        f"{drop_index(index_name='ix_migrate/example/Test/:changelog__txn')}"
-        f"{drop_table(table='migrate/example/Test/:redirect', remove_model_only=True)}"
-        f"{drop_index(index_name='ix_migrate/example/Test/:redirect_redirect')}"
-        f"{drop_table(table='migrate/example/Test/:file/someFile', remove_model_only=True)}"
+        f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test/:changelog__txn')}"
+        f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.REDIRECT), remove_model_only=True)}"
+        f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test/:redirect_redirect')}"
+        f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), remove_model_only=True)}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Ref",
-            "migrate/example/Ref/:changelog",
-            "migrate/example/Ref/:redirect",
-            "migrate/example/__Test",
-            "migrate/example/__Test/:changelog",
-            "migrate/example/__Test/:redirect",
-            "migrate/example/__Test/:file/someFile",
+            "migrate/example.Ref",
+            "migrate/example.Ref/:changelog",
+            "migrate/example.Ref/:redirect",
+            "migrate/example.__Test",
+            "migrate/example.__Test/:changelog",
+            "migrate/example.__Test/:redirect",
+            "migrate/example.__Test/:file/someFile",
         }.issubset(tables.keys())
 
         assert not {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:redirect",
-            "migrate/example/Test/:file/someFile",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:redirect",
+            "migrate/example.Test/:file/someFile",
         }.issubset(tables.keys())
 
         cleanup_table_list(
@@ -914,8 +895,7 @@ def test_migrate_remove_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
         )
 
 
-def test_migrate_remove_base_from_model(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_base_from_model(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
  d               | r | b    | m    | property     | type          | ref                  | level
      migrate/example |   |      |      |              |               |                      |
@@ -949,24 +929,23 @@ def test_migrate_remove_base_from_model(postgresql_migration: URL, rc: RawConfig
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
-
     assert result.output.endswith(
-        'BEGIN;\n\nALTER TABLE "migrate/example/Test" DROP CONSTRAINT "fk_migrate/example/Base__id";\n\nCOMMIT;\n\n'
+        'BEGIN;\n\nALTER TABLE "migrate/example"."Test" DROP CONSTRAINT "fk_Test__id_Base";\n\nCOMMIT;\n\n'
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Base",
-            "migrate/example/Base/:changelog",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Base",
+            "migrate/example.Base/:changelog",
         }.issubset(tables.keys())
 
-        columns = get_table_foreign_key_constraint_columns(tables["migrate/example/Test"])
+        columns = get_table_foreign_key_constraint_columns(tables["migrate/example.Test"])
         assert not any(
             [["_id"], ["_id"]] == [constraint["column_names"], constraint["referred_column_names"]]
             for constraint in columns
@@ -983,8 +962,7 @@ def test_migrate_remove_base_from_model(postgresql_migration: URL, rc: RawConfig
         )
 
 
-def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_rename_model(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref | source
      migrate/example |   |      |      |                |          |     |
@@ -1000,20 +978,20 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Ref",
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:file/someFile",
+            "migrate/example.Ref",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:file/someFile",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         constraints = get_table_foreign_key_constraint_columns(table)
-        assert any(constraint["constraint_name"] == "fk_migrate/example/Test_someRef._id" for constraint in constraints)
+        assert any(constraint["constraint_name"] == "fk_Test_someRef._id_Ref" for constraint in constraints)
 
     override_manifest(
         context,
@@ -1039,54 +1017,58 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
+    new_table_identifier = TableIdentifier(schema="migrate/example", base_name="New")
+    ref_table_identifier = TableIdentifier(schema="migrate/example", base_name="Ref")
+    new_ref_table_identifier = TableIdentifier(schema="migrate/example", base_name="NewRef")
+
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{rename_table(table='migrate/example/Ref', new_name='migrate/example/NewRef')}"
-        f"{rename_changelog(table='migrate/example/Ref/:changelog', new_name='migrate/example/NewRef/:changelog')}"
-        f"{rename_redirect(table='migrate/example/Ref/:redirect', new_name='migrate/example/NewRef/:redirect')}"
-        f"{rename_index(old_index_name='ix_migrate/example/Ref__txn', new_index_name='ix_migrate/example/NewRef__txn')}"
-        f"{rename_table(table='migrate/example/Test', new_name='migrate/example/New')}"
-        f"{rename_changelog(table='migrate/example/Test/:changelog', new_name='migrate/example/New/:changelog')}"
-        f"{rename_redirect(table='migrate/example/Test/:redirect', new_name='migrate/example/New/:redirect')}"
-        f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/New/:file/someFile')}"
-        f"{rename_index(old_index_name='ix_migrate/example/Test_someRef._id', new_index_name='ix_migrate/example/New_someRef._id')}"
-        f"{rename_index(old_index_name='ix_migrate/example/Test__txn', new_index_name='ix_migrate/example/New__txn')}"
-        'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
-        '"fk_migrate/example/Test_someRef._id" TO '
-        '"fk_migrate/example/New_someRef._id";\n'
+        f"{rename_table(old_table_identifier=ref_table_identifier, new_table_identifier=new_ref_table_identifier)}"
+        f"{rename_changelog(old_table_identifier=ref_table_identifier, new_table_identifier=new_ref_table_identifier)}"
+        f"{rename_redirect(old_table_identifier=ref_table_identifier, new_table_identifier=new_ref_table_identifier)}"
+        f"{rename_index(table_identifier=ref_table_identifier, old_index_name='ix_Ref__txn', new_index_name='ix_NewRef__txn')}"
+        f"{rename_table(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
+        f"{rename_changelog(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
+        f"{rename_redirect(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
+        f"{rename_table(old_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), new_table_identifier=new_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'))}"
+        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someRef._id', new_index_name='ix_New_someRef._id')}"
+        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test__txn', new_index_name='ix_New__txn')}"
+        'ALTER TABLE "migrate/example"."New" RENAME CONSTRAINT '
+        '"fk_Test_someRef._id_Ref" TO '
+        '"fk_New_someRef._id_NewRef";\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/New",
-            "migrate/example/New/:changelog",
-            "migrate/example/New/:redirect",
-            "migrate/example/New/:file/someFile",
-            "migrate/example/NewRef",
+            "migrate/example.New",
+            "migrate/example.New/:changelog",
+            "migrate/example.New/:redirect",
+            "migrate/example.New/:file/someFile",
+            "migrate/example.NewRef",
         }.issubset(tables.keys())
 
         assert not {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:redirectmigrate/example/Test/:file/someFile",
-            "migrate/example/Ref",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:redirect",
+            "migrate/example.Test/:file/someFile",
+            "migrate/example.Ref",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/New"]
+        table = tables["migrate/example.New"]
 
         constraints = get_table_foreign_key_constraint_columns(table)
-        assert any(constraint["constraint_name"] == "fk_migrate/example/New_someRef._id" for constraint in constraints)
-        assert not any(
-            constraint["constraint_name"] == "fk_migrate/example/Test_someRef._id" for constraint in constraints
-        )
+        assert any(constraint["constraint_name"] == "fk_New_someRef._id_NewRef" for constraint in constraints)
+        assert not any(constraint["constraint_name"] == "fk_Test_someRef._id_Ref" for constraint in constraints)
 
         cleanup_table_list(
             meta,
@@ -1100,8 +1082,7 @@ def test_migrate_rename_model(postgresql_migration: URL, rc: RawConfig, cli: Spi
         )
 
 
-def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_rename_property(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -1118,17 +1099,17 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Ref",
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:file/someFile",
+            "migrate/example.Ref",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:file/someFile",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",
@@ -1142,9 +1123,7 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
         }.issubset(columns.keys())
 
         constraints = get_table_foreign_key_constraint_columns(table)
-        assert any(
-            constraint["constraint_name"] == "fk_migrate/example/Test_someOther._id" for constraint in constraints
-        )
+        assert any(constraint["constraint_name"] == "fk_Test_someOther._id_Ref" for constraint in constraints)
 
     override_manifest(
         context,
@@ -1177,48 +1156,50 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
 
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
+    ref_table_identifier = TableIdentifier(schema="migrate/example", base_name="Ref")
     assert result.output.endswith(
         "BEGIN;\n\n"
-        f"{rename_column(table='migrate/example/Ref', column='someText', new_name='newText')}"
-        'ALTER TABLE "migrate/example/Ref" RENAME CONSTRAINT '
-        '"uq_migrate/example/Ref_someText" TO "uq_migrate/example/Ref_newText";\n'
+        f"{rename_column(table_identifier=ref_table_identifier, column='someText', new_name='newText')}"
+        'ALTER TABLE "migrate/example"."Ref" RENAME CONSTRAINT '
+        '"uq_Ref_someText" TO "uq_Ref_newText";\n'
         "\n"
-        f"{rename_column(table='migrate/example/Test', column='someText', new_name='newText')}"
-        f"{rename_column(table='migrate/example/Test', column='someFile._id', new_name='newFile._id')}"
-        f"{rename_column(table='migrate/example/Test', column='someFile._content_type', new_name='newFile._content_type')}"
-        f"{rename_column(table='migrate/example/Test', column='someFile._size', new_name='newFile._size')}"
-        f"{rename_column(table='migrate/example/Test', column='someFile._bsize', new_name='newFile._bsize')}"
-        f"{rename_column(table='migrate/example/Test', column='someFile._blocks', new_name='newFile._blocks')}"
-        f"{rename_table(table='migrate/example/Test/:file/someFile', new_name='migrate/example/Test/:file/newFile')}"
-        f"{rename_index(old_index_name='ix_migrate/example/Test_someOther._id', new_index_name='ix_migrate/example/Test_newOther._id')}"
-        f"{rename_column(table='migrate/example/Test', column='someRef.someText', new_name='newRef.newText')}"
-        f"{rename_column(table='migrate/example/Test', column='someOther._id', new_name='newOther._id')}"
-        'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
-        '"fk_migrate/example/Test_someOther._id" TO '
-        '"fk_migrate/example/Test_newOther._id";\n'
+        f"{rename_column(table_identifier=test_table_identifier, column='someText', new_name='newText')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someFile._id', new_name='newFile._id')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someFile._content_type', new_name='newFile._content_type')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someFile._size', new_name='newFile._size')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someFile._bsize', new_name='newFile._bsize')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someFile._blocks', new_name='newFile._blocks')}"
+        f"{rename_table(old_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), new_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='newFile'))}"
+        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someOther._id', new_index_name='ix_Test_newOther._id')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someRef.someText', new_name='newRef.newText')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someOther._id', new_name='newOther._id')}"
+        'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT '
+        '"fk_Test_someOther._id_Ref" TO '
+        '"fk_Test_newOther._id_Ref";\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:file/newFile",
-            "migrate/example/Ref",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:file/newFile",
+            "migrate/example.Ref",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/Ref"]
+        table = tables["migrate/example.Ref"]
         columns = table.columns
         assert {"newText"}.issubset(columns.keys())
         assert not {"someText"}.issubset(columns.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "newText",
@@ -1242,12 +1223,8 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
         }.issubset(columns.keys())
 
         constraints = get_table_foreign_key_constraint_columns(table)
-        assert any(
-            constraint["constraint_name"] == "fk_migrate/example/Test_newOther._id" for constraint in constraints
-        )
-        assert not any(
-            constraint["constraint_name"] == "fk_migrate/example/Test_someOther._id" for constraint in constraints
-        )
+        assert any(constraint["constraint_name"] == "fk_Test_newOther._id_Ref" for constraint in constraints)
+        assert not any(constraint["constraint_name"] == "fk_Test_someOther._id_Ref" for constraint in constraints)
 
         cleanup_table_list(
             meta,
@@ -1260,8 +1237,7 @@ def test_migrate_rename_property(postgresql_migration: URL, rc: RawConfig, cli: 
         )
 
 
-def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_long_names(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type   | ref
     """
@@ -1284,19 +1260,21 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
 
+    long_table_identifier = TableIdentifier(
+        schema="migrate/example/very/very/long/dataset/name", base_name="ExtremelyLongModelName"
+    )
     pieces = [
         (
-            "CREATE INDEX "
-            '"ix_migrate/example/very/very/long/dat_d5eeba2c_ropertyNameOther" ON '
-            '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" USING gist '
-            '("veryLongGeometryPropertyNameOther");\n'
+            'CREATE INDEX "ix_ExtremelyLongModelName_veryLongGeometryPropertyNameOther" '
+            'ON "migrate/example/very/very/long/dataset/name"."ExtremelyLongModelName" '
+            'USING gist ("veryLongGeometryPropertyNameOther");\n'
             "\n"
         ),
         (
             "CREATE INDEX "
-            '"ix_migrate/example/very/very/long/dat_4b7a633e_etryPropertyName" ON '
-            '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" USING gist '
-            '("veryLongGeometryPropertyName");\n'
+            '"ix_ExtremelyLongModelName_veryLongGeometryPropertyName" ON '
+            '"migrate/example/very/very/long/dataset/name"."ExtremelyLongModelName" USING '
+            'gist ("veryLongGeometryPropertyName");\n'
             "\n"
         ),
     ]
@@ -1310,10 +1288,10 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
             break
 
     assert result.output.endswith(
-        "BEGIN;\n"
-        "\n"
+        "BEGIN;\n\n"
+        f"{add_schema('migrate/example/very/very/long/dataset/name')}"
         "CREATE TABLE "
-        '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" (\n'
+        '"migrate/example/very/very/long/dataset/name"."ExtremelyLongModelName" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -1322,38 +1300,34 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
         '    "veryLongPrimaryKeyName" TEXT, \n'
         '    "veryLongGeometryPropertyName" geometry(GEOMETRY,4326), \n'
         '    "veryLongGeometryPropertyNameOther" geometry(GEOMETRY,4326), \n'
-        "    CONSTRAINT "
-        '"pk_migrate/example/very/very/long/dat_f2de534c_elyLongModelName" PRIMARY '
-        "KEY (_id), \n"
-        "    CONSTRAINT "
-        '"uq_migrate/example/very/very/long/dat_9d7c795e_ngPrimaryKeyName" UNIQUE '
+        '    CONSTRAINT "pk_ExtremelyLongModelName" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_ExtremelyLongModelName_veryLongPrimaryKeyName" UNIQUE '
         '("veryLongPrimaryKeyName")\n'
         ");\n"
         "\n"
-        f"{add_index(index_name='ix_migrate/example/very/very/long/dat_31c24f29_ngModelName__txn', table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', columns=['_txn'])}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_txn')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_created')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_updated')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_id')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='_revision')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='veryLongPrimaryKeyName')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='veryLongGeometryPropertyName')}"
-        f"{add_column_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', column='veryLongGeometryPropertyNameOther')}"
-        f"{add_table_comment(table='migrate/example/very/very/long/datase_0f562213_elyLongModelName', comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName')}"
+        f"{add_index(table_identifier=long_table_identifier, index_name='ix_ExtremelyLongModelName__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='veryLongPrimaryKeyName')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='veryLongGeometryPropertyName')}"
+        f"{add_column_comment(table_identifier=long_table_identifier, column='veryLongGeometryPropertyNameOther')}"
+        f"{add_table_comment(table_identifier=long_table_identifier, comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName')}"
         f"{ordered}"
-        f"{add_changelog_table(table='migrate/example/very/very/long/datase_d087b1e4_lName/:changelog', comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:changelog')}"
-        f"{add_redirect_table(table='migrate/example/very/very/long/datase_7adc3c9c_elName/:redirect', comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:redirect')}"
+        f"{add_changelog_table(table_identifier=long_table_identifier, comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:changelog')}"
+        f"{add_redirect_table(table_identifier=long_table_identifier, comment='migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example/very/very/long/dataset/name")
         tables = meta.tables
-        table_name = get_pg_name("migrate/example/very/very/long/dataset/name/ExtremelyLongModelName")
-        assert table_name in tables
+        assert "migrate/example/very/very/long/dataset/name.ExtremelyLongModelName" in tables
 
         cleanup_table_list(
             meta,
@@ -1365,9 +1339,8 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
 
 
 def test_migrate_rename_already_existing_property(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -1379,12 +1352,12 @@ def test_migrate_rename_already_existing_property(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"someText", "otherText"}.issubset(columns.keys())
 
@@ -1408,24 +1381,24 @@ def test_migrate_rename_already_existing_property(
     path.write_text(json.dumps(rename_file))
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
-
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{drop_column(table='migrate/example/Test', column='otherText')}"
-        f"{rename_column(table='migrate/example/Test', column='someText', new_name='otherText')}"
+        f"{drop_column(table_identifier=test_table_identifier, column='otherText')}"
+        f"{rename_column(table_identifier=test_table_identifier, column='someText', new_name='otherText')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-r", path])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"otherText", "__otherText"}.issubset(columns.keys())
         assert not {"someText"}.issubset(columns.keys())
@@ -1433,8 +1406,7 @@ def test_migrate_rename_already_existing_property(
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_change_basic_type(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -1446,12 +1418,12 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"someInt", "someFloat"}.issubset(columns.keys())
         conn.execute(
@@ -1475,11 +1447,11 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
-        'CAST("migrate/example/Test"."someInt" AS INTEGER);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
+        'CAST("migrate/example"."Test"."someInt" AS INTEGER);\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someFloat" TYPE FLOAT USING '
-        'CAST("migrate/example/Test"."someFloat" AS FLOAT);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someFloat" TYPE FLOAT USING '
+        'CAST("migrate/example"."Test"."someFloat" AS FLOAT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1492,13 +1464,13 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"someFloat", "someInt"}.issubset(columns.keys())
 
@@ -1524,11 +1496,11 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someInt" TYPE TEXT USING '
-        'CAST("migrate/example/Test"."someInt" AS TEXT);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someInt" TYPE TEXT USING '
+        'CAST("migrate/example"."Test"."someInt" AS TEXT);\n'
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someFloat" TYPE TEXT USING '
-        'CAST("migrate/example/Test"."someFloat" AS TEXT);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someFloat" TYPE TEXT USING '
+        'CAST("migrate/example"."Test"."someFloat" AS TEXT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1541,13 +1513,13 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
             f"{tmp_path}/manifest.csv",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {"someFloat", "someInt"}.issubset(columns.keys())
 
@@ -1558,8 +1530,7 @@ def test_migrate_change_basic_type(postgresql_migration: URL, rc: RawConfig, cli
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_datasets(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datasets(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -1584,12 +1555,13 @@ def test_migrate_datasets(postgresql_migration: URL, rc: RawConfig, cli: SpintaC
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-d", "migrate/example"])
     assert result.exit_code == 0
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='newColumn', column_type='INTEGER')}"
-        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
-        '"uq_migrate/example/Test_someText";\n'
+        f"{add_column(table_identifier=test_table_identifier, column='newColumn', column_type='INTEGER')}"
+        'ALTER TABLE "migrate/example"."Test" DROP CONSTRAINT '
+        '"uq_Test_someText";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1597,13 +1569,13 @@ def test_migrate_datasets(postgresql_migration: URL, rc: RawConfig, cli: SpintaC
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-d", "migrate/example"])
     assert result.exit_code == 0
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert "migrate/example/Test" in tables
+        assert "migrate/example.Test" in tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert "newColumn" in columns
         assert "someText" in columns
@@ -1611,10 +1583,7 @@ def test_migrate_datasets(postgresql_migration: URL, rc: RawConfig, cli: SpintaC
         cleanup_table_list(meta, ["migrate/example/Test"])
 
 
-def test_migrate_datasets_multiple_models(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datasets_multiple_models(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -1644,16 +1613,18 @@ def test_migrate_datasets_multiple_models(
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-d", "migrate/example"])
     assert result.exit_code == 0
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
+    test2_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test2")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='migrate/example/Test', column='newColumn', column_type='INTEGER')}"
-        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
-        '"uq_migrate/example/Test_someText";\n'
+        f"{add_column(table_identifier=test_table_identifier, column='newColumn', column_type='INTEGER')}"
+        'ALTER TABLE "migrate/example"."Test" DROP CONSTRAINT '
+        '"uq_Test_someText";\n'
         "\n"
-        f"{add_column(table='migrate/example/Test2', column='newColumn2', column_type='INTEGER')}"
-        'ALTER TABLE "migrate/example/Test2" DROP CONSTRAINT '
-        '"uq_migrate/example/Test2_anotherText";\n'
+        f"{add_column(table_identifier=test2_table_identifier, column='newColumn2', column_type='INTEGER')}"
+        'ALTER TABLE "migrate/example"."Test2" DROP CONSTRAINT '
+        '"uq_Test2_anotherText";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1661,19 +1632,19 @@ def test_migrate_datasets_multiple_models(
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-d", "migrate/example"])
     assert result.exit_code == 0
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert "migrate/example/Test" in tables
-        assert "migrate/example/Test2" in tables
+        assert "migrate/example.Test" in tables
+        assert "migrate/example.Test2" in tables
 
-        table1 = tables["migrate/example/Test"]
+        table1 = tables["migrate/example.Test"]
         columns1 = table1.columns
         assert "newColumn" in columns1
         assert "someText" in columns1
 
-        table2 = tables["migrate/example/Test2"]
+        table2 = tables["migrate/example.Test2"]
         columns2 = table2.columns
         assert "newColumn2" in columns2
         assert "anotherText" in columns2
@@ -1681,10 +1652,7 @@ def test_migrate_datasets_multiple_models(
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test2"])
 
 
-def test_migrate_datasets_invalid(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path, caplog
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datasets_invalid(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path, caplog):
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -1712,8 +1680,7 @@ def test_migrate_datasets_invalid(
     assert "Invalid dataset(s) provided: invalid/dataset" in result.stderr
 
 
-def test_migrate_datasets_single(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datasets_single(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      dataset1        |   |   |      |              |
@@ -1745,12 +1712,13 @@ def test_migrate_datasets_single(postgresql_migration: URL, rc: RawConfig, cli: 
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-d", "dataset1"])
     assert result.exit_code == 0
+    test_table_identifier = TableIdentifier(schema="dataset1", base_name="Test")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='dataset1/Test', column='newColumn', column_type='INTEGER')}"
-        'ALTER TABLE "dataset1/Test" DROP CONSTRAINT '
-        '"uq_dataset1/Test_someText";\n'
+        f"{add_column(table_identifier=test_table_identifier, column='newColumn', column_type='INTEGER')}"
+        'ALTER TABLE dataset1."Test" DROP CONSTRAINT '
+        '"uq_Test_someText";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1758,19 +1726,20 @@ def test_migrate_datasets_single(postgresql_migration: URL, rc: RawConfig, cli: 
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-d", "dataset1"])
     assert result.exit_code == 0
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="dataset1")
+        meta.reflect(schema="dataset2")
         tables = meta.tables
-        assert "dataset1/Test" in tables
-        assert "dataset2/Test" in tables
+        assert "dataset1.Test" in tables
+        assert "dataset2.Test" in tables
 
-        table1 = tables["dataset1/Test"]
+        table1 = tables["dataset1.Test"]
         columns1 = table1.columns
         assert "newColumn" in columns1
         assert "someText" in columns1
 
-        table2 = tables["dataset2/Test"]
+        table2 = tables["dataset2.Test"]
         columns2 = table2.columns
         assert "newColumn2" not in columns2
         assert "anotherText" in columns2
@@ -1778,8 +1747,7 @@ def test_migrate_datasets_single(postgresql_migration: URL, rc: RawConfig, cli: 
         cleanup_table_list(meta, ["dataset1/Test", "dataset2/Test"])
 
 
-def test_migrate_datasets_list(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_datasets_list(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property     | type
      dataset1        |   |   |      |              |
@@ -1818,15 +1786,17 @@ def test_migrate_datasets_list(postgresql_migration: URL, rc: RawConfig, cli: Sp
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-d", "dataset1", "-d", "dataset2"])
     assert result.exit_code == 0
+    test_table_identifier = TableIdentifier(schema="dataset1", base_name="Test")
+    test2_table_identifier = TableIdentifier(schema="dataset2", base_name="Test2")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{add_column(table='dataset1/Test', column='newColumn', column_type='INTEGER')}"
-        'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "uq_dataset1/Test_someText";\n'
+        f"{add_column(table_identifier=test_table_identifier, column='newColumn', column_type='INTEGER')}"
+        'ALTER TABLE dataset1."Test" DROP CONSTRAINT "uq_Test_someText";\n'
         "\n"
-        f"{add_column(table='dataset2/Test2', column='newColumn2', column_type='INTEGER')}"
-        'ALTER TABLE "dataset2/Test2" DROP CONSTRAINT '
-        '"uq_dataset2/Test2_anotherText";\n'
+        f"{add_column(table_identifier=test2_table_identifier, column='newColumn2', column_type='INTEGER')}"
+        'ALTER TABLE dataset2."Test2" DROP CONSTRAINT '
+        '"uq_Test2_anotherText";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1834,25 +1804,27 @@ def test_migrate_datasets_list(postgresql_migration: URL, rc: RawConfig, cli: Sp
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-d", "dataset1", "-d", "dataset2"])
     assert result.exit_code == 0
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="dataset1")
+        meta.reflect(schema="dataset2")
+        meta.reflect(schema="dataset3")
         tables = meta.tables
-        assert "dataset1/Test" in tables
-        assert "dataset2/Test2" in tables
-        assert "dataset3/Test3" in tables
+        assert "dataset1.Test" in tables
+        assert "dataset2.Test2" in tables
+        assert "dataset3.Test3" in tables
 
-        table1 = tables["dataset1/Test"]
+        table1 = tables["dataset1.Test"]
         columns1 = table1.columns
         assert "newColumn" in columns1
         assert "someText" in columns1
 
-        table2 = tables["dataset2/Test2"]
+        table2 = tables["dataset2.Test2"]
         columns2 = table2.columns
         assert "newColumn2" in columns2
         assert "anotherText" in columns2
 
-        table3 = tables["dataset3/Test3"]
+        table3 = tables["dataset3.Test3"]
         columns3 = table3.columns
         assert "newColumn3" not in columns3
         assert "thirdText" in columns3
@@ -1861,9 +1833,8 @@ def test_migrate_datasets_list(postgresql_migration: URL, rc: RawConfig, cli: Sp
 
 
 def test_migrate_incorrect_unique_constraint_name(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -1874,46 +1845,45 @@ def test_migrate_incorrect_unique_constraint_name(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert any(columns == ["someText"] for columns in constraint_columns)
         # Corrupt unique constraint name
 
         conn.execute(
-            'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT "uq_migrate/example/Test_someText" TO "corrupted_unique_constraint"'
+            'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT "uq_Test_someText" TO "corrupted_unique_constraint"'
         )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
-        'corrupted_unique_constraint TO "uq_migrate/example/Test_someText";\n'
+        'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT '
+        'corrupted_unique_constraint TO "uq_Test_someText";\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
 
-        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example/Test"])
+        constraint_columns = get_table_unique_constraint_columns(tables["migrate/example.Test"])
         assert any(columns == ["someText"] for columns in constraint_columns)
 
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_incorrect_index_name(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_incorrect_index_name(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref | source
      migrate/example |   |      |      |                |          |     |
@@ -1928,29 +1898,30 @@ def test_migrate_incorrect_index_name(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Ref",
-            "migrate/example/Ref/:changelog",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Ref",
+            "migrate/example.Ref/:changelog",
         }.issubset(tables.keys())
 
         # Corrupt ref index name
-        conn.execute('ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO "corrupted_index_name"')
+        conn.execute('ALTER INDEX "migrate/example"."ix_Test_someRef._id" RENAME TO "corrupted_index_name"')
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    test_table_identifier = TableIdentifier(schema="migrate/example", base_name="Test")
     assert result.output.endswith(
-        f"BEGIN;\n\n{rename_index(old_index_name='corrupted_index_name', new_index_name='ix_migrate/example/Test_someRef._id')}COMMIT;\n\n"
+        f"BEGIN;\n\n{rename_index(table_identifier=test_table_identifier, old_index_name='corrupted_index_name', new_index_name='ix_Test_someRef._id')}COMMIT;\n\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
 
         cleanup_table_list(
             meta,
@@ -1964,9 +1935,8 @@ def test_migrate_incorrect_index_name(postgresql_migration: URL, rc: RawConfig, 
 
 
 def test_migrate_incorrect_foreign_key_constraint_name(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b    | m    | property       | type     | ref | source
      migrate/example |   |      |      |                |          |     |
@@ -1981,47 +1951,47 @@ def test_migrate_incorrect_foreign_key_constraint_name(
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Ref",
-            "migrate/example/Ref/:changelog",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Ref",
+            "migrate/example.Ref/:changelog",
         }.issubset(tables.keys())
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         constraints = get_table_foreign_key_constraint_columns(table)
-        assert any(constraint["constraint_name"] == "fk_migrate/example/Test_someRef._id" for constraint in constraints)
+        assert any(constraint["constraint_name"] == "fk_Test_someRef._id_Ref" for constraint in constraints)
 
         # Corrupt ref index name
         conn.execute(
-            'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT "fk_migrate/example/Test_someRef._id" TO "corrupted_fkey_constraint"'
+            'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT "fk_Test_someRef._id_Ref" TO "corrupted_fkey_constraint"'
         )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
-        'corrupted_fkey_constraint TO "fk_migrate/example/Test_someRef._id";\n'
+        'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT '
+        'corrupted_fkey_constraint TO "fk_Test_someRef._id_Ref";\n'
         "\n"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         constraints = get_table_foreign_key_constraint_columns(table)
-        assert any(constraint["constraint_name"] == "fk_migrate/example/Test_someRef._id" for constraint in constraints)
+        assert any(constraint["constraint_name"] == "fk_Test_someRef._id_Ref" for constraint in constraints)
 
         cleanup_table_list(
             meta,
@@ -2034,8 +2004,7 @@ def test_migrate_incorrect_foreign_key_constraint_name(
         )
 
 
-def test_migrate_invalid_cast_error(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_invalid_cast_error(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type   | ref | source
      migrate/example |   |   |      |          |        |     |
@@ -2046,12 +2015,12 @@ def test_migrate_invalid_cast_error(postgresql_migration: URL, rc: RawConfig, cl
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -2076,14 +2045,13 @@ def test_migrate_invalid_cast_error(postgresql_migration: URL, rc: RawConfig, cl
         result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "--raise"], fail=False)
         raise result.exception
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_invalid_cast_warning(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_invalid_cast_warning(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type   | ref | source
      migrate/example |   |   |      |          |        |     |
@@ -2094,12 +2062,12 @@ def test_migrate_invalid_cast_warning(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -2124,8 +2092,8 @@ def test_migrate_invalid_cast_warning(postgresql_migration: URL, rc: RawConfig, 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE DATE USING '
-        'CAST("migrate/example/Test"."someDate" AS DATE);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE DATE USING '
+        'CAST("migrate/example"."Test"."someDate" AS DATE);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2135,14 +2103,13 @@ def test_migrate_invalid_cast_warning(postgresql_migration: URL, rc: RawConfig, 
         in result.stderr
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_unsafe_cast_warning(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_unsafe_cast_warning(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type   | ref | source
      migrate/example |   |   |      |          |        |     |
@@ -2153,12 +2120,12 @@ def test_migrate_unsafe_cast_warning(postgresql_migration: URL, rc: RawConfig, c
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
-        assert {"migrate/example/Test", "migrate/example/Test/:changelog"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert {"migrate/example.Test", "migrate/example.Test/:changelog"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         conn.execute(
             table.insert().values(
                 {
@@ -2183,8 +2150,8 @@ def test_migrate_unsafe_cast_warning(postgresql_migration: URL, rc: RawConfig, c
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
-        'CAST("migrate/example/Test"."someInt" AS INTEGER);\n'
+        'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
+        'CAST("migrate/example"."Test"."someInt" AS INTEGER);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2200,12 +2167,12 @@ def test_migrate_unsafe_cast_warning(postgresql_migration: URL, rc: RawConfig, c
         in result.stderr
     )
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
 
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
 
         result = conn.execute(table.select())
         for item in result:
@@ -2214,8 +2181,7 @@ def test_migrate_unsafe_cast_warning(postgresql_migration: URL, rc: RawConfig, c
         cleanup_table_list(meta, ["migrate/example/Test", "migrate/example/Test/:changelog"])
 
 
-def test_migrate_long_name_no_changes(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_long_name_no_changes(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m    | property | type   | ref | source
      datasets/gov/migrate/example/very/long/dataset/name |   |   |      |          |        |     |
@@ -2225,17 +2191,17 @@ def test_migrate_long_name_no_changes(postgresql_migration: URL, rc: RawConfig, 
     context, rc = configure_migrate(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
-    table_name = get_pg_table_name("datasets/gov/migrate/example/very/long/dataset/name/LongModelName")
-    changelog_name = get_pg_table_name(
-        "datasets/gov/migrate/example/very/long/dataset/name/LongModelName", TableType.CHANGELOG
+    table_identifier = TableIdentifier(
+        schema="datasets/gov/migrate/example/very/long/dataset/name", base_name="LongModelName"
     )
+    changelog_identifier = table_identifier.change_table_type(new_type=TableType.CHANGELOG)
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema=table_identifier.pg_schema_name)
         tables = meta.tables
-        assert {table_name, changelog_name}.issubset(tables.keys())
-        table = tables[table_name]
+        assert {table_identifier.pg_qualified_name, changelog_identifier.pg_qualified_name}.issubset(tables.keys())
+        table = tables[table_identifier.pg_qualified_name]
         conn.execute(
             table.insert().values(
                 {
@@ -2257,22 +2223,20 @@ def test_migrate_long_name_no_changes(postgresql_migration: URL, rc: RawConfig, 
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema=table_identifier.pg_schema_name)
         tables = meta.tables
 
-        table = tables[table_name]
-
+        table = tables[table_identifier.pg_qualified_name]
         result = conn.execute(table.select())
         for item in result:
             assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
             assert item["someInt"] == 50
-        cleanup_table_list(meta, [table_name, changelog_name])
+        cleanup_table_list(meta, [table_identifier.logical_qualified_name, changelog_identifier.logical_qualified_name])
 
 
-def test_migrate_long_name_rename(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_long_name_rename(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b | m             | property | type    | ref     | source
      datasets/gov/migrate/example/very/long/dataset/name |   |   |      |          |        |     |
@@ -2282,29 +2246,10 @@ def test_migrate_long_name_rename(postgresql_migration: URL, rc: RawConfig, cli:
     context, rc = configure_migrate(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
-    table_name = get_pg_table_name("datasets/gov/migrate/example/very/long/dataset/name/LongModelName")
-    changelog_name = get_pg_table_name(
-        "datasets/gov/migrate/example/very/long/dataset/name/LongModelName", TableType.CHANGELOG
-    )
-
-    with sa.create_engine(postgresql_migration).connect() as conn:
-        meta = sa.MetaData(conn)
-        meta.reflect()
-        tables = meta.tables
-        assert {table_name, changelog_name}.issubset(tables.keys())
-        table = tables[table_name]
-        conn.execute(
-            table.insert().values(
-                {
-                    "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
-                    "someInt": 50,
-                }
-            )
-        )
 
     rename_file = {
         "datasets/gov/migrate/example/very/long/dataset/name/LongModelName": {
-            "": "datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName",
+            "": "datasets/gov/migrate/example/very/long/dataset/new/EvenLongerModelName",
             "someInt": "actualInt",
         },
     }
@@ -2316,26 +2261,32 @@ def test_migrate_long_name_rename(postgresql_migration: URL, rc: RawConfig, cli:
         tmp_path,
         """
      d               | r | b | m             | property | type    | ref     | source
-     datasets/gov/migrate/example/very/long/dataset/name |   |   |      |          |        |     |
+     datasets/gov/migrate/example/very/long/dataset/new |   |   |      |          |        |     |
                      |   |   | EvenLongerModelName |          |         | actualInt |
                      |   |   |               | actualInt | integer |         |
     """,
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p", "-r", path])
-
+    long_table_identifier = TableIdentifier(
+        schema="datasets/gov/migrate/example/very/long/dataset/name", base_name="LongModelName"
+    )
+    even_longer_table_identifier = TableIdentifier(
+        schema="datasets/gov/migrate/example/very/long/dataset/new", base_name="EvenLongerModelName"
+    )
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{rename_table(table='datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName', new_name='datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName')}"
-        f"{rename_changelog(table='datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:changelog', new_name='datasets/gov/migrate/example/very/lon_5bf0f407_lName/:changelog', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:changelog')}"
-        f"{rename_redirect(table='datasets/gov/migrate/example/very/lon_a8ca9fad_elName/:redirect', new_name='datasets/gov/migrate/example/very/lon_6f0bc85c_elName/:redirect', comment='datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName/:redirect')}"
-        f"{rename_column(table='datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName', column='someInt', new_name='actualInt')}"
-        f"{rename_index(old_index_name='ix_datasets/gov/migrate/example/very/_71ac6294_ngModelName__txn', new_index_name='ix_datasets/gov/migrate/example/very/_7d25af54_erModelName__txn')}"
+        f"{add_schema(schema='datasets/gov/migrate/example/very/long/dataset/new')}"
+        f"{rename_table(old_table_identifier=long_table_identifier, new_table_identifier=even_longer_table_identifier, comment='datasets/gov/migrate/example/very/long/dataset/new/EvenLongerModelName')}"
+        f"{rename_changelog(old_table_identifier=long_table_identifier, new_table_identifier=even_longer_table_identifier, comment='datasets/gov/migrate/example/very/long/dataset/new/EvenLongerModelName/:changelog')}"
+        f"{rename_redirect(old_table_identifier=long_table_identifier, new_table_identifier=even_longer_table_identifier, comment='datasets/gov/migrate/example/very/long/dataset/new/EvenLongerModelName/:redirect')}"
+        f"{rename_column(table_identifier=even_longer_table_identifier, column='someInt', new_name='actualInt')}"
+        f"{rename_index(table_identifier=even_longer_table_identifier, old_index_name='ix_LongModelName__txn', new_index_name='ix_EvenLongerModelName__txn')}"
         "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName" RENAME '
-        'CONSTRAINT "uq_datasets/gov/migrate/example/very/_97f03b18_odelName_someInt" '
-        'TO "uq_datasets/gov/migrate/example/very/_d7fdbe46_elName_actualInt";\n'
+        '"datasets/gov/migrate/example/very/long/dataset/new"."EvenLongerModelName" '
+        'RENAME CONSTRAINT "uq_LongModelName_someInt" TO '
+        '"uq_EvenLongerModelName_actualInt";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2343,29 +2294,27 @@ def test_migrate_long_name_rename(postgresql_migration: URL, rc: RawConfig, cli:
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema=even_longer_table_identifier.pg_schema_name)
         tables = meta.tables
 
-        renamed = get_pg_table_name("datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName")
-        renamed_changelog = get_pg_table_name(
-            "datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName", TableType.CHANGELOG
-        )
+        renamed_changelog = even_longer_table_identifier.change_table_type(new_type=TableType.CHANGELOG)
 
-        table = tables[renamed]
-        assert renamed_changelog in tables
+        table = tables[even_longer_table_identifier.pg_qualified_name]
+        assert renamed_changelog.pg_qualified_name in tables
         result = conn.execute(table.select())
         for item in result:
             assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
             assert item["someInt"] == 50
-        cleanup_table_list(meta, [renamed, renamed_changelog])
+        cleanup_table_list(
+            meta, [even_longer_table_identifier.logical_qualified_name, renamed_changelog.logical_qualified_name]
+        )
 
 
 def test_migrate_reserved_model_additional_tables(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m    | property     | type | ref | level
     """
@@ -2379,21 +2328,24 @@ def test_migrate_reserved_model_additional_tables(
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
     models = commands.get_models(context, manifest)
     reserved_models = [model for model in models.keys() if model.startswith("_")]
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    namespaces = set(models[model].ns.name or "public" for model in reserved_models)
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
+        for namespace in namespaces:
+            pg_name = get_pg_name(namespace)
+            meta.reflect(schema=pg_name)
+
         meta.reflect()
         tables = meta.tables
 
         for model in reserved_models:
-            assert model in tables
-            assert get_pg_table_name(model, TableType.CHANGELOG) not in tables
-            assert get_pg_table_name(model, TableType.REDIRECT) not in tables
+            table_identifier = get_table_identifier(model)
+            assert table_identifier.pg_qualified_name in tables
+            assert table_identifier.change_table_type(new_type=TableType.CHANGELOG).pg_qualified_name not in tables
+            assert table_identifier.change_table_type(new_type=TableType.REDIRECT).pg_qualified_name not in tables
 
 
-def test_migrate_specific_dataset_long_name(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
-):
-    cleanup_tables(postgresql_migration)
+def test_migrate_specific_dataset_long_name(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d                                                   | r | b | m             | property | type    | ref     | source
      datasets/gov/migrate/example/very/long/dataset/name |   |   |               |          |         |         |
@@ -2406,17 +2358,17 @@ def test_migrate_specific_dataset_long_name(
     context, rc = configure_migrate(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, ["bootstrap", f"{tmp_path}/manifest.csv"])
-    table_name = get_pg_table_name("datasets/gov/migrate/example/very/long/dataset/name/LongModelName")
-    changelog_name = get_pg_table_name(
-        "datasets/gov/migrate/example/very/long/dataset/name/LongModelName", TableType.CHANGELOG
+    table_identifier = TableIdentifier(
+        schema="datasets/gov/migrate/example/very/long/dataset/name", base_name="LongModelName"
     )
+    changelog_identifier = table_identifier.change_table_type(new_type=TableType.CHANGELOG)
 
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema=table_identifier.pg_schema_name)
         tables = meta.tables
-        assert {table_name, changelog_name}.issubset(tables.keys())
-        table = tables[table_name]
+        assert {table_identifier.pg_qualified_name, changelog_identifier.pg_qualified_name}.issubset(tables.keys())
+        table = tables[table_identifier.pg_qualified_name]
         conn.execute(
             table.insert().values(
                 {
@@ -2463,14 +2415,16 @@ def test_migrate_specific_dataset_long_name(
             "datasets/gov/migrate/example/very/long/dataset/name",
         ],
     )
+    long_table_identifier = TableIdentifier(
+        schema="datasets/gov/migrate/example/very/long/dataset/name", base_name="LongModelName"
+    )
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{rename_column(table='datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName', column='someInt', new_name='otherInt')}"
+        f"{rename_column(table_identifier=long_table_identifier, column='someInt', new_name='otherInt')}"
         "ALTER TABLE "
-        '"datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName" RENAME '
-        'CONSTRAINT "uq_datasets/gov/migrate/example/very/_97f03b18_odelName_someInt" '
-        'TO "uq_datasets/gov/migrate/example/very/_f8eac1ec_delName_otherInt";\n'
+        '"datasets/gov/migrate/example/very/long/dataset/name"."LongModelName" RENAME '
+        'CONSTRAINT "uq_LongModelName_someInt" TO "uq_LongModelName_otherInt";\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2487,17 +2441,17 @@ def test_migrate_specific_dataset_long_name(
             "datasets/gov/migrate/example/very/long/dataset/name",
         ],
     )
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="datasets/gov/migrate/normal")
+        meta.reflect(schema="datasets/gov/migrate/example/very/long/dataset/name")
         tables = meta.tables
 
-        renamed = get_pg_table_name("datasets/gov/migrate/normal/LongName")
-        renamed_changelog = get_pg_table_name("datasets/gov/migrate/normal/LongName", TableType.CHANGELOG)
-        assert renamed not in tables
-        assert renamed_changelog not in tables
+        renamed_identifier = get_table_identifier("datasets/gov/migrate/normal/LongName")
+        renamed_changelog_identifier = renamed_identifier.change_table_type(new_type=TableType.CHANGELOG)
+        assert renamed_identifier.pg_qualified_name not in tables
+        assert renamed_changelog_identifier.pg_qualified_name not in tables
 
-        table_name = get_pg_table_name("datasets/gov/migrate/example/very/long/dataset/name/LongModelName")
-        table = tables[table_name]
+        table = tables[long_table_identifier.pg_qualified_name]
         assert "otherInt" in table.columns
         assert "someInt" not in table.columns

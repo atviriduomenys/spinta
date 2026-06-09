@@ -1,26 +1,35 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional, Type, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, TypeVar
 from spinta import exceptions
 
 if TYPE_CHECKING:
     from spinta.components import Component, Context
 
+E = TypeVar("E", bound=Enum)
 
-def get_enum_by_name(enum, value):
+
+def get_enum_by_name(enum: type[E], value: str) -> E:
     for item in enum:
         if item.name == value:
             return item
     raise Exception(f"Unknown value {value!r}.")
 
 
+def get_enum_by_value(enum: type[E], value: Any) -> E:
+    for item in enum:
+        if item.value == value:
+            return item
+    raise Exception(f"Unknown value {value!r}.")
+
+
 def enum_by_name(
     component: Component,
-    param: Optional[str],  # component param
-    enum: Type[Enum],
+    param: str | None,  # component param
+    enum: type[E],
     name: Any,
-) -> Optional[Enum]:
+) -> E | None:
     if name is None or name == "":
         return None
     for item in enum:
@@ -32,10 +41,10 @@ def enum_by_name(
 def enum_by_value(
     context: Context,
     component: Component,
-    param: Optional[str],  # component param
-    enum: Type[Enum],
+    param: str | None,  # component param
+    enum: type[E],
     value: Any,
-) -> Optional[Enum]:
+) -> E | None:
     if value is None or value == "":
         return None
     for item in enum:
