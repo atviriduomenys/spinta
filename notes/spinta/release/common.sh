@@ -142,7 +142,7 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 # Export the BASEDIR there.
 # Export SPINTA_CONFIG:
 export SPINTA_CONFIG=$BASEDIR/config.yml
-echo SPINTA_CONFIG
+echo $SPINTA_CONFIG
 # Activate the environment.
 
 # this is a directory to which manifest data will be downloaded.
@@ -169,7 +169,7 @@ spinta show \
 # go back to previous tab
 spinta check
 
-# go to a different tag
+# go to a different tab
 # check with metadata repository (in a different tab):
 cd ~/dev/data/metadata
 git status

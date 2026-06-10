@@ -1,7 +1,11 @@
 Changes
 #######
 
-0.2dev26 (unreleased)
+0.2dev27 (unreleased)
+=====================
+
+
+0.2dev26 (2026-06-10)
 =====================
 
 Improvements:
