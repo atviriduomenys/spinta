@@ -177,4 +177,6 @@ quote-style = "double"
 
 
 [tool.ruff.lint]
+# I (isort) checks import sorting and grouping.
+extend-select = ["I"]
 ignore = ["F811"]
