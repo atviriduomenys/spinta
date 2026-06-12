@@ -2,6 +2,13 @@ import datetime
 from datetime import timezone
 from email.utils import format_datetime
 
+import pytest
+
+from spinta.core.config import RawConfig
+from spinta.middlewares import _is_normalized_path
+from spinta.testing.client import create_test_client
+from spinta.testing.manifest import prepare_manifest
+
 
 def test_cache_control_postgres_get_one(context, app):
     model = "backends/postgres/Report"
@@ -43,6 +50,7 @@ def test_cache_control_postgres_get_one(context, app):
     )
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization"
     assert resp.headers["ETag"] == changelog_data["_revision"]
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
@@ -81,6 +89,7 @@ def test_cache_control_postgres_get_all(context, app):
     )
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization"
     assert resp.headers["ETag"] == changelog_data["_revision"]
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
@@ -345,3 +354,55 @@ def test_cache_control_priority(context, app):
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
+
+
+@pytest.mark.parametrize(
+    "path, raw_path, expected",
+    [
+        ("/", b"/", True),
+        ("/example/City", b"/example/City", True),
+        ("/example/City/", b"/example/City/", True),
+        ("/example/../City", b"/example/../City", False),
+        ("/example/./City", b"/example/./City", False),
+        ("/example//City", b"/example//City", False),
+        ("/example/City/..", b"/example/City/..", False),
+        ("/example/../City", b"/example/..%2fCity", False),
+        ("/example/../City", b"/example/..%2FCity", False),
+        ("/example/City", b"/example%2fCity", False),
+        ("/example\\City", b"/example%5cCity", False),
+        ("/example/.%2e/City", b"/example/.%2e/City", False),
+    ],
+)
+def test_is_normalized_path(path: str, raw_path: bytes, expected: bool):
+    scope = {"type": "http", "path": path, "raw_path": raw_path}
+    assert _is_normalized_path(scope) is expected
+
+
+def _create_memory_app(rc: RawConfig):
+    context, manifest = prepare_manifest(
+        rc,
+        """
+    d | r | b | m | property | type   | ref  | access
+    example                  |        |      |
+      |   |   | City         |        | name |
+      |   |   |   | name     | string |      | open
+    """,
+        backend="memory",
+    )
+    context.loaded = True
+    return create_test_client(context)
+
+
+def test_error_response_not_cacheable(rc: RawConfig):
+    app = _create_memory_app(rc)
+    resp = app.get("/example/DoesNotExist")
+    assert resp.status_code == 404
+    assert resp.headers["Cache-Control"] == "no-store"
+
+
+def test_non_normalized_path_rejected(rc: RawConfig):
+    app = _create_memory_app(rc)
+    resp = app.get("/example/..%2fCity")
+    assert resp.status_code == 404
+    assert resp.headers["Cache-Control"] == "no-store"
+    assert resp.json()["errors"][0]["code"] == "InvalidRequestPath"

@@ -387,6 +387,9 @@ def cache_control_response_headers(context: Context, model: Model, target_id: st
 
     cache_control = {
         "Cache-Control": config.cache_control,
+        # Response body depends on these request headers (content negotiation,
+        # auth scopes), so shared caches must include them in the cache key.
+        "Vary": "Accept, Accept-Language, Authorization",
         "Last-Modified": last_modified,
         "ETag": revision,
     }

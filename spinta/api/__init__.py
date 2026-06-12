@@ -49,6 +49,7 @@ from spinta.exceptions import (
     NoAuthServer,
     error_response,
 )
+from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware
 from spinta.formats.html.helpers import get_templates
 from spinta.middlewares import ContextMiddleware, StrictTransportSecurityMiddleware
 from spinta.urlparams import Version, get_response_type
@@ -370,7 +371,7 @@ async def error(request, exc):
     elif isinstance(exc, BaseError):
         status_code = exc.status_code
         errors = [error_response(exc)]
-        headers = exc.headers
+        headers = dict(exc.headers)
     else:
         if isinstance(exc, HTTPException):
             status_code = exc.status_code
@@ -399,6 +400,11 @@ async def error(request, exc):
         ]
 
     response = {"errors": errors}
+
+    # Error responses can reflect request input (e.g. the requested path) and
+    # must never be stored by shared caches, otherwise they can be used for
+    # web cache poisoning.
+    headers["Cache-Control"] = "no-store"
 
     fmt = get_response_type(request.state.context, request)
     if fmt == "json" or fmt is None:
@@ -463,11 +469,12 @@ def init(context: Context):
     ]
 
     middleware = [
+        Middleware(PathNormalizationMiddleware),
+        Middleware(ContextMiddleware, context=context),
         Middleware(
             StrictTransportSecurityMiddleware,
             value=config.http_strict_transport_security,
         ),
-        Middleware(ContextMiddleware, context=context),
     ]
 
     exception_handlers = {
