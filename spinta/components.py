@@ -30,16 +30,8 @@ from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
-    from spinta.backends.components import Backend, DistributionStrategy
-    from spinta.types.datatype import DataType
-    from spinta.manifests.components import Manifest
-    from spinta.manifests.internal.components import InternalManifest
-    from spinta.datasets.components import Attribute
-    from spinta.datasets.components import Entity
-    from spinta.datasets.keymaps.components import KeyMap
-    from spinta.dimensions.enum.components import Enums
-    from spinta.dimensions.enum.components import EnumValue
     from spinta.accesslog import AccessLog
+    from spinta.backends.components import Backend, DistributionStrategy
     from spinta.core.config import RawConfig
     from spinta.datasets.components import Attribute, Entity
     from spinta.datasets.keymaps.components import KeyMap

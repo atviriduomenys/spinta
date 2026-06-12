@@ -13,7 +13,6 @@ from spinta.commands import check, load
 from spinta.components import Config, Context
 from spinta.core.config import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 from spinta.core.enums import Access
-
 from spinta.core.ufuncs import ufunc
 from spinta.formats.components import Format
 from spinta.logging_config import setup_logging
