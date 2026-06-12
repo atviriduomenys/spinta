@@ -1,7 +1,6 @@
 import pytest
 
-from spinta.utils.units import tobytes
-from spinta.utils.units import toseconds
+from spinta.utils.units import tobytes, toseconds
 
 
 @pytest.mark.parametrize(

@@ -1,16 +1,14 @@
-from typing import List, Iterable
-
 from pathlib import Path
+from typing import Iterable, List
 
+import httpx
 import jsonpatch
 import requests
-import httpx
-
 from ruamel.yaml import YAML
 
 from spinta.backends import Backend
 from spinta.backends.helpers import load_query_builder_class, load_result_builder_class
-from spinta.components import Context, Config
+from spinta.components import Config, Context
 from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")

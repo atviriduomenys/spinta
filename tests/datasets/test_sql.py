@@ -1,24 +1,21 @@
 import logging
 import pathlib
 import re
-from typing import Dict
-from typing import Tuple
+from typing import Dict, Tuple
 
 import pytest
 import sqlalchemy as sa
 from _pytest.logging import LogCaptureFixture
 from requests import PreparedRequest
-from responses import POST
-from responses import RequestsMock
+from responses import POST, RequestsMock
 
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_client, create_rc
 from spinta.testing.data import listdata
-from spinta.testing.datasets import Sqlite
-from spinta.testing.datasets import create_sqlite_db
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error, get_error_codes
 from spinta.utils.schema import NA

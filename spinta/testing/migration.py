@@ -1,5 +1,4 @@
 import sqlalchemy as sa
-
 from sqlalchemy.dialects import postgresql
 
 from spinta.backends.constants import TableType
@@ -7,8 +6,8 @@ from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.helpers import get_pg_sequence_name
 from spinta.backends.postgresql.helpers.name import (
     PG_NAMING_CONVENTION,
-    get_pg_removed_name,
     get_pg_index_name,
+    get_pg_removed_name,
     name_changed,
 )
 from spinta.utils.sqlalchemy import Convention

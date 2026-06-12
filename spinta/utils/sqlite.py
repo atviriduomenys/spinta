@@ -1,4 +1,4 @@
-from typing import Dict, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect

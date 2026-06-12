@@ -1,9 +1,9 @@
-from multipledispatch import dispatch
-
-from typer import echo
 from collections.abc import Iterator
-import tqdm
+
 import sqlalchemy as sa
+import tqdm
+from multipledispatch import dispatch
+from typer import echo
 
 from spinta import commands
 from spinta.backends import Backend

@@ -7,13 +7,13 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import generate_pk_for_row
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
-from spinta.datasets.helpers import get_enum_filters, get_ref_filters, encode_composite_string_id
+from spinta.datasets.helpers import encode_composite_string_id, get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.types.datatype import PrimaryKey, Base32
+from spinta.types.datatype import Base32, PrimaryKey
 from spinta.typing import ObjectData
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.querybuilder.helpers import get_page_values
-from spinta.ufuncs.resultbuilder.helpers import get_row_value, ResultBuilderGetter
+from spinta.ufuncs.resultbuilder.helpers import ResultBuilderGetter, get_row_value
 from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to_nested
 
 

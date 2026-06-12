@@ -1,6 +1,6 @@
 from typing import Any
 
-from spinta.components import Model, Config, PageInfo
+from spinta.components import Config, Model, PageInfo
 from spinta.core.ufuncs import Env, Expr
 from spinta.datasets.components import Param
 from spinta.exceptions import FieldNotInResource

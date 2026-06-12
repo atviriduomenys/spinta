@@ -4,8 +4,6 @@ from sqlalchemy.engine.url import make_url
 
 from spinta import commands
 from spinta.cli.helpers.store import load_store
-
-
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.context import create_test_context

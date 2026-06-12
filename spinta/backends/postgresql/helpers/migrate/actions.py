@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects import postgresql
+from typing import TYPE_CHECKING, Generator
 
 import sqlalchemy as sa
-from typing import TYPE_CHECKING, Generator
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import UUID
 
 from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.helpers.name import name_changed

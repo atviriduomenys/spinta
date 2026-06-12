@@ -1,8 +1,7 @@
 import functools
 import hashlib
 import re
-from typing import Any
-from typing import Dict
+from typing import Any, Dict
 
 scope_re = re.compile(r"[^a-z0-9]+", flags=re.IGNORECASE)
 

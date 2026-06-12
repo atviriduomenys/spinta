@@ -1,7 +1,7 @@
 import hashlib
 
-from spinta.components import Property
 from spinta.backends.postgresql.constants import NAMEDATALEN
+from spinta.components import Property
 
 
 def get_column_name(prop: Property, replace: bool = False) -> str:

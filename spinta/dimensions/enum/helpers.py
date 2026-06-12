@@ -1,25 +1,13 @@
 from __future__ import annotations
 
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import TypeVar
-from typing import Union
-from typing import cast
+from typing import Dict, List, Optional, TypeVar, Union, cast
 
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Property
-from spinta.core.access import link_access_param
-from spinta.core.access import load_access_param
+from spinta.components import Context, Model, Namespace, Property
+from spinta.core.access import link_access_param, load_access_param
 from spinta.core.enums import load_level, load_status, load_visibility
 from spinta.core.ufuncs import asttoexpr
-from spinta.dimensions.enum.components import EnumFormula
-from spinta.dimensions.enum.components import EnumItem
-from spinta.dimensions.enum.components import EnumValue
-from spinta.dimensions.enum.components import Enums
-from spinta.exceptions import ValueNotInEnum, EnumPrepareMissing
+from spinta.dimensions.enum.components import EnumFormula, EnumItem, Enums, EnumValue
+from spinta.exceptions import EnumPrepareMissing, ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node

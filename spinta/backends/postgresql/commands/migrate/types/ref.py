@@ -10,36 +10,36 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    name_key,
+    ModelMigrationContext,
     PostgresqlMigrationContext,
+    PropertyMigrationContext,
     adjust_kwargs,
-    is_name_complex,
+    constraint_with_foreign_key_columns,
+    constraint_with_name,
+    contains_constraint_name,
     extract_literal_name_from_column,
+    gather_prepare_columns,
     generate_type_missmatch_exception_details,
-    is_internal,
-    split_columns,
+    get_explicit_primary_keys,
+    get_model_column_names,
+    get_source_table,
     get_spinta_primary_keys,
+    is_internal,
+    is_name_complex,
+    name_key,
     remap_and_rename_columns,
     remove_property_prefix_from_column_name,
-    zip_and_migrate_properties,
-    contains_constraint_name,
-    ModelMigrationContext,
-    constraint_with_name,
-    PropertyMigrationContext,
-    get_model_column_names,
-    get_explicit_primary_keys,
-    gather_prepare_columns,
-    get_source_table,
     revalidate_table_identifier,
-    constraint_with_foreign_key_columns,
+    split_columns,
+    zip_and_migrate_properties,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_foreign_key_name
 from spinta.components import Context
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch
-from spinta.types.datatype import Ref, ExternalRef
-from spinta.utils.schema import NotAvailable, NA
+from spinta.types.datatype import ExternalRef, Ref
+from spinta.utils.schema import NA, NotAvailable
 
 _IDENTIFIABLE_REF_KEY = "_id"
 

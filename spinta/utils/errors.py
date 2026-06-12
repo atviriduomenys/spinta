@@ -1,5 +1,4 @@
 import logging
-
 from typing import Optional
 
 from spinta import exceptions

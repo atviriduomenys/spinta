@@ -1,7 +1,4 @@
-from typing import Any, TypedDict
-from typing import Dict
-from typing import NamedTuple
-from typing import Optional
+from typing import Any, Dict, NamedTuple, Optional, TypedDict
 
 import sqlalchemy as sa
 

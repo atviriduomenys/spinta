@@ -4,12 +4,12 @@ from typing import Any
 
 from spinta import commands, spyna
 from spinta.backends.helpers import is_custom_id_prop
-from spinta.components import Property, Model, Context
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Mode
 from spinta.core.ufuncs import Env, asttoexpr
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
-from spinta.types.datatype import Ref, Array
+from spinta.types.datatype import Array, Ref
 from spinta.types.namespace import check_if_model_has_backend_and_source
 from spinta.utils.schema import NA
 

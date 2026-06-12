@@ -1,4 +1,5 @@
 from typing import Any, Dict
+
 from shapely.geometry.base import BaseGeometry
 
 from spinta import commands

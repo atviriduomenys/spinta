@@ -1,16 +1,11 @@
-from typing import Any
-from typing import overload
+from typing import Any, overload
 
 from spinta import commands
 from spinta.components import Context
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import NoOp
-from spinta.types.datatype import DataType
-from spinta.types.datatype import Integer
-from spinta.types.datatype import String
-from spinta.types.datatype import Boolean
+from spinta.core.ufuncs import Expr, NoOp
 from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import InvalidValue
+from spinta.types.datatype import Boolean, DataType, Integer, String
 from spinta.utils.schema import NotAvailable
 
 

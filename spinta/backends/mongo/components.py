@@ -4,8 +4,7 @@ import pymongo
 
 from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
-from spinta.components import Model
-from spinta.components import Property
+from spinta.components import Model, Property
 
 
 class Mongo(Backend):

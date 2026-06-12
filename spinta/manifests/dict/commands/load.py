@@ -1,9 +1,9 @@
 from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
-from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.dict.components import DictManifest
 from spinta.manifests.dict.helpers import read_schema
+from spinta.manifests.helpers import load_manifest_nodes
 
 
 @commands.load.register(Context, DictManifest)

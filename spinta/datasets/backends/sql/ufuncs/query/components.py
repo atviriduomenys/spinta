@@ -1,27 +1,21 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import Array
+from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams
 from spinta.ufuncs.querybuilder.helpers import (
+    merge_with_page_limit,
     merge_with_page_selected_list,
     merge_with_page_sort,
-    merge_with_page_limit,
 )
-from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.itertools import ensure_list
 
 if TYPE_CHECKING:

@@ -2,18 +2,12 @@ import csv
 import pathlib
 import re
 
-from typer import Argument
+from typer import Argument, Option, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import echo
 
 from spinta.components import Context
-from spinta.manifests.tabular.components import MANIFEST_COLUMNS
-from spinta.manifests.tabular.components import ManifestRow
-from spinta.manifests.tabular.helpers import render_tabular_manifest_rows
-from spinta.manifests.tabular.helpers import torow
-from spinta.manifests.tabular.helpers import write_tabular_manifest
-
+from spinta.manifests.tabular.components import MANIFEST_COLUMNS, ManifestRow
+from spinta.manifests.tabular.helpers import render_tabular_manifest_rows, torow, write_tabular_manifest
 
 UPDATE_FUNCTION = "update"
 COLUMN_TYPE_COMMENT = "comment"

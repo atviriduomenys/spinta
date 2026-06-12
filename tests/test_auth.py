@@ -7,24 +7,23 @@ from http import HTTPStatus
 
 import pytest
 import ruamel.yaml
-from authlib.jose import JsonWebKey
-from authlib.jose import jwt
+from authlib.jose import JsonWebKey, jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from spinta import commands
 from spinta.auth import (
-    get_client_file_path,
-    query_client,
-    get_clients_path,
-    ensure_client_folders_exist,
-    KeyType,
-    load_key_from_file,
-    create_client_file,
-    load_key,
-    create_access_token,
-    authorized,
     BearerTokenValidator,
+    KeyType,
     Token,
+    authorized,
+    create_access_token,
+    create_client_file,
+    ensure_client_folders_exist,
+    get_client_file_path,
+    get_clients_path,
+    load_key,
+    load_key_from_file,
+    query_client,
 )
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -32,9 +31,9 @@ from spinta.core.enums import Action, Mode
 from spinta.exceptions import (
     InvalidClientFileFormat,
     InvalidExtraScopes,
+    ModelNotFound,
     NoScopesForNamespaces,
     UserError,
-    ModelNotFound,
 )
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client, get_yaml_data

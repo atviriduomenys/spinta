@@ -1,18 +1,14 @@
-from typing import Dict
-from typing import Iterable
-from typing import List
+from typing import Dict, Iterable, List
 
 import sqlalchemy as sa
 import tqdm
 
 from spinta import commands
 from spinta.cli.helpers.push.components import PushRow
-from spinta.cli.helpers.push.utils import extract_state_page_keys, construct_where_condition_from_page
+from spinta.cli.helpers.push.utils import construct_where_condition_from_page, extract_state_page_keys
 from spinta.cli.helpers.push.write import prepare_rows_for_deletion
 from spinta.commands.read import PaginationMetaData, get_paginated_values
-from spinta.components import Context, pagination_enabled
-from spinta.components import Model
-from spinta.components import get_page_size
+from spinta.components import Context, Model, get_page_size, pagination_enabled
 
 
 def get_deleted_rows(

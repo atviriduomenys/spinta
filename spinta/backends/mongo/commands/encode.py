@@ -1,9 +1,9 @@
 import datetime
 
 from spinta import commands
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Context
 from spinta.types.datatype import Date
-from spinta.backends.mongo.components import Mongo
 
 
 @commands.prepare_for_write.register(Context, Date, Mongo, datetime.date)

@@ -1,20 +1,15 @@
-from typing import Any
-from typing import Union
+from typing import Any, Union
 
 from spinta import commands
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Property
-from spinta.core.ufuncs import Bind, asttoexpr
-from spinta.core.ufuncs import Expr
+from spinta.components import Context, Model, Property
+from spinta.core.ufuncs import Bind, Expr, asttoexpr
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.naming.components import NameFormatter
 from spinta.spyna import parse
 from spinta.types.datatype import Ref
 from spinta.ufuncs.components import ForeignProperty
-from spinta.utils.naming import to_model_name
-from spinta.utils.naming import to_property_name
+from spinta.utils.naming import to_model_name, to_property_name
 
 
 def _re_format_expr(env: NameFormatter, expr: Any) -> Any:

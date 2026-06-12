@@ -1,9 +1,4 @@
-from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Env
-from spinta.core.ufuncs import Negative
-from spinta.core.ufuncs import Pair
-from spinta.core.ufuncs import Positive
-from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Bind, Env, Negative, Pair, Positive, ufunc
 
 
 @ufunc.resolver(Env, str)

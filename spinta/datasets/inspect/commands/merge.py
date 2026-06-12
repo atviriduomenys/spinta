@@ -1,28 +1,26 @@
 from copy import copy
 
 from spinta import commands
-from spinta.components import Context, Property, Namespace
-from spinta.components import Model
-from spinta.datasets.components import Dataset, Resource, ExternalBackend
+from spinta.components import Context, Model, Namespace, Property
+from spinta.datasets.components import Dataset, ExternalBackend, Resource
 from spinta.datasets.inspect.helpers import (
-    zipitems,
     _backend_dsn,
     _dataset_key,
-    _merge_resources,
     _filter_models_for_dataset,
-    coalesce,
-    _merge_prefixes,
-    _model_key,
-    _resource_key,
     _merge_model_properties,
+    _merge_prefixes,
+    _merge_resources,
+    _model_key,
     _property_key,
+    _resource_key,
+    coalesce,
+    zipitems,
 )
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Ref, DataType, Array, Object, Denorm
+from spinta.types.datatype import Array, DataType, Denorm, Object, Ref
 from spinta.utils.naming import Deduplicator
-from spinta.utils.schema import NA
-from spinta.utils.schema import NotAvailable
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.merge.register(Context, Manifest, Manifest, Manifest, bool)

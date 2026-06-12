@@ -1,6 +1,6 @@
 from spinta import commands
-from spinta.components import Context
 from spinta.backends.nobackend.components import NoBackend
+from spinta.components import Context
 
 
 @commands.wait.register(Context, NoBackend)

@@ -2,18 +2,17 @@ import datetime
 import json
 import uuid
 from collections import Counter
-from typing import Optional, Any
 from collections.abc import Generator
-
-from typer import echo
+from typing import Any, Optional
 
 from redis import Redis
+from typer import echo
 
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
-from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapDuplicateMapping
+from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch
 
 
 class RedisKeyMap(KeyMap):

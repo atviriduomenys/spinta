@@ -2,42 +2,26 @@ import base64
 import hashlib
 import uuid
 from pathlib import Path
-
-from lxml import html
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from starlette.requests import Request
+from lxml import html
 from starlette.datastructures import Headers
+from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.core.enums import Action
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Namespace
-from spinta.components import Store
-from spinta.components import UrlParams
-from spinta.components import Version
+from spinta.components import Config, Context, Namespace, Store, UrlParams, Version
 from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.formats.html.commands import _LimitIter
-from spinta.formats.html.components import Cell
-from spinta.formats.html.components import Color
-from spinta.formats.html.components import Html
-from spinta.formats.html.helpers import CurrentLocation
-from spinta.formats.html.helpers import get_current_location
-from spinta.formats.html.helpers import short_id
-from spinta.testing.client import TestClient
-from spinta.testing.client import TestClientResponse
-from spinta.testing.client import create_test_client
+from spinta.formats.html.components import Cell, Color, Html
+from spinta.formats.html.helpers import CurrentLocation, get_current_location, short_id
+from spinta.testing.client import TestClient, TestClientResponse, create_test_client
 from spinta.testing.data import pushdata
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
 from spinta.utils.data import take
 

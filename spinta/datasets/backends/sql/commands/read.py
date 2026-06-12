@@ -3,14 +3,13 @@ from typing import Iterator
 
 from spinta import commands
 from spinta.backends.helpers import (
-    validate_and_return_begin,
     is_custom_id_prop,
+    validate_and_return_begin,
 )
-from spinta.components import Context, Property
-from spinta.components import Model
+from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.helpers import merge_query_with_filters, build_row_result
+from spinta.datasets.backends.sql.helpers import build_row_result, merge_query_with_filters
 from spinta.datasets.helpers import decode_id_value
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams

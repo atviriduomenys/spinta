@@ -1,19 +1,16 @@
 import asyncio
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 import click
-from typer import Argument
+from typer import Argument, Option
 from typer import Context as TyperContext
-from typer import Option
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.migrate import MigrationConfig
-from spinta.cli.helpers.store import load_store
-from spinta.cli.helpers.store import prepare_manifest
+from spinta.cli.helpers.store import load_store, prepare_manifest
 from spinta.core.context import configure_context
 from spinta.manifests.commands.manifest import has_dataset
 

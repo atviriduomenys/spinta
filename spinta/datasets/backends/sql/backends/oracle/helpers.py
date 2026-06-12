@@ -1,10 +1,11 @@
-from typing import Any, Optional, Callable
-from sqlalchemy.sql.sqltypes import LargeBinary
-from sqlalchemy.types import UserDefinedType
+from typing import Any, Callable, Optional
+
+import sqlalchemy as sa
+from sqlalchemy import Column
 from sqlalchemy.dialects.oracle import base
 from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy import Column
-import sqlalchemy as sa
+from sqlalchemy.sql.sqltypes import LargeBinary
+from sqlalchemy.types import UserDefinedType
 
 
 class LONGRAW(LargeBinary):

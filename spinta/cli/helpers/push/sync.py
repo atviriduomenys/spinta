@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Any
+from typing import Any, List
 
 import sqlalchemy as sa
 import tqdm
@@ -11,12 +11,10 @@ from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.push import prepare_data_for_push_state
-from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
+from spinta.cli.helpers.push.utils import construct_where_condition_from_page, extract_state_page_id_key
 from spinta.commands.read import PaginationMetaData, get_paginated_values
-from spinta.components import Context, Config
+from spinta.components import Config, Context, Model, Page, PageBy, Property, get_page_size
 from spinta.core.enums import Action
-from spinta.components import Model
-from spinta.components import Page, get_page_size, Property, PageBy
 from spinta.utils.response import get_request_with_retries
 
 

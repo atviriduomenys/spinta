@@ -1,23 +1,18 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Dict
-from typing import Optional
-from typing import Union
-
 import contextlib
+from typing import Any, Dict, Optional, Union
 
 from pytest import FixtureRequest
 
 from spinta import commands
+from spinta.auth import AdminToken
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Node
-from spinta.components import Context
-from spinta.auth import AdminToken
-from spinta.utils.imports import importstr
-from spinta.core.context import create_context
+from spinta.components import Context, Node
 from spinta.core.config import RawConfig
+from spinta.core.context import create_context
+from spinta.utils.imports import importstr
 
 
 def create_test_context(

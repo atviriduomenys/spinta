@@ -3,10 +3,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import importlib
-from typing import Any, Optional, List, Union, Callable
-from typing import Dict
-from typing import TYPE_CHECKING
-from typing import Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 from spinta import spyna
 from spinta.dispatcher import Command

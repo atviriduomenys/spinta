@@ -1,7 +1,5 @@
-from typer import Argument
+from typer import Argument, Option, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import echo
 
 from spinta.cli.helpers.enums import CommentPart
 from spinta.cli.helpers.store import load_manifest
@@ -10,10 +8,7 @@ from spinta.core.context import configure_context
 from spinta.core.enums import Access
 from spinta.dimensions.comments.components import Comment
 from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.helpers import datasets_to_tabular
-from spinta.manifests.tabular.helpers import render_tabular_manifest_rows
-from spinta.manifests.tabular.helpers import write_tabular_manifest
-
+from spinta.manifests.tabular.helpers import datasets_to_tabular, render_tabular_manifest_rows, write_tabular_manifest
 
 RESTORE_COMMENT_PREFIXES = ("update", "insert")
 

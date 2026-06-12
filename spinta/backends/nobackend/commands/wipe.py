@@ -1,7 +1,6 @@
 from spinta import commands
-from spinta.components import Context
-from spinta.components import Model
 from spinta.backends.nobackend.components import NoBackend
+from spinta.components import Context, Model
 
 
 @commands.wipe.register(Context, Model, NoBackend)

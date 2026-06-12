@@ -3,12 +3,11 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 
-from spinta.components import Context, Property, Model
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Visibility
 from spinta.manifests.yaml.components import InlineManifest
-from spinta.types.datatype import Ref, BackRef, ArrayBackRef, Inherit, Array
+from spinta.types.datatype import Array, ArrayBackRef, BackRef, Inherit, Ref
 from spinta.utils.naming import to_model_name
-
 
 MERMAID_CONFIG = """---
 config:

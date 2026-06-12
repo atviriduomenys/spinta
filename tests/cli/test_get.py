@@ -1,9 +1,10 @@
-import pytest
 import textwrap
 
+import pytest
+
 from spinta.exceptions import NoPrimaryKeyCandidatesFound, PropertyNotFound
-from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
 
 

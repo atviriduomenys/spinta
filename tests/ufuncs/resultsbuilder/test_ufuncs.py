@@ -1,4 +1,4 @@
-from datetime import date, time, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
 import pytest
@@ -6,7 +6,7 @@ import pytest
 from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
-from spinta.exceptions import InvalidBase64String, UnableToCast, NotImplementedFeature
+from spinta.exceptions import InvalidBase64String, NotImplementedFeature, UnableToCast
 from spinta.spyna import parse
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.ufuncs.resultbuilder.components import ResultBuilder

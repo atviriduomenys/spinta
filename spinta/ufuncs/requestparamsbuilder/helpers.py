@@ -1,4 +1,4 @@
-from spinta.components import UrlParams, ParamsPage
+from spinta.components import ParamsPage, UrlParams
 
 
 def disable_params_pagination(params: UrlParams):

@@ -6,93 +6,80 @@ import decimal
 import json
 import pathlib
 import uuid
-from typing import Any
-from typing import AsyncIterator
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Optional
+from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
 
-from cbor2 import dumps as cbor_dumps
 import dateutil
 import shapely.geometry.base
-from geoalchemy2.elements import WKTElement, WKBElement
+from cbor2 import dumps as cbor_dumps
+from geoalchemy2.elements import WKBElement, WKTElement
 from geoalchemy2.shape import to_shape
 from shapely import wkt
 
-from spinta import commands
-from spinta import exceptions
-from spinta.backends.components import Backend
-from spinta.backends.components import SelectTree
-from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response, is_accessible_by_equals_sign
-from spinta.backends.helpers import flat_select_to_nested
-from spinta.backends.helpers import get_model_reserved_props
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import select_keys
-from spinta.backends.helpers import select_model_props
-from spinta.backends.helpers import select_props
-from spinta.commands import gen_object_id
-from spinta.commands import is_object_id
-from spinta.commands import load_operator_value
-from spinta.commands import prepare
-from spinta.components import Context
-from spinta.components import DataItem
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Node
-from spinta.components import Property
-from spinta.components import UrlParams, page_in_data
+from spinta import commands, exceptions
+from spinta.backends.components import Backend, SelectTree
+from spinta.backends.helpers import (
+    check_unknown_props,
+    flat_select_to_nested,
+    get_model_reserved_props,
+    get_select_prop_names,
+    get_select_tree,
+    is_accessible_by_equals_sign,
+    prepare_response,
+    select_keys,
+    select_model_props,
+    select_props,
+)
+from spinta.commands import gen_object_id, is_object_id, load_operator_value, prepare
+from spinta.components import Context, DataItem, Model, Namespace, Node, Property, UrlParams, page_in_data
 from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import (
     ConflictingValue,
-    RequiredProperty,
+    CoordinatesOutOfRange,
+    DirectRefValueUnassignment,
+    InheritPropertyValueMissmatch,
+    InvalidUuidValue,
     LangNotDeclared,
+    NoItemRevision,
+    RequiredProperty,
+    SRIDNotSetForGeometry,
     TooManyLangsGiven,
     UnableToDetermineRequiredLang,
-    CoordinatesOutOfRange,
-    InheritPropertyValueMissmatch,
-    SRIDNotSetForGeometry,
-    InvalidUuidValue,
-    DirectRefValueUnassignment,
 )
-from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import (
+    JSON,
+    UUID,
     Array,
-    ExternalRef,
-    Inherit,
-    PageType,
-    BackRef,
     ArrayBackRef,
-    Integer,
-    Boolean,
-    Denorm,
+    BackRef,
     Base32,
+    Binary,
+    Boolean,
+    DataType,
+    Date,
+    DateTime,
+    Denorm,
+    ExternalRef,
+    File,
+    Inherit,
+    Integer,
+    Number,
+    Object,
+    PageType,
+    PrimaryKey,
+    Ref,
     String,
+    Time,
 )
-from spinta.types.datatype import Binary
-from spinta.types.datatype import DataType
-from spinta.types.datatype import Date
-from spinta.types.datatype import DateTime
-from spinta.types.datatype import File
-from spinta.types.datatype import JSON
-from spinta.types.datatype import Number
-from spinta.types.datatype import Object
-from spinta.types.datatype import PrimaryKey
-from spinta.types.datatype import Ref
-from spinta.types.datatype import String
-from spinta.types.datatype import Time
-from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
-from spinta.utils.types import is_nan
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
-from spinta.utils.schema import NA
-from spinta.utils.schema import NotAvailable
+from spinta.utils.schema import NA, NotAvailable
+from spinta.utils.types import is_nan
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)

@@ -4,17 +4,16 @@ import dataclasses
 from typing import Any
 
 import pandas as pd
-from dask.dataframe import DataFrame, from_delayed
 from dask import delayed
+from dask.dataframe import DataFrame, from_delayed
 
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Env, Expr
-
+from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.exceptions import UnknownMethod
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
-from spinta.ufuncs.querybuilder.components import Selected, Func
+from spinta.ufuncs.querybuilder.components import Func, Selected
 from spinta.utils.schema import NA
-from spinta.datasets.backends.dataframe.components import DaskBackend
 
 
 class DaskDataFrameQueryBuilder(Env):

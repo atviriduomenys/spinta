@@ -1,22 +1,20 @@
-from pathlib import Path
-import sqlalchemy as sa
-import uuid
 import json
+import uuid
+from pathlib import Path
 
-from pytest import FixtureRequest
 import pytest
+import sqlalchemy as sa
+from pytest import FixtureRequest
 
 from spinta.core.config import RawConfig
-from spinta.testing.client import create_test_client, create_client
+from spinta.core.enums import Mode
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.client import create_client, create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import prepare_manifest
-from spinta.testing.datasets import create_sqlite_db
-from spinta.testing.datasets import Sqlite
+from spinta.testing.datasets import Sqlite, create_sqlite_db
+from spinta.testing.manifest import bootstrap_manifest, prepare_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
-from spinta.manifests.tabular.helpers import striptable
-from spinta.core.enums import Mode
 
 
 @pytest.fixture(scope="module")

@@ -7,8 +7,8 @@ from spinta.exceptions import (
 )
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.types.backref import TYPE_BACKREF
-from spinta.types.datatype import BackRef, Ref, Array, Object, Denorm, DataType
-from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
+from spinta.types.datatype import Array, BackRef, DataType, Denorm, Object, Ref
+from spinta.types.helpers import replace_undeclared_ref_with_object, set_dtype_backend
 
 
 @commands.find_backref_ref.register(Model, str, object)

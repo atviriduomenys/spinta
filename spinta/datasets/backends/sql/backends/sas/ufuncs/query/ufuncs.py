@@ -15,9 +15,9 @@ from typing import Any
 import sqlalchemy as sa
 
 from spinta.core.ufuncs import ufunc
+from spinta.datasets.backends.sql.backends.helpers import nulls_first_desc, nulls_last_asc
 from spinta.datasets.backends.sql.backends.sas.helpers import group_array
 from spinta.datasets.backends.sql.backends.sas.ufuncs.query.components import SASQueryBuilder
-from spinta.datasets.backends.sql.backends.helpers import nulls_last_asc, nulls_first_desc
 
 
 @ufunc.resolver(SASQueryBuilder, object)

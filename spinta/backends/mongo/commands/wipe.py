@@ -1,6 +1,6 @@
 from spinta import commands
-from spinta.components import Context, Model
 from spinta.backends.mongo.components import Mongo
+from spinta.components import Context, Model
 from spinta.types.datatype import DataType
 
 
