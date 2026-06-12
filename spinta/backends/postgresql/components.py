@@ -1,21 +1,19 @@
-from typing import Dict, List
-from typing import Union
-
 import contextlib
 import itertools
 import uuid
+from typing import Dict, List, Union
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from spinta import commands
-from spinta.utils.schema import NA
-from spinta.components import Model, Property
-from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.components import Backend
+from spinta.backends.constants import BackendFeatures, TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailable
+from spinta.components import Model, Property
+from spinta.exceptions import BackendUnavailable, MultipleRowsFound, NotFoundError
+from spinta.utils.schema import NA
 
 
 class PostgreSQL(Backend):

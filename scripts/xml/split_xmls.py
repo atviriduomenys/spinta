@@ -27,7 +27,6 @@ Notes:
 
 import os
 
-
 INPUT_FILE = "examples.xml"
 OUTPUT_FOLDER = "output"
 XML_DEFINITION = '<?xml version="1.0" encoding="UTF-8"?>'

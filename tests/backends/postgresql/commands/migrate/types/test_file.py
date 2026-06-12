@@ -8,19 +8,19 @@ from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
-    drop_column,
-    add_column_comment,
-    add_table_comment,
-    add_index,
     add_changelog_table,
+    add_column_comment,
+    add_index,
     add_redirect_table,
-    drop_table,
     add_schema,
+    add_table_comment,
+    drop_column,
+    drop_table,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    override_manifest,
     cleanup_table_list,
     configure_migrate,
+    override_manifest,
 )
 
 

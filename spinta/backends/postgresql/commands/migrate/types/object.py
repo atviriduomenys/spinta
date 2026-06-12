@@ -1,17 +1,17 @@
+import sqlalchemy as sa
+
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
     PropertyMigrationContext,
-    zip_and_migrate_properties,
     get_source_table,
+    zip_and_migrate_properties,
 )
 from spinta.components import Context
 from spinta.types.datatype import Object
 from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable
-
-import sqlalchemy as sa
 
 
 @commands.migrate.register(

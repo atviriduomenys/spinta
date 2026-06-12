@@ -1,7 +1,6 @@
 import pytest
 
-from spinta.units.helpers import is_si_unit
-from spinta.units.helpers import is_time_unit
+from spinta.units.helpers import is_si_unit, is_time_unit
 
 
 @pytest.mark.parametrize(

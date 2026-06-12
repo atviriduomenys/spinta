@@ -1,7 +1,7 @@
 from spinta import commands
 from spinta.components import Context
-from spinta.manifests.components import Manifest
 from spinta.manifests.backend.components import BackendManifest
+from spinta.manifests.components import Manifest
 
 
 @commands.load.register(Context, BackendManifest)

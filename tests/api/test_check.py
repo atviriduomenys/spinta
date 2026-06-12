@@ -1,6 +1,5 @@
 from spinta.core.config import RawConfig
-from spinta.testing.client import create_test_client
-from spinta.testing.client import get_html_tree
+from spinta.testing.client import create_test_client, get_html_tree
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
 from spinta.testing.utils import error
 

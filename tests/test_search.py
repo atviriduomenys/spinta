@@ -1,20 +1,18 @@
-import uuid
 import json
+import uuid
 
+import httpx
 import pytest
 import requests
-import httpx
-from spinta.testing.manifest import bootstrap_manifest
 
-from spinta.utils.data import take
-from spinta.testing.utils import error
-from spinta.testing.utils import get_error_codes, RowIds
-from spinta.testing.context import create_test_context
-from spinta.testing.client import create_test_client
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.client import create_test_client
+from spinta.testing.context import create_test_context
 from spinta.testing.data import listdata
-
+from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.utils import RowIds, error, get_error_codes
+from spinta.utils.data import take
 
 test_data = [
     {

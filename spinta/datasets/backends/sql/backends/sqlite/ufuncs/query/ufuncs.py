@@ -1,11 +1,11 @@
 from typing import Any
 
+import sqlalchemy as sa
+
 from spinta.core.ufuncs import ufunc
+from spinta.datasets.backends.sql.backends.helpers import nulls_first_desc, nulls_last_asc
 from spinta.datasets.backends.sql.backends.sqlite.helpers import group_array
 from spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components import SqliteQueryBuilder
-from spinta.datasets.backends.sql.backends.helpers import nulls_last_asc, nulls_first_desc
-
-import sqlalchemy as sa
 
 
 @ufunc.resolver(SqliteQueryBuilder, object)

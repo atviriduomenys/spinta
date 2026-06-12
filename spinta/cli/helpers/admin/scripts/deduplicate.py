@@ -11,14 +11,14 @@ from typer import echo
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.backends.helpers import validate_and_return_transaction, get_table_identifier
+from spinta.backends.helpers import get_table_identifier, validate_and_return_transaction
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names, gather_prepare_columns
+from spinta.backends.postgresql.helpers.migrate.migrate import gather_prepare_columns, get_prop_names
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_constraint_name
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, move_stream
-from spinta.components import Context, Model, DataItem
+from spinta.components import Context, DataItem, Model
 from spinta.core.enums import Action
 
 

@@ -5,18 +5,18 @@ from spinta import commands
 from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    PostgresqlMigrationContext,
-    validate_rename_map,
-    part_of_dataset,
-    generate_model_tables_mapping,
     ModelTables,
-    name_key,
-    get_spinta_schemas,
+    PostgresqlMigrationContext,
     create_missing_schemas,
+    generate_model_tables_mapping,
+    get_spinta_schemas,
+    name_key,
+    part_of_dataset,
+    validate_rename_map,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
-from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
 from spinta.backends.postgresql.helpers.name import (
     PG_NAMING_CONVENTION,
 )

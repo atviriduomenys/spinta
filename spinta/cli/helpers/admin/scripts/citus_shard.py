@@ -8,12 +8,12 @@ from spinta.backends.postgresql.helpers.migrate.actions import (
     MigrationHandler,
 )
 from spinta.backends.postgresql.helpers.migrate.citus import (
-    gather_current_sharding_plan,
-    create_sharding_plan,
     ShardingPlan,
+    create_sharding_plan,
+    distribute_all,
+    gather_current_sharding_plan,
     invalidate_default_distribution,
     undistribute_all,
-    distribute_all,
 )
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded

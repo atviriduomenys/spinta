@@ -5,9 +5,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-import sqlalchemy as sa
-
 import pytest
+import sqlalchemy as sa
+import sqlalchemy_utils as su
 
 from spinta import commands
 from spinta.core.config import RawConfig
@@ -19,7 +19,6 @@ from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-import sqlalchemy_utils as su
 
 
 @pytest.fixture()

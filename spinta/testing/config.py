@@ -4,9 +4,9 @@ from typing import Optional
 from spinta.auth import gen_auth_server_keys, get_clients_path
 from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.manifests.tabular.helpers import striptable
 
 CONFIG = {
     "environments": {

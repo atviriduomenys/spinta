@@ -1,41 +1,27 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import List
-from typing import Tuple
-from typing import TypeVar
-from typing import Union
-from typing import overload
+from typing import Any, List, Tuple, TypeVar, Union, overload
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta.auth import authorized
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
-from spinta.components import Page
+from spinta.components import Page, Property
 from spinta.core.enums import Action
-from spinta.components import Property
-from spinta.core.ufuncs import Bind, GetAttr
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import Negative
-from spinta.core.ufuncs import Unresolved
-from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Bind, Expr, GetAttr, Negative, Unresolved, ufunc
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.backends.sql.ufuncs.query.helpers import (
-    select_ref_foreign_key_properties,
     select_external_ref_foreign_key_properties,
+    select_ref_foreign_key_properties,
 )
 from spinta.dimensions.enum.helpers import prepare_enum_value
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName, NotImplementedFeature
-from spinta.types.datatype import DataType, Denorm, Object, Array, ExternalRef
-from spinta.types.datatype import PrimaryKey
-from spinta.types.datatype import Ref
-from spinta.types.datatype import String
-from spinta.types.datatype import UUID
+from spinta.exceptions import NoExternalName, NotImplementedFeature, PropertyNotFound, SourceCannotBeList
+from spinta.types.datatype import UUID, Array, DataType, Denorm, ExternalRef, Object, PrimaryKey, Ref, String
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
-from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected, ReservedProperty
+from spinta.ufuncs.querybuilder.components import LiteralProperty, ReservedProperty, Selected
 from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take

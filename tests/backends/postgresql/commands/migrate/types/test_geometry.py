@@ -9,10 +9,10 @@ from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import drop_index
 from tests.backends.postgresql.commands.migrate.test_migrations import (
+    cleanup_table_list,
     configure_migrate,
     float_equals,
     override_manifest,
-    cleanup_table_list,
 )
 
 

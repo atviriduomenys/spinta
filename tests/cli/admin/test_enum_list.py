@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from _pytest.fixtures import FixtureRequest
 
 from spinta import commands

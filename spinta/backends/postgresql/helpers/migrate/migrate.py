@@ -3,12 +3,12 @@ from __future__ import annotations
 import dataclasses
 import re
 from collections import defaultdict
-from typing import List, Union, Dict, Tuple, Callable
+from typing import Callable, Dict, List, Tuple, Union
 
 import geoalchemy2.types
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import JSONB, JSON
+from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.sql.elements import TextClause
@@ -17,14 +17,14 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import (
-    get_table_name,
-    get_table_identifier,
-    split_logical_name,
     TableIdentifier,
     extract_table_data_from_logical_name,
+    get_table_identifier,
+    get_table_name,
+    split_logical_name,
 )
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_column_name, get_pg_sequence_name
+from spinta.backends.postgresql.helpers import get_column_name, get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
 from spinta.backends.postgresql.helpers.migrate.name import (
@@ -32,26 +32,26 @@ from spinta.backends.postgresql.helpers.migrate.name import (
     get_full_name,
 )
 from spinta.backends.postgresql.helpers.name import (
-    name_changed,
+    PG_NAMING_CONVENTION,
+    get_pg_column_name,
     get_pg_constraint_name,
     get_pg_index_name,
-    get_pg_column_name,
-    PG_NAMING_CONVENTION,
+    name_changed,
 )
 from spinta.cli.helpers.migrate import MigrationContext
 from spinta.components import Context, Model, Property
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import (
     MigrateScalarToRefTooManyKeys,
-    UnableToFindPrimaryKeysNoUniqueConstraints,
-    UnableToFindPrimaryKeysMultipleUniqueConstraints,
+    MissingPostgresqlComments,
     ModelNotFound,
     PropertyNotFound,
-    MissingPostgresqlComments,
+    UnableToFindPrimaryKeysMultipleUniqueConstraints,
+    UnableToFindPrimaryKeysNoUniqueConstraints,
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.sql.helpers import is_internal_schema
-from spinta.types.datatype import Ref, File, DataType, Array
+from spinta.types.datatype import Array, DataType, File, Ref
 from spinta.types.text.components import Text
 from spinta.utils.collections import keydefaultdict
 from spinta.utils.itertools import ensure_list

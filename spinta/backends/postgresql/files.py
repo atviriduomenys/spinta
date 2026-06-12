@@ -1,10 +1,8 @@
-from typing import Optional, List
-
 import io
 import uuid
+from typing import List, Optional
 
 import sqlalchemy as sa
-
 
 DEFAULT_BLOCK_SIZE = 8 << 20  # 8MB
 

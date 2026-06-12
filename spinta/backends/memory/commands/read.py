@@ -1,13 +1,12 @@
 from typing import Iterator
 
 from spinta import commands
-from spinta.core.ufuncs import Expr
-from spinta.components import Context
-from spinta.components import Model
-from spinta.typing import ObjectData
-from spinta.backends.memory.components import Memory
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
+from spinta.backends.memory.components import Memory
+from spinta.components import Context, Model
+from spinta.core.ufuncs import Expr
+from spinta.typing import ObjectData
 
 
 @commands.getall.register(Context, Model, Memory)

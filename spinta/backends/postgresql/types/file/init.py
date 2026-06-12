@@ -1,16 +1,15 @@
 import sqlalchemy as sa
-
-from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, BIGINT
 
 from spinta import commands
+from spinta.backends.constants import BackendFeatures, TableType
+from spinta.backends.helpers import get_table_identifier
+from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.datatype import File
-from spinta.backends.constants import TableType, BackendFeatures
-from spinta.backends.helpers import get_table_identifier
-from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_column_name
 
 
 @commands.prepare.register(Context, PostgreSQL, File)

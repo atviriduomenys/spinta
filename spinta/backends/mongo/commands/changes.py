@@ -2,9 +2,9 @@ import datetime
 import types
 
 from spinta import commands
-from spinta.utils.json import fix_data_for_json
-from spinta.components import Context, Model, Property
 from spinta.backends.mongo.components import Mongo
+from spinta.components import Context, Model, Property
+from spinta.utils.json import fix_data_for_json
 
 
 @commands.create_changelog_entry.register(Context, (Model, Property), Mongo)

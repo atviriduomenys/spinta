@@ -1,13 +1,12 @@
 import datetime
 
-
 from spinta import commands
-from spinta.utils.data import take
-from spinta.components import Context, Model, DataStream, DataItem, DataSubItem
-from spinta.exceptions import ItemDoesNotExist
-from spinta.types.datatype import DataType, Ref
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.helpers import inserting
+from spinta.components import Context, DataItem, DataStream, DataSubItem, Model
+from spinta.exceptions import ItemDoesNotExist
+from spinta.types.datatype import DataType, Ref
+from spinta.utils.data import take
 
 
 @commands.insert.register()

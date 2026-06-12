@@ -1,6 +1,4 @@
-from typing import Any
-from typing import Dict
-from typing import Union
+from typing import Any, Dict, Union
 
 from spinta import commands
 from spinta.components import Context

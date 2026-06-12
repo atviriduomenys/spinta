@@ -5,14 +5,14 @@ from typing import List
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import (
-    ModelReferenceKeyNotFound,
     InvalidIntermediateTableMappingRefCount,
-    UnableToMapIntermediateTable,
+    ModelReferenceKeyNotFound,
     SameModelIntermediateTableMapping,
+    UnableToMapIntermediateTable,
 )
 from spinta.types.array import TYPE_ARRAY
-from spinta.types.datatype import Array, PartialArray, ArrayBackRef, Ref
-from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
+from spinta.types.datatype import Array, ArrayBackRef, PartialArray, Ref
+from spinta.types.helpers import replace_undeclared_ref_with_object, set_dtype_backend
 
 
 @commands.link.register(Context, Array)

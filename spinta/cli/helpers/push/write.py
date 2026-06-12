@@ -4,30 +4,21 @@ import textwrap
 import time
 import uuid
 from copy import copy
-from typing import Any, Tuple
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Optional
-
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 import pprintpp
-
 import requests
+import sqlalchemy as sa
 from requests import HTTPError
 
-import sqlalchemy as sa
 import spinta.cli.push as cli_push
-
 from spinta import spyna
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import State, PushRow, Error
+from spinta.cli.helpers.push.components import Error, PushRow, State
 from spinta.cli.helpers.push.state import check_push_state, save_push_state
 from spinta.cli.helpers.push.utils import get_data_checksum
-from spinta.components import Context
-from spinta.components import Model
+from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.json import fix_data_for_json
 

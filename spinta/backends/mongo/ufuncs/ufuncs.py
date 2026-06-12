@@ -9,23 +9,12 @@ import pymongo
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends.mongo.ufuncs.components import MongoQueryBuilder, Recurse, Lower, Negative, Positive
-from spinta.components import Property, Page
+from spinta.backends.mongo.ufuncs.components import Lower, MongoQueryBuilder, Negative, Positive, Recurse
+from spinta.components import Page, Property
 from spinta.core.enums import Action
-from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ufunc
-from spinta.exceptions import EmptyStringSearch
-from spinta.exceptions import FieldNotInResource
-from spinta.types.datatype import Array
-from spinta.types.datatype import DataType
-from spinta.types.datatype import Date
-from spinta.types.datatype import DateTime
-from spinta.types.datatype import Integer
-from spinta.types.datatype import Number
-from spinta.types.datatype import Object
-from spinta.types.datatype import PrimaryKey
-from spinta.types.datatype import String
+from spinta.core.ufuncs import Bind, Expr, ufunc
+from spinta.exceptions import EmptyStringSearch, FieldNotInResource
+from spinta.types.datatype import Array, DataType, Date, DateTime, Integer, Number, Object, PrimaryKey, String
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 

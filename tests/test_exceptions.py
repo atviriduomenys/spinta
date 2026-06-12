@@ -4,18 +4,17 @@ import pytest
 import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
-
-from spinta.exceptions import (
-    BaseError,
-    error_response,
-    JSONError,
-    MultipleRowsFound,
-    ManagedProperty,
-    RequiredProperty,
-    BackendNotGiven,
-    SRIDNotSetForGeometry,
-)
 from spinta.components import Node, Property
+from spinta.exceptions import (
+    BackendNotGiven,
+    BaseError,
+    JSONError,
+    ManagedProperty,
+    MultipleRowsFound,
+    RequiredProperty,
+    SRIDNotSetForGeometry,
+    error_response,
+)
 
 
 class Error(BaseError):

@@ -1,12 +1,11 @@
 import itertools
-from typing import Union, List, Tuple
+from typing import List, Tuple, Union
 
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.components import Context, Action, Model, DataSubItem
-from spinta.components import Property
-from spinta.types.datatype import DataType, Object, Array
+from spinta.components import Action, Context, DataSubItem, Model, Property
+from spinta.types.datatype import Array, DataType, Object
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 

@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
-from typing import Any, Type
-from typing import Dict
-from typing import Optional
-from typing import Set
+from typing import Any, Dict, Optional, Set, Type
 
-from spinta.backends.constants import BackendOrigin, BackendFeatures, DistributionType
+from spinta.backends.constants import BackendFeatures, BackendOrigin, DistributionType
 from spinta.core.ufuncs import Env
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 

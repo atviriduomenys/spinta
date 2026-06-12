@@ -1,9 +1,9 @@
 import sqlalchemy.exc
 
 from spinta import commands
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
 from spinta.components import Context
-from spinta.backends.postgresql.components import PostgreSQL
 
 
 @commands.wait.register(Context, PostgreSQL)

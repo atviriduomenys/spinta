@@ -1,9 +1,8 @@
 from spinta import commands
-from spinta.components import Context, Property, DataItem
-from spinta.types.datatype import Ref
-from spinta.components import Context, Property, DataItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.validate import pg_check_unique_constraint
+from spinta.components import Context, DataItem, Property
+from spinta.types.datatype import Ref
 
 
 @commands.check_unique_constraint.register(Context, DataItem, Ref, Property, PostgreSQL, str)

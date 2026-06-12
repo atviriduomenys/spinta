@@ -4,10 +4,8 @@ from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.yaml.components import InlineManifest
-from spinta.manifests.yaml.components import YamlManifest
-from spinta.manifests.yaml.helpers import read_inline_manifest_schemas
-from spinta.manifests.yaml.helpers import read_manifest_schemas
+from spinta.manifests.yaml.components import InlineManifest, YamlManifest
+from spinta.manifests.yaml.helpers import read_inline_manifest_schemas, read_manifest_schemas
 
 log = logging.getLogger(__name__)
 

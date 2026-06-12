@@ -1,9 +1,9 @@
 from spinta import commands
-from spinta.components import Context
-from spinta.manifests.components import Manifest
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.memory.components import Memory
+from spinta.components import Context
+from spinta.manifests.components import Manifest
 
 
 @commands.prepare.register(Context, Memory, Manifest)

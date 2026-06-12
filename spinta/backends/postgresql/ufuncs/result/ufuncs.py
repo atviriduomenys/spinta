@@ -2,7 +2,7 @@ from spinta import commands
 from spinta.backends.postgresql.ufuncs.result.components import PgResultBuilder
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Property
-from spinta.core.ufuncs import ufunc, Expr
+from spinta.core.ufuncs import Expr, ufunc
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 

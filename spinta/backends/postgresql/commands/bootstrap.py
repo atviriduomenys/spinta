@@ -1,8 +1,8 @@
-from spinta import commands
-from spinta.components import Context
-from spinta.backends.postgresql.components import PostgreSQL
-
 import sqlalchemy as sa
+
+from spinta import commands
+from spinta.backends.postgresql.components import PostgreSQL
+from spinta.components import Context
 
 
 @commands.bootstrap.register(Context, PostgreSQL)

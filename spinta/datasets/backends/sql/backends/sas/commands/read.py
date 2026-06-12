@@ -8,11 +8,9 @@ and value formatting in WHERE clauses.
 
 import logging
 
-
 from spinta import commands
 from spinta.backends.helpers import validate_and_return_begin
-from spinta.components import Context
-from spinta.components import Model
+from spinta.components import Context, Model
 from spinta.datasets.backends.sql.backends.sas.components import SAS
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.typing import ObjectData

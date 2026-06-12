@@ -1,8 +1,8 @@
 from typing import AsyncIterator
 
 from spinta import commands
-from spinta.components import Context, Property, DataItem
 from spinta.backends.fs.components import FileSystem
+from spinta.components import Context, DataItem, Property
 
 
 @commands.create_changelog_entry.register(Context, Property, FileSystem)

@@ -16,7 +16,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import pool, types as sqltypes
+from sqlalchemy import pool
+from sqlalchemy import types as sqltypes
 from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.sql.compiler import SQLCompiler
 
@@ -24,10 +25,10 @@ from spinta.datasets.backends.sql.backends.sas.base import BaseDialect
 from spinta.datasets.backends.sql.backends.sas.identifier import SASIdentifierPreparer
 from spinta.datasets.backends.sql.backends.sas.introspection import SASIntrospectionMixin
 from spinta.datasets.backends.sql.backends.sas.types import (
-    SASDateType,
     SASDateTimeType,
-    SASTimeType,
+    SASDateType,
     SASStringType,
+    SASTimeType,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,34 +1,21 @@
 import collections
 import uuid
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import TypedDict
-from typing import overload
+from typing import Any, Dict, Iterable, Iterator, List, Optional, TypedDict, overload
 
 from starlette.requests import Request
 from starlette.responses import Response
 from toposort import toposort
 
-from spinta import commands
-from spinta import exceptions
+from spinta import commands, exceptions
 from spinta.auth import authorized
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
+from spinta.components import Config, Context, Model, Namespace, Node, UrlParams
 from spinta.core.enums import Action
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Node
-from spinta.components import UrlParams
 from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
-from spinta.types.datatype import Ref, Array
+from spinta.types.datatype import Array, Ref
 from spinta.utils.naming import is_valid_namespace_name
 
 RESERVED_NAMES = {

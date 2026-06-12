@@ -1,8 +1,8 @@
 from spinta.backends.components import Backend
-from spinta.commands import is_object_id, load, load_search_params, load_operator_value, prepare
+from spinta.commands import is_object_id, load, load_operator_value, load_search_params, prepare
 from spinta.components import Context
-from spinta.exceptions import InvalidValue, EmptyStringSearch
-from spinta.types.datatype import Array, Integer, DataType, PrimaryKey, String
+from spinta.exceptions import EmptyStringSearch, InvalidValue
+from spinta.types.datatype import Array, DataType, Integer, PrimaryKey, String
 
 
 @load_search_params.register()

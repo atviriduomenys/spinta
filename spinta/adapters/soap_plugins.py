@@ -6,10 +6,10 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
 
-from spinta.core.ufuncs import Expr, UFuncRegistry
 from spinta.core.config import RawConfig
-from spinta.ufuncs.loadbuilder.components import LoadBuilder
+from spinta.core.ufuncs import Expr, UFuncRegistry
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
+from spinta.ufuncs.loadbuilder.components import LoadBuilder
 
 log = logging.getLogger(__name__)
 

@@ -3,14 +3,13 @@ import re
 import uuid
 
 import pytest
+import sqlalchemy as sa
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest, get_table_structure
+from spinta.manifests.internal_sql.helpers import get_table_structure, write_internal_sql_manifest
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
-
-import sqlalchemy as sa
 
 db_type = {"sqlite": "sqlite", "postgresql": "postgresql"}
 

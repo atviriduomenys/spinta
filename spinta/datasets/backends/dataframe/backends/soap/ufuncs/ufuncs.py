@@ -9,15 +9,15 @@ from spinta.adapters.soap_plugins import get_deferred_prepare_names
 from spinta.auth import authorized, query_client
 from spinta.components import Property
 from spinta.core.enums import Action
-from spinta.core.ufuncs import ufunc, Expr, Bind, ShortExpr
+from spinta.core.ufuncs import Bind, Expr, ShortExpr, ufunc
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.datasets.components import Param
 from spinta.exceptions import (
-    InvalidClientBackendCredentials,
     InvalidClientBackend,
-    UnknownMethod,
+    InvalidClientBackendCredentials,
     MissingRequiredProperty,
     PropertyNotFound,
+    UnknownMethod,
 )
 from spinta.utils.config import get_clients_path
 from spinta.utils.data import take

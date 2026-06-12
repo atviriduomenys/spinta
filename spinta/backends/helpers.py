@@ -1,37 +1,24 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
-from typing import Iterable
-from typing import Iterator
-from typing import TypeVar
+from typing import Any, Iterable, Iterator, TypeVar
 
 import sqlalchemy as sa
-
 from multipledispatch import dispatch
+from sqlalchemy.dialects import postgresql
 
-from spinta import commands
-from spinta import exceptions
-from spinta import spyna
+from spinta import commands, exceptions, spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
+from spinta.backends.constants import BackendOrigin, TableType
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.commands import build_full_response
-from spinta.components import Config, DataItem
+from spinta.components import Component, Config, Context, DataItem, Model, Namespace, Property
 from spinta.core.enums import Action
-from spinta.components import Component
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Property
 from spinta.exceptions import BackendUnavailable
-from spinta.types.datatype import DataType, Denorm, String, Base32, PrimaryKey
+from spinta.types.datatype import Base32, DataType, Denorm, PrimaryKey, String
 from spinta.utils.data import take
-from spinta.backends.constants import TableType, BackendOrigin
-
-
-from sqlalchemy.dialects import postgresql
 
 pg_identifier_preparer = postgresql.dialect().identifier_preparer
 

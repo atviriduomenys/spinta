@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import List, Union, Any
+from typing import Any, List, Union
 
 import pymongo
 
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage
 from spinta.ufuncs.querybuilder.helpers import (
+    merge_with_page_limit,
     merge_with_page_selected_list,
     merge_with_page_sort,
-    merge_with_page_limit,
 )
-from spinta.backends.mongo.components import Mongo
 
 
 class MongoQueryBuilder(QueryBuilder):

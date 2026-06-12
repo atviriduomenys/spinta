@@ -4,12 +4,12 @@ from typing import overload
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.components import Context, Model
-from spinta.types.datatype import DataType
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_sequence_name
+from spinta.components import Context, Model
+from spinta.types.datatype import DataType
 
 log = logging.getLogger(__name__)
 

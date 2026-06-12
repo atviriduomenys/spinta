@@ -1,30 +1,27 @@
 import contextlib
-import logging
-
-import pathlib
 import json
+import logging
+import pathlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from typing import IO, Any, Iterator
 
 import requests
-from typing import Any, Iterator, IO
+from lxml import etree
 
 from spinta import HTTP_URL_PREFIXES
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.dict.components import (
     DictFormat,
     MappedDataset,
-    MappingMeta,
-    MappingScope,
     MappedModels,
     MappedProperties,
+    MappingMeta,
+    MappingScope,
 )
 from spinta.manifests.helpers import TypeDetector
-from spinta.utils.itertools import first_dict_value, first_dict_key
+from spinta.utils.itertools import first_dict_key, first_dict_value
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
-
-from lxml import etree
-
 
 logger = logging.getLogger(__name__)
 
