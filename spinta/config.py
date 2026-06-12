@@ -1,6 +1,5 @@
 import pathlib
 
-
 CONFIG = {
     "config": [],
     "commands": {

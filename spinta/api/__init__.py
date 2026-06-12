@@ -11,43 +11,47 @@ from starlette.datastructures import FormData
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
-from starlette.responses import Response, JSONResponse
-from starlette.routing import Route, Mount
+from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from spinta import components, commands
+from spinta import commands, components
 from spinta.accesslog import create_accesslog
-from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData, ClientBackendsData
+from spinta.api.validators import ClientAddData, ClientBackendsData, ClientPatchData, ClientSecretPatchData
 from spinta.auth import (
     AuthorizationServer,
+    BearerTokenValidator,
+    KeyType,
+    ResourceProtector,
+    Scopes,
+    StarletteOAuth2Data,
+    authenticate_token,
     check_scope,
-    query_client,
-    get_clients_list,
     client_exists,
     create_client_file,
     delete_client_file,
-    update_client_file,
+    get_auth_request,
+    get_auth_token,
+    get_clients_list,
     get_clients_path,
-    Scopes,
-    authenticate_token,
-    StarletteOAuth2Data,
-    KeyType,
-    load_key_from_file,
     has_scope,
+    load_key_from_file,
+    query_client,
+    update_client_file,
 )
-from spinta.auth import BearerTokenValidator
-from spinta.auth import ResourceProtector
-from spinta.auth import get_auth_request
-from spinta.auth import get_auth_token
-from spinta.commands import prepare, get_version
+from spinta.commands import get_version, prepare
 from spinta.components import Context, UrlParams
-from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, ClientValidationError
-from spinta.exceptions import NoAuthServer
+from spinta.exceptions import (
+    BaseError,
+    ClientValidationError,
+    InsufficientPermission,
+    MultipleErrors,
+    NoAuthServer,
+    error_response,
+)
 from spinta.formats.html.helpers import get_templates
 from spinta.middlewares import ContextMiddleware
-from spinta.urlparams import Version
-from spinta.urlparams import get_response_type
+from spinta.urlparams import Version, get_response_type
 
 log = logging.getLogger(__name__)
 
@@ -419,6 +423,7 @@ async def error(request, exc):
 
 async def srid_check(request: Request):
     from shapely.geometry import Point
+
     from spinta.types.geometry.helpers import get_osm_link
 
     srid = request.path_params["srid"]

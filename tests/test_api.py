@@ -1,33 +1,26 @@
 from __future__ import annotations
+
 import pathlib
 import uuid
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import cast
+from typing import Any, Dict, List, Tuple, cast
 from unittest.mock import ANY
 
 import pytest
 
 from spinta import commands
-from spinta.auth import query_client, get_clients_path, get_keymap_path, create_client_file
+from spinta.auth import create_client_file, get_clients_path, get_keymap_path, query_client
+from spinta.backends.memory.components import Memory
 from spinta.cli.helpers.store import _ensure_config_dir
-from spinta.components import Context, Config
+from spinta.components import Config, Context
 from spinta.core.config import RawConfig, configure_rc
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
-from spinta.testing.client import TestClient, get_yaml_data
-from spinta.testing.client import TestClientResponse
-from spinta.testing.client import get_html_tree
+from spinta.testing.client import TestClient, TestClientResponse, create_test_client, get_html_tree, get_yaml_data
 from spinta.testing.context import create_test_context
-from spinta.testing.utils import get_error_codes, error
+from spinta.testing.data import pushdata, send
 from spinta.testing.manifest import prepare_manifest
-from spinta.testing.data import pushdata
+from spinta.testing.utils import error, get_error_codes
 from spinta.utils.nestedstruct import flatten
-from spinta.testing.client import create_test_client
-from spinta.backends.memory.components import Memory
-from spinta.testing.data import send
 from spinta.utils.types import is_str_uuid
 
 

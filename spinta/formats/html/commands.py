@@ -1,61 +1,67 @@
 import dataclasses
 import datetime
 from decimal import Decimal
-from typing import Any
-from typing import Dict
-from typing import Generic
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import TypeVar
-
-from itertools import chain
-from itertools import count
-from starlette.requests import Request
+from itertools import chain, count
+from typing import Any, Dict, Generic, Iterable, Iterator, List, Optional, TypeVar
 
 from shapely.geometry.base import BaseGeometry
+from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
-from spinta.backends.helpers import get_ns_reserved_props
-from spinta.backends.helpers import select_model_props
-from spinta.types.geometry.helpers import get_display_value, get_osm_link
-from spinta.components import pagination_enabled, page_in_data, check_if_revision_explicit, revision_in_data
+from spinta.backends.helpers import (
+    get_model_reserved_props,
+    get_ns_reserved_props,
+    get_select_prop_names,
+    select_model_props,
+    select_props,
+)
+from spinta.components import (
+    Context,
+    Model,
+    Namespace,
+    UrlParams,
+    check_if_revision_explicit,
+    page_in_data,
+    pagination_enabled,
+    revision_in_data,
+)
 from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import UrlParams
 from spinta.formats.components import Format
 from spinta.formats.helpers import get_model_tabular_header
-from spinta.formats.html.components import Cell
-from spinta.formats.html.components import Color
-from spinta.formats.html.components import ComplexCell
-from spinta.formats.html.components import Html
-from spinta.formats.html.helpers import get_model_link
-from spinta.formats.html.helpers import get_output_formats
-from spinta.formats.html.helpers import get_template_context
-from spinta.formats.html.helpers import get_templates
-from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef, Denorm
-from spinta.types.datatype import DataType
-from spinta.types.datatype import File
-from spinta.types.datatype import Object
-from spinta.types.datatype import Ref
-from spinta.types.datatype import String
-from spinta.types.datatype import Date
-from spinta.types.datatype import Time
-from spinta.types.datatype import DateTime
-from spinta.types.datatype import Number
-from spinta.types.datatype import Binary
-from spinta.types.datatype import JSON
-from spinta.types.datatype import Inherit
-from spinta.types.datatype import UUID
+from spinta.formats.html.components import Cell, Color, ComplexCell, Html
+from spinta.formats.html.helpers import (
+    get_model_link,
+    get_output_formats,
+    get_template_context,
+    get_templates,
+    short_id,
+)
+from spinta.types.datatype import (
+    JSON,
+    UUID,
+    Array,
+    ArrayBackRef,
+    BackRef,
+    Binary,
+    DataType,
+    Date,
+    DateTime,
+    Denorm,
+    ExternalRef,
+    File,
+    Inherit,
+    Number,
+    Object,
+    PageType,
+    Ref,
+    String,
+    Time,
+)
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.helpers import get_display_value, get_osm_link
 from spinta.types.text.components import Text
-from spinta.utils.encoding import is_url_safe_base64, encode_page_values
+from spinta.utils.encoding import encode_page_values, is_url_safe_base64
 from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path

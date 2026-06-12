@@ -1,33 +1,19 @@
 import datetime
 import functools
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Tuple, TypedDict
 
 import markdown
 import nh3
 from markupsafe import Markup
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
-from typing import Any
-from typing import Dict
-from typing import Iterator
-from typing import List
-from typing import NamedTuple
-from typing import Optional
-from typing import Tuple
-from typing import TypedDict
 
 from spinta import commands
 from spinta.backends.helpers import is_custom_id_prop
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Node
-from spinta.components import Property
-from spinta.components import UrlParams
-from spinta.formats.html.components import Cell
-from spinta.formats.html.components import Color
+from spinta.components import Config, Context, Model, Node, Property, UrlParams
+from spinta.formats.html.components import Cell, Color
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import File
-from spinta.types.datatype import Ref
+from spinta.types.datatype import File, Ref
 from spinta.utils.path import resource_filename
 from spinta.utils.url import build_url_path
 

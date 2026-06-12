@@ -1372,7 +1372,9 @@ def test_render_markdown_filter_links():
     # Links keep their href; nh3 adds rel="noopener noreferrer" and the
     # filter sets target="_blank" so warning links open in a new tab.
     rendered = str(render_markdown("[saugykla](https://data.gov.lt/page/saugykla)"))
-    assert '<a href="https://data.gov.lt/page/saugykla" target="_blank" rel="noopener noreferrer">saugykla</a>' in rendered
+    assert (
+        '<a href="https://data.gov.lt/page/saugykla" target="_blank" rel="noopener noreferrer">saugykla</a>' in rendered
+    )
 
 
 def test_render_markdown_filter_empty():
