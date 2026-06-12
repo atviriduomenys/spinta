@@ -2,44 +2,32 @@ import base64
 import hashlib
 import uuid
 from pathlib import Path
-
-from lxml import html
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from starlette.requests import Request
+from lxml import html
 from starlette.datastructures import Headers
+from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.core.enums import Action
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Namespace
-from spinta.components import Store
-from spinta.components import UrlParams
-from spinta.components import Version
+from spinta.components import Config, Context, Namespace, Store, UrlParams, Version
 from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.formats.html.commands import _LimitIter
-from spinta.formats.html.components import Cell
-from spinta.formats.html.components import Color
-from spinta.formats.html.components import Html
-from spinta.formats.html.helpers import CurrentLocation
-from spinta.formats.html.helpers import get_current_location
-from spinta.formats.html.helpers import get_front_page_warning
-from spinta.formats.html.helpers import render_markdown
-from spinta.formats.html.helpers import short_id
-from spinta.testing.client import TestClient
-from spinta.testing.client import TestClientResponse
-from spinta.testing.client import create_test_client
+from spinta.formats.html.components import Cell, Color, Html
+from spinta.formats.html.helpers import (
+    CurrentLocation,
+    get_current_location,
+    get_front_page_warning,
+    render_markdown,
+    short_id,
+)
+from spinta.testing.client import TestClient, TestClientResponse, create_test_client
 from spinta.testing.data import pushdata
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
 from spinta.utils.data import take
 
@@ -1332,24 +1320,20 @@ def test_html_changes_corrupt_data(
     assert value["obj.test"] == {"value": "t_obj_updated"}
 
 
-def test_front_page_warning_default(rc: RawConfig):
+_WARNING_MANIFEST = """
+d | r | b | m | property | type
+example/warning           |
+"""
+
+
+def test_front_page_warning(rc: RawConfig):
     # When `texts.front_page_warning` is not overridden, the raw Markdown
-    # default from `spinta/config.py` is exposed in the template context.
-    context, _ = load_manifest_and_context(
-        rc,
-        """
-        d | r | b | m | property | type
-        example/warning           |
-        """,
-    )
-    warning = get_front_page_warning(context)["front_page_warning"]
-    assert "**Dėmesio!**" in warning
+    # default from `spinta/config.py` is exposed in the template context;
+    # a value set in the config (e.g. `config.yml`) overrides it and is
+    # passed through as-is — the template applies the `| markdown` filter.
+    context, _ = load_manifest_and_context(rc, _WARNING_MANIFEST)
+    assert "**Dėmesio!**" in get_front_page_warning(context)["front_page_warning"]
 
-
-def test_front_page_warning_from_config(rc: RawConfig):
-    # A Markdown value set in the config (e.g. `config.yml`) overrides the
-    # default from `spinta/config.py` and is passed through as-is — the
-    # template applies the `| markdown` filter to render it.
     rc = rc.fork(
         {
             "texts": {
@@ -1357,15 +1341,8 @@ def test_front_page_warning_from_config(rc: RawConfig):
             },
         }
     )
-    context, _ = load_manifest_and_context(
-        rc,
-        """
-        d | r | b | m | property | type
-        example/warning           |
-        """,
-    )
-    warning = get_front_page_warning(context)["front_page_warning"]
-    assert warning == "**Custom** warning"
+    context, _ = load_manifest_and_context(rc, _WARNING_MANIFEST)
+    assert get_front_page_warning(context)["front_page_warning"] == "**Custom** warning"
 
 
 def test_render_markdown_filter():
@@ -1374,28 +1351,44 @@ def test_render_markdown_filter():
 
 
 def test_render_markdown_filter_strips_disallowed_html():
-    # Raw HTML allowed by the Markdown parser is sanitized by bleach so
-    # that dangerous tags cannot reach the rendered page.
+    # Raw HTML is sanitized by nh3 so that dangerous tags cannot reach the
+    # rendered page. nh3 removes both the tag and its content for script tags.
     rendered = str(render_markdown("ok <script>alert(1)</script>"))
     assert "<script>" not in rendered
-    assert "alert(1)" in rendered  # text kept, tag stripped
+    assert "alert(1)" not in rendered
+
+
+def test_render_markdown_filter_keeps_text_of_benign_tags():
+    # Disallowed but harmless tags (lists, quotes, code) lose their HTML
+    # structure, but their text content survives sanitization.
+    rendered = str(render_markdown("- item one\n- item two"))
+    assert "<ul>" not in rendered
+    assert "<li>" not in rendered
+    assert "item one" in rendered
+    assert "item two" in rendered
+
+
+def test_render_markdown_filter_links():
+    # Links keep their href; nh3 adds rel="noopener noreferrer" and the
+    # filter sets target="_blank" so warning links open in a new tab.
+    rendered = str(render_markdown("[saugykla](https://data.gov.lt/page/saugykla)"))
+    assert '<a href="https://data.gov.lt/page/saugykla" target="_blank" rel="noopener noreferrer">saugykla</a>' in rendered
 
 
 def test_render_markdown_filter_empty():
     assert str(render_markdown("")) == ""
 
 
-@pytest.mark.manifests("internal_sql", "csv")
 def test_front_page_warning_rendered(
-    manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    # The warning configured via `texts.front_page_warning` is passed to the
-    # template context of pages that extend `base.html`. The raw Markdown
-    # value reaches the template; the `| markdown` filter renders it.
+    # The warning configured via `texts.front_page_warning` is injected into
+    # the template context of pages that extend `base.html` by a context
+    # processor; the raw Markdown value reaches the template and the
+    # `| markdown` filter renders it.
     rc = rc.fork(
         {
             "texts": {
@@ -1413,7 +1406,6 @@ def test_front_page_warning_rendered(
     """,
         backend=postgresql,
         tmp_path=tmp_path,
-        manifest_type=manifest_type,
         request=request,
         full_load=True,
     )

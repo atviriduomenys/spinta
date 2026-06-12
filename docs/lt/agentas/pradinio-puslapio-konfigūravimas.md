@@ -37,20 +37,24 @@ Palaikomi tipiniai Markdown elementai:
 ## Leistini HTML elementai
 
 Po Markdown konvertavimo rezultatas saugumo tikslais filtruojamas su
-[bleach](https://bleach.readthedocs.io/) biblioteka. Praleidžiami tik šie HTML
+[nh3](https://nh3.readthedocs.io/) biblioteka. Praleidžiami tik šie HTML
 tag'ai:
 
 - `p`, `br`
 - `strong`, `em`
-- `a` (su `href`, `title`, `target`, `rel` atributais)
+- `a` (su `href`, `title`, `target` atributais; nuorodoms nh3 automatiškai
+  prideda `rel="noopener noreferrer"` ir `target="_blank"`)
 - `h1`, `h2`, `h3`, `h4`, `h5`, `h6`
 
-Visi kiti HTML tag'ai pašalinami, paliekant tik jų teksto turinį. Tai reiškia,
+Kiti HTML tag'ai pašalinami, paliekant tik jų teksto turinį. Tai reiškia,
 kad sąrašai (`- punktas`), citatos (`> tekstas`) ir kodo blokai (`` `code` ``)
 po filtravimo praranda savo struktūrinį HTML žymėjimą, nors pats tekstas
-išlieka. Jei prireiktų papildomų elementų, leistinų tag'ų sąrašą galima
+išlieka. Išimtis — `<script>` ir `<style>`: pašalinamas ir tag'as, ir visas
+jo turinys. Jei prireiktų papildomų elementų, leistinų tag'ų sąrašą galima
 išplėsti faile `spinta/formats/html/helpers.py`
-(`MARKDOWN_ALLOWED_TAGS` ir `MARKDOWN_ALLOWED_ATTRS` konstantos).
+(`MARKDOWN_ALLOWED_TAGS` ir `MARKDOWN_ALLOWED_ATTRS` konstantos). Pastaba:
+`rel` atributo į leistinų sąrašą dėti negalima — nh3 jį valdo pats ir,
+radęs jį sąraše, meta klaidą.
 
 ## Pavyzdys
 
@@ -70,9 +74,11 @@ Rezultatas HTML puslapyje:
 <div class="warning">
   <p>
     <strong>Dėmesio!</strong>
-    <a href="https://data.gov.lt/page/saugykla">Saugykla</a> šiuo metu
+    <a href="https://data.gov.lt/page/saugykla" target="_blank"
+       rel="noopener noreferrer">Saugykla</a> šiuo metu
     aktyviai vystoma. Apie sutrikimus prašome pranešti
-    <a href="mailto:atviriduomenys@vssa.lt">atviriduomenys@vssa.lt</a>.
+    <a href="mailto:atviriduomenys@vssa.lt" target="_blank"
+       rel="noopener noreferrer">atviriduomenys@vssa.lt</a>.
   </p>
 </div>
 ```

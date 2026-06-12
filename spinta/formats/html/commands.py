@@ -34,11 +34,10 @@ from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
 from spinta.formats.html.components import ComplexCell
 from spinta.formats.html.components import Html
-from spinta.formats.html.helpers import create_templates
-from spinta.formats.html.helpers import get_front_page_warning
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
+from spinta.formats.html.helpers import get_templates
 from spinta.formats.html.helpers import short_id
 from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef, Denorm
 from spinta.types.datatype import DataType
@@ -58,7 +57,6 @@ from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten, sepgetter
-from spinta.utils.path import resource_filename
 from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
@@ -90,11 +88,10 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     else:
         result = data
 
-    templates = create_templates(str(resource_filename("spinta", "templates")))
+    templates = get_templates()
     return templates.TemplateResponse(
         "form.html",
         {
-            **get_front_page_warning(request.state.context),
             "request": request,
             "title": "Duomenų struktūros aprašo tikrinimas",
             "description": (
@@ -286,7 +283,7 @@ def _render_model(
     if request.url.hostname == "testserver":
         ctx["data"] = list(ctx["data"])
 
-    templates = create_templates(str(resource_filename("spinta", "templates")))
+    templates = get_templates()
     return templates.TemplateResponse("data.html", ctx, headers=http_headers)
 
 

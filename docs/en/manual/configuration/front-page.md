@@ -37,20 +37,24 @@ Common Markdown elements that work:
 ## Allowed HTML tags
 
 After Markdown conversion, the result is filtered by
-[bleach](https://bleach.readthedocs.io/). Only the following HTML tags are
+[nh3](https://nh3.readthedocs.io/). Only the following HTML tags are
 allowed through:
 
 - `p`, `br`
 - `strong`, `em`
-- `a` (with `href`, `title`, `target`, `rel` attributes)
+- `a` (with `href`, `title`, `target` attributes; nh3 automatically adds
+  `rel="noopener noreferrer"` and `target="_blank"` to links)
 - `h1`, `h2`, `h3`, `h4`, `h5`, `h6`
 
-Anything else is stripped, keeping only the inner text. This means lists
-(`- item`), block quotes (`> text`) and code spans (`` `code` ``) lose their
-HTML structure after filtering, even though the text content survives. If
-you need a broader set of tags, you can extend the allow-list in
-`spinta/formats/html/helpers.py` (constants `MARKDOWN_ALLOWED_TAGS` and
-`MARKDOWN_ALLOWED_ATTRS`).
+Other tags are stripped but their inner text is kept — lists (`- item`),
+block quotes (`> text`) and code spans (`` `code` ``) lose their HTML
+structure after filtering, even though the text content survives. The
+exception is `<script>` and `<style>`: both the tag and its content are
+removed entirely. If you need a broader set of tags, you can extend the
+allow-list in `spinta/formats/html/helpers.py` (constants
+`MARKDOWN_ALLOWED_TAGS` and `MARKDOWN_ALLOWED_ATTRS`). Note: do not add
+`rel` to the allowed attributes — nh3 manages `rel` itself and raises an
+error if it is also allow-listed.
 
 ## Example
 
@@ -70,9 +74,11 @@ Rendered HTML:
 <div class="warning">
   <p>
     <strong>Heads up!</strong> The
-    <a href="https://data.gov.lt/page/saugykla">data storage</a> is
+    <a href="https://data.gov.lt/page/saugykla" target="_blank"
+       rel="noopener noreferrer">data storage</a> is
     currently under active development. Please report any issues to
-    <a href="mailto:atviriduomenys@vssa.lt">atviriduomenys@vssa.lt</a>.
+    <a href="mailto:atviriduomenys@vssa.lt" target="_blank"
+       rel="noopener noreferrer">atviriduomenys@vssa.lt</a>.
   </p>
 </div>
 ```

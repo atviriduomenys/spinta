@@ -490,7 +490,6 @@ def test_nested_dataset(app):
     assert resp.status_code == 200
 
     resp.context.pop("request")
-    resp.context.pop("front_page_warning")
     assert _cleaned_context(resp, data=False) == {
         "location": [
             ("🏠", "/"),

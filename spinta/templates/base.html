@@ -53,15 +53,18 @@
             padding: 8px 16px;
             font-size: 12px;
         }
+        .warning p {
+            margin: 0;
+        }
         .warning a {
             color: #b42b3f;
         }
         </style>
     </head>
     <body>
-
-
-    <div class="warning"> {{ front_page_warning | markdown }} </div>
+        {% if front_page_warning %}
+        <div class="warning">{{ front_page_warning | markdown }}</div>
+        {% endif %}
 
         <div class="container">
             {% block content %}{% endblock %}

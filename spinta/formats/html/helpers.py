@@ -1,7 +1,10 @@
 import datetime
-import bleach
+import functools
+
 import markdown
+import nh3
 from markupsafe import Markup
+from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 from typing import Any
 from typing import Dict
@@ -25,6 +28,7 @@ from spinta.formats.html.components import Color
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
+from spinta.utils.path import resource_filename
 from spinta.utils.url import build_url_path
 
 CurrentLocation = List[
@@ -249,7 +253,7 @@ def _split_path(
     return result
 
 
-MARKDOWN_ALLOWED_TAGS = [
+MARKDOWN_ALLOWED_TAGS = {
     "p",
     "br",
     "strong",
@@ -261,36 +265,62 @@ MARKDOWN_ALLOWED_TAGS = [
     "h4",
     "h5",
     "h6",
-]
+}
 MARKDOWN_ALLOWED_ATTRS = {
-    "a": ["href", "title", "target", "rel"],
+    "a": {"href", "title", "target"},
 }
 
 
+@functools.lru_cache(maxsize=32)
 def render_markdown(value: str) -> Markup:
     """Jinja filter: render Markdown to sanitized HTML.
 
-    Renders Markdown to HTML, then sanitizes it with bleach so that the
+    Renders Markdown to HTML, then sanitizes it with nh3 so that the
     result is safe to mark as HTML in templates. Returns a `Markup` so the
-    template engine does not escape the rendered HTML again.
+    template engine does not escape the rendered HTML again. The result is
+    cached, because the same config strings are rendered on every page.
+
+    Note: nh3 forces `rel="noopener noreferrer"` on links (`link_rel`
+    default); do not add "rel" to MARKDOWN_ALLOWED_ATTRS — nh3 raises an
+    error if both are set.
     """
     if not value:
         return Markup("")
-    html = markdown.markdown(value, output_format="html")
-    sanitized = bleach.clean(
+    html = markdown.markdown(str(value), output_format="html")
+    sanitized = nh3.clean(
         html,
         tags=MARKDOWN_ALLOWED_TAGS,
         attributes=MARKDOWN_ALLOWED_ATTRS,
-        strip=True,
+        # Markdown syntax cannot express `target`, but warning links should
+        # open in a new tab so users do not lose the page they are browsing.
+        set_tag_attribute_values={"a": {"target": "_blank"}},
     )
     return Markup(sanitized)
 
 
+def _front_page_warning_processor(request: Request) -> dict:
+    return get_front_page_warning(request.state.context)
+
+
 def create_templates(directory: str) -> Jinja2Templates:
-    """Build a Jinja2Templates instance with project-wide custom filters."""
-    templates = Jinja2Templates(directory=directory)
+    """Build a Jinja2Templates instance with project-wide custom filters.
+
+    The `front_page_warning` value needed by `base.html` is injected into
+    every template context via a context processor, so individual render
+    sites do not need to add it by hand.
+    """
+    templates = Jinja2Templates(
+        directory=directory,
+        context_processors=[_front_page_warning_processor],
+    )
     templates.env.filters["markdown"] = render_markdown
     return templates
+
+
+@functools.lru_cache(maxsize=None)
+def get_templates() -> Jinja2Templates:
+    """Shared Jinja2Templates instance for all HTML render sites."""
+    return create_templates(str(resource_filename("spinta", "templates")))
 
 
 def get_front_page_warning(context: Context) -> dict:
@@ -300,16 +330,14 @@ def get_front_page_warning(context: Context) -> dict:
     in the template via the `markdown` Jinja filter.
     """
     config: Config = context.get("config")
-    raw = config.rc.get("texts", "front_page_warning", default="")
     return {
-        "front_page_warning": raw,
+        "front_page_warning": config.front_page_warning,
     }
 
 
 def get_template_context(context: Context, model, params: UrlParams):
     config: Config = context.get("config")
     return {
-        **get_front_page_warning(context),
         "location": get_current_location(context, config, model, params),
     }
 
