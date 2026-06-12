@@ -22,7 +22,7 @@ texts:
 Pranešimo tekstas rašomas [Markdown](https://commonmark.org/help/) sintakse.
 Jis automatiškai paverčiamas į HTML ir filtruojamas dėl saugumo, todėl į
 konfigūraciją galima saugiai rašyti ir tekstą iš išorinių šaltinių —
-kenkėjiškas HTML (pavyzdžiui, `<script>` arba `onclick` atributai) bus
+galimai kenkėjiškas HTML (pavyzdžiui, `<script>` arba `onclick` atributai) bus
 pašalintas.
 
 Palaikomi tipiniai Markdown elementai:
@@ -36,8 +36,7 @@ Palaikomi tipiniai Markdown elementai:
 
 ## Leistini HTML elementai
 
-Po Markdown konvertavimo rezultatas saugumo tikslais filtruojamas su
-[nh3](https://nh3.readthedocs.io/) biblioteka. Praleidžiami tik šie HTML
+Po Markdown konvertavimo rezultatas saugumo tikslais filtruojamas. Leidžiami tik šie HTML
 tag'ai:
 
 - `p`, `br`
@@ -50,11 +49,7 @@ Kiti HTML tag'ai pašalinami, paliekant tik jų teksto turinį. Tai reiškia,
 kad sąrašai (`- punktas`), citatos (`> tekstas`) ir kodo blokai (`` `code` ``)
 po filtravimo praranda savo struktūrinį HTML žymėjimą, nors pats tekstas
 išlieka. Išimtis — `<script>` ir `<style>`: pašalinamas ir tag'as, ir visas
-jo turinys. Jei prireiktų papildomų elementų, leistinų tag'ų sąrašą galima
-išplėsti faile `spinta/formats/html/helpers.py`
-(`MARKDOWN_ALLOWED_TAGS` ir `MARKDOWN_ALLOWED_ATTRS` konstantos). Pastaba:
-`rel` atributo į leistinų sąrašą dėti negalima — nh3 jį valdo pats ir,
-radęs jį sąraše, meta klaidą.
+jo turinys. 
 
 ## Pavyzdys
 
@@ -94,15 +89,3 @@ pranešimą, `config.yml` faile užtenka nurodyti tuščią reikšmę:
 texts:
   front_page_warning: ""
 ```
-
-## Techninės detalės
-
-- Pranešimo tekstas į šabloną patenka per `get_front_page_warning()`
-  pagalbinę funkciją (`spinta/formats/html/helpers.py`).
-- Markdown → HTML konvertavimą ir saugumo filtravimą atlieka
-  `markdown` Jinja2 filtras (taip pat apibrėžtas `helpers.py` faile).
-  Šablone naudojama: `{{ front_page_warning | markdown }}`.
-- Filtras grąžina `markupsafe.Markup` objektą, todėl Jinja2 nebešifruoja
-  rezultato — papildomas `| safe` nereikalingas.
-- Filtras yra bendros paskirties — jį galima panaudoti ir kituose
-  šablonuose, kuriuose reikia Markdown rendering'o.
