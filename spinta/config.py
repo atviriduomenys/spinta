@@ -267,6 +267,9 @@ CONFIG = {
     "ensure_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
+    # Response HTTP Strict Transport Security (HSTS) header. `max-age` must be at
+    # least 31536000 seconds (1 year) and `includeSubDomains` must be specified.
+    "http_strict_transport_security": "max-age=31536000; includeSubDomains",
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",

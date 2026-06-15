@@ -22,6 +22,9 @@ Improvements:
 - Added `check_ref_filters` configuration option (defaults to `true`). Set it to
   `false` to stop a model from being implicitly filtered by the filters of the
   models it refers to (`#1901`_).
+- Added a `Strict-Transport-Security` (HSTS) response header on all responses,
+  configurable via the `http_strict_transport_security` configuration option
+  (defaults to `max-age=31536000; includeSubDomains`) (`dvms#520`).
 
 .. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
