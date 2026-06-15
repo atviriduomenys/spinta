@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-
 from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskDataFrameQueryBuilder,
+)
+from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskSelected as Selected,
 )
 from spinta.exceptions import (
     GivenValueCountMissmatch,
     PropertyNotPartOfRefProps,
 )
-from spinta.types.datatype import Ref, ExternalRef
+from spinta.types.datatype import ExternalRef, Ref
 
 
 def select_ref_foreign_key_properties(

@@ -5,19 +5,18 @@ from spinta.backends import Backend
 from spinta.backends.helpers import check_if_model_primary_key_is_composite, is_custom_id_prop
 from spinta.components import Context, Model
 from spinta.core.enums import Mode
-from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
+from spinta.datasets.backends.helpers import flatten_keymap_encoding_values, generate_ref_id_using_select
 from spinta.datasets.components import ExternalBackend
 from spinta.datasets.enums import ExternalIdPattern
 from spinta.datasets.helpers import (
-    extract_and_cast_properties_from_list,
-    encode_composite_string_id,
-    process_data_for_pkey,
     compare_ref_property_count,
+    encode_composite_string_id,
+    extract_and_cast_properties_from_list,
+    process_data_for_pkey,
 )
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import KeymapValueNotFound, PropertyNotFound, GivenValueCountMissmatch
-from spinta.types.datatype import Base32, ExternalRef, PrimaryKey
-from spinta.types.datatype import Ref
+from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound, PropertyNotFound
+from spinta.types.datatype import Base32, ExternalRef, PrimaryKey, Ref
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
 

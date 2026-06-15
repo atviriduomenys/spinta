@@ -2,8 +2,8 @@ import pathlib
 from typing import Any, Iterator
 
 from spinta import commands, spyna
-from spinta.auth import authorized, AdminToken
-from spinta.components import Property, Model, Context
+from spinta.auth import AdminToken, authorized
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound

@@ -15,7 +15,6 @@ from spinta.ufuncs.propertyresolver.components import PropertyResolver
 from spinta.ufuncs.querybuilder.components import Func, Selected
 from spinta.utils.schema import NA
 
-
 RESERVED_COUNT_PROP = "__dask_count"
 
 

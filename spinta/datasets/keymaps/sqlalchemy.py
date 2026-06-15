@@ -5,26 +5,25 @@ import json
 import uuid
 from collections.abc import Generator
 from copy import copy
-from typing import Optional, Any
-from typer import echo
+from typing import Any, Optional
 from uuid import UUID
 
 import msgpack
 import sqlalchemy as sa
 from multipledispatch import dispatch
 from sqlalchemy.dialects.sqlite import insert
+from typer import echo
 
 from spinta import commands
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
+from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
 from spinta.cli.helpers.script.helpers import sort_scripts_by_required
 from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
-from spinta.components import Config
-from spinta.components import Context
+from spinta.components import Config, Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
 from spinta.datasets.keymaps.helpers import prepare_keymap_values
-from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapMigrationRequired, KeymapDuplicateMapping
+from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch, KeymapMigrationRequired
 from spinta.utils.json import fix_data_for_json
 
 

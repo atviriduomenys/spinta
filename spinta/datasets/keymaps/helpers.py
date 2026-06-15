@@ -1,4 +1,4 @@
-from typing import Generator, Any
+from typing import Any, Generator
 
 
 def prepare_keymap_values(value: Any) -> Any | list[Any]:
