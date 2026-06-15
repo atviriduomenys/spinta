@@ -15,14 +15,13 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskSelected as Selected,
     Count,
     RESERVED_COUNT_PROP,
-    DASK_PK_KEY,
-    DASK_PK_COMBINE_KEY,
 )
 from spinta.datasets.backends.dataframe.ufuncs.query.helpers import (
     select_ref_foreign_key_properties,
     select_external_ref_foreign_key_properties,
 )
 from spinta.datasets.components import Param
+from spinta.datasets.enums import ExternalIdPattern
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import (
     PropertyNotFound,
@@ -33,8 +32,18 @@ from spinta.exceptions import (
 from spinta.types.datatype import DataType, Integer, Number, Boolean, PrimaryKey, Ref, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.querybuilder.helpers import process_literal_value
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def testlist(env: DaskDataFrameQueryBuilder, expr: Expr) -> tuple:
+    args, kwargs = expr.resolve(env)
+    result = []
+    for arg in args:
+        result.append(process_literal_value(arg))
+    return tuple(result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
@@ -309,13 +318,16 @@ def select(
         # identify row.
         pkeys = take(model.properties).values()
 
-    result = {DASK_PK_KEY: {prop.name: env.call("select", prop) for prop in pkeys}, DASK_PK_COMBINE_KEY: {}}
+    result = {
+        ExternalIdPattern.ID_KEY.value: {prop.name: env.call("select", prop) for prop in pkeys},
+        ExternalIdPattern.COMBINATIONS_KEY.value: {},
+    }
     for required_pk_combination in model.required_keymap_properties:
         combination_result = {}
         for prop_name in required_pk_combination:
             prop = env.call("_resolve_property", prop_name)
             combination_result[prop.name] = env.call("select", prop)
-        result[DASK_PK_COMBINE_KEY][required_pk_combination] = combination_result
+        result[ExternalIdPattern.COMBINATIONS_KEY.value][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 
@@ -331,7 +343,7 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selecte
     result = {}
     if not dtype.inherited:
         refprop = dtype.refprops[0]
-        result[DASK_PK_KEY] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
+        result[ExternalIdPattern.ID_KEY.value] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
@@ -353,11 +365,9 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
     if not dtype.inherited:
-        ref_model = dtype.model
-        if is_custom_id_prop(ref_model.id_prop):
-            prep[DASK_PK_KEY] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
-        else:
-            prep[DASK_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype)
+        )
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
@@ -370,7 +380,7 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
     prep = {}
     if not dtype.inherited:
-        prep[DASK_PK_KEY] = Selected(
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
             prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype, properties=data)
         )
 

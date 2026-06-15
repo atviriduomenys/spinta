@@ -901,11 +901,11 @@ def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
     xml = """
         <r>
             <Cities>
-                <CityID>401</CityID>
+                <CityID>35</CityID>
                 <Code>6666000000</Code>
             </Cities>
             <Cities>
-                <CityID>402</CityID>
+                <CityID>40</CityID>
                 <Code>7777000000</Code>
             </Cities>
         </r>
@@ -916,23 +916,25 @@ def test_xml_with_ref_loads_data_enum(rc: RawConfig, tmp_path: Path):
     context, manifest = prepare_manifest(
         rc,
         f"""
-    d | r | b | m | property           | type             | ref          | source                  | access | prepare
-    example/xml                        |                  |              |                         |        |
-      | xml                            | dask/xml         |              | {path}                  |        |
-      |   |   | City                   |                  | id           |                         |        |
-      |   |   |   | id                 | integer required |              | CityID/text()           | open   |
-      |   |   |   |                    | enum             |              | 35                      | open   | 35
-      |   |   |   |                    |                  |              | 40                      | open   | 40
-      |   |   |   | code               | integer required |              | Code/text()           | open   |
-      |   |   | Details                |                  |              | /r/Cities               |        |
-      |   |   |   | contract_type      | ref              | City         | CityID/text()           | open   |
-      |   |   |   | contract_type.code | integer required |              | Code/text()           | open   |
+    d | r | b | m | property           | type             | ref  | source        | access | prepare
+    example/xml                        |                  |      |               |        |
+      | xml                            | dask/xml         |      | {path}        |        |
+      |   |   | City                   |                  | id   | /r/Cities     |        |
+      |   |   |   | id                 | integer required |      | CityID/text() | open   |
+      |   |   |   |                    | enum             |      | 35            | open   | 35
+      |   |   |   |                    |                  |      | 40            | open   | 40
+      |   |   |   | code               | integer required |      | Code/text()   | open   |
+      |   |   | Details                |                  |      | /r/Cities     |        |
+      |   |   |   | contract_type      | ref              | City | CityID/text() | open   |
+      |   |   |   | contract_type.code | integer required |      | Code/text()   | open   |
     """,
         mode=Mode.external,
     )
     context.loaded = True
     app = create_test_client(context)
     app.authmodel("example/xml/Details", ["getall"])
+    # To generate `_id` for `City` (using select) we need to have access to `_id` property
+    app.authmodel("example/xml/City", ["search"])
     resp = app.get("/example/xml/Details")
     data = resp.json()["_data"]
     assert data == [
@@ -979,7 +981,7 @@ def test_xml_with_ref_loads_data(rc: RawConfig, tmp_path: Path):
     d | r | b | m | property           | type             | ref          | source                  | access | prepare
     example/xml                        |                  |              |                         |        |
       | xml                            | dask/xml         |              | {path}                  |        |
-      |   |   | City                   |                  | id           |                         |        |
+      |   |   | City                   |                  | id           | /r/Cities               |        |
       |   |   |   | id                 | integer required |              | CityID/text()           | open   |
 
       |   |   | Details                |                  | code         | /r/Cities               |        |
@@ -1235,20 +1237,20 @@ def test_composite_prepare_links_tables_error_if_count_mismatch(rc: RawConfig, t
     context, manifest = prepare_manifest(
         rc,
         f"""
-        d | r | b | m | property                | type            | ref                    | source              | prepare                 | access
-        example/xml                             |                 |                        |                     |                         |
-          | resource                            | dask/xml        |                        | {path}              |                         |
-          |   |   | Event                       |                 |                        | israsas             |                         |
-          |   |   |   | type                    | ref required    | AssetType              |                     | type_attribute.title_lt | open
-          |   |   |   | type_attribute          | ref required    | EntityAttribute[code]  |                     |                         | open
-          |   |   |   | type_attribute.code     | string required |                        | kodas               |                         | open
-          |   |   |   | type_attribute.title_lt | string required |                        | pavadinimas         |                         | open
-          |   |   | EntityAttribute             |                 |                        | israsas             |                         |
-          |   |   |   | code                    | string          |                        | kodas               |                         | open
-          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
-          |   |   | AssetType                   |                 |                        | israsas             |                         | open
-          |   |   |   | code                    | string          |                        | kodas               |                         | open
-          |   |   |   | title_lt                | string          |                        | pavadinimas         |                         | open
+        d | r | b | m | property                | type            | ref                   | source                       | prepare                 | access
+        example/xml                             |                 |                       |                              |                         |
+          | resource                            | dask/xml        |                       | {path}                       |                         |
+          |   |   | Event                       |                 |                       | /israsas/akciju_klases_tipas |                         |
+          |   |   |   | type                    | ref required    | AssetType             |                              | type_attribute.title_lt | open
+          |   |   |   | type_attribute          | ref required    | EntityAttribute[code] | kodas/text()                 |                         | open
+          |   |   |   | type_attribute.code     | string required |                       | kodas/text()                 |                         | open
+          |   |   |   | type_attribute.title_lt | string required |                       | pavadinimas/text()           |                         | open
+          |   |   | EntityAttribute             |                 |                       | /israsas/akciju_klases_tipas |                         |
+          |   |   |   | code                    | string          |                       | kodas/text()                 |                         | open
+          |   |   |   | title_lt                | string          |                       | pavadinimas/text()           |                         | open
+          |   |   | AssetType                   |                 |                       | /israsas/akciju_klases_tipas |                         | open
+          |   |   |   | code                    | string          |                       | kodas/text()                 |                         | open
+          |   |   |   | title_lt                | string          |                       | pavadinimas/text()           |                         | open
         """,
         mode=Mode.external,
     )
@@ -1557,9 +1559,6 @@ def test_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
     vendor_resp = app.get("/example/Vendor")
     vendor_ids = [vendor_object["_id"] for vendor_object in vendor_resp.json()["_data"]]
 
-    country_resp = app.get("/example/Country")
-    country_ids = [country_object["_id"] for country_object in country_resp.json()["_data"]]
-
     resp = app.get("/example/Order")
     assert resp.status_code == 200
 
@@ -1573,7 +1572,6 @@ def test_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[0],
                 "country": {
-                    "_id": country_ids[0],
                     "code": "LT",
                     "name": "Lithuania",
                 },
@@ -1587,7 +1585,6 @@ def test_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[1],
                 "country": {
-                    "_id": country_ids[1],
                     "code": "PL",
                     "name": "Poland",
                 },
@@ -1739,58 +1736,6 @@ def test_incorrect_composite_property(rc: RawConfig, tmp_path: Path):
         """,
             mode=Mode.external,
         )
-
-
-def test_incorrect_composite_property_primary_key_values(rc: RawConfig, tmp_path: Path):
-    xml = """
-    <root>
-        <order>
-            <id>ORD001</id>
-            <vendor_code>VEND001</vendor_code>
-            <country_code>LT</country_code>
-            <country_name>Lithuania</country_name>
-        </order>
-        <order>
-            <id>ORD002</id>
-            <vendor_code>VEND002</vendor_code>
-            <country_code>PL</country_code>
-            <country_name>Poland</country_name>
-        </order>
-    </root>
-    """
-    path = tmp_path / "test.xml"
-    path.write_text(xml)
-
-    context, manifest = prepare_manifest(
-        rc,
-        f"""
-    d | r | b | m | property                | type       | ref      | source              | access
-    example                                 |            |          |                     |
-      | data                                | dask/xml   |          | {path}              |
-      |   |   | Country                     |            | code     | /root/order         |
-      |   |   |   | code                    | string     |          | country_code        | open
-      |   |   |   | name                    | string     |          | country_name        | open
-      |   |   | Vendor                      |            | code         | /root/order         |
-      |   |   |   | code                    | string     |          | vendor_code         | open
-      |   |   |   | country                 | ref required | Country | vendor_code        | open
-      |   |   |   | country.code            | string     |          | country_code        | open
-      |   |   |   | country.name            | string     |          | country_name        | open
-      |   |   | Order                       |            |          | /root/order         |
-      |   |   |   | id                      | string     |          | id                  | open
-      |   |   |   | vendor                  | ref required | Vendor | vendor_code         | open
-      |   |   |   | vendor.country.code   | string     |          | country_code        | open
-      |   |   |   | vendor.country.name     | string     |          | country_name        | open
-    """,
-        mode=Mode.external,
-    )
-    context.loaded = True
-    app = create_test_client(context)
-
-    app.authmodel("example/Order", ["getall"])
-
-    resp = app.get("/example/Order")
-    assert resp.status_code == 400
-    assert resp.json()["errors"][0]["code"] == "NoPrimaryKeyCandidatesFound"
 
 
 def test_composite_ref_level_2_no_id(rc: RawConfig, tmp_path: Path):

@@ -2,6 +2,7 @@ import datetime
 import json
 import uuid
 from collections import Counter
+from copy import copy
 from typing import Optional, Any
 from collections.abc import Generator
 
@@ -31,6 +32,12 @@ class RedisKeyMap(KeyMap):
 
     def __exit__(self, *exc):
         self.redis.close()
+
+    def copy(self) -> "RedisKeyMap":
+        copied = copy(self)
+        # Reset any context manager variables
+        copied.redis = None
+        return copied
 
     @staticmethod
     def _get_value_table_name(model_name: str) -> str:

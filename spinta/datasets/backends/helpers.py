@@ -1,31 +1,58 @@
 import pathlib
-from typing import Any
+from typing import Any, Iterator
 
 from spinta import commands, spyna
+from spinta.auth import authorized, AdminToken
 from spinta.components import Property, Model, Context
+from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
 from spinta.types.datatype import Ref
 
 
-def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str:
+def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str | None:
+    def _find_required_value(rows_: Iterator) -> object | None:
+        found_value = False
+        result_value = None
+        for row in rows_:
+            if result_value is not None:
+                raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
+            result_value = row.get("_id")
+            found_value = True
+
+        if not found_value:
+            raise NoPrimaryKeyCandidatesFound(dtype, values=data)
+
+        return result_value
+
     ref_model = dtype.model
-    expr_parts = ["select()"]
+
+    has_permission = False
+    # Check permissions if able to use select with specific scenarios
+    # Check if user can select only _id
+    select_query = "select(_id)"
+    if authorized(context, ref_model.id_prop, Action.SEARCH):
+        has_permission = True
+    # Check if user has getall permission
+    elif authorized(context, ref_model.id_prop, Action.GETALL):
+        has_permission = True
+        select_query = "select()"
+
+    expr_parts = [select_query]
     for prop in dtype.refprops:
         expr_parts.append(f'{prop.place}="{data[prop.place]}"')
     expr = asttoexpr(spyna.parse("&".join(expr_parts)))
-    rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
 
-    found_value = False
-    val = None
-    for row in rows:
-        if val is not None:
-            raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
-        val = row["_id"]
-        found_value = True
-
-    if not found_value:
-        raise NoPrimaryKeyCandidatesFound(dtype, values=data)
+    # User does not have permission to select _id, so we need to use admin context
+    if not has_permission:
+        with context.fork("_id_select") as admin_context:
+            admin_context.set("auth.token", AdminToken())
+            rows = commands.getall(admin_context, ref_model, ref_model.backend, query=expr)
+            # Have to call _find_required_value, since we need to be inside the admin context
+            val = _find_required_value(rows)
+    else:
+        rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
+        val = _find_required_value(rows)
 
     return val
 

@@ -234,7 +234,7 @@ def detect(
                         f"transaction.{resource.backend.name}", validate_and_return_begin, context, resource.backend
                     )
         for keymap in store.keymaps.values():
-            context.attach(f"keymap.{keymap.name}", lambda: keymap)
+            context.attach(f"keymap.{keymap.name}", lambda: keymap.copy())
 
         ns = commands.get_namespace(context, manifest, "")
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH)

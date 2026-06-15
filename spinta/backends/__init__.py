@@ -1953,6 +1953,31 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data:
     return processed_data
 
 
+@commands.cast_backend_to_python.register(Context, ExternalRef, Backend, dict)
+def cast_backend_to_python(
+    context: Context, dtype: ExternalRef, backend: Backend, data: Dict[str, Any], **kwargs
+) -> Any:
+    if not data:
+        return data
+
+    processed_data = {}
+    for key in data:
+        prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
+        if prop is not None:
+            processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)
+
+    for prop in dtype.refprops:
+        if prop.name not in processed_data and prop.name in data:
+            processed_data[prop.name] = commands.cast_backend_to_python(
+                context, prop, backend, data[prop.name], **kwargs
+            )
+
+    if not processed_data or all(value is None for value in processed_data.values()):
+        return None
+
+    return processed_data
+
+
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
 def cast_backend_to_python(
     context: Context, dtype: Object, backend: Backend, data: Dict[str, Any], **kwargs

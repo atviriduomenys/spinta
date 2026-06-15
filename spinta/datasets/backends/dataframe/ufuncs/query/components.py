@@ -18,8 +18,6 @@ from spinta.datasets.backends.dataframe.components import DaskBackend
 
 
 RESERVED_COUNT_PROP = "__dask_count"
-DASK_PK_KEY = "_id"
-DASK_PK_COMBINE_KEY = "_combination"
 
 
 class DaskDataFrameQueryBuilder(Env):

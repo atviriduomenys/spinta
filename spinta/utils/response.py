@@ -160,7 +160,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(
                     f"keymap.{model.keymap.name}",
-                    lambda: model.keymap,
+                    lambda: model.keymap.copy(),
                 )
 
             return await commands.getone(
@@ -189,7 +189,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(
                     f"keymap.{model.keymap.name}",
-                    lambda: model.keymap,
+                    lambda: model.keymap.copy(),
                 )
 
             return await commands.getall(

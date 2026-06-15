@@ -28,10 +28,6 @@ if TYPE_CHECKING:
     from spinta.datasets.backends.sql.components import Sql
 
 
-SQL_PK_KEY = "_id"
-SQL_PK_COMBINATION_KEY = "_combination"
-
-
 class SqlFrom:
     backend: Sql
     joins: Dict[str, sa.Table]

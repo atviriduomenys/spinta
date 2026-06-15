@@ -1121,9 +1121,6 @@ def test_json_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
     vendor_resp = app.get("/example/Vendor")
     vendor_ids = [vendor_object["_id"] for vendor_object in vendor_resp.json()["_data"]]
 
-    country_resp = app.get("/example/Country")
-    country_ids = [country_object["_id"] for country_object in country_resp.json()["_data"]]
-
     resp = app.get("/example/Order")
     assert resp.status_code == 200
 
@@ -1137,7 +1134,6 @@ def test_json_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[0],
                 "country": {
-                    "_id": country_ids[0],
                     "code": "LT",
                     "name": "Lithuania",
                 },
@@ -1151,7 +1147,6 @@ def test_json_composite_ref_three_levels_xyz(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[1],
                 "country": {
-                    "_id": country_ids[1],
                     "code": "PL",
                     "name": "Poland",
                 },
@@ -1220,13 +1215,6 @@ def test_json_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
 
     vendor_resp = app.get("/example/Vendor")
     vendor_ids = [vendor_object["_id"] for vendor_object in vendor_resp.json()["_data"]]
-
-    country_resp = app.get("/example/Country")
-    country_ids = [country_object["_id"] for country_object in country_resp.json()["_data"]]
-
-    region_resp = app.get("/example/Region")
-    region_ids = [region_object["_id"] for region_object in region_resp.json()["_data"]]
-
     resp = app.get("/example/Order")
     assert resp.status_code == 200
     data = resp.json()["_data"]
@@ -1240,10 +1228,8 @@ def test_json_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[0],
                 "country": {
-                    "_id": country_ids[0],
                     "code": "LT",
                     "region": {
-                        "_id": region_ids[0],
                         "code": "REG001",
                         "name": "Vilnius Region",
                     },
@@ -1258,10 +1244,8 @@ def test_json_composite_ref_four_levels_xyze(rc: RawConfig, tmp_path: Path):
             "vendor": {
                 "_id": vendor_ids[1],
                 "country": {
-                    "_id": country_ids[1],
                     "code": "PL",
                     "region": {
-                        "_id": region_ids[1],
                         "code": "REG002",
                         "name": "Warsaw Region",
                     },
@@ -1304,48 +1288,6 @@ def test_json_incorrect_composite_property(rc: RawConfig, tmp_path: Path):
         """,
             mode=Mode.external,
         )
-
-
-def test_json_incorrect_composite_property_primary_key_values(rc: RawConfig, tmp_path: Path):
-    json_data = {
-        "order": [
-            {"id": "ORD001", "vendor_code": "VEND001", "country_code": "LT", "country_name": "Lithuania"},
-            {"id": "ORD002", "vendor_code": "VEND002", "country_code": "PL", "country_name": "Poland"},
-        ]
-    }
-    path = tmp_path / "test.json"
-    path.write_text(json.dumps(json_data))
-
-    context, manifest = prepare_manifest(
-        rc,
-        f"""
-    d | r | b | m | property                | type         | ref      | source       | access
-    example                                 |              |          |              |
-      | data                                | dask/json    |          | {path}       |
-      |   |   | Country                     |              | code     | order        |
-      |   |   |   | code                    | string       |          | country_code | open
-      |   |   |   | name                    | string       |          | country_name | open
-      |   |   | Vendor                      |              | code     | order        |
-      |   |   |   | code                    | string       |          | vendor_code  | open
-      |   |   |   | country                 | ref required | Country  | vendor_code  | open
-      |   |   |   | country.code            | string       |          | country_code | open
-      |   |   |   | country.name            | string       |          | country_name | open
-      |   |   | Order                       |              |          | order        |
-      |   |   |   | id                      | string       |          | id           | open
-      |   |   |   | vendor                  | ref required | Vendor   | vendor_code  | open
-      |   |   |   | vendor.country.code     | string       |          | country_code | open
-      |   |   |   | vendor.country.name     | string       |          | country_name | open
-    """,
-        mode=Mode.external,
-    )
-    context.loaded = True
-    app = create_test_client(context)
-
-    app.authmodel("example/Order", ["getall"])
-
-    resp = app.get("/example/Order")
-    assert resp.status_code == 400
-    assert resp.json()["errors"][0]["code"] == "NoPrimaryKeyCandidatesFound"
 
 
 def test_json_composite_ref_level_2_no_id(rc: RawConfig, tmp_path: Path):

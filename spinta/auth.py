@@ -544,7 +544,7 @@ class AdminToken(rfc6749.TokenMixin):
         return True
 
     def check_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
-        pass
+        return True
 
     def get_sub(self) -> str:  # User.
         return "admin"
@@ -870,7 +870,6 @@ def authorized(
 
     # Unauthenticated clients can only access nodes if spinta config.access is open.
     unauthenticated = token.get_client_id() == get_default_auth_client_id(context)
-
     if unauthenticated and config.access < Access.open:
         if throw:
             raise AuthorizedClientsOnly()

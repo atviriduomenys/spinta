@@ -20,11 +20,12 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder, SQL_PK_KEY, SQL_PK_COMBINATION_KEY
+from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.backends.sql.ufuncs.query.helpers import (
     select_ref_foreign_key_properties,
     select_external_ref_foreign_key_properties,
 )
+from spinta.datasets.enums import ExternalIdPattern
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName, NotImplementedFeature
 from spinta.types.datatype import DataType, Denorm, Object, Array, ExternalRef
@@ -454,11 +455,9 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
     if not dtype.inherited:
-        ref_model = dtype.model
-        if is_custom_id_prop(ref_model.id_prop):
-            prep[SQL_PK_KEY] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
-        else:
-            prep[SQL_PK_KEY] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype)
+        )
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
@@ -603,13 +602,16 @@ def select(
         # identify row.
         pkeys = take(model.properties).values()
 
-    result = {SQL_PK_KEY: {prop.name: env.call("select", prop) for prop in pkeys}, SQL_PK_COMBINATION_KEY: {}}
+    result = {
+        ExternalIdPattern.ID_KEY.value: {prop.name: env.call("select", prop) for prop in pkeys},
+        ExternalIdPattern.COMBINATIONS_KEY.value: {},
+    }
     for required_pk_combination in model.required_keymap_properties:
         combination_result = {}
         for prop_name in required_pk_combination:
             prop = env.resolve_property(prop_name)
             combination_result[prop.name] = env.call("select", prop)
-        result[SQL_PK_COMBINATION_KEY][required_pk_combination] = combination_result
+        result[ExternalIdPattern.COMBINATIONS_KEY.value][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 
