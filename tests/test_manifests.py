@@ -1,9 +1,9 @@
 from spinta import commands
-from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.utils import create_manifest_files
-from spinta.testing.context import create_test_context
-from spinta.components import Model, Context
+from spinta.components import Context, Model
 from spinta.manifests.components import Manifest, get_manifest_object_names
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.context import create_test_context
+from spinta.testing.utils import create_manifest_files
 
 
 def show(context: Context, c: Manifest):

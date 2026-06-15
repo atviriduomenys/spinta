@@ -1,22 +1,16 @@
 from __future__ import annotations
 
-from typing import Dict, Any
-from typing import List
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
-from spinta.components import EntryId, ExtraMetaData
-from spinta.components import Namespace
-from spinta.dimensions.comments.components import Comment
-from spinta.dimensions.lang.components import LangData
-from spinta.components import MetaData
-from spinta.components import Model
-from spinta.components import Property
+from spinta.components import EntryId, ExtraMetaData, MetaData, Model, Namespace, Property
 from spinta.core.enums import Access, Level
 from spinta.core.ufuncs import Expr
+from spinta.dimensions.comments.components import Comment
+from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA

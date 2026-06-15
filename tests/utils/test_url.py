@@ -1,7 +1,6 @@
 import pytest
 
-from spinta.utils.url import parse_url_path
-from spinta.utils.url import build_url_path
+from spinta.utils.url import build_url_path, parse_url_path
 
 
 @pytest.mark.parametrize(

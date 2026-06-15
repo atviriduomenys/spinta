@@ -1,19 +1,14 @@
-from typing import Iterator
-from typing import overload
+from typing import Iterator, overload
 
 from multipledispatch import dispatch
 
-from spinta.typing import ObjectData
 from spinta import commands
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Property
-from spinta.types.datatype import DataType
-from spinta.types.datatype import File
-from spinta.types.datatype import Object
-from spinta.exceptions import NotFoundError, ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
+from spinta.components import Context, Model, Property
+from spinta.exceptions import ItemDoesNotExist, NotFoundError
+from spinta.types.datatype import DataType, File, Object
+from spinta.typing import ObjectData
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 

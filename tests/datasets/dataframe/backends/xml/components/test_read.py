@@ -1,12 +1,13 @@
 import json
 from pathlib import Path
-import pytest
 from unittest.mock import ANY
-from responses import RequestsMock, POST
+
+import pytest
+from responses import POST, RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.exceptions import SourceOrPrepareNotAllowed, PartialIncorrectProperty
+from spinta.exceptions import PartialIncorrectProperty, SourceOrPrepareNotAllowed
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest

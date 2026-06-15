@@ -1,9 +1,7 @@
 from typing import Any
 
-from spinta.components import Context
-from spinta.components import Model
-from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Expr
+from spinta.components import Context, Model
+from spinta.core.ufuncs import Bind, Expr
 from spinta.ufuncs.changebase.components import ChangeModelBase
 from spinta.ufuncs.components import ForeignProperty
 

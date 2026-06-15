@@ -1,10 +1,10 @@
 import pathlib
 
 from spinta import commands
-from spinta.components import Context
-from spinta.types.datatype import File
-from spinta.formats.components import Format
 from spinta.backends.fs.components import FileSystem
+from spinta.components import Context
+from spinta.formats.components import Format
+from spinta.types.datatype import File
 
 
 @commands.decode.register(Context, Format, FileSystem, File, dict)

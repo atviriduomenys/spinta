@@ -1,9 +1,9 @@
 from spinta import commands
-from spinta.components import Context, Attachment
-from spinta.manifests.components import Manifest
 from spinta.backends.components import Backend
-from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem
+from spinta.components import Attachment, Context
+from spinta.manifests.components import Manifest
+from spinta.types.datatype import File
 
 
 @commands.prepare.register(Context, FileSystem, Manifest)

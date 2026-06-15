@@ -1,12 +1,12 @@
 import itertools
 import json
-
-import pytest
 from pathlib import Path
 
+import pytest
 import sqlalchemy as sa
-from sqlalchemy.engine.url import make_url
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import make_url
 
 from spinta import commands
 from spinta.backends.constants import TableType
@@ -20,28 +20,26 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import create_test_context
 from spinta.testing.migration import (
-    add_index,
-    add_column_comment,
-    add_table_comment,
     add_changelog_table,
-    add_redirect_table,
     add_column,
+    add_column_comment,
+    add_index,
+    add_redirect_table,
+    add_schema,
+    add_table_comment,
     drop_column,
-    get_table_unique_constraint_columns,
+    drop_index,
+    drop_table,
     get_table_foreign_key_constraint_columns,
-    rename_table,
+    get_table_unique_constraint_columns,
     rename_changelog,
     rename_column,
-    drop_table,
     rename_index,
     rename_redirect,
-    drop_index,
-    add_schema,
+    rename_table,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE
 from spinta.testing.tabular import create_tabular_manifest
-
-from sqlalchemy.dialects import postgresql
 
 pg_identifier_preparer = postgresql.dialect().identifier_preparer
 

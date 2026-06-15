@@ -1,10 +1,9 @@
+from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Context
+from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef, write_mermaid_manifest
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.cli.manifest import _read_and_return_manifest
-from spinta.manifests.mermaid.helpers import write_mermaid_manifest
-from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef
 
 
 def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):

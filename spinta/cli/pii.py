@@ -1,43 +1,29 @@
 import pathlib
 import re
 import uuid
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Optional
-from typing import TypedDict
+from typing import Any, Dict, Iterable, Optional, TypedDict
 
 import phonenumbers
 import tqdm
 from phonenumbers import NumberParseException
+from typer import Argument, Option, Typer, echo
 from typer import Context as TyperContext
-from typer import Argument
-from typer import Option
-from typer import Typer
-from typer import echo
 
 from spinta import commands
-from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
+from spinta.backends.helpers import validate_and_return_begin, validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.data import ModelRow
-from spinta.cli.helpers.data import count_rows
-from spinta.cli.helpers.data import iter_model_rows
+from spinta.cli.helpers.data import ModelRow, count_rows, iter_model_rows
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Node
-from spinta.components import Property
+from spinta.components import Context, Model, Node, Property
 from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.helpers import render_tabular_manifest
-from spinta.manifests.tabular.helpers import write_tabular_manifest
+from spinta.manifests.tabular.helpers import render_tabular_manifest, write_tabular_manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 from spinta.utils.nin import is_nin_lt
-
 
 app = Typer()
 

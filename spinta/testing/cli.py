@@ -1,9 +1,7 @@
-from typing import Any
-from typing import List
-
 import os
 import sys
 import traceback
+from typing import Any, List
 
 import pytest
 from click.testing import Result

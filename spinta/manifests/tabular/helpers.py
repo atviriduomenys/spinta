@@ -1,55 +1,51 @@
 from __future__ import annotations
 
 import csv
-import pathlib
 import logging
+import pathlib
 import textwrap
 import types
 import uuid
-from operator import itemgetter
 from itertools import zip_longest
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import IO
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import NamedTuple
-from typing import Optional
-from typing import Set
-from typing import Tuple
-from typing import TypeVar
-from typing import Union
-from typing import cast
+from operator import itemgetter
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import openpyxl
 import xlsxwriter
 from lark import ParseError
 from tabulate import tabulate
 
-from spinta import commands
-from spinta import spyna
+from spinta import commands, spyna
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Context, Base, PrepareGiven
-from spinta.datasets.components import Resource, Param
-from spinta.dimensions.comments.components import Comment
-from spinta.dimensions.enum.components import EnumItem
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Property
+from spinta.components import Base, Context, Model, Namespace, PrepareGiven, Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
-from spinta.datasets.components import Dataset
-from spinta.dimensions.enum.components import Enums
+from spinta.datasets.components import Dataset, Param, Resource
+from spinta.dimensions.comments.components import Comment
+from spinta.dimensions.enum.components import EnumItem, Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import (
-    MultipleErrors,
-    InvalidBackRefReferenceAmount,
     DataTypeCannotBeUsedForNesting,
+    InvalidBackRefReferenceAmount,
+    MultipleErrors,
     NestedDataTypeMismatch,
     NoModelDefined,
     PropertyNotFound,
@@ -57,39 +53,46 @@ from spinta.exceptions import (
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN, ScopeRow
-from spinta.manifests.tabular.components import BackendRow
-from spinta.manifests.tabular.components import BaseRow
-from spinta.manifests.tabular.components import CommentData
-from spinta.manifests.tabular.components import DESCRIPTION
-from spinta.manifests.tabular.components import DatasetRow
-from spinta.manifests.tabular.components import ParamRow
-from spinta.manifests.tabular.components import EnumRow
-from spinta.manifests.tabular.components import ID
-from spinta.manifests.tabular.components import MANIFEST_COLUMNS
-from spinta.manifests.tabular.components import ManifestColumn
-from spinta.manifests.tabular.components import ManifestRow
-from spinta.manifests.tabular.components import ManifestTableRow
-from spinta.manifests.tabular.components import ModelRow
-from spinta.manifests.tabular.components import PREPARE
-from spinta.manifests.tabular.components import PROPERTY
-from spinta.manifests.tabular.components import PrefixRow
-from spinta.manifests.tabular.components import PropertyRow
-from spinta.manifests.tabular.components import REF
-from spinta.manifests.tabular.components import ResourceRow
-from spinta.manifests.tabular.components import SOURCE
-from spinta.manifests.tabular.components import TITLE
-from spinta.manifests.tabular.components import LEVEL
-from spinta.manifests.tabular.components import TabularFormat
-from spinta.manifests.tabular.constants import DATASET
-from spinta.manifests.tabular.constants import DataTypeEnum
+from spinta.manifests.tabular.components import (
+    ACCESS,
+    COUNT,
+    DESCRIPTION,
+    ELI,
+    ID,
+    LEVEL,
+    MANIFEST_COLUMNS,
+    ORIGIN,
+    PREPARE,
+    PROPERTY,
+    REF,
+    SOURCE,
+    STATUS,
+    TITLE,
+    URI,
+    VISIBILITY,
+    BackendRow,
+    BaseRow,
+    CommentData,
+    DatasetRow,
+    EnumRow,
+    ManifestColumn,
+    ManifestRow,
+    ManifestTableRow,
+    ModelRow,
+    ParamRow,
+    PrefixRow,
+    PropertyRow,
+    ResourceRow,
+    ScopeRow,
+    TabularFormat,
+)
+from spinta.manifests.tabular.constants import DATASET, DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
-from spinta.utils.data import take
-from spinta.utils.schema import NA
-from spinta.utils.schema import NotAvailable
+from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Denorm, ExternalRef, Inherit, Object, Ref
 from spinta.types.text.components import Text
+from spinta.utils.data import take
+from spinta.utils.schema import NA, NotAvailable
 
 log = logging.getLogger(__name__)
 

@@ -4,14 +4,9 @@ import os
 import re
 import sys
 import time as time_module
-from itertools import chain
-from itertools import islice
+from itertools import chain, islice
 from traceback import format_stack
-from typing import Any
-from typing import Dict
-from typing import Iterator
-from typing import TextIO
-from typing import Type
+from typing import Any, Dict, Iterator, TextIO, Type
 from urllib.parse import parse_qs
 
 import objprint
@@ -19,12 +14,10 @@ import pprintpp
 import sqlparse
 from pygments import highlight
 from pygments.formatters.terminal256 import Terminal256Formatter
-from pygments.lexers.python import Python3Lexer
-from pygments.lexers.python import Python3TracebackLexer
+from pygments.lexers.python import Python3Lexer, Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
-from sqlalchemy.sql import ClauseElement
 from requests_mock.adapter import _Matcher
-
+from sqlalchemy.sql import ClauseElement
 
 objprint.config(honor_existing=False, depth=1)
 

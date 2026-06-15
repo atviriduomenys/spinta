@@ -13,7 +13,7 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.types.datatype import Base32, String, Integer, UUID
+from spinta.types.datatype import UUID, Base32, Integer, String
 
 
 @pytest.mark.parametrize(

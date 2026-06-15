@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from spinta.core.config import RawConfig
-from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
+from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_xlsx(context, rc: RawConfig, tmp_path: Path):

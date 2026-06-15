@@ -1,8 +1,5 @@
 from spinta.accesslog import create_accesslog
-from spinta.auth import AdminToken, get_default_auth_client_id
-from spinta.auth import BearerTokenValidator
-from spinta.auth import Token
-from spinta.auth import create_client_access_token
+from spinta.auth import AdminToken, BearerTokenValidator, Token, create_client_access_token, get_default_auth_client_id
 from spinta.components import Context
 
 

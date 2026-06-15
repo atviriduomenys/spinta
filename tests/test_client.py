@@ -3,12 +3,9 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
-from responses import POST
-from responses import RequestsMock
+from responses import POST, RequestsMock
 
-from spinta.client import add_client_credentials
-from spinta.client import get_access_token
-from spinta.client import get_client_credentials
+from spinta.client import add_client_credentials, get_access_token, get_client_credentials
 from spinta.exceptions import RemoteClientCredentialsNotFound
 
 

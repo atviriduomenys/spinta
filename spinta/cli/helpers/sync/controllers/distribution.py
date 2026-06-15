@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 from http import HTTPStatus
 from io import BytesIO
 
 import requests
 
+from spinta.cli import REQUEST_TIMEOUT
 from spinta.cli.helpers.sync import CONTENT_TYPE_TEXT_CSV
 from spinta.cli.helpers.sync.api_helpers import validate_api_response
-from spinta.cli import REQUEST_TIMEOUT
 
 
 def create_distribution(

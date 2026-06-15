@@ -1,33 +1,32 @@
 import urllib
-from typing import cast
-from typing import Optional
-from pathlib import Path
-
 import xml.etree.ElementTree as ET
-
-import sqlalchemy as sa
+from pathlib import Path
+from typing import Optional, cast
 
 import pytest
-from pytest import FixtureRequest
-
 import shapely.wkt
+import sqlalchemy as sa
 from geoalchemy2 import shape
+from pytest import FixtureRequest
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Store
-from spinta.core.enums import Action
 from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.formats.html.components import Cell, Html
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
+from spinta.testing.manifest import (
+    bootstrap_manifest,
+    load_manifest,
+    load_manifest_and_context,
+    load_manifest_get_context,
+)
 from spinta.testing.request import render_data
-from spinta.testing.manifest import load_manifest
-from spinta.testing.manifest import load_manifest_get_context
 from spinta.testing.types.geometry import round_point, round_url
-from spinta.types.geometry.constants import WGS84, LKS94
-from spinta.types.geometry.helpers import is_crs_always_xy, get_crs_bounding_area
+from spinta.types.geometry.constants import LKS94, WGS84
+from spinta.types.geometry.helpers import get_crs_bounding_area, is_crs_always_xy
 
 
 @pytest.mark.manifests("internal_sql", "csv")

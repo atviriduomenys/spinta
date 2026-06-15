@@ -1,13 +1,12 @@
 import pytest
-from spinta.manifests.components import ManifestPath
 
+from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest
 from tests.manifests.open_api.conftest import (
     MANIFEST,
-    MANIFEST_WITH_SOAP_PREPARE,
     MANIFEST_WITH_REFS,
+    MANIFEST_WITH_SOAP_PREPARE,
 )
-
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
 

@@ -1,5 +1,5 @@
-from spinta.components import Context
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.components import Context
 from spinta.exceptions import UnsupportedDataTypeConfiguration
 from spinta.types.datatype import DataType
 

@@ -14,54 +14,48 @@ from collections import defaultdict
 from functools import cached_property
 from itertools import chain
 from threading import Lock
-from typing import Set, Any, TypedDict, Literal
-from typing import Type
-from typing import Union, List, Tuple
+from typing import Any, List, Literal, Set, Tuple, Type, TypedDict, Union
 
 import requests
 import ruamel.yaml
-from authlib.jose import JsonWebKey, RSAKey, JWTClaims
-from authlib.jose import jwt
-from authlib.jose.errors import JoseError, DecodeError, InvalidTokenError, BadSignatureError
-from authlib.oauth2 import OAuth2Error
-from authlib.oauth2 import OAuth2Request
-from authlib.oauth2 import rfc6749
-from authlib.oauth2 import rfc6750
-from authlib.oauth2.rfc6749 import grants, OAuth2Payload, list_to_scope
+from authlib.jose import JsonWebKey, JWTClaims, RSAKey, jwt
+from authlib.jose.errors import BadSignatureError, DecodeError, InvalidTokenError, JoseError
+from authlib.oauth2 import OAuth2Error, OAuth2Request, rfc6749, rfc6750
+from authlib.oauth2.rfc6749 import OAuth2Payload, grants, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.util import scope_to_list
-from cachetools import cached, LRUCache
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from cachetools import LRUCache, cached
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from multipledispatch import dispatch
 from requests import RequestException
-from starlette.datastructures import FormData, QueryParams, Headers
+from starlette.datastructures import FormData, Headers, QueryParams
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from spinta import commands
-from spinta.components import Config
-from spinta.components import Context, Namespace, Model, Property
-from spinta.components import ScopeFormatterFunc
+from spinta.components import Config, Context, Model, Namespace, Property, ScopeFormatterFunc
 from spinta.core.enums import Access, Action
-from spinta.exceptions import AuthorizedClientsOnly, NoScopesForNamespaces, InvalidExtraScopes
-from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import (
-    InvalidToken,
-    NoTokenValidationKey,
-    ClientWithNameAlreadyExists,
+    AuthorizedClientsOnly,
+    BasicAuthRequired,
     ClientAlreadyExists,
-    ClientsKeymapNotFound,
     ClientsIdFolderNotFound,
-    InvalidClientsKeymapStructure,
-    InvalidScopes,
+    ClientsKeymapNotFound,
+    ClientWithNameAlreadyExists,
     InvalidClientFileFormat,
+    InvalidClientsKeymapStructure,
+    InvalidExtraScopes,
+    InvalidScopes,
+    InvalidToken,
     ModelNotFound,
+    NoScopesForNamespaces,
+    NoTokenValidationKey,
 )
 from spinta.utils import passwords
-from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
+from spinta.utils.config import get_clients_path, get_helpers_path, get_id_path, get_keymap_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
 

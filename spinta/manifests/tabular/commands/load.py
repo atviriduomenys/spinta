@@ -4,9 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import AsciiManifest
-from spinta.manifests.tabular.components import CsvManifest
-from spinta.manifests.tabular.components import TabularManifest
+from spinta.manifests.tabular.components import AsciiManifest, CsvManifest, TabularManifest
 from spinta.manifests.tabular.helpers import read_tabular_manifest
 
 log = logging.getLogger(__name__)

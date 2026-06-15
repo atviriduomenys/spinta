@@ -4,14 +4,7 @@ import base64
 import json
 import operator
 from textwrap import indent
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Union
-from typing import cast
-from typing import NamedTuple
-from typing import Optional
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Union, cast
 
 import httpx
 import requests

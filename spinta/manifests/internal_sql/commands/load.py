@@ -2,10 +2,10 @@ import logging
 
 from spinta import commands
 from spinta.components import Context
-from spinta.manifests.helpers import init_manifest, _configure_manifest, load_manifest_nodes
-from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.components import Manifest
-from spinta.manifests.internal_sql.helpers import read_initial_schema, load_internal_manifest_nodes, read_schema
+from spinta.manifests.helpers import _configure_manifest, init_manifest, load_manifest_nodes
+from spinta.manifests.internal_sql.components import InternalSQLManifest
+from spinta.manifests.internal_sql.helpers import load_internal_manifest_nodes, read_initial_schema, read_schema
 
 log = logging.getLogger(__name__)
 

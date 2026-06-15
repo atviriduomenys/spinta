@@ -1,6 +1,6 @@
-from spinta.components import Property, PageInfo
-from spinta.core.ufuncs import ufunc, Expr, Pair, Bind, Positive, Negative
-from spinta.exceptions import InvalidArgumentInExpression, FieldNotInResource
+from spinta.components import PageInfo, Property
+from spinta.core.ufuncs import Bind, Expr, Negative, Pair, Positive, ufunc
+from spinta.exceptions import FieldNotInResource, InvalidArgumentInExpression
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.utils.schema import NA
 

@@ -11,7 +11,6 @@ from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 
-
 RESERVED_MODEL_PREFIX = "_"
 
 

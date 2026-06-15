@@ -2,50 +2,57 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import Union, Any
+from typing import Any, Union
 
 import geoalchemy2.functions
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql.elements import UnaryExpression
 
-from spinta import exceptions, commands
+from spinta import commands, exceptions
 from spinta.auth import authorized
-from spinta.backends.constants import TableType, BackendFeatures
+from spinta.backends.constants import BackendFeatures, TableType
 from spinta.backends.postgresql.ufuncs.query.components import (
-    PgQueryBuilder,
     InheritForeignProperty,
     Lower,
-    Recurse,
     Negative,
+    PgQueryBuilder,
     Positive,
+    Recurse,
 )
-from spinta.components import Property, Page
+from spinta.components import Page, Property
 from spinta.core.enums import Action
-from spinta.core.ufuncs import Bind, Negative as Negative_
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ufunc, GetAttr
+from spinta.core.ufuncs import Bind, Expr, GetAttr, ufunc
+from spinta.core.ufuncs import Negative as Negative_
 from spinta.datasets.backends.sql.ufuncs.components import Selected
-from spinta.exceptions import EmptyStringSearch, NoneValueComparison, NotImplementedFeature
-from spinta.exceptions import FieldNotInResource
-from spinta.types.datatype import Array, Boolean
-from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef, Denorm
-from spinta.types.datatype import Date
-from spinta.types.datatype import DateTime
-from spinta.types.datatype import File
-from spinta.types.datatype import Integer
-from spinta.types.datatype import Number
-from spinta.types.datatype import Object
-from spinta.types.datatype import PrimaryKey
-from spinta.types.datatype import Ref
-from spinta.types.datatype import String
+from spinta.exceptions import EmptyStringSearch, FieldNotInResource, NoneValueComparison, NotImplementedFeature
 from spinta.types.datatype import UUID as UUID_dtype
+from spinta.types.datatype import (
+    Array,
+    ArrayBackRef,
+    BackRef,
+    Boolean,
+    DataType,
+    Date,
+    DateTime,
+    Denorm,
+    ExternalRef,
+    File,
+    Inherit,
+    Integer,
+    Number,
+    Object,
+    PrimaryKey,
+    Ref,
+    String,
+    Time,
+)
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
-from spinta.ufuncs.querybuilder.components import ReservedProperty, NestedProperty, ResultProperty, Flip
-from spinta.ufuncs.querybuilder.helpers import get_column_with_extra, get_language_column, expanded
+from spinta.ufuncs.querybuilder.components import Flip, NestedProperty, ReservedProperty, ResultProperty
+from spinta.ufuncs.querybuilder.helpers import expanded, get_column_with_extra, get_language_column
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 

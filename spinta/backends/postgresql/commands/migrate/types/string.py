@@ -7,14 +7,14 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    json_has_key,
-    get_root_attr,
-    jsonb_keys,
     PostgresqlMigrationContext,
     PropertyMigrationContext,
+    get_root_attr,
     get_source_table,
+    json_has_key,
+    jsonb_keys,
 )
-from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name
+from spinta.backends.postgresql.helpers.name import get_pg_removed_name, name_changed
 from spinta.components import Context
 from spinta.types.datatype import String
 from spinta.types.text.helpers import determine_langauge_for_text

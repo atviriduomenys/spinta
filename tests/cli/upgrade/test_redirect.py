@@ -5,9 +5,9 @@ from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
-from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable

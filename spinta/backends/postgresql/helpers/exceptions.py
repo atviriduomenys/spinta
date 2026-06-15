@@ -1,10 +1,10 @@
-from spinta import commands, exceptions
+import psycopg2.errors as psy_errors
+from sqlalchemy.exc import IntegrityError, OperationalError
+
 import spinta.backends.postgresql.helpers.extractors as extractor
+from spinta import commands, exceptions
 from spinta.components import DataItem
 from spinta.core.enums import Action
-from sqlalchemy.exc import IntegrityError, OperationalError
-import psycopg2.errors as psy_errors
-
 from spinta.exceptions import OutOfMemoryMigrate
 from spinta.manifests.components import Manifest
 

@@ -1,18 +1,17 @@
 from unittest.mock import ANY
 
 import pytest
-from responses import RequestsMock, POST
+from responses import POST, RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.exceptions import (
-    ReservedPropertyTypeShouldMatchPrimaryKey,
-    ReservedPropertySourceOrModelRefShouldBeSet,
     Base32TypeOnlyAllowedOnIdOrRevision,
+    ReservedPropertySourceOrModelRefShouldBeSet,
+    ReservedPropertyTypeShouldMatchPrimaryKey,
 )
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
-
 
 WSDL_SOURCE = "tests/datasets/backends/wsdl/data/order_wsdl.xml"
 SOAP_SOURCE = "OrderService.OrderPort.OrderPortType.OrderOperation"

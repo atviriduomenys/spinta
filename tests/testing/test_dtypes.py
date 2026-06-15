@@ -1,4 +1,4 @@
-from spinta.testing.dtypes import path, nest, flat
+from spinta.testing.dtypes import flat, nest, path
 
 
 def test_path():

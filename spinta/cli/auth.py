@@ -5,31 +5,26 @@ import uuid
 
 import click
 from authlib.jose import jwt
-from typer import Argument
+from typer import Argument, Option, Typer, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import Typer
-from typer import echo
 
 from spinta import commands
 from spinta.auth import (
     KeyFileExists,
-    get_clients_path,
-    ensure_client_folders_exist,
+    KeyType,
+    create_client_file,
     download_and_store_public_keys,
+    ensure_client_folders_exist,
+    gen_auth_server_keys,
+    get_clients_path,
+    load_key,
 )
-from spinta.auth import KeyType
-from spinta.auth import create_client_file
-from spinta.auth import gen_auth_server_keys
-from spinta.auth import load_key
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import load_config
-from spinta.client import get_access_token
-from spinta.client import get_client_credentials
+from spinta.client import get_access_token, get_client_credentials
 from spinta.components import Context
 from spinta.core.context import configure_context
-
 
 key = Typer()
 

@@ -1,6 +1,6 @@
 import enum
 import itertools
-from typing import Any, Tuple, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from rdflib import Graph
 from rdflib.query import Result

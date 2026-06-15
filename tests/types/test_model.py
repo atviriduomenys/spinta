@@ -5,15 +5,14 @@ import pytest
 from spinta import commands
 from spinta.core.enums import Level
 from spinta.exceptions import (
+    InvalidCustomPropertyTypeConfiguration,
+    MissingConfigurationParameter,
     ModelNotFound,
     PropertyNotFound,
-    MissingConfigurationParameter,
-    InvalidCustomPropertyTypeConfiguration,
 )
-from spinta.testing.manifest import load_manifest_and_context, load_manifest
 from spinta.testing.context import create_test_context
+from spinta.testing.manifest import load_manifest, load_manifest_and_context
 from spinta.types.model import load_level
-
 
 _GENERIC_COUNTRY_MANIFEST = """ 
  d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description

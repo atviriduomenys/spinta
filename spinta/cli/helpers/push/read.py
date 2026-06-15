@@ -1,8 +1,5 @@
 from copy import deepcopy
-from typing import Any
-from typing import Dict
-from typing import Iterator
-from typing import List
+from typing import Any, Dict, Iterator, List
 
 import requests
 import sqlalchemy as sa
@@ -11,19 +8,17 @@ import tqdm
 from spinta import commands
 from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import State, PushRow, PUSH_NOW
+from spinta.cli.helpers.push.components import PUSH_NOW, PushRow, State
 from spinta.cli.helpers.push.delete import get_deleted_rows
 from spinta.cli.helpers.push.error import get_rows_with_errors, get_rows_with_errors_counts
 from spinta.cli.helpers.push.utils import (
-    get_data_checksum,
-    extract_state_page_keys,
-    update_model_page_with_new,
     construct_where_condition_from_page,
+    extract_state_page_keys,
+    get_data_checksum,
+    update_model_page_with_new,
 )
 from spinta.commands.read import PaginationMetaData, get_paginated_values
-from spinta.components import Context, pagination_enabled
-from spinta.components import Model
-from spinta.components import Page, get_page_size
+from spinta.components import Context, Model, Page, get_page_size, pagination_enabled
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 

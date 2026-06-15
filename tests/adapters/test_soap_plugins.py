@@ -3,14 +3,14 @@ from pathlib import Path
 import pytest
 
 import spinta.adapters.soap_plugins as soap_plugins_module
-from spinta.core.config import RawConfig
-from spinta.core.ufuncs import Expr, UFuncRegistry
 from spinta.adapters.soap_plugins import (
     _load_adapters_from_config,
     _make_body_resolver,
     get_deferred_prepare_names,
     register_soap_ufuncs,
 )
+from spinta.core.config import RawConfig
+from spinta.core.ufuncs import Expr, UFuncRegistry
 
 
 def test_load_adapters_from_config_empty_when_no_raw_config() -> None:

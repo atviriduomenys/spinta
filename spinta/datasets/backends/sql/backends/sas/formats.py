@@ -14,8 +14,9 @@ are used to indicate specialized types like dates, times, booleans,
 and formatted numbers.
 """
 
-import re
 import logging
+import re
+
 from sqlalchemy import types as sqltypes
 
 try:

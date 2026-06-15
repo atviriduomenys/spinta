@@ -1,8 +1,9 @@
 from typing import Any
 
+from sqlalchemy.engine.row import RowProxy
+
 from spinta.components import Property
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
-from sqlalchemy.engine.row import RowProxy
 
 
 class SqlResultBuilder(ResultBuilder):

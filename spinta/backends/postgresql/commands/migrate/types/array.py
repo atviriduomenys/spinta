@@ -7,19 +7,19 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
     PropertyMigrationContext,
+    constraint_with_foreign_key_columns,
     create_table_migration,
     gather_prepare_columns,
     get_source_table,
-    index_with_columns,
     index_not_handled_condition,
-    constraint_with_foreign_key_columns,
+    index_with_columns,
     update_primary_key,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_column_name,
-    name_changed,
-    get_pg_index_name,
     get_pg_foreign_key_name,
+    get_pg_index_name,
+    name_changed,
 )
 from spinta.components import Context
 from spinta.types.datatype import Array
