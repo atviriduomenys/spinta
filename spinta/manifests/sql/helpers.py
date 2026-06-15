@@ -24,6 +24,19 @@ from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to
 logger = logging.getLogger(__name__)
 
 
+def _get_columns(insp: Inspector, table: str, schema: str) -> list | None:
+    try:
+        return insp.get_columns(table, schema=schema)
+    except Exception as e:
+        logger.warning(
+            "Skipping table %r in schema %r: failed to retrieve columns (%s).",
+            table,
+            schema,
+            e,
+        )
+        return None
+
+
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ""):
     engine = sa.create_engine(path)
     schema = None
@@ -148,7 +161,10 @@ def _create_mapping(insp: Inspector, tables: list, schema: str, dataset: str) ->
         model = dedup_model(model)
         dedup_prop = Deduplicator("_{}")
         props = {}
-        for col in insp.get_columns(table, schema=schema):
+        columns = _get_columns(insp, table, schema)
+        if columns is None:
+            continue
+        for col in columns:
             prop = to_property_name(col["name"])
             prop = dedup_prop(prop)
             props[col["name"]] = prop
@@ -190,7 +206,9 @@ def _read_props(
 ]:
     fkeys, cfkeys = _get_fkeys(insp, table, schema, mapping)
 
-    cols = insp.get_columns(table, schema=schema)
+    cols = _get_columns(insp, table, schema)
+    if cols is None:
+        return
     cols = sorted(cols, key=itemgetter("name"))
     for col in cols:
         name = col["name"]
