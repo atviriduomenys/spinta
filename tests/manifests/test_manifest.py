@@ -22,9 +22,7 @@ from spinta.exceptions import (
     UndefinedPropertyType,
 )
 from spinta.manifests.tabular.helpers import TabularManifestError
-from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
-from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.types.datatype import ArrayBackRef, BackRef
 
 
