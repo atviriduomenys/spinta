@@ -1127,7 +1127,7 @@ def test_prop_array_backref_nested(tmp_path, rc):
 
 
 @pytest.mark.parametrize("modifier", ["required", "unique"])
-def test_prop_array_backref_with_modifier(modifier, rc):
+def test_prop_array_backref_with_modifier(modifier: str, rc: RawConfig) -> None:
     # Type modifiers such as `required` or `unique` must not prevent an array of
     # `backref` from being recognised as an array backref (`#1970`).
     context, manifest = load_manifest_and_context(
@@ -1150,7 +1150,7 @@ def test_prop_array_backref_with_modifier(modifier, rc):
 
 
 @pytest.mark.parametrize("modifier", ["required", "unique"])
-def test_prop_object_redeclared_with_modifier(modifier, rc):
+def test_prop_object_redeclared_with_modifier(modifier: str, rc: RawConfig) -> None:
     # A nesting type with a modifier (e.g. `object required`) must still be
     # recognised as a nesting type when an auto-created container is later
     # re-declared explicitly, instead of raising DataTypeCannotBeUsedForNesting
