@@ -5,16 +5,11 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Iterable, List
 
 from spinta import exceptions
-from spinta.components import Base
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Property
-from spinta.dimensions.scope.components import Scope
-from spinta.core.enums import Access, load_level, Level
+from spinta.components import Base, Config, Context, Model, Property
+from spinta.core.enums import Access, Level, load_level
 from spinta.dimensions.comments.components import Comment, CommentGiven
-from spinta.exceptions import BackendNotFound
-from spinta.exceptions import InvalidName
+from spinta.dimensions.scope.components import Scope
+from spinta.exceptions import BackendNotFound, InvalidName
 from spinta.types import TYPE_OBJECT
 from spinta.utils.naming import is_valid_model_name, is_valid_property_name
 

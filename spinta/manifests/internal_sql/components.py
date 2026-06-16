@@ -1,8 +1,9 @@
 import contextlib
-from typing import Optional, Dict, List, Final, Literal
+from typing import Dict, Final, List, Literal, Optional
+
+import sqlalchemy as sa
 
 from spinta.manifests.components import Manifest
-import sqlalchemy as sa
 
 
 class InternalSQLManifest(Manifest):

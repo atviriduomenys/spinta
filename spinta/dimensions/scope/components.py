@@ -1,8 +1,8 @@
 from typing import Any
 
 from spinta.components import ExtraMetaData, Model
-from spinta.core.enums import Access, Visibility, Status
-from spinta.core.ufuncs import Expr, Env
+from spinta.core.enums import Access, Status, Visibility
+from spinta.core.ufuncs import Env, Expr
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
 

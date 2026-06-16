@@ -1,27 +1,17 @@
 from copy import copy
-from typing import Any, List, Union
-from typing import Callable
-from typing import Dict
-from typing import Hashable
-from typing import Iterator
-from typing import Tuple
-from typing import TypeVar
+from typing import Any, Callable, Dict, Hashable, Iterator, List, Tuple, TypeVar, Union
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_manifest
-from spinta.components import Context, Property, Node
-from spinta.core.enums import Mode
-from spinta.components import Model
-from spinta.core.config import RawConfig, Path
-from spinta.core.config import ResourceTuple
-from spinta.core.config import parse_resource_args
+from spinta.components import Context, Model, Node, Property
+from spinta.core.config import Path, RawConfig, ResourceTuple, parse_resource_args
 from spinta.core.context import configure_context, create_context
-from spinta.datasets.components import Dataset, Resource, ExternalBackend
+from spinta.core.enums import Mode
+from spinta.datasets.components import Dataset, ExternalBackend, Resource
 from spinta.datasets.inspect.components import PriorityKey
 from spinta.exceptions import InvalidResourceSource
-from spinta.manifests.components import Manifest
-from spinta.manifests.components import ManifestPath
+from spinta.manifests.components import Manifest, ManifestPath
 from spinta.manifests.helpers import init_manifest
 from spinta.utils.naming import Deduplicator
 from spinta.utils.schema import NA

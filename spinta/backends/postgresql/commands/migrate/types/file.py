@@ -5,11 +5,11 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    get_root_attr,
     PostgresqlMigrationContext,
     PropertyMigrationContext,
     create_table_migration,
     gather_prepare_columns,
+    get_root_attr,
     get_source_table,
     update_primary_key,
 )

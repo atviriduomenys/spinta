@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Dict, Any, Tuple, List, Iterator
+from typing import Any, Dict, Iterator, List, Tuple
 
 from dask.dataframe import Series
 
@@ -9,22 +9,24 @@ from spinta.auth import authorized
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Property
 from spinta.core.enums import Action
-from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
+from spinta.core.ufuncs import Bind, Expr, GetAttr, Unresolved, ufunc
 from spinta.datasets.backends.dataframe.ufuncs.query.components import (
-    DaskDataFrameQueryBuilder,
-    DaskSelected as Selected,
-    Count,
     RESERVED_COUNT_PROP,
+    Count,
+    DaskDataFrameQueryBuilder,
+)
+from spinta.datasets.backends.dataframe.ufuncs.query.components import (
+    DaskSelected as Selected,
 )
 from spinta.datasets.components import Param
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import (
+    InvalidArgumentInExpression,
     PropertyNotFound,
     SourceCannotBeList,
     SourceOrPrepareNotAllowed,
-    InvalidArgumentInExpression,
 )
-from spinta.types.datatype import DataType, Integer, Number, Boolean, PrimaryKey, Ref
+from spinta.types.datatype import Boolean, DataType, Integer, Number, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take

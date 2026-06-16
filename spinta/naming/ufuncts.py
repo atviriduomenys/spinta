@@ -1,11 +1,7 @@
-from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ShortExpr
-from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Bind, Expr, ShortExpr, ufunc
 from spinta.exceptions import PropertyNotFound
 from spinta.naming.components import NameFormatter
-from spinta.types.datatype import DataType
-from spinta.types.datatype import Ref
+from spinta.types.datatype import DataType, Ref
 from spinta.ufuncs.components import ForeignProperty
 
 

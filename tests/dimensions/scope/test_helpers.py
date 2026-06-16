@@ -5,8 +5,8 @@ import pytest
 from spinta.components import Context, Model
 from spinta.core.access import Access
 from spinta.dimensions.scope.components import Scope
-from spinta.dimensions.scope.helpers import load_scopes, link_scopes
-from spinta.exceptions import PropertyNotFound, FieldNotInResource
+from spinta.dimensions.scope.helpers import link_scopes, load_scopes
+from spinta.exceptions import FieldNotInResource, PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse
 

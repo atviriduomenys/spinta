@@ -1,12 +1,12 @@
 from pathlib import Path
 
+import pytest
 from pytest import FixtureRequest
 
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
-import pytest
 
 
 @pytest.mark.manifests("internal_sql", "csv")

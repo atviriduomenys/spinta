@@ -8,7 +8,7 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.components import Model, Context, Property
+from spinta.components import Context, Model, Property
 from spinta.exceptions import RedirectFeatureMissing
 
 

@@ -9,20 +9,17 @@ import pprintpp
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
-from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
+from sqlalchemy.engine.url import URL, make_url
 
 from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
-from spinta.core.config import RawConfig
-from spinta.core.config import read_config
+from spinta.core.config import RawConfig, read_config
 from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import TestClient
-from spinta.testing.client import create_test_client
+from spinta.testing.client import TestClient, create_test_client
 from spinta.testing.config import CONFIG
-from spinta.testing.context import ContextForTests
-from spinta.testing.context import create_test_context
+from spinta.testing.context import ContextForTests, create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 

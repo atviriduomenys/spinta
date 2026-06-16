@@ -1,25 +1,25 @@
 import logging
 
-from typer import echo, Context as TyperContext
+from typer import Context as TyperContext
+from typer import echo
 
 import spinta
 from spinta.cli.helpers.sync.api_helpers import get_base_path_and_headers
 from spinta.cli.helpers.sync.controllers.data_service import get_data_service_children_dataset_ids
+from spinta.cli.helpers.sync.controllers.synchronization.connection import connection_check
 from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
     execute_manifest_synchronization_catalog_to_agent,
 )
-from spinta.cli.helpers.sync.controllers.synchronization.connection import connection_check
 from spinta.cli.helpers.sync.helpers import (
-    get_configuration_credentials,
-    validate_credentials,
     get_agent_name,
+    get_configuration_credentials,
     load_configuration_values,
-    prepare_local_manifest_file,
     prepare_context,
+    prepare_local_manifest_file,
+    validate_credentials,
 )
 from spinta.components import Context
 from spinta.manifests.tabular.helpers import render_tabular_manifest
-
 
 logger = logging.getLogger(__name__)
 

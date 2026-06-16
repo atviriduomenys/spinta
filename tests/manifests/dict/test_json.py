@@ -1,10 +1,8 @@
 import json
+from pathlib import Path
 
 from spinta import commands
 from spinta.core.config import RawConfig
-
-from pathlib import Path
-
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 
 

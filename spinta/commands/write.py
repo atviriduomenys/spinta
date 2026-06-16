@@ -3,40 +3,32 @@ import json
 import pathlib
 import typing
 from email.message import Message
-from typing import Any
-from typing import AsyncIterator, Union, Optional
-from typing import Dict
-from typing import Iterator
-from typing import overload
+from typing import Any, AsyncIterator, Dict, Iterator, Optional, Union, overload
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta import commands
-from spinta import exceptions
-from spinta import spyna
-from spinta.accesslog import AccessLog
-from spinta.accesslog import log_async_response
-from spinta.auth import check_scope, Scopes
+from spinta import commands, exceptions, spyna
+from spinta.accesslog import AccessLog, log_async_response
+from spinta.auth import Scopes, check_scope
 from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.helpers import inserting
-from spinta.components import Context, Node, UrlParams, DataItem, Namespace, Model, Property, DataStream, DataSubItem
-from spinta.core.enums import action_from_op, Action
+from spinta.components import Context, DataItem, DataStream, DataSubItem, Model, Namespace, Node, Property, UrlParams
+from spinta.core.enums import Action, action_from_op
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import RequiredField
 from spinta.formats.components import Format
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef, ExternalRef
+from spinta.types.datatype import Array, BackRef, DataType, Denorm, ExternalRef, File, Inherit, Object, Ref
 from spinta.urlparams import get_model_by_name
-from spinta.utils.aiotools import agroupby
-from spinta.utils.aiotools import aslice, alist, aiter
+from spinta.utils.aiotools import agroupby, aiter, alist, aslice
 from spinta.utils.data import take
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NA, NotAvailable
 from spinta.utils.streams import splitlines
 
 if typing.TYPE_CHECKING:

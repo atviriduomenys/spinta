@@ -2,7 +2,7 @@ from unittest.mock import ANY
 
 import pytest
 from pytest_mock import MockerFixture
-from responses import RequestsMock, POST
+from responses import POST, RequestsMock
 
 from spinta import commands
 from spinta.core.config import RawConfig

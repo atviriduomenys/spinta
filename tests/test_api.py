@@ -118,6 +118,12 @@ def test_version(app):
     ]
 
 
+def test_strict_transport_security_header(app):
+    resp = app.get("/version")
+    assert resp.status_code == 200
+    assert resp.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
+
+
 def test_app(app):
     app.authorize(["uapi:/:getall"])
     resp = app.get("/", headers={"accept": "text/html"})

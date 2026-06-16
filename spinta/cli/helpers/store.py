@@ -4,14 +4,17 @@ from pathlib import Path
 import click
 
 from spinta import commands
-from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path, ensure_client_folders_exist
-from spinta.auth import create_client_file
-from spinta.auth import gen_auth_server_keys
-from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
+from spinta.auth import (
+    auth_server_keys_exists,
+    client_name_exists,
+    create_client_file,
+    ensure_client_folders_exist,
+    gen_auth_server_keys,
+    get_clients_path,
+)
+from spinta.backends.helpers import validate_and_return_begin, validate_and_return_transaction
 from spinta.cli.helpers.upgrade.scripts.clients import requires_client_migration
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Store
+from spinta.components import Config, Context, Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.exceptions import ClientsMigrationRequired
 from spinta.manifests.components import Manifest

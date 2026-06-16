@@ -1,13 +1,13 @@
+import datetime
 import json
 import pathlib
-import datetime
 
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.fixtures import FixtureRequest
 
 from spinta.accesslog.file import FileAccessLog
-from spinta.auth import get_default_auth_client_id, load_key, KeyType, create_access_token
+from spinta.auth import KeyType, create_access_token, get_default_auth_client_id, load_key
 from spinta.components import Store
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client

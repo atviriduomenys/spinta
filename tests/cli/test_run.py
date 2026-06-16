@@ -1,8 +1,8 @@
-import sqlalchemy as sa
-from fsspec.implementations.memory import MemoryFileSystem
 from pathlib import Path
 
 import pytest
+import sqlalchemy as sa
+from fsspec.implementations.memory import MemoryFileSystem
 
 from spinta.components import Context
 from spinta.core.config import RawConfig

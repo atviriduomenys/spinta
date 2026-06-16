@@ -1,6 +1,6 @@
 from spinta import commands
-from spinta.components import Context
 from spinta.backends.fs.components import FileSystem
+from spinta.components import Context
 
 
 @commands.wait.register(Context, FileSystem)

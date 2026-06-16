@@ -1,16 +1,12 @@
-from typing import Iterator
-from typing import overload
+from typing import Iterator, overload
 
 from spinta import commands
 from spinta.backends.mongo.components import Mongo
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Property
+from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import File, Object
-from spinta.typing import FileObjectData
-from spinta.typing import ObjectData
+from spinta.typing import FileObjectData, ObjectData
 from spinta.ufuncs.querybuilder.helpers import get_page_values
 
 

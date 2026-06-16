@@ -1,20 +1,17 @@
 from typing import Generator
 
+import sqlalchemy as sa
 from multipledispatch import dispatch
+from sqlalchemy.dialects.postgresql.base import PGInspector
 from tqdm import tqdm
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name, get_table_identifier, TableIdentifier
+from spinta.backends.helpers import TableIdentifier, get_table_identifier, get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
-from spinta.components import Context, Property, Model
-
-from sqlalchemy.dialects.postgresql.base import PGInspector
-
-import sqlalchemy as sa
-
-from spinta.types.datatype import DataType, Array, File
+from spinta.components import Context, Model, Property
+from spinta.types.datatype import Array, DataType, File
 
 
 def cli_requires_comments_migration(context: Context, **kwargs) -> bool:

@@ -1,6 +1,5 @@
 from spinta import commands
-from spinta.components import Context
-from spinta.components import Config
+from spinta.components import Config, Context
 from spinta.core.enums import Level
 from spinta.datasets.components import Dataset, Resource
 from spinta.exceptions import InvalidName

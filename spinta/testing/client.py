@@ -5,9 +5,7 @@ import datetime
 import pathlib
 import re
 import uuid
-from typing import Any, Tuple, Callable
-from typing import Dict
-from typing import Optional, List, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import httpx
@@ -18,19 +16,15 @@ import starlette.testclient
 from lxml.etree import _Element
 from pytest import FixtureRequest
 from requests import PreparedRequest
-from responses import POST
-from responses import RequestsMock, CallbackResponse, FalseBool
+from responses import POST, CallbackResponse, FalseBool, RequestsMock
 
-from spinta import api
-from spinta import auth
-from spinta import commands
+from spinta import api, auth, commands
 from spinta.auth import create_client_file, get_clients_path, yaml, yml
 from spinta.client import add_client_credentials
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.config import create_config_path
-from spinta.testing.context import TestContext
-from spinta.testing.context import create_test_context
+from spinta.testing.context import TestContext, create_test_context
 from spinta.testing.datasets import Sqlite
 
 

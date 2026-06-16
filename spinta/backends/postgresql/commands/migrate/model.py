@@ -10,33 +10,33 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    drop_all_indexes_and_constraints,
-    get_prop_names,
-    PostgresqlMigrationContext,
     ModelMigrationContext,
-    zip_and_migrate_properties,
-    constraint_with_name,
-    PropertyMigrationContext,
     ModelTables,
+    PostgresqlMigrationContext,
+    PropertyMigrationContext,
+    constraint_with_name,
     create_table_migration,
+    drop_all_indexes_and_constraints,
+    extract_sequence_name,
     filter_related_tables,
     gather_prepare_columns,
+    get_prop_names,
     revalidate_table_identifier,
-    extract_sequence_name,
     update_primary_key,
+    zip_and_migrate_properties,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (
-    name_changed,
     get_pg_column_name,
     get_pg_constraint_name,
-    get_pg_removed_name,
-    is_removed,
     get_pg_foreign_key_name,
     get_pg_index_name,
+    get_pg_removed_name,
+    is_removed,
+    name_changed,
 )
 from spinta.components import Context, Model
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, ModelTables, Model)

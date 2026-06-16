@@ -5,8 +5,8 @@ import pytest
 from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
-from spinta.core.enums import Mode
 from spinta.core.config import RawConfig
+from spinta.core.enums import Mode
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest

@@ -1,7 +1,7 @@
 import pytest
 
+from spinta.testing.dtypes import get, patch, path, post, put, search
 from spinta.utils.schema import NA
-from spinta.testing.dtypes import path, post, put, patch, get, search
 
 
 @pytest.mark.models(

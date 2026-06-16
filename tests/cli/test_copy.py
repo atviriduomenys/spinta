@@ -1,13 +1,14 @@
 from pathlib import Path
+
 from pytest import mark
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.testing.cli import SpintaCliRunner
 from spinta.exceptions import InvalidName, NoModelDefined
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest
+from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):

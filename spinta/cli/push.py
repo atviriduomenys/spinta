@@ -1,16 +1,12 @@
 import logging
 import pathlib
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 import requests
-from typer import Argument
+from typer import Argument, Exit, Option, echo
 from typer import Context as TyperContext
-from typer import Exit
-from typer import Option
-from typer import echo
 
-from spinta import exceptions, commands
+from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ensure_data_dir
@@ -23,16 +19,14 @@ from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.push.sync import sync_push_state
 from spinta.cli.helpers.push.utils import extract_dependant_nodes, load_initial_page_data
 from spinta.cli.helpers.push.write import push as push_
-from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
-from spinta.client import get_access_token
-from spinta.client import get_client_credentials
+from spinta.cli.helpers.store import attach_backends, attach_keymaps, prepare_manifest
+from spinta.client import get_access_token, get_client_credentials
 from spinta.components import Config
 from spinta.core.context import configure_context
 from spinta.core.enums import Action, Mode
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.types.namespace import sort_models_by_ref_and_base
-from spinta.utils.units import tobytes
-from spinta.utils.units import toseconds
+from spinta.utils.units import tobytes, toseconds
 
 log = logging.getLogger(__name__)
 

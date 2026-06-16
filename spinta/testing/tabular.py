@@ -6,9 +6,7 @@ from typing import List
 from spinta.components import Context
 from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.constants import DATASET
-from spinta.manifests.tabular.helpers import read_ascii_tabular_rows
-from spinta.manifests.tabular.helpers import torow
-from spinta.manifests.tabular.helpers import write_tabular_manifest
+from spinta.manifests.tabular.helpers import read_ascii_tabular_rows, torow, write_tabular_manifest
 
 
 def create_tabular_manifest(

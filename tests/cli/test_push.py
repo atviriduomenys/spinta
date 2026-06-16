@@ -6,14 +6,14 @@ import re
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
-from requests.exceptions import ReadTimeout, ConnectTimeout
+from requests.exceptions import ConnectTimeout, ReadTimeout
 
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_client, create_rc
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db, Sqlite
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.push import compare_push_state_rows
 from spinta.testing.tabular import create_tabular_manifest
 

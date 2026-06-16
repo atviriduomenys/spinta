@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from typing import List, Any
+from typing import Any, List
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import check_if_model_primary_key_is_composite, is_custom_id_prop
 from spinta.components import Context, Model
 from spinta.core.enums import Mode
-from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
+from spinta.datasets.backends.helpers import flatten_keymap_encoding_values, generate_ref_id_using_select
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.helpers import encode_composite_string_id
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound
-from spinta.types.datatype import Base32, Ref, ExternalRef, Array
+from spinta.types.datatype import Array, Base32, ExternalRef, Ref
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
 

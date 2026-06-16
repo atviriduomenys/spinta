@@ -4,29 +4,29 @@ import copy
 from dataclasses import dataclass, field
 from typing import Any
 
+from spinta.cli.manifest import _read_and_return_manifest
+from spinta.components import Model
 from spinta.core.context import configure_context, create_context
 from spinta.core.enums import Level
-from spinta.cli.manifest import _read_and_return_manifest
 from spinta.dimensions.enum.components import EnumItem
 from spinta.manifests.open_api.openapi_config import (
     BASE_TAGS,
     COMMON_SCHEMAS,
+    EXTERNAL_DOCS,
     HEADER_COMPONENTS,
     INFO,
-    EXTERNAL_DOCS,
-    STANDARD_OBJECT_PROPERTIES,
-    RESPONSE_COMPONENTS,
-    PROPERTY_TYPES_IN_PATHS,
-    PATHS_CONFIG,
     PARAMETER_COMPONENTS,
+    PATHS_CONFIG,
     PROPERTY_EXAMPLE,
     PROPERTY_MAPPING,
+    PROPERTY_TYPES_IN_PATHS,
+    RESPONSE_COMPONENTS,
     SERVERS,
+    STANDARD_OBJECT_PROPERTIES,
     VERSION,
 )
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NA
-from spinta.components import Model
 
 UTILITY_PATHS = ["/version", "/health"]
 

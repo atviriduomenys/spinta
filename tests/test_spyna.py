@@ -1,5 +1,4 @@
-from spinta.core.ufuncs import asttoexpr
-from spinta.core.ufuncs import unparse
+from spinta.core.ufuncs import asttoexpr, unparse
 from spinta.spyna import parse
 
 

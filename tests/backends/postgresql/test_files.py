@@ -1,5 +1,4 @@
 import pytest
-
 import sqlalchemy as sa
 
 from spinta.backends.postgresql.files import DatabaseFile

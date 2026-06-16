@@ -1,9 +1,9 @@
 from spinta import commands
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Context, DataItem, Property
 from spinta.core.enums import Action
-from spinta.types.datatype import DataType
 from spinta.exceptions import UniqueConstraint
-from spinta.backends.mongo.components import Mongo
+from spinta.types.datatype import DataType
 
 
 @commands.check_unique_constraint.register()

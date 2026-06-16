@@ -1,8 +1,8 @@
 from typing import Union
 
-from spinta.components import Property, FuncProperty
-from spinta.core.ufuncs import ufunc, Expr, Bind, GetAttr
-from spinta.types.datatype import Integer, String, DataType, Denorm
+from spinta.components import FuncProperty, Property
+from spinta.core.ufuncs import Bind, Expr, GetAttr, ufunc
+from spinta.types.datatype import DataType, Denorm, Integer, String
 from spinta.ufuncs.requestparamsbuilder.components import RequestParamsBuilder
 from spinta.ufuncs.requestparamsbuilder.helpers import disable_params_pagination
 

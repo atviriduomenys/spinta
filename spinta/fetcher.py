@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from pathlib import Path
 
-from spinta.utils.refs import get_ref_id
 from spinta.components import Context
+from spinta.utils.refs import get_ref_id
 
 
 def _get_cache_path(base: Path, key: str) -> Path:

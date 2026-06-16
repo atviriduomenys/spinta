@@ -16,7 +16,7 @@ from spinta.core.enums import Action
 from spinta.exceptions import KeymapDuplicateMapping
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_rc
 from spinta.testing.config import RawConfig
 from spinta.testing.data import send
 from spinta.testing.datasets import create_sqlite_db
