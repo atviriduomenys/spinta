@@ -4,6 +4,12 @@ Changes
 0.2dev27 (unreleased)
 =====================
 
+Improvements:
+
+- Added `--destructive` flag support to `citus_distribution` script (it will commit after each distribution change) (`#1976`_).
+
+.. _#1976: https://github.com/atviriduomenys/spinta/issues/1976
+
 
 0.2dev26 (2026-06-10)
 =====================

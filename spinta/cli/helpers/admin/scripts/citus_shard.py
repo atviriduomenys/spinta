@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from multipledispatch import dispatch
 from tqdm import tqdm
 
@@ -5,7 +7,13 @@ from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.actions import (
+    DistributeReference,
+    DistributeSchema,
+    DistributeTable,
+    MigrationAction,
     MigrationHandler,
+    UndistributeSchema,
+    UndistributeTable,
 )
 from spinta.backends.postgresql.helpers.migrate.citus import (
     ShardingPlan,
@@ -77,6 +85,36 @@ def generate_citus_migrations(
         distribute_all(context, backend, diff_plan, handler, progress_bar)
 
 
+@dispatch(MigrationAction)
+def generate_progress_bar_message(action: MigrationAction) -> str:
+    return ""
+
+
+@dispatch(UndistributeSchema)
+def generate_progress_bar_message(action: UndistributeSchema) -> str:
+    return "Undistributing schema " + action.schema_name
+
+
+@dispatch(UndistributeTable)
+def generate_progress_bar_message(action: UndistributeTable) -> str:
+    return "Undistributing table " + action.table_identifier.pg_qualified_name
+
+
+@dispatch(DistributeSchema)
+def generate_progress_bar_message(action: DistributeSchema) -> str:
+    return "Distributing schema " + action.schema_name
+
+
+@dispatch(DistributeReference)
+def generate_progress_bar_message(action: DistributeReference) -> str:
+    return "Distributing reference " + action.table_identifier.pg_qualified_name
+
+
+@dispatch(DistributeTable)
+def generate_progress_bar_message(action: DistributeTable) -> str:
+    return "Distributing table " + action.table_identifier.pg_qualified_name + " on column " + action.column
+
+
 def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -> None:
     from alembic.operations import Operations
     from alembic.runtime.migration import MigrationContext
@@ -96,10 +134,13 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -
         handler = MigrationHandler()
         generate_citus_migrations(context, backend, sharded_plan[backend_name], validated_plan, handler)
         with tqdm(desc=f"Updating distributions for '{backend_name}' backend", total=handler.count()) as progress_bar:
-            with backend.begin() as conn:
+            with migration_connection(backend, destructive) as conn:
                 ctx = MigrationContext.configure(conn)
                 operations = Operations(ctx)
                 for migration in handler.gather_migrations():
+                    progress_bar.set_description(
+                        f"Updating distributions for '{backend_name}' backend. {generate_progress_bar_message(migration)}"
+                    )
                     migration.execute(operations)
                     progress_bar.update(1)
     cli_message("Reapplying removed comments")
@@ -124,3 +165,14 @@ def cli_requires_citus_distribution(context: Context, **kwargs) -> bool:
         if req_plan.distributed or req_plan.references or req_plan.schemas:
             return True
     return False
+
+
+@contextmanager
+def migration_connection(backend, destructive: bool):
+    if destructive:
+        cli_message("Running distributions with auto commit")
+        with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            yield conn
+    else:
+        with backend.begin() as conn:
+            yield conn
