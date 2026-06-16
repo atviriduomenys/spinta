@@ -3918,18 +3918,18 @@ def test_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
         context,
         tmp_path / "manifest.csv",
         striptable("""                   
-        d | r | m | property        | type    | ref                | source       | prepare             | access
-    datasets/keymap                 |         |                    |              |                     |
-      | rs                          | sql     |                    |              |                     |
-      |   | Planet                  |         | code               | PLANET       |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   | Country                 |         | code               | COUNTRY      |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                     |
-      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                     |
-      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet, planet_name |
+        d | r | m | property        | type    | ref                | source       | prepare                       | access
+    datasets/keymap                 |         |                    |              |                               |
+      | rs                          | sql     |                    |              |                               |
+      |   | Planet                  |         | code               | PLANET       |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   | Country                 |         | code               | COUNTRY      |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                               |
+      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                               |
+      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet.code, planet_name.name |
       """),
     )
 
@@ -4006,18 +4006,18 @@ def test_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
         context,
         tmp_path / "manifest.csv",
         striptable("""                   
-        d | r | m | property        | type    | ref                | source       | prepare             | access
-    datasets/keymap                 |         |                    |              |                     |
-      | rs                          | sql     |                    |              |                     |
-      |   | Planet                  |         | code               | PLANET       |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   | Country                 |         | code               | COUNTRY      |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                     |
-      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                     |
-      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet, planet_name |
+        d | r | m | property        | type    | ref                | source       | prepare                       | access
+    datasets/keymap                 |         |                    |              |                               |
+      | rs                          | sql     |                    |              |                               |
+      |   | Planet                  |         | code               | PLANET       |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   | Country                 |         | code               | COUNTRY      |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                               |
+      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                               |
+      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet.code, planet_name.name |
       """),
     )
 
