@@ -14,7 +14,6 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
 
 from spinta import commands, components
 from spinta.accesslog import create_accesslog
@@ -50,15 +49,13 @@ from spinta.exceptions import (
     NoAuthServer,
     error_response,
 )
+from spinta.formats.html.helpers import get_templates
 from spinta.middlewares import ContextMiddleware, StrictTransportSecurityMiddleware
 from spinta.urlparams import Version, get_response_type
-from spinta.utils.path import resource_filename
 
 log = logging.getLogger(__name__)
 
-templates = Jinja2Templates(
-    directory=str(resource_filename("spinta", "templates")),
-)
+templates = get_templates()
 
 
 async def favicon(request: Request):

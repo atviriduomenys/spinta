@@ -6,7 +6,6 @@ from typing import Any, Dict, Generic, Iterable, Iterator, List, Optional, TypeV
 
 from shapely.geometry.base import BaseGeometry
 from starlette.requests import Request
-from starlette.templating import Jinja2Templates
 
 from spinta import commands
 from spinta.backends.components import SelectTree
@@ -31,7 +30,13 @@ from spinta.core.enums import Action
 from spinta.formats.components import Format
 from spinta.formats.helpers import get_model_tabular_header
 from spinta.formats.html.components import Cell, Color, ComplexCell, Html
-from spinta.formats.html.helpers import get_model_link, get_output_formats, get_template_context, short_id
+from spinta.formats.html.helpers import (
+    get_model_link,
+    get_output_formats,
+    get_template_context,
+    get_templates,
+    short_id,
+)
 from spinta.types.datatype import (
     JSON,
     UUID,
@@ -58,7 +63,6 @@ from spinta.types.geometry.helpers import get_display_value, get_osm_link
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values, is_url_safe_base64
 from spinta.utils.nestedstruct import flatten, sepgetter
-from spinta.utils.path import resource_filename
 from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
@@ -90,7 +94,7 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     else:
         result = data
 
-    templates = Jinja2Templates(directory=str(resource_filename("spinta", "templates")))
+    templates = get_templates()
     return templates.TemplateResponse(
         "form.html",
         {
@@ -285,7 +289,7 @@ def _render_model(
     if request.url.hostname == "testserver":
         ctx["data"] = list(ctx["data"])
 
-    templates = Jinja2Templates(directory=str(resource_filename("spinta", "templates")))
+    templates = get_templates()
     return templates.TemplateResponse("data.html", ctx, headers=http_headers)
 
 

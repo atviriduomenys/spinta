@@ -80,6 +80,8 @@ def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page
     del context["zip"]
     if "request" in context:
         del context["request"]
+    if "front_page_warning" in context:
+        del context["front_page_warning"]
     return context
 
 

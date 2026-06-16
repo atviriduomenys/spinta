@@ -53,20 +53,18 @@
             padding: 8px 16px;
             font-size: 12px;
         }
+        .warning p {
+            margin: 0;
+        }
         .warning a {
             color: #b42b3f;
         }
         </style>
     </head>
     <body>
-        <div class="warning">
-            <strong>Dėmesio!</strong>
-            <a href="https://data.gov.lt/page/saugykla" target="_blank">Atvirų
-            duomenų saugykla</a> šiuo metu yra
-            <a href="https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas" target="_blank">aktyviai vystoma</a>,
-            todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
-            kuriuos maloniai prašome pranešti <a href="mailto: atviriduomenys@vssa.lt" target="_blank">atviriduomenys@vssa.lt</a>.
-        </div>
+        {% if front_page_warning %}
+        <div class="warning">{{ front_page_warning | markdown }}</div>
+        {% endif %}
 
         <div class="container">
             {% block content %}{% endblock %}

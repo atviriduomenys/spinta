@@ -355,4 +355,16 @@ CONFIG = {
             "sync_retry_count": 0,
         },
     },
+    "texts": {
+        "front_page_warning": (
+            "**Dėmesio!** "
+            "[Atvirų duomenų saugykla](https://data.gov.lt/page/saugykla) "
+            "šiuo metu yra "
+            "[aktyviai vystoma]"
+            "(https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas), "
+            "todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie "
+            "kuriuos maloniai prašome pranešti "
+            "[atviriduomenys@vssa.lt](mailto:atviriduomenys@vssa.lt)."
+        )
+    },
 }

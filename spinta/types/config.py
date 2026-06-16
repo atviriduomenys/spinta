@@ -108,6 +108,12 @@ def load(context: Context, config: Config) -> Config:
     config.check_names = rc.get("check", "names", default=False)
     config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
+    front_page_warning = rc.get("texts", "front_page_warning", default="")
+    if isinstance(front_page_warning, list):
+        # CLI `-o` option values containing commas are split into lists
+        # by CliArgs; join them back into the original text.
+        front_page_warning = ", ".join(str(v) for v in front_page_warning)
+    config.front_page_warning = str(front_page_warning) if front_page_warning else ""
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
     config.ensure_backends = rc.get("ensure_backends", default=True)
