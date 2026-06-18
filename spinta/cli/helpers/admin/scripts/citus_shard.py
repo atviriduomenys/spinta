@@ -1,5 +1,7 @@
 from contextlib import contextmanager
+from typing import Generator
 
+import sqlalchemy as sa
 from multipledispatch import dispatch
 from tqdm import tqdm
 
@@ -168,7 +170,7 @@ def cli_requires_citus_distribution(context: Context, **kwargs) -> bool:
 
 
 @contextmanager
-def migration_connection(backend, destructive: bool):
+def migration_connection(backend: PostgreSQL, destructive: bool) -> Generator[sa.engine.Connection, None, None]:
     if destructive:
         cli_message("Running distributions with auto commit")
         with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
