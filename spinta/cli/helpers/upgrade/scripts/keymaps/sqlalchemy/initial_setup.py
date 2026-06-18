@@ -1,11 +1,11 @@
+from typing import TYPE_CHECKING
+
 from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.helpers import (
-    requires_migration,
     apply_migration_to_outdated_keymaps,
+    requires_migration,
 )
 from spinta.components import Context
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap

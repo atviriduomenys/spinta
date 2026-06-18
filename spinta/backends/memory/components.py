@@ -1,12 +1,11 @@
+import contextlib
 import datetime
 import uuid
 from typing import Dict
 
-import contextlib
-
-from spinta.typing import ObjectData
 from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
+from spinta.typing import ObjectData
 
 
 class Memory(Backend):

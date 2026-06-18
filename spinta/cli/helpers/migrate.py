@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import List, Callable
+from typing import Callable, List
 
 
 @dataclasses.dataclass

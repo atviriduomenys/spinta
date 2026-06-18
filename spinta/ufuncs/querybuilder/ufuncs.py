@@ -1,29 +1,29 @@
 from __future__ import annotations
 
-from typing import List, Any, Tuple, Dict
+from typing import Any, Dict, List, Tuple
 
 from spinta.components import Page, Property
-from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
+from spinta.core.ufuncs import Bind, Expr, GetAttr, Negative, ufunc
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
-from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
-from spinta.types.datatype import DataType, String, PrimaryKey, Denorm
+from spinta.exceptions import CannotSelectTextAndSpecifiedLang, InvalidArgumentInExpression
+from spinta.types.datatype import DataType, Denorm, PrimaryKey, String
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import (
-    QueryBuilder,
-    Star,
-    ReservedProperty,
-    NestedProperty,
-    ResultProperty,
-    LiteralProperty,
     Flip,
     Func,
+    LiteralProperty,
+    NestedProperty,
+    QueryBuilder,
+    ReservedProperty,
+    ResultProperty,
+    Star,
 )
 from spinta.ufuncs.querybuilder.helpers import (
+    denorm_to_foreign_property,
     get_pagination_compare_query,
     process_literal_value,
-    denorm_to_foreign_property,
 )
 from spinta.utils.schema import NA
 

@@ -16,6 +16,7 @@ and Python native types.
 
 import logging
 from datetime import time, timedelta
+
 from sqlalchemy import types as sqltypes
 
 from spinta.datasets.backends.sql.backends.sas.constants import SAS_EPOCH_DATE, SAS_EPOCH_DATETIME, is_sas_missing_value

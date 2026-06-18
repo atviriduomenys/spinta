@@ -1,7 +1,7 @@
 from typing import Dict
 
 from spinta import commands
-from spinta.datasets.components import Resource, Entity, Attribute
+from spinta.datasets.components import Attribute, Entity, Resource
 from spinta.datasets.keymaps.components import KeyMap
 
 

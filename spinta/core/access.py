@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-from typing import Iterable
-from typing import TYPE_CHECKING
-from typing import Union
+from typing import TYPE_CHECKING, Iterable, Union
 
 from spinta.core.enums import Access
 from spinta.utils.enums import enum_by_name, get_enum_by_name
 
 if TYPE_CHECKING:
+    from spinta.components import Model, Namespace, Property
+    from spinta.datasets.components import Dataset, Resource
     from spinta.dimensions.enum.components import EnumItem
     from spinta.dimensions.scope.components import Scope
-    from spinta.components import Model
-    from spinta.components import Namespace
-    from spinta.components import Property
-    from spinta.datasets.components import Dataset
-    from spinta.datasets.components import Resource
     from spinta.manifests.components import Manifest
 
 

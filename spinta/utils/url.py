@@ -2,9 +2,9 @@ import urllib.parse
 from typing import List
 
 from spinta import exceptions
+from spinta.backends.helpers import is_accessible_by_equals_sign
 from spinta.components import UrlParseNode
 from spinta.spyna import unparse
-from spinta.backends.helpers import is_accessible_by_equals_sign
 
 RULES = {
     "path": {

@@ -1,26 +1,14 @@
 from io import TextIOBase
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import Literal
-from typing import Optional
-from typing import Tuple
+from typing import Any, Dict, Iterable, Iterator, Literal, Optional, Tuple
 
 import sqlparse
-from sqlparse.sql import Identifier
-from sqlparse.sql import Statement
-from sqlparse.sql import Token
-from sqlparse.sql import TokenList
-from sqlparse.tokens import DDL
-from sqlparse.tokens import Keyword
+from sqlparse.sql import Identifier, Statement, Token, TokenList
+from sqlparse.tokens import DDL, Keyword
 
-from spinta import commands
-from spinta import spyna
+from spinta import commands, spyna
 from spinta.components import Context
 from spinta.datasets.backends.sqldump.components import SqlDump
-from spinta.datasets.backends.sqldump.ufuncs.components import File
-from spinta.datasets.backends.sqldump.ufuncs.components import PrepareFileResource
+from spinta.datasets.backends.sqldump.ufuncs.components import File, PrepareFileResource
 from spinta.datasets.components import Resource
 from spinta.exceptions import UnexpectedFormulaResult
 from spinta.manifests.components import ManifestSchema

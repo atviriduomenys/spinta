@@ -1,6 +1,6 @@
-from spinta.utils.schema import NA
 from spinta.components import DataSubItem
 from spinta.core.enums import Action
+from spinta.utils.schema import NA
 
 
 def inserting(data: DataSubItem):

@@ -1,6 +1,6 @@
 from ruamel.yaml import YAML
 
-from spinta.core.config import SCHEMA, KeyFormat, RawConfig, PyDict, Path, EnvVars, EnvFile, CliArgs
+from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
 
 yaml = YAML(typ="safe")
 

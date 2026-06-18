@@ -1,10 +1,10 @@
 from spinta import commands
-from spinta.utils.schema import NA
-from spinta.utils.data import take
-from spinta.types.datatype import Array
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Context, DataSubItem
 from spinta.core.enums import Action
-from spinta.backends.mongo.components import Mongo
+from spinta.types.datatype import Array
+from spinta.utils.data import take
+from spinta.utils.schema import NA
 
 
 @commands.before_write.register(Context, Array, Mongo)

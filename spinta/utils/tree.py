@@ -1,6 +1,5 @@
-from typing import List
-
 import itertools
+from typing import List
 
 
 def build_path_tree(*paths):

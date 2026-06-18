@@ -1,11 +1,11 @@
 from spinta import commands
 from spinta.backends.fs.components import FileSystem
-from spinta.types.file.helpers import prepare_patch_data
-from spinta.utils.data import take
-from spinta.types.datatype import File
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Context, DataSubItem
 from spinta.core.enums import Action
-from spinta.backends.mongo.components import Mongo
+from spinta.types.datatype import File
+from spinta.types.file.helpers import prepare_patch_data
+from spinta.utils.data import take
 
 
 @commands.before_write.register(Context, File, Mongo)

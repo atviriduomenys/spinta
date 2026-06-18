@@ -8,7 +8,7 @@ from spinta.core.config import RawConfig
 from spinta.exceptions import InvalidName, InvalidValue
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.manifest import load_manifest_and_context, load_manifest, load_manifest_get_context
+from spinta.testing.manifest import load_manifest, load_manifest_and_context, load_manifest_get_context
 from spinta.testing.tabular import create_tabular_manifest
 
 

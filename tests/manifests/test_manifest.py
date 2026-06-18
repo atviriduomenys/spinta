@@ -4,24 +4,24 @@ import pytest
 
 from spinta.core.config import RawConfig
 from spinta.exceptions import (
-    NoModelDefined,
-    InvalidManifestFile,
-    ReferencedPropertyNotFound,
-    PartialTypeNotFound,
     DataTypeCannotBeUsedForNesting,
-    NestedDataTypeMismatch,
-    SameModelIntermediateTableMapping,
-    InvalidIntermediateTableMappingRefCount,
-    UnableToMapIntermediateTable,
     IntermediateTableMappingInvalidType,
-    IntermediateTableValueTypeMissmatch,
-    IntermediateTableRefPropertyModelMissmatch,
     IntermediateTableRefModelMissmatch,
-    UndefinedPropertyType,
+    IntermediateTableRefPropertyModelMissmatch,
+    IntermediateTableValueTypeMissmatch,
+    InvalidIntermediateTableMappingRefCount,
+    InvalidManifestFile,
+    NestedDataTypeMismatch,
+    NoModelDefined,
     ParentNodeNotFound,
+    PartialTypeNotFound,
+    ReferencedPropertyNotFound,
+    SameModelIntermediateTableMapping,
+    UnableToMapIntermediateTable,
+    UndefinedPropertyType,
 )
-from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
+from spinta.testing.manifest import load_manifest
 
 
 def check(tmp_path, rc, table, manifest_type: str = "csv"):

@@ -1,5 +1,5 @@
-from spinta.utils.schema import NA
 from spinta.utils.data import take
+from spinta.utils.schema import NA
 
 
 def test_strip_reserved():

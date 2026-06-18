@@ -1,7 +1,14 @@
 Changes
 #######
 
-0.2dev26 (unreleased)
+0.2dev27 (unreleased)
+=====================
+
+- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
+
+.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
+
+0.2dev26 (2026-06-10)
 =====================
 
 Improvements:
@@ -18,14 +25,14 @@ Improvements:
 - Added `check_ref_filters` configuration option (defaults to `true`). Set it to
   `false` to stop a model from being implicitly filtered by the filters of the
   models it refers to (`#1901`_).
-
-- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
+- Added a `Strict-Transport-Security` (HSTS) response header on all responses,
+  configurable via the `http_strict_transport_security` configuration option
+  (defaults to `max-age=31536000; includeSubDomains`) (`dvms#520`).
 
 .. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
 .. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
-.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
 
 
 New Features:
@@ -51,6 +58,15 @@ Bug fixes:
 
 0.2dev25 (2026-05-22)
 =====================
+
+New Features:
+
+- Added `texts.front_page_warning` configuration option, which lets you set the
+  warning message shown on HTML pages. The value is read from the configuration
+  (e.g. `config.yml`), falling back to the default defined in `spinta/config.py`
+  (`#1876`_).
+
+.. _#1876: https://github.com/atviriduomenys/spinta/issues/1876
 
 Improvements:
 
@@ -87,7 +103,7 @@ Bug fixes:
 
 Improvements:
 
-- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_): 
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_):
   - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
   - updated code to correctly display visibility, relationships, cardinality.
   - added custom diagram styling.

@@ -1,10 +1,7 @@
-from typing import Optional
-from typing import Tuple
+from typing import Optional, Tuple
 
-from typer import Argument
+from typer import Argument, Option, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import echo
 
 from spinta import commands
 from spinta.cli.helpers.admin.scripts.add_local_ids import add_explicit_id_properties

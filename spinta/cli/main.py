@@ -2,32 +2,20 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 from typer import Context as TyperContext
-from typer import Option
-from typer import Typer
-from typer import echo
+from typer import Option, Typer, echo
 
 import spinta
-from spinta.cli import auth, get, sync
-from spinta.cli import config
-from spinta.cli import data
-from spinta.cli import inspect
-from spinta.cli import manifest
-from spinta.cli import migrate
-from spinta.cli.comment import comment
-from spinta.cli.uncomment import uncomment
-from spinta.cli import pii
-from spinta.cli import pull
-from spinta.cli import push
-from spinta.cli import server
+from spinta.cli import auth, config, data, get, inspect, manifest, migrate, pii, pull, push, server, sync
 from spinta.cli.admin import admin
-from spinta.cli.keymap import keymap
-from spinta.cli.init import init
-from spinta.cli.show import show
+from spinta.cli.comment import comment
 from spinta.cli.helpers.typer import add
+from spinta.cli.init import init
+from spinta.cli.keymap import keymap
+from spinta.cli.show import show
+from spinta.cli.uncomment import uncomment
 from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
 

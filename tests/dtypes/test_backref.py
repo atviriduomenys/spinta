@@ -1,16 +1,14 @@
 import pathlib
-
 import xml.etree.ElementTree as ET
 
 import pytest
-
 from pytest import FixtureRequest
 
 from spinta.components import Context
-from spinta.core.config import RawConfig, Path
+from spinta.core.config import Path, RawConfig
 from spinta.exceptions import (
-    NoReferencesFound,
     MultipleBackRefReferencesFound,
+    NoReferencesFound,
     OneToManyBackRefNotSupported,
 )
 from spinta.manifests.tabular.helpers import striptable

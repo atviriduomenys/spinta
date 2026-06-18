@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import Union, Any
+from typing import Any, Union
 
 from spinta.backends.constants import BackendFeatures
-from spinta.components import Property, Page, UrlParams
+from spinta.components import Page, Property, UrlParams
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
-from spinta.types.datatype import Denorm, Ref, BackRef
+from spinta.types.datatype import BackRef, Denorm, Ref
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
-from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryParams, QueryPage, LiteralProperty, Star
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.querybuilder.components import LiteralProperty, QueryBuilder, QueryPage, QueryParams, Star
 from spinta.utils.types import is_value_literal
 
 

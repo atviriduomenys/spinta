@@ -1,10 +1,9 @@
 import pytest
 
-from spinta.manifests.tabular.helpers import striptable
 from spinta.manifests.components import ManifestPath
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
-
 
 MANIFEST_WITH_SOAP_PREPARE = striptable("""
 id | d | r | b | m | property           | type     | ref              | source                                                 | source.type | prepare                 | origin | count | level | status | visibility | access | uri | eli | title | description

@@ -7,17 +7,18 @@ and array aggregation operations without requiring a live SAS connection.
 Note: Integration tests requiring a live SAS server connection are not included here.
 """
 
-import pytest
 from datetime import date, datetime, time
 from unittest.mock import Mock
+
+import pytest
 import sqlalchemy as sa
 
 from spinta.datasets.backends.sql.backends.sas.helpers import (
+    SAS_EPOCH_DATE,
+    group_array,
     sas_date_to_python,
     sas_datetime_to_python,
     sas_time_to_python,
-    group_array,
-    SAS_EPOCH_DATE,
 )
 
 

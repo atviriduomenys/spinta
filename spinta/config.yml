@@ -218,6 +218,12 @@ check:
 root:
   type: string
 
+texts:
+  type: object
+  items:
+    front_page_warning:
+      type: string
+
 env:
   type: ref
   ref: environments

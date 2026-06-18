@@ -1,37 +1,37 @@
 from __future__ import annotations
+
 import math
 from typing import Any, Dict, Iterator
 
+import dask
 import numpy as np
 import pandas as pd
 import yaml
-
-import dask
 from dask.dataframe import DataFrame
 
 from spinta import commands
-from spinta.components import Context, Property, Model
-from spinta.core.ufuncs import Expr, Env
-from spinta.datasets.backends.dataframe.components import DaskBackend
-from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
-from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.backends.helpers import is_custom_id_prop
+from spinta.components import Context, Model, Property
+from spinta.core.ufuncs import Env, Expr
+from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
+from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource
-from spinta.datasets.helpers import get_enum_filters, get_ref_filters, encode_composite_string_id
+from spinta.datasets.helpers import encode_composite_string_id, get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
+from spinta.exceptions import NoExternalName, PropertyNotFound, ValueNotInEnum
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Base32
+from spinta.types.datatype import Base32, Boolean, DataType, DateTime, Integer, Number, PrimaryKey, Ref
 from spinta.typing import ObjectData
-from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
-from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
+from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to_nested
 from spinta.utils.schema import NA
 
 OBJECT_DTYPE = "object"

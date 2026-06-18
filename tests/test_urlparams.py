@@ -1,12 +1,8 @@
 import pytest
 
 from spinta import spyna
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import UrlParams
-from spinta.components import Version
 from spinta.commands import prepare
+from spinta.components import Context, Model, Namespace, UrlParams, Version
 from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import InvalidValue, PropertiesNotFound, PropertyNotFound, ScopeNotFound
 from spinta.testing.request import make_get_request

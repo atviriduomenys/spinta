@@ -3,8 +3,8 @@ from http import HTTPStatus
 import requests
 from requests.models import Response
 
-from spinta.cli.helpers.sync.api_helpers import validate_api_response
 from spinta.cli import REQUEST_TIMEOUT
+from spinta.cli.helpers.sync.api_helpers import validate_api_response
 
 
 def connection_check(base_path: str, headers: dict[str, str], data: dict[str, str]) -> Response:

@@ -1,31 +1,25 @@
 import base64
-from typing import Any
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Set
+from typing import Any, List, Optional, Set, Tuple
 
 import cbor2
-from spinta.exceptions import ValuesForIdCantHaveSpecialSymbols
+
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.backends.helpers import load_backend, check_if_model_primary_key_is_composite
+from spinta.backends.helpers import check_if_model_primary_key_is_composite, load_backend
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Action
-from spinta.components import Context, Property
-from spinta.components import Model
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ShortExpr
+from spinta.core.ufuncs import Expr, ShortExpr
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.types.datatype import Ref, Base32
+from spinta.exceptions import ValuesForIdCantHaveSpecialSymbols
+from spinta.types.datatype import Base32, Ref
 from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
 from spinta.utils.naming import to_code_name
-
 
 INVALID_PREFIXES = ("/", "@", ":", "?")
 

@@ -4,18 +4,17 @@ from spinta import commands
 from spinta.cli.helpers.sync.controllers.dsa import get_dsa
 from spinta.cli.helpers.sync.controllers.synchronization import (
     FIELDS_TO_MERGE_FOR_DATASET,
-    FIELDS_TO_MERGE_FOR_RESOURCE,
     FIELDS_TO_MERGE_FOR_MODEL,
     FIELDS_TO_MERGE_FOR_PROPERTY,
+    FIELDS_TO_MERGE_FOR_RESOURCE,
 )
-from spinta.cli.helpers.sync.helpers import merge_manifest_attributes, find_existing_entity, read_and_get_manifest
+from spinta.cli.helpers.sync.helpers import find_existing_entity, merge_manifest_attributes, read_and_get_manifest
 from spinta.components import Context, Model
 from spinta.core.enums import Access
 from spinta.datasets.components import Dataset, Resource
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import init_manifest
-from spinta.manifests.tabular.helpers import write_tabular_manifest, datasets_to_tabular
-
+from spinta.manifests.tabular.helpers import datasets_to_tabular, write_tabular_manifest
 
 PRIVATE_PROPERTY_PREFIX = "_"
 

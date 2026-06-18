@@ -1,17 +1,12 @@
 import dataclasses
 import logging
 from operator import itemgetter
-from typing import Any, TypedDict
-from typing import Dict
-from typing import Iterator
-from typing import List
-from typing import NamedTuple
-from typing import Tuple
+from typing import Any, Dict, Iterator, List, NamedTuple, Tuple, TypedDict
 
 import cachetools
 import sqlalchemy as sa
 from geoalchemy2.types import Geometry
-from sqlalchemy.dialects import postgresql, mysql, sqlite, mssql, oracle
+from sqlalchemy.dialects import mssql, mysql, oracle, postgresql, sqlite
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.sql.sqltypes import _Binary
 from sqlalchemy.types import TypeEngine
@@ -20,15 +15,11 @@ from spinta import spyna
 from spinta.components import Context
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.backends.oracle.helpers import SDO_GEOMETRY
-from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
+from spinta.datasets.backends.sql.ufuncs.components import Engine, SqlResource
 from spinta.exceptions import UnexpectedFormulaResult
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.imports import full_class_name
-from spinta.utils.naming import Deduplicator
-from spinta.utils.naming import to_dataset_name
-from spinta.utils.naming import to_model_name
-from spinta.utils.naming import to_property_name
-
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 logger = logging.getLogger(__name__)
 

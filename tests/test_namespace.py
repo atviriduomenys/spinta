@@ -6,10 +6,8 @@ import pytest
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.testing.client import TestClient
-from spinta.testing.client import create_test_client
-from spinta.testing.data import listdata
-from spinta.testing.data import pushdata
+from spinta.testing.client import TestClient, create_test_client
+from spinta.testing.data import listdata, pushdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take

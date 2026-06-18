@@ -2,7 +2,7 @@ import base64 as b64
 import math
 from typing import Any, Tuple, overload
 
-from spinta.core.ufuncs import Env, Expr, ufunc, NoOp
+from spinta.core.ufuncs import Env, Expr, NoOp, ufunc
 
 
 @overload

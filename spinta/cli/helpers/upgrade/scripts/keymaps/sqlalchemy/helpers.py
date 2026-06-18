@@ -1,9 +1,9 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from spinta.components import Context, Store
-
 from typer import echo
+
+from spinta.components import Context, Store
 
 if TYPE_CHECKING:
     from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap

@@ -1,6 +1,6 @@
+from spinta import commands
 from spinta.api import init
 from spinta.core.context import create_context
-from spinta import commands
 
 context = create_context("asgi")
 

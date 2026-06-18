@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 
-
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.upgrade.components import UpgradeScript

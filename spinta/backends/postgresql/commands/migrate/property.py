@@ -3,8 +3,8 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    PostgresqlMigrationContext,
     ModelMigrationContext,
+    PostgresqlMigrationContext,
     PropertyMigrationContext,
 )
 from spinta.components import Context, Property
