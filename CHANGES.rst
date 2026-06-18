@@ -4,8 +4,12 @@ Changes
 0.2dev27 (unreleased)
 =====================
 
+Improvements:
+
+- Added `--destructive` flag support to `citus_distribution` script (it will commit after each distribution change) (`#1976`_).
 - `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
 
+.. _#1976: https://github.com/atviriduomenys/spinta/issues/1976
 .. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
 
 0.2dev26 (2026-06-10)
@@ -21,7 +25,6 @@ Improvements:
   - `spinta uncomment` — extended to restore base rows
 - Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
 
-
 - Added `check_ref_filters` configuration option (defaults to `true`). Set it to
   `false` to stop a model from being implicitly filtered by the filters of the
   models it refers to (`#1901`_).
@@ -33,7 +36,6 @@ Improvements:
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
 .. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
-
 
 New Features:
 

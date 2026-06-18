@@ -586,6 +586,7 @@ class DistributeSchema(MigrationAction):
 
 class DistributeReference(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier) -> None:
+        self.table_identifier = table_identifier
         self.query = f"SELECT create_reference_table('{table_identifier.pg_escaped_qualified_name}')"
 
     def execute(self, op: "Operations") -> None:
@@ -594,6 +595,8 @@ class DistributeReference(MigrationAction):
 
 class DistributeTable(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier, column: str) -> None:
+        self.table_identifier = table_identifier
+        self.column = column
         self.query = f"SELECT create_distributed_table('{table_identifier.pg_escaped_qualified_name}', '{column}')"
 
     def execute(self, op: "Operations") -> None:
@@ -611,6 +614,7 @@ class UndistributeSchema(MigrationAction):
 
 class UndistributeTable(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier) -> None:
+        self.table_identifier = table_identifier
         self.query = (
             f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}', cascade_via_foreign_keys=>true)"
         )
