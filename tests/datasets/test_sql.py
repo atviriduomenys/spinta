@@ -3099,6 +3099,47 @@ def test_cast_string(
     assert listdata(resp) == ["1"]
 
 
+def test_cast_json_to_string(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    sqlite: Sqlite,
+):
+    dataset = "example/func/cast/json_to_string"
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        f"""
+    d | r | b | m | property  | type    | ref      | source   | prepare
+    {dataset}                 |         |          |          |
+      | resource              | sql     | sql      |          |
+      |   |   | Data          |         | id       | DATA     |
+      |   |   |   | id        | integer |          | ID       |
+      |   |   |   | payload   | string  |          | PAYLOAD  | cast()
+    """,
+    )
+
+    sqlite.init(
+        {
+            "DATA": [
+                sa.Column("ID", sa.Integer),
+                sa.Column("PAYLOAD", sa.JSON),
+            ],
+        }
+    )
+    sqlite.write("DATA", [{"ID": 1, "PAYLOAD": {"key": "value"}}])
+
+    app = create_client(rc, tmp_path, sqlite)
+    app.authmodel(dataset, ["getall"])
+
+    resp = app.get(f"/{dataset}/Data")
+    data = listdata(resp, "payload")
+    assert data == ['{"key": "value"}']
+
+
 @pytest.mark.skip("todo")
 def test_type_text_push(context, postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(

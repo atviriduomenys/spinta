@@ -1,5 +1,6 @@
 import binascii
 import datetime
+import json
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -198,6 +199,16 @@ def cast(env: ResultBuilder, dtype: DateTime, value: str) -> datetime.datetime:
         return datetime.datetime.fromisoformat(value)
     except ValueError:
         raise UnableToCast(dtype, value=value, type=dtype.name)
+
+
+@ufunc.resolver(ResultBuilder, String, dict)
+def cast(env: ResultBuilder, dtype: String, value: dict) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+@ufunc.resolver(ResultBuilder, String, list)
+def cast(env: ResultBuilder, dtype: String, value: list) -> str:
+    return json.dumps(value, ensure_ascii=False)
 
 
 @ufunc.resolver(ResultBuilder, DataType, object)
