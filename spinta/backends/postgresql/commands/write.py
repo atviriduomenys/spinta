@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import AsyncIterator
 
 from sqlalchemy import exc
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from spinta import commands, exceptions, spyna
 from spinta.backends.constants import TableType
@@ -47,17 +48,19 @@ async def insert(
             savepoint = connection.begin_nested()
             patch = commands.before_write(context, model, backend, data=data)
             # TODO: Refactor this to insert batches with single query.
-            qry = table.insert().values(
+            qry = pg_insert(table).values(
                 _id=patch["_id"],
                 _revision=patch["_revision"],
                 _txn=transaction.id,
                 _created=utcnow(),
             )
-            connection.execute(qry, patch)
-            commands.after_write(context, model, backend, data=data)
+            qry = qry.on_conflict_do_nothing(index_elements=[table.c._id])
+            result = connection.execute(qry, patch)
+            if result.rowcount > 0:
+                commands.after_write(context, model, backend, data=data)
 
-            # On insert remove redirect entry if _id already exists
-            remove_from_redirect(connection, redirect_table, patch["_id"])
+                # On insert remove redirect entry if _id already exists
+                remove_from_redirect(connection, redirect_table, patch["_id"])
             savepoint.commit()
         except exc.DatabaseError as error:
             rollback_full = True
