@@ -49,9 +49,8 @@ from spinta.exceptions import (
     NoAuthServer,
     error_response,
 )
-from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware
 from spinta.formats.html.helpers import get_templates
-from spinta.middlewares import ContextMiddleware, StrictTransportSecurityMiddleware
+from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware, StrictTransportSecurityMiddleware
 from spinta.urlparams import Version, get_response_type
 
 log = logging.getLogger(__name__)
