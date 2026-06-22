@@ -362,6 +362,8 @@ def test_cache_control_priority(context, app):
         ("/", b"/", True),
         ("/example/City", b"/example/City", True),
         ("/example/City/", b"/example/City/", True),
+        ("//example/City", b"//example/City", False),
+        ("/example/City//", b"/example/City//", False),
         ("/example/../City", b"/example/../City", False),
         ("/example/./City", b"/example/./City", False),
         ("/example//City", b"/example//City", False),

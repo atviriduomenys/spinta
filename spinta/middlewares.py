@@ -17,6 +17,11 @@ def _is_normalized_path(scope: Scope) -> bool:
     if "\\" in path:
         return False
     normalized = posixpath.normpath(path)
+    # posixpath.normpath preserves a leading "//" (POSIX leaves two leading
+    # slashes implementation-defined), but shared caches collapse it to "/",
+    # so treat such a path as non-normalized.
+    if normalized.startswith("//"):
+        normalized = normalized[1:]
     if path.endswith("/") and normalized != "/":
         normalized += "/"
     return path == normalized
