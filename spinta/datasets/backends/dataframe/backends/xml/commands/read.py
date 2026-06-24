@@ -55,10 +55,11 @@ def _parse_xml_loop_model_properties(
                             elif not ref_item:
                                 ref_item = None
                             ref_keys.append(str(ref_item))
-                        if len(ref_keys) == 1:
-                            new_value = ref_keys[0]
-                        else:
-                            new_value = ref_keys
+                    # Set new_value based on ref_keys after processing all keys
+                    if len(ref_keys) == 1:
+                        new_value = ref_keys[0]
+                    elif ref_keys:
+                        new_value = ref_keys
                 else:
                     if v.text:
                         new_value = str(v.text)
