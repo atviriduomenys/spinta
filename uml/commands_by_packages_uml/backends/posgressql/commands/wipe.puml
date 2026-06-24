@@ -1,0 +1,19 @@
+@startuml
+package wipe <<Rectangle>> {
+
+    object wipe {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +fail: bool = False,
+    }
+
+}
+
+wipe *-- Context
+wipe *-- PostgreSQL
+wipe *-- Model
+
+@enduml
+

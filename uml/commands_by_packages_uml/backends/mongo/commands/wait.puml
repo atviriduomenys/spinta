@@ -1,0 +1,14 @@
+@startuml
+package wait <<Rectangle>> {
+
+    object wait {
+        +context: Context,
+        +backend: Mongo,
+        +*,
+        +fail: bool = False
+    }
+}
+
+wait *-- Context
+wait *-- Mongo
+@enduml

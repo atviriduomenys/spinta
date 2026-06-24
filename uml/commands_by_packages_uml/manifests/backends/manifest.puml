@@ -1,0 +1,42 @@
+@startuml
+package manifest <<Rectangle>> {
+
+    object manifest_list_schemas {
+        +context: Context,
+        +manifest: BackendManifest,
+    }
+
+    object manifest_read_current {
+        +context: Context,
+        +manifest: BackendManifest,
+        +*,
+        +eid: str,
+    }
+
+    object manifest_read_freezed {
+        context: Context,
+        manifest: BackendManifest,
+        *,
+        eid: str,
+    }
+
+    object manifest_read_versions {
+        context: Context,
+        manifest: BackendManifest,
+        *,
+        eid: str,
+    }
+
+}
+
+manifest_list_schemas *-- Context
+manifest_list_schemas *-- BackendManifest
+manifest_read_current *-- Context
+manifest_read_current *-- BackendManifest
+manifest_read_freezed *-- Context
+manifest_read_freezed *-- BackendManifest
+manifest_read_versions *-- Context
+manifest_read_versions *-- BackendManifest
+
+
+@enduml

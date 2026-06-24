@@ -1,0 +1,12 @@
+@startuml
+package migrate <<Rectangle>> {
+
+    object migrate {
+        +context: Context,
+        +current: YamlManifest,
+    }
+}
+
+migrate *-- Context
+migrate *-- YamlManifest
+@enduml

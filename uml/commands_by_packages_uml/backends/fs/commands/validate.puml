@@ -1,0 +1,35 @@
+@startuml
+package validate <<Rectangle>> {
+
+    object simple_data_check {
+        +context: Context,
+        +data: DataItem,
+        +dtype: File,
+        +prop: Property,
+        +backend: FileSystem,
+        +value: dict,
+
+    }
+
+    object complex_data_check {
+        +context: Context,
+        +data: DataItem,
+        +dtype: File,
+        +prop: Property,
+        +backend: Backend,
+        +given: dict,
+
+    }
+}
+
+simple_data_check *-- Context
+simple_data_check *-- DataItem
+simple_data_check *-- File
+simple_data_check *-- Property
+simple_data_check *-- FileSystem
+complex_data_check *-- Context
+complex_data_check *-- DataItem
+complex_data_check *-- File
+complex_data_check *-- Property
+complex_data_check *-- Backend
+@enduml

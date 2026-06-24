@@ -1,0 +1,81 @@
+@startuml
+package core <<Rectangle>> {
+
+    object KeyFormat
+
+    object ConfigSource {
+        +name: str
+    }
+
+    object PyDict
+    object Path
+    object CliArgs
+    object EnvVars
+    object EnvFile
+    object RawConfig {
+        +sources: List[ConfigSource]
+    }
+
+    object ResourceTuple {
+        +type: str
+        +external: str
+        +prepare: Optional[str] = None
+    }
+
+    object Access {
+
+    }
+
+    object Expr {
+        +name: str
+        +args: Tuple[Any]
+        +kwargs: Dict[str, Any]
+    }
+
+    object ShortExpr {
+
+    }
+
+    object MethodExpr {
+
+    }
+
+    object Env {
+        +this: Any
+        +context: Context
+    }
+
+    object Unresolved {
+
+    }
+
+    object Bind {
+
+    }
+
+    object Pair {
+
+    }
+
+    object Negative {
+
+    }
+
+    object Positive {
+
+    }
+
+}
+
+ConfigSource <|-- PyDict
+PyDict *-- Path
+PyDict *-- CliArgs
+ConfigSource *-- EnvVars
+EnvVars *-- EnvFile
+Expr *-- ShortExpr
+Expr *-- MethodExpr
+Unresolved <|-- Pair
+Unresolved <|-- Bind
+Bind *-- Negative
+Bind *-- Positive
+@enduml

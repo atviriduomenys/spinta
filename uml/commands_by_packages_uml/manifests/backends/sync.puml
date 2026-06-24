@@ -1,0 +1,16 @@
+@startuml
+package sync <<Rectangle>> {
+
+    object sync {
+        +context: Context,
+        +manifest: BackendManifest,
+        +*,
+        +sources: List[Manifest] = None,
+    }
+}
+
+sync *-- Context
+sync *-- BackendManifest
+
+
+@enduml

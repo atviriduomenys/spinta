@@ -1,0 +1,22 @@
+@startuml
+package write <<Rectangle>> {
+
+    object push {
+        +context: Context,
+        +request: Request,
+        +dtype: File,
+        +backend: FileSystem,
+        +*,
+        +action: Action,
+        +params: UrlParams,
+
+    }
+}
+
+push *-- Context
+push *-- Request
+push *-- File
+push *-- FileSystem
+push *-- Action
+push *-- UrlParams
+@enduml

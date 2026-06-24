@@ -1,0 +1,27 @@
+@startuml
+package init <<Rectangle>> {
+
+    object prepare {
+        +context: Context,
+        +backend: FileSystem,
+        +manifest: Manifest,
+
+    }
+
+    object prepare_for_write {
+        +context: Context,
+        +dtype: File,
+        +backend: Backend,
+        +value: Attachment,
+
+    }
+}
+
+prepare *-- Context
+prepare *-- FileSystem
+prepare *-- Manifest
+prepare_for_write *-- Context
+prepare_for_write *-- File
+prepare_for_write *-- Backend
+prepare_for_write *-- Attachment
+@enduml

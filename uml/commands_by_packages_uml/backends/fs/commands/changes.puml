@@ -1,0 +1,18 @@
+@startuml
+package changes <<Rectangle>> {
+
+    object create_changelog_entry {
+        +context: Context,
+        +model: Property,
+        +backend: FileSystem,
+        + *,
+        +dstream: AsyncIterator[DataItem],
+
+    }
+}
+
+create_changelog_entry *-- Context
+create_changelog_entry *-- Property
+create_changelog_entry *-- FileSystem
+create_changelog_entry *-- AsyncIterator
+@enduml

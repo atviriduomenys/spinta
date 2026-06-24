@@ -1,0 +1,16 @@
+@startuml
+package search <<Rectangle>> {
+
+    object load_search_params {
+        +context: Context,
+        +dtype: DataType,
+        +backend: Backend,
+        +query_params: dict,
+    }
+}
+
+load_search_params *-- Context
+load_search_params *-- DataType
+load_search_params *-- Backend
+
+@enduml

@@ -1,0 +1,14 @@
+@startuml
+package init <<Rectangle>> {
+
+    object prepare {
+        +context: Context,
+        +backend: FileSystem,
+        +config: Dict[str, Any],
+
+    }
+}
+
+prepare *-- Context
+prepare *-- FileSystem
+@enduml

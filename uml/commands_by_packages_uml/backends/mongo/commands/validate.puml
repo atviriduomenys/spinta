@@ -1,0 +1,19 @@
+@startuml
+package validate <<Rectangle>> {
+
+    object validate {
+        +context: Context,
+        +data: DataItem,
+        +dtype: DataType,
+        +prop: Property,
+        +backend: Mongo,
+        +value: object,
+    }
+}
+
+validate *-- Context
+validate *-- DataItem
+validate *-- DataType
+validate *-- Property
+validate *-- Mongo
+@enduml

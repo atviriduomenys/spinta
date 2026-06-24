@@ -1,0 +1,27 @@
+@startuml
+package read <<Rectangle>> {
+
+    object getone {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo,
+        + *,
+        +id_: str,
+    }
+
+    object getall {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo,
+        +*,
+        +query: Expr = None,
+    }
+}
+
+getone *-- Context
+getone *-- Model
+getone *-- Mongo
+getall *-- Context
+getall *-- Model
+getall *-- Mongo
+@enduml

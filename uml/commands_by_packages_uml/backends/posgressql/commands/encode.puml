@@ -1,0 +1,34 @@
+@startuml
+package encode <<Rectangle>> {
+
+    object prepare_data_for_response {
+        context: Context,
+        model: Model,
+        fmt: Format,
+        value: RowProxy,
+        *,
+        action: Action,
+        select: SelectTree = None,
+        prop_names: List[str] = None,
+    }
+
+    object prepare_for_write {
+        +context: Context,
+        +dtype: DateTime,
+        +backend: PostgreSQL,
+        +value: datetime.datetime,
+    }
+
+}
+
+prepare_data_for_response *-- Context
+prepare_data_for_response *-- Model
+prepare_data_for_response *-- Format
+prepare_data_for_response *-- RowProxy
+prepare_data_for_response *-- Action
+prepare_data_for_response *-- SelectTree
+prepare_for_write *-- Context
+prepare_for_write *-- DateTime
+prepare_for_write *-- PostgreSQL
+@enduml
+

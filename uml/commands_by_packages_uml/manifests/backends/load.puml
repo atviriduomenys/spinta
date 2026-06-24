@@ -1,0 +1,19 @@
+@startuml
+package load <<Rectangle>> {
+
+    object load {
+        +context: Context,
+        +manifest: BackendManifest,
+        + *,
+        +into: Manifest = None,
+        +freezed: bool = True,
+        +rename_duplicates: bool = False,
+        +load_internal: bool = True,
+    }
+}
+
+load *-- Context
+load *-- BackendManifest
+
+
+@enduml

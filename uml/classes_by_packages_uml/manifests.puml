@@ -1,0 +1,233 @@
+@startuml
+package manifests <<Rectangle>> {
+    object Manifest {
+        +type: str = None
+        +name: str = None
+        +keymap: KeyMap = None
+        +backend: Backend = None
+        +parent: Component = None
+        +store: Store = None
+        +objects: MetaDataContainer = None
+        +path: str = None
+        +access: Access = Access.protected
+        +prefixes: Dict[str, UriPrefix]
+        +enums: Enums
+        +endpoints: Dict[str, str] = None
+        +backends: Dict[str, Backend] = None
+        +sync: List[Manifest]
+        +mode: Mode = Mode.internal
+        +given: ManifestGiven
+    }
+
+    object ManifestPath {
+        +type: str = 'tabular'
+        +name: str = None
+        +path: str = None
+        +file: IO = None
+    }
+
+    package backend <<Rectangle>> {
+        object BackendManifest {
+
+        }
+    }
+
+    package yaml <<Rectangle>> {
+
+        object YamlManifest {
+            +path: Path = None
+        }
+
+        object InlineManifest {
+            +manifest: InlineManifestData
+        }
+    }
+
+    package internal <<Rectangle>> {
+        object InternalManifest {
+
+        }
+    }
+
+    package tabular <<Rectangle>> {
+
+        object TabularFormat {
+            +CSV = 'csv'
+            +ASCII = 'ascii'
+            +XLSX = 'xlsx'
+            +GSHEETS = 'gsheets'
+        }
+
+        object TabularManifest {
+            +format: TabularFormat = None
+            +path: str = None
+        }
+
+        object CsvManifest {
+            +type = 'csv'
+            +format: TabularFormat = TabularFormat.CSV
+            +file: IO[str] = None
+        }
+
+        object AsciiManifest {
+            +type = 'ascii'
+            +format: TabularFormat = TabularFormat.ASCII
+            +file: IO[str] = None
+        }
+
+        object XlsxManifest {
+            +type = 'xlsx'
+            +format: TabularFormat = TabularFormat.XLSX
+        }
+
+        object GsheetsManifest {
+            +type = 'gsheets'
+            +format: TabularFormat = TabularFormat.GSHEETS
+        }
+
+        object ManifestTableRow {
+            +type: str
+            +backends: Dict[str, BackendRow]
+
+        }
+
+        object DatasetRow {
+            +type: str
+            +id: str
+            +name: str
+            +level: str
+            +access: str
+            +title: str
+            +description: str
+            +resources: Dict[str, ResourceRow]
+            +lang: LangData
+
+        }
+
+        object ResourceRow {
+            +backend: str
+            +external: str
+            +lang: LangData
+
+        }
+
+        object BackendRow {
+            +type: str
+            +name: str
+            +dsn: str
+            +title: str
+            +description: str
+        }
+
+        object BaseRow {
+            +model: str
+            +pk: str
+            +lang: LangData
+        }
+
+        object ParamRow {
+            +name: str
+            +source: List[str]
+            +prepare: List[Any]
+            +title: str
+            +description: str
+        }
+
+        object ModelExtraData {
+            +params: List[ParamRow]
+        }
+
+        object ModelRow {
+            +type: str
+            +id: str
+            +name: str
+            +base: Optional[str]
+            +level: str
+            +access: str
+            +title: str
+            +description: str
+            +properties: Dict[str, PropertyRow]
+            +external: ModelExternalRow
+            +backend: str
+            +lang: LangData
+            +data: ModelExtraData
+        }
+
+        object ModelExternalRow {
+            +dataset: str
+            +resource: str
+            +pk: List[str]
+            +name: str
+            +prepare: Dict[str, Any]
+        }
+
+        object EnumRow {
+            +name: str
+            +source: str
+            +prepare: Optional[Dict[str, Any]]
+            +access: str
+            +title: str
+            +description: str
+            +lang: LangData
+        }
+
+        object PropertyRow {
+            +type: str
+            +type_args: List[str]
+            +prepare: Optional[Dict[str, Any]]
+            +level: str
+            +access: str
+            +uri: str
+            +title: str
+            +description: str
+            +model: str
+            +refprops: List[str]
+            +external: PropertyExternalRow
+            +enum: str
+            +enums: Dict[str, Dict[str, EnumRow]]
+            +lang: LangData
+            +units: str
+        }
+
+        object PropertyExternalRow {
+            +name: str
+            +prepare: Optional[Dict[str, Any]]
+        }
+
+        object PrefixRow {
+            +id: str
+            +eid: str
+            +type: str
+            +name: str
+            +uri: str
+            +title: str
+            +description: str
+        }
+
+        object CommentRow {
+            +id: str
+            +parent: str
+            +author: str
+            +access: str
+            +created: str
+            +comment: str
+        }
+
+        object CommentData {
+            +comments: Optional[List[CommentRow]]
+        }
+
+    }
+
+}
+
+Manifest *-- BackendManifest
+Manifest *-- YamlManifest
+YamlManifest *-- InlineManifest
+YamlManifest *-- InternalManifest
+Manifest *-- TabularManifest
+TabularManifest *-- CsvManifest
+TabularManifest *-- AsciiManifest
+TabularManifest *-- XlsxManifest
+TabularManifest *-- GsheetsManifest
+@enduml

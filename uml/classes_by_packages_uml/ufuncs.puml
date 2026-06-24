@@ -1,0 +1,17 @@
+@startuml
+package ufuncs <<Rectangle>> {
+    object NotAvailable {
+
+    }
+
+    package changebase <<Rectangle>> {
+        object ForeignProperty {
+            +left: Ref
+            +right: Optional[DataType]
+            +chain: List[ForeignProperty]
+            +name: str
+        }
+    }
+
+}
+@enduml

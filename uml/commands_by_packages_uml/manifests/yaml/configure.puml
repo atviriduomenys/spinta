@@ -1,0 +1,15 @@
+@startuml
+package configure <<Rectangle>> {
+
+    object configure {
+        +context: Context,
+        +manifest: YamlManifest,
+        +manifest: InlineManifest,
+
+    }
+}
+
+configure *-- Context
+configure *-- YamlManifest
+configure *-- InlineManifest
+@enduml
