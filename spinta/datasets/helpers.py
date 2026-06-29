@@ -8,7 +8,7 @@ from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import check_if_model_primary_key_is_composite, load_backend
-from spinta.components import Context, Model, Property
+from spinta.components import Context, Model, Namespace, Property, ScopeFormatterFunc
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr, ShortExpr
 from spinta.datasets.backends.helpers import flatten_keymap_encoding_values
@@ -292,3 +292,24 @@ def compare_ref_property_count(dtype: Ref, data: list) -> None:
     expected_count = sum(item for item in prop_count_mapping.values())
     if len(data) != expected_count:
         raise GivenValueCountMissmatch(dtype, given_count=len(data), expected_count=expected_count)
+
+
+def authorized_or_system_request(
+    context: Context,
+    node: Namespace | Model | Property,
+    action: Action,
+    *,
+    throw: bool = False,
+    scope_formatter: ScopeFormatterFunc = None,
+) -> bool:
+    # Bypass authorization checks for system-generated requests.
+    # TODO: Remove when `_id` generation no longer needs to select from another model.
+
+    system_request = False
+    if context.has("request.system"):
+        system_request = context.get("request.system")
+
+    if system_request:
+        return True
+
+    return authorized(context=context, node=node, action=action, throw=throw, scope_formatter=scope_formatter)

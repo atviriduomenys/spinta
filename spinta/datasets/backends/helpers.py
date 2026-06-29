@@ -2,7 +2,7 @@ import pathlib
 from typing import Any, Iterator
 
 from spinta import commands, spyna
-from spinta.auth import AdminToken, authorized
+from spinta.auth import authorized
 from spinta.components import Context, Model, Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
@@ -46,7 +46,7 @@ def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> st
     # User does not have permission to select _id, so we need to use admin context
     if not has_permission:
         with context.fork("_id_select") as admin_context:
-            admin_context.set("auth.token", AdminToken())
+            admin_context.set("request.system", True)
             rows = commands.getall(admin_context, ref_model, ref_model.backend, query=expr)
             # Have to call _find_required_value, since we need to be inside the admin context
             val = _find_required_value(rows)

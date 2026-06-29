@@ -5,7 +5,6 @@ from typing import Any, Dict, Iterator, List, Tuple
 
 from dask.dataframe import Series
 
-from spinta.auth import authorized
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Property
 from spinta.core.enums import Action
@@ -24,6 +23,7 @@ from spinta.datasets.backends.dataframe.ufuncs.query.helpers import (
 )
 from spinta.datasets.components import Param
 from spinta.datasets.enums import ExternalIdPattern
+from spinta.datasets.helpers import authorized_or_system_request
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import (
     InvalidArgumentInExpression,
@@ -167,7 +167,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
         for prop in take(["_id", "_revision", all], env.model.properties).values():
             if prop.name == "_revision" and not is_custom_revision_prop(prop):
                 continue
-            if authorized(env.context, prop, Action.GETALL):
+            if authorized_or_system_request(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
 
 
@@ -197,7 +197,7 @@ def _get_property_for_select(
         #      then how prepare context should be defined? Probably resolvers
         #      should be called with a different env class?
         #      tag:resolving_private_properties_in_prepare_context
-        nested or authorized(env.context, prop, Action.SEARCH)
+        nested or authorized_or_system_request(env.context, prop, Action.SEARCH)
     ):
         return prop
     else:
@@ -493,7 +493,7 @@ def select(
 def select(env: DaskDataFrameQueryBuilder, fpr: ForeignProperty, item: Bind):
     model = fpr.right.prop.model
     prop = env.call("_resolve_property", item)
-    if authorized(env.context, prop, Action.SEARCH):
+    if authorized_or_system_request(env.context, prop, Action.SEARCH):
         return env.call("select", fpr, prop)
     else:
         raise PropertyNotFound(model, property=item.name)
