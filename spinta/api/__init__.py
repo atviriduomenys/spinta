@@ -468,12 +468,12 @@ def init(context: Context):
     ]
 
     middleware = [
-        Middleware(PathNormalizationMiddleware),
-        Middleware(ContextMiddleware, context=context),
         Middleware(
             StrictTransportSecurityMiddleware,
             value=config.http_strict_transport_security,
         ),
+        Middleware(PathNormalizationMiddleware),
+        Middleware(ContextMiddleware, context=context),
     ]
 
     exception_handlers = {
