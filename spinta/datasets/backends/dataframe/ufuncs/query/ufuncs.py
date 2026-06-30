@@ -314,7 +314,7 @@ def select(
     dtype: PrimaryKey,
 ) -> Selected:
     model = dtype.prop.model
-    pkeys = model.external.pkeys
+    pkeys = (model.base and model.base.pk) or model.external.pkeys
     if not pkeys:
         # If primary key is not specified use all properties to uniquely
         # identify row.

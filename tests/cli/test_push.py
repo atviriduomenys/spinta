@@ -1027,17 +1027,17 @@ def test_push_with_base_different_ref(
         tmp_path / "manifest.csv",
         striptable("""
     d | r | b | m | property | type     | ref      | source      | level | access
-    level4basedatasetref           |          |          |             |       |
+    level4basedatasetref     |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | Location     |          | id       | location    | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
       |   |   |   | name     | string   |          | name        | 4     | open
       |   |   |   | code     | string   |          | code        | 4     | open
       |   |   |   |          |          |          |             |       |
-      |   | Location |           |          |          | name     |             | 4     |
+      |   | Location | |     |          | name     |             | 4     |
       |   |   | City         |          | id       | city        | 4     |
-      |   |   |   | code     |    |          | code        | 4     | open
-      |   |   |   | name     |    |          | name        | 4     | open
+      |   |   |   | code     |          |          | code        | 4     | open
+      |   |   |   | name     |          |          | name        | 4     | open
       |   |   |   | id       | integer  |          | id          | 4     | open
       |   |   |   | location | string   |          | location    | 4     | open
     """),
