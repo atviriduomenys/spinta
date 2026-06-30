@@ -1,7 +1,7 @@
 import json
 import uuid
 
-import httpx
+import httpx2
 import pytest
 import requests
 
@@ -969,7 +969,7 @@ def test_search_nested_startswith(model, context, app):
 
 
 def ids(resources):
-    if isinstance(resources, (requests.models.Response, httpx.Response)):
+    if isinstance(resources, (requests.models.Response, httpx2.Response)):
         resp = resources
         assert resp.status_code == 200, resp.json()
         resources = resp.json()["_data"]

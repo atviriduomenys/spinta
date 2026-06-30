@@ -6,7 +6,7 @@ import operator
 from textwrap import indent
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Union, cast
 
-import httpx
+import httpx2
 import requests
 from pprintpp import pformat
 
@@ -21,7 +21,7 @@ def get_keys_for_row(keys, row: dict):
 
 
 def listdata(
-    resp: Union[httpx.Response, List[Dict[str, Any]]],
+    resp: Union[httpx2.Response, List[Dict[str, Any]]],
     *keys: Union[str, Callable[[], bool]],
     sort: Union[bool, str] = True,
     full: bool = False,  # returns dicts instead of tuples
@@ -234,7 +234,7 @@ def send(
 
     try:
         resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
+    except httpx2.HTTPStatusError as e:
         dump = indent(pformat(obj.data), "  ").strip()
         raise Exception(f"send error:\n  model={model},\n  action={action},\n  error={e},\n  data: {dump}")
 
