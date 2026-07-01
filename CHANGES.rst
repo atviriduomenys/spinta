@@ -4,6 +4,17 @@ Changes
 0.2dev28 (unreleased)
 =====================
 
+Bug Fixes:
+
+- Fixed an order dependent ``'ns' with name ... already defined`` error that
+  could occur when a namespace was both explicitly declared and generated from a
+  model or dataset path. Namespaces are now collected during the linking phase
+  instead of while loading, and a namespace declared more than once is reported
+  during the check phase (`#1256`_, `#1271`_).
+
+.. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+.. _#1271: https://github.com/atviriduomenys/spinta/issues/1271
+
 
 0.2dev27 (2026-06-21)
 =====================

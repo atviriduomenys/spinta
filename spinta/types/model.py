@@ -11,7 +11,7 @@ from spinta.backends.constants import BackendFeatures, DistributionType
 from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize, check, configure, load
 from spinta.components import Base, Context, Model, Page, PageBy, PageInfo, Property, UrlParams, pagination_enabled
-from spinta.core.access import link_access_param, load_access_param
+from spinta.core.access import link_access_param, load_access_param, propagate_access_param
 from spinta.core.config import RawConfig
 from spinta.core.enums import Action, Level, Mode, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
@@ -46,7 +46,7 @@ from spinta.types.helpers import (
     check_scope_name,
     replace_undeclared_base_with_comment,
 )
-from spinta.types.namespace import load_namespace_from_name
+from spinta.types.namespace import ensure_model_namespace
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
@@ -58,12 +58,6 @@ if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
 
 INCORRECT_DTYPE_COUPLES = [(Integer, UUID), (Integer, String), (UUID, String), (UUID, Integer)]
-
-
-def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
-    ns = load_namespace_from_name(context, manifest, model.name)
-    ns.models[model.model_type()] = model
-    model.ns = ns
 
 
 def _parse_distribution_strategy(
@@ -144,15 +138,10 @@ def load(
     else:
         model.keymap = manifest.keymap
 
-    _load_namespace_from_model(context, manifest, model)
-    load_access_param(
-        model,
-        data.get("access"),
-        itertools.chain(
-            [model.ns],
-            model.ns.parents(),
-        ),
-    )
+    # The namespace is generated and wired to the model while linking
+    # (see build_namespaces), so only the model's own access is parsed here; the
+    # propagation up the namespace tree happens in the model link command.
+    load_access_param(model, data.get("access"))
     load_level(context, model, model.level)
     load_status(model, model.status)
     load_visibility(model, model.visibility)
@@ -239,8 +228,21 @@ def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
 @overload
 @commands.link.register(Context, Model)
 def link(context: Context, model: Model):
-    # Link external source.
     config = context.get("config")
+
+    # Make sure the model is wired to its namespace (build_namespaces already
+    # did this for the full load path; the lazy internal_sql path relies on this
+    # call). Then propagate the model access up the namespace tree.
+    ensure_model_namespace(context, model.manifest, model)
+    propagate_access_param(
+        model,
+        itertools.chain(
+            [model.ns],
+            model.ns.parents(),
+        ),
+    )
+
+    # Link external source.
     if model.external:
         commands.link(context, model.external)
 
@@ -400,13 +402,9 @@ def load(
     # load_node overwrites everything, so we either set data through configure, or we call configure after and set it directly
     commands.configure(context, prop)
 
-    parents = list(
-        itertools.chain(
-            [prop.model, prop.model.ns],
-            prop.model.ns.parents(),
-        )
-    )
-    load_access_param(prop, prop.access, parents)
+    # Only the property's own access is parsed here; propagation up the
+    # namespace tree happens while linking (build_namespaces runs first).
+    load_access_param(prop, prop.access)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
     if prop.prepare_given:
@@ -466,7 +464,9 @@ def load(
         prop.given.enum = unit
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     prop.given.name = prop.given_name
-    prop.enums = load_enums(context, [prop] + parents, prop.enums)
+    # Enum item access propagates onto the property here; the property then
+    # propagates further up the namespace tree while linking (see #1271).
+    prop.enums = load_enums(context, [prop], prop.enums)
     return prop
 
 
@@ -505,6 +505,16 @@ def link(context: Context, prop: Property):
             commands.link(context, prop.external)
 
     model = prop.model
+
+    # Propagate the property's own access up the namespace tree (this used to
+    # happen during loading, see #1271).
+    propagate_access_param(
+        prop,
+        itertools.chain(
+            [model, model.ns],
+            model.ns.parents(),
+        ),
+    )
 
     if prop.model.external and prop.model.external.dataset:
         parents = list(

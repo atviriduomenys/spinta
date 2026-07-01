@@ -2,14 +2,28 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.access import link_access_param
 from spinta.datasets.components import Attribute, Dataset, Entity, Resource
+from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.param.helpers import link_params
 from spinta.exceptions import MissingReference
+from spinta.types.namespace import ensure_dataset_namespace
 from spinta.ufuncs.linkbuilder.components import LinkBuilder
 
 
 @commands.link.register(Context, Dataset)
 def link(context: Context, dataset: Dataset):
     config = context.get("config")
+
+    # Make sure the dataset is wired to its namespace (build_namespaces already
+    # did this for the full load path; the lazy internal_sql path relies on this
+    # call). Then resolve namespace metadata and enums that used to be handled
+    # during loading.
+    ns = ensure_dataset_namespace(context, dataset.manifest, dataset)
+    if ns.generated:
+        ns.title = dataset.title
+        ns.description = dataset.description
+    if dataset.given.enums is not None:
+        ns.enums = load_enums(context, list(ns.parents()), dataset.given.enums)
+
     link_access_param(dataset, (dataset.manifest,), default_access=config.default_access_level)
     for resource in dataset.resources.values():
         commands.link(context, resource)
