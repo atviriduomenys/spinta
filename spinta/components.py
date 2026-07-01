@@ -431,6 +431,9 @@ class Namespace(MetaData):
     description: str
     # Namespaces generated from model name.
     generated: bool = False
+    # Set when the same namespace is explicitly declared more than once. The
+    # duplicate declaration is reported during the check phase, see #1271.
+    redeclared: bool = False
     given: NamespaceGiven
     lang: LangData = None
     enums: Enums = None
@@ -652,7 +655,8 @@ class Model(MetaData):
     access: Access
     title: str
     description: str
-    ns: Namespace
+    # Set while linking, see spinta.types.namespace.build_namespaces.
+    ns: Namespace = None
     external: Entity = None
     scopes: Dict[str, Scope]
     properties: Dict[str, Property]

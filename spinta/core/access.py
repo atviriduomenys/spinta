@@ -40,14 +40,38 @@ def load_access_param(
         else given_access
     )
 
+    component.access = access
+    component.given.access = given_access
+
+    propagate_access_param(component, parents)
+
+
+def propagate_access_param(
+    component: Union[
+        Dataset,
+        Resource,
+        Namespace,
+        Model,
+        Property,
+        EnumItem,
+        Scope,
+    ],
+    parents: Iterable[
+        Union[
+            Manifest,
+            Dataset,
+            Namespace,
+            Model,
+            Property,
+        ]
+    ] = (),
+) -> None:
     # If child has higher access than parent, increase parent access.
+    access = component.access
     if access is not None:
         for parent in parents:
             if parent.access is None or access > parent.access:
                 parent.access = access
-
-    component.access = access
-    component.given.access = given_access
 
 
 def link_access_param(

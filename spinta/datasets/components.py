@@ -19,6 +19,8 @@ from spinta.utils.schema import NA
 class DatasetGiven:
     access: str = None
     name: str = None
+    # Raw enum data kept from load, resolved onto the namespace while linking.
+    enums: Any = None
 
 
 class Dataset(MetaData):

@@ -12,7 +12,7 @@ from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
 from spinta.components import Config, Context, Model, Namespace, Node, UrlParams
 from spinta.core.enums import Action
-from spinta.exceptions import InvalidName
+from spinta.exceptions import InvalidManifestFile, InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.types.datatype import Array, Ref
@@ -62,6 +62,66 @@ def load_namespace_from_name(
     return ns
 
 
+def merge_declared_namespace(ns: Namespace, eid: Any, data: Dict[str, Any]) -> Namespace:
+    """Apply an explicit ``ns`` declaration onto an already existing namespace.
+
+    A namespace may already exist because it was generated from a model/dataset
+    path or because it was declared earlier. Instead of creating a duplicate (or
+    erroring out in the generic ``get_node`` check, which was order dependent),
+    the declared metadata is merged onto the existing node, preserving its
+    collected children (``names``/``models``). If the namespace was already
+    explicitly declared, it is flagged as ``redeclared`` so the duplicate is
+    reported during the check phase (#1271).
+    """
+    if not ns.generated:
+        ns.redeclared = True
+    ns.generated = False
+    ns.eid = eid
+    ns.type = data["type"]
+    ns.title = data.get("title") or ""
+    ns.description = data.get("description") or ""
+    return ns
+
+
+def ensure_model_namespace(context: Context, manifest: Manifest, model: Model) -> Namespace:
+    """Attach a model to its namespace, generating the namespace if needed.
+
+    Idempotent: safe to call more than once (e.g. from ``build_namespaces`` and
+    again from the model ``link`` command used by the lazy internal_sql path).
+    """
+    if model.ns is not None:
+        return model.ns
+    ns = load_namespace_from_name(context, manifest, model.name)
+    ns.models[model.model_type()] = model
+    model.ns = ns
+    return ns
+
+
+def ensure_dataset_namespace(context: Context, manifest: Manifest, dataset) -> Namespace:
+    """Attach a dataset to its namespace, generating the namespace if needed.
+
+    Idempotent, see :func:`ensure_model_namespace`.
+    """
+    if dataset.ns is not None:
+        return dataset.ns
+    dataset.ns = load_namespace_from_name(context, manifest, dataset.name, drop=False)
+    return dataset.ns
+
+
+def build_namespaces(context: Context, manifest: Manifest) -> None:
+    """Generate the namespace tree from datasets and models.
+
+    Namespaces used to be generated during loading (interleaved with node
+    loading), which made duplicate handling order dependent. They are now
+    collected here, once all nodes are loaded, before nodes are linked
+    (see #1271).
+    """
+    for dataset in commands.get_datasets(context, manifest).values():
+        ensure_dataset_namespace(context, manifest, dataset)
+    for model in commands.get_models(context, manifest).values():
+        ensure_model_namespace(context, manifest, model)
+
+
 @commands.load.register(Context, Namespace, dict, Manifest)
 def load(
     context: Context,
@@ -101,6 +161,14 @@ def link(context: Context, ns: Namespace):
 @commands.check.register(Context, Namespace)
 def check(context: Context, ns: Namespace):
     config: Config = context.get("config")
+
+    if ns.redeclared:
+        raise InvalidManifestFile(
+            ns,
+            manifest=ns.manifest.name,
+            eid=ns.eid,
+            error=f"'ns' with name {ns.name!r} is already defined.",
+        )
 
     if config.check_names:
         name = ns.name

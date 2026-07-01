@@ -326,6 +326,32 @@ def test_check_existing_generated_manifest(context: Context, rc, cli: SpintaCliR
     )
 
 
+def test_check_declared_before_generated_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # A namespace declared before the dataset/model that also generates it must
+    # not fail — the check is order independent (#1256).
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+ d | r | b | m | property       | type   | ref  | level
+ datasets/gov/test | | | |      | ns     |      |
+ datasets/gov/test/example1     |        |      |
+                                |        |      |
+   |   |   | City               |        | code | 4
+   |   |   |   | name           | string |      | 4
+   |   |   |   | code           | string |      | 4
+"""),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "check",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+
 def test_check_existing_declared_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(
         context,

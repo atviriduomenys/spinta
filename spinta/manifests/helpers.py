@@ -16,7 +16,7 @@ from spinta.exceptions import ManifestFileDoesNotExist, UnknownKeyMap, UnknownMa
 from spinta.manifests.components import Manifest, ManifestSchema
 from spinta.manifests.internal.components import InternalManifest
 from spinta.nodes import get_node
-from spinta.types.namespace import load_namespace_from_name
+from spinta.types.namespace import load_namespace_from_name, merge_declared_namespace
 from spinta.utils.enums import enum_by_name
 from spinta.utils.imports import importstr
 
@@ -178,6 +178,14 @@ def _load_manifest_node(
     eid: EntryId,
     data: dict,
 ) -> MetaData:
+    if data.get("type") == "ns" and commands.has_node(context, manifest, "ns", data["name"], loaded=True):
+        # The namespace already exists (generated from a model/dataset path or
+        # declared earlier). Merge the declared metadata onto the existing node
+        # instead of creating a duplicate; the duplicate declaration check is
+        # deferred to the check phase (#1271).
+        ns = commands.get_node(context, manifest, "ns", data["name"])
+        return merge_declared_namespace(ns, eid, data)
+
     node = get_node(context, config, manifest, eid, data)
     node.eid = eid
     node.type = data["type"]
