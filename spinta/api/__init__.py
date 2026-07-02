@@ -419,7 +419,6 @@ async def error(request, exc):
         }
 
         return templates.TemplateResponse(
-            request,
             "error.html",
             response,
             status_code=status_code,
