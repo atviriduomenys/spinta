@@ -1,8 +1,20 @@
 Changes
 #######
 
-0.2dev28 (unreleased)
+0.2dev28 (2026-07-02)
 =====================
+
+Bug fixes:
+
+- Fixed data type detection in the tabular manifest reader so that modifiers
+  such as `required` or `unique` no longer interfere with parent and nesting
+  resolution. An `array` of `backref` is now recognised as an array backref, and
+  re-declaring an `object`/`array` property with a modifier no longer raises a
+  spurious nesting error (`#1970`_).
+
+Improvements:
+
+- Safer caching settings.
 
 
 0.2dev27 (2026-06-21)
@@ -66,11 +78,6 @@ Bug fixes:
 - Fixed a bug where getone method in sql backend did not get any ref data (`#1900`_)
 - Fixed `count()` function not working properly with `dask` backends (`#1950`_).
 - Fixed `eq` comparison not working properly with `dask` backends on Number, Integer, Boolean values (`#1959`_).
-- Fixed data type detection in the tabular manifest reader so that modifiers
-  such as `required` or `unique` no longer interfere with parent and nesting
-  resolution. An `array` of `backref` is now recognised as an array backref, and
-  re-declaring an `object`/`array` property with a modifier no longer raises a
-  spurious nesting error (`#1970`_).
 
 .. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
 .. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
