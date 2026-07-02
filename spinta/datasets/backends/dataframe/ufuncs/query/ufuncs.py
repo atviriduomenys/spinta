@@ -5,7 +5,6 @@ from typing import Any, Dict, Iterator, List, Tuple
 
 from dask.dataframe import Series
 
-from spinta.auth import authorized
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Property
 from spinta.core.enums import Action
@@ -18,7 +17,13 @@ from spinta.datasets.backends.dataframe.ufuncs.query.components import (
 from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskSelected as Selected,
 )
+from spinta.datasets.backends.dataframe.ufuncs.query.helpers import (
+    select_external_ref_foreign_key_properties,
+    select_ref_foreign_key_properties,
+)
 from spinta.datasets.components import Param
+from spinta.datasets.enums import ExternalIdPattern
+from spinta.datasets.helpers import authorized_or_system_request
 from spinta.datasets.utils import iterparams
 from spinta.exceptions import (
     InvalidArgumentInExpression,
@@ -26,11 +31,21 @@ from spinta.exceptions import (
     SourceCannotBeList,
     SourceOrPrepareNotAllowed,
 )
-from spinta.types.datatype import Boolean, DataType, Integer, Number, PrimaryKey, Ref
+from spinta.types.datatype import Boolean, DataType, ExternalRef, Integer, Number, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.querybuilder.helpers import process_literal_value
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def testlist(env: DaskDataFrameQueryBuilder, expr: Expr) -> tuple:
+    args, kwargs = expr.resolve(env)
+    result = []
+    for arg in args:
+        result.append(process_literal_value(arg))
+    return tuple(result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
@@ -152,7 +167,7 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
         for prop in take(["_id", "_revision", all], env.model.properties).values():
             if prop.name == "_revision" and not is_custom_revision_prop(prop):
                 continue
-            if authorized(env.context, prop, Action.GETALL):
+            if authorized_or_system_request(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
 
 
@@ -182,7 +197,7 @@ def _get_property_for_select(
         #      then how prepare context should be defined? Probably resolvers
         #      should be called with a different env class?
         #      tag:resolving_private_properties_in_prepare_context
-        nested or authorized(env.context, prop, Action.SEARCH)
+        nested or authorized_or_system_request(env.context, prop, Action.SEARCH)
     ):
         return prop
     else:
@@ -199,7 +214,7 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.external.name and prop.external.prepare is not NA:
+        if prop.external and prop.external.prepare is not NA:
             # If property doesn't have external name - it describes query parameter
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
@@ -213,13 +228,6 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
             #      properties.
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call("select", prop.dtype, result)
-        elif prop.external.prepare is not NA:
-            # property without external name may be evaluated already, if it is use the value
-            if isinstance(prop.external.prepare, Expr):
-                result = env(this=prop).resolve(prop.external.prepare)
-                result = env.call("select", prop.dtype, result)
-            else:
-                result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
@@ -306,18 +314,22 @@ def select(
     dtype: PrimaryKey,
 ) -> Selected:
     model = dtype.prop.model
-    pkeys = model.external.pkeys
-
+    pkeys = (model.base and model.base.pk) or model.external.pkeys
     if not pkeys:
         # If primary key is not specified use all properties to uniquely
         # identify row.
         pkeys = take(model.properties).values()
 
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call("select", prop)
-    else:
-        result = [env.call("select", prop) for prop in pkeys]
+    result = {
+        ExternalIdPattern.ID_KEY.value: {prop.name: env.call("select", prop) for prop in pkeys},
+        ExternalIdPattern.COMBINATIONS_KEY.value: {},
+    }
+    for required_pk_combination in model.required_keymap_properties:
+        combination_result = {}
+        for prop_name in required_pk_combination:
+            prop = env.call("_resolve_property", prop_name)
+            combination_result[prop.name] = env.call("select", prop)
+        result[ExternalIdPattern.COMBINATIONS_KEY.value][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 
@@ -331,7 +343,10 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selecte
     resolved_prep = env.call("select", prep)
 
     result = {}
-    result["_id"] = Selected(prop=dtype.prop, prep=resolved_prep)
+    if not dtype.inherited:
+        refprop = dtype.refprops[0]
+        result[ExternalIdPattern.ID_KEY.value] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
+
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
         result[prop.name] = sel
@@ -341,7 +356,7 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selecte
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
-    fpr = ForeignProperty(None, dtype, dtype.model.properties["_id"].dtype)
+    fpr = ForeignProperty(None, dtype, dtype.model.id_prop.dtype)
     return Selected(
         prop=dtype.prop,
         prep=env.call("select", fpr, fpr.right.prop),
@@ -351,7 +366,51 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
-    prep["_id"] = Selected(item=dtype.prop.external.name, prop=dtype.prop)
+    if not dtype.inherited:
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype)
+        )
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, (list, tuple))
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype, properties=data)
+        )
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ExternalRef)
+def select(env: DaskDataFrameQueryBuilder, dtype: ExternalRef) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype))
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ExternalRef, (list, tuple))
+def select(env: DaskDataFrameQueryBuilder, dtype: ExternalRef, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype, properties=data))
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
@@ -434,7 +493,7 @@ def select(
 def select(env: DaskDataFrameQueryBuilder, fpr: ForeignProperty, item: Bind):
     model = fpr.right.prop.model
     prop = env.call("_resolve_property", item)
-    if authorized(env.context, prop, Action.SEARCH):
+    if authorized_or_system_request(env.context, prop, Action.SEARCH):
         return env.call("select", fpr, prop)
     else:
         raise PropertyNotFound(model, property=item.name)

@@ -662,7 +662,6 @@ class Model(MetaData):
     comments: List[Comment] = None
     base: Base = None
     uri: str = None
-    uri_prop: Property = None
     page: PageInfo = None
     features: str = None
     status: Status | None = None
@@ -674,6 +673,11 @@ class Model(MetaData):
     # Systemic fields that are not part of the model definition.
     distribution_strategy: DistributionStrategy | None = None
     required_keymap_properties = None
+
+    # Quick access properties
+    uri_prop: Property | None = None
+    id_prop: Property
+    revision_prop: Property
 
     schema = {
         "keymap": {"type": "string"},
@@ -741,7 +745,7 @@ class Model(MetaData):
         # return self.name.split('/')[-1]
 
     def add_keymap_property_combination(self, given_props: List[Property]):
-        extract_names = list([prop.name for prop in given_props])
+        extract_names = tuple([prop.name for prop in given_props])
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)
 

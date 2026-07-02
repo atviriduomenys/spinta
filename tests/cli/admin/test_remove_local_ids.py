@@ -32,7 +32,7 @@ def test_remove_local_ids_removes_explicit_id(rc: RawConfig):
     count_of_id = remove_explicit_id_properties(context, manifest)
 
     assert count_of_id == 1
-    prop = commands.get_model(context, manifest, "ds/local_ids/Country").properties["_id"]
+    prop = commands.get_model(context, manifest, "ds/local_ids/Country").id_prop
     assert prop.explicitly_given is False
 
 
@@ -75,7 +75,7 @@ def test_remove_local_ids_removes_explicit_id_of_any_type(rc: RawConfig, id_type
     count_of_id = remove_explicit_id_properties(context, manifest)
 
     assert count_of_id == 1
-    prop = commands.get_model(context, manifest, "ds/local_ids/Country").properties["_id"]
+    prop = commands.get_model(context, manifest, "ds/local_ids/Country").id_prop
     assert prop.explicitly_given is False
 
 

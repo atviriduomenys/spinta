@@ -14,6 +14,7 @@ from spinta.exceptions import (
     InvalidManifestFile,
     NestedDataTypeMismatch,
     NoModelDefined,
+    NotImplementedFeature,
     ParentNodeNotFound,
     PartialTypeNotFound,
     ReferencedPropertyNotFound,
@@ -2201,6 +2202,30 @@ def test_scope_no_model_defined_error(manifest_type, tmp_path, rc):
             example                  |         |     |
                                      |         |     |
                                      | scope   | ltu | country.code='lt'
+            """,
+            manifest_type,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_ref_primary_multiple_properties_error(manifest_type, tmp_path, rc):
+    # remove this once decided how to handle ref primary keys with set properties
+    with pytest.raises(NotImplementedFeature):
+        check(
+            tmp_path,
+            rc,
+            """
+            d | r | b | m | property   | type    | ref     | access | title
+            example                    |         |         |        |
+                                       |         |         |        |
+              |   |   | City           |         | country |        |
+              |   |   |   | id         | integer |         | open   |
+              |   |   |   | country    | ref     | Country | open   |
+              |   |   |   | country.id |         |         | open   |
+                                       |         |         |        |
+              |   |   | Country        |         |         |        |
+              |   |   |   | id         | integer |         | open   |
+              |   |   |   | name       | string  |         | open   |
             """,
             manifest_type,
         )

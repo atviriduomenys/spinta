@@ -3,17 +3,19 @@ from typing import Any, List, Optional, Set, Tuple
 
 import cbor2
 
-from spinta import exceptions
+from spinta import commands, exceptions
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import check_if_model_primary_key_is_composite, load_backend
-from spinta.components import Context, Model, Property
+from spinta.components import Context, Model, Namespace, Property, ScopeFormatterFunc
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr, ShortExpr
+from spinta.datasets.backends.helpers import flatten_keymap_encoding_values
 from spinta.datasets.components import Resource
+from spinta.datasets.keymaps.components import KeyMap
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValuesForIdCantHaveSpecialSymbols
+from spinta.exceptions import GivenValueCountMissmatch, PropertyNotFound, ValuesForIdCantHaveSpecialSymbols
 from spinta.types.datatype import Base32, Ref
 from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
@@ -216,3 +218,98 @@ def decode_id_value(id_prop: Property, value: str | list) -> list:
         decoded_value = [decoded_value]
 
     return decoded_value
+
+
+def extract_and_cast_properties_from_list(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    keymap: KeyMap,
+    data: dict,
+    cache: dict = None,
+    prefix: str = "",
+    **kwargs,
+):
+    if cache is None:
+        cache = {}
+
+    result = {}
+
+    for key, value in data.items():
+        prop_key = f"{prefix}.{key}" if prefix else key
+        prop = commands.resolve_property(model, prop_key)
+        if prop is None:
+            raise PropertyNotFound(model, property=prop_key)
+        if prop_key not in cache:
+            cache[prop_key] = commands.cast_backend_to_python(context, prop, backend, value, keymap=keymap, **kwargs)
+        result[key] = cache[prop_key]
+
+    return result
+
+
+def process_data_for_pkey(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    keymap: KeyMap,
+    data: dict,
+    cache: dict = None,
+    prefix: str = "",
+    **kwargs,
+) -> list | object | None:
+    processed_data = extract_and_cast_properties_from_list(
+        context=context,
+        backend=backend,
+        model=model,
+        data=data,
+        keymap=keymap,
+        cache=cache,
+        prefix=prefix,
+        **kwargs,
+    )
+    encoding_values = list(processed_data.values())
+
+    if all(value is None for value in encoding_values):
+        return None
+
+    if len(encoding_values) == 1:
+        encoding_values = encoding_values[0]
+
+    # Backwards compatibility, all nested values are converted to list values without keys
+    encoding_values = flatten_keymap_encoding_values(encoding_values)
+
+    return encoding_values
+
+
+def compare_ref_property_count(dtype: Ref, data: list) -> None:
+    prop_count_mapping = {}
+    for prop in dtype.refprops:
+        # if isinstance(prop.dtype, Array) and env:
+        #     items = env.resolve(prop.external.prepare)
+        #     prop_count_mapping[prop.name] = len(items) if items is not NA else 1
+        # else:
+        prop_count_mapping[prop.name] = 1
+    expected_count = sum(item for item in prop_count_mapping.values())
+    if len(data) != expected_count:
+        raise GivenValueCountMissmatch(dtype, given_count=len(data), expected_count=expected_count)
+
+
+def authorized_or_system_request(
+    context: Context,
+    node: Namespace | Model | Property,
+    action: Action,
+    *,
+    throw: bool = False,
+    scope_formatter: ScopeFormatterFunc = None,
+) -> bool:
+    # Bypass authorization checks for system-generated requests.
+    # TODO: Remove when `_id` generation no longer needs to select from another model.
+
+    system_request = False
+    if context.has("request.system"):
+        system_request = context.get("request.system")
+
+    if system_request:
+        return True
+
+    return authorized(context=context, node=node, action=action, throw=throw, scope_formatter=scope_formatter)

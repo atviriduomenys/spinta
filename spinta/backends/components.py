@@ -36,6 +36,9 @@ class Backend:
     result_builder_type: str = ""
     result_builder_class: Type[ResultBuilder]
 
+    # Some backends might only work with source given to models and some might not need it
+    model_requires_source: bool = False
+
     def __repr__(self):
         return f"<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}) at 0x{id(self):02x}>"
 

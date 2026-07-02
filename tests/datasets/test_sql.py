@@ -9,6 +9,7 @@ from _pytest.logging import LogCaptureFixture
 from requests import PreparedRequest
 from responses import POST, RequestsMock
 
+from spinta import commands
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
@@ -18,6 +19,7 @@ from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error, get_error_codes
+from spinta.utils.json import fix_data_for_json
 from spinta.utils.schema import NA
 
 
@@ -3959,18 +3961,18 @@ def test_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
         context,
         tmp_path / "manifest.csv",
         striptable("""                   
-        d | r | m | property        | type    | ref                | source       | prepare             | access
-    datasets/keymap                 |         |                    |              |                     |
-      | rs                          | sql     |                    |              |                     |
-      |   | Planet                  |         | code               | PLANET       |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   | Country                 |         | code               | COUNTRY      |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                     |
-      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                     |
-      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet, planet_name |
+        d | r | m | property        | type    | ref                | source       | prepare                       | access
+    datasets/keymap                 |         |                    |              |                               |
+      | rs                          | sql     |                    |              |                               |
+      |   | Planet                  |         | code               | PLANET       |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   | Country                 |         | code               | COUNTRY      |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                               |
+      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                               |
+      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet.code, planet_name.name |
       """),
     )
 
@@ -4047,18 +4049,18 @@ def test_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
         context,
         tmp_path / "manifest.csv",
         striptable("""                   
-        d | r | m | property        | type    | ref                | source       | prepare             | access
-    datasets/keymap                 |         |                    |              |                     |
-      | rs                          | sql     |                    |              |                     |
-      |   | Planet                  |         | code               | PLANET       |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   | Country                 |         | code               | COUNTRY      |                     | open
-      |   |   | code                | string  |                    | CODE         |                     |
-      |   |   | name                | string  |                    | NAME         |                     |
-      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                     |
-      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                     |
-      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet, planet_name |
+        d | r | m | property        | type    | ref                | source       | prepare                       | access
+    datasets/keymap                 |         |                    |              |                               |
+      | rs                          | sql     |                    |              |                               |
+      |   | Planet                  |         | code               | PLANET       |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   | Country                 |         | code               | COUNTRY      |                               | open
+      |   |   | code                | string  |                    | CODE         |                               |
+      |   |   | name                | string  |                    | NAME         |                               |
+      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                               |
+      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                               |
+      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet.code, planet_name.name |
       """),
     )
 
@@ -4773,4 +4775,177 @@ def test_keymap_internal_model_after_sync(
         {"code": "EE", "planet": {"_id": jp_id}},
         {"code": "LT", "planet": {"_id": er_id}},
         {"code": "LV", "planet": {"_id": mr_id}},
+    ]
+
+
+def test_identifiable_ref_primary_key(context, rc, tmp_path, geodb_denorm, reset_keymap):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | m | property    | type    | ref    | source  | prepare | access | level
+    datasets/ref            |         |        |         |         |        |
+      | rs                  | sql     |        |         |         |        |
+      |   | Planet          |         | code   | PLANET  |         | open   |
+      |   |   | id          | integer |        | id      |         |        |
+      |   |   | code        | string  |        | code    |         |        |
+      |   |   | name        | string  |        | name    |         |        |
+      |   | Country         |         | planet | COUNTRY |         | open   |
+      |   |   | code        | string  |        | code    |         |        |
+      |   |   | name        | string  |        | name    |         |        |
+      |   |   | planet      | ref     | Planet | planet  |         |        |
+    """),
+    )
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    country_resp = app.get("/datasets/ref/Country")
+    app.get("/datasets/ref/Planet")
+
+    store = app.context.get("store")
+    manifest = store.manifest
+
+    country_model = commands.get_model(app.context, manifest, "datasets/ref/Country")
+    planet_model = commands.get_model(app.context, manifest, "datasets/ref/Planet")
+
+    keymap = planet_model.keymap
+    with keymap:
+        planet_keymap_key = planet_model.model_type()
+        assert keymap.contains(planet_keymap_key, "ER")
+        assert keymap.contains(planet_keymap_key, "JP")
+        assert keymap.contains(planet_keymap_key, "MR")
+
+        er_id = keymap.encode(planet_keymap_key, "ER")
+        er_id_json = fix_data_for_json(er_id)
+        jp_id = keymap.encode(planet_keymap_key, "JP")
+        jp_id_json = fix_data_for_json(jp_id)
+        mr_id = keymap.encode(planet_keymap_key, "MR")
+        mr_id_json = fix_data_for_json(mr_id)
+
+        country_keymap_key = country_model.model_type()
+        assert keymap.contains(country_keymap_key, er_id_json)
+        assert keymap.contains(country_keymap_key, jp_id_json)
+        assert keymap.contains(country_keymap_key, mr_id_json)
+
+        ee_id = keymap.encode(country_keymap_key, jp_id_json)
+        lt_id = keymap.encode(country_keymap_key, er_id_json)
+        lv_id = keymap.encode(country_keymap_key, mr_id_json)
+
+    assert listdata(country_resp, "code", "_id", "planet", full=True) == [
+        {"_id": ee_id, "code": "EE", "planet": {"_id": jp_id}},
+        {"_id": lt_id, "code": "LT", "planet": {"_id": er_id}},
+        {"_id": lv_id, "code": "LV", "planet": {"_id": mr_id}},
+    ]
+
+
+def test_unidentifiable_ref_primary_key(context, rc, tmp_path, geodb_denorm, reset_keymap):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | m | property    | type    | ref    | source  | prepare | access | level
+    datasets/ref            |         |        |         |         |        |
+      | rs                  | sql     |        |         |         |        |
+      |   | Planet          |         | code   | PLANET  |         | open   |
+      |   |   | id          | integer |        | id      |         |        |
+      |   |   | code        | string  |        | code    |         |        |
+      |   |   | name        | string  |        | name    |         |        |
+      |   | Country         |         | planet | COUNTRY |         | open   |
+      |   |   | code        | string  |        | code    |         |        |
+      |   |   | name        | string  |        | name    |         |        |
+      |   |   | planet      | ref     | Planet | planet  |         |        | 3
+    """),
+    )
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    country_resp = app.get("/datasets/ref/Country")
+    app.get("/datasets/ref/Planet")
+
+    store = app.context.get("store")
+    manifest = store.manifest
+
+    country_model = commands.get_model(app.context, manifest, "datasets/ref/Country")
+    planet_model = commands.get_model(app.context, manifest, "datasets/ref/Planet")
+
+    keymap = planet_model.keymap
+    with keymap:
+        planet_keymap_key = planet_model.model_type()
+        assert keymap.contains(planet_keymap_key, "ER")
+        assert keymap.contains(planet_keymap_key, "JP")
+        assert keymap.contains(planet_keymap_key, "MR")
+
+        country_keymap_key = country_model.model_type()
+        assert keymap.contains(country_keymap_key, "ER")
+        assert keymap.contains(country_keymap_key, "JP")
+        assert keymap.contains(country_keymap_key, "MR")
+
+        ee_id = keymap.encode(country_keymap_key, "JP")
+        lt_id = keymap.encode(country_keymap_key, "ER")
+        lv_id = keymap.encode(country_keymap_key, "MR")
+
+    assert listdata(country_resp, "code", "_id", "planet", full=True) == [
+        {"_id": ee_id, "code": "EE", "planet": {"code": "JP"}},
+        {"_id": lt_id, "code": "LT", "planet": {"code": "ER"}},
+        {"_id": lv_id, "code": "LV", "planet": {"code": "MR"}},
+    ]
+
+
+def test_identifiable_ref_primary_key_multiple(context, rc, tmp_path, geodb_denorm, reset_keymap):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | m | property    | type    | ref          | source  | prepare | access | level
+    datasets/ref            |         |              |         |         |        |
+      | rs                  | sql     |              |         |         |        |
+      |   | Planet          |         | code         | PLANET  |         | open   |
+      |   |   | id          | integer |              | id      |         |        |
+      |   |   | code        | string  |              | code    |         |        |
+      |   |   | name        | string  |              | name    |         |        |
+      |   | Country         |         | planet, code | COUNTRY |         | open   |
+      |   |   | code        | string  |              | code    |         |        |
+      |   |   | name        | string  |              | name    |         |        |
+      |   |   | planet      | ref     | Planet       | planet  |         |        |
+    """),
+    )
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    country_resp = app.get("/datasets/ref/Country")
+    app.get("/datasets/ref/Planet")
+
+    store = app.context.get("store")
+    manifest = store.manifest
+
+    country_model = commands.get_model(app.context, manifest, "datasets/ref/Country")
+    planet_model = commands.get_model(app.context, manifest, "datasets/ref/Planet")
+
+    keymap = planet_model.keymap
+    with keymap:
+        planet_keymap_key = planet_model.model_type()
+        assert keymap.contains(planet_keymap_key, "ER")
+        assert keymap.contains(planet_keymap_key, "JP")
+        assert keymap.contains(planet_keymap_key, "MR")
+
+        er_id = keymap.encode(planet_keymap_key, "ER")
+        er_id_json = fix_data_for_json(er_id)
+        jp_id = keymap.encode(planet_keymap_key, "JP")
+        jp_id_json = fix_data_for_json(jp_id)
+        mr_id = keymap.encode(planet_keymap_key, "MR")
+        mr_id_json = fix_data_for_json(mr_id)
+
+        country_keymap_key = country_model.model_type()
+        assert keymap.contains(country_keymap_key, [er_id_json, "LT"])
+        assert keymap.contains(country_keymap_key, [jp_id_json, "EE"])
+        assert keymap.contains(country_keymap_key, [mr_id_json, "LV"])
+
+        ee_id = keymap.encode(country_keymap_key, [jp_id_json, "EE"])
+        lt_id = keymap.encode(country_keymap_key, [er_id_json, "LT"])
+        lv_id = keymap.encode(country_keymap_key, [mr_id_json, "LV"])
+
+    assert listdata(country_resp, "code", "_id", "planet", full=True) == [
+        {"_id": ee_id, "code": "EE", "planet": {"_id": jp_id}},
+        {"_id": lt_id, "code": "LT", "planet": {"_id": er_id}},
+        {"_id": lv_id, "code": "LV", "planet": {"_id": mr_id}},
     ]

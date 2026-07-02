@@ -46,7 +46,7 @@ def test_add_local_ids_inserts_id_with_pkey_type(
     count_of_id = add_explicit_id_properties(context, manifest)
 
     assert count_of_id == 1
-    prop = commands.get_model(context, manifest, "ds/local_ids/Country").properties["_id"]
+    prop = commands.get_model(context, manifest, "ds/local_ids/Country").id_prop
     assert prop.explicitly_given is True
     assert isinstance(prop.dtype, expected_id_type)
     assert prop.dtype.required is expected_required
@@ -69,7 +69,7 @@ def test_add_local_ids_inserts_base32_for_composite_pkey(rc: RawConfig):
     count_of_id = add_explicit_id_properties(context, manifest)
 
     assert count_of_id == 1
-    prop = commands.get_model(context, manifest, "ds/local_ids/Country").properties["_id"]
+    prop = commands.get_model(context, manifest, "ds/local_ids/Country").id_prop
     assert prop.explicitly_given is True
     assert isinstance(prop.dtype, Base32)
 
@@ -111,7 +111,7 @@ def test_add_local_ids_skips_model_with_existing_id(rc: RawConfig):
     count_of_id = add_explicit_id_properties(context, manifest)
 
     assert count_of_id == 0
-    prop = commands.get_model(context, manifest, "ds/local_ids/Country").properties["_id"]
+    prop = commands.get_model(context, manifest, "ds/local_ids/Country").id_prop
     assert prop.explicitly_given is True
     assert isinstance(prop.dtype, String)
 

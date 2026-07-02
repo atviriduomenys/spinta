@@ -15,6 +15,8 @@ from spinta.ufuncs.propertyresolver.components import PropertyResolver
 from spinta.ufuncs.querybuilder.components import Func, Selected
 from spinta.utils.schema import NA
 
+RESERVED_COUNT_PROP = "__dask_count"
+
 
 class DaskDataFrameQueryBuilder(Env):
     backend: DaskBackend
@@ -88,9 +90,6 @@ class DaskSelected(Selected):
     prop: Property = None
     # A value or an Expr for further processing on selected value.
     prep: Any = NA
-
-
-RESERVED_COUNT_PROP = "__dask_count"
 
 
 @dataclasses.dataclass

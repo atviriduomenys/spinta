@@ -1,156 +1,60 @@
-import json
 import pathlib
-from typing import Any
+from typing import Any, Iterator
 
 from spinta import commands, spyna
-from spinta.backends.helpers import is_custom_id_prop
+from spinta.auth import authorized
 from spinta.components import Context, Model, Property
-from spinta.core.enums import Mode
-from spinta.core.ufuncs import Env, asttoexpr
-from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
-from spinta.types.datatype import Array, Ref
-from spinta.types.namespace import check_if_model_has_backend_and_source
-from spinta.utils.schema import NA
+from spinta.core.enums import Action
+from spinta.core.ufuncs import asttoexpr
+from spinta.exceptions import MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
+from spinta.types.datatype import Ref
 
 
-def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
-    original_value = value
-    if isinstance(value, dict):
-        value = value["_id"]
+def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str | None:
+    def _find_required_value(rows_: Iterator) -> object | None:
+        found_value = False
+        result_value = None
+        for row in rows_:
+            if result_value is not None:
+                raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
+            result_value = row.get("_id")
+            found_value = True
 
-    keymap_name = ref.model.model_type()
-    if ref.refprops != ref.model.external.pkeys:
-        keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in ref.refprops)}"
-    if isinstance(value, dict):
-        new_value = []
-        for prop in ref.refprops:
-            new_value.append(value[prop.name])
-        value = new_value
-    elif not isinstance(value, (tuple, list)):
-        value = [value]
-    else:
-        value = list(value)
+        if not found_value:
+            raise NoPrimaryKeyCandidatesFound(dtype, values=data)
 
-    prop_count_mapping = {}
-    for prop in ref.refprops:
-        if isinstance(prop.dtype, Array) and env:
-            items = env.resolve(prop.external.prepare)
-            prop_count_mapping[prop.name] = len(items) if items is not NA else 1
-        else:
-            prop_count_mapping[prop.name] = 1
-    expected_count = sum(item for item in prop_count_mapping.values())
-    if len(value) != expected_count:
-        raise GivenValueCountMissmatch(ref, given_count=len(value), expected_count=expected_count)
+        return result_value
 
-    if commands.identifiable(ref.prop):
-        target_value = value
-        if len(value) == 1:
-            target_value = value[0]
-
-        val = None
-        contains = None
-        if ref.refprops[0].name != "_id" and not is_custom_id_prop(ref.model.properties["_id"]):
-            contains = keymap.contains(keymap_name, target_value)
-        if not contains:
-            if target_value is None:
-                return {"_id": None}
-
-            ref_model = ref.model
-
-            # FIXME Quick hack when trying to get `Internal` model keys while running in `External` mode (should probably return error, or None)
-            if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
-                val = {"_id": keymap.encode(keymap_name, target_value)}
-                if isinstance(original_value, dict):
-                    for nested_prop_name, nested_prop in ref.properties.items():
-                        nested_value = original_value[nested_prop_name]
-                        if isinstance(nested_value, dict):
-                            nested_value = handle_ref_key_assignment(
-                                context, keymap, env, nested_value, nested_prop.dtype
-                            )
-                        val[nested_prop_name] = nested_value
-                return val
-
-            expr_parts = ["select()"]
-            for i, prop in enumerate(ref.refprops):
-                expr_parts.append(f'{prop.place}="{value[i]}"')
-            expr = asttoexpr(spyna.parse("&".join(expr_parts)))
-            rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
-
-            found_value = False
-            for row in rows:
-                if val is not None:
-                    raise MultiplePrimaryKeyCandidatesFound(ref, values=target_value)
-                if "_id" in row:
-                    val = row["_id"]
-                else:
-                    val = keymap.encode(keymap_name, target_value)
-                found_value = True
-
-            if not found_value:
-                raise NoPrimaryKeyCandidatesFound(ref, values=target_value)
-        else:
-            val = keymap.encode(keymap_name, target_value)
-        val = {"_id": val}
-    else:
-        val = {}
-        i = 0
-        for prop, count in prop_count_mapping.items():
-            values = value[i : i + count]
-            if len(values) == 1:
-                values = values[0]
-            val[prop] = values
-            i = i + count
-
-    if isinstance(original_value, dict):
-        for nested_prop_name, nested_prop in ref.properties.items():
-            nested_value = original_value[nested_prop_name]
-            if isinstance(nested_value, dict):
-                nested_value = handle_ref_key_assignment(context, keymap, env, nested_value, nested_prop.dtype)
-            val[nested_prop_name] = nested_value
-    return val
-
-
-def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str:
     ref_model = dtype.model
-    expr_parts = ["select()"]
+
+    has_permission = False
+    # Check permissions if able to use select with specific scenarios
+    # Check if user can select only _id
+    select_query = "select(_id)"
+    if authorized(context, ref_model.id_prop, Action.SEARCH):
+        has_permission = True
+    # Check if user has getall permission
+    elif authorized(context, ref_model.id_prop, Action.GETALL):
+        has_permission = True
+        select_query = "select()"
+
+    expr_parts = [select_query]
     for prop in dtype.refprops:
-        expr_parts.append(f'{prop.place}="{data[prop.name]}"')
+        expr_parts.append(f'{prop.place}="{data[prop.place]}"')
     expr = asttoexpr(spyna.parse("&".join(expr_parts)))
-    rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
 
-    found_value = False
-    val = None
-    for row in rows:
-        if val is not None:
-            raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
-        val = row["_id"]
-        found_value = True
-
-    if not found_value:
-        raise NoPrimaryKeyCandidatesFound(dtype, values=data)
+    # User does not have permission to select _id, so we need to use admin context
+    if not has_permission:
+        with context.fork("_id_select") as admin_context:
+            admin_context.set("request.system", True)
+            rows = commands.getall(admin_context, ref_model, ref_model.backend, query=expr)
+            # Have to call _find_required_value, since we need to be inside the admin context
+            val = _find_required_value(rows)
+    else:
+        rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
+        val = _find_required_value(rows)
 
     return val
-
-
-def generate_pk_for_row(context: Context, model: Model, row: Any, keymap, pk_val: Any):
-    pk = None
-    if model.base and commands.identifiable(model.base):
-        pk_val_base = extract_values_from_row(row, model.base.parent, model.base.pk or model.base.parent.external.pkeys)
-        key = model.base.parent.model_type()
-        if model.base.pk and model.base.pk != model.base.parent.external.pkeys:
-            joined = "_".join(pk.name for pk in model.base.pk)
-            key = f"{key}.{joined}"
-        pk = keymap.encode(key, pk_val_base)
-
-    pk = keymap.encode(model.model_type(), pk_val, pk)
-    if pk and model.required_keymap_properties:
-        for combination in model.required_keymap_properties:
-            joined = "_".join(combination)
-            key = f"{model.model_type()}.{joined}"
-            val = extract_values_from_row(row, model, combination)
-            keymap.encode(key, val, pk)
-    return pk
 
 
 def extract_values_from_row(row: Any, model: Model, keys: list):
@@ -168,19 +72,6 @@ def extract_values_from_row(row: Any, model: Model, keys: list):
     if len(return_list) == 1:
         return_list = return_list[0]
     return return_list
-
-
-def handle_external_array_type(context: Context, dtype: Array, keymap: KeyMap, env: Env, val: Any):
-    if isinstance(val, str):
-        val = json.loads(val)
-
-    if not isinstance(val, list):
-        return val
-
-    if isinstance(dtype.items.dtype, Ref):
-        return [handle_ref_key_assignment(context, keymap, env, value, dtype.items.dtype) for value in val]
-
-    return val
 
 
 def flatten_keymap_encoding_values(data: object):
