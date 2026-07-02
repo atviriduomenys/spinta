@@ -166,4 +166,4 @@ def attach_backends(context: Context, store: Store, manifest: Manifest) -> None:
 
 def attach_keymaps(context: Context, store: Store) -> None:
     for keymap in store.keymaps.values():
-        context.attach(f"keymap.{keymap.name}", lambda: keymap.copy())
+        context.attach(f"keymap.{keymap.name}", lambda: keymap)

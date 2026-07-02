@@ -37,10 +37,6 @@ class KeyMap(Component):
     def validate_data(self, name: str):
         raise NotImplementedError
 
-    def copy(self) -> "KeyMap":
-        """Creates a new copy of itself with a separate context manager state."""
-        raise NotImplementedError
-
 
 @dataclasses.dataclass
 class KeymapSyncData:

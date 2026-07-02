@@ -137,7 +137,7 @@ def test_xds_getall_decodes_base64_for_internal_use(rc: RawConfig, tmp_path: Pat
     with context:
         store: Store = context.get("store")
         for keymap in store.keymaps.values():
-            context.attach(f"keymap.{keymap.name}", lambda: keymap.copy())
+            context.attach(f"keymap.{keymap.name}", lambda: keymap)
 
         context.set("auth.token", AdminToken())
 
@@ -179,7 +179,7 @@ def test_xsd_getall_raise_error_if_base64_is_invalid(rc: RawConfig, tmp_path: Pa
     with context:
         store: Store = context.get("store")
         for keymap in store.keymaps.values():
-            context.attach(f"keymap.{keymap.name}", lambda: keymap.copy())
+            context.attach(f"keymap.{keymap.name}", lambda: keymap)
 
         context.set("auth.token", AdminToken())
 
