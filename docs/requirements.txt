@@ -6,7 +6,7 @@
 #
 alabaster==1.0.0
     # via sphinx
-anyio==4.14.0
+anyio==4.14.1
     # via
     #   starlette
     #   watchfiles
@@ -18,7 +18,7 @@ certifi==2026.6.17
     # via requests
 charset-normalizer==3.4.7
     # via requests
-click==8.4.1
+click==8.4.2
     # via
     #   sphinx-intl
     #   uvicorn
@@ -100,7 +100,7 @@ starlette==1.3.1
     # via sphinx-autobuild
 tomli==2.4.1
     # via sphinx
-typing-extensions==4.15.0
+typing-extensions==4.16.0
     # via
     #   anyio
     #   exceptiongroup
