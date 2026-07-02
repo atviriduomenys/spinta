@@ -11,7 +11,7 @@ import requests
 from pprintpp import pformat
 
 from spinta.formats.html.components import Cell
-from spinta.testing.client import TestClient
+from spinta.testing.client import TestClient, TestClientResponse
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
 
@@ -83,18 +83,18 @@ def listdata(
         data = resp
 
     elif resp.headers["content-type"].startswith("text/html"):
-        data = resp.context
+        context = cast(TestClientResponse, resp).context
         assert resp.status_code >= 200 and resp.status_code < 400, pformat(
             {
                 "status": resp.status_code,
-                "resp": data,
+                "resp": context,
             }
         )
-        assert "data" in data, pformat(data)
-        assert "header" in data, pformat(data)
-        header = data["header"]
+        assert "data" in context, pformat(context)
+        assert "header" in context, pformat(context)
+        header = context["header"]
         keys = keys or [k for k in header if not k.startswith("_")]
-        data = [{k: v.value for k, v in zip(header, row)} for row in cast(List[List[Cell]], data["data"])]
+        data = [{k: v.value for k, v in zip(header, row)} for row in cast(List[List[Cell]], context["data"])]
 
     else:
         data = resp.json()
