@@ -148,7 +148,7 @@ async def create_http_response(
             action = params.action
 
             if model.keymap:
-                context.attach(f"keymap.{model.keymap.name}", lambda: model)
+                context.attach(f"keymap.{model.keymap.name}", lambda: model.keymap)
 
             return await commands.getone(
                 context,
