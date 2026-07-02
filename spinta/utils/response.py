@@ -148,7 +148,10 @@ async def create_http_response(
             action = params.action
 
             if model.keymap:
-                context.attach(f"keymap.{model.keymap.name}", lambda: model.keymap)
+                context.attach(
+                    f"keymap.{model.keymap.name}",
+                    lambda: model.keymap.copy(),
+                )
 
             return await commands.getone(
                 context,
@@ -174,7 +177,10 @@ async def create_http_response(
                 context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
 
             if model.keymap:
-                context.attach(f"keymap.{model.keymap.name}", lambda: model.keymap)
+                context.attach(
+                    f"keymap.{model.keymap.name}",
+                    lambda: model.keymap.copy(),
+                )
 
             return await commands.getall(
                 context,

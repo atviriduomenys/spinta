@@ -4,6 +4,7 @@ import hashlib
 import json
 import uuid
 from collections.abc import Generator
+from copy import copy
 from typing import Any, Optional
 from uuid import UUID
 
@@ -51,6 +52,12 @@ class SqlAlchemyKeyMap(KeyMap):
     def __exit__(self, *exc):
         self.conn.close()
         self.conn = None
+
+    def copy(self) -> "SqlAlchemyKeyMap":
+        copied = copy(self)
+        # Reset any context manager variables
+        copied.conn = None
+        return copied
 
     def get_table(self, name) -> sa.Table:
         table = self.metadata.tables.get(name)
