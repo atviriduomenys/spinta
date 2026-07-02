@@ -29,6 +29,7 @@ from spinta.exceptions import (
     KeymapNotSet,
     MissingConfigurationParameter,
     ModelNotFound,
+    NotImplementedFeature,
     PropertyNotFound,
     ReservedPropertySourceOrModelRefShouldBeSet,
     ReservedPropertyTypeShouldMatchPrimaryKey,
@@ -39,7 +40,7 @@ from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.datatype import UUID, Integer, String
+from spinta.types.datatype import UUID, Integer, Ref, String
 from spinta.types.helpers import (
     check_model_name,
     check_property_name,
@@ -645,6 +646,14 @@ def check(context: Context, model: Model):
         for prop in properties:
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
+
+    if model.external and not model.external.unknown_primary_key:
+        for pkey in model.external.pkeys:
+            if isinstance(pkey.dtype, Ref) and pkey.dtype.properties:
+                raise NotImplementedFeature(
+                    pkey.dtype,
+                    feature="Ability to use `ref` type (which contains other set properties) as model's primary key",
+                )
 
 
 @check.register(Context, Model, Backend)

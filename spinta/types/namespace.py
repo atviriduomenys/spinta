@@ -170,7 +170,9 @@ def _query_data(
 
 
 def check_if_model_has_backend_and_source(model: Model):
-    return not isinstance(model.backend, NoBackend) and (model.external and model.external.name)
+    return not isinstance(model.backend, NoBackend) and (
+        not model.backend.model_requires_source or model.external and model.external.name
+    )
 
 
 def _model_matches_params(

@@ -87,6 +87,9 @@ class ExternalBackend(Backend):
     engine: Engine = None
     schema: sa.MetaData = None
 
+    # Majority of external backends require source for their models
+    model_requires_source: bool = True
+
 
 class External(ExtraMetaData):
     pass
