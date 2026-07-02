@@ -96,7 +96,6 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
 
     templates = get_templates()
     return templates.TemplateResponse(
-        request,
         "form.html",
         {
             "request": request,
@@ -291,7 +290,7 @@ def _render_model(
         ctx["data"] = list(ctx["data"])
 
     templates = get_templates()
-    return templates.TemplateResponse(request, "data.html", ctx, headers=http_headers)
+    return templates.TemplateResponse("data.html", ctx, headers=http_headers)
 
 
 @dataclasses.dataclass
