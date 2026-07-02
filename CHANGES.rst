@@ -4,6 +4,16 @@ Changes
 0.2dev28 (unreleased)
 =====================
 
+Improvements:
+
+- Upgraded `starlette` to the `1.x` series (`>=1.3.1`). Updated
+  `TemplateResponse` calls to the new request-first signature required since
+  `starlette` `1.0.0`, and migrated the test client helpers from `httpx` to
+  `httpx2`, which `starlette` `1.x` requires for `starlette.testclient`
+  (`#1847`_).
+
+.. _#1847: https://github.com/atviriduomenys/spinta/issues/1847
+
 
 0.2dev27 (2026-06-21)
 =====================
