@@ -284,10 +284,6 @@ def process_data_for_pkey(
 def compare_ref_property_count(dtype: Ref, data: list) -> None:
     prop_count_mapping = {}
     for prop in dtype.refprops:
-        # if isinstance(prop.dtype, Array) and env:
-        #     items = env.resolve(prop.external.prepare)
-        #     prop_count_mapping[prop.name] = len(items) if items is not NA else 1
-        # else:
         prop_count_mapping[prop.name] = 1
     expected_count = sum(item for item in prop_count_mapping.values())
     if len(data) != expected_count:

@@ -745,7 +745,7 @@ class Model(MetaData):
         # return self.name.split('/')[-1]
 
     def add_keymap_property_combination(self, given_props: List[Property]):
-        extract_names = tuple([prop.name for prop in given_props])
+        extract_names = tuple([prop.place for prop in given_props])
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)
 

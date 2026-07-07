@@ -8,6 +8,7 @@ from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
 from spinta.types.datatype import Ref
+from spinta.utils.nestedstruct import flatten
 
 
 def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str | None:
@@ -39,8 +40,12 @@ def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> st
         select_query = "select()"
 
     expr_parts = [select_query]
+    flattened_data = flatten(data)
+    refprop_data_keys = set()
     for prop in dtype.refprops:
-        expr_parts.append(f'{prop.place}="{data[prop.place]}"')
+        refprop_data_keys.update({key for key in flattened_data.keys() if key.startswith(prop.place)})
+    for refprop_key in refprop_data_keys:
+        expr_parts.append(f'{refprop_key}="{flattened_data[refprop_key]}"')
     expr = asttoexpr(spyna.parse("&".join(expr_parts)))
 
     # User does not have permission to select _id, so we need to use admin context
