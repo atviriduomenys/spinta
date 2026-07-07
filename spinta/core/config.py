@@ -44,11 +44,28 @@ def read_config(args=None, envfile=None):
     )
 
     # Inject extension provided defaults
-    configs = rc.get("config", cast=list, default=[])
-    if configs:
-        rc.read([Path(c, c) for c in configs], after="spinta")
-
+    _read_chained_configs(rc)
     return rc
+
+
+def _read_chained_configs(rc: RawConfig) -> None:
+    loaded: set[str] = set()
+
+    while True:
+        configs, origin = rc.get("config", cast=list, default=[], origin=True)
+        new_configs = []
+        for config in configs:
+            if config not in loaded:
+                loaded.add(config)
+                new_configs.append(config)
+
+        if not new_configs:
+            break
+
+        rc.read(
+            [Path(config, config) for config in new_configs],
+            after=origin,
+        )
 
 
 class KeyFormat(str, enum.Enum):
@@ -292,10 +309,13 @@ class RawConfig:
             res = res if origin else (res,)
             yield (key,) + res
 
-    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout):
+    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout, all_sources: bool = False):
         table = [("Origin", "Name", "Value")]
         sizes = [len(x) for x in table[0]]
-        for key, val, origin in self.getall(origin=True):
+
+        values = self.getall(origin=True) if not all_sources else self._getall_sources()
+
+        for key, val, origin in values:
             if names:
                 for name in names:
                     it = enumerate(name.split("."))
@@ -365,7 +385,16 @@ class RawConfig:
                         v = [x.strip() for x in v.split(",")]
                     else:
                         v = list(v)
-                    keys[k] = config, v
+
+                    if k not in keys:
+                        keys[k] = config, v
+
+                    existing = keys[k][1]
+                    for item in v:
+                        if item not in existing:
+                            existing.append(item)
+
+                    keys[k] = config, existing
                 elif i < n:
                     # No explicit value set, just collect all parents.
                     if k not in keys:
@@ -404,6 +433,23 @@ class RawConfig:
             else:
                 default = schema.get("default", NA)
         return default, None
+
+    def _getall_sources(self):
+        env, _ = self._get_config_value(("env",), default=None)
+
+        for source in self.sources:
+            for key in source.keys():
+                value = source.get(key)
+
+                if value is not NA:
+                    yield key, value, source.name
+
+            if env:
+                for key in source.keys(env):
+                    value = source.get(key, env)
+
+                    if value is not NA:
+                        yield key, value, source.name
 
     def get_source_names(self) -> List[str]:
         return [source.name for source in self.sources]
