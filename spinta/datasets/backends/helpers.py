@@ -40,7 +40,9 @@ def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> st
         select_query = "select()"
 
     expr_parts = [select_query]
-    flattened_data = flatten(data)
+
+    # `data` is one row and flatten returns a generator containing one row, so the next returns it
+    flattened_data = next(flatten(data))
     refprop_data_keys = set()
     for prop in dtype.refprops:
         refprop_data_keys.update({key for key in flattened_data.keys() if key.startswith(prop.place)})
