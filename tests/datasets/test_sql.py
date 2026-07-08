@@ -11,6 +11,7 @@ from responses import POST, RequestsMock
 
 from spinta import commands
 from spinta.client import add_client_credentials
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
@@ -4737,7 +4738,9 @@ def test_keymap_internal_model_after_sync(
     ]
 
 
-def test_identifiable_ref_primary_key(context, rc, tmp_path, geodb_denorm, reset_keymap):
+def test_identifiable_ref_primary_key(
+    context: Context, rc: RawConfig, tmp_path: pathlib.Path, geodb_denorm: Sqlite, reset_keymap
+):
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -4797,7 +4800,9 @@ def test_identifiable_ref_primary_key(context, rc, tmp_path, geodb_denorm, reset
     ]
 
 
-def test_unidentifiable_ref_primary_key(context, rc, tmp_path, geodb_denorm, reset_keymap):
+def test_unidentifiable_ref_primary_key(
+    context: Context, rc: RawConfig, tmp_path: pathlib.Path, geodb_denorm: Sqlite, reset_keymap
+):
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -4850,7 +4855,9 @@ def test_unidentifiable_ref_primary_key(context, rc, tmp_path, geodb_denorm, res
     ]
 
 
-def test_identifiable_ref_primary_key_multiple(context, rc, tmp_path, geodb_denorm, reset_keymap):
+def test_identifiable_ref_primary_key_multiple(
+    context: Context, rc: RawConfig, tmp_path: pathlib.Path, geodb_denorm: Sqlite, reset_keymap
+):
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",

@@ -226,7 +226,7 @@ def extract_and_cast_properties_from_list(
     model: Model,
     keymap: KeyMap,
     data: dict,
-    cache: dict = None,
+    cache: dict | None = None,
     prefix: str = "",
     **kwargs,
 ):
@@ -253,7 +253,7 @@ def process_data_for_pkey(
     model: Model,
     keymap: KeyMap,
     data: dict,
-    cache: dict = None,
+    cache: dict | None = None,
     prefix: str = "",
     **kwargs,
 ) -> list | object | None:
@@ -296,7 +296,7 @@ def authorized_or_system_request(
     action: Action,
     *,
     throw: bool = False,
-    scope_formatter: ScopeFormatterFunc = None,
+    scope_formatter: ScopeFormatterFunc | None = None,
 ) -> bool:
     # Bypass authorization checks for system-generated requests.
     # TODO: Remove when `_id` generation no longer needs to select from another model.
