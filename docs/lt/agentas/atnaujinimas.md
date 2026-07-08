@@ -42,9 +42,8 @@ docker compose pull spinta
 # 2. Perkurkite konteinerį su nauju atvaizdu
 docker compose up -d
 
-# 3. Paleiskite atnaujinimo skriptus ir duomenų bazės migracijas
+# 3. Paleiskite atnaujinimo skriptus
 docker exec spinta spinta upgrade
-docker exec spinta spinta migrate
 
 # 4. Patikrinkite versiją ir žurnalą
 docker exec spinta spinta --version
@@ -77,9 +76,8 @@ Jei Agentas įdiegtas tiesiai operacinėje sistemoje (Python virtualioje aplinko
 # 1. Atnaujinkite paketus iš to paties pinned requirements šaltinio, kaip diegiant
 env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest-pre.txt
 
-# 2. Paleiskite atnaujinimo skriptus ir duomenų bazės migracijas
+# 2. Paleiskite atnaujinimo skriptus
 env/bin/spinta upgrade
-env/bin/spinta migrate
 
 # 3. Perkraukite Spinta servisą
 sudo systemctl restart spinta
@@ -91,20 +89,15 @@ systemctl status spinta
 Kai servisas pasileidžia, versiją galima patikrinti per `/version` endpoint (žr.
 [Diegimas OS](diegimas/os.md)).
 
-## Ką daro `upgrade` ir `migrate`
+## Ką daro `upgrade`
 
-Abu žingsniai svarbūs — naujoje versijoje gali keistis tiek vidinė sandara, tiek
-duomenų bazės schema:
-
-- `spinta upgrade` — paleidžia atnaujinimo skriptus, pritaikančius vidinius pakeitimus
-  tarp versijų. Ką reikės atnaujinti, galima pamatyti iš anksto komanda
-  `spinta upgrade --check`.
-- `spinta migrate` — pritaiko duomenų struktūros (schemos) pakeitimus **vidiniam**
-  backend'ui (pvz. PostgreSQL), kuriame Spinta saugo duomenis.
+`spinta upgrade` paleidžia atnaujinimo skriptus, kurie pritaiko vidinius pakeitimus tarp
+versijų (pvz. keymap ar konfigūracijos formato). Ką reikės atnaujinti, galima pamatyti iš
+anksto komanda `spinta upgrade --check`.
 
 :::{note}
-`spinta migrate` taikomas diegimams su vidiniu backend'u. Jei Agentas duomenis teikia
-tiesiai iš išorinio šaltinio (pvz. išorinis SQL su DSA manifestu), `migrate` netaikomas
-ir gali pranešti `NotImplementedError` — tokiu atveju šį žingsnį praleiskite. Kilus
-abejonių, pirmiausia paleiskite `spinta upgrade --check`.
+`spinta migrate` Agentui **nereikalingas**. Ši komanda taiko duomenų struktūros (schemos)
+pakeitimus tik **vidinei saugyklai** (*internal* režimas, pvz. PostgreSQL backend'as).
+Agentas duomenis teikia tiesiai iš išorinio šaltinio (*external* režimas), todėl vidinės
+saugyklos neturi ir migracijų nevykdo.
 :::
