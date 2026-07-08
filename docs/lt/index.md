@@ -89,6 +89,7 @@ Sprendimai prieš diegimą <agentas/sprendimai>
 Aplinkos paruošimas <agentas/agento-paruošimas>
 Manifest parengimas <agentas/šaltinių-konfigūravimas>
 Agento diegimas <agentas/diegimas/index>
+Agento atnaujinimas <agentas/atnaujinimas>
 agentas/autentifikacija
 agentas/web-serverio-konfigūravimas
 agentas/duomenų-gavimo-testavimas
