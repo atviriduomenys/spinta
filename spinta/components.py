@@ -1127,6 +1127,7 @@ class Config:
     datasets: dict
     env: str
     docs_path: pathlib.Path
+    front_page_warning: str = ""
     always_show_id: bool = False
     # Limit access to specified namespace root.
     root: str = None
@@ -1152,6 +1153,9 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    # HTTP Strict Transport Security (HSTS) header
+    http_strict_transport_security: str = ""
 
     log_level: str
     file_log_level: str

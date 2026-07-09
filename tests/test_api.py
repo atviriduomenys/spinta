@@ -80,6 +80,8 @@ def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page
     del context["zip"]
     if "request" in context:
         del context["request"]
+    if "front_page_warning" in context:
+        del context["front_page_warning"]
     return context
 
 
@@ -114,6 +116,12 @@ def test_version(app):
         "implementation.version",
         "uapi.version",
     ]
+
+
+def test_strict_transport_security_header(app):
+    resp = app.get("/version")
+    assert resp.status_code == 200
+    assert resp.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
 
 
 def test_app(app):

@@ -1,9 +1,58 @@
 Changes
 #######
 
-0.2dev27 (unreleased)
+0.2dev29 (unreleased)
 =====================
 
+Improvements:
+
+- Upgraded `starlette` to the `1.x` series (`>=1.3.1`). Updated
+  `TemplateResponse` calls to the new request-first signature required since
+  `starlette` `1.0.0`, and migrated the test client helpers from `httpx` to
+  `httpx2`, which `starlette` `1.x` requires for `starlette.testclient`
+  (`#1847`_).
+
+.. _#1847: https://github.com/atviriduomenys/spinta/issues/1847
+
+
+0.2dev28 (2026-07-02)
+=====================
+
+Bug fixes:
+
+- Fixed data type detection in the tabular manifest reader so that modifiers
+  such as `required` or `unique` no longer interfere with parent and nesting
+  resolution. An `array` of `backref` is now recognised as an array backref, and
+  re-declaring an `object`/`array` property with a modifier no longer raises a
+  spurious nesting error (`#1970`_).
+
+Improvements:
+
+- Safer caching settings.
+
+
+0.2dev27 (2026-06-21)
+=====================
+
+New Features:
+
+- Added `texts.front_page_warning` configuration option, which lets you set the
+  warning message shown on HTML pages. The value is read from the configuration
+  (e.g. `config.yml`), falling back to the default defined in `spinta/config.py`
+  (`#1876`_).
+
+.. _#1876: https://github.com/atviriduomenys/spinta/issues/1876
+
+Improvements:
+
+- Added `--destructive` flag support to `citus_distribution` script (it will commit after each distribution change) (`#1976`_).
+- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
+- Added a `Strict-Transport-Security` (HSTS) response header on all responses,
+  configurable via the `http_strict_transport_security` configuration option
+  (defaults to `max-age=31536000; includeSubDomains`) (`dvms#520`).
+
+.. _#1976: https://github.com/atviriduomenys/spinta/issues/1976
+.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
 
 0.2dev26 (2026-06-10)
 =====================
@@ -18,7 +67,6 @@ Improvements:
   - `spinta uncomment` — extended to restore base rows
 - Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
 
-
 - Added `check_ref_filters` configuration option (defaults to `true`). Set it to
   `false` to stop a model from being implicitly filtered by the filters of the
   models it refers to (`#1901`_).
@@ -27,7 +75,6 @@ Improvements:
 .. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
 .. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
 .. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
-
 
 New Features:
 
@@ -49,6 +96,7 @@ Bug fixes:
 .. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
 .. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
 .. _#1959: https://github.com/atviriduomenys/spinta/issues/1959
+.. _#1970: https://github.com/atviriduomenys/spinta/issues/1970
 
 0.2dev25 (2026-05-22)
 =====================
@@ -88,7 +136,7 @@ Bug fixes:
 
 Improvements:
 
-- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_): 
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_):
   - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
   - updated code to correctly display visibility, relationships, cardinality.
   - added custom diagram styling.
@@ -309,11 +357,8 @@ Bug Fixes:
 
 .. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
-.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
 
-
-..
 
 0.2dev13 (2026-01-14)
 =====================

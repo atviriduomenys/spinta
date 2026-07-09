@@ -31,6 +31,7 @@ directory where additional configuration files are looked for.
    backend
    manifest
    soap-custom-adapters
+   front-page
 
 .. _config-file:
 

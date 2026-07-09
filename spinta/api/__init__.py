@@ -14,7 +14,6 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
 
 from spinta import commands, components
 from spinta.accesslog import create_accesslog
@@ -50,15 +49,13 @@ from spinta.exceptions import (
     NoAuthServer,
     error_response,
 )
-from spinta.middlewares import ContextMiddleware
+from spinta.formats.html.helpers import get_templates
+from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware, StrictTransportSecurityMiddleware
 from spinta.urlparams import Version, get_response_type
-from spinta.utils.path import resource_filename
 
 log = logging.getLogger(__name__)
 
-templates = Jinja2Templates(
-    directory=str(resource_filename("spinta", "templates")),
-)
+templates = get_templates()
 
 
 async def favicon(request: Request):
@@ -373,7 +370,7 @@ async def error(request, exc):
     elif isinstance(exc, BaseError):
         status_code = exc.status_code
         errors = [error_response(exc)]
-        headers = exc.headers
+        headers = dict(exc.headers)
     else:
         if isinstance(exc, HTTPException):
             status_code = exc.status_code
@@ -403,6 +400,11 @@ async def error(request, exc):
 
     response = {"errors": errors}
 
+    # Error responses can reflect request input (e.g. the requested path) and
+    # must never be stored by shared caches, otherwise they can be used for
+    # web cache poisoning.
+    headers["Cache-Control"] = "no-store"
+
     fmt = get_response_type(request.state.context, request)
     if fmt == "json" or fmt is None:
         return JSONResponse(
@@ -417,6 +419,7 @@ async def error(request, exc):
         }
 
         return templates.TemplateResponse(
+            request,
             "error.html",
             response,
             status_code=status_code,
@@ -465,7 +468,14 @@ def init(context: Context):
         Route("/{path:path}", homepage, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]),
     ]
 
-    middleware = [Middleware(ContextMiddleware, context=context)]
+    middleware = [
+        Middleware(
+            StrictTransportSecurityMiddleware,
+            value=config.http_strict_transport_security,
+        ),
+        Middleware(PathNormalizationMiddleware),
+        Middleware(ContextMiddleware, context=context),
+    ]
 
     exception_handlers = {
         Exception: error,

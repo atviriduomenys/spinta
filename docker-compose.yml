@@ -51,7 +51,7 @@ services:
     volumes:
       - redis_keymap_data:/data # persistent volume
     ports:
-      - "6379:6379"
+      - "${SPINTA_REDIS_KEYMAP_PORT:-6379}:6379"
 volumes:
   postgres:
   mongo:
