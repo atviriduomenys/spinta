@@ -287,7 +287,7 @@ def select(env, dtype: Ref):
     if not dtype.inherited:
         name = "_id"
         if env.query_params.prioritize_uri and uri is not None:
-            fpr = ForeignProperty(None, dtype, dtype.model.properties["_id"].dtype)
+            fpr = ForeignProperty(None, dtype, dtype.model.id_prop.dtype)
             table = env.get_joined_table(fpr)
             column = table.c[uri.place]
             name = "_uri"
@@ -311,7 +311,7 @@ def select(env, dtype: ExternalRef):
         if dtype.model.given.pkeys or dtype.explicit:
             props = dtype.refprops
         else:
-            props = [dtype.model.properties["_id"]]
+            props = [dtype.model.id_prop]
         for prop in props:
             name = f"{dtype.prop.place}.{prop.place}"
             column = table.c[name]
@@ -350,7 +350,7 @@ def _select_backref(env, dtype, is_array=False):
     return_columns = {}
 
     if commands.identifiable(refprop):
-        id_ = fpr.right.prop.model.properties["_id"]
+        id_ = fpr.right.prop.model.id_prop
         column_name = id_.name
         label = f"{dtype.prop.name}.{column_name}"
         required_columns.append((column_name, label))
@@ -431,7 +431,7 @@ def _denorm_to_foreign_property(env: PgQueryBuilder, dtype: Denorm):
                 and isinstance(root_ref_parent, Property)
                 and isinstance(root_ref_parent.dtype, (Ref, BackRef))
             ):
-                fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties["_id"].dtype)
+                fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.id_prop.dtype)
 
                 if not root_ref_parent.dtype.inherited:
                     break

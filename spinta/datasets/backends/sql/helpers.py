@@ -4,12 +4,10 @@ from spinta import commands
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import generate_pk_for_row
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.helpers import encode_composite_string_id, get_enum_filters, get_ref_filters
-from spinta.datasets.keymaps.components import KeyMap
-from spinta.types.datatype import Base32, PrimaryKey
+from spinta.types.datatype import Base32
 from spinta.typing import ObjectData
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.querybuilder.helpers import get_page_values
@@ -31,7 +29,6 @@ def build_row_result(
     backend: Sql,
     row: Any,
     env: SqlQueryBuilder,
-    keymap: KeyMap,
     result_builder_getter: ResultBuilderGetter,
     extra_properties: dict | None = None,
     include_page: bool = False,
@@ -43,9 +40,7 @@ def build_row_result(
     for key, sel in env_selected.items():
         val = get_row_value(context, result_builder_getter, row, sel)
         if sel.prop:
-            if isinstance(sel.prop.dtype, PrimaryKey):
-                val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
-            elif (
+            if (
                 (is_custom_id_prop(sel.prop) or is_custom_revision_prop(sel.prop))
                 and isinstance(val, (list, tuple))
                 and not isinstance(sel.prop.dtype, Base32)

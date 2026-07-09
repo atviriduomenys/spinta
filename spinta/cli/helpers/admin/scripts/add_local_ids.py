@@ -25,7 +25,7 @@ def add_explicit_id_properties(context: Context, manifest: str, verbose: bool = 
             if verbose:
                 echo(f'Model "{model.model_type()}" has no `ref`, skipping.', err=True)
             continue
-        prop = model.properties.get("_id")
+        prop = model.id_prop
         if prop is None or prop.explicitly_given:
             continue
 

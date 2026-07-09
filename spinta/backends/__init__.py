@@ -590,7 +590,7 @@ def is_object_id(context: Context, value: str):
 
 @is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
-    return is_object_id(context, backend, model.properties["_id"].dtype, value)
+    return is_object_id(context, backend, model.id_prop.dtype, value)
 
 
 @is_object_id.register(Context, Backend, PrimaryKey, str)
@@ -1924,6 +1924,31 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data:
             # referenced model's _id cast double-encodes Base32 ids.
             processed_data[key] = data[key]
             continue
+        prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
+        if prop is not None:
+            processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)
+
+    for prop in dtype.refprops:
+        if prop.name not in processed_data and prop.name in data:
+            processed_data[prop.name] = commands.cast_backend_to_python(
+                context, prop, backend, data[prop.name], **kwargs
+            )
+
+    if not processed_data or all(value is None for value in processed_data.values()):
+        return None
+
+    return processed_data
+
+
+@commands.cast_backend_to_python.register(Context, ExternalRef, Backend, dict)
+def cast_backend_to_python(
+    context: Context, dtype: ExternalRef, backend: Backend, data: Dict[str, Any], **kwargs
+) -> Any:
+    if not data:
+        return data
+
+    processed_data = {}
+    for key in data:
         prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
         if prop is not None:
             processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)

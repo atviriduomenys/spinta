@@ -183,7 +183,7 @@ def get_model_link_params(
         }
     ]
     if isinstance(model, Model) and model.external is not None:
-        _id = model.properties.get("_id")
+        _id = model.id_prop
         if _id and is_custom_id_prop(_id):
             ptree[0]["id_prop"] = _id
 
