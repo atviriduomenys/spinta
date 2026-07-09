@@ -96,6 +96,7 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
 
     templates = get_templates()
     return templates.TemplateResponse(
+        request,
         "form.html",
         {
             "request": request,
@@ -220,7 +221,7 @@ def _get_model_tabular_header(
         reserved = get_ns_reserved_props(action)
     else:
         reserved = _get_model_reserved_props(
-            action, pagination_enabled(model, params), check_if_revision_explicit(model.properties.get("_revision"))
+            action, pagination_enabled(model, params), check_if_revision_explicit(model.revision_prop)
         )
     return get_model_tabular_header(
         context,
@@ -290,7 +291,7 @@ def _render_model(
         ctx["data"] = list(ctx["data"])
 
     templates = get_templates()
-    return templates.TemplateResponse("data.html", ctx, headers=http_headers)
+    return templates.TemplateResponse(request, "data.html", ctx, headers=http_headers)
 
 
 @dataclasses.dataclass

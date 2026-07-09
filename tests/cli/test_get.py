@@ -60,18 +60,18 @@ def yaml_content_without_field():
 
 def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
     manifest = striptable("""
-     d | r | b | m  | property         | type         | ref     | source     | access
-     datasets/gov/example              |              |         |            |
-       | data                          | dask/memory  |         |            |
-       |   |                           |              |         |            |
-       |   |   | Country               |              |         |            | open
-       |   |   |    | _id              | string       |         | _id        |
-       |   |   |    | name             | string       |         | name       |
-       |   |   |    |                  |              |         |            |
-       |   |   | City                  |              |         |            | open
-       |   |   |    | _id              | string       |         | _id        |
-       |   |   |    | name             | string       |         | name       |
-       |   |   |    | country          | ref          | Country | ..         |
+     d | r | b | m  | property         | type         | ref     | source       | access
+     datasets/gov/example              |              |         |              |
+       | data                          | dask/memory  |         |              |
+       |   |                           |              |         |              |
+       |   |   | Country               |              |         |              | open
+       |   |   |    | _id              | string       |         | _id          |
+       |   |   |    | name             | string       |         | name         |
+       |   |   |    |                  |              |         |              |
+       |   |   | City                  |              |         |              | open
+       |   |   |    | _id              | string       |         | _id          |
+       |   |   |    | name             | string       |         | name         |
+       |   |   |    | country          | ref          | Country | country.name |
     """)
 
     temp_yaml_file = tmp_path / "test_config.yaml"
@@ -91,18 +91,18 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
 @pytest.mark.skip(reason="May be incorrect")
 def test_getall_wrong_ref_id(context, rc, cli: SpintaCliRunner, tmp_path):
     manifest = striptable("""
-     d | r | b | m  | property         | type         | ref     | source     | access
-     datasets/gov/example              |              |         |            |
-       | data                          | dask/memory  |         |            |
-       |   |                           |              |         |            |
-       |   |   | Country               |              |         |            | open
-       |   |   |    | _id              | string       |         | _id        |
-       |   |   |    | name             | string       |         | name       |
-       |   |   |    |                  |              |         |            |
-       |   |   | City                  |              |         |            | open
-       |   |   |    | _id              | string       |         | _id        |
-       |   |   |    | name             | string       |         | name       |
-       |   |   |    | country          | ref          | Country | ..         |
+     d | r | b | m  | property         | type         | ref     | source       | access
+     datasets/gov/example              |              |         |              |
+       | data                          | dask/memory  |         |              |
+       |   |                           |              |         |              |
+       |   |   | Country               |              |         |              | open
+       |   |   |    | _id              | string       |         | _id          |
+       |   |   |    | name             | string       |         | name         |
+       |   |   |    |                  |              |         |              |
+       |   |   | City                  |              |         |              | open
+       |   |   |    | _id              | string       |         | _id          |
+       |   |   |    | name             | string       |         | name         |
+       |   |   |    | country          | ref          | Country | country.name |
     """)
     temp_yaml_file = tmp_path / "test_config.yaml"
     temp_manifest_file = tmp_path / "manifest.csv"
@@ -122,18 +122,18 @@ def test_getall_wrong_ref_id(context, rc, cli: SpintaCliRunner, tmp_path):
 
 def test_getall_field_not_available(context, rc, cli: SpintaCliRunner, tmp_path):
     manifest = striptable("""
-     d | r | b | m  | property         | type         | ref     | source     | access
-     datasets/gov/example              |              |         |            |
-       | data                          | dask/memory  |         |            |
-       |   |                           |              |         |            |
-       |   |   | Country               |              |         |            | open
-       |   |   |    | _id              | string       |         | _id        |
-       |   |   |    | name             | string       |         | name       |
-       |   |   |    |                  |              |         |            |
-       |   |   | City                  |              |         |            | open
-       |   |   |    | _id              | string       |         | _id        |
-       |   |   |    | name             | string       |         | name       |
-       |   |   |    | country          | ref          | Country | ..         |
+     d | r | b | m  | property         | type         | ref     | source       | access
+     datasets/gov/example              |              |         |              |
+       | data                          | dask/memory  |         |              |
+       |   |                           |              |         |              |
+       |   |   | Country               |              |         |              | open
+       |   |   |    | _id              | string       |         | _id          |
+       |   |   |    | name             | string       |         | name         |
+       |   |   |    |                  |              |         |              |
+       |   |   | City                  |              |         |              | open
+       |   |   |    | _id              | string       |         | _id          |
+       |   |   |    | name             | string       |         | name         |
+       |   |   |    | country          | ref          | Country | country.name |
     """)
     temp_yaml_file = tmp_path / "test_config.yaml"
     temp_manifest_file = tmp_path / "manifest.csv"

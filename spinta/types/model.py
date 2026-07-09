@@ -29,6 +29,7 @@ from spinta.exceptions import (
     KeymapNotSet,
     MissingConfigurationParameter,
     ModelNotFound,
+    NotImplementedFeature,
     PropertyNotFound,
     ReservedPropertySourceOrModelRefShouldBeSet,
     ReservedPropertyTypeShouldMatchPrimaryKey,
@@ -39,7 +40,7 @@ from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.datatype import UUID, Integer, String
+from spinta.types.datatype import UUID, Integer, Ref, String
 from spinta.types.helpers import (
     check_model_name,
     check_property_name,
@@ -159,8 +160,12 @@ def load(
 
     load_model_properties(context, model, Property, data.get("properties"))
 
+    # Quick access static properties
+    model.id_prop = model.properties.get("_id")
+    model.revision_prop = model.properties.get("_revision")
+
     # XXX: Maybe it is worth to leave possibility to override _id access?
-    model.properties["_id"].access = model.access
+    model.id_prop.access = model.access
 
     model.scopes = load_scopes(context, [model], data.get("scopes"))
 
@@ -312,12 +317,12 @@ def _link_model_page(model: Model):
     else:
         # Force '_id' to be page key if other keys failed the checks
         if not model.page.enabled and page_contains_unsupported_keys(model.page):
-            model.page.keys = {"_id": model.properties["_id"]}
+            model.page.keys = {"_id": model.id_prop}
             model.page.enabled = True
 
         # Add _id to internal, if it's not added
         if "_id" not in model.page.keys and "-_id" not in model.page.keys:
-            model.page.keys["_id"] = model.properties["_id"]
+            model.page.keys["_id"] = model.id_prop
 
     if len(model.page.keys) == 0:
         _disable_page_in_model(model)
@@ -532,7 +537,7 @@ def link(context: Context, prop: Property):
 
 
 def _detect_cooperating_reserved_properties_and_check_validity(model: Model) -> None:
-    prop = model.properties.get("_id")
+    prop = model.id_prop
     if prop is None or not prop.explicitly_given:
         return
 
@@ -641,6 +646,14 @@ def check(context: Context, model: Model):
         for prop in properties:
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
+
+    if model.external and not model.external.unknown_primary_key:
+        for pkey in model.external.pkeys:
+            if isinstance(pkey.dtype, Ref) and pkey.dtype.properties:
+                raise NotImplementedFeature(
+                    pkey.dtype,
+                    feature="Ability to use `ref` type (which contains other set properties) as model's primary key",
+                )
 
 
 @check.register(Context, Model, Backend)

@@ -5,7 +5,6 @@ from typing import Any, List, Tuple, TypeVar, Union, overload
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
-from spinta.auth import authorized
 from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Page, Property
 from spinta.core.enums import Action
@@ -15,6 +14,8 @@ from spinta.datasets.backends.sql.ufuncs.query.helpers import (
     select_external_ref_foreign_key_properties,
     select_ref_foreign_key_properties,
 )
+from spinta.datasets.enums import ExternalIdPattern
+from spinta.datasets.helpers import authorized_or_system_request
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import NoExternalName, NotImplementedFeature, PropertyNotFound, SourceCannotBeList
 from spinta.types.datatype import UUID, Array, DataType, Denorm, ExternalRef, Object, PrimaryKey, Ref, String
@@ -313,7 +314,7 @@ def _get_property_for_select(
         #      then how prepare context should be defined? Probably resolvers
         #      should be called with a different env class?
         #      tag:resolving_private_properties_in_prepare_context
-        nested or authorized(env.context, prop, Action.SEARCH)
+        nested or authorized_or_system_request(env.context, prop, Action.SEARCH)
     ):
         return prop
     else:
@@ -337,7 +338,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
         for prop in take(["_id", "_revision", all], env.model.properties).values():
             if prop.name == "_revision" and not is_custom_revision_prop(prop):
                 continue
-            if authorized(env.context, prop, Action.GETALL):
+            if authorized_or_system_request(env.context, prop, Action.GETALL):
                 processed = env.call("select", prop)
                 if not prop.dtype.inherited or processed.prep is not None:
                     env.selected[prop.place] = processed
@@ -440,7 +441,9 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
     if not dtype.inherited:
-        prep["_id"] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype)
+        )
 
     for prop in dtype.properties.values():
         sel = env.call("select", prop)
@@ -579,17 +582,22 @@ def select(
     dtype: PrimaryKey,
 ) -> Selected:
     model = dtype.prop.model
-    pkeys = model.external.pkeys
+    pkeys = (model.base and model.base.pk) or model.external.pkeys
     if not pkeys:
         # If primary key is not specified use all properties to uniquely
         # identify row.
         pkeys = take(model.properties).values()
 
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call("select", prop)
-    else:
-        result = [env.call("select", prop) for prop in pkeys]
+    result = {
+        ExternalIdPattern.ID_KEY.value: {prop.name: env.call("select", prop) for prop in pkeys},
+        ExternalIdPattern.COMBINATIONS_KEY.value: {},
+    }
+    for required_pk_combination in model.required_keymap_properties:
+        combination_result = {}
+        for prop_name in required_pk_combination:
+            prop = env.resolve_property(prop_name)
+            combination_result[prop.name] = env.call("select", prop)
+        result[ExternalIdPattern.COMBINATIONS_KEY.value][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 
@@ -701,7 +709,7 @@ def join_table_on(
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def join_table_on(env: SqlQueryBuilder, item: Bind):
     prop = env.resolve_property(item)
-    if not authorized(env.context, prop, Action.SEARCH):
+    if not authorized_or_system_request(env.context, prop, Action.SEARCH):
         raise PropertyNotFound(env.model, property=item.name)
     return env.call("join_table_on", prop)
 

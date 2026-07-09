@@ -37,8 +37,6 @@ def getall(
     # Merge user passed query with query set in manifest.
     query = merge_query_with_filters(context, model, query)
 
-    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
-
     result_builder_getter = backend_result_builder_getter(context, backend)
 
     for model_params in iterparams(context, model, model.manifest):
@@ -54,7 +52,7 @@ def getall(
 
         for row in conn.execute(qry):
             res = build_row_result(
-                context, model, backend, row, env, keymap, result_builder_getter, extra_properties, is_page_enabled
+                context, model, backend, row, env, result_builder_getter, extra_properties, is_page_enabled
             )
             yield res
 
@@ -67,7 +65,7 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    _id_prop = model.properties["_id"]
+    _id_prop = model.id_prop
     keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
 
     if is_custom_id_prop(_id_prop):
@@ -107,4 +105,4 @@ def getone(
     result = conn.execute(qry)
     row = result.fetchone()
 
-    return build_row_result(context, model, backend, row, env, keymap, result_builder_getter)
+    return build_row_result(context, model, backend, row, env, result_builder_getter)

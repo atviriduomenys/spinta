@@ -8,7 +8,7 @@ import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
-import httpx
+import httpx2
 import lxml.html
 import pprintpp as pprint
 import requests
@@ -145,7 +145,7 @@ class RemoteServer:
     credsfile: pathlib.Path = None
 
 
-class TestClientResponse(httpx.Response):
+class TestClientResponse(httpx2.Response):
     template: str
     context: Dict[str, Any]
 

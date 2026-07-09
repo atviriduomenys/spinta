@@ -4,6 +4,31 @@ Changes
 0.2dev29 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Because `Dask` backend got homogenized to work similar way as `Sql`, certain inconsistencies are changed, for example:
+  `Dask` used to return `ref._id` value when it was inherited and not specified that it needs to be returned (`#1945`_).
+
+Bug fixes:
+
+- Fixed `ref` type not being fully processed when its used as a primary key (`#1945`_).
+- Fixed `conn` issues with `keymap` when context is forked (`#1945`_).
+
+Improvements:
+
+- Upgraded `starlette` to the `1.x` series (`>=1.3.1`). Updated
+  `TemplateResponse` calls to the new request-first signature required since
+  `starlette` `1.0.0`, and migrated the test client helpers from `httpx` to
+  `httpx2`, which `starlette` `1.x` requires for `starlette.testclient`
+  (`#1847`_).
+- Added temporary workaround when trying to generate `ref` keymap values and user does not have permission to access the
+  required model (this will eventually be removed, once we no longer need to access other models to generate `_id` values)
+  (`#1945`_).
+- Improved `Dask` and `Sql` backend `PrimaryKey` `_id` value generation function to be more consistent how other datatypes
+  were handled (`#1945`_).
+
+.. _#1847: https://github.com/atviriduomenys/spinta/issues/1847
+.. _#1945: https://github.com/atviriduomenys/spinta/issues/1945
 
 0.2dev28 (2026-07-02)
 =====================

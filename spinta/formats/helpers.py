@@ -45,7 +45,7 @@ def _get_dtype_header(dtype: DataType, select: SelectTree, name: str, langs: Lis
             if dtype.model.given.pkeys or dtype.explicit:
                 props = dtype.refprops
             else:
-                props = [dtype.model.properties["_id"]]
+                props = [dtype.model.id_prop]
             processed_props = []
             for prop in props:
                 processed_props.append(get_separated_name(dtype, name, prop.place))
