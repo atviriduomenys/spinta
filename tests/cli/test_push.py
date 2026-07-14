@@ -8,10 +8,12 @@ import sqlalchemy as sa
 import sqlalchemy_utils as su
 from requests.exceptions import ConnectTimeout, ReadTimeout
 
+from spinta import commands
+from spinta.cli.helpers.auth import require_auth
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import configure_remote_server, create_client, create_rc
+from spinta.testing.client import configure_remote_server, create_client, create_rc, create_remote_server
 from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.push import compare_push_state_rows
@@ -360,6 +362,253 @@ def test_push_without_progress_bar(context, postgresql, rc, cli: SpintaCliRunner
     )
     assert result.exit_code == 0
     assert result.stderr == ""
+
+
+def test_push_respects_access(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
+    # `spinta push` only sends data whose effective `access` is at least the
+    # `access` configured in the config file (default: `open`). Filtering happens
+    # at both model and property level via `authorized()`.
+    #
+    # NOTE on model access: a model's effective access equals the access of its
+    # most-open property (see spinta/core/access.py: a child property raises its
+    # parent's access). So a model is only excluded when ALL of its properties
+    # are below the configured access.
+    #
+    # To isolate push behaviour, the remote is deliberately configured to model
+    # EVERYTHING as `open`, so if push wrongly sent non-open data it would land
+    # on the remote and be visible here.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property     | type   | ref  | source       | access
+    datasets/gov/access          |        |      |              |
+      | data                     | sql    |      |              |
+      |   |                      |        |      |              |
+      |   |   | AccessCountry    |        |      | salis        |
+      |   |   |   | code         | string |      | kodas        | open
+      |   |   |   | name         | string |      | pavadinimas  | private
+      |   |                      |        |      |              |
+      |   |   | AccessSecret     |        |      | salis        |
+      |   |   |   | code         | string |      | kodas        | private
+      |   |   |   | name         | string |      | pavadinimas  | private
+    """),
+    )
+
+    # Remote manifest: same models but everything is `open`, so the remote can
+    # accept and expose anything push might send.
+    create_tabular_manifest(
+        context,
+        tmp_path / "remote.csv",
+        striptable("""
+    d | r | b | m | property     | type   | ref  | access
+    datasets/gov/access          |        |      |
+      |   |   | AccessCountry    |        |      |
+      |   |   |   | code         | string |      | open
+      |   |   |   | name         | string |      | open
+      |   |                      |        |      |
+      |   |   | AccessSecret     |        |      | open
+      |   |   |   | code         | string |      | open
+      |   |   |   | name         | string |      | open
+    """),
+    )
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server from the all-open remote.csv manifest.
+    remote_rc = rc.fork(
+        {
+            "manifests": {
+                "default": {
+                    "type": "tabular",
+                    "path": str(tmp_path / "remote.csv"),
+                    "backend": "default",
+                    "mode": localrc.get("manifests", "default", "mode"),
+                },
+            },
+            "backends": ["default"],
+        }
+    )
+    remote = create_remote_server(
+        remote_rc,
+        tmp_path,
+        responses,
+        scopes=[
+            "uapi:/:set_meta_fields",
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:create",
+            "uapi:/:patch",
+            "uapi:/:delete",
+            "uapi:/:changes",
+        ],
+        credsfile=True,
+    )
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Bootstrap the remote so all columns (incl. the ones push should NOT send)
+    # exist up front; otherwise the missing columns would mask the assertions.
+    remote_context = remote.app.context
+    with remote_context:
+        require_auth(remote_context)
+        commands.bootstrap(remote_context, remote_context.get("store").manifest)
+
+    # Push data from local to remote.
+    result = cli.invoke(
+        localrc,
+        [
+            "push",
+            "-d",
+            "datasets/gov/access",
+            "-o",
+            remote.url,
+            "--credentials",
+            remote.credsfile,
+            "--no-progress-bar",
+            "--stop-on-error",
+        ],
+    )
+    assert result.exit_code == 0
+
+    # Model with an `open` property is pushed, but its `private` property `name`
+    # is filtered out (arrives as null on the remote).
+    remote.app.authmodel("datasets/gov/access/AccessCountry", ["getall", "search"])
+    resp_country = remote.app.get("datasets/gov/access/AccessCountry")
+    assert resp_country.status_code == 200
+    country_rows = resp_country.json()["_data"]
+    assert sorted(row["code"] for row in country_rows) == ["ee", "lt", "lv"]
+    assert all(row["name"] is None for row in country_rows)
+
+    # Model whose every property is below `open` has an effective access below
+    # the configured `open`, so it is not pushed at all.
+    remote.app.authmodel("datasets/gov/access/AccessSecret", ["getall", "search"])
+    resp_secret = remote.app.get("datasets/gov/access/AccessSecret")
+    assert resp_secret.status_code == 200
+    assert resp_secret.json()["_data"] == []
+
+
+@pytest.mark.parametrize(
+    "config_access, node_access, pushed",
+    [
+        # With the default config `access` == open, only open nodes are pushed.
+        ("open", "open", True),
+        ("open", "public", False),
+        ("open", "protected", False),
+        ("open", "private", False),
+        # Lowering config `access` below open does NOT widen what a default
+        # (unauthenticated) push client may read: authorized() blocks every node
+        # for an anonymous client when config.access < open. Pushing non-open
+        # data requires authenticating as a client that holds the needed scopes
+        # (`spinta push -a <client>`).
+        ("public", "open", False),
+        ("private", "open", False),
+    ],
+)
+def test_push_respects_config_access_level(
+    context,
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    config_access,
+    node_access,
+    pushed,
+):
+    # `spinta push` reads local data through the same `authorized()` gate that
+    # the read API uses, so the config file's `access` level acts as a threshold
+    # on what leaves the source. Here a single-property model has its whole
+    # effective access equal to `node_access`, and the config's `access` is
+    # varied to show its effect.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(f"""
+    d | r | b | m | property     | type   | ref  | source       | access
+    datasets/gov/access          |        |      |              |
+      | data                     | sql    |      |              |
+      |   |                      |        |      |              |
+      |   |   | AccessCountry    |        |      | salis        |
+      |   |   |   | code         | string |      | kodas        | {node_access}
+    """),
+    )
+    create_tabular_manifest(
+        context,
+        tmp_path / "remote.csv",
+        striptable("""
+    d | r | b | m | property     | type   | ref  | access
+    datasets/gov/access          |        |      |
+      |   |   | AccessCountry    |        |      |
+      |   |   |   | code         | string |      | open
+    """),
+    )
+
+    # Local server with the config-file `access` set to config_access.
+    localrc = create_rc(rc, tmp_path, geodb).fork({"access": config_access})
+
+    remote_rc = rc.fork(
+        {
+            "manifests": {
+                "default": {
+                    "type": "tabular",
+                    "path": str(tmp_path / "remote.csv"),
+                    "backend": "default",
+                    "mode": localrc.get("manifests", "default", "mode"),
+                },
+            },
+            "backends": ["default"],
+        }
+    )
+    remote = create_remote_server(
+        remote_rc,
+        tmp_path,
+        responses,
+        scopes=[
+            "uapi:/:set_meta_fields",
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:create",
+            "uapi:/:patch",
+            "uapi:/:delete",
+            "uapi:/:changes",
+        ],
+        credsfile=True,
+    )
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    remote_context = remote.app.context
+    with remote_context:
+        require_auth(remote_context)
+        commands.bootstrap(remote_context, remote_context.get("store").manifest)
+
+    result = cli.invoke(
+        localrc,
+        [
+            "push",
+            "-d",
+            "datasets/gov/access",
+            "-o",
+            remote.url,
+            "--credentials",
+            remote.credsfile,
+            "--no-progress-bar",
+        ],
+    )
+    assert result.exit_code == 0
+
+    remote.app.authmodel("datasets/gov/access/AccessCountry", ["getall", "search"])
+    resp = remote.app.get("datasets/gov/access/AccessCountry")
+    assert resp.status_code == 200
+    codes = sorted(row["code"] for row in resp.json()["_data"])
+    if pushed:
+        assert codes == ["ee", "lt", "lv"]
+    else:
+        assert codes == []
 
 
 def test_push_error_exit_code(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, errordb, request):
