@@ -7,11 +7,13 @@ from http import HTTPStatus
 
 import pytest
 import ruamel.yaml
-from authlib.jose import JsonWebKey, jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
+from joserfc import jwt
+from joserfc.jwk import RSAKey, import_key
 
 from spinta import commands
 from spinta.auth import (
+    ALLOWED_JWT_ALGORITHMS,
     BearerTokenValidator,
     KeyType,
     Token,
@@ -79,7 +81,8 @@ def generate_jwt(private_key, kid, scopes="spinta_getall"):
     token = jwt.encode(
         {"kid": kid, "alg": "RS512"},
         payload,
-        private_key,
+        RSAKey.import_key(private_key),
+        algorithms=ALLOWED_JWT_ALGORITHMS,
     )
     return token
 
@@ -107,8 +110,8 @@ def test_app(context, app):
     }
 
     config = context.get("config")
-    key = JsonWebKey.import_key(json.loads((config.config_path / "keys/public.json").read_text()))
-    token = jwt.decode(data["access_token"], key)
+    key = import_key(json.loads((config.config_path / "keys/public.json").read_text()))
+    token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token == {
         "iss": config.server_url,
         "sub": client_id,
@@ -127,8 +130,8 @@ def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
     public_path = tmp_path / "keys" / "public.json"
 
     assert result.output == f"Private key saved to {private_path}.\nPublic key saved to {public_path}.\n"
-    JsonWebKey.import_key(json.loads(private_path.read_text()))
-    JsonWebKey.import_key(json.loads(public_path.read_text()))
+    import_key(json.loads(private_path.read_text()))
+    import_key(json.loads(public_path.read_text()))
 
 
 def test_cant_download_keys(rc, cli: SpintaCliRunner, tmp_path, context, requests_mock):
@@ -309,8 +312,8 @@ def test_empty_scope(context, app):
     config = context.get("config")
     public_path = config.config_path / "keys" / "public.json"
 
-    key = JsonWebKey.import_key(json.loads(public_path.read_text()))
-    token = jwt.decode(data["access_token"], key)
+    key = import_key(json.loads(public_path.read_text()))
+    token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token["scope"] == ""
 
 
@@ -357,7 +360,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: li
     context = create_test_context(rc).load()
     request.addfinalizer(context.wipe_all)
 
-    prvkey = JsonWebKey.import_key(prvkey)
+    prvkey = import_key(prvkey)
     client = "RANDOMID"
     scopes = scopes
     token = create_access_token(context, prvkey, client, scopes=scopes)
@@ -596,7 +599,7 @@ def test_pick_correct_key(app, context):
 
     token = generate_jwt(private_2, "rotation-2")
 
-    resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token.decode()}"})
+    resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
     config.token_validation_key = None
 

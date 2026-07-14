@@ -4,6 +4,14 @@ Changes
 0.2dev30 (unreleased)
 =====================
 
+Improvements:
+
+- Migrated JWT handling from the deprecated ``authlib.jose`` module to
+  ``joserfc``, removing the ``AuthlibDeprecationWarning``. Since ``joserfc``
+  rejects non-recommended signing algorithms by default, an explicit
+  ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
+  ``RS512`` used for access tokens) is now passed to token encode/decode.
+
 
 0.2dev29 (2026-07-13)
 =====================
