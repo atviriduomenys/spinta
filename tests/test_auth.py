@@ -74,7 +74,7 @@ def generate_jwt(private_key, kid, scopes="spinta_getall"):
     now = datetime.datetime.now()
     payload = {
         "sub": "user1",
-        "exp": now + datetime.timedelta(minutes=5),
+        "exp": int((now + datetime.timedelta(minutes=5)).timestamp()),
         "scope": scopes,
         "iat": int(now.timestamp()),
     }
