@@ -4,6 +4,13 @@ Changes
 0.2dev30 (unreleased)
 =====================
 
+Bug fixes:
+
+- Fixed key-id based public key selection in token validation: ``decode_token``
+  now reads the standard ``kid`` JWS header field (previously it looked for a
+  non-standard ``key`` field that is never present, so the ``kid`` fast path was
+  never taken and validation always fell back to trial-verifying every key).
+
 Improvements:
 
 - Migrated JWT handling from the deprecated ``authlib.jose`` module to

@@ -270,7 +270,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
 
         try:
             token_header = decode_unverified_header(token_string)
-            if kid := token_header.get("key"):
+            if kid := (token_header.get("kid") or token_header.get("key")):
                 for key in self._all_public_keys:
                     if key.kid and str(key.kid) == str(kid):
                         return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
