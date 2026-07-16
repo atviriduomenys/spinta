@@ -604,6 +604,39 @@ def test_pick_correct_key(app, context):
     config.token_validation_key = None
 
 
+def test_decode_token_selects_key_by_kid(monkeypatch):
+    """The ``kid`` header must select the matching public key directly.
+
+    The matching key is placed *second* on purpose: a ``kid``-agnostic
+    implementation would fall back to trial-verifying every key and would try
+    the wrong (first) key before succeeding on the second one. Asserting that
+    ``jwt.decode`` is called exactly once, with the ``kid``-matching key, makes
+    reverting to the old non-standard ``key`` header lookup fail this test.
+    """
+    private_1, jwk1 = generate_rsa_keypair("rotation-1")
+    private_2, jwk2 = generate_rsa_keypair("rotation-2")
+
+    validator = BearerTokenValidator.__new__(BearerTokenValidator)
+    validator._all_public_keys = [import_key(jwk1), import_key(jwk2)]
+
+    token = generate_jwt(private_2, "rotation-2")
+
+    real_decode = jwt.decode
+    tried_keys = []
+
+    def spy_decode(token_string, key, *args, **kwargs):
+        tried_keys.append(key)
+        return real_decode(token_string, key, *args, **kwargs)
+
+    monkeypatch.setattr(jwt, "decode", spy_decode)
+
+    claims = validator.decode_token(token)
+
+    assert claims["sub"] == "user1"
+    assert len(tried_keys) == 1
+    assert tried_keys[0].kid == "rotation-2"
+
+
 class TestAuthorized:
     @pytest.mark.parametrize(
         "client, scopes, node, action, result",
