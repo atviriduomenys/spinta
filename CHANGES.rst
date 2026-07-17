@@ -4,6 +4,14 @@ Changes
 0.2dev30 (unreleased)
 =====================
 
+Bug fixes:
+
+- Replaced the deprecated `asyncio.get_event_loop().run_until_complete()` calls
+  in the `import`, `export`, `pull` and `bootstrap` commands with
+  `asyncio.run()`. On Python `3.14` `asyncio.get_event_loop()` no longer creates
+  an event loop when none is running and raises `RuntimeError: There is no
+  current event loop`, which made these commands fail (`#1556`_).
+
 Improvements:
 
 - Added support for Python `3.14`. Bumped `sqlean-py` to `>=3.50.4.5`, which is
