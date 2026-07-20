@@ -23,9 +23,36 @@ def create_test_context(
     Context_ = type("ContextForTests", (ContextForTests, Context_), {})
     context = Context_(name)
     context = create_context(name, rc, context)
-    if request and wipe_data:
-        request.addfinalizer(context.wipe_all)
+    if request:
+        # Finalizers run in LIFO order, so register engine disposal first: it
+        # must run *after* `wipe_all`, which still needs a working backend.
+        request.addfinalizer(lambda: close_context_engines(context))
+        if wipe_data:
+            request.addfinalizer(context.wipe_all)
     return context
+
+
+def close_context_engines(context: TestContext) -> None:
+    """Dispose SQLAlchemy engines created by a test context.
+
+    Each test context creates its own backend (and keymap) engines together with
+    their connection pools. These are otherwise only released when the context is
+    garbage collected. On CPython 3.14 the cyclic garbage collector reclaims them
+    late enough that idle pooled connections pile up across tests and exhaust the
+    PostgreSQL ``max_connections`` limit. Disposing them explicitly keeps the open
+    connection count bounded regardless of garbage collection timing.
+    """
+    if not context.has("store", value=True):
+        return
+    store = context.get("store")
+    for backend in getattr(store, "backends", {}).values():
+        engine = getattr(backend, "engine", None)
+        if engine is not None:
+            engine.dispose()
+    for keymap in getattr(store, "keymaps", {}).values():
+        engine = getattr(keymap, "engine", None)
+        if engine is not None:
+            engine.dispose()
 
 
 class ContextForTests:

@@ -11,6 +11,11 @@ Bug fixes:
   `asyncio.run()`. On Python `3.14` `asyncio.get_event_loop()` no longer creates
   an event loop when none is running and raises `RuntimeError: There is no
   current event loop`, which made these commands fail (`#1556`_).
+- Test contexts now dispose their backend and keymap SQLAlchemy engines when
+  torn down, instead of relying on the garbage collector. On Python `3.14` the
+  cyclic garbage collector reclaimed these engines late enough that idle pooled
+  connections accumulated across the test suite and exhausted the PostgreSQL
+  `max_connections` limit (`FATAL: sorry, too many clients already`) (`#1556`_).
 
 Improvements:
 
