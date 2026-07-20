@@ -17,6 +17,11 @@ Bug fixes:
   connections accumulated across the test suite and exhausted the PostgreSQL
   `max_connections` limit (`FATAL: sorry, too many clients already`) (`#1556`_).
 
+- Fixed key-id based public key selection in token validation: ``decode_token``
+  now reads the standard ``kid`` JWS header field (previously it looked for a
+  non-standard ``key`` field that is never present, so the ``kid`` fast path was
+  never taken and validation always fell back to trial-verifying every key).
+
 Improvements:
 
 - Added support for Python `3.14`. Bumped `sqlean-py` to `>=3.50.4.5`, which is
@@ -25,6 +30,13 @@ Improvements:
   (`#1556`_).
 
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
+
+- Migrated JWT handling from the deprecated ``authlib.jose`` module to
+  ``joserfc``, removing the ``AuthlibDeprecationWarning``. Since ``joserfc``
+  rejects non-recommended signing algorithms by default, an explicit
+  ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
+  ``RS512`` used for access tokens) is now passed to token encode/decode.
+
 
 0.2dev29 (2026-07-13)
 =====================
