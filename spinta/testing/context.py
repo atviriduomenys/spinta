@@ -37,18 +37,48 @@ def create_test_context(
 
 
 def close_context_engines(context: TestContext) -> None:
-    """Dispose SQLAlchemy engines created by a single test context."""
+    """Dispose SQLAlchemy engines created by a single test context.
+
+    Backends can be owned by the store, declared by the manifest, or attached to
+    individual dataset resources, and each can own its own engine. This mirrors
+    the runtime backend collection in :func:`spinta.types.store.wait` so that
+    engines from every source (plus keymaps) are disposed, not just the ones in
+    ``store.backends``.
+    """
     if not context.has("store", value=True):
         return
     store = context.get("store")
-    for backend in getattr(store, "backends", {}).values():
+
+    seen: set[int] = set()
+    engines = []
+
+    def collect(backend) -> None:
         engine = getattr(backend, "engine", None)
-        if engine is not None:
-            engine.dispose()
-    for keymap in getattr(store, "keymaps", {}).values():
-        engine = getattr(keymap, "engine", None)
-        if engine is not None:
-            engine.dispose()
+        if engine is not None and id(engine) not in seen:
+            seen.add(id(engine))
+            engines.append(engine)
+
+    for backend in (getattr(store, "backends", None) or {}).values():
+        collect(backend)
+
+    manifest = getattr(store, "manifest", None)
+    if manifest is not None:
+        for backend in (getattr(manifest, "backends", None) or {}).values():
+            collect(backend)
+        try:
+            datasets = commands.get_datasets(context, manifest)
+        except Exception:
+            datasets = {}
+        for dataset in datasets.values():
+            for resource in dataset.resources.values():
+                if resource.backend is not None:
+                    collect(resource.backend)
+
+    for keymap in (getattr(store, "keymaps", None) or {}).values():
+        collect(keymap)
+
+    for engine in engines:
+        engine.dispose()
 
 
 def close_test_context_engines() -> None:
