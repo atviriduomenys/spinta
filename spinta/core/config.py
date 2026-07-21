@@ -42,30 +42,7 @@ def read_config(args=None, envfile=None):
             CliArgs("cliargs", args or []),
         ]
     )
-
-    # Inject extension provided defaults
-    _read_chained_configs(rc)
     return rc
-
-
-def _read_chained_configs(rc: RawConfig) -> None:
-    loaded: set[str] = set()
-
-    while True:
-        configs, origin = rc.get("config", cast=list, default=[], origin=True)
-        new_configs = []
-        for config in configs:
-            if config not in loaded:
-                loaded.add(config)
-                new_configs.append(config)
-
-        if not new_configs:
-            break
-
-        rc.read(
-            [Path(config, config) for config in new_configs],
-            after=origin,
-        )
 
 
 class KeyFormat(str, enum.Enum):
@@ -76,6 +53,7 @@ class KeyFormat(str, enum.Enum):
 
 class ConfigSource:
     name: str
+    overridable_keys: bool = False
 
     def __init__(self, name=None, config=None):
         self.name = self.getname(name)
@@ -138,6 +116,7 @@ class Path(PyDict):
 
 class CliArgs(PyDict):
     name = "cli"
+    overridable_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -152,6 +131,7 @@ class CliArgs(PyDict):
 
 class EnvVars(ConfigSource):
     name = "env"
+    overridable_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -237,6 +217,11 @@ class RawConfig:
 
         self._keys = self._update_keys()
 
+        for config in sources:
+            nested_configs = config.get(("config",)) or []
+            nested_configs = self._cast_value(nested_configs, list, [])
+            self.read([Path(nested_config, nested_config) for nested_config in nested_configs], after=config.name)
+
     def add(self, name, params):
         self.read([PyDict(name, params)])
         return self
@@ -271,13 +256,7 @@ class RawConfig:
         value, config = self._get_config_value(key, default, env)
 
         if cast is not None:
-            if cast is list and isinstance(value, str):
-                value = value.split(",") if value else []
-            elif value is not None:
-                value = cast(value)
-            else:
-                # XXX: why []?
-                value = default or []
+            value = self._cast_value(value, cast, default=default)
 
         if required and value is None:
             name = ".".join(key)
@@ -353,6 +332,17 @@ class RawConfig:
             result[key] = val
         return result
 
+    def _cast_value(self, value: Any, cast: Any, default: Any | None = None) -> Any:
+        if cast is list and isinstance(value, str):
+            value = value.split(",") if value else []
+        elif value is not None:
+            value = cast(value)
+        else:
+            # XXX: why []?
+            value = default or []
+
+        return value
+
     def _update_keys(self) -> Dict[Key, List[str]]:
         """Update inner keys respecting already set values."""
         keys = {}
@@ -389,7 +379,14 @@ class RawConfig:
                     if k not in keys:
                         keys[k] = config, v
 
-                    existing = keys[k][1]
+                    origin, existing = keys[k]
+                    if config.overridable_keys:
+                        keys[k] = config, v
+                        break
+
+                    if origin.overridable_keys:
+                        break
+
                     for item in v:
                         if item not in existing:
                             existing.append(item)

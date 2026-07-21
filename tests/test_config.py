@@ -371,9 +371,10 @@ def test_yaml_config(tmp_path):
             ),
         ]
     )
-    configs = rc.get("config", cast=list, default=[])
-    sources = [Path("defaults", c) for c in configs]
-    rc.read(sources, after="defaults")
+    # configs = rc.get("config", cast=list, default=[])
+    # sources = [Path("defaults", c) for c in configs]
+    # rc.read(sources, after="defaults")
+    print(rc.sources)
     assert rc.get("wait", cast=int) == 2
     assert rc.get("backends", "default", "dsn") == "test"
     assert rc.get("debug") is False
@@ -456,9 +457,7 @@ def test_environments():
                 "defaults",
                 {
                     "backends": {
-                        "default": {
-                            "type": "postgresql",
-                        },
+                        "default": {"type": "postgresql", "dsn": "localhost"},
                     },
                     "env": "dev",
                     "environments": {
@@ -467,15 +466,12 @@ def test_environments():
                                 "mongo": {
                                     "type": "mongo",
                                 },
-                                "fs": {
-                                    "type": "fs",
-                                },
                             },
                         },
                         "test": {
                             "backends": {
                                 "default": {
-                                    "type": "postgresql",
+                                    "type": "mongo",
                                 },
                                 "mongo": {
                                     "type": "mongo",
@@ -493,15 +489,17 @@ def test_environments():
 
     rc.add("T1", {"env": "test"})
     assert list(rc.getall("backends")) == [
-        (("backends", "default", "type"), "postgresql"),
+        (("backends", "default", "type"), "mongo"),
+        (("backends", "default", "dsn"), "localhost"),
         (("backends", "mongo", "type"), "mongo"),
         (("backends", "fs", "type"), "fs"),
     ]
 
     rc.add("T2", {"env": "dev"})
     assert list(rc.getall("backends")) == [
+        (("backends", "default", "type"), "postgresql"),
+        (("backends", "default", "dsn"), "localhost"),
         (("backends", "mongo", "type"), "mongo"),
-        (("backends", "fs", "type"), "fs"),
     ]
 
 
