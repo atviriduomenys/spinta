@@ -63,6 +63,9 @@ def close_context_engines(context: TestContext) -> None:
 
     manifest = getattr(store, "manifest", None)
     if manifest is not None:
+        # Some manifests (e.g. InternalSQLManifest) own their engine directly,
+        # separately from `manifest.backends`.
+        collect(manifest)
         for backend in (getattr(manifest, "backends", None) or {}).values():
             collect(backend)
         try:
