@@ -13,5 +13,4 @@ def bootstrap(context: Context, manifest: BackendManifest):
     if not backend.bootstrapped():
         with context:
             context.attach("transaction", validate_and_return_transaction, context, manifest.backend, write=True)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_bootstrap(context, manifest))
+            asyncio.run(run_bootstrap(context, manifest))

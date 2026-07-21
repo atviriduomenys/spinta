@@ -113,8 +113,9 @@ psutil = "*"
 tabulate = "*"
 pyproj = [{version = ">=3.7.0", python = ">=3.13"}, {version = "3.6.1", python = "<3.13"}]
 xmltodict = "*"
-# Error when trying to install >=3.50
-sqlean-py = "<=3.49.1"
+# >=3.50.4.5 provides wheels for CPython 3.10-3.14 (older releases fail to
+# build from source on 3.14).
+sqlean-py = ">=3.50.4.5"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"

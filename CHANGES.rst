@@ -6,6 +6,18 @@ Changes
 
 Bug fixes:
 
+- Replaced the deprecated ``asyncio.get_event_loop().run_until_complete()`` calls
+  in the ``import``, ``export``, ``pull`` and ``bootstrap`` commands with
+  ``asyncio.run()``. On Python ``3.14`` ``asyncio.get_event_loop()`` no longer
+  creates an event loop when none is running and raises ``RuntimeError: There is
+  no current event loop``, which made these commands fail (`#1556`_).
+- Test contexts now dispose their backend and keymap SQLAlchemy engines when
+  torn down, instead of relying on the garbage collector. On Python ``3.14`` the
+  cyclic garbage collector reclaimed these engines late enough that idle pooled
+  connections accumulated across the test suite and exhausted the PostgreSQL
+  ``max_connections`` limit (``FATAL: sorry, too many clients already``)
+  (`#1556`_).
+
 - Fixed key-id based public key selection in token validation: ``decode_token``
   now reads the standard ``kid`` JWS header field (previously it looked for a
   non-standard ``key`` field that is never present, so the ``kid`` fast path was
@@ -13,11 +25,17 @@ Bug fixes:
 
 Improvements:
 
+- Added support for Python ``3.14``. Bumped ``sqlean-py`` to ``>=3.50.4.5``, which
+  is the first release providing prebuilt wheels for CPython ``3.14`` (older
+  releases failed to build from source on ``3.14``), and added ``3.14`` to the CI
+  test matrix (`#1556`_).
 - Migrated JWT handling from the deprecated ``authlib.jose`` module to
   ``joserfc``, removing the ``AuthlibDeprecationWarning``. Since ``joserfc``
   rejects non-recommended signing algorithms by default, an explicit
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
+
+.. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 
 
 0.2dev29 (2026-07-13)
