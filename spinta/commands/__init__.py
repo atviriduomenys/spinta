@@ -661,7 +661,7 @@ def move():
 def get_primary_key_type():
     """Return primary key column type.
 
-    This applyies to some backends, for example PostgreSQL.
+    This applies to some backends, for example PostgreSQL.
 
     PostgreSQL returns sqlalchemy.dialects.postgresql.UUID.
     """
