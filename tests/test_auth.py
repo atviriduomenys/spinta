@@ -804,7 +804,7 @@ class TestAuthorized:
             ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem.hidden_subobj", Action.GETONE, False),
             (
                 "test-client",
-                {"uapi:/backends/mango/:getone"},
+                {"uapi:/backends/postgres/:getone"},
                 "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 False,
