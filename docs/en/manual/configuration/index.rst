@@ -191,7 +191,7 @@ suboption names. For example if we have following configuration::
   backends.sql.type=sql
   backends.fs.type=fs
 
-`backends` value is a list containing `pg` and `fs`, called keys. If you want to remove
+`backends` value is a list containing `pg`, `sql`, and `fs`, called keys. If you want to remove
 existing keys, you can set `backends`, like this::
 
   backends=pg,fs
