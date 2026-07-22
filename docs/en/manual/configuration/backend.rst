@@ -104,7 +104,7 @@ Each model, can explicitly set backend like this:
   backend: reports
 
 Here, model `reports`, uses a a non-default backend. If at some point you will
-decide to migrate you reports to another PostgreSQL instance, all you need to do
+decide to migrate your reports to another PostgreSQL instance, all you need to do
 is change two configuration options::
 
   SPINTA_BACKENDS__REPORTS__TYPE=postgresql
