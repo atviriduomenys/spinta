@@ -10,12 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-      mongo:
-        image: mongo:4.0.9
-        ports:
-          - 27017:27017
-
     strategy:
       fail-fast: false
       matrix:
@@ -54,5 +48,4 @@ jobs:
       - name: Test with pytest
         env:
           SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost:5432/spinta
-          SPINTA_BACKENDS__MONGO__DSN: mongodb://localhost:27017/
         run: make test-github

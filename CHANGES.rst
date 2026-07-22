@@ -4,6 +4,15 @@ Changes
 0.2dev30 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Removed the internal ``mongo`` backend. It was intended as an internal
+  storage for schemaless data sets, but that use case never materialized and
+  the backend was unused. The ``mongo`` backend type, its ``pymongo``
+  dependency and the Mongo service in CI and ``docker-compose`` are gone;
+  models must now use a schema-based internal backend such as ``postgresql``
+  (`#1996`_).
+
 Bug fixes:
 
 - Replaced the deprecated ``asyncio.get_event_loop().run_until_complete()`` calls
@@ -34,6 +43,8 @@ Improvements:
   rejects non-recommended signing algorithms by default, an explicit
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
+
+.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 

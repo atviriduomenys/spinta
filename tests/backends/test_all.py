@@ -4,7 +4,6 @@ from spinta.testing.utils import get_error_codes, get_error_context
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_insert_get(model, app):
@@ -59,7 +58,6 @@ def test_insert_get(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_update_get(model, app):
@@ -157,7 +155,6 @@ def test_update_get(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_put_non_existant_resource(model, app):
@@ -171,7 +168,6 @@ def test_put_non_existant_resource(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_non_existant_subresource(model, context, app):
@@ -213,7 +209,6 @@ def test_get_non_existant_subresource(model, context, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_delete(model, app, tmp_path):
@@ -301,7 +296,6 @@ def test_delete(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_delete_with_list_value(model, app):
@@ -316,7 +310,6 @@ def test_delete_with_list_value(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_patch(model, app, context):
@@ -436,7 +429,6 @@ def test_patch(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_escaping_chars(model, app):
@@ -458,7 +450,6 @@ def test_escaping_chars(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_update_same_scalar(model, app):
@@ -500,7 +491,6 @@ def test_update_same_scalar(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_update_same_obj(model, app):
@@ -548,7 +538,6 @@ def test_update_same_obj(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_update_same_subresource(model, app):
@@ -595,7 +584,6 @@ def test_update_same_subresource(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_update_same_array(model, app):

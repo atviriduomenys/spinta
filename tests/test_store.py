@@ -13,7 +13,6 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 @pytest.mark.models(
-    "backends/mongo/{}",
     "backends/postgres/{}",
 )
 @pytest.mark.parametrize("scopes", [["spinta_getone"], ["uapi:/:getone"]])
@@ -85,7 +84,6 @@ def test_schema_loader(model, app, scopes: list):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_nested(model, app):
