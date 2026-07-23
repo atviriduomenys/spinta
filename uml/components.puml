@@ -61,9 +61,6 @@ package backends <<Rectangle>> {
     object PostgreSQL {
         +dsn: str
     }
-    object Mongo {
-        +dsn: str
-    }
     object FileSystem {
         +path: str
     }

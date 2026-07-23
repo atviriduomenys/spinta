@@ -5,11 +5,8 @@ from spinta.utils.schema import NA
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_insert(model, app):
@@ -21,11 +18,8 @@ def test_insert(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_upsert_insert(model, app):
@@ -38,11 +32,8 @@ def test_upsert_insert(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_upsert_patch(model, app):
@@ -58,11 +49,8 @@ def test_upsert_patch(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_update(model, app):
@@ -77,9 +65,7 @@ def test_update(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
 )
 def test_update_missing(model, app):
@@ -94,7 +80,6 @@ def test_update_missing(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_update_missing_in_array(model, app):
@@ -109,11 +94,8 @@ def test_update_missing_in_array(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_update_same(model, app):
@@ -127,11 +109,8 @@ def test_update_same(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_patch(model, app):
@@ -146,11 +125,8 @@ def test_patch(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_patch_missing(model, app):
@@ -164,11 +140,8 @@ def test_patch_missing(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
-    "backends/mongo/dtypes/object/String",
     "backends/postgres/dtypes/object/String",
-    "backends/mongo/dtypes/array/String",
     "backends/postgres/dtypes/array/String",
 )
 def test_patch_same(model, app):
@@ -182,7 +155,6 @@ def test_patch_same(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/String",
     "backends/postgres/dtypes/String",
 )
 def test_delete(model, app):

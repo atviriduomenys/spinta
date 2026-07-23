@@ -89,31 +89,14 @@ def postgresql(rc) -> str:
 
 
 @pytest.fixture(scope="session")
-def mongo(rc):
-    yield
-    dsn = rc.get("backends", "mongo", "dsn", required=False)
-    db = rc.get("backends", "mongo", "db", required=False)
-    if dsn and db:
-        import pymongo
-
-        try:
-            client = pymongo.MongoClient(dsn, serverSelectionTimeoutMS=2000)
-            client.server_info()  # force connection check
-            client.drop_database(db)
-        except pymongo.errors.ServerSelectionTimeoutError:
-            pass  # MongoDB not running, nothing to clean up
-
-
-@pytest.fixture(scope="session")
-def backends(postgresql, mongo):
+def backends(postgresql):
     yield {
         "postgresql": postgresql,
-        "mongo": mongo,
     }
 
 
 @pytest.fixture(scope="session")
-def _context(rc: RawConfig, postgresql, mongo):
+def _context(rc: RawConfig, postgresql):
     # `track=False`: this session context is shared (reused via `fork`) across the
     # whole suite, so its single connection pool is bounded and must not be
     # disposed after every test by `close_test_context_engines`.
@@ -197,7 +180,7 @@ def pytest_addoption(parser):
         "--model",
         action="append",
         default=[],
-        help="run tests only for particular model ['postgres', 'mongo', 'postgres/datasets']",
+        help="run tests only for particular model ['postgres', 'postgres/datasets']",
     )
     parser.addoption(
         "--manifest_type",

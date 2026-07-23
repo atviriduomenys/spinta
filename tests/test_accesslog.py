@@ -36,7 +36,6 @@ def _upload_pdf(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_post_accesslog(model, app, context):
@@ -75,7 +74,6 @@ def test_post_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_post_array_accesslog(model, app, context):
@@ -123,7 +121,6 @@ def test_post_array_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_put_accesslog(model, app, context):
@@ -176,7 +173,6 @@ def test_put_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_put_accesslog(model, app, context):
@@ -216,7 +212,6 @@ def test_pdf_put_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_patch_accesslog(model, app, context):
@@ -268,7 +263,6 @@ def test_patch_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_accesslog(app, model, context):
@@ -311,7 +305,6 @@ def test_get_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_array_accesslog(model, app, context):
@@ -362,7 +355,6 @@ def test_get_array_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_get_accesslog(model, app, context):
@@ -401,7 +393,6 @@ def test_pdf_get_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_prop_accesslog(app, model, context):
@@ -445,7 +436,6 @@ def test_get_prop_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_w_select_accesslog(app, model, context):
@@ -487,7 +477,6 @@ def test_get_w_select_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_getall_accesslog(app, model, context):
@@ -528,7 +517,6 @@ def test_getall_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_getall_w_select_accesslog(app, model, context):
@@ -802,7 +790,6 @@ def test_accesslog_file_stderr(
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_delete_accesslog(model, app, context):
@@ -846,7 +833,6 @@ def test_delete_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_delete_accesslog(model, app, context):
@@ -895,7 +881,6 @@ def _get_object_rev(app, model: str, id_: str) -> str:
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
@@ -959,7 +944,6 @@ def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_batch_write(model, app, context, tmp_path):
@@ -1011,7 +995,6 @@ def test_batch_write(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_stream_write(model, app, context, tmp_path):
@@ -1063,7 +1046,6 @@ def test_stream_write(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_ns_read(model, app, context, tmp_path):
@@ -1075,7 +1057,6 @@ def test_ns_read(model, app, context, tmp_path):
     assert resp.status_code == 200, resp.json()
 
     objects = {
-        "backends/mongo/Report": 20,
         "backends/postgres/Report": 21,
     }
 
@@ -1108,7 +1089,6 @@ def test_ns_read(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_ns_read_csv(model, app, context, tmp_path):
@@ -1120,7 +1100,6 @@ def test_ns_read_csv(model, app, context, tmp_path):
     assert resp.status_code == 200
 
     objects = {
-        "backends/mongo/Report": 20,
         "backends/postgres/Report": 21,
     }
 

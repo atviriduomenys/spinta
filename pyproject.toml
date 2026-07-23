@@ -88,10 +88,6 @@ sqlalchemy = "~1.4"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/791
 sqlalchemy-utils = "<=0.41.2"
 
-# Mongo backend dependendencies
-# https://github.com/atviriduomenys/spinta/issues/806
-pymongo = "<=4.8.0"
-
 # Excel dependencies
 xlrd = "*"
 

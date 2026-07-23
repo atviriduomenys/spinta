@@ -12,7 +12,6 @@ from spinta.testing.manifest import bootstrap_manifest
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    # 'backends/mongo/Report',
 )
 def test_changes(model, context, app):
     app.authmodel(model, ["insert", "patch", "changes"])
@@ -45,7 +44,6 @@ def test_changes(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    # 'backends/mongo/Report',
 )
 def test_changes_negative_offset(model, context, app):
     app.authmodel(model, ["insert", "patch", "changes"])
@@ -81,7 +79,6 @@ def test_changes_negative_offset(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    # 'backends/mongo/Report',
 )
 def test_changes_empty_patch(model, context, app):
     app.authmodel(model, ["insert", "patch", "changes"])

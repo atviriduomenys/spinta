@@ -23,7 +23,6 @@ CONFIG = {
     "ufuncs": [
         "spinta.ufuncs",
         "spinta.backends.postgresql.ufuncs",
-        "spinta.backends.mongo.ufuncs",
         "spinta.datasets.backends.sql.ufuncs",
         "spinta.datasets.backends.dataframe.ufuncs",
     ],
@@ -60,7 +59,6 @@ CONFIG = {
             "memory": "spinta.backends.memory.components:Memory",
             # Internal backends
             "postgresql": "spinta.backends.postgresql.components:PostgreSQL",
-            "mongo": "spinta.backends.mongo.components:Mongo",
             "fs": "spinta.backends.fs.components:FileSystem",
             # External backends
             # XXX: Probably these should be moved to components.resources?
@@ -93,7 +91,6 @@ CONFIG = {
             "": "spinta.ufuncs.querybuilder.components:QueryBuilder",
             # Internal query builders
             "postgresql": "spinta.backends.postgresql.ufuncs.query.components:PgQueryBuilder",
-            "mongo": "spinta.backends.mongo.ufuncs.components:MongoQueryBuilder",
             # External query builders
             "sql": "spinta.datasets.backends.sql.ufuncs.query.components:SqlQueryBuilder",
             "sql/sqlite": "spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components:SqliteQueryBuilder",
@@ -285,11 +282,6 @@ CONFIG = {
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta",
                     "migrate": "alembic",
                 },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta",
-                },
                 "fs": {
                     "type": "fs",
                     "path": pathlib.Path() / "var/files",
@@ -321,11 +313,6 @@ CONFIG = {
                 "default": {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
-                },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta_tests",
                 },
                 "fs": {
                     "type": "fs",
