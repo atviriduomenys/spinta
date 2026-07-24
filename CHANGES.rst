@@ -1,7 +1,12 @@
 Changes
 #######
 
-0.2dev29 (unreleased)
+1.0.0 (2026-07-23)
+==================
+
+No changes since 0.2dev29
+
+0.2dev29 (2026-07-13)
 =====================
 
 Backwards incompatible:
