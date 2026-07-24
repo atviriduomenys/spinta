@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.2dev30 (unreleased)
+1.1.0 (unreleased)
 =====================
 
 Backwards incompatible:
@@ -48,6 +48,11 @@ Improvements:
 
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 
+
+1.0.0 (2026-07-23)
+==================
+
+No changes since 0.2dev29
 
 0.2dev29 (2026-07-13)
 =====================
