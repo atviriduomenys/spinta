@@ -151,6 +151,7 @@ def load(context: Context, config: Config) -> Config:
         cast=lambda strategy: DistributionStrategy(
             get_enum_by_value(DistributionType, strategy),
             property=rc.get("default_distribution_property", default=None),
+            default=True,
         ),
     )
 
