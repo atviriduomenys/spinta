@@ -6,7 +6,7 @@
 #
 alabaster==1.0.0
     # via sphinx
-anyio==4.14.1
+anyio==4.14.2
     # via
     #   starlette
     #   watchfiles
@@ -16,7 +16,7 @@ babel==2.18.0
     #   sphinx-intl
 certifi==2026.6.17
     # via requests
-charset-normalizer==3.4.7
+charset-normalizer==3.4.9
     # via requests
 click==8.4.2
     # via
@@ -108,9 +108,9 @@ typing-extensions==4.16.0
     #   uvicorn
 urllib3==2.7.0
     # via requests
-uvicorn==0.49.0
+uvicorn==0.51.0
     # via sphinx-autobuild
 watchfiles==1.2.0
     # via sphinx-autobuild
-websockets==16.0
+websockets==16.1
     # via sphinx-autobuild

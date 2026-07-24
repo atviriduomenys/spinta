@@ -4,7 +4,6 @@ from spinta.testing.utils import get_error_codes, get_error_context
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_report(model, app):
@@ -63,7 +62,6 @@ def test_report(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_invalid_report_int(model, app):
     app.authmodel(model, ["insert"])
@@ -97,7 +95,6 @@ def test_invalid_report_int(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_invalid_report_date(model, app):
     app.authmodel(model, ["insert"])
@@ -118,7 +115,6 @@ def test_invalid_report_date(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_non_string_report_date(model, app):
     app.authmodel(model, ["insert"])
@@ -139,7 +135,6 @@ def test_non_string_report_date(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_invalid_report_datetime(model, app):
     app.authmodel(model, ["insert"])
@@ -160,7 +155,6 @@ def test_invalid_report_datetime(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_non_string_report_datetime(model, app):
     app.authmodel(model, ["insert"])
@@ -181,7 +175,6 @@ def test_non_string_report_datetime(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_invalid_report_array(model, app):
     app.authmodel(model, ["insert"])
@@ -202,7 +195,6 @@ def test_invalid_report_array(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_invalid_report_array_object(model, app):
     app.authmodel(model, ["insert"])
@@ -223,7 +215,6 @@ def test_invalid_report_array_object(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_invalid_nested_object_property(model, app):
     app.authmodel(model, ["insert"])
@@ -245,7 +236,6 @@ def test_invalid_nested_object_property(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_missing_report_object_property(model, app):
     app.authmodel(model, ["insert", "getone"])
@@ -272,7 +262,6 @@ def test_missing_report_object_property(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_unknown_report_property(model, app):
     app.authmodel(model, ["insert", "getone"])
@@ -307,7 +296,6 @@ def test_unknown_report_property(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_unknown_report_object_property(model, app):
     app.authmodel(model, ["insert", "getone"])
@@ -340,7 +328,6 @@ def test_unknown_report_object_property(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_wrong_revision_with_subresource(model, app):
     app.authmodel(model, ["insert", "update"])

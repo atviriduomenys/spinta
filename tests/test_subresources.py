@@ -4,7 +4,6 @@ from spinta.testing.utils import get_error_codes, get_error_context
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_get_subresource(model, app):
@@ -76,7 +75,6 @@ def test_get_subresource(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_put_subresource(model, app):
@@ -194,7 +192,6 @@ def test_put_subresource(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_patch_subresource(model, app):
@@ -337,7 +334,6 @@ def test_patch_subresource(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_subresource_scopes(model, app):
@@ -426,7 +422,6 @@ def test_subresource_scopes(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_get_subresource_file(model, app, tmp_path):
@@ -483,7 +478,6 @@ def test_get_subresource_file(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_put_hidden_subresource_on_model(model, app):
@@ -525,7 +519,6 @@ def test_put_hidden_subresource_on_model(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_patch_hidden_subresource_on_model(model, app):
@@ -567,7 +560,6 @@ def test_patch_hidden_subresource_on_model(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Subitem",
     "backends/postgres/Subitem",
 )
 def test_hidden_subresource_after_put(model, app):
@@ -623,7 +615,6 @@ def test_hidden_subresource_after_put(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_file_without_content_type(model, app):

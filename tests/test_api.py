@@ -208,7 +208,6 @@ def test_directory(app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_model(model, context, app):
     app.authmodel(model, ["insert", "getall"])
@@ -286,7 +285,6 @@ def test_model(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_model_get(model, app):
     app.authmodel(model, ["insert", "getone"])
@@ -924,7 +922,6 @@ def test_limit(app, limit_syntax, expected_count):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post(model, context, app):
     app.authmodel(model, ["insert", "getone"])
@@ -981,7 +978,6 @@ def test_post(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_invalid_json(model, context, app):
     # tests 400 response on invalid json
@@ -1001,7 +997,6 @@ def test_post_invalid_json(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_empty_content(model, context, app):
     # tests posting empty content
@@ -1017,7 +1012,6 @@ def test_post_empty_content(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_id(model, context, app):
     # tests 400 response when trying to create object with id
@@ -1041,7 +1035,6 @@ def test_post_id(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_insufficient_scope(model, context, app):
     # tests 400 response when trying to create object with id
@@ -1064,7 +1057,6 @@ def test_insufficient_scope(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_update_postgres(model, context, app):
     # tests if update works with `id` present in the json
@@ -1124,7 +1116,6 @@ def test_post_update_postgres(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_revision(model, context, app):
     # tests 400 response when trying to create object with revision
@@ -1143,7 +1134,6 @@ def test_post_revision(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_duplicate_id(model, app):
     # tests 400 response when trying to create object with id which exists
@@ -1174,7 +1164,6 @@ def test_post_duplicate_id(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_patch_duplicate_id(model, context, app):
     # tests that duplicate ID detection works with PATCH requests
@@ -1251,7 +1240,6 @@ def test_patch_duplicate_id(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_non_json_content_type(model, app):
     # tests 400 response when trying to make non-json request
@@ -1271,7 +1259,6 @@ def test_post_non_json_content_type(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_bad_auth_header(model, app):
     # tests 400 response when authorization header is missing `Bearer `
@@ -1290,7 +1277,6 @@ def test_post_bad_auth_header(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_missing_auth_header(model, context, app, mocker):
     mocker.patch.object(context.get("config"), "default_auth_client", None)
@@ -1307,7 +1293,6 @@ def test_post_missing_auth_header(model, context, app, mocker):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_post_invalid_report_schema(model, app):
     # tests validation of correct value types according to manifest's schema
@@ -1398,7 +1383,6 @@ def test_post_invalid_report_schema(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_streaming_response(model, app):
     app.authmodel(model, ["insert", "getall"])
@@ -1435,7 +1419,6 @@ def test_streaming_response(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_multi_backends(model, app):
     app.authmodel(model, ["insert", "getone", "getall", "search"])
@@ -1483,7 +1466,6 @@ def test_multi_backends(model, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_location_header(model, app, context):
     app.authmodel(model, ["insert"])
@@ -1497,7 +1479,6 @@ def test_location_header(model, app, context):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_upsert_where_ast(model, app):
     app.authmodel(model, ["upsert", "changes"])
@@ -1585,7 +1566,6 @@ def test_head_method(
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_delete(
     model: str,
@@ -1602,7 +1582,6 @@ def test_delete(
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_delete_batch(
     model: str,
