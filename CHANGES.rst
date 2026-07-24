@@ -49,7 +49,6 @@ Improvements:
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 
 
-0.2dev29 (2026-07-13)
 1.0.0 (2026-07-23)
 ==================
 
