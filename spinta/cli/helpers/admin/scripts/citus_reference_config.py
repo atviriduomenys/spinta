@@ -169,7 +169,6 @@ def plan_reference_tables(
                 if dependency not in candidates:
                     blocked.add(table_key)
                     break
-        print("BLOCKED", blocked)
         if blocked:
             available -= blocked
             continue
@@ -208,11 +207,14 @@ def _is_eligible_reference_table(context: Context, store, table: ReferenceTable)
     model_name = table.comment or table.qualified_name
     try:
         model = commands.get_model(context, store.manifest, model_name)
+
     except ModelNotFound:
-        cli_error(f"Could not find {model_name} model.")
+        cli_message(f"Could not find {model_name} model.")
         return False
 
-    return model.distribution_strategy is None or model.distribution_strategy.default
+    return (model.external and model.external.dataset) and (
+        model.distribution_strategy is None or model.distribution_strategy.default
+    )
 
 
 def generate_citus_reference_shard_config(
