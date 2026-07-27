@@ -45,7 +45,7 @@ FOREIGN_KEY_METADATA_QUERY = text("""
         obj_description(rel.oid, 'pg_class') AS table_comment,
         pg_total_relation_size(rel.oid) AS table_bytes,
         COALESCE(ct.citus_table_type, 'local') AS citus_table_type,
-        ct.table_name IS NULL AS is_unmanaged_local
+        ct.table_name IS NULL OR citus_table_type = 'local' AS is_unmanaged_local
       FROM pg_class rel
       JOIN pg_namespace ns ON ns.oid = rel.relnamespace
       LEFT JOIN citus_tables ct ON ct.table_name = rel.oid::regclass
@@ -77,8 +77,6 @@ FOREIGN_KEY_METADATA_QUERY = text("""
       ON (tgt.schema_name, tgt.table_name) = (fk.target_schema, fk.target_table)
     ORDER BY fk.source_schema, fk.source_table, fk.target_schema, fk.target_table;
 """)
-
-MAX_REFERENCE_TABLE_SIZE = 10 * 1024**3  # 10 GiB
 
 yaml = YAML(typ="safe")
 yaml.default_flow_style = False
@@ -200,8 +198,8 @@ def _table_from_row(row: dict, prefix: str) -> ReferenceTable:
     )
 
 
-def _is_eligible_reference_table(context: Context, store, table: ReferenceTable) -> bool:
-    if not table.is_unmanaged_local or table.table_bytes >= MAX_REFERENCE_TABLE_SIZE:
+def _is_eligible_reference_table(context: Context, store, table: ReferenceTable, max_size: int) -> bool:
+    if not table.is_unmanaged_local or table.table_bytes >= max_size:
         return False
 
     model_name = table.comment or table.qualified_name
@@ -228,6 +226,9 @@ def generate_citus_reference_shard_config(
     if output_path and output_path.exists() and not destructive:
         cli_error(f"Output file '{output_path}' already exists. Use --destructive to overwrite.")
 
+    config = context.get("config")
+    max_size = config.citus_reference_script_size
+
     for backend_name, backend in store.backends.items():
         if not isinstance(backend, PostgreSQL):
             cli_message(f"Skipping '{backend_name}' backend, it's not PostgreSQL backend")
@@ -250,7 +251,7 @@ def generate_citus_reference_shard_config(
         eligible_tables = {
             table_key: replace(
                 table,
-                eligible=table_key in candidate_keys and _is_eligible_reference_table(context, store, table),
+                eligible=table_key in candidate_keys and _is_eligible_reference_table(context, store, table, max_size),
             )
             for table_key, table in tables.items()
         }

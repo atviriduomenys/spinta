@@ -19,6 +19,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
+from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
 
@@ -154,6 +155,7 @@ def load(context: Context, config: Config) -> Config:
             default=True,
         ),
     )
+    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default=1000**3)
 
     return config
 
