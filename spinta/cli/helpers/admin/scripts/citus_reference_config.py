@@ -15,67 +15,61 @@ from spinta.components import Context
 from spinta.exceptions import ModelNotFound
 
 FOREIGN_KEY_METADATA_QUERY = text("""
-    WITH foreign_keys AS (
-      SELECT DISTINCT
-        src_ns.nspname AS source_schema,
-        src.relname AS source_table,
-        tgt_ns.nspname AS target_schema,
-        tgt.relname AS target_table,
-        src_ns.nspname <> tgt_ns.nspname AS is_cross_schema
-      FROM pg_constraint con
-      JOIN pg_class src ON src.oid = con.conrelid
-      JOIN pg_namespace src_ns ON src_ns.oid = src.relnamespace
-      JOIN pg_class tgt ON tgt.oid = con.confrelid
-      JOIN pg_namespace tgt_ns ON tgt_ns.oid = tgt.relnamespace
-      WHERE con.contype = 'f'
-        AND src.relkind IN ('r', 'p')
-        AND tgt.relkind IN ('r', 'p')
-        AND src_ns.nspname NOT LIKE 'pg_%'
-        AND tgt_ns.nspname NOT LIKE 'pg_%'
-        AND src_ns.nspname <> 'information_schema'
-        AND tgt_ns.nspname <> 'information_schema'
-        AND src_ns.nspname NOT IN ('tiger', 'tiger_data', 'topology', 'citus', 'citus_internal')
-        AND tgt_ns.nspname NOT IN ('tiger', 'tiger_data', 'topology', 'citus', 'citus_internal')
-    ),
-    table_metadata AS (
-      SELECT
+WITH table_metadata AS (
+    SELECT
+        rel.oid AS relation_oid,
         ns.nspname AS schema_name,
         rel.relname AS table_name,
         format('%s/%s', ns.nspname, rel.relname) AS qualified_name,
         obj_description(rel.oid, 'pg_class') AS table_comment,
         pg_total_relation_size(rel.oid) AS table_bytes,
         COALESCE(ct.citus_table_type, 'local') AS citus_table_type,
-        ct.table_name IS NULL OR citus_table_type = 'local' AS is_unmanaged_local
-      FROM pg_class rel
-      JOIN pg_namespace ns ON ns.oid = rel.relnamespace
-      LEFT JOIN citus_tables ct ON ct.table_name = rel.oid::regclass
-      WHERE rel.relkind IN ('r', 'p')
-        AND ns.nspname NOT LIKE 'pg_%'
-        AND ns.nspname <> 'information_schema'
-        AND ns.nspname NOT IN ('tiger', 'tiger_data', 'topology', 'citus', 'citus_internal')
-    )
-    SELECT
-      fk.source_schema,
-      fk.source_table,
-      fk.target_schema,
-      fk.target_table,
-      fk.is_cross_schema,
-      src.qualified_name AS source_qualified_name,
-      src.table_comment AS source_table_comment,
-      src.table_bytes AS source_table_bytes,
-      src.citus_table_type AS source_citus_table_type,
-      src.is_unmanaged_local AS source_is_unmanaged_local,
-      tgt.qualified_name AS target_qualified_name,
-      tgt.table_comment AS target_table_comment,
-      tgt.table_bytes AS target_table_bytes,
-      tgt.citus_table_type AS target_citus_table_type,
-      tgt.is_unmanaged_local AS target_is_unmanaged_local
-    FROM foreign_keys fk
-    JOIN table_metadata src
-      ON (src.schema_name, src.table_name) = (fk.source_schema, fk.source_table)
-    JOIN table_metadata tgt
-      ON (tgt.schema_name, tgt.table_name) = (fk.target_schema, fk.target_table)
-    ORDER BY fk.source_schema, fk.source_table, fk.target_schema, fk.target_table;
+        COALESCE(ct.citus_table_type = 'local', TRUE) AS is_unmanaged_local
+    FROM pg_class rel
+    JOIN pg_namespace ns
+        ON ns.oid = rel.relnamespace
+    LEFT JOIN citus_tables ct
+        ON ct.table_name = rel.oid::regclass
+    WHERE rel.relkind IN ('r', 'p')
+      AND ns.nspname NOT LIKE 'pg_%'
+      AND ns.nspname NOT IN (
+          'information_schema',
+          'tiger',
+          'tiger_data',
+          'topology',
+          'citus',
+          'citus_internal'
+      )
+)
+SELECT DISTINCT
+    src.schema_name AS source_schema,
+    src.table_name AS source_table,
+    tgt.schema_name AS target_schema,
+    tgt.table_name AS target_table,
+    src.schema_name <> tgt.schema_name AS is_cross_schema,
+
+    src.qualified_name AS source_qualified_name,
+    src.table_comment AS source_table_comment,
+    src.table_bytes AS source_table_bytes,
+    src.citus_table_type AS source_citus_table_type,
+    src.is_unmanaged_local AS source_is_unmanaged_local,
+
+    tgt.qualified_name AS target_qualified_name,
+    tgt.table_comment AS target_table_comment,
+    tgt.table_bytes AS target_table_bytes,
+    tgt.citus_table_type AS target_citus_table_type,
+    tgt.is_unmanaged_local AS target_is_unmanaged_local
+FROM pg_constraint con
+JOIN table_metadata src
+    ON src.relation_oid = con.conrelid
+JOIN table_metadata tgt
+    ON tgt.relation_oid = con.confrelid
+WHERE con.contype = 'f'
+ORDER BY
+    source_schema,
+    source_table,
+    target_schema,
+    target_table;
 """)
 
 yaml = YAML(typ="safe")
