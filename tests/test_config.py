@@ -740,3 +740,119 @@ def test_to_dict():
         "type": "internal",
         "backend": "default",
     }
+
+
+def test_object_static_to_dynamic_keys():
+    rc = RawConfig()
+    config = EnvVars(
+        "envvars",
+        {
+            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
+            "SPINTA_BACKENDS__CUSTOM__DSN": "test",
+        },
+    )
+    pydict_config = PyDict(
+        "test",
+        {
+            "backends": {
+                "custom": {"dsn": "custom@test", "optional": True},
+                "test": {"type": "test", "dsn": "test@test"},
+            },
+        },
+    )
+
+    assert config.static_keys is True
+    assert pydict_config.static_keys is False
+    rc.read([config, pydict_config])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "type"), "test", "envvars"),
+        (("backends", "custom", "dsn"), "custom@test", "test"),
+    ]
+
+
+def test_object_dynamic_to_dynamic_keys():
+    rc = RawConfig()
+    config1 = PyDict(
+        "custom1",
+        {
+            "backends": {
+                "custom": {"type": "custom1", "dsn": "custom1@test"},
+            },
+        },
+    )
+    config2 = PyDict(
+        "custom2",
+        {
+            "backends": {
+                "custom": {"dsn": "custom2@test", "optional": True},
+                "test": {"type": "test", "dsn": "test@test"},
+            },
+        },
+    )
+
+    assert config1.static_keys is False
+    assert config2.static_keys is False
+    rc.read([config1, config2])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "type"), "custom1", "custom1"),
+        (("backends", "custom", "dsn"), "custom2@test", "custom2"),
+        (("backends", "custom", "optional"), True, "custom2"),
+        (("backends", "test", "type"), "test", "custom2"),
+        (("backends", "test", "dsn"), "test@test", "custom2"),
+    ]
+
+
+def test_object_dynamic_to_static():
+    rc = RawConfig()
+    config = EnvVars(
+        "envvars",
+        {
+            "SPINTA_BACKENDS": "custom",
+            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
+        },
+    )
+    pydict_config = PyDict(
+        "test",
+        {
+            "backends": {
+                "custom": {"type": "custom", "dsn": "custom@test", "optional": True},
+                "test": {"type": "test", "dsn": "test@test"},
+            },
+        },
+    )
+
+    assert config.static_keys is True
+    assert pydict_config.static_keys is False
+    rc.read([pydict_config, config])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "type"), "test", "envvars"),
+        (("backends", "custom", "dsn"), "custom@test", "test"),
+        (("backends", "custom", "optional"), True, "test"),
+    ]
+
+
+def test_object_static_to_static():
+    rc = RawConfig()
+    config1 = EnvVars(
+        "envvars1",
+        {
+            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
+            "SPINTA_BACKENDS__CUSTOM__DSN": "test@test",
+        },
+    )
+    config2 = EnvVars(
+        "envvars2",
+        {
+            "SPINTA_BACKENDS__CUSTOM": "dsn,other",
+            "SPINTA_BACKENDS__CUSTOM__DSN": "custom@test",
+            "SPINTA_BACKENDS__CUSTOM__OTHER": "other",
+        },
+    )
+
+    assert config1.static_keys is True
+    assert config2.static_keys is True
+    rc.read([config1, config2])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "dsn"), "custom@test", "envvars2"),
+        (("backends", "custom", "other"), "other", "envvars2"),
+    ]

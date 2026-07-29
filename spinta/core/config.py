@@ -53,7 +53,9 @@ class KeyFormat(str, enum.Enum):
 
 class ConfigSource:
     name: str
-    overridable_keys: bool = False
+    # If set True, object keys become static and only their values can be changed (unless another source that is also static
+    # Can completely overwrite
+    static_keys: bool = False
 
     def __init__(self, name=None, config=None):
         self.name = self.getname(name)
@@ -116,7 +118,7 @@ class Path(PyDict):
 
 class CliArgs(PyDict):
     name = "cli"
-    overridable_keys = True
+    static_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -131,7 +133,7 @@ class CliArgs(PyDict):
 
 class EnvVars(ConfigSource):
     name = "env"
-    overridable_keys = True
+    static_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -225,6 +227,8 @@ class RawConfig:
         for config in sources:
             nested_configs = config.get(("config",)) or []
             nested_configs = self._cast_value(nested_configs, list, [])
+            if not nested_configs:
+                continue
             self.read([Path(nested_config, nested_config) for nested_config in nested_configs], before=config.name)
 
     def add(self, name, params):
@@ -385,11 +389,11 @@ class RawConfig:
                         keys[k] = config, v
 
                     origin, existing = keys[k]
-                    if config.overridable_keys:
+                    if config.static_keys:
                         keys[k] = config, v
                         break
 
-                    if origin.overridable_keys:
+                    if origin.static_keys:
                         break
 
                     for item in v:
