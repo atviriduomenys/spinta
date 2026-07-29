@@ -371,13 +371,36 @@ def test_yaml_config(tmp_path):
             ),
         ]
     )
-    # configs = rc.get("config", cast=list, default=[])
-    # sources = [Path("defaults", c) for c in configs]
-    # rc.read(sources, after="defaults")
-    print(rc.sources)
     assert rc.get("wait", cast=int) == 2
     assert rc.get("backends", "default", "dsn") == "test"
     assert rc.get("debug") is False
+
+
+def test_nested_yaml_config_load_order(tmp_path):
+    (tmp_path / "a.yml").write_text(f"test: 1\nconfig: [{str(tmp_path / 'a_1.yml')},{str(tmp_path / 'a_2.yml')}]")
+    (tmp_path / "a_1.yml").write_text("test: 2\na: 1")
+    (tmp_path / "a_2.yml").write_text(f"test: 3\na: 2\nab: 1\nconfig: [{str(tmp_path / 'a_2_1.yml')}]")
+    (tmp_path / "a_2_1.yml").write_text("test: 4\na: 3\nab: 2\nabc: 1")
+    (tmp_path / "b.yml").write_text(f"config: [{str(tmp_path / 'b_1.yml')}]")
+    (tmp_path / "b_1.yml").write_text("debug: true")
+    (tmp_path / "c.yml").write_text("debug: false")
+    rc = RawConfig()
+    rc.read(
+        [
+            Path("defaults", "spinta.config:CONFIG"),
+            EnvVars(
+                "envvars",
+                {
+                    "SPINTA_CONFIG": f"{str(tmp_path / 'a.yml')},{str(tmp_path / 'b.yml')},{str(tmp_path / 'c.yml')}",
+                },
+            ),
+        ]
+    )
+    assert rc.get("test", cast=int, origin=True) == (1, str(tmp_path / "a.yml"))
+    assert rc.get("a", cast=int, origin=True) == (2, str(tmp_path / "a_2.yml"))
+    assert rc.get("ab", cast=int, origin=True) == (1, str(tmp_path / "a_2.yml"))
+    assert rc.get("abc", cast=int, origin=True) == (1, str(tmp_path / "a_2_1.yml"))
+    assert rc.get("debug", origin=True) == (False, str(tmp_path / "c.yml"))
 
 
 def test_custom_config_fron_environ():
@@ -439,6 +462,19 @@ def test_after():
     )
     rc.read([PyDict("C3", {"a": 3})], after="C1")
     assert rc.get("a", origin=True) == (2, "C2")
+
+
+def test_before():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict("C1", {"a": 1, "b": 1}),
+            PyDict("C2", {"a": 2}),
+        ]
+    )
+    rc.read([PyDict("C2.1", {"a": 2.5, "b": 2})], before="C2")
+    assert rc.get("a", origin=True) == (2, "C2")
+    assert rc.get("b", origin=True) == (2, "C2.1")
 
 
 def test_fork():

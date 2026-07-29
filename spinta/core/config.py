@@ -185,9 +185,9 @@ class RawConfig:
 
     """
 
-    sources: List[ConfigSource]
+    sources: list[ConfigSource]
 
-    def __init__(self, sources: Optional[ConfigSource] = None):
+    def __init__(self, sources: ConfigSource | None = None):
         self._locked = False
         self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
@@ -195,22 +195,27 @@ class RawConfig:
 
     def read(
         self,
-        sources: List[ConfigSource],
-        after: Optional[str] = None,
+        sources: list[ConfigSource],
+        after: str | None = None,
+        before: str | None = None,
     ):
         if self._locked:
             raise Exception("Configuration is locked, use `rc.fork()` if you need to change configuration.")
+
+        if after and before:
+            raise Exception("Cannot use both `after` and `before` arguments.")
 
         for config in sources:
             log.info(f"Reading config from {config.name}.")
             config.read(self._schema)
 
-        if after is not None:
-            pos = (i for i, s in enumerate(self.sources) if s.name == after)
+        target = after or before
+        if target is not None:
+            pos = (i for i, s in enumerate(self.sources) if s.name == target)
             pos = next(pos, None)
             if pos is None:
-                raise Exception(f"Given after value {after!r} does not exist.")
-            pos += 1
+                raise Exception(f"Given after value {target!r} does not exist.")
+            pos += 0 if before else 1
             self.sources[pos:pos] = sources
         else:
             self.sources.extend(sources)
@@ -220,7 +225,7 @@ class RawConfig:
         for config in sources:
             nested_configs = config.get(("config",)) or []
             nested_configs = self._cast_value(nested_configs, list, [])
-            self.read([Path(nested_config, nested_config) for nested_config in nested_configs], after=config.name)
+            self.read([Path(nested_config, nested_config) for nested_config in nested_configs], before=config.name)
 
     def add(self, name, params):
         self.read([PyDict(name, params)])
