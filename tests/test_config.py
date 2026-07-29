@@ -9,12 +9,12 @@ def test_envvars():
     config = EnvVars(
         "envvars",
         {
-            "SPINTA_MANIFESTS__DEFAULT__TYPE": "mongo",
+            "SPINTA_MANIFESTS__DEFAULT__TYPE": "sql",
         },
     )
     config.read(SCHEMA)
     assert config.config == {
-        ("manifests", "default", "type"): "mongo",
+        ("manifests", "default", "type"): "sql",
     }
 
 
@@ -108,7 +108,7 @@ def test_update_config_from_cli():
                 {
                     "backends": {
                         "default": {
-                            "backend": "mongo",
+                            "backend": "sql",
                         }
                     }
                 },
@@ -139,17 +139,17 @@ def test_update_config_from_env():
                 "envvars",
                 {
                     "SPINTA_BACKENDS__DEFAULT__TYPE": "postgresql",
-                    "SPINTA_BACKENDS__NEW__TYPE": "mongo",
+                    "SPINTA_BACKENDS__NEW__TYPE": "sql",
                 },
             ),
         ]
     )
     assert rc.keys("backends") == ["default", "new"]
     assert rc.get("backends", "default", "type") == "postgresql"
-    assert rc.get("backends", "new", "type") == "mongo"
+    assert rc.get("backends", "new", "type") == "sql"
     assert list(rc.getall()) == [
         (("backends", "default", "type"), "postgresql"),
-        (("backends", "new", "type"), "mongo"),
+        (("backends", "new", "type"), "sql"),
     ]
 
 
@@ -499,18 +499,18 @@ def test_environments():
                     "environments": {
                         "dev": {
                             "backends": {
-                                "mongo": {
-                                    "type": "mongo",
+                                "sql": {
+                                    "type": "sql",
                                 },
                             },
                         },
                         "test": {
                             "backends": {
                                 "default": {
-                                    "type": "mongo",
+                                    "type": "postgresql",
                                 },
-                                "mongo": {
-                                    "type": "mongo",
+                                "sql": {
+                                    "type": "sql",
                                 },
                                 "fs": {
                                     "type": "fs",
@@ -525,9 +525,9 @@ def test_environments():
 
     rc.add("T1", {"env": "test"})
     assert list(rc.getall("backends")) == [
-        (("backends", "default", "type"), "mongo"),
+        (("backends", "default", "type"), "postgresql"),
         (("backends", "default", "dsn"), "localhost"),
-        (("backends", "mongo", "type"), "mongo"),
+        (("backends", "sql", "type"), "sql"),
         (("backends", "fs", "type"), "fs"),
     ]
 
@@ -535,7 +535,7 @@ def test_environments():
     assert list(rc.getall("backends")) == [
         (("backends", "default", "type"), "postgresql"),
         (("backends", "default", "dsn"), "localhost"),
-        (("backends", "mongo", "type"), "mongo"),
+        (("backends", "sql", "type"), "sql"),
     ]
 
 
@@ -554,15 +554,15 @@ def test_environments_dotted_name():
                     "env": "dev",
                     "environments": {
                         "dev": {
-                            "backends.mongo": {
-                                "type": "mongo",
+                            "backends.sql": {
+                                "type": "sql",
                             },
                             "backends.fs": {
                                 "type": "fs",
                             },
                         },
                         "test": {
-                            "backends.default.type": "mongo",
+                            "backends.default.type": "sql",
                         },
                     },
                 },
@@ -572,34 +572,34 @@ def test_environments_dotted_name():
 
     rc.add("T1", {"env": "test"})
     assert list(rc.getall("backends")) == [
-        (("backends", "default", "type"), "mongo"),
+        (("backends", "default", "type"), "sql"),
     ]
 
     rc.add("T2", {"env": "dev"})
     assert list(rc.getall("backends")) == [
         (("backends", "default", "type"), "postgresql"),
-        (("backends", "mongo", "type"), "mongo"),
+        (("backends", "sql", "type"), "sql"),
         (("backends", "fs", "type"), "fs"),
     ]
 
 
 def test_dump():
     rc = RawConfig()
-    rc.add("defaults", {"backends.default.type": "mongo"})
+    rc.add("defaults", {"backends.default.type": "sql"})
     assert rc.dump(file=None) == [
         ("Origin", "Name", "Value"),
         ("--------", "---------------------", "-----"),
-        ("defaults", "backends.default.type", "mongo"),
+        ("defaults", "backends.default.type", "sql"),
     ]
 
 
 def test_dump_env():
     rc = RawConfig()
-    rc.add("defaults", {"backends.default.type": "mongo"})
+    rc.add("defaults", {"backends.default.type": "sql"})
     assert rc.dump(fmt=KeyFormat.env, file=None) == [
         ("Origin", "Name", "Value"),
         ("--------", "------------------------------", "-----"),
-        ("defaults", "SPINTA_BACKENDS__DEFAULT__TYPE", "mongo"),
+        ("defaults", "SPINTA_BACKENDS__DEFAULT__TYPE", "sql"),
     ]
 
 
@@ -609,7 +609,7 @@ def test_dump_filter():
         "defaults",
         {
             "backends.default.type": "postgresql",
-            "backends.mongo.type": "mongo",
+            "backends.sql.type": "sql",
             "manifests.default.type": "yaml",
         },
     )
@@ -617,7 +617,7 @@ def test_dump_filter():
         ("Origin", "Name", "Value"),
         ("--------", "---------------------", "----------"),
         ("defaults", "backends.default.type", "postgresql"),
-        ("defaults", "backends.mongo.type", "mongo"),
+        ("defaults", "backends.sql.type", "sql"),
     ]
 
 

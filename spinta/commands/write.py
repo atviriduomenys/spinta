@@ -14,8 +14,6 @@ from spinta.accesslog import AccessLog, log_async_response
 from spinta.auth import Scopes, check_scope
 from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
-from spinta.backends.mongo.components import Mongo
-from spinta.backends.mongo.helpers import inserting
 from spinta.components import Context, DataItem, DataStream, DataSubItem, Model, Namespace, Node, Property, UrlParams
 from spinta.core.enums import Action, action_from_op
 from spinta.core.ufuncs import asttoexpr
@@ -1147,21 +1145,6 @@ def before_write(
     return {f"{dtype.prop.place}.{k}": v for k, v in patch.items() if k}
 
 
-@commands.before_write.register(Context, ExternalRef, Mongo)
-def before_write(
-    context: Context,
-    dtype: ExternalRef,
-    backend: Mongo,
-    *,
-    data: DataSubItem,
-) -> dict:
-    patch = take(["_id"], data.patch) or None
-    if inserting(data):
-        return {dtype.prop.name: patch}
-    else:
-        return {dtype.prop.place: patch}
-
-
 @commands.before_write.register(Context, Denorm, Backend)
 def before_write(
     context: Context,
@@ -1185,17 +1168,6 @@ def before_write(
         return {dtype.prop.place: patch.get(key)}
     else:
         return {}
-
-
-@commands.before_write.register(Context, Denorm, Mongo)
-def before_write(
-    context: Context,
-    dtype: Denorm,
-    backend: Mongo,
-    *,
-    data: DataSubItem,
-) -> dict:
-    return take(all, {dtype.prop.place: data.patch})
 
 
 async def _summary_response(context: Context, results: AsyncIterator[DataItem]) -> dict:

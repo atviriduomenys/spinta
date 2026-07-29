@@ -57,7 +57,7 @@ def import_(
             stream = itertools.islice(stream, limit) if limit else stream
             stream = write(context, root, stream, changed=True)
             coro = process_stream(source, stream)
-            asyncio.get_event_loop().run_until_complete(coro)
+            asyncio.run(coro)
 
 
 def export_(
@@ -188,6 +188,4 @@ def export_(
         counts = count_rows(context, models, no_progress_bar=no_progress_bar)
 
         with CounterManager(enabled=not no_progress_bar, totals=counts) as counter:
-            asyncio.get_event_loop().run_until_complete(
-                export_data(context, models, fmt or backend, output, counter, access)
-            )
+            asyncio.run(export_data(context, models, fmt or backend, output, counter, access))

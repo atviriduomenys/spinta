@@ -19,7 +19,7 @@ from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import TestClient, create_test_client
 from spinta.testing.config import CONFIG
-from spinta.testing.context import ContextForTests, create_test_context
+from spinta.testing.context import ContextForTests, close_test_context_engines, create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 
@@ -89,34 +89,30 @@ def postgresql(rc) -> str:
 
 
 @pytest.fixture(scope="session")
-def mongo(rc):
-    yield
-    dsn = rc.get("backends", "mongo", "dsn", required=False)
-    db = rc.get("backends", "mongo", "db", required=False)
-    if dsn and db:
-        import pymongo
-
-        try:
-            client = pymongo.MongoClient(dsn, serverSelectionTimeoutMS=2000)
-            client.server_info()  # force connection check
-            client.drop_database(db)
-        except pymongo.errors.ServerSelectionTimeoutError:
-            pass  # MongoDB not running, nothing to clean up
-
-
-@pytest.fixture(scope="session")
-def backends(postgresql, mongo):
+def backends(postgresql):
     yield {
         "postgresql": postgresql,
-        "mongo": mongo,
     }
 
 
 @pytest.fixture(scope="session")
-def _context(rc: RawConfig, postgresql, mongo):
-    context: ContextForTests = create_test_context(rc)
+def _context(rc: RawConfig, postgresql):
+    # `track=False`: this session context is shared (reused via `fork`) across the
+    # whole suite, so its single connection pool is bounded and must not be
+    # disposed after every test by `close_test_context_engines`.
+    context: ContextForTests = create_test_context(rc, track=False)
     context.load()
     yield context
+
+
+@pytest.fixture(autouse=True)
+def _dispose_test_context_engines():
+    # Dispose the engines of any short-lived test contexts created during the test.
+    # Their connection pools are otherwise only reclaimed by the garbage collector,
+    # which on CPython 3.14 lags enough that idle connections accumulate across the
+    # suite and exhaust the PostgreSQL `max_connections` limit.
+    yield
+    close_test_context_engines()
 
 
 @pytest.fixture
@@ -184,7 +180,7 @@ def pytest_addoption(parser):
         "--model",
         action="append",
         default=[],
-        help="run tests only for particular model ['postgres', 'mongo', 'postgres/datasets']",
+        help="run tests only for particular model ['postgres', 'postgres/datasets']",
     )
     parser.addoption(
         "--manifest_type",

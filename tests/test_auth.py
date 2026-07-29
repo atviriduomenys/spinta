@@ -7,11 +7,13 @@ from http import HTTPStatus
 
 import pytest
 import ruamel.yaml
-from authlib.jose import JsonWebKey, jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
+from joserfc import jwt
+from joserfc.jwk import RSAKey, import_key
 
 from spinta import commands
 from spinta.auth import (
+    ALLOWED_JWT_ALGORITHMS,
     BearerTokenValidator,
     KeyType,
     Token,
@@ -72,14 +74,15 @@ def generate_jwt(private_key, kid, scopes="spinta_getall"):
     now = datetime.datetime.now()
     payload = {
         "sub": "user1",
-        "exp": now + datetime.timedelta(minutes=5),
+        "exp": int((now + datetime.timedelta(minutes=5)).timestamp()),
         "scope": scopes,
         "iat": int(now.timestamp()),
     }
     token = jwt.encode(
         {"kid": kid, "alg": "RS512"},
         payload,
-        private_key,
+        RSAKey.import_key(private_key),
+        algorithms=ALLOWED_JWT_ALGORITHMS,
     )
     return token
 
@@ -107,8 +110,8 @@ def test_app(context, app):
     }
 
     config = context.get("config")
-    key = JsonWebKey.import_key(json.loads((config.config_path / "keys/public.json").read_text()))
-    token = jwt.decode(data["access_token"], key)
+    key = import_key(json.loads((config.config_path / "keys/public.json").read_text()))
+    token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token == {
         "iss": config.server_url,
         "sub": client_id,
@@ -127,8 +130,8 @@ def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
     public_path = tmp_path / "keys" / "public.json"
 
     assert result.output == f"Private key saved to {private_path}.\nPublic key saved to {public_path}.\n"
-    JsonWebKey.import_key(json.loads(private_path.read_text()))
-    JsonWebKey.import_key(json.loads(public_path.read_text()))
+    import_key(json.loads(private_path.read_text()))
+    import_key(json.loads(public_path.read_text()))
 
 
 def test_cant_download_keys(rc, cli: SpintaCliRunner, tmp_path, context, requests_mock):
@@ -309,8 +312,8 @@ def test_empty_scope(context, app):
     config = context.get("config")
     public_path = config.config_path / "keys" / "public.json"
 
-    key = JsonWebKey.import_key(json.loads(public_path.read_text()))
-    token = jwt.decode(data["access_token"], key)
+    key = import_key(json.loads(public_path.read_text()))
+    token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token["scope"] == ""
 
 
@@ -357,7 +360,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: li
     context = create_test_context(rc).load()
     request.addfinalizer(context.wipe_all)
 
-    prvkey = JsonWebKey.import_key(prvkey)
+    prvkey = import_key(prvkey)
     client = "RANDOMID"
     scopes = scopes
     token = create_access_token(context, prvkey, client, scopes=scopes)
@@ -596,177 +599,252 @@ def test_pick_correct_key(app, context):
 
     token = generate_jwt(private_2, "rotation-2")
 
-    resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token.decode()}"})
+    resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
     config.token_validation_key = None
+
+
+def test_decode_token_selects_key_by_kid(monkeypatch):
+    """The ``kid`` header must select the matching public key directly.
+
+    The matching key is placed *second* on purpose: a ``kid``-agnostic
+    implementation would fall back to trial-verifying every key and would try
+    the wrong (first) key before succeeding on the second one. Asserting that
+    ``jwt.decode`` is called exactly once, with the ``kid``-matching key, makes
+    reverting to the old non-standard ``key`` header lookup fail this test.
+    """
+    private_1, jwk1 = generate_rsa_keypair("rotation-1")
+    private_2, jwk2 = generate_rsa_keypair("rotation-2")
+
+    validator = BearerTokenValidator.__new__(BearerTokenValidator)
+    validator._all_public_keys = [import_key(jwk1), import_key(jwk2)]
+
+    token = generate_jwt(private_2, "rotation-2")
+
+    real_decode = jwt.decode
+    tried_keys = []
+
+    def spy_decode(token_string, key, *args, **kwargs):
+        tried_keys.append(key)
+        return real_decode(token_string, key, *args, **kwargs)
+
+    monkeypatch.setattr(jwt, "decode", spy_decode)
+
+    claims = validator.decode_token(token)
+
+    assert claims["sub"] == "user1"
+    assert len(tried_keys) == 1
+    assert tried_keys[0].kid == "rotation-2"
 
 
 class TestAuthorized:
     @pytest.mark.parametrize(
         "client, scopes, node, action, result",
         [
-            ("default-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
-            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
-            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
-            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
-            ("test-client", {"spinta_backends_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
-            ("test-client", {"spinta_backends_mongo_subitem_getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            ("default-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.INSERT, False),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.UPDATE, False),
+            ("test-client", {"spinta_backends_getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem",
+                Action.GETONE,
+                True,
+            ),
             (
                 "default-client",
-                {"spinta_backends_mongo_subitem_getone"},
-                "backends/mongo/Subitem",
-                Action.GETONE,
-                True,
-            ),
-            ("test-client", {"spinta_backends_mongo_subitem_getone"}, "backends/mongo/Subitem", Action.INSERT, False),
-            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
-            ("test-client", {"spinta_backends_mongo_getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
-            (
-                "test-client",
-                {"spinta_backends_mongo_subitem_getone"},
-                "backends/mongo/Subitem.subobj",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem",
                 Action.GETONE,
                 True,
             ),
             (
                 "test-client",
-                {"spinta_backends_mongo_subitem_subobj_getone"},
-                "backends/mongo/Subitem.subobj",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem",
+                Action.INSERT,
+                False,
+            ),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem.subobj", Action.GETONE, True),
+            (
+                "test-client",
+                {"spinta_backends_postgres_getone"},
+                "backends/postgres/Subitem.subobj",
                 Action.GETONE,
                 True,
             ),
             (
                 "test-client",
-                {"spinta_backends_mongo_subitem_subobj_getone"},
-                "backends/mongo/Subitem.subobj",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_subobj_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_subobj_getone"},
+                "backends/postgres/Subitem.subobj",
                 Action.INSERT,
                 False,
             ),
             (
                 "default-client",
-                {"spinta_backends_mongo_subitem_subobj_getone"},
-                "backends/mongo/Subitem.subobj",
+                {"spinta_backends_postgres_subitem_subobj_getone"},
+                "backends/postgres/Subitem.subobj",
                 Action.GETONE,
                 True,
             ),
-            ("test-client", {"spinta_getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem.hidden_subobj", Action.GETONE, False),
             (
                 "test-client",
-                {"spinta_backends_mongo_getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"spinta_backends_postgres_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 False,
             ),
             (
                 "test-client",
-                {"spinta_backends_mongo_subitem_getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 False,
             ),
             (
                 "test-client",
-                {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"spinta_backends_postgres_subitem_hidden_subobj_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 True,
             ),
             (
                 "test-client",
-                {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"spinta_backends_postgres_subitem_hidden_subobj_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.UPDATE,
                 False,
             ),
             (
                 "default-client",
-                {"spinta_backends_mongo_subitem_hidden_subobj_getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"spinta_backends_postgres_subitem_hidden_subobj_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 True,
             ),
-            ("default-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
-            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
-            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
-            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem", Action.UPDATE, False),
-            ("test-client", {"uapi:/backends/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
-            ("test-client", {"uapi:/backends/mongo/Subitem/:getone"}, "backends/mongo/Subitem", Action.GETONE, True),
+            ("default-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.INSERT, False),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.UPDATE, False),
+            ("test-client", {"uapi:/backends/:getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem",
+                Action.GETONE,
+                True,
+            ),
             (
                 "default-client",
-                {"uapi:/backends/mongo/Subitem/:getone"},
-                "backends/mongo/Subitem",
-                Action.GETONE,
-                True,
-            ),
-            ("test-client", {"uapi:/backends/mongo/Subitem/:getone"}, "backends/mongo/Subitem", Action.INSERT, False),
-            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
-            ("test-client", {"uapi:/backends/mongo/:getone"}, "backends/mongo/Subitem.subobj", Action.GETONE, True),
-            (
-                "test-client",
-                {"uapi:/backends/mongo/Subitem/:getone"},
-                "backends/mongo/Subitem.subobj",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem",
                 Action.GETONE,
                 True,
             ),
             (
                 "test-client",
-                {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
-                "backends/mongo/Subitem.subobj",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem",
+                Action.INSERT,
+                False,
+            ),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem.subobj", Action.GETONE, True),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/:getone"},
+                "backends/postgres/Subitem.subobj",
                 Action.GETONE,
                 True,
             ),
             (
                 "test-client",
-                {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
-                "backends/mongo/Subitem.subobj",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/@subobj/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/@subobj/:getone"},
+                "backends/postgres/Subitem.subobj",
                 Action.INSERT,
                 False,
             ),
             (
                 "default-client",
-                {"uapi:/backends/mongo/Subitem/@subobj/:getone"},
-                "backends/mongo/Subitem.subobj",
+                {"uapi:/backends/postgres/Subitem/@subobj/:getone"},
+                "backends/postgres/Subitem.subobj",
                 Action.GETONE,
                 True,
             ),
-            ("test-client", {"uapi:/:getone"}, "backends/mongo/Subitem.hidden_subobj", Action.GETONE, False),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem.hidden_subobj", Action.GETONE, False),
             (
                 "test-client",
-                {"uapi:/backends/mango/:getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"uapi:/backends/postgres/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 False,
             ),
             (
                 "test-client",
-                {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"uapi:/backends/postgres/Subitem/@hidden_subobj/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 True,
             ),
             (
                 "test-client",
-                {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"uapi:/backends/postgres/Subitem/@hidden_subobj/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.UPDATE,
                 False,
             ),
             (
                 "test-client",
-                {"uapi:/backends/mongo/Subitem/:getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 False,
             ),
             (
                 "default-client",
-                {"uapi:/backends/mongo/Subitem/@hidden_subobj/:getone"},
-                "backends/mongo/Subitem.hidden_subobj",
+                {"uapi:/backends/postgres/Subitem/@hidden_subobj/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
                 Action.GETONE,
                 True,
             ),
-            ("test-client", {"uapi:/backends/mongo/Subitem/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
-            ("test-client", {"uapi:/:create"}, "backends/mongo/Subitem", Action.INSERT, True),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:create"},
+                "backends/postgres/Subitem",
+                Action.INSERT,
+                True,
+            ),
+            ("test-client", {"uapi:/:create"}, "backends/postgres/Subitem", Action.INSERT, True),
         ],
     )
     def test_authorized(self, context: Context, client: str, scopes: set[str], node: str, action: Action, result: bool):

@@ -63,9 +63,6 @@ Diretory tree
          postgresql/
             commands.py
             services.py
-         mongo/
-            commands.py
-            services.py
          commands.py
          services.py
       manifest/
@@ -104,7 +101,6 @@ Inheritance::
    Backend
       Python
       PostgreSQL
-      MongoDB
 
    Type
       Integer

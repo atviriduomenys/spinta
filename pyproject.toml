@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2dev29"
+version = "1.0.0"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -40,6 +40,7 @@ aiofiles = "*"
 # https://github.com/atviriduomenys/spinta/issues/675
 # 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
 authlib = ">=1.0.0"
+joserfc = ">=1.6.0"
 nh3 = "*"
 markdown = "*"
 jinja2 = "*"
@@ -87,10 +88,6 @@ sqlalchemy = "~1.4"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/791
 sqlalchemy-utils = "<=0.41.2"
 
-# Mongo backend dependendencies
-# https://github.com/atviriduomenys/spinta/issues/806
-pymongo = "<=4.8.0"
-
 # Excel dependencies
 xlrd = "*"
 
@@ -112,8 +109,9 @@ psutil = "*"
 tabulate = "*"
 pyproj = [{version = ">=3.7.0", python = ">=3.13"}, {version = "3.6.1", python = "<3.13"}]
 xmltodict = "*"
-# Error when trying to install >=3.50
-sqlean-py = "<=3.49.1"
+# >=3.50.4.5 provides wheels for CPython 3.10-3.14 (older releases fail to
+# build from source on 3.14).
+sqlean-py = ">=3.50.4.5"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
