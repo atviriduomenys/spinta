@@ -1,3 +1,5 @@
+import pathlib
+
 from ruamel.yaml import YAML
 
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
@@ -153,7 +155,7 @@ def test_update_config_from_env():
     ]
 
 
-def test_update_config_from_env_file(tmp_path):
+def test_update_config_from_env_file(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text(
         "# comment line\n\nSPINTA_BACKENDS__DEFAULT__TYPE=foo\nSPINTA_BACKENDS__NEW__TYPE=bar\n",
@@ -290,7 +292,7 @@ def test_custom_env_different_env_name():
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile(tmp_path):
+def test_custom_env_from_envfile(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text(
         "SPINTA_ENV=testing\nSPINTA_BACKENDS__DEFAULT__DSN=foo\nSPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n"
@@ -305,7 +307,7 @@ def test_custom_env_from_envfile(tmp_path):
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile_only(tmp_path):
+def test_custom_env_from_envfile_only(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text("SPINTA_ENV=testing\nSPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n")
     rc = RawConfig()
@@ -318,7 +320,7 @@ def test_custom_env_from_envfile_only(tmp_path):
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile_fallback(tmp_path):
+def test_custom_env_from_envfile_fallback(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text("SPINTA_ENV=testing\nSPINTA_BACKENDS__DEFAULT__DSN=bar\n")
     rc = RawConfig()
@@ -355,7 +357,7 @@ def test_custom_config():
     assert rc.get("backends", "custom", "dsn") == "config"
 
 
-def test_yaml_config(tmp_path):
+def test_yaml_config(tmp_path: pathlib.Path):
     (tmp_path / "a.yml").write_text("wait: 1\nbackends: {default: {dsn: test}}")
     (tmp_path / "b.yml").write_text("wait: 2\ndebug: true")
     rc = RawConfig()
@@ -376,7 +378,7 @@ def test_yaml_config(tmp_path):
     assert rc.get("debug") is False
 
 
-def test_nested_yaml_config_load_order(tmp_path):
+def test_nested_yaml_config_load_order(tmp_path: pathlib.Path):
     (tmp_path / "a.yml").write_text(f"test: 1\nconfig: [{str(tmp_path / 'a_1.yml')},{str(tmp_path / 'a_2.yml')}]")
     (tmp_path / "a_1.yml").write_text("test: 2\na: 1")
     (tmp_path / "a_2.yml").write_text(f"test: 3\na: 2\nab: 1\nconfig: [{str(tmp_path / 'a_2_1.yml')}]")
@@ -855,4 +857,44 @@ def test_object_static_to_static():
     assert list(rc.getall("backends", origin=True)) == [
         (("backends", "custom", "dsn"), "custom@test", "envvars2"),
         (("backends", "custom", "other"), "other", "envvars2"),
+    ]
+
+
+def test_nested_extension(tmp_path: pathlib.Path):
+    rc = RawConfig()
+    models_path = tmp_path / "models.yml"
+    str_models_path = str(tmp_path / "models.yml")
+    citus_path = tmp_path / "citus.yml"
+    str_citus_path = str(tmp_path / "citus.yml")
+    config = PyDict(
+        "base",
+        {"config": [str_models_path, str_citus_path]},
+    )
+    models_path.write_text("""
+    models:
+        datasets/Example:
+            backend: default
+            properties:
+                id:
+                    type: sqlalchemy.BigInteger
+        datasets/Another:
+            backend: sql
+    """)
+    citus_path.write_text("""
+    models:
+        datasets/Example:
+            distribute:
+                type: copy
+        datasets/Other:
+            distribute:
+                type: schema
+    """)
+
+    rc.read([config])
+    assert list(rc.getall("models", origin=True)) == [
+        (("models", "datasets/Example", "backend"), "default", str_models_path),
+        (("models", "datasets/Example", "properties", "id", "type"), "sqlalchemy.BigInteger", str_models_path),
+        (("models", "datasets/Example", "distribute", "type"), "copy", str_citus_path),
+        (("models", "datasets/Another", "backend"), "sql", str_models_path),
+        (("models", "datasets/Other", "distribute", "type"), "schema", str_citus_path),
     ]
