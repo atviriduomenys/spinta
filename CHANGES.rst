@@ -43,10 +43,11 @@ Improvements:
   rejects non-recommended signing algorithms by default, an explicit
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
+- Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
 
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
-
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
+.. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
 
 
 1.0.0 (2026-07-23)
