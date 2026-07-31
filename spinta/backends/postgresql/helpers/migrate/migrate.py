@@ -1341,7 +1341,7 @@ def generate_model_tables_mapping(
 def create_table_migration(
     migration_ctx: PostgresqlMigrationContext,
     table: sa.Table,
-    table_identifier: TableIdentifier = None,
+    table_identifier: TableIdentifier | None = None,
 ):
     handler = migration_ctx.handler
     columns = list(table.columns)
