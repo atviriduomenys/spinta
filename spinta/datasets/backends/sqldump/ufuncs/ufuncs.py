@@ -1,10 +1,7 @@
 from pathlib import Path
 
-from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sqldump.ufuncs.components import File
-from spinta.datasets.backends.sqldump.ufuncs.components import PrepareFileResource
+from spinta.core.ufuncs import Bind, Expr, ufunc
+from spinta.datasets.backends.sqldump.ufuncs.components import File, PrepareFileResource
 from spinta.exceptions import UnknownBind
 
 

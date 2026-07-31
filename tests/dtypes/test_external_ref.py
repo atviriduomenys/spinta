@@ -1,16 +1,14 @@
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import xml.etree.ElementTree as ET
-
+import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata, send
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import bootstrap_manifest, load_manifest
 from spinta.testing.utils import get_error_codes
-import pytest
 
 
 @pytest.mark.manifests("internal_sql", "csv")

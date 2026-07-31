@@ -5,7 +5,7 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_identifier, TableIdentifier
+from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_foreign_key_name

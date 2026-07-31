@@ -3,11 +3,11 @@ from types import SimpleNamespace
 import pytest
 
 from spinta.core.ufuncs import Expr
-from spinta.datasets.components import Param
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs import (
     _param_for_soap_body_key,
     _property_value_key_for_deferred,
 )
+from spinta.datasets.components import Param
 
 # Shared Expr so parametrized ``soap_body`` dicts and ``expr=`` refer to the same object (expr-identity path).
 _DEFERRED_RC_SIGNATURE = Expr("rc_signature")

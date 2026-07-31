@@ -11,50 +11,51 @@ from starlette.datastructures import FormData
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
-from starlette.responses import Response, JSONResponse
-from starlette.routing import Route, Mount
+from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
 
-from spinta import components, commands
+from spinta import commands, components
 from spinta.accesslog import create_accesslog
-from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData, ClientBackendsData
+from spinta.api.validators import ClientAddData, ClientBackendsData, ClientPatchData, ClientSecretPatchData
 from spinta.auth import (
     AuthorizationServer,
+    BearerTokenValidator,
+    KeyType,
+    ResourceProtector,
+    Scopes,
+    StarletteOAuth2Data,
+    authenticate_token,
     check_scope,
-    query_client,
-    get_clients_list,
     client_exists,
     create_client_file,
     delete_client_file,
-    update_client_file,
+    get_auth_request,
+    get_auth_token,
+    get_clients_list,
     get_clients_path,
-    Scopes,
-    authenticate_token,
-    StarletteOAuth2Data,
-    KeyType,
-    load_key_from_file,
     has_scope,
+    load_key_from_file,
+    query_client,
+    update_client_file,
 )
-from spinta.auth import BearerTokenValidator
-from spinta.auth import ResourceProtector
-from spinta.auth import get_auth_request
-from spinta.auth import get_auth_token
-from spinta.commands import prepare, get_version
+from spinta.commands import get_version, prepare
 from spinta.components import Context, UrlParams
-from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, ClientValidationError
-from spinta.exceptions import NoAuthServer
-from spinta.middlewares import ContextMiddleware
-from spinta.urlparams import Version
-from spinta.urlparams import get_response_type
-from spinta.utils.path import resource_filename
+from spinta.exceptions import (
+    BaseError,
+    ClientValidationError,
+    InsufficientPermission,
+    MultipleErrors,
+    NoAuthServer,
+    error_response,
+)
+from spinta.formats.html.helpers import get_templates
+from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware, StrictTransportSecurityMiddleware
+from spinta.urlparams import Version, get_response_type
 
 log = logging.getLogger(__name__)
 
-templates = Jinja2Templates(
-    directory=str(resource_filename("spinta", "templates")),
-)
+templates = get_templates()
 
 
 async def favicon(request: Request):
@@ -369,7 +370,7 @@ async def error(request, exc):
     elif isinstance(exc, BaseError):
         status_code = exc.status_code
         errors = [error_response(exc)]
-        headers = exc.headers
+        headers = dict(exc.headers)
     else:
         if isinstance(exc, HTTPException):
             status_code = exc.status_code
@@ -399,6 +400,11 @@ async def error(request, exc):
 
     response = {"errors": errors}
 
+    # Error responses can reflect request input (e.g. the requested path) and
+    # must never be stored by shared caches, otherwise they can be used for
+    # web cache poisoning.
+    headers["Cache-Control"] = "no-store"
+
     fmt = get_response_type(request.state.context, request)
     if fmt == "json" or fmt is None:
         return JSONResponse(
@@ -413,6 +419,7 @@ async def error(request, exc):
         }
 
         return templates.TemplateResponse(
+            request,
             "error.html",
             response,
             status_code=status_code,
@@ -422,6 +429,7 @@ async def error(request, exc):
 
 async def srid_check(request: Request):
     from shapely.geometry import Point
+
     from spinta.types.geometry.helpers import get_osm_link
 
     srid = request.path_params["srid"]
@@ -460,7 +468,14 @@ def init(context: Context):
         Route("/{path:path}", homepage, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]),
     ]
 
-    middleware = [Middleware(ContextMiddleware, context=context)]
+    middleware = [
+        Middleware(
+            StrictTransportSecurityMiddleware,
+            value=config.http_strict_transport_security,
+        ),
+        Middleware(PathNormalizationMiddleware),
+        Middleware(ContextMiddleware, context=context),
+    ]
 
     exception_handlers = {
         Exception: error,

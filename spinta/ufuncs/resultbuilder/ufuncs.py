@@ -1,19 +1,18 @@
+import binascii
 import datetime
+import json
 from decimal import Decimal, InvalidOperation
 from typing import Any
-
-import binascii
-
-from spinta.core.ufuncs import ufunc, Expr
-from spinta.exceptions import InvalidBase64String, NotImplementedFeature, UnableToCast
-from spinta.types.datatype import String, Binary, Integer, Date, Time, DateTime, Number, Boolean, DataType
-from spinta.types.geometry.components import Geometry
-from spinta.ufuncs.querybuilder.components import Selected
-from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
 import shapely
 from shapely.geometry.base import BaseGeometry
 
+from spinta.core.ufuncs import Expr, ufunc
+from spinta.exceptions import InvalidBase64String, NotImplementedFeature, UnableToCast
+from spinta.types.datatype import Binary, Boolean, DataType, Date, DateTime, Integer, Number, String, Time
+from spinta.types.geometry.components import Geometry
+from spinta.ufuncs.querybuilder.components import Selected
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.config import asbool
 
 
@@ -200,6 +199,16 @@ def cast(env: ResultBuilder, dtype: DateTime, value: str) -> datetime.datetime:
         return datetime.datetime.fromisoformat(value)
     except ValueError:
         raise UnableToCast(dtype, value=value, type=dtype.name)
+
+
+@ufunc.resolver(ResultBuilder, String, dict)
+def cast(env: ResultBuilder, dtype: String, value: dict) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+@ufunc.resolver(ResultBuilder, String, list)
+def cast(env: ResultBuilder, dtype: String, value: list) -> str:
+    return json.dumps(value, ensure_ascii=False)
 
 
 @ufunc.resolver(ResultBuilder, DataType, object)

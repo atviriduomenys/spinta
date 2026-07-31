@@ -3,14 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
-
-from sqlalchemy.dialects.postgresql import JSONB, BIGINT
+from sqlalchemy.dialects.postgresql import BIGINT, JSONB
 
 from spinta import commands
+from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.components import Context, Model
-from spinta.backends.constants import TableType
 
 if TYPE_CHECKING:
     from spinta.backends.postgresql.components import PostgreSQL

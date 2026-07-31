@@ -3,16 +3,17 @@ import dataclasses
 import os
 import pathlib
 import urllib.parse
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 import requests
 
 from spinta.auth import OWNER_READABLE_FILE
 from spinta.cli import REQUEST_TIMEOUT
-from spinta.exceptions import RemoteClientCredentialsNotFound
-from spinta.exceptions import RemoteClientCredentialsNotGiven
-from spinta.exceptions import RemoteClientScopesNotGiven
+from spinta.exceptions import (
+    RemoteClientCredentialsNotFound,
+    RemoteClientCredentialsNotGiven,
+    RemoteClientScopesNotGiven,
+)
 
 
 @dataclasses.dataclass

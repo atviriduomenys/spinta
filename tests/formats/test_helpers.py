@@ -5,13 +5,12 @@ import pytest
 
 from spinta import commands
 from spinta.auth import AdminToken
+from spinta.components import UrlParams, Version
+from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.formats.helpers import get_model_tabular_header
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import make_get_request
-from spinta.core.enums import Action
-from spinta.components import UrlParams
-from spinta.components import Version
-from spinta.core.config import RawConfig
 
 
 @pytest.mark.manifests("internal_sql", "csv")

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import Dict
 
-from spinta.components import Model, ExtraMetaData
+from spinta.components import ExtraMetaData, Model
 from spinta.core.enums import Access, Status, Visibility
-from spinta.core.ufuncs import Env
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Env, Expr
 from spinta.dimensions.lang.components import LangData
 from spinta.utils.schema import NA
 

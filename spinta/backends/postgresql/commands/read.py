@@ -1,18 +1,15 @@
-from typing import Iterator
-from typing import overload
+from typing import Iterator, overload
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.components import Context, Property
-from spinta.components import Model
+from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import ItemDoesNotExist
-from spinta.exceptions import NotFoundError
+from spinta.exceptions import ItemDoesNotExist, NotFoundError
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.ufuncs.querybuilder.helpers import get_page_values
-from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
-from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
+from spinta.ufuncs.resultbuilder.helpers import backend_result_builder_getter, get_row_value
+from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to_nested
 
 
 @overload

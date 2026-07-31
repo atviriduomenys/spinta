@@ -14,13 +14,13 @@ from spinta.commands import get_model
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.core.ufuncs import asttoexpr, Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.exceptions import (
-    UnknownMethod,
     InvalidClientBackend,
     InvalidClientBackendCredentials,
     MissingRequiredProperty,
+    UnknownMethod,
 )
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse, unparse

@@ -2,8 +2,7 @@ import pathlib
 
 from spinta import commands
 from spinta.components import Context
-from spinta.manifests.yaml.components import InlineManifest
-from spinta.manifests.yaml.components import YamlManifest
+from spinta.manifests.yaml.components import InlineManifest, YamlManifest
 from spinta.manifests.yaml.helpers import yaml_config_params
 
 

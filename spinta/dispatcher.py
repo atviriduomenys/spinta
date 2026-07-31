@@ -3,16 +3,9 @@ from __future__ import annotations
 import collections
 import inspect
 import pathlib
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import TypeVar
-from typing import cast
+from typing import Any, Callable, Dict, List, Tuple, TypeVar, cast
 
-from multipledispatch.dispatcher import Dispatcher
-from multipledispatch.dispatcher import str_signature
+from multipledispatch.dispatcher import Dispatcher, str_signature
 
 F = TypeVar("F", bound=Callable[[], Any])
 

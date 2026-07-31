@@ -1,21 +1,203 @@
 Changes
 #######
 
-0.2dev25 (unreleased)
+1.1.0 (unreleased)
+=====================
+
+Backwards incompatible:
+
+- Removed the internal ``mongo`` backend. It was intended as an internal
+  storage for schemaless data sets, but that use case never materialized and
+  the backend was unused. The ``mongo`` backend type, its ``pymongo``
+  dependency and the Mongo service in CI and ``docker-compose`` are gone;
+  models must now use a schema-based internal backend such as ``postgresql``
+  (`#1996`_).
+
+Bug fixes:
+
+- Replaced the deprecated ``asyncio.get_event_loop().run_until_complete()`` calls
+  in the ``import``, ``export``, ``pull`` and ``bootstrap`` commands with
+  ``asyncio.run()``. On Python ``3.14`` ``asyncio.get_event_loop()`` no longer
+  creates an event loop when none is running and raises ``RuntimeError: There is
+  no current event loop``, which made these commands fail (`#1556`_).
+- Test contexts now dispose their backend and keymap SQLAlchemy engines when
+  torn down, instead of relying on the garbage collector. On Python ``3.14`` the
+  cyclic garbage collector reclaimed these engines late enough that idle pooled
+  connections accumulated across the test suite and exhausted the PostgreSQL
+  ``max_connections`` limit (``FATAL: sorry, too many clients already``)
+  (`#1556`_).
+
+- Fixed key-id based public key selection in token validation: ``decode_token``
+  now reads the standard ``kid`` JWS header field (previously it looked for a
+  non-standard ``key`` field that is never present, so the ``kid`` fast path was
+  never taken and validation always fell back to trial-verifying every key).
+
+Improvements:
+
+- Added support for Python ``3.14``. Bumped ``sqlean-py`` to ``>=3.50.4.5``, which
+  is the first release providing prebuilt wheels for CPython ``3.14`` (older
+  releases failed to build from source on ``3.14``), and added ``3.14`` to the CI
+  test matrix (`#1556`_).
+- Migrated JWT handling from the deprecated ``authlib.jose`` module to
+  ``joserfc``, removing the ``AuthlibDeprecationWarning``. Since ``joserfc``
+  rejects non-recommended signing algorithms by default, an explicit
+  ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
+  ``RS512`` used for access tokens) is now passed to token encode/decode.
+
+.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
+
+.. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
+
+
+1.0.0 (2026-07-23)
+==================
+
+No changes since 0.2dev29
+
+0.2dev29 (2026-07-13)
+=====================
+
+Backwards incompatible:
+
+- Because `Dask` backend got homogenized to work similar way as `Sql`, certain inconsistencies are changed, for example:
+  `Dask` used to return `ref._id` value when it was inherited and not specified that it needs to be returned (`#1945`_).
+
+Bug fixes:
+
+- Fixed `ref` type not being fully processed when its used as a primary key (`#1945`_).
+- Fixed `conn` issues with `keymap` when context is forked (`#1945`_).
+
+Improvements:
+
+- Upgraded `starlette` to the `1.x` series (`>=1.3.1`). Updated
+  `TemplateResponse` calls to the new request-first signature required since
+  `starlette` `1.0.0`, and migrated the test client helpers from `httpx` to
+  `httpx2`, which `starlette` `1.x` requires for `starlette.testclient`
+  (`#1847`_).
+- Added temporary workaround when trying to generate `ref` keymap values and user does not have permission to access the
+  required model (this will eventually be removed, once we no longer need to access other models to generate `_id` values)
+  (`#1945`_).
+- Improved `Dask` and `Sql` backend `PrimaryKey` `_id` value generation function to be more consistent how other datatypes
+  were handled (`#1945`_).
+
+.. _#1847: https://github.com/atviriduomenys/spinta/issues/1847
+.. _#1945: https://github.com/atviriduomenys/spinta/issues/1945
+
+0.2dev28 (2026-07-02)
+=====================
+
+Bug fixes:
+
+- Fixed data type detection in the tabular manifest reader so that modifiers
+  such as `required` or `unique` no longer interfere with parent and nesting
+  resolution. An `array` of `backref` is now recognised as an array backref, and
+  re-declaring an `object`/`array` property with a modifier no longer raises a
+  spurious nesting error (`#1970`_).
+
+Improvements:
+
+- Safer caching settings.
+
+
+0.2dev27 (2026-06-21)
 =====================
 
 New Features:
 
-- Added support for explicitly defined _id fields in the manifest file. Now external backends can include these fields and use them as _id. (`#1905`_).
-- Added support for new `scope` dimension on tabular format. Now scope is understandable by spinta `check` and `copy` commands (`#1882`_).
+- Added `texts.front_page_warning` configuration option, which lets you set the
+  warning message shown on HTML pages. The value is read from the configuration
+  (e.g. `config.yml`), falling back to the default defined in `spinta/config.py`
+  (`#1876`_).
+
+.. _#1876: https://github.com/atviriduomenys/spinta/issues/1876
+
+Improvements:
+
+- Added `--destructive` flag support to `citus_distribution` script (it will commit after each distribution change) (`#1976`_).
+- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
+- Added a `Strict-Transport-Security` (HSTS) response header on all responses,
+  configurable via the `http_strict_transport_security` configuration option
+  (defaults to `max-age=31536000; includeSubDomains`) (`dvms#520`).
+
+.. _#1976: https://github.com/atviriduomenys/spinta/issues/1976
+.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
+
+0.2dev26 (2026-06-10)
+=====================
+
+Improvements:
+
+- Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
+- Added a new helper mirroring the existing replace_undeclared_ref_with_object. When a model's base cannot be resolved in
+  the manifest, instead of raising an error, it drops the base from the model, and append a systemic comment row so it can be restored later. (`#1928`_).
+
+  - `spinta comment` — extended to cover base restore comments
+  - `spinta uncomment` — extended to restore base rows
+- Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
+
+- Added `check_ref_filters` configuration option (defaults to `true`). Set it to
+  `false` to stop a model from being implicitly filtered by the filters of the
+  models it refers to (`#1901`_).
+
+.. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
+.. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
+.. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
+.. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
+
+New Features:
+
+- Implemented named scope enforcement for data access restriction.
+  Scopes are defined in the manifest and applied per request to restrict what rows and fields a consumer can see. (`#1937`_).
+
+  - Scope row filters are appended after user conditions are validated — user cannot override or drop them.
+  - A contradicting user filter (country_code='de' against scope country_code='lt') produces zero rows, not a bypass.
+  - When scope defines select(...), user filter/sort on hidden fields raises `PropertyNotFound` — field existence is not revealed
+
+.. _#1937: https://github.com/atviriduomenys/spinta/issues/1937
+
+Bug fixes:
+
+- Fixed a bug where getone method in sql backend did not get any ref data (`#1900`_)
+- Fixed `count()` function not working properly with `dask` backends (`#1950`_).
+- Fixed `eq` comparison not working properly with `dask` backends on Number, Integer, Boolean values (`#1959`_).
+
+.. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
+.. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
+.. _#1959: https://github.com/atviriduomenys/spinta/issues/1959
+.. _#1970: https://github.com/atviriduomenys/spinta/issues/1970
+
+0.2dev25 (2026-05-22)
+=====================
+
+Improvements:
+
+- Added validation in `scope` dimension (`#1922`_):
+
+  - Added `ScopeLoader` class which loads on link and validates each scope's
+    `prepare` expression. It walks `bind` and `getattr` expressions,
+    resolves them against the manifest, and ensures every referenced property
+    actually exists.
+  - Bind/getattr resolution is implemented via `ufunc.resolver` overloads so
+    new expression shapes can be added without touching the loader.
+  - Invalid `prepare` expressions raise a clear `ModelNotFound` `PropertyNotFound`
+    error pointing at the offending scope.
+
+New Features:
+
+- Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
+- Added ability to configure default and model specific distribution strategy (`#1691`_).
+
 
 .. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
 
 Bug fixes:
 
+- Fixed a bug where an empty string literal (``""``) in the ``prepare`` column of an enum row was incorrectly rejected with "At least source or prepare must be specified" (`#1936`_).
 - Fixed a bug where nested backrefs where causing an error (`#1608`_).
 
 .. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
+.. _#1922: https://github.com/atviriduomenys/spinta/issues/1922
+.. _#1936: https://github.com/atviriduomenys/spinta/issues/1936
 
 0.2dev24 (2026-05-08)
 =====================
@@ -36,6 +218,8 @@ New Features:
 - Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
   - `spinta comment` comments the requested parts (argument) of the manifest;
   - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
+- Added support for explicitly defined _id fields in the manifest file. Now external backends can include these fields and use them as _id. (`#1905`_).
+- Added support for new `scope` dimension on tabular format. Now scope is understandable by spinta `check` and `copy` commands (`#1882`_).
 
 .. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
 .. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
@@ -241,11 +425,8 @@ Bug Fixes:
 
 .. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
-.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
 .. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
 
-
-..
 
 0.2dev13 (2026-01-14)
 =====================

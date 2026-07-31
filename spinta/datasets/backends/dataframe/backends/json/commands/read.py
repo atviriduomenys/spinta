@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Iterator, Any
+from typing import Any, Iterator
 
 import requests
 from dask.bag import from_sequence
@@ -12,10 +12,10 @@ from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.commands.read import (
-    parametrize_bases,
-    get_pkeys_if_ref,
     dask_get_all,
     get_dask_dataframe_meta,
+    get_pkeys_if_ref,
+    parametrize_bases,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams

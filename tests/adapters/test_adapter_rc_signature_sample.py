@@ -2,9 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from spinta.core.config import RawConfig
-
 import spinta.adapters.rc.signature_adapter as adapter
+from spinta.core.config import RawConfig
 
 
 def _rc_test_private_key_path() -> Path:

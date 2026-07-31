@@ -2,23 +2,17 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import date, time, datetime
-from typing import Dict
-from typing import List
-from typing import TYPE_CHECKING, Any, Union
+from datetime import date, datetime, time
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from spinta import commands
-from spinta import exceptions
-from spinta import spyna
-from spinta.commands import load, is_object_id
-from spinta.components import Context, Component, Property
-from spinta.components import Model
+from spinta import commands, exceptions, spyna
+from spinta.commands import is_object_id, load
+from spinta.components import Component, Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import Base32TypeOnlyAllowedOnIdOrRevision
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DataTypeEnum
-from spinta.types.helpers import check_no_extra_keys
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import check_no_extra_keys, set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
 from spinta.utils.types import is_str_uuid
 

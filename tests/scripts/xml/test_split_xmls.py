@@ -1,4 +1,4 @@
-from scripts.xml.split_xmls import split_xml_documents, XML_DEFINITION
+from scripts.xml.split_xmls import XML_DEFINITION, split_xml_documents
 
 
 def test_split_multiple_xml_documents():

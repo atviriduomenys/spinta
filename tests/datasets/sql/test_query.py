@@ -8,18 +8,16 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands, spyna
 from spinta.auth import AdminToken
-from spinta.components import Model, Context
-from spinta.core.enums import Mode
+from spinta.components import Context, Model
 from spinta.core.config import RawConfig
+from spinta.core.enums import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.helpers import get_enum_filters
-from spinta.datasets.helpers import get_ref_filters
+from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.utils import create_empty_backend
-from spinta.types.datatype import DataType, Integer, String, Boolean
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Boolean, DataType, Integer, Ref, String
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys

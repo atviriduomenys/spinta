@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Generator
-from typing import List, Iterable
+from typing import Iterable, List
 
 import tqdm
 
@@ -10,8 +10,8 @@ from spinta import commands
 from spinta.auth import authorized
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.message import cli_message
-from spinta.components import Context, Model, Property, Config
-from spinta.core.enums import action_from_op, Action
+from spinta.components import Config, Context, Model, Property
+from spinta.core.enums import Action, action_from_op
 from spinta.datasets.backends.helpers import extract_values_from_row
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
 from spinta.utils.response import get_request_with_retries

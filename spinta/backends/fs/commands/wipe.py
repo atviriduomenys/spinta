@@ -1,7 +1,7 @@
 from spinta import commands
+from spinta.backends.fs.components import FileSystem
 from spinta.commands import getall
 from spinta.components import Context
-from spinta.backends.fs.components import FileSystem
 from spinta.types.datatype import File
 from spinta.utils.data import take
 

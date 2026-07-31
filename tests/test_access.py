@@ -1,12 +1,13 @@
 from pathlib import Path
 
+import pytest
+
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.testing.client import create_test_client
+from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, prepare_manifest
 from spinta.testing.utils import error
-from spinta.testing.data import listdata
-import pytest
 
 
 @pytest.mark.manifests("internal_sql", "csv")

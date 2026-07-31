@@ -1,7 +1,7 @@
 from typer import echo
 
-from spinta.cli.helpers.sync.controllers.dataset import get_resources
 from spinta.cli.helpers.sync.api_helpers import extract_identifier_from_response
+from spinta.cli.helpers.sync.controllers.dataset import get_resources
 from spinta.exceptions import AgentRelatedDataServiceDoesNotExist
 
 

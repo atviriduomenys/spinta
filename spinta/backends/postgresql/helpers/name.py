@@ -4,9 +4,9 @@ from multipledispatch import dispatch
 from sqlalchemy.cimmutabledict import immutabledict
 
 from spinta.backends.helpers import TableIdentifier
-from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.utils.itertools import ensure_list
+from spinta.utils.sqlalchemy import Convention
 
 
 class _PgNamingConvention(str):

@@ -5,8 +5,7 @@ import sqlalchemy as sa
 import sqlparse
 from sqlalchemy.sql import Select
 
-from spinta import commands
-from spinta import spyna
+from spinta import commands, spyna
 from spinta.auth import AdminToken
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr

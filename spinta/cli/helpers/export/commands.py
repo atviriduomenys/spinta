@@ -3,10 +3,10 @@ from typing import Optional, Union
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.message import cli_error
-from spinta.components import Context, Model, DataSubItem, Property
+from spinta.components import Context, DataSubItem, Model, Property
 from spinta.core.enums import Access
 from spinta.formats.components import Format
-from spinta.types.datatype import DataType, Ref, ExternalRef, Denorm, Object, Inherit, BackRef, Array, File
+from spinta.types.datatype import Array, BackRef, DataType, Denorm, ExternalRef, File, Inherit, Object, Ref
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA, NotAvailable

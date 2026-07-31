@@ -107,8 +107,7 @@ we see all the steps that will be performed on database.
 `migrate` parameter contains migration actions specific to a specific backend
 instance (see :ref:`backend-configuration`).
 
-Different backends might generate different migration steps. For example Mongo
-backend will not have any steps, because Mongo is schemaless database.
+Different backends might generate different migration steps.
 
 
 Running migrations

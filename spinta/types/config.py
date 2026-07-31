@@ -4,23 +4,21 @@ from typing import Type
 
 from ruamel.yaml import YAML
 
+from spinta import components
 from spinta.adapters.soap_plugins import register_soap_ufuncs
 from spinta.auth import client_name_exists, get_clients_path
 from spinta.backends.components import DistributionStrategy
 from spinta.backends.constants import DistributionType
+from spinta.commands import check, load
+from spinta.components import Config, Context
+from spinta.core.config import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 from spinta.core.enums import Access
-
+from spinta.core.ufuncs import ufunc
 from spinta.formats.components import Format
-from spinta.core.config import DEFAULT_CONFIG_PATH
-from spinta.core.config import DEFAULT_DATA_PATH
 from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
-from spinta.commands import load, check
-from spinta.components import Context, Config
-from spinta import components
-from spinta.core.ufuncs import ufunc
 
 yaml = YAML(typ="safe")
 
@@ -110,6 +108,12 @@ def load(context: Context, config: Config) -> Config:
     config.check_names = rc.get("check", "names", default=False)
     config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
+    front_page_warning = rc.get("texts", "front_page_warning", default="")
+    if isinstance(front_page_warning, list):
+        # CLI `-o` option values containing commas are split into lists
+        # by CliArgs; join them back into the original text.
+        front_page_warning = ", ".join(str(v) for v in front_page_warning)
+    config.front_page_warning = str(front_page_warning) if front_page_warning else ""
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
     config.ensure_backends = rc.get("ensure_backends", default=True)
@@ -126,6 +130,8 @@ def load(context: Context, config: Config) -> Config:
     config.upgrade_mode = rc.get("upgrade_mode", default=False)
 
     config.cache_control = rc.get("cache_control_header", default="")
+
+    config.http_strict_transport_security = rc.get("http_strict_transport_security", default="")
 
     if config.token_validation_keys_download_url and config.token_validation_key:
         raise ValueError(

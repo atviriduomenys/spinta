@@ -13,15 +13,16 @@ handles creation and related operations for all DCAT resource types.
 """
 
 from __future__ import annotations
+
 from http import HTTPStatus
-from typing import Optional, Any
+from typing import Any, Optional
 
 import requests
 from requests.models import Response
 
-from spinta.cli.helpers.sync.enum import ResourceType
-from spinta.cli.helpers.sync.api_helpers import validate_api_response
 from spinta.cli import REQUEST_TIMEOUT
+from spinta.cli.helpers.sync.api_helpers import validate_api_response
+from spinta.cli.helpers.sync.enum import ResourceType
 
 DEFAULT_RESOURCE = ResourceType.DATASET
 RESOURCE_TYPE_MAPPER = {

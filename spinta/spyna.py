@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import List
-from typing import Optional
-from typing import TypedDict
+from typing import List, Optional, TypedDict
 
 import lark
 

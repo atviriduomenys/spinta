@@ -3,14 +3,13 @@ import re
 import uuid
 
 import pytest
+import sqlalchemy as sa
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest, get_table_structure
+from spinta.manifests.internal_sql.helpers import get_table_structure, write_internal_sql_manifest
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
-
-import sqlalchemy as sa
 
 db_type = {"sqlite": "sqlite", "postgresql": "postgresql"}
 
@@ -1464,7 +1463,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
     {model_1_id}          |              |          |      | New   |          |         |      |                         |         |                             |                     |
     {comment_id}          |              |          |      |       |          | comment | TEXT |                         |         |                             | Example             | Comment
     {property_1_id}       |              |          |      |       | text     | string  |      |                         |         |                             |                     |
-    {enum_item_0_id}      |              |          |      |       |          | enum    | side | l                       | 'left'  |                             | Left                | Left side.
+    {enum_item_0_id}      |              |          |      |       |          | enum    |      | l                       | 'left'  |                             | Left                | Left side.
     {enum_item_1_id}      |              |          |      |       |          |         |      | r                       | 'right' |                             | Right               | Right side.
     """
 
@@ -1732,11 +1731,11 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
             property_1_id,
             5,
             "data/New/text",
-            "data/res/Test/New/text/side",
+            "data/res/Test/New/text/{13}",
             "enum",
-            "side",
+            None,
             "enum",
-            "side",
+            None,
             None,
             None,
             None,
@@ -1751,7 +1750,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
             13,
             6,
             "data/New/text",
-            f"data/res/Test/New/text/side/{enum_item_0_id}",
+            f"data/res/Test/New/text/{{13}}/{enum_item_0_id}",
             "enum.item",
             None,
             None,
@@ -1770,7 +1769,7 @@ def test_internal_store_old_ids(context, db_type: str, rc: RawConfig, tmp_path: 
             13,
             6,
             "data/New/text",
-            f"data/res/Test/New/text/side/{enum_item_1_id}",
+            f"data/res/Test/New/text/{{13}}/{enum_item_1_id}",
             "enum.item",
             None,
             None,

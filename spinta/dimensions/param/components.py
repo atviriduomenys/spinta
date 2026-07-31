@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Any
-from typing import Dict
+
+from typing import Any, Dict
 
 from spinta.core.ufuncs import Env, Expr
 from spinta.datasets.components import Dataset

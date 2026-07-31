@@ -9,7 +9,7 @@ from spinta.backends import Backend
 from spinta.components import Context, Property
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.types.datatype import Number, Integer, Boolean, Time, Date, DateTime, Binary, DataType, Object, Array
+from spinta.types.datatype import Array, Binary, Boolean, DataType, Date, DateTime, Integer, Number, Object, Time
 from spinta.types.geometry.components import Geometry
 
 number_data = {

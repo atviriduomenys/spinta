@@ -1,31 +1,33 @@
 from __future__ import annotations
-from pathlib import Path
+
 from io import StringIO
+from pathlib import Path
 from typing import Optional, Union
 
-from typer import echo, Context as TyperContext
+from typer import Context as TyperContext
+from typer import echo
 
 from spinta.auth import DEFAULT_CREDENTIALS_SECTION
-from spinta.cli.helpers.sync import ContentType
 from spinta.cli.helpers.store import load_manifest
+from spinta.cli.helpers.sync import ContentType
 from spinta.cli.manifest import _read_and_return_manifest
-from spinta.client import get_client_credentials, RemoteClientCredentials
+from spinta.client import RemoteClientCredentials, get_client_credentials
+from spinta.components import Config, Context, MetaData
 from spinta.core.config import RawConfig
 from spinta.core.context import configure_context
-from spinta.core.enums import Mode, Access
-from spinta.datasets.inspect.helpers import create_manifest_from_inspect, coalesce
-from spinta.exceptions import ManifestFileInvalidPath, ManifestFilePathNotGiven
-from spinta.manifests.components import Manifest, ManifestPath
-from spinta.manifests.tabular.helpers import datasets_to_tabular
-from spinta.components import Config, MetaData, Context
+from spinta.core.enums import Access, Mode
+from spinta.datasets.inspect.helpers import coalesce, create_manifest_from_inspect
 from spinta.exceptions import (
-    NotImplementedFeature,
     InvalidCredentialsConfigurationException,
+    ManifestFileInvalidPath,
+    ManifestFilePathNotGiven,
+    NotImplementedFeature,
 )
 from spinta.formats.csv.commands import _render_manifest_csv
+from spinta.manifests.components import Manifest, ManifestPath
 from spinta.manifests.tabular.constants import DATASET
+from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.yaml.components import InlineManifest
-
 
 EXCLUDED_RESOURCE_FIELDS = frozenset({"dataset", "models", "given", "lang"})
 

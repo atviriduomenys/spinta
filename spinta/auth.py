@@ -14,54 +14,49 @@ from collections import defaultdict
 from functools import cached_property
 from itertools import chain
 from threading import Lock
-from typing import Set, Any, TypedDict, Literal
-from typing import Type
-from typing import Union, List, Tuple
+from typing import Any, List, Literal, Set, Tuple, Type, TypedDict, Union
 
 import requests
 import ruamel.yaml
-from authlib.jose import JsonWebKey, RSAKey, JWTClaims
-from authlib.jose import jwt
-from authlib.jose.errors import JoseError, DecodeError, InvalidTokenError, BadSignatureError
-from authlib.oauth2 import OAuth2Error
-from authlib.oauth2 import OAuth2Request
-from authlib.oauth2 import rfc6749
-from authlib.oauth2 import rfc6750
-from authlib.oauth2.rfc6749 import grants, OAuth2Payload, list_to_scope
+from authlib.oauth2 import OAuth2Error, OAuth2Request, rfc6749, rfc6750
+from authlib.oauth2.rfc6749 import OAuth2Payload, grants, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.util import scope_to_list
-from cachetools import cached, LRUCache
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from cachetools import LRUCache, cached
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
+from joserfc import jwt
+from joserfc.errors import BadSignatureError, DecodeError, InvalidTokenError, JoseError
+from joserfc.jwk import RSAKey, import_key
 from multipledispatch import dispatch
 from requests import RequestException
-from starlette.datastructures import FormData, QueryParams, Headers
+from starlette.datastructures import FormData, Headers, QueryParams
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from spinta import commands
-from spinta.components import Config
-from spinta.components import Context, Namespace, Model, Property
-from spinta.components import ScopeFormatterFunc
+from spinta.components import Config, Context, Model, Namespace, Property, ScopeFormatterFunc
 from spinta.core.enums import Access, Action
-from spinta.exceptions import AuthorizedClientsOnly, NoScopesForNamespaces, InvalidExtraScopes
-from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import (
-    InvalidToken,
-    NoTokenValidationKey,
-    ClientWithNameAlreadyExists,
+    AuthorizedClientsOnly,
+    BasicAuthRequired,
     ClientAlreadyExists,
-    ClientsKeymapNotFound,
     ClientsIdFolderNotFound,
-    InvalidClientsKeymapStructure,
-    InvalidScopes,
+    ClientsKeymapNotFound,
+    ClientWithNameAlreadyExists,
     InvalidClientFileFormat,
+    InvalidClientsKeymapStructure,
+    InvalidExtraScopes,
+    InvalidScopes,
+    InvalidToken,
     ModelNotFound,
+    NoScopesForNamespaces,
+    NoTokenValidationKey,
 )
 from spinta.utils import passwords
-from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
+from spinta.utils.config import get_clients_path, get_helpers_path, get_id_path, get_keymap_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
 
@@ -84,6 +79,11 @@ KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
 DEFAULT_CREDENTIALS_SECTION = "default"
 DEPRECATED_SCOPE_PREFIX = "spinta_"
+
+# joserfc requires an explicit allow-list of signing algorithms (unlike the
+# deprecated authlib.jose, it rejects non-recommended algorithms such as RS512
+# by default). These match the key types supported by decode_kty_from_alg.
+ALLOWED_JWT_ALGORITHMS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"]
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
 SCOPE_TYPE = Union[tuple, list, set, str, None]
@@ -201,9 +201,9 @@ def load_all_public_keys(context: Context) -> list[RSAKey]:
         local_public_keys: list[RSAKey] = []
         if "keys" in token_validation_key:
             for key in token_validation_key["keys"]:
-                local_public_keys.append(JsonWebKey.import_key(key))
+                local_public_keys.append(import_key(key))
         else:
-            local_public_keys = [JsonWebKey.import_key(token_validation_key)]
+            local_public_keys = [import_key(token_validation_key)]
         return local_public_keys
     elif token_validation_keys_download_url:
         return load_downloaded_public_keys(context)
@@ -221,7 +221,7 @@ def load_downloaded_public_keys(context: Context) -> list[RSAKey]:
         return []
 
     with config.downloaded_public_keys_file.open() as f:
-        return [JsonWebKey.import_key(key) for key in json.load(f)["keys"]]
+        return [import_key(key) for key in json.load(f)["keys"]]
 
 
 def download_and_store_public_keys(context: Context) -> JWKS | None:
@@ -264,26 +264,26 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._default_public_key: RSAKey = load_key(context, KeyType.public)
         self._all_public_keys: list[RSAKey] = load_all_public_keys(context)
 
-    def decode_token(self, token_string: str) -> JWTClaims:
+    def decode_token(self, token_string: str) -> dict:
         if not token_string:
             raise InvalidToken("Token string is required")
 
         try:
             token_header = decode_unverified_header(token_string)
-            if kid := token_header.get("key"):
+            if kid := (token_header.get("kid") or token_header.get("key")):
                 for key in self._all_public_keys:
                     if key.kid and str(key.kid) == str(kid):
-                        return jwt.decode(token_string, key)
+                        return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
 
             token_kty = decode_kty_from_alg(token_header["alg"])
             for key in self._all_public_keys:
-                is_not_encryption_key = key.tokens.get("use") != "enc"
-                key_algorithm = key.tokens.get("alg")
+                is_not_encryption_key = key.get("use") != "enc"
+                key_algorithm = key.get("alg")
                 is_same_algorithm = key_algorithm and token_header["alg"] == key_algorithm
-                is_same_algorithm_type = key.kty and key.kty == token_kty
+                is_same_algorithm_type = key.key_type and key.key_type == token_kty
                 if is_not_encryption_key and (is_same_algorithm or is_same_algorithm_type):
                     try:
-                        return jwt.decode(token_string, key)
+                        return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
                     except BadSignatureError:
                         continue
         except (JoseError, DecodeError, InvalidTokenError) as e:
@@ -544,7 +544,7 @@ class AdminToken(rfc6749.TokenMixin):
         return True
 
     def check_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
-        pass
+        return True
 
     def get_sub(self) -> str:  # User.
         return "admin"
@@ -719,7 +719,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> R
         else:
             return None
 
-    return JsonWebKey.import_key(key)
+    return import_key(key)
 
 
 def create_client_access_token(context: Context, client: Union[str, Client]):
@@ -760,7 +760,7 @@ def create_access_token(
         "scope": scopes,
         "jti": jti,
     }
-    return jwt.encode(header, payload, private_key).decode("ascii")
+    return jwt.encode(header, payload, private_key, algorithms=ALLOWED_JWT_ALGORITHMS)
 
 
 def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
@@ -870,7 +870,6 @@ def authorized(
 
     # Unauthenticated clients can only access nodes if spinta config.access is open.
     unauthenticated = token.get_client_id() == get_default_auth_client_id(context)
-
     if unauthenticated and config.access < Access.open:
         if throw:
             raise AuthorizedClientsOnly()
@@ -955,13 +954,13 @@ def gen_auth_server_keys(
         public_key = private_key.public_key()
 
         with files[0].open("w") as f:
-            result = JsonWebKey.import_key(private_key, {"kty": "RSA"})
-            json.dump(result.as_dict(is_private=True), f, indent=4, ensure_ascii=False)
+            result = RSAKey.import_key(private_key, {"kty": "RSA"})
+            json.dump(result.as_dict(private=True), f, indent=4, ensure_ascii=False)
         os.chmod(files[0], OWNER_READABLE_FILE)
 
         with files[1].open("w") as f:
-            result = JsonWebKey.import_key(public_key, {"kty": "RSA"})
-            json.dump(result.as_dict(), f, indent=4, ensure_ascii=False)
+            result = RSAKey.import_key(public_key, {"kty": "RSA"})
+            json.dump(result.as_dict(private=False), f, indent=4, ensure_ascii=False)
         os.chmod(files[1], WORLD_READABLE_FILE)
 
     return files

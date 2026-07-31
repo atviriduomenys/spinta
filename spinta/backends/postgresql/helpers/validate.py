@@ -1,5 +1,5 @@
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.components import Context, Property, DataItem
+from spinta.components import Context, DataItem, Property
 
 
 def pg_check_unique_constraint(

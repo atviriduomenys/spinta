@@ -1,4 +1,4 @@
-from spinta.components import UrlParams, Property
+from spinta.components import Property, UrlParams
 from spinta.core.ufuncs import Env
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
 

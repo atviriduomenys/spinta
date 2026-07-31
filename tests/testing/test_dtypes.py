@@ -1,8 +1,8 @@
-from spinta.testing.dtypes import path, nest, flat
+from spinta.testing.dtypes import flat, nest, path
 
 
 def test_path():
-    assert path("backends/mongo/dtypes/String") == "string"
+    assert path("backends/postgres/dtypes/String") == "string"
     assert path("backends/postgres/dtypes/object/String") == "object.string"
 
 
@@ -18,7 +18,7 @@ def test_nest():
         "_revision": "",
         "string": "test",
     }
-    assert nest("backends/mongo/dtypes/String", data) == {
+    assert nest("backends/postgres/dtypes/String", data) == {
         "_type": "",
         "_id": "",
         "_revision": "",

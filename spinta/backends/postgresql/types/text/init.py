@@ -4,8 +4,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
-from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
+from spinta.backends.postgresql.helpers.type import validate_type_assignment
 from spinta.components import Context
 from spinta.types.text.components import Text
 

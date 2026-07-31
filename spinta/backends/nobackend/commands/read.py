@@ -1,9 +1,8 @@
-from spinta.backends.nobackend.components import NoBackend
-from spinta.exceptions import BackendNotGiven
 from spinta import commands
+from spinta.backends.nobackend.components import NoBackend
+from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr
-from spinta.components import Context
-from spinta.components import Model
+from spinta.exceptions import BackendNotGiven
 
 
 @commands.getall.register(Context, Model, NoBackend)

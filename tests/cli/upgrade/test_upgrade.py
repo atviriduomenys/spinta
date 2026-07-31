@@ -4,11 +4,11 @@ from collections import Counter
 
 import pytest
 
-from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
-from spinta.cli.helpers.upgrade.scripts.clients import client_migration_status_message, CLIENT_STATUS_SUCCESS
+from spinta.cli.helpers.upgrade.scripts.clients import CLIENT_STATUS_SUCCESS, client_migration_status_message
 from spinta.exceptions import ScriptNotFound
 from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.client import create_old_client_file

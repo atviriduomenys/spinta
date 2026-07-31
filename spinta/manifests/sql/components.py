@@ -1,8 +1,9 @@
 from typing import Optional
 
+import sqlalchemy as sa
+
 from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
-import sqlalchemy as sa
 
 
 class SqlManifest(Manifest):

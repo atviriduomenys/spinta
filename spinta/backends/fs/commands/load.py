@@ -1,9 +1,9 @@
 import pathlib
-from typing import Dict, Any
+from typing import Any, Dict
 
 from spinta import commands
-from spinta.components import Context
 from spinta.backends.fs.components import FileSystem
+from spinta.components import Context
 
 
 @commands.load.register(Context, FileSystem, dict)

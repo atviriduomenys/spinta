@@ -6,15 +6,15 @@ import pytest
 
 from spinta.core.ufuncs import Expr
 from spinta.manifests.open_api.helpers import (
-    read_file_data_and_transform_to_json,
-    get_dataset_schemas,
-    get_namespace_schema,
-    get_resource_parameters,
-    replace_url_parameters,
-    get_schema_from_response,
-    get_model_schemas,
     Model,
     Property,
+    get_dataset_schemas,
+    get_model_schemas,
+    get_namespace_schema,
+    get_resource_parameters,
+    get_schema_from_response,
+    read_file_data_and_transform_to_json,
+    replace_url_parameters,
 )
 from spinta.utils.naming import to_model_name, to_property_name
 

@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 from typing import Union
 
-import sqlalchemy as sa
 import geoalchemy2
+import sqlalchemy as sa
 
 
 def flip_geometry_postgis(column: sa.Column):

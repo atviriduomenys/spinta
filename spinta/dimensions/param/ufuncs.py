@@ -3,12 +3,10 @@ from typing import Any
 
 from spinta import commands
 from spinta.components import Model
-from spinta.core.ufuncs import Bind, Expr
-from spinta.core.ufuncs import Env
-from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Bind, Env, Expr, ufunc
 from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder, ParamLoader
-from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
+from spinta.exceptions import InvalidParamSource, KeyNotFound, ModelNotFound, PropertyNotFound
 from spinta.utils.schema import NotAvailable
 
 

@@ -8,12 +8,11 @@ from typing import Any, List
 from urllib.request import urlopen
 
 from lxml import etree, objectify
-from lxml.etree import _Element, QName
+from lxml.etree import QName, _Element
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
-
 
 logger = logging.getLogger(__name__)
 

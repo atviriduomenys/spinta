@@ -10,7 +10,7 @@ from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap, _hash_value
 from spinta.exceptions import KeymapMigrationRequired
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_rc
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from tests.cli.test_keymap import check_keymap_state

@@ -8,7 +8,7 @@ Agentas veikia ir yra testuotas Linux operacinėse sistemose, konkrečiai naudoj
 Pateikiama instrukcija yra kaip pavyzdys, kai naudojama Debian/Ubuntu OS
 :::
 
-Spinta yra sukurta naudojant Python programavimo kalbą ir veikia su Python versijomis 3.10-3.13. Naujose Agento versijose reikalavimas Python versijai gali keistis.
+Spinta yra sukurta naudojant Python programavimo kalbą ir veikia su Python versijomis 3.10-3.14. Naujose Agento versijose reikalavimas Python versijai gali keistis.
 
 Dėl serverio resursų, tokių kaip CPU, RAM ir HDD, reikalingi resursai tiesiogiai priklauso nuo publikuojamų duomenų kiekio ir naudotojų srauto, kurie naudosis duomenų publikavimo paslauga.
 

@@ -2,18 +2,18 @@ import datetime
 import json
 import uuid
 from collections import Counter
-from typing import Optional, Any
 from collections.abc import Generator
-
-from typer import echo
+from copy import copy
+from typing import Any, Optional
 
 from redis import Redis
+from typer import echo
 
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
-from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapDuplicateMapping
+from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch
 
 
 class RedisKeyMap(KeyMap):
@@ -31,6 +31,12 @@ class RedisKeyMap(KeyMap):
 
     def __exit__(self, *exc):
         self.redis.close()
+
+    def copy(self) -> "RedisKeyMap":
+        copied = copy(self)
+        # Reset any context manager variables
+        copied.redis = None
+        return copied
 
     @staticmethod
     def _get_value_table_name(model_name: str) -> str:

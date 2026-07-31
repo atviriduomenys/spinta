@@ -3,21 +3,20 @@ from collections import defaultdict
 from copy import deepcopy
 
 import sqlalchemy as sa
-from tqdm import tqdm
 from multipledispatch import dispatch
+from tqdm import tqdm
 
 from spinta.backends import Backend
 from spinta.backends.constants import DistributionType
-from spinta.backends.helpers import TableIdentifier
-from spinta.backends.helpers import get_table_identifier
+from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.actions import (
+    DistributeReference,
+    DistributeSchema,
+    DistributeTable,
     MigrationHandler,
     UndistributeSchema,
     UndistributeTable,
-    DistributeReference,
-    DistributeTable,
-    DistributeSchema,
 )
 from spinta.cli.helpers.message import cli_message
 from spinta.components import Context, Model

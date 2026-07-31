@@ -6,7 +6,7 @@ import fakeredis
 import pytest
 
 from spinta.datasets.keymaps.redis import RedisKeyMap
-from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapDuplicateMapping
+from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch
 
 
 @pytest.fixture

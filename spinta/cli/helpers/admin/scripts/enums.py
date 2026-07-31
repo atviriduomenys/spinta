@@ -2,10 +2,11 @@ import csv
 import pathlib
 import sys
 from contextlib import nullcontext
+from dataclasses import dataclass, field
 from typing import Iterator
 
+import sqlalchemy as sa
 from multipledispatch import dispatch
-from dataclasses import dataclass, field
 
 from spinta import commands
 from spinta.backends import Backend
@@ -14,9 +15,6 @@ from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
-
-import sqlalchemy as sa
-
 from spinta.ufuncs.resultbuilder.components import EnumResultBuilder
 
 

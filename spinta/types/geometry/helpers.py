@@ -10,8 +10,7 @@ from shapely.ops import transform
 
 from spinta.exceptions import SRIDNotSetForGeometry
 from spinta.types.geometry.components import Geometry
-from spinta.types.geometry.constants import OPENSTREETMAP_URL
-from spinta.types.geometry.constants import WGS84
+from spinta.types.geometry.constants import OPENSTREETMAP_URL, WGS84
 
 
 @lru_cache

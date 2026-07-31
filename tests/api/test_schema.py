@@ -15,8 +15,7 @@ from spinta.core.config import RawConfig
 from spinta.manifests.internal_sql.helpers import get_table_structure
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
 from spinta.testing.utils import error
 from spinta.utils.schema import NA

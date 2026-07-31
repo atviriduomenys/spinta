@@ -12,16 +12,6 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
       - ./.docker/citus-postgis/init:/docker-entrypoint-initdb.d
-  mongo:
-    image: mongo:4.0.9-xenial
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=spinta
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=admin123
-    volumes:
-      - mongo:/data/db
   app:
     volumes:
     - ./entrypoint-internal.sh:/app/entrypoint.sh:ro
@@ -37,7 +27,6 @@ services:
       - "8000:8000"
     depends_on:
       - db
-      - mongo
 
   redis-keymap: # sqlite faster alternative
     image: valkey/valkey:9
@@ -51,10 +40,9 @@ services:
     volumes:
       - redis_keymap_data:/data # persistent volume
     ports:
-      - "6379:6379"
+      - "${SPINTA_REDIS_KEYMAP_PORT:-6379}:6379"
 volumes:
   postgres:
-  mongo:
   redis_keymap_data:
 
 networks:

@@ -1,8 +1,8 @@
+import sqlalchemy as sa
+
 from spinta import commands
 from spinta.components import Context
 from spinta.manifests.internal_sql.components import InternalSQLManifest
-import sqlalchemy as sa
-
 from spinta.manifests.internal_sql.helpers import get_table_structure
 
 

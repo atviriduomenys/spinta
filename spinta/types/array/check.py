@@ -2,10 +2,10 @@ from spinta import commands
 from spinta.components import Context
 from spinta.exceptions import (
     IntermediateTableMappingInvalidType,
-    IntermediateTableValueTypeMissmatch,
+    IntermediateTableMissingMappingProperty,
     IntermediateTableRefModelMissmatch,
     IntermediateTableRefPropertyModelMissmatch,
-    IntermediateTableMissingMappingProperty,
+    IntermediateTableValueTypeMissmatch,
 )
 from spinta.types.datatype import Array, Ref
 

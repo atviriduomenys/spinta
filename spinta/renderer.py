@@ -1,13 +1,11 @@
-from typing import Any
-from typing import Iterator
-from typing import Optional
+from typing import Any, Iterator, Optional
 
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta.components import Context, UrlParams, Node
-from spinta.core.enums import Action
 from spinta import commands
+from spinta.components import Context, Node, UrlParams
+from spinta.core.enums import Action
 
 
 def render(

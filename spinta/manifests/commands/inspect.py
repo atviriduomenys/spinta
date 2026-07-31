@@ -4,10 +4,8 @@ from spinta import commands
 from spinta.backends import Backend
 from spinta.components import Context
 from spinta.datasets.components import Dataset
-from spinta.manifests.components import Manifest
-from spinta.manifests.components import ManifestSchema
-from spinta.manifests.helpers import dataset_to_schema
-from spinta.manifests.helpers import resource_to_schema
+from spinta.manifests.components import Manifest, ManifestSchema
+from spinta.manifests.helpers import dataset_to_schema, resource_to_schema
 
 
 @commands.inspect.register(Context, Backend, Manifest, type(None))

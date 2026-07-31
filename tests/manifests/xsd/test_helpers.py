@@ -1,10 +1,10 @@
 from typing import Callable
-import pytest
-
-from spinta.manifests.xsd.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource
 from unittest.mock import MagicMock, patch
+
+import pytest
 from lxml import etree
 
+from spinta.manifests.xsd.helpers import State, XSDDatasetResource, XSDModel, XSDProperty, XSDReader, XSDType
 from spinta.utils.naming import to_property_name
 
 

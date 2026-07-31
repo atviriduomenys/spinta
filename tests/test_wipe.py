@@ -1,6 +1,5 @@
 from pathlib import Path
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -36,7 +35,6 @@ def test_wipe_all(
         json={
             "_data": [
                 {"_op": "insert", "_type": "Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
             ]
         },
@@ -48,7 +46,6 @@ def test_wipe_all(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
@@ -63,7 +60,6 @@ def test_wipe_all(
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
@@ -78,7 +74,6 @@ def test_wipe_model(model, app, scopes):
         json={
             "_data": [
                 {"_op": "insert", "_type": "Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
             ]
         },
@@ -90,7 +85,6 @@ def test_wipe_model(model, app, scopes):
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
@@ -107,14 +101,12 @@ def test_wipe_model(model, app, scopes):
         "ok",
         [
             ("Report", "ok"),
-            ("backends/mongo/Report", "ok"),
             ("backends/postgres/Report", "ok"),
         ],
     )
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
@@ -133,16 +125,13 @@ def test_wipe_row(
         json={
             "_data": [
                 {"_op": "insert", "_type": "Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "nb"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "nb"},
             ]
         },
     )
     _id_idx = {
-        "backends/mongo/Report": 1,
-        "backends/postgres/Report": 3,
+        "backends/postgres/Report": 1,
     }
     _id = listdata(resp, "_id")[_id_idx[model]]
 
@@ -151,8 +140,6 @@ def test_wipe_row(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "nb"),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "nb"),
         ("backends/postgres/Report", "ok"),
     ]
@@ -168,15 +155,12 @@ def test_wipe_row(
     resp = app.get("/:all")
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
-        ("backends/mongo/Report", "nb"),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "nb"),
         ("backends/postgres/Report", "ok"),
     ]
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
@@ -205,7 +189,6 @@ def test_wipe_check_ns_scope(
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize("scopes", [["spinta_wipe"], ["uapi:/:wipe"]])
@@ -235,7 +218,6 @@ def test_wipe_all_access(
         json={
             "_data": [
                 {"_op": "insert", "_type": "Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
             ]
         },
@@ -247,7 +229,6 @@ def test_wipe_all_access(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
@@ -260,13 +241,11 @@ def test_wipe_all_access(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
@@ -285,7 +264,6 @@ def test_wipe_model_access(
         json={
             "_data": [
                 {"_op": "insert", "_type": "Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
             ]
         },
@@ -297,7 +275,6 @@ def test_wipe_model_access(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
@@ -310,13 +287,11 @@ def test_wipe_model_access(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 @pytest.mark.parametrize(
@@ -335,7 +310,6 @@ def test_wipe_row_access(
         json={
             "_data": [
                 {"_op": "insert", "_type": "Report", "status": "ok"},
-                {"_op": "insert", "_type": "backends/mongo/Report", "status": "ok"},
                 {"_op": "insert", "_type": "backends/postgres/Report", "status": "ok"},
             ]
         },
@@ -348,7 +322,6 @@ def test_wipe_row_access(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 
@@ -362,7 +335,6 @@ def test_wipe_row_access(
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),
-        ("backends/mongo/Report", "ok"),
         ("backends/postgres/Report", "ok"),
     ]
 

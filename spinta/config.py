@@ -1,6 +1,5 @@
 import pathlib
 
-
 CONFIG = {
     "config": [],
     "commands": {
@@ -24,7 +23,6 @@ CONFIG = {
     "ufuncs": [
         "spinta.ufuncs",
         "spinta.backends.postgresql.ufuncs",
-        "spinta.backends.mongo.ufuncs",
         "spinta.datasets.backends.sql.ufuncs",
         "spinta.datasets.backends.dataframe.ufuncs",
     ],
@@ -61,7 +59,6 @@ CONFIG = {
             "memory": "spinta.backends.memory.components:Memory",
             # Internal backends
             "postgresql": "spinta.backends.postgresql.components:PostgreSQL",
-            "mongo": "spinta.backends.mongo.components:Mongo",
             "fs": "spinta.backends.fs.components:FileSystem",
             # External backends
             # XXX: Probably these should be moved to components.resources?
@@ -94,7 +91,6 @@ CONFIG = {
             "": "spinta.ufuncs.querybuilder.components:QueryBuilder",
             # Internal query builders
             "postgresql": "spinta.backends.postgresql.ufuncs.query.components:PgQueryBuilder",
-            "mongo": "spinta.backends.mongo.ufuncs.components:MongoQueryBuilder",
             # External query builders
             "sql": "spinta.datasets.backends.sql.ufuncs.query.components:SqlQueryBuilder",
             "sql/sqlite": "spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components:SqliteQueryBuilder",
@@ -268,6 +264,9 @@ CONFIG = {
     "ensure_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
+    # Response HTTP Strict Transport Security (HSTS) header. `max-age` must be at
+    # least 31536000 seconds (1 year) and `includeSubDomains` must be specified.
+    "http_strict_transport_security": "max-age=31536000; includeSubDomains",
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",
@@ -282,11 +281,6 @@ CONFIG = {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta",
                     "migrate": "alembic",
-                },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta",
                 },
                 "fs": {
                     "type": "fs",
@@ -320,11 +314,6 @@ CONFIG = {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
                 },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta_tests",
-                },
                 "fs": {
                     "type": "fs",
                     "path": pathlib.Path() / "var/files",
@@ -353,5 +342,17 @@ CONFIG = {
             "sync_retry_count": 0,
             "default_distribution_strategy": "undistributed",
         },
+    },
+    "texts": {
+        "front_page_warning": (
+            "**Dėmesio!** "
+            "[Atvirų duomenų saugykla](https://data.gov.lt/page/saugykla) "
+            "šiuo metu yra "
+            "[aktyviai vystoma]"
+            "(https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas), "
+            "todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie "
+            "kuriuos maloniai prašome pranešti "
+            "[atviriduomenys@vssa.lt](mailto:atviriduomenys@vssa.lt)."
+        )
     },
 }

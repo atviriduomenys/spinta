@@ -1,10 +1,9 @@
 import logging
 import sys
-from typing import Optional, List
+from typing import List, Optional
 
-from typer import Context as TyperContext, Argument
-from typer import Option
-from typer import echo
+from typer import Argument, Option, echo
+from typer import Context as TyperContext
 
 from spinta.cli.helpers.script.components import ScriptStatusCache
 from spinta.cli.helpers.script.core import run_all_scripts, run_specific_script

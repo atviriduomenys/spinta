@@ -4,9 +4,9 @@ from typing import Optional
 from spinta.auth import gen_auth_server_keys, get_clients_path
 from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.manifests.tabular.helpers import striptable
 
 CONFIG = {
     "environments": {
@@ -15,11 +15,6 @@ CONFIG = {
                 "default": {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
-                },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta_tests",
                 },
                 "fs": {
                     "type": "fs",

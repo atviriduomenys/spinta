@@ -1,9 +1,9 @@
-from typing import List, Any
+from typing import Any, List
 
 from spinta import commands, spyna
 from spinta.components import Context, Model
-from spinta.core.ufuncs import asttoexpr, Expr
-from spinta.datasets.components import Param, Dataset
+from spinta.core.ufuncs import Expr, asttoexpr
+from spinta.datasets.components import Dataset, Param
 from spinta.dimensions.param.components import ParamLoader
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node

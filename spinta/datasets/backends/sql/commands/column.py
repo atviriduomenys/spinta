@@ -1,9 +1,10 @@
+import sqlalchemy as sa
+
 from spinta import commands
 from spinta.components import Property
 from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import NoExternalName, PropertyNotFound
 from spinta.types.datatype import DataType, Ref
-import sqlalchemy as sa
 
 
 @commands.get_column.register(Sql, Property)

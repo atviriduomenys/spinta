@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.exceptions import GivenValueCountMissmatch, PropertyNotPartOfRefProps
-from spinta.types.datatype import Ref, ExternalRef
+from spinta.types.datatype import ExternalRef, Ref
 from spinta.ufuncs.querybuilder.components import Selected
 
 

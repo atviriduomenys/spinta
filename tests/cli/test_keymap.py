@@ -16,7 +16,7 @@ from spinta.core.enums import Action
 from spinta.exceptions import KeymapDuplicateMapping
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_rc
 from spinta.testing.config import RawConfig
 from spinta.testing.data import send
 from spinta.testing.datasets import create_sqlite_db
@@ -1532,3 +1532,84 @@ def test_keymap_sync_duplicate_warn_only_use_latest(
 
     with keymap as km:
         assert km.encode(model, 1) == country_id_2
+
+
+def test_keymap_sync_ref_primary_key(
+    context: Context,
+    postgresql: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    reset_keymap,
+):
+    table = """
+        d | r | b | m | property | type    | ref                             | source | level | access
+        syncdataset              |         |                                 |        |       |
+          | db                   | sql     |                                 |        |       |
+          |   |   | City         |         | country                         |        | 4     |
+          |   |   |   | id       | integer |                                 |        | 4     | open
+          |   |   |   | name     | string  |                                 |        | 2     | open
+          |   |   |   | country  | ref     | /syncdataset/countries/Country  |        | 4     | open
+          |   |   |   |          |         |                                 |        |       |
+        syncdataset/countries    |         |                                 |        |       |
+          |   |   | Country      |         | code                            |        | 4     |
+          |   |   |   | code     | integer |                                 |        | 4     | open
+          |   |   |   | name     | string  |                                 |        | 2     | open
+    """
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(table))
+    localrc = create_rc(rc, tmp_path, geodb)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    store = remote.app.context.get("store")
+    manifest = store.manifest
+    keymap = manifest.keymap
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    country_model = "syncdataset/countries/Country"
+    remote.app.authmodel(country_model, ["insert", "wipe", "changes"])
+    obj = remote.app.post(country_model, json={"code": 1})
+    country_id_1 = obj.json()["_id"]
+    assert send(remote.app, country_model, ":changes/-1?limit(1)", select=["_cid", "_op", "_id", "code"]) == [
+        {"_cid": 1, "_op": "insert", "_id": country_id_1, "code": 1},
+    ]
+
+    city_model = "syncdataset/City"
+    remote.app.authmodel(city_model, ["insert", "wipe", "changes"])
+    obj = remote.app.post(city_model, json={"id": 1, "name": "Vilnius", "country": {"_id": country_id_1}})
+    city_id_1 = obj.json()["_id"]
+    assert send(
+        remote.app, city_model, ":changes/-1?limit(1)", select=["_cid", "_op", "_id", "id", "name", "country._id"]
+    ) == [
+        {"_cid": 1, "_op": "insert", "_id": city_id_1, "id": 1, "name": "Vilnius", "country._id": country_id_1},
+    ]
+
+    # Check keymap state before sync for Country
+    keymap_before_sync = check_keymap_state(context, city_model)
+    assert len(keymap_before_sync) == 0
+
+    manifest = tmp_path / "manifest.csv"
+
+    result = cli.invoke(
+        localrc,
+        [
+            "keymap",
+            "sync",
+            manifest,
+            "-i",
+            remote.url,
+            "--credentials",
+            remote.credsfile,
+            "--no-progress-bar",
+            "--check-all",
+        ],
+    )
+    assert result.exit_code == 0
+    keymap_after_sync = check_keymap_state(context, city_model)
+    assert len(keymap_after_sync) == 1
+    assert keymap_after_sync[0].identifier == city_id_1
+    assert keymap_after_sync[0].value == country_id_1
+    assert keymap_after_sync[0].redirect is None
+    with keymap as km:
+        assert km.decode(city_model, city_id_1) == country_id_1

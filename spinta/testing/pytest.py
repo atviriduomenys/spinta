@@ -9,19 +9,17 @@ import pprintpp
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
-from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
+from sqlalchemy.engine.url import URL, make_url
 
-from spinta.core.config import RawConfig
-from spinta.core.config import read_config
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
+from spinta.core.config import RawConfig, read_config
 from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import TestClient
-from spinta.testing.client import create_test_client
+from spinta.testing.client import TestClient, create_test_client
 from spinta.testing.config import CONFIG
-from spinta.testing.context import ContextForTests
-from spinta.testing.context import create_test_context
+from spinta.testing.context import ContextForTests, close_test_context_engines, create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 
@@ -68,7 +66,7 @@ def sqlite():
 
 
 def _prepare_postgresql(dsn: str) -> None:
-    engine = sa.create_engine(dsn)
+    engine = create_postgresql_engine(dsn)
     with engine.connect() as conn:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
@@ -91,34 +89,30 @@ def postgresql(rc) -> str:
 
 
 @pytest.fixture(scope="session")
-def mongo(rc):
-    yield
-    dsn = rc.get("backends", "mongo", "dsn", required=False)
-    db = rc.get("backends", "mongo", "db", required=False)
-    if dsn and db:
-        import pymongo
-
-        try:
-            client = pymongo.MongoClient(dsn, serverSelectionTimeoutMS=2000)
-            client.server_info()  # force connection check
-            client.drop_database(db)
-        except pymongo.errors.ServerSelectionTimeoutError:
-            pass  # MongoDB not running, nothing to clean up
-
-
-@pytest.fixture(scope="session")
-def backends(postgresql, mongo):
+def backends(postgresql):
     yield {
         "postgresql": postgresql,
-        "mongo": mongo,
     }
 
 
 @pytest.fixture(scope="session")
-def _context(rc: RawConfig, postgresql, mongo):
-    context: ContextForTests = create_test_context(rc)
+def _context(rc: RawConfig, postgresql):
+    # `track=False`: this session context is shared (reused via `fork`) across the
+    # whole suite, so its single connection pool is bounded and must not be
+    # disposed after every test by `close_test_context_engines`.
+    context: ContextForTests = create_test_context(rc, track=False)
     context.load()
     yield context
+
+
+@pytest.fixture(autouse=True)
+def _dispose_test_context_engines():
+    # Dispose the engines of any short-lived test contexts created during the test.
+    # Their connection pools are otherwise only reclaimed by the garbage collector,
+    # which on CPython 3.14 lags enough that idle connections accumulate across the
+    # suite and exhaust the PostgreSQL `max_connections` limit.
+    yield
+    close_test_context_engines()
 
 
 @pytest.fixture
@@ -186,7 +180,7 @@ def pytest_addoption(parser):
         "--model",
         action="append",
         default=[],
-        help="run tests only for particular model ['postgres', 'mongo', 'postgres/datasets']",
+        help="run tests only for particular model ['postgres', 'postgres/datasets']",
     )
     parser.addoption(
         "--manifest_type",
@@ -275,13 +269,13 @@ def postgresql_migration_template(rc: RawConfig) -> URL:
     url = url.set(database=MIGRATION_TEMPLATE_DATABASE)
 
     if su.database_exists(url):
-        tmp_engine = sa.create_engine(url, poolclass=sa.pool.NullPool)
+        tmp_engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
         with tmp_engine.connect() as conn:
             conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = false'))
         su.drop_database(url)
 
     su.create_database(url)
-    engine = sa.create_engine(url, poolclass=sa.pool.NullPool)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
     _prepare_migration_postgresql_template(engine)
     yield url
     with engine.connect() as conn:
@@ -298,7 +292,7 @@ def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> U
         su.drop_database(url)
 
     su.create_database(url, template=MIGRATION_TEMPLATE_DATABASE)
-    engine = sa.create_engine(url, poolclass=sa.pool.NullPool)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
     # Need to add citus extension here, because template database does not support citus
     # Citus creates maintenance daemon, which keeps active connection to db and prevents template reuse.
     with engine.connect() as conn:
@@ -309,7 +303,7 @@ def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> U
 
 @pytest.fixture(scope="function")
 def migration_db(postgresql_migration: URL) -> sa.engine.Engine:
-    engine = sa.create_engine(postgresql_migration)
+    engine = create_postgresql_engine(postgresql_migration)
     yield engine
 
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from spinta.cli.helpers.message import cli_message
-from spinta.cli.helpers.script.components import ScriptStatus, ScriptBase, ScriptStatusCache
-from spinta.cli.helpers.script.helpers import sort_scripts_by_required, script_check_status_message
+from spinta.cli.helpers.script.components import ScriptBase, ScriptStatus, ScriptStatusCache
+from spinta.cli.helpers.script.helpers import script_check_status_message, sort_scripts_by_required
 from spinta.cli.helpers.script.registry import script_registry
 from spinta.cli.helpers.upgrade.components import Script
 from spinta.components import Context

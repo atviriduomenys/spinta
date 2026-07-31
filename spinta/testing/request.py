@@ -1,18 +1,12 @@
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Optional
+from typing import Any, Dict, Iterable, Optional
 
 from starlette.requests import Request
 
 from spinta import commands
 from spinta.auth import AdminToken
 from spinta.commands.read import prepare_data_for_response
+from spinta.components import Context, Model, UrlParams, Version
 from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import UrlParams
-from spinta.components import Version
 from spinta.formats.html.commands import build_template_context
 from spinta.formats.html.components import Cell
 from spinta.manifests.components import Manifest

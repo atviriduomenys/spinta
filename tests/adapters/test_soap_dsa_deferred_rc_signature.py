@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import spinta.adapters.rc.signature_adapter as rc_adapter
 from spinta.auth import AdminToken
 from spinta.backends.helpers import load_query_builder_class
 from spinta.commands import get_model
@@ -9,8 +10,6 @@ from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.testing.manifest import prepare_manifest
 from spinta.ufuncs.querybuilder.components import QueryParams
-
-import spinta.adapters.rc.signature_adapter as rc_adapter
 
 
 def _rc_adapter_path() -> Path:

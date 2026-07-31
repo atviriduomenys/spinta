@@ -1,19 +1,17 @@
-import inspect
 import importlib
+import inspect
+import itertools
 import pathlib
 import time
 import types
 
-import itertools
-
 from spinta import commands
-from spinta.exceptions import RequiredConfigParam
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
+from spinta.exceptions import RequiredConfigParam
+from spinta.manifests.helpers import create_internal_manifest, create_manifest
 from spinta.urlparams import get_model_by_name
-from spinta.manifests.helpers import create_manifest
-from spinta.manifests.helpers import create_internal_manifest
 
 
 @commands.load.register(Context, Store)

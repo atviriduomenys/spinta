@@ -2,28 +2,24 @@ import datetime
 import hashlib
 import json
 import textwrap
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import pytest
 import requests
 import sqlalchemy as sa
 from pprintpp import pformat
 from requests import PreparedRequest
-from responses import POST
-from responses import RequestsMock
+from responses import POST, RequestsMock
 
 from spinta import commands
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push.components import PushRow, State
-from spinta.cli.helpers.push.write import _map_sent_and_recv, push, get_row_for_error, send_request
 from spinta.cli.helpers.push.state import init_push_state, reset_pushed
+from spinta.cli.helpers.push.write import _map_sent_and_recv, get_row_for_error, push, send_request
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_rc
 from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context

@@ -3,7 +3,7 @@ import datetime
 import json
 import pathlib
 from functools import lru_cache
-from typing import List, AsyncIterator
+from typing import AsyncIterator, List
 
 from multipledispatch import dispatch
 
@@ -11,10 +11,10 @@ from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.export.backends.postgresql.components import PostgresqlExportMetadata, TableData
 from spinta.cli.helpers.export.components import CounterManager
-from spinta.components import Context, Model, DataItem
+from spinta.components import Context, DataItem, Model
 from spinta.core.enums import Action
 from spinta.types.datatype import Array, DataType, File
-from spinta.utils.aiotools import anext, achain
+from spinta.utils.aiotools import achain, anext
 from spinta.utils.itertools import ensure_list
 from spinta.utils.json import fix_data_for_json
 

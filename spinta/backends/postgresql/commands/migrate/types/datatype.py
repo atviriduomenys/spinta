@@ -4,40 +4,39 @@ from typing import List
 
 import geoalchemy2.types
 import sqlalchemy as sa
+from typer import echo
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.migrate.cast import CastSupport
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    PostgresqlMigrationContext,
-    adjust_kwargs,
-    extract_literal_name_from_column,
-    handle_unique_constraint_migration,
-    contains_unique_constraint,
-    handle_index_migration,
-    extract_using_from_columns,
     ModelMigrationContext,
-    contains_constraint_name,
-    constraint_with_columns,
+    PostgresqlMigrationContext,
     PropertyMigrationContext,
+    adjust_kwargs,
     column_cast_warning_message,
+    constraint_with_columns,
+    contains_constraint_name,
+    contains_unique_constraint,
+    extract_literal_name_from_column,
+    extract_using_from_columns,
     gather_prepare_columns,
     get_source_table,
+    handle_index_migration,
+    handle_unique_constraint_migration,
 )
-from spinta.backends.postgresql.helpers.migrate.cast import CastSupport
 from spinta.backends.postgresql.helpers.name import (
-    name_changed,
     get_pg_constraint_name,
-    get_pg_removed_name,
     get_pg_index_name,
+    get_pg_removed_name,
     get_removed_name,
+    name_changed,
 )
 from spinta.components import Context
 from spinta.exceptions import UnableToCastColumnTypes
 from spinta.types.datatype import DataType
-from spinta.utils.schema import NotAvailable, NA
-
-from typer import echo
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.migrate.register(

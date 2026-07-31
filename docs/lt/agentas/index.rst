@@ -11,4 +11,5 @@ Agentas
    web-serverio-konfigūravimas
    duomenų-gavimo-testavimas
    tinklo-konfigūravimas
+   pradinio-puslapio-konfigūravimas
    papildoma-informacija

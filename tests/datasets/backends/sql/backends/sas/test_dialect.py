@@ -1,4 +1,5 @@
 from unittest.mock import Mock, patch
+
 from sqlalchemy import types as sqltypes
 from sqlalchemy.engine.url import make_url
 

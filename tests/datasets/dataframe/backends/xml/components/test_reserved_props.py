@@ -3,16 +3,15 @@ from unittest.mock import ANY
 
 import pytest
 
-from spinta.core.config import RawConfig, Path
+from spinta.core.config import Path, RawConfig
 from spinta.core.enums import Mode
 from spinta.exceptions import (
-    ReservedPropertyTypeShouldMatchPrimaryKey,
-    ReservedPropertySourceOrModelRefShouldBeSet,
     Base32TypeOnlyAllowedOnIdOrRevision,
+    ReservedPropertySourceOrModelRefShouldBeSet,
+    ReservedPropertyTypeShouldMatchPrimaryKey,
 )
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
-
 
 XML_DATA = """
         <root>

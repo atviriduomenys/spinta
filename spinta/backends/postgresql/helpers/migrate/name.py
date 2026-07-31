@@ -8,8 +8,7 @@ from typing import Dict
 import sqlalchemy as sa
 from multipledispatch import dispatch
 
-from spinta.backends.helpers import TableIdentifier, split_logical_name
-from spinta.backends.helpers import get_table_identifier
+from spinta.backends.helpers import TableIdentifier, get_table_identifier, split_logical_name
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.components import Model, Property
 from spinta.exceptions import FileNotFound

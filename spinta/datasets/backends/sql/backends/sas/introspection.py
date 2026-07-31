@@ -16,8 +16,8 @@ SASDialect class to provide these introspection capabilities.
 
 import logging
 
-from spinta.datasets.backends.sql.backends.sas.formats import map_sas_type_to_sqlalchemy
 from spinta.datasets.backends.sql.backends.sas.constants import is_sas_missing_value
+from spinta.datasets.backends.sql.backends.sas.formats import map_sas_type_to_sqlalchemy
 
 logger = logging.getLogger(__name__)
 

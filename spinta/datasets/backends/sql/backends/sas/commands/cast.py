@@ -14,8 +14,8 @@ from typing import Any
 from spinta import commands
 from spinta.components import Context
 from spinta.datasets.backends.sql.backends.sas.components import SAS
-from spinta.utils.types import is_nan
 from spinta.types.datatype import String
+from spinta.utils.types import is_nan
 
 
 @commands.cast_backend_to_python.register(Context, String, SAS, str)

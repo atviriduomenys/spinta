@@ -2,18 +2,16 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
-import warnings
 
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
-
 from spinta.exceptions import NotImplementedFeature
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_generator import OpenAPIGenerator
-
+from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"

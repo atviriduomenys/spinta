@@ -2,8 +2,7 @@ from spinta import commands
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.components import Context
 from spinta.manifests.backend.components import BackendManifest
-from spinta.manifests.backend.helpers import run_bootstrap
-from spinta.manifests.backend.helpers import run_migrations
+from spinta.manifests.backend.helpers import run_bootstrap, run_migrations
 
 
 @commands.migrate.register(Context, BackendManifest)

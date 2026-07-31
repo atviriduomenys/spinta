@@ -2,8 +2,7 @@ import contextlib
 import json
 import os
 import tempfile
-from typing import Dict
-from typing import List
+from typing import Dict, List
 
 import sqlalchemy as sa
 

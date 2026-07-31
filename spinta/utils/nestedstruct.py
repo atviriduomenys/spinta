@@ -1,17 +1,12 @@
-from multipledispatch import dispatch
-from typing import Dict, Union, Any, Callable, Tuple
-from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import Set
-
 import itertools
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
+
+from multipledispatch import dispatch
 
 from spinta import commands
 from spinta.components import Model, Property
-from spinta.types.datatype import DataType, Ref, Partial, Object
+from spinta.types.datatype import DataType, Object, Partial, Ref
 from spinta.types.text.components import Text
-
 
 SEP_GETTER_TYPE = Callable[[str], Tuple[Callable, str]]
 
@@ -67,10 +62,10 @@ def _get_child(parent: Ref, name: str):
         return parent.properties[name]
 
     if commands.identifiable(parent.prop) and name == "_id":
-        return parent.model.properties["_id"]
+        return parent.model.id_prop
 
     if parent.model.external and parent.model.external.unknown_primary_key:
-        return parent.model.properties["_id"]
+        return parent.model.id_prop
 
 
 @dispatch(Text, str)

@@ -1,10 +1,5 @@
-from itertools import islice
-from itertools import chain
-from typing import Iterable, Any
-from typing import Iterator
-from typing import List
-from typing import TypeVar
-from typing import Union
+from itertools import chain, islice
+from typing import Any, Iterable, Iterator, List, TypeVar, Union
 
 
 def consume(generator, n=None):

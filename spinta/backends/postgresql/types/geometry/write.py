@@ -1,6 +1,6 @@
 from spinta import commands
-from spinta.components import Context, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.components import Context, DataSubItem
 from spinta.types.geometry.components import Geometry
 from spinta.utils.data import take
 
