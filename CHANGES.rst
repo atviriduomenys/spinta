@@ -26,6 +26,10 @@ Bug fixes:
   connections accumulated across the test suite and exhausted the PostgreSQL
   ``max_connections`` limit (``FATAL: sorry, too many clients already``)
   (`#1556`_).
+- Fixed configuration keys removed by a higher-priority source (for example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
+  through ``rc.get()`` from lower-priority sources. Removed keys are now
+  unavailable at all levels (`#1990`_).
 
 - Fixed key-id based public key selection in token validation: ``decode_token``
   now reads the standard ``kid`` JWS header field (previously it looked for a
@@ -43,8 +47,19 @@ Improvements:
   rejects non-recommended signing algorithms by default, an explicit
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
+- Configuration sources are now documented with their precedence order
+  (defaults, configuration files, ``.env`` file, environment variables and
+  command line arguments), and the ``config_path`` directory and the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file are described. Setting a configuration key to an empty
+  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
+  subtree recursively, while a parent key with a non-empty list of names
+  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
+  (`#1990`_).
 
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
+
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 

@@ -7,7 +7,7 @@ import os
 import pathlib
 import sys
 import typing
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
 from ruamel.yaml import YAML
 
@@ -43,7 +43,15 @@ def read_config(args=None, envfile=None):
         ]
     )
 
-    # Inject extension provided defaults
+    # Inject extension provided defaults.
+    #
+    # `config` option can be set in any source (even in cliargs), so we read
+    # all sources first and only then load additional config files. They are
+    # inserted right after `spinta`, so the effective order of sources is:
+    #
+    #     spinta -> config files -> envfile -> envvars -> cliargs
+    #
+    # Each subsequent source overrides values from all previous sources.
     configs = rc.get("config", cast=list, default=[])
     if configs:
         rc.read([Path(c, c) for c in configs], after="spinta")
@@ -194,6 +202,7 @@ class RawConfig:
         self._locked = False
         self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
+        self._explicit_keys: Set[Tuple[str]] = set()
         self._schema = SCHEMA
 
     def read(
@@ -251,7 +260,10 @@ class RawConfig:
         origin=False,
     ) -> Any:
         env, _ = self._get_config_value(("env",), default=None)
-        value, config = self._get_config_value(key, default, env)
+        if self._key_exists(key):
+            value, config = self._get_config_value(key, default, env)
+        else:
+            value, config = default, None
 
         if cast is not None:
             if cast is list and isinstance(value, str):
@@ -336,14 +348,16 @@ class RawConfig:
     def _update_keys(self) -> Dict[Key, List[str]]:
         """Update inner keys respecting already set values."""
         keys = {}
+        explicit = set()
         env, _ = self._get_config_value(("env",), default=None)
         for config in self.sources:
-            self._update_config_keys(keys, config, config.keys())
+            self._update_config_keys(keys, explicit, config, config.keys())
             if env:
-                self._update_config_keys(keys, config, config.keys(env), env)
+                self._update_config_keys(keys, explicit, config, config.keys(env), env)
+        self._explicit_keys = explicit
         return keys
 
-    def _update_config_keys(self, keys, config, ckeys, env=None):
+    def _update_config_keys(self, keys, explicit, config, ckeys, env=None):
         # Update `keys` in place.
         if () not in keys:
             keys[()] = config, []
@@ -360,14 +374,16 @@ class RawConfig:
                 k = tuple(key[:i])
                 v = config.get(k, env)
                 if v is not NA:
-                    # Source has explicit value set.
+                    # Source has explicit value set. Empty values reset the
+                    # current key list, but nested keys are still added back.
                     if isinstance(v, str):
-                        v = [x.strip() for x in v.split(",")]
+                        v = [x.strip() for x in v.split(",") if x.strip()]
                     else:
                         v = list(v)
                     keys[k] = config, v
-                elif i < n:
-                    # No explicit value set, just collect all parents.
+                    explicit.add(k)
+                if i < n:
+                    # Collect all parent keys.
                     if k not in keys:
                         keys[k] = config, []
                     if key[i] not in keys[k][1]:
@@ -404,6 +420,22 @@ class RawConfig:
             else:
                 default = schema.get("default", NA)
         return default, None
+
+    def _key_exists(self, key: Key) -> bool:
+        # Check if `key` is present in the effective key structure.
+        #
+        # Values set on parent keys, like `SPINTA_BACKENDS=` or
+        # `SPINTA_BACKENDS=one`, control the structure of the parent key
+        # subtree. Keys removed from the subtree are not available, even if
+        # a lower priority source still has values set for them.
+        for i in range(1, len(key)):
+            prefix = key[:i]
+            if prefix not in self._explicit_keys:
+                continue
+            node = self._keys.get(prefix)
+            if node is not None and key[i] not in node[1]:
+                return False
+        return True
 
     def get_source_names(self) -> List[str]:
         return [source.name for source in self.sources]
