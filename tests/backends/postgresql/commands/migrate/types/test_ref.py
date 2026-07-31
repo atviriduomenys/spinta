@@ -2615,8 +2615,8 @@ def test_migrate_adjust_ref_levels_no_pkey(migration_db: Engine, rc: RawConfig, 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{drop_index(table_identifier=table_identifier, index_name='ix_Ref_someRef._id')}"
         f"{drop_constraint(table_identifier=table_identifier, constraint_name='fk_Ref_someRef._id_Test')}"
+        f"{drop_index(table_identifier=table_identifier, index_name='ix_Ref_someRef._id')}"
         "COMMIT;\n"
         "\n"
     )
