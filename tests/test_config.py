@@ -1,3 +1,5 @@
+import pathlib
+
 from ruamel.yaml import YAML
 
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
@@ -153,7 +155,7 @@ def test_update_config_from_env():
     ]
 
 
-def test_update_config_from_env_file(tmp_path):
+def test_update_config_from_env_file(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text(
         "# comment line\n\nSPINTA_BACKENDS__DEFAULT__TYPE=foo\nSPINTA_BACKENDS__NEW__TYPE=bar\n",
@@ -290,7 +292,7 @@ def test_custom_env_different_env_name():
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile(tmp_path):
+def test_custom_env_from_envfile(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text(
         "SPINTA_ENV=testing\nSPINTA_BACKENDS__DEFAULT__DSN=foo\nSPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n"
@@ -305,7 +307,7 @@ def test_custom_env_from_envfile(tmp_path):
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile_only(tmp_path):
+def test_custom_env_from_envfile_only(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text("SPINTA_ENV=testing\nSPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n")
     rc = RawConfig()
@@ -318,7 +320,7 @@ def test_custom_env_from_envfile_only(tmp_path):
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile_fallback(tmp_path):
+def test_custom_env_from_envfile_fallback(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text("SPINTA_ENV=testing\nSPINTA_BACKENDS__DEFAULT__DSN=bar\n")
     rc = RawConfig()
@@ -355,7 +357,7 @@ def test_custom_config():
     assert rc.get("backends", "custom", "dsn") == "config"
 
 
-def test_yaml_config(tmp_path):
+def test_yaml_config(tmp_path: pathlib.Path):
     (tmp_path / "a.yml").write_text("wait: 1\nbackends: {default: {dsn: test}}")
     (tmp_path / "b.yml").write_text("wait: 2\ndebug: true")
     rc = RawConfig()
@@ -371,12 +373,36 @@ def test_yaml_config(tmp_path):
             ),
         ]
     )
-    configs = rc.get("config", cast=list, default=[])
-    sources = [Path("defaults", c) for c in configs]
-    rc.read(sources, after="defaults")
     assert rc.get("wait", cast=int) == 2
     assert rc.get("backends", "default", "dsn") == "test"
     assert rc.get("debug") is False
+
+
+def test_nested_yaml_config_load_order(tmp_path: pathlib.Path):
+    (tmp_path / "a.yml").write_text(f"test: 1\nconfig: [{str(tmp_path / 'a_1.yml')},{str(tmp_path / 'a_2.yml')}]")
+    (tmp_path / "a_1.yml").write_text("test: 2\na: 1")
+    (tmp_path / "a_2.yml").write_text(f"test: 3\na: 2\nab: 1\nconfig: [{str(tmp_path / 'a_2_1.yml')}]")
+    (tmp_path / "a_2_1.yml").write_text("test: 4\na: 3\nab: 2\nabc: 1")
+    (tmp_path / "b.yml").write_text(f"config: [{str(tmp_path / 'b_1.yml')}]")
+    (tmp_path / "b_1.yml").write_text("debug: true")
+    (tmp_path / "c.yml").write_text("debug: false")
+    rc = RawConfig()
+    rc.read(
+        [
+            Path("defaults", "spinta.config:CONFIG"),
+            EnvVars(
+                "envvars",
+                {
+                    "SPINTA_CONFIG": f"{str(tmp_path / 'a.yml')},{str(tmp_path / 'b.yml')},{str(tmp_path / 'c.yml')}",
+                },
+            ),
+        ]
+    )
+    assert rc.get("test", cast=int, origin=True) == (1, str(tmp_path / "a.yml"))
+    assert rc.get("a", cast=int, origin=True) == (2, str(tmp_path / "a_2.yml"))
+    assert rc.get("ab", cast=int, origin=True) == (1, str(tmp_path / "a_2.yml"))
+    assert rc.get("abc", cast=int, origin=True) == (1, str(tmp_path / "a_2_1.yml"))
+    assert rc.get("debug", origin=True) == (False, str(tmp_path / "c.yml"))
 
 
 def test_custom_config_fron_environ():
@@ -440,6 +466,19 @@ def test_after():
     assert rc.get("a", origin=True) == (2, "C2")
 
 
+def test_before():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict("C1", {"a": 1, "b": 1}),
+            PyDict("C2", {"a": 2}),
+        ]
+    )
+    rc.read([PyDict("C2.1", {"a": 2.5, "b": 2})], before="C2")
+    assert rc.get("a", origin=True) == (2, "C2")
+    assert rc.get("b", origin=True) == (2, "C2.1")
+
+
 def test_fork():
     rc1 = RawConfig()
     rc1.read([PyDict("C1", {"a": 1})])
@@ -456,9 +495,7 @@ def test_environments():
                 "defaults",
                 {
                     "backends": {
-                        "default": {
-                            "type": "postgresql",
-                        },
+                        "default": {"type": "postgresql", "dsn": "localhost"},
                     },
                     "env": "dev",
                     "environments": {
@@ -466,9 +503,6 @@ def test_environments():
                             "backends": {
                                 "sql": {
                                     "type": "sql",
-                                },
-                                "fs": {
-                                    "type": "fs",
                                 },
                             },
                         },
@@ -494,14 +528,16 @@ def test_environments():
     rc.add("T1", {"env": "test"})
     assert list(rc.getall("backends")) == [
         (("backends", "default", "type"), "postgresql"),
+        (("backends", "default", "dsn"), "localhost"),
         (("backends", "sql", "type"), "sql"),
         (("backends", "fs", "type"), "fs"),
     ]
 
     rc.add("T2", {"env": "dev"})
     assert list(rc.getall("backends")) == [
+        (("backends", "default", "type"), "postgresql"),
+        (("backends", "default", "dsn"), "localhost"),
         (("backends", "sql", "type"), "sql"),
-        (("backends", "fs", "type"), "fs"),
     ]
 
 
@@ -706,3 +742,159 @@ def test_to_dict():
         "type": "internal",
         "backend": "default",
     }
+
+
+def test_object_static_to_dynamic_keys():
+    rc = RawConfig()
+    config = EnvVars(
+        "envvars",
+        {
+            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
+            "SPINTA_BACKENDS__CUSTOM__DSN": "test",
+        },
+    )
+    pydict_config = PyDict(
+        "test",
+        {
+            "backends": {
+                "custom": {"dsn": "custom@test", "optional": True},
+                "test": {"type": "test", "dsn": "test@test"},
+            },
+        },
+    )
+
+    assert config.static_keys is True
+    assert pydict_config.static_keys is False
+    rc.read([config, pydict_config])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "type"), "test", "envvars"),
+        (("backends", "custom", "dsn"), "custom@test", "test"),
+    ]
+
+
+def test_object_dynamic_to_dynamic_keys():
+    rc = RawConfig()
+    config1 = PyDict(
+        "custom1",
+        {
+            "backends": {
+                "custom": {"type": "custom1", "dsn": "custom1@test"},
+            },
+        },
+    )
+    config2 = PyDict(
+        "custom2",
+        {
+            "backends": {
+                "custom": {"dsn": "custom2@test", "optional": True},
+                "test": {"type": "test", "dsn": "test@test"},
+            },
+        },
+    )
+
+    assert config1.static_keys is False
+    assert config2.static_keys is False
+    rc.read([config1, config2])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "type"), "custom1", "custom1"),
+        (("backends", "custom", "dsn"), "custom2@test", "custom2"),
+        (("backends", "custom", "optional"), True, "custom2"),
+        (("backends", "test", "type"), "test", "custom2"),
+        (("backends", "test", "dsn"), "test@test", "custom2"),
+    ]
+
+
+def test_object_dynamic_to_static():
+    rc = RawConfig()
+    config = EnvVars(
+        "envvars",
+        {
+            "SPINTA_BACKENDS": "custom",
+            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
+        },
+    )
+    pydict_config = PyDict(
+        "test",
+        {
+            "backends": {
+                "custom": {"type": "custom", "dsn": "custom@test", "optional": True},
+                "test": {"type": "test", "dsn": "test@test"},
+            },
+        },
+    )
+
+    assert config.static_keys is True
+    assert pydict_config.static_keys is False
+    rc.read([pydict_config, config])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "type"), "test", "envvars"),
+        (("backends", "custom", "dsn"), "custom@test", "test"),
+        (("backends", "custom", "optional"), True, "test"),
+    ]
+
+
+def test_object_static_to_static():
+    rc = RawConfig()
+    config1 = EnvVars(
+        "envvars1",
+        {
+            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
+            "SPINTA_BACKENDS__CUSTOM__DSN": "test@test",
+        },
+    )
+    config2 = EnvVars(
+        "envvars2",
+        {
+            "SPINTA_BACKENDS__CUSTOM": "dsn,other",
+            "SPINTA_BACKENDS__CUSTOM__DSN": "custom@test",
+            "SPINTA_BACKENDS__CUSTOM__OTHER": "other",
+        },
+    )
+
+    assert config1.static_keys is True
+    assert config2.static_keys is True
+    rc.read([config1, config2])
+    assert list(rc.getall("backends", origin=True)) == [
+        (("backends", "custom", "dsn"), "custom@test", "envvars2"),
+        (("backends", "custom", "other"), "other", "envvars2"),
+    ]
+
+
+def test_nested_extension(tmp_path: pathlib.Path):
+    rc = RawConfig()
+    models_path = tmp_path / "models.yml"
+    str_models_path = str(tmp_path / "models.yml")
+    citus_path = tmp_path / "citus.yml"
+    str_citus_path = str(tmp_path / "citus.yml")
+    config = PyDict(
+        "base",
+        {"config": [str_models_path, str_citus_path]},
+    )
+    models_path.write_text("""
+    models:
+        datasets/Example:
+            backend: default
+            properties:
+                id:
+                    type: sqlalchemy.BigInteger
+        datasets/Another:
+            backend: sql
+    """)
+    citus_path.write_text("""
+    models:
+        datasets/Example:
+            distribute:
+                type: copy
+        datasets/Other:
+            distribute:
+                type: schema
+    """)
+
+    rc.read([config])
+    assert list(rc.getall("models", origin=True)) == [
+        (("models", "datasets/Example", "backend"), "default", str_models_path),
+        (("models", "datasets/Example", "properties", "id", "type"), "sqlalchemy.BigInteger", str_models_path),
+        (("models", "datasets/Example", "distribute", "type"), "copy", str_citus_path),
+        (("models", "datasets/Another", "backend"), "sql", str_models_path),
+        (("models", "datasets/Other", "distribute", "type"), "schema", str_citus_path),
+    ]

@@ -42,12 +42,6 @@ def read_config(args=None, envfile=None):
             CliArgs("cliargs", args or []),
         ]
     )
-
-    # Inject extension provided defaults
-    configs = rc.get("config", cast=list, default=[])
-    if configs:
-        rc.read([Path(c, c) for c in configs], after="spinta")
-
     return rc
 
 
@@ -59,6 +53,9 @@ class KeyFormat(str, enum.Enum):
 
 class ConfigSource:
     name: str
+    # If set True, object keys become static and only their values can be changed (unless another source that is also static
+    # Can completely overwrite
+    static_keys: bool = False
 
     def __init__(self, name=None, config=None):
         self.name = self.getname(name)
@@ -121,6 +118,7 @@ class Path(PyDict):
 
 class CliArgs(PyDict):
     name = "cli"
+    static_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -135,6 +133,7 @@ class CliArgs(PyDict):
 
 class EnvVars(ConfigSource):
     name = "env"
+    static_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -188,9 +187,9 @@ class RawConfig:
 
     """
 
-    sources: List[ConfigSource]
+    sources: list[ConfigSource]
 
-    def __init__(self, sources: Optional[ConfigSource] = None):
+    def __init__(self, sources: ConfigSource | None = None):
         self._locked = False
         self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
@@ -198,27 +197,39 @@ class RawConfig:
 
     def read(
         self,
-        sources: List[ConfigSource],
-        after: Optional[str] = None,
+        sources: list[ConfigSource],
+        after: str | None = None,
+        before: str | None = None,
     ):
         if self._locked:
             raise Exception("Configuration is locked, use `rc.fork()` if you need to change configuration.")
+
+        if after and before:
+            raise Exception("Cannot use both `after` and `before` arguments.")
 
         for config in sources:
             log.info(f"Reading config from {config.name}.")
             config.read(self._schema)
 
-        if after is not None:
-            pos = (i for i, s in enumerate(self.sources) if s.name == after)
+        target = after or before
+        if target is not None:
+            pos = (i for i, s in enumerate(self.sources) if s.name == target)
             pos = next(pos, None)
             if pos is None:
-                raise Exception(f"Given after value {after!r} does not exist.")
-            pos += 1
+                raise Exception(f"Given after value {target!r} does not exist.")
+            pos += 0 if before else 1
             self.sources[pos:pos] = sources
         else:
             self.sources.extend(sources)
 
         self._keys = self._update_keys()
+
+        for config in sources:
+            nested_configs = config.get(("config",)) or []
+            nested_configs = self._cast_value(nested_configs, list, [])
+            if not nested_configs:
+                continue
+            self.read([Path(nested_config, nested_config) for nested_config in nested_configs], before=config.name)
 
     def add(self, name, params):
         self.read([PyDict(name, params)])
@@ -254,13 +265,7 @@ class RawConfig:
         value, config = self._get_config_value(key, default, env)
 
         if cast is not None:
-            if cast is list and isinstance(value, str):
-                value = value.split(",") if value else []
-            elif value is not None:
-                value = cast(value)
-            else:
-                # XXX: why []?
-                value = default or []
+            value = self._cast_value(value, cast, default=default)
 
         if required and value is None:
             name = ".".join(key)
@@ -292,10 +297,13 @@ class RawConfig:
             res = res if origin else (res,)
             yield (key,) + res
 
-    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout):
+    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout, all_sources: bool = False):
         table = [("Origin", "Name", "Value")]
         sizes = [len(x) for x in table[0]]
-        for key, val, origin in self.getall(origin=True):
+
+        values = self.getall(origin=True) if not all_sources else self._getall_sources()
+
+        for key, val, origin in values:
             if names:
                 for name in names:
                     it = enumerate(name.split("."))
@@ -333,6 +341,17 @@ class RawConfig:
             result[key] = val
         return result
 
+    def _cast_value(self, value: Any, cast: Any, default: Any | None = None) -> Any:
+        if cast is list and isinstance(value, str):
+            value = value.split(",") if value else []
+        elif value is not None:
+            value = cast(value)
+        else:
+            # XXX: why []?
+            value = default or []
+
+        return value
+
     def _update_keys(self) -> Dict[Key, List[str]]:
         """Update inner keys respecting already set values."""
         keys = {}
@@ -365,7 +384,23 @@ class RawConfig:
                         v = [x.strip() for x in v.split(",")]
                     else:
                         v = list(v)
-                    keys[k] = config, v
+
+                    if k not in keys:
+                        keys[k] = config, v
+
+                    origin, existing = keys[k]
+                    if config.static_keys:
+                        keys[k] = config, v
+                        break
+
+                    if origin.static_keys:
+                        break
+
+                    for item in v:
+                        if item not in existing:
+                            existing.append(item)
+
+                    keys[k] = config, existing
                 elif i < n:
                     # No explicit value set, just collect all parents.
                     if k not in keys:
@@ -404,6 +439,23 @@ class RawConfig:
             else:
                 default = schema.get("default", NA)
         return default, None
+
+    def _getall_sources(self):
+        env, _ = self._get_config_value(("env",), default=None)
+
+        for source in self.sources:
+            for key in source.keys():
+                value = source.get(key)
+
+                if value is not NA:
+                    yield key, value, source.name
+
+            if env:
+                for key in source.keys(env):
+                    value = source.get(key, env)
+
+                    if value is not NA:
+                        yield key, value, source.name
 
     def get_source_names(self) -> List[str]:
         return [source.name for source in self.sources]

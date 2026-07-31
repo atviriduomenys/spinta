@@ -5,23 +5,29 @@
 Configuration
 #############
 
-Spinta can be configured using multiple configuration sources. By default these
-sources are used in precedence order:
+Spinta combines settings from several sources. When the same setting is
+specified more than once, the value loaded later takes precedence. The standard
+loading order is:
 
-- Command line arguments.
+1. Spinta's built-in default settings.
+2. The `.env` file in the current directory, if it exists.
+3. Environment variables.
+4. Command-line settings.
 
-- Environment variables.
+Additional configuration files do not have a fixed place in this order. A file
+is loaded immediately before the source that names it. For example, if the
+`.env` file names an additional configuration file, the order is:
 
-- `.env` file.
+1. Spinta's built-in default settings.
+2. The additional configuration file.
+3. The `.env` file.
+4. Environment variables.
+5. Command-line settings.
 
-- Configuration file spcified with `config` option (for example `spinta -o
-  config=config.yml`).
-
-- Default Spinta configuration `spinta.config:CONFIG`.
-
-
-There is an additional configuration source `config_path`. `config_path` is a
-directory where additional configuration files are looked for.
+`config_path` is a setting that identifies Spinta's configuration-data
+directory. It is not a configuration source and does not automatically load
+configuration files from that directory. Use the `config` setting to load an
+additional configuration file.
 
 
 .. toctree::
@@ -33,20 +39,61 @@ directory where additional configuration files are looked for.
    soap-custom-adapters
    front-page
 
+Static configuration keys
+*************************
+
+YAML files and Python dictionaries are dynamic configuration sources. When
+they define named entries, such as backends, their entries are combined with
+entries from other dynamic sources. For example, if one YAML file defines the
+`primary` backend and another defines the `archive` backend, both backends are
+available after the files are loaded.
+
+Environment variables and command-line settings are static-key sources. When
+they explicitly provide the names below a setting, those names become the
+complete list of active entries at that level. For example, this configuration
+file defines two backends:
+
+.. code-block:: yaml
+
+    backends:
+      primary:
+        type: postgresql
+      archive:
+        type: postgresql
+
+Setting either of the following selects only the `primary` backend:
+
+.. code-block:: sh
+
+    SPINTA_BACKENDS=primary
+    spinta -o backends=primary config backends
+
+The `archive` backend is then excluded, even though it remains in the YAML
+file. Settings inside `primary` can still be read from the YAML file unless the
+environment variable or command-line setting overrides them.
+
+This distinction is important for deployments. YAML files and dictionaries can
+compose a shared configuration, while environment variables and command-line
+settings can deliberately select the exact named entries that are active. This
+prevents unused or unintended backends, models, and similar entries from being
+enabled by a lower-priority configuration file. Use `spinta config` to inspect
+the effective values and their origins.
+
 .. _config-file:
 
 Configuration file
 ******************
 
-After reading configuration values from command line arguments, environment
-variables and `.env` file, Spinta reads additional configuration sources set
-via `config` option.
+An additional configuration file is named with the `config` setting. This
+setting can be supplied from the `.env` file, environment variables, or the
+command line. The file is loaded immediately before the source that supplies
+its path, so that source can override values from the file.
 
 `config` option can contain list of comma separated values. Each value can be a
 path to `.yml` file or it can be a python dotted path like
 `myapp.config:CONFIG`, pointing to a dict.
 
-For example we can create an `/tmp/custom.yaml` configuration file:
+For example we can create an `/tmp/custom.yml` configuration file:
 
 .. code-block:: yaml
 
@@ -85,7 +132,125 @@ Output::
 
   Origin           Name               Value
   ---------------  -----------------  -----
-  /tmp/custom.yml  backends.foo.type  postgresql
+  /tmp/custom.yml  backends.default.type  postgresql
+
+Nested configuration files
+==========================
+
+Configuration files can include other configuration files using the same
+setting. Included files are loaded in the order in which they are listed, then
+the file that includes them is loaded. Thus, a value in the including file
+overrides the same value in an included file.
+
+For example, this structure separates model-related settings from Citus
+distribution settings:
+
+.. code-block:: text
+
+    .env
+    config.yml
+    models.yml
+    citus.yml
+    citus_generated.yml
+
+The `.env` file points to the main configuration file:
+
+.. code-block:: sh
+
+    SPINTA_CONFIG=config.yml
+
+The main configuration file includes the two specialised files:
+
+.. code-block:: yaml
+    :caption: config.yml
+
+    config:
+      - models.yml
+      - citus.yml
+
+`models.yml` can contain backend and model property-type settings. `citus.yml`
+can contain manually maintained Citus distribution settings and include
+automatically generated distribution settings:
+
+.. code-block:: yaml
+    :caption: citus.yml
+
+    config:
+      - citus_generated.yml
+
+The resulting loading order is:
+
+1. Spinta's built-in default settings.
+2. `models.yml`.
+3. `citus_generated.yml`.
+4. `citus.yml`.
+5. `config.yml`.
+6. `.env`.
+7. Environment variables.
+8. Command-line settings.
+
+The following simplified example shows how the model settings are combined.
+It illustrates configuration merging only; it is not a complete manifest.
+
+.. code-block:: yaml
+    :caption: models.yml
+
+    models:
+      dataset/Country:
+        backend: default
+        properties:
+          code: string
+      dataset/City:
+        backend: default
+        properties:
+          name: string
+
+.. code-block:: yaml
+    :caption: citus.yml
+
+    config:
+      - citus_generated.yml
+    models:
+      dataset/Country:
+        distribution: schema
+      dataset/Place:
+        distribution: copy
+
+.. code-block:: yaml
+    :caption: citus_generated.yml
+
+    models:
+      dataset/Place:
+        distribution: undistributed
+      dataset/Origin:
+        distribution: copy
+
+To inspect the effective model settings and the file from which each value was
+taken, run:
+
+.. code-block:: sh
+
+    spinta config models
+
+The output will contain the combined settings, for example:
+
+.. code-block:: text
+
+    Origin               Name                                          Value
+    -------------------  --------------------------------------------  -------------
+    models.yml           models.dataset/Country.backend                default
+    models.yml           models.dataset/Country.properties.code        string
+    citus.yml            models.dataset/Country.distribution           schema
+    models.yml           models.dataset/City.backend                   default
+    models.yml           models.dataset/City.properties.name           string
+    citus.yml            models.dataset/Place.distribution             copy
+    citus_generated.yml  models.dataset/Origin.distribution            copy
+
+In this example, the manually maintained distribution setting for
+`dataset/Country` supplements the model settings from `models.yml`. The `copy`
+setting for `dataset/Place` overrides the `undistributed` setting from
+`citus_generated.yml`, while `dataset/Origin` retains the generated `copy`
+setting.
 
 Keymap
 ******
@@ -111,10 +276,11 @@ faster and more robust storages. Here full list of options:
         default:
           type: redis
           dsn: redis://redis-address:6379/1
-Redis (valkey redis fork) docker run configuration can be found under project docker-compose.yml (root directory).
-**IMPORTANT! Redis must be enabled in persistent mode (the `--appendonly yes --appendfsync always` parameter in docker-compose).**
-There are several persistent modes (see the Redis/Valkey documentation).
-Recommended approach (`--appendonly yes --appendfsync always`) provides the most durability and the least performance compared to the others.
+
+  Redis (valkey redis fork) docker run configuration can be found under project docker-compose.yml (root directory).
+  **IMPORTANT! Redis must be enabled in persistent mode (the `--appendonly yes --appendfsync always` parameter in docker-compose).**
+  There are several persistent modes (see the Redis/Valkey documentation).
+  Recommended approach (`--appendonly yes --appendfsync always`) provides the most durability and the least performance compared to the others.
 
 Environment variables
 *********************
@@ -128,7 +294,7 @@ Output::
 
   Origin   Name               Value
   -------  -----------------  -----
-  cliargs  backends.foo.type  postgresql
+  envvars  backends.foo.type  postgresql
 
 
 `.env` file
@@ -152,13 +318,15 @@ Example `.env` file:
 Configuration directory
 ***********************
 
-In addition to main configuration, there are other configuration files, for
-example client credentials, token authorization keys, client access and other
-files. All this addition files are stored in `$XDG_CONFIG_HOME/spinta`__ directory, usually it is `~/.config/spinta` directory.
+In addition to the main configuration file, Spinta uses a configuration-data
+directory for files such as client credentials, token verification keys, and
+client access data. By default this directory is `$XDG_CONFIG_HOME/spinta`__,
+usually `~/.config/spinta`.
 
 __ https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
 
-Path to this directory can be changed via `config_path` configuration option.
+The `config_path` setting changes this directory. It does not make Spinta load
+all files from the directory as configuration files.
 
 
 Command line arguments
@@ -216,7 +384,33 @@ example::
   spinta config backends manifests
 
 Since Spinta is usually configured using environment variables, you can show
-configuration options names as environment variables by adding `-f env`
-argument::
+configuration option names in environment-variable form by adding `--fmt env`::
 
-  spinta config -f env backends manifests
+  spinta config --fmt env backends manifests
+
+By default, `spinta config` shows only the effective value of each setting. To
+also see values that were overridden by another source, add `--all-sources`::
+
+  spinta config --all-sources backends manifests
+
+For example, suppose `config.yml` contains:
+
+.. code-block:: yaml
+
+    backends:
+      primary:
+        type: postgresql
+
+and the environment sets `SPINTA_BACKENDS__PRIMARY__TYPE=memory`. Without
+`--all-sources`, only the effective value is shown::
+
+  Origin   Name                    Value
+  -------  ----------------------  ------
+  envvars  backends.primary.type   memory
+
+With `--all-sources`, both values are shown, which makes the override clear::
+
+  Origin      Name                    Value
+  ----------  ----------------------  ----------
+  config.yml  backends.primary.type   postgresql
+  envvars     backends.primary.type   memory
