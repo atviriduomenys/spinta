@@ -27,6 +27,7 @@ from spinta.testing.migration import (
     add_redirect_table,
     add_schema,
     add_table_comment,
+    drop_changelog,
     drop_column,
     drop_index,
     drop_table,
@@ -34,12 +35,9 @@ from spinta.testing.migration import (
     get_table_unique_constraint_columns,
     rename_changelog,
     rename_column,
+    rename_constraint,
     rename_index,
     rename_redirect,
-    drop_index,
-    add_schema,
-    rename_constraint,
-    drop_changelog,
     rename_table,
 )
 from spinta.testing.pytest import MIGRATION_DATABASE

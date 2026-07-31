@@ -11,8 +11,8 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     gather_prepare_columns,
     get_root_attr,
     get_source_table,
-    update_primary_key,
     handle_ordered_distribution_strategies,
+    update_primary_key,
 )
 from spinta.backends.postgresql.helpers.name import name_changed
 from spinta.components import Context

@@ -11,10 +11,10 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     create_table_migration,
     gather_prepare_columns,
     get_source_table,
+    handle_ordered_distribution_strategies,
     index_not_handled_condition,
     index_with_columns,
     update_primary_key,
-    handle_ordered_distribution_strategies,
 )
 from spinta.backends.postgresql.helpers.name import (
     get_pg_column_name,

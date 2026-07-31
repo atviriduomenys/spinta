@@ -3,20 +3,20 @@ from pathlib import Path
 from sqlalchemy.engine import Engine
 
 from spinta import commands
-from spinta.backends.helpers import get_table_identifier, TableIdentifier
+from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.helpers.migrate.citus import gather_current_sharding_plan
 from spinta.core.config import RawConfig
 from spinta.testing.citus import bootstrap_distribute_manifest
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
-    add_schema,
-    add_index,
-    add_column_comment,
-    add_table_comment,
     add_changelog_table,
+    add_column_comment,
+    add_index,
     add_redirect_table,
-    add_schema_distribution,
     add_reference_distribution,
+    add_schema,
+    add_schema_distribution,
+    add_table_comment,
     add_table_distribution,
     remove_schema_distribution,
     remove_table_distribution,

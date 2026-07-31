@@ -21,9 +21,9 @@ from spinta.backends.postgresql.helpers.migrate.migrate import (
     filter_related_tables,
     gather_prepare_columns,
     get_prop_names,
+    handle_ordered_distribution_strategies,
     revalidate_table_identifier,
     update_primary_key,
-    handle_ordered_distribution_strategies,
     zip_and_migrate_properties,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap

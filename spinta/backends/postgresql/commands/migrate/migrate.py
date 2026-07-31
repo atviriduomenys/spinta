@@ -6,18 +6,18 @@ from sqlalchemy.engine.reflection import Inspector
 from spinta import commands
 from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.actions import (
+    MigrationHandler,
     UndistributeSchema,
 )
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
 from spinta.backends.postgresql.helpers.migrate.citus import (
-    create_sharding_plan,
-    gather_current_sharding_plan,
-    undistribute_all,
-    distribute_all,
     ShardingPlan,
+    create_sharding_plan,
+    distribute_all,
+    gather_current_sharding_plan,
     invalidate_default_schema_distributions,
+    undistribute_all,
 )
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     ModelTables,

@@ -15,7 +15,7 @@ from sqlalchemy.sql.elements import TextClause
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import TableType, DistributionType
+from spinta.backends.constants import DistributionType, TableType
 from spinta.backends.helpers import (
     TableIdentifier,
     extract_table_data_from_logical_name,
@@ -24,8 +24,8 @@ from spinta.backends.helpers import (
     split_logical_name,
 )
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_column_name, get_pg_sequence_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler, UndistributeTable, DistributeReference
+from spinta.backends.postgresql.helpers import get_column_name, get_pg_name, get_pg_sequence_name
+from spinta.backends.postgresql.helpers.migrate.actions import DistributeReference, MigrationHandler, UndistributeTable
 from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
 from spinta.backends.postgresql.helpers.migrate.citus import ShardingPlan
 from spinta.backends.postgresql.helpers.migrate.name import (
@@ -33,10 +33,10 @@ from spinta.backends.postgresql.helpers.migrate.name import (
     get_full_name,
 )
 from spinta.backends.postgresql.helpers.name import (
+    PG_NAMING_CONVENTION,
+    get_pg_column_name,
     get_pg_constraint_name,
     get_pg_index_name,
-    get_pg_column_name,
-    PG_NAMING_CONVENTION,
     get_pg_pkey_name,
     name_changed,
 )
