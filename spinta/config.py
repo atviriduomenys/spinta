@@ -270,6 +270,8 @@ CONFIG = {
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",
+    # Script configuration parameters
+    "citus_reference_script_size": "10g",
     "environments": {
         "dev": {
             "keymaps.default": {
@@ -312,7 +314,7 @@ CONFIG = {
             "backends": {
                 "default": {
                     "type": "postgresql",
-                    "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
+                    "dsn": "postgresql://admin:admin123@localhost:15432/spinta_tests",
                 },
                 "fs": {
                     "type": "fs",
