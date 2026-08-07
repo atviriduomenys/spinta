@@ -237,7 +237,7 @@ class RawConfig:
         rc = RawConfig(list(self.sources))
         if sources:
             if isinstance(sources, dict):
-                rc.add("fork", sources)
+                rc.add("fork", _flatten_dotted(sources))
             else:
                 rc.read(sources, after)
         else:
@@ -439,6 +439,21 @@ class RawConfig:
 
     def get_source_names(self) -> List[str]:
         return [source.name for source in self.sources]
+
+
+def _flatten_dotted(d, _prefix=""):
+    """Flatten nested dict to dotted key notation.
+
+    Non-dict values (scalars, lists, etc.) are kept as-is.
+    """
+    result = {}
+    for key, val in d.items():
+        full_key = f"{_prefix}.{key}" if _prefix else key
+        if isinstance(val, dict):
+            result.update(_flatten_dotted(val, full_key))
+        else:
+            result[full_key] = val
+    return result
 
 
 def _traverse(value, path=()):
