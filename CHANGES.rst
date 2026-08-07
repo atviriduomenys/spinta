@@ -15,6 +15,14 @@ Backwards incompatible:
 
 Bug fixes:
 
+- Escape Mermaid/HTML-structural characters (`` ` ``, ``"``, ``{``, ``}``, ``<``, ``>`` and newlines) in
+  generated Mermaid class diagrams (``write_mermaid_manifest``). Model names, labels, property names and
+  enum values were interpolated into the diagram source unescaped, so a crafted enum value could break out
+  of its token and inject Mermaid directives (for example a ``click ... href "javascript:..."`` link),
+  leading to stored XSS or a render-time denial of service for anyone viewing the diagram. Values are now
+  entity-encoded at every interpolation site; Mermaid decodes these back to the original glyph,
+  so display is preserved while the injection is neutralized. Newlines, which cannot be represented in the
+  line-oriented grammar, are collapsed to spaces (`#513`_).
 - Replaced the deprecated ``asyncio.get_event_loop().run_until_complete()`` calls
   in the ``import``, ``export``, ``pull`` and ``bootstrap`` commands with
   ``asyncio.run()``. On Python ``3.14`` ``asyncio.get_event_loop()`` no longer
@@ -45,6 +53,7 @@ Improvements:
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
 
+.. _#513: https://github.com/atviriduomenys/dvms/issues/513
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
