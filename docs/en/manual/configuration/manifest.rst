@@ -62,3 +62,5 @@ parameter, which defines all manifests.
 
 In this exaple, `manifest` points to `default` manifest, so `manifests.default`
 is used and manifest.
+
+Keymap configuration is described in :ref:`keymap-configuration`.
