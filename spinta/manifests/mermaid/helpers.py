@@ -18,14 +18,19 @@ config:
 ---
 """
 
+# _MMD_ENCODE and _mermaid_safe are duplicates from Katalogas
+# If a problem is found with this escaping, it has to be fixed in both places.
 _MMD_ENCODE = str.maketrans(
     {
+        "#": "#35;",
         "`": "#96;",
         '"': "#34;",
         "{": "#123;",
         "}": "#125;",
         "<": "#60;",
         ">": "#62;",
+        "\n": " ",
+        "\r": " ",
     }
 )
 
@@ -33,7 +38,7 @@ _MMD_ENCODE = str.maketrans(
 def _mermaid_safe(value: str | None) -> str | None:
     if not value:
         return value
-    return value.replace("\r", " ").replace("\n", " ").translate(_MMD_ENCODE)
+    return value.translate(_MMD_ENCODE)
 
 
 class MermaidClassDef(enum.Enum):
