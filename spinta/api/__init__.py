@@ -17,6 +17,10 @@ from starlette.staticfiles import StaticFiles
 
 from spinta import commands, components
 from spinta.accesslog import create_accesslog
+
+# Imported under a different name, so that `spinta.api.health` keeps meaning
+# the module and not this function.
+from spinta.api.health import health as health_probe
 from spinta.api.validators import ClientAddData, ClientBackendsData, ClientPatchData, ClientSecretPatchData
 from spinta.auth import (
     AuthorizationServer,
@@ -448,6 +452,7 @@ def init(context: Context):
         Route("/robots.txt", robots, methods=["GET"]),
         Route("/favicon.ico", favicon, methods=["GET"]),
         Route("/version", version, methods=["GET"]),
+        Route("/health", health_probe, methods=["GET"]),
         Route("/auth/token", auth_token, methods=["POST"]),
         Route("/.well-known/jwks.json", get_verification_keys, methods=["GET"]),
         Route("/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}", srid_check, methods=["GET"]),

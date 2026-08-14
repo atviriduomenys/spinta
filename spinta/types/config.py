@@ -133,6 +133,9 @@ def load(context: Context, config: Config) -> Config:
 
     config.http_strict_transport_security = rc.get("http_strict_transport_security", default="")
 
+    config.health_min_free_disk_space = rc.get("health", "min_free_disk_space", default=1024, cast=int)
+    config.health_min_free_memory = rc.get("health", "min_free_memory", default=256, cast=int)
+
     if config.token_validation_keys_download_url and config.token_validation_key:
         raise ValueError(
             "token_validation_keys_download_url and token_validation_keys_download_url are mutually exclusive and can't be used together. Use one."
