@@ -273,6 +273,13 @@ CONFIG = {
         "min_free_disk_space": 1024,
         # Minimum amount of available RAM (MB).
         "min_free_memory": 256,
+        # How long (seconds) a backend's driver may spend connecting during a
+        # health check. Set to 0 to let each driver keep its own default, which
+        # for some, `psycopg2` included, means waiting indefinitely.
+        "backend_timeout": 5,
+        # How long (seconds) to reuse a health check result. Set to 0 to check
+        # on every request.
+        "cache_time": 5,
     },
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",

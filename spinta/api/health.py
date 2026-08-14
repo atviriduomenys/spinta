@@ -1,7 +1,8 @@
 """`/health` probe.
 
-Checks if Spinta is operational:
+Checks if Spinta and everything it depends on is operational:
 
+- if all backends (data sources) are reachable,
 - if there is enough free disk space,
 - if there is enough free RAM.
 
@@ -11,25 +12,36 @@ for the whole service and a `dependencies` list, where each item is a named
 dependency with its own `healthy` flag.
 
 Only these flags are reported. Since the probe is not authenticated, it must not
-disclose how the service is deployed, so paths, free space and errors are
-written to the log instead of to the response.
+disclose how the service is deployed, so individual backend names, paths, free
+space and driver errors are written to the log instead of to the response.
 
-Checks read from the file system, which can block, so they run in worker threads
-rather than on the event loop.
+Checks block, so they run in worker threads, and they run at most one probe at a
+time. Nothing here cancels a check: how long a backend check may take is the
+driver's own connect timeout, see `WAIT_CONNECT_TIMEOUT`, and how long the probe
+as a whole may take is up to whoever probes, which for a container or load
+balancer probe is its own timeout.
 """
 
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import pathlib
+import time
+import weakref
+from typing import Awaitable, Callable
 
 import psutil
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from spinta.components import Config, Context
+from spinta import commands
+from spinta.backends import Backend
+from spinta.backends.constants import WAIT_CONNECT_TIMEOUT
+from spinta.backends.helpers import get_all_backends
+from spinta.components import Config, Context, Store
 
 log = logging.getLogger(__name__)
 
@@ -56,8 +68,79 @@ CGROUP_V1_MEMORY = (
 NO_CGROUP_LIMIT = 2**62
 
 
+class HealthCache:
+    """Keeps the health result for a short while, and checks one probe at a time.
+
+    The probe is not authenticated and every check opens a real connection to
+    every backend, so without this anyone could use the probe to open as many
+    backend connections as they like. `cache_time` controls how long a finished
+    result is served again; with `0` every probe gets a check of its own, still
+    one at a time.
+    """
+
+    def __init__(self):
+        self._result: dict | None = None
+        self._expires: float = 0.0
+        # An `asyncio.Lock` belongs to the event loop it was created in. A served
+        # app has a single loop; more than one appears in tests, where each probe
+        # may get its own, and those then share the result but not the lock.
+        self._locks: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+    def _lock(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        if (lock := self._locks.get(loop)) is None:
+            lock = self._locks[loop] = asyncio.Lock()
+        return lock
+
+    async def get(self, cache_time: float, check: Callable[[], Awaitable[dict]]) -> dict:
+        async with self._lock():
+            if self._result is not None and time.monotonic() < self._expires:
+                return self._result
+
+            result = await check()
+            self._result = result if cache_time > 0 else None
+            # Measured from when the check finished, not from when it started,
+            # otherwise a check taking as long as `cache_time` returns a result
+            # that has already expired.
+            self._expires = time.monotonic() + cache_time
+            return result
+
+
 def _dependency(name: str, healthy: bool) -> dict:
     return {"name": name, "healthy": healthy}
+
+
+async def _check_backend(context: Context, backend: Backend, timeout: float) -> bool:
+    # Checks run concurrently, in threads, so each one gets its own context
+    # state instead of mutating the shared request context.
+    with context.fork("health") as fork:
+        # Waiting for backends to come up lets the driver wait as long as it
+        # likes, but a probe should not wait for a backend that is not answering
+        # much longer than it takes to find that out.
+        fork.set(WAIT_CONNECT_TIMEOUT, timeout)
+        try:
+            return await run_in_threadpool(commands.wait, fork, backend, fail=False)
+        except Exception:
+            log.exception("Error while checking if backend %r is available.", backend.name)
+            return False
+
+
+async def _check_backends(context: Context, timeout: float) -> bool:
+    """Check every backend, reporting them as a single dependency.
+
+    Which backends are configured is a deployment detail, so they are checked
+    individually, but reported as one flag, which is only healthy if every
+    backend is.
+    """
+    store: Store = context.get("store")
+    try:
+        backends = get_all_backends(context, store)
+    except Exception:
+        log.exception("Error while collecting backends.")
+        return False
+
+    results = await asyncio.gather(*(_check_backend(context, backend, timeout) for backend in backends))
+    return all(results)
 
 
 def _existing_path(path: pathlib.Path) -> pathlib.Path:
@@ -153,7 +236,9 @@ def _check_memory(config: Config) -> bool:
     return True
 
 
-async def _check_health(config: Config) -> dict:
+async def _check_health(context: Context, config: Config) -> dict:
+    # Both resource checks read from the file system, which can block, for
+    # example on a hung mount, so neither may run on the event loop.
     disk, memory = await asyncio.gather(
         run_in_threadpool(_check_disk, config),
         run_in_threadpool(_check_memory, config),
@@ -161,6 +246,7 @@ async def _check_health(config: Config) -> dict:
     dependencies = [
         # Spinta itself answered, everything else it needs is checked separately.
         _dependency("spinta", True),
+        _dependency("backends", await _check_backends(context, config.health_backend_timeout)),
         _dependency("disk", disk),
         _dependency("memory", memory),
     ]
@@ -173,9 +259,11 @@ async def _check_health(config: Config) -> dict:
 async def health(request: Request) -> JSONResponse:
     context: Context = request.state.context
     config: Config = context.get("config")
+    cache: HealthCache = request.app.state.health_cache
 
     return JSONResponse(
-        await _check_health(config),
-        # Probes must always get the current state, never a cached one.
+        await cache.get(config.health_cache_time, functools.partial(_check_health, context, config)),
+        # However long the result is kept here, it must never be kept by a shared
+        # cache, otherwise probes stop seeing the current state.
         headers={"Cache-Control": "no-store"},
     )

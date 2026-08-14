@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import itertools
 from typing import Any, Iterable, Iterator, TypeVar
 
 import sqlalchemy as sa
@@ -14,7 +15,7 @@ from spinta.backends.components import SelectTree
 from spinta.backends.constants import BackendOrigin, TableType
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.commands import build_full_response
-from spinta.components import Component, Config, Context, DataItem, Model, Namespace, Property
+from spinta.components import Component, Config, Context, DataItem, Model, Namespace, Property, Store
 from spinta.core.enums import Action
 from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import Base32, DataType, Denorm, PrimaryKey, String
@@ -67,6 +68,28 @@ def load_backend(
     load_result_builder_class(config, backend)
     commands.load(context, backend, data)
     return backend
+
+
+def get_all_backends(context: Context, store: Store) -> set[Backend]:
+    """Collect all distinct backends known to the store.
+
+    Backends can come from configuration, from manifests and from dataset
+    resources. Backends are deduplicated by identity, not by name, because the
+    same name can be given to different backends, for example one in the
+    configuration and another one in a manifest.
+    """
+    return set(
+        itertools.chain(
+            store.backends.values(),
+            store.manifest.backends.values(),
+            (
+                resource.backend
+                for dataset in commands.get_datasets(context, store.manifest).values()
+                for resource in dataset.resources.values()
+                if resource.backend
+            ),
+        )
+    )
 
 
 def get_select_tree(

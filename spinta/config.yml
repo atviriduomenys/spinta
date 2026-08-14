@@ -222,6 +222,10 @@ health:
       type: integer
     min_free_memory:
       type: integer
+    backend_timeout:
+      type: integer
+    cache_time:
+      type: integer
 
 root:
   type: string

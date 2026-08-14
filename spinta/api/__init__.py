@@ -20,6 +20,7 @@ from spinta.accesslog import create_accesslog
 
 # Imported under a different name, so that `spinta.api.health` keeps meaning
 # the module and not this function.
+from spinta.api.health import HealthCache
 from spinta.api.health import health as health_probe
 from spinta.api.validators import ClientAddData, ClientBackendsData, ClientPatchData, ClientSecretPatchData
 from spinta.auth import (
@@ -499,6 +500,9 @@ def init(context: Context):
 
     # Add context to state in order to pass it to request handlers
     app.state.context = context
+
+    # `/health` results are shared by all probes hitting this app.
+    app.state.health_cache = HealthCache()
 
     context.bind("auth.server", AuthorizationServer, context)
     context.bind(

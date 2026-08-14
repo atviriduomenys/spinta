@@ -135,6 +135,8 @@ def load(context: Context, config: Config) -> Config:
 
     config.health_min_free_disk_space = rc.get("health", "min_free_disk_space", default=1024, cast=int)
     config.health_min_free_memory = rc.get("health", "min_free_memory", default=256, cast=int)
+    config.health_backend_timeout = rc.get("health", "backend_timeout", default=5, cast=int)
+    config.health_cache_time = rc.get("health", "cache_time", default=5, cast=int)
 
     if config.token_validation_keys_download_url and config.token_validation_key:
         raise ValueError(

@@ -1,5 +1,12 @@
 import enum
 
+# Context name holding how long, in seconds, a backend availability check
+# (`commands.wait`) may wait for the driver to connect. Waiting for backends to
+# come up does not set it, so drivers keep their own defaults and a host that is
+# not answering yet gets as long as the caller is willing to wait. Callers that
+# need an answer in bounded time, such as the `/health` probe, set it.
+WAIT_CONNECT_TIMEOUT = "wait.connect_timeout"
+
 
 class TableType(enum.Enum):
     MAIN = ""
