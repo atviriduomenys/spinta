@@ -223,6 +223,8 @@ def generate_citus_reference_shard_config(
     config = context.get("config")
     max_size = config.citus_reference_script_size
 
+    config_output = {"models": {}}
+    config_models = config_output["models"]
     for backend_name, backend in store.backends.items():
         if not isinstance(backend, PostgreSQL):
             cli_message(f"Skipping '{backend_name}' backend, it's not PostgreSQL backend")
@@ -249,12 +251,11 @@ def generate_citus_reference_shard_config(
             )
             for table_key, table in tables.items()
         }
-        config_output = {"models": {}}
-        config_models = config_output["models"]
+
         for table in plan_reference_tables(eligible_tables, foreign_keys):
             model_name = table.comment or table.qualified_name
             config_models[model_name] = {"distribute": "copy"}
 
-        output_stream = nullcontext(sys.stdout) if output_path is None else output_path.open("w")
-        with output_stream as out:
-            yaml.dump(config_output, out)
+    output_stream = nullcontext(sys.stdout) if output_path is None else output_path.open("w")
+    with output_stream as out:
+        yaml.dump(config_output, out)

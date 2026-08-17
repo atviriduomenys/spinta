@@ -155,7 +155,7 @@ def load(context: Context, config: Config) -> Config:
             default=True,
         ),
     )
-    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default=1000**3)
+    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
 
     return config
 

@@ -223,10 +223,10 @@ def invalidate_default_schema_distributions(
     plan_copy = deepcopy(plan)
 
     for reference in plan.references:
-        invalid_schemas.add(reference.schema)
+        invalid_schemas.add(reference.pg_schema_name)
 
     for table in plan.distributed.keys():
-        invalid_schemas.add(table.schema)
+        invalid_schemas.add(table.pg_schema_name)
 
     all_schemas = set(inspector.get_schema_names())
 
