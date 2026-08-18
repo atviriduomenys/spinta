@@ -37,7 +37,9 @@ def read_config(args=None, envfile=None):
     rc.read(
         [
             Path("spinta", "spinta.config:CONFIG"),
-            EnvFile("envfile", envfile or ".env"),
+            EnvFile(
+                "envfile", envfile or ".env", anchor=True
+            ),  # User-specified sources will be placed before this source
             EnvVars("envvars", os.environ),
             CliArgs("cliargs", args or []),
         ]
@@ -57,9 +59,14 @@ class ConfigSource:
     # Can completely overwrite
     static_keys: bool = False
 
-    def __init__(self, name=None, config=None):
+    # If set True, RawConfig will know that this config source is anchor for user-specified configuration sources
+    # RawConfig will place user-specified configuration sources before this source
+    anchor: bool = False
+
+    def __init__(self, name=None, config=None, anchor: bool = False):
         self.name = self.getname(name)
         self.config = config
+        self.anchor = anchor
 
     def __str__(self):
         return self.name
@@ -189,11 +196,18 @@ class RawConfig:
 
     sources: list[ConfigSource]
 
+    # ConfigSource name for source that will be used to anchor user-specified sources
+    anchor: str | None = None
+
     def __init__(self, sources: ConfigSource | None = None):
         self._locked = False
         self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
         self._schema = SCHEMA
+
+        for source in self.sources:
+            if source.anchor:
+                self.anchor = source.name
 
     def read(
         self,
@@ -207,12 +221,19 @@ class RawConfig:
         if after and before:
             raise Exception("Cannot use both `after` and `before` arguments.")
 
+        anchor_source = None
         for config in sources:
             log.info(f"Reading config from {config.name}.")
             config.read(self._schema)
+            if config.anchor:
+                anchor_source = config.name
+
+        if anchor_source:
+            self.anchor = anchor_source
 
         target = after or before
-        if target is not None:
+        root_source = target is None
+        if not root_source:
             pos = (i for i, s in enumerate(self.sources) if s.name == target)
             pos = next(pos, None)
             if pos is None:
@@ -229,7 +250,10 @@ class RawConfig:
             nested_configs = self._cast_value(nested_configs, list, [])
             if not nested_configs:
                 continue
-            self.read([Path(nested_config, nested_config) for nested_config in nested_configs], before=config.name)
+            self.read(
+                [Path(nested_config, nested_config) for nested_config in nested_configs],
+                before=self.anchor or config.name if root_source else config.name,
+            )
 
     def add(self, name, params):
         self.read([PyDict(name, params)])

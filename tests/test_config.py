@@ -2,7 +2,7 @@ import pathlib
 
 from ruamel.yaml import YAML
 
-from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
+from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig, read_config
 
 yaml = YAML(typ="safe")
 
@@ -898,3 +898,57 @@ def test_nested_extension(tmp_path: pathlib.Path):
         (("models", "datasets/Another", "backend"), "sql", str_models_path),
         (("models", "datasets/Other", "distribute", "type"), "schema", str_citus_path),
     ]
+
+
+def test_default_anchor(tmp_path: pathlib.Path):
+    env_file_1 = tmp_path / "env_file_1.yml"
+    env_file_1_1 = tmp_path / "env_file_1_1.yml"
+    env_file_1_2 = tmp_path / "env_file_1_2.yml"
+
+    env_file_1.write_text(f"""
+    config:
+        - {str(env_file_1_1)}
+        - {str(env_file_1_2)}
+    
+    test_order: env_file_1
+    """)
+    env_file_1_1.write_text("test_order: env_file_1_1")
+    env_file_1_2.write_text("test_order: env_file_1_2")
+
+    dot_env = tmp_path / ".env"
+    dot_env.write_text(f"""
+    SPINTA_CONFIG={env_file_1}
+    """)
+
+    arg_1 = tmp_path / "arg_1.yml"
+    arg_1_1 = tmp_path / "arg_1_1.yml"
+    arg_1_2 = tmp_path / "arg_1_2.yml"
+    arg_2 = tmp_path / "arg_2.yml"
+
+    arg_1.write_text(f"""
+    config:
+        - {str(arg_1_1)}
+        - {str(arg_1_2)}
+
+    test_order: arg_1
+    """)
+    arg_1_1.write_text("test_order: arg_1_1")
+    arg_1_2.write_text("test_order: arg_1_2")
+    arg_2.write_text("test_order: arg_2")
+
+    rc = read_config(args=[f"config={str(arg_1)},{str(arg_2)}"], envfile=str(dot_env))
+    assert rc.anchor == "envfile"
+    assert rc.get_source_names() == [
+        "spinta",
+        str(env_file_1_1),
+        str(env_file_1_2),
+        str(env_file_1),
+        str(arg_1_1),
+        str(arg_1_2),
+        str(arg_1),
+        str(arg_2),
+        "envfile",
+        "envvars",
+        "cliargs",
+    ]
+    assert list(rc.getall("test_order", origin=True)) == [(("test_order",), "arg_2", str(arg_2))]
