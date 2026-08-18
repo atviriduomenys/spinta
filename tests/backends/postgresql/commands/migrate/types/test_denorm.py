@@ -10,18 +10,18 @@ from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
     add_column,
-    drop_column,
-    rename_column,
     add_column_comment,
     add_index,
-    drop_index,
+    drop_column,
     drop_constraint,
+    drop_index,
+    rename_column,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    configure_migrate,
-    override_manifest,
     cleanup_table_list,
+    configure_migrate,
     get_table_foreign_key_constraint_columns,
+    override_manifest,
 )
 
 

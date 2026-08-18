@@ -5,7 +5,6 @@ import pytest
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    "backends/mongo/Report",
 )
 def test_concurency(model, app):
     app.authmodel(model, ["insert", "getone"])

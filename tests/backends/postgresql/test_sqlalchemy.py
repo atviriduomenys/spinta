@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 def test_mssql_geometry_type():
     from geoalchemy2.types import Geometry
-    from sqlalchemy.dialects.mssql.base import MSDialect
     from sqlalchemy.dialects.mssql import information_schema as ischema
+    from sqlalchemy.dialects.mssql.base import MSDialect
 
     # This import registers 'geometry' type, so it mus be here even if not
     # used.

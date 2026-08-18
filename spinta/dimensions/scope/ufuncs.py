@@ -1,5 +1,5 @@
-from spinta.core.ufuncs import ufunc, Expr, Bind, GetAttr, asttoexpr
-from spinta.dimensions.scope.components import ScopeLoader, Scope
+from spinta.core.ufuncs import Bind, Expr, GetAttr, asttoexpr, ufunc
+from spinta.dimensions.scope.components import Scope, ScopeLoader
 
 
 @ufunc.resolver(ScopeLoader, Bind, Bind, name="getattr")

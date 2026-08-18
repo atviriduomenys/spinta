@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import typing
-from typing import Any, Dict, List, Optional, Tuple, Union
-
 import collections
+import enum
 import logging
 import os
 import pathlib
-import enum
-
 import sys
-from typing import NamedTuple
+import typing
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from ruamel.yaml import YAML
 

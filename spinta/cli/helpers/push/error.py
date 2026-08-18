@@ -1,6 +1,4 @@
-from typing import Dict
-from typing import Iterable
-from typing import List
+from typing import Dict, Iterable, List
 
 import requests
 import sqlalchemy as sa
@@ -11,9 +9,7 @@ from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push.utils import construct_where_condition_from_page
 from spinta.cli.helpers.push.write import prepare_rows_with_errors
-from spinta.components import Context, pagination_enabled
-from spinta.components import Model
-from spinta.components import get_page_size
+from spinta.components import Context, Model, get_page_size, pagination_enabled
 from spinta.exceptions import InfiniteLoopWithPagination, TooShortPageSize
 
 

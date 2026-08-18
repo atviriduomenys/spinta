@@ -1,15 +1,12 @@
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
-from typer import Argument
+from typer import Argument, Option, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import echo
 
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.core.enums import Mode
 from spinta.core.context import configure_context
+from spinta.core.enums import Mode
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 

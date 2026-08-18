@@ -1,13 +1,12 @@
+import sqlalchemy as sa
+
 from spinta.core.ufuncs import ufunc
+from spinta.datasets.backends.sql.backends.helpers import nulls_first_desc, nulls_last_asc
 from spinta.datasets.backends.sql.backends.oracle.helpers import flip_geometry_oracle
 from spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components import OracleQueryBuilder
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import Flip, Selected
-
-import sqlalchemy as sa
-
-from spinta.datasets.backends.sql.backends.helpers import nulls_last_asc, nulls_first_desc
 
 
 @ufunc.resolver(OracleQueryBuilder, sa.sql.expression.ColumnElement)

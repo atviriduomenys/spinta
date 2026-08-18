@@ -1,6 +1,6 @@
-from spinta.core.ufuncs import ufunc, Expr
-from spinta.exceptions import PropertyNotFound, InvalidRequestQuery, SummaryWithMultipleProperties
-from spinta.ufuncs.summaryenv.components import SummaryEnv, BBox
+from spinta.core.ufuncs import Expr, ufunc
+from spinta.exceptions import InvalidRequestQuery, PropertyNotFound, SummaryWithMultipleProperties
+from spinta.ufuncs.summaryenv.components import BBox, SummaryEnv
 
 
 @ufunc.resolver(SummaryEnv, Expr, name="bbox")

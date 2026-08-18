@@ -3,12 +3,11 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 
-from spinta.components import Context, Property, Model
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Visibility
 from spinta.manifests.yaml.components import InlineManifest
-from spinta.types.datatype import Ref, BackRef, ArrayBackRef, Inherit, Array
+from spinta.types.datatype import Array, ArrayBackRef, BackRef, Inherit, Ref
 from spinta.utils.naming import to_model_name
-
 
 MERMAID_CONFIG = """---
 config:
@@ -18,6 +17,28 @@ config:
     clusterBkg: '#ffffde'
 ---
 """
+
+# _MMD_ENCODE and _mermaid_safe are duplicates from Katalogas
+# If a problem is found with this escaping, it has to be fixed in both places.
+_MMD_ENCODE = str.maketrans(
+    {
+        "#": "#35;",
+        "`": "#96;",
+        '"': "#34;",
+        "{": "#123;",
+        "}": "#125;",
+        "<": "#60;",
+        ">": "#62;",
+        "\n": " ",
+        "\r": " ",
+    }
+)
+
+
+def _mermaid_safe(value: str | None) -> str | None:
+    if not value:
+        return value
+    return value.translate(_MMD_ENCODE)
 
 
 class MermaidClassDef(enum.Enum):
@@ -71,7 +92,7 @@ class MermaidNameSpace:
         self.classes = {}
 
     def __str__(self) -> str:
-        text = f"namespace `{self.name}` {{\n" if self.name else ""
+        text = f"namespace `{_mermaid_safe(self.name)}` {{\n" if self.name else ""
         for mermaid_class in self.classes.values():
             text += f"{mermaid_class}\n"
         text += "}" if self.name else ""
@@ -178,7 +199,7 @@ class MermaidClass:
             self.properties[prop.name] = prop
 
     def __str__(self) -> str:
-        class_text = f'class `{self.name}`["{self.label}"]:::{self.definition.name}'
+        class_text = f'class `{_mermaid_safe(self.name)}`["{_mermaid_safe(self.label)}"]:::{self.definition.name}'
 
         if not self.properties:
             return class_text
@@ -230,10 +251,10 @@ class MermaidProperty:
             visibility = self.VISIBILITY_MAPPING[self.visibility]
             property_string += f"{visibility} "
 
-        property_string += self.name
+        property_string += _mermaid_safe(self.name)
 
         if self.type is not None:
-            property_string = f"{property_string} : {self.type}"
+            property_string = f"{property_string} : {_mermaid_safe(self.type)}"
 
         if self.required is not None:
             property_string = f"{property_string} [{int(self.required)}..{'*' if self.many else 1}]"
@@ -278,9 +299,10 @@ class MermaidRelationship:
         else:
             cardinality = ""
 
-        relationship_text = f"`{self.node1}` {arrow}{cardinality} `{self.node2}`"
+        relationship_text = f"`{_mermaid_safe(self.node1)}` {arrow}{cardinality} `{_mermaid_safe(self.node2)}`"
+
         if self.label:
-            relationship_text += f" : {self.label}"
+            relationship_text += f" : {_mermaid_safe(self.label)}"
             relationship_text += "<br/>«mandatory»" if self.required else "<br/>«optional»"
 
         return relationship_text

@@ -1,7 +1,7 @@
-from datetime import datetime
 import logging
-from logging.handlers import TimedRotatingFileHandler
 import os
+from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
 
 from spinta.components import Config
 

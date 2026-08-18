@@ -3,10 +3,10 @@ from typing import Iterator
 import dask
 
 from spinta import commands
-from spinta.components import Context, Property, Model
+from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
-from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, dask_get_all
+from spinta.datasets.backends.dataframe.commands.read import dask_get_all, parametrize_bases
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.typing import ObjectData

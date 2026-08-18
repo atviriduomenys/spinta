@@ -1,6 +1,6 @@
-from typing import overload, Any
+from typing import Any, overload
 
-from spinta.core.ufuncs import ufunc, Expr, Env
+from spinta.core.ufuncs import Env, Expr, ufunc
 from spinta.dimensions.enum.components import EnumFormula
 from spinta.exceptions import FormulaError
 from spinta.ufuncs.resultbuilder.components import EnumResultBuilder

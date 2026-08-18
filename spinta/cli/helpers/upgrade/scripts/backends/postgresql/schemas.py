@@ -1,37 +1,34 @@
 from contextlib import ExitStack
 from typing import Generator
 
+import sqlalchemy as sa
 from click import echo
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Inspector
 from tqdm import tqdm
 
-
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_identifier, TableIdentifier
+from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_sequence_name, get_pg_name
+from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import (
     CreateSchemaMigrationAction,
-    RenameTableMigrationAction,
+    MigrationHandler,
     RenameConstraintMigrationAction,
     RenameIndexMigrationAction,
     RenameSequenceMigrationAction,
-    MigrationHandler,
+    RenameTableMigrationAction,
 )
 from spinta.backends.postgresql.helpers.migrate.migrate import extract_sequence_name
 from spinta.backends.postgresql.helpers.name import (
+    PG_NAMING_CONVENTION,
     get_pg_constraint_name,
     get_pg_foreign_key_name,
     get_pg_index_name,
-    PG_NAMING_CONVENTION,
 )
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model
-
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.sqlalchemy import Convention
 

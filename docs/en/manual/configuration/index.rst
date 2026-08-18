@@ -31,6 +31,7 @@ directory where additional configuration files are looked for.
    backend
    manifest
    soap-custom-adapters
+   front-page
 
 .. _config-file:
 
@@ -84,7 +85,7 @@ Output::
 
   Origin           Name               Value
   ---------------  -----------------  -----
-  /tmp/custom.yml  backends.foo.type  mongo
+  /tmp/custom.yml  backends.foo.type  postgresql
 
 Keymap
 ******
@@ -121,13 +122,13 @@ Environment variables
 All environment variables must use `SPINTA_` prefix and hierarchy levels must
 be separated with `__`. For example::
 
-  SPINTA_BACKENDS__FOO__TYPE=mongo spinta config backends
+  SPINTA_BACKENDS__FOO__TYPE=postgresql spinta config backends
 
 Output::
 
   Origin   Name               Value
   -------  -----------------  -----
-  cliargs  backends.foo.type  mongo
+  cliargs  backends.foo.type  postgresql
 
 
 `.env` file
@@ -166,10 +167,10 @@ Command line arguments
 All spinta commands have `-o` command line argument. With `-o` you can set
 configuration values using dotted notation, for example::
 
-  > spinta -o backends.foo.type=mongo config backends
+  > spinta -o backends.foo.type=postgresql config backends
   Origin   Name               Value
   -------  -----------------  -----
-  cliargs  backends.foo.type  mongo
+  cliargs  backends.foo.type  postgresql
 
 `-o` must be use immediately after `spinta` command and before any subcommands.
 
@@ -187,16 +188,16 @@ Configuration options containing suboptions are interpreted as list of
 suboption names. For example if we have following configuration::
 
   backends.pg.type=postgresql
-  backends.mongo.type=mongo
+  backends.sql.type=sql
   backends.fs.type=fs
 
-`backends` value is a list containing `pg` and `fs`, called keys. If you want to remove
+`backends` value is a list containing `pg`, `sql`, and `fs`, called keys. If you want to remove
 existing keys, you can set `backends`, like this::
 
   backends=pg,fs
 
 This will remove all configuration options except `backends.pg` and
-`backends.fs`. In this case, `backends.mongo` will be removed.
+`backends.fs`. In this case, `backends.sql` will be removed.
 
 
 Inspecting configuration

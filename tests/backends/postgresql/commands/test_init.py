@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy.types import String, BigInteger
+from sqlalchemy.types import BigInteger, String
 
 from spinta import commands
 from spinta.core.config import RawConfig

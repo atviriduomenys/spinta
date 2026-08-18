@@ -8,7 +8,7 @@ try:
     from importlib.resources import abc
 except ImportError:
     # Python <=3.9
-    from importlib import resources, abc
+    from importlib import abc, resources
 
 
 def is_ignored(rules, base, path):

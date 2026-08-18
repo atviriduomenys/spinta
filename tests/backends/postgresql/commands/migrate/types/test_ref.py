@@ -10,29 +10,29 @@ from spinta.core.config import RawConfig
 from spinta.exceptions import (
     MigrateScalarToRefTooManyKeys,
     MigrateScalarToRefTypeMissmatch,
-    UnableToFindPrimaryKeysNoUniqueConstraints,
     UnableToFindPrimaryKeysMultipleUniqueConstraints,
+    UnableToFindPrimaryKeysNoUniqueConstraints,
 )
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
-    add_index,
-    add_column_comment,
-    add_table_comment,
     add_changelog_table,
-    add_redirect_table,
-    drop_column,
     add_column,
-    rename_column,
-    drop_index,
-    drop_constraint,
+    add_column_comment,
+    add_index,
+    add_redirect_table,
     add_schema,
+    add_table_comment,
+    drop_column,
+    drop_constraint,
+    drop_index,
+    rename_column,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    override_manifest,
     cleanup_table_list,
     configure_migrate,
-    get_table_unique_constraint_columns,
     get_table_foreign_key_constraint_columns,
+    get_table_unique_constraint_columns,
+    override_manifest,
 )
 
 
@@ -2615,8 +2615,8 @@ def test_migrate_adjust_ref_levels_no_pkey(migration_db: Engine, rc: RawConfig, 
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        f"{drop_index(table_identifier=table_identifier, index_name='ix_Ref_someRef._id')}"
         f"{drop_constraint(table_identifier=table_identifier, constraint_name='fk_Ref_someRef._id_Test')}"
+        f"{drop_index(table_identifier=table_identifier, index_name='ix_Ref_someRef._id')}"
         "COMMIT;\n"
         "\n"
     )

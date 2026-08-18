@@ -1,14 +1,14 @@
 from typing import Any
 
+import sqlalchemy as sa
+
 from spinta.core.ufuncs import ufunc
+from spinta.datasets.backends.sql.backends.helpers import nulls_first_desc, nulls_last_asc
 from spinta.datasets.backends.sql.backends.postgresql.helpers import flip_geometry_postgis, group_array
 from spinta.datasets.backends.sql.backends.postgresql.ufuncs.query.components import PostgreSQLQueryBuilder
-from spinta.datasets.backends.sql.backends.helpers import nulls_last_asc, nulls_first_desc
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import Flip, Selected
-
-import sqlalchemy as sa
 
 
 @ufunc.resolver(PostgreSQLQueryBuilder, Geometry, Flip)

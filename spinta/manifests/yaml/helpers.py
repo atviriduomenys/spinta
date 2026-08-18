@@ -1,28 +1,25 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, Optional, Tuple
-
 import pathlib
 import uuid
+from typing import TYPE_CHECKING, Iterator, Optional, Tuple
 
 import jsonpatch
-
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
 from ruamel.yaml.error import YAMLError
+from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scalarstring import walk_tree
+from ruamel.yaml.scanner import ScannerError
 
-from spinta import spyna
-from spinta import exceptions
+from spinta import exceptions, spyna
+from spinta.components import Context
 from spinta.exceptions import InvalidManifestFile
 from spinta.manifests.yaml.components import InlineManifest
 from spinta.utils.path import is_ignored
-from spinta.components import Context
 
 if TYPE_CHECKING:
-    from spinta.migrations import SchemaVersion
     from spinta.manifests.yaml.components import YamlManifest
+    from spinta.migrations import SchemaVersion
 
 yaml = YAML(typ="safe")
 

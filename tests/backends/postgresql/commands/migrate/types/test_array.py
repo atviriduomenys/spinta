@@ -9,25 +9,25 @@ from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.migration import (
-    add_column_comment,
-    add_table_comment,
-    add_index,
     add_changelog_table,
+    add_column_comment,
+    add_index,
     add_redirect_table,
+    add_schema,
+    add_table_comment,
     drop_column,
+    drop_constraint,
     drop_index,
     drop_table,
-    drop_constraint,
     rename_column,
-    rename_table,
-    rename_index,
     rename_constraint,
-    add_schema,
+    rename_index,
+    rename_table,
 )
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    override_manifest,
     cleanup_table_list,
     configure_migrate,
+    override_manifest,
 )
 
 
@@ -248,7 +248,7 @@ def test_migrate_remove_array_type(migration_db: Engine, rc: RawConfig, cli: Spi
     assert result.output.endswith(
         "BEGIN;\n\n"
         f"{drop_column(table_identifier=table_identifier, column='new')}"
-        f"{drop_table(table_identifier=list_table_identifier)}"
+        f"{drop_table(table_identifier=list_table_identifier, contains_pkey=False)}"
         f"{drop_constraint(table_identifier=removed_list_table_identifier, constraint_name='fk_Test/:list/new__rid_Test')}"
         f"{drop_index(table_identifier=removed_list_table_identifier, index_name='ix_Test/:list/new__txn')}"
         "COMMIT;\n"
@@ -327,7 +327,7 @@ def test_migrate_rename_array(migration_db: Engine, rc: RawConfig, cli: SpintaCl
         f"{rename_column(table_identifier=table_identifier, column='new', new_name='renamed')}"
         f"{rename_table(old_table_identifier=old_list_table_identifier, new_table_identifier=new_list_table_identifier, rename_pk_constraint=False)}"
         f"{rename_index(table_identifier=new_list_table_identifier, old_index_name='ix_Test/:list/new__txn', new_index_name='ix_Test/:list/renamed__txn')}"
-        f"{rename_constraint(table_identifier=new_list_table_identifier, constraint_name='fk_Test/:list/new__rid_Test', new_constraint_name='fk_Test/:list/renamed__rid_Test')}"
+        f"{rename_constraint(table_identifier=new_list_table_identifier, old_constraint_name='fk_Test/:list/new__rid_Test', new_constraint_name='fk_Test/:list/renamed__rid_Test')}"
         f"{rename_column(table_identifier=new_list_table_identifier, column='new', new_name='renamed')}"
         "COMMIT;\n"
         "\n"

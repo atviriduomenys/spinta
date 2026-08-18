@@ -5,9 +5,8 @@ from requests import Response
 
 from spinta.cli.helpers.sync import IDENTIFIER
 from spinta.cli.helpers.sync.enum import ResponseType
-from spinta.client import get_access_token, RemoteClientCredentials
+from spinta.client import RemoteClientCredentials, get_access_token
 from spinta.exceptions import UnexpectedAPIResponse, UnexpectedAPIResponseData
-
 
 STATIC_BASE_PATH_TAIL = "/uapi/datasets/gov/vssa/ror/dcat"
 

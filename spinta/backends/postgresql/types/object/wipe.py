@@ -1,7 +1,7 @@
 from spinta import commands
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Context
 from spinta.types.datatype import Object
-from spinta.backends.postgresql.components import PostgreSQL
 
 
 @commands.wipe.register(Context, Object, PostgreSQL)

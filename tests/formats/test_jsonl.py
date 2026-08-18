@@ -1,20 +1,20 @@
 import datetime
+import hashlib
 import json
 import operator
-import hashlib
 import uuid
 from pathlib import Path
-from starlette.datastructures import Headers
 
 import pytest
 from _pytest.fixtures import FixtureRequest
+from starlette.datastructures import Headers
 
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
-from spinta.testing.data import pushdata, encode_page_values_manually
+from spinta.testing.data import encode_page_values_manually, pushdata
 from spinta.testing.manifest import bootstrap_manifest
 
 

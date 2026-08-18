@@ -231,6 +231,16 @@ class PropertyNotFound(UserError):
     template = "Property {property!r} not found."
 
 
+class ScopeNotFound(UserError):
+    status_code = 404
+    template = "Scope {scope!r} not found in model {model!r}."
+
+
+class PropertiesNotFound(UserError):
+    status_code = 404
+    template = "Properties {properties!r} not found."
+
+
 class NoItemRevision(UserError):
     template = "'_revision' must be given on rewrite operation."
 
@@ -1213,6 +1223,13 @@ class EnumPrepareMissing(UserError):
     template = """
         Enum {enum} is missing a required value in the prepare column.
     """
+
+
+class InlineEnumWithName(UserError):
+    template = (
+        "Named enum {enum!r} is declared directly under property {property!r}. "
+        "Either remove the name to make it an inline enum, or move it to dataset dimension."
+    )
 
 
 class SourceOrPrepareNotAllowed(UserError):

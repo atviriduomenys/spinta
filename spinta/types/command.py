@@ -1,5 +1,5 @@
-from spinta.components import Context, Command, CommandList, Node
 from spinta.commands import load
+from spinta.components import Command, CommandList, Context, Node
 
 
 @load.register(Context, Command, dict)

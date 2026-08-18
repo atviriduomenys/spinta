@@ -1,6 +1,6 @@
 from spinta.components import Context
 from spinta.core.ufuncs import Env
-from spinta.datasets.components import Resource, Dataset, Param
+from spinta.datasets.components import Dataset, Param, Resource
 
 
 class LinkBuilder(Env):

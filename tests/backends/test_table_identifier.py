@@ -1,7 +1,6 @@
 import dataclasses
 
 import pytest
-
 import sqlalchemy as sa
 
 from spinta import commands

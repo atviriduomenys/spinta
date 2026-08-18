@@ -2,26 +2,29 @@ from pathlib import Path
 
 import pytest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.exceptions import (
-    NoModelDefined,
-    InvalidManifestFile,
-    ReferencedPropertyNotFound,
-    PartialTypeNotFound,
     DataTypeCannotBeUsedForNesting,
-    NestedDataTypeMismatch,
-    SameModelIntermediateTableMapping,
-    InvalidIntermediateTableMappingRefCount,
-    UnableToMapIntermediateTable,
     IntermediateTableMappingInvalidType,
-    IntermediateTableValueTypeMissmatch,
-    IntermediateTableRefPropertyModelMissmatch,
     IntermediateTableRefModelMissmatch,
-    UndefinedPropertyType,
+    IntermediateTableRefPropertyModelMissmatch,
+    IntermediateTableValueTypeMissmatch,
+    InvalidIntermediateTableMappingRefCount,
+    InvalidManifestFile,
+    NestedDataTypeMismatch,
+    NoModelDefined,
+    NotImplementedFeature,
     ParentNodeNotFound,
+    PartialTypeNotFound,
+    ReferencedPropertyNotFound,
+    SameModelIntermediateTableMapping,
+    UnableToMapIntermediateTable,
+    UndefinedPropertyType,
 )
-from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
+from spinta.testing.manifest import load_manifest, load_manifest_and_context
+from spinta.types.datatype import ArrayBackRef, BackRef
 
 
 def check(tmp_path, rc, table, manifest_type: str = "csv"):
@@ -1122,6 +1125,49 @@ def test_prop_array_backref_nested(tmp_path, rc):
     )
 
 
+@pytest.mark.parametrize("modifier", ["required", "unique"])
+def test_prop_array_backref_with_modifier(modifier: str, rc: RawConfig) -> None:
+    # Type modifiers such as `required` or `unique` must not prevent an array of
+    # `backref` from being recognised as an array backref (`#1970`).
+    context, manifest = load_manifest_and_context(
+        rc,
+        f"""
+        d | r | b | m | property    | type            | ref      | access
+        example                     |                 |          |
+          |   |   | Language        |                 |          |
+          |   |   |   | name        | string          |          | open
+          |   |   |   | countries[] | backref {modifier} | Country  | open
+          |   |   | Country         |                 |          |
+          |   |   |   | name        | string          |          | open
+          |   |   |   | languages[] | ref             | Language | open
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/Language")
+    prop = model.properties["countries"]
+    assert isinstance(prop.dtype, ArrayBackRef)
+    assert isinstance(prop.dtype.items.dtype, BackRef)
+
+
+@pytest.mark.parametrize("modifier", ["required", "unique"])
+def test_prop_object_redeclared_with_modifier(modifier: str, rc: RawConfig) -> None:
+    # A nesting type with a modifier (e.g. `object required`) must still be
+    # recognised as a nesting type when an auto-created container is later
+    # re-declared explicitly, instead of raising DataTypeCannotBeUsedForNesting
+    # (`#1970`).
+    context, manifest = load_manifest_and_context(
+        rc,
+        f"""
+        d | r | b | m | property | type            | ref | access
+        example                  |                 |     |
+          |   |   | M            |                 |     |
+          |   |   |   | o.a      | string          |     | open
+          |   |   |   | o        | object {modifier} |     | open
+    """,
+    )
+    model = commands.get_model(context, manifest, "example/M")
+    assert "o" in model.properties
+
+
 @pytest.mark.skip("backref not implemented yet #96")
 def test_prop_array_with_custom_backref(rc, tmp_path):
     check(
@@ -2156,6 +2202,30 @@ def test_scope_no_model_defined_error(manifest_type, tmp_path, rc):
             example                  |         |     |
                                      |         |     |
                                      | scope   | ltu | country.code='lt'
+            """,
+            manifest_type,
+        )
+
+
+@pytest.mark.manifests("csv")
+def test_ref_primary_multiple_properties_error(manifest_type, tmp_path, rc):
+    # remove this once decided how to handle ref primary keys with set properties
+    with pytest.raises(NotImplementedFeature):
+        check(
+            tmp_path,
+            rc,
+            """
+            d | r | b | m | property   | type    | ref     | access | title
+            example                    |         |         |        |
+                                       |         |         |        |
+              |   |   | City           |         | country |        |
+              |   |   |   | id         | integer |         | open   |
+              |   |   |   | country    | ref     | Country | open   |
+              |   |   |   | country.id |         |         | open   |
+                                       |         |         |        |
+              |   |   | Country        |         |         |        |
+              |   |   |   | id         | integer |         | open   |
+              |   |   |   | name       | string  |         | open   |
             """,
             manifest_type,
         )

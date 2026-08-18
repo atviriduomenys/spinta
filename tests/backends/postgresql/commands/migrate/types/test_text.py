@@ -7,11 +7,11 @@ from sqlalchemy.engine import Engine
 from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.migration import drop_column, add_column, add_column_comment, rename_column
+from spinta.testing.migration import add_column, add_column_comment, drop_column, rename_column
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    override_manifest,
     cleanup_table_list,
     configure_migrate,
+    override_manifest,
 )
 
 

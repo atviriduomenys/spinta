@@ -1,8 +1,7 @@
 from typing import Dict
 
 from spinta import commands
-from spinta.components import Config
-from spinta.components import Node
+from spinta.components import Config, Node
 from spinta.manifests.components import Manifest
 
 

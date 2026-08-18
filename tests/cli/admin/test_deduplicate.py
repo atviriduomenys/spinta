@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import pytest
 import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
@@ -7,9 +8,9 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.helpers.name import get_pg_constraint_name
 from spinta.cli.helpers.admin.components import Script
-from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable

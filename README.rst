@@ -63,7 +63,7 @@ Features
 - Simple 15 column table format for describing data structures (you can use
   any spreadsheet software to manage metadata of your data)
 
-- Internal data storage with pluggable backends (PostgreSQL or Mongo)
+- Internal data storage with pluggable backends (PostgreSQL)
 
 - Build-in async API server built on top of Starlette_ for data publishing
 

@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Union
-from typing import Optional
+from typing import List, Optional, Union
 
 from spinta.components import Property
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import Unresolved
+from spinta.core.ufuncs import Expr, Unresolved
 from spinta.exceptions import IncompatibleForeignProperties
-from spinta.types.datatype import DataType, BackRef
-from spinta.types.datatype import Ref
+from spinta.types.datatype import BackRef, DataType, Ref
 
 
 class ForeignProperty(Unresolved):

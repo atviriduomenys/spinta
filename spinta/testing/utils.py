@@ -1,16 +1,14 @@
-from typing import List, Iterable
-
 from pathlib import Path
+from typing import Iterable, List
 
+import httpx2
 import jsonpatch
 import requests
-import httpx
-
 from ruamel.yaml import YAML
 
 from spinta.backends import Backend
 from spinta.backends.helpers import load_query_builder_class, load_result_builder_class
-from spinta.components import Context, Config
+from spinta.components import Config, Context
 from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")
@@ -162,7 +160,7 @@ class RowIds:
         return self.idsr[i]
 
     def _cast(self, ids):
-        if isinstance(ids, (requests.models.Response, httpx.Response)):
+        if isinstance(ids, (requests.models.Response, httpx2.Response)):
             resp = ids
             assert resp.status_code == 200, resp.json()
             ids = resp.json()

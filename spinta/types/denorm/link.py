@@ -1,7 +1,7 @@
 from spinta import commands
-from spinta.components import Context, Property, Model
+from spinta.components import Context, Model, Property
 from spinta.exceptions import NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
-from spinta.types.datatype import Denorm, Ref, Object, Array
+from spinta.types.datatype import Array, Denorm, Object, Ref
 from spinta.types.helpers import set_dtype_backend
 
 

@@ -1,11 +1,8 @@
-from typing import Any
-from typing import Dict
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from spinta import commands
 from spinta.components import Context
-from spinta.exceptions import InvalidParameterValue
-from spinta.exceptions import TooManyParameters
+from spinta.exceptions import InvalidParameterValue, TooManyParameters
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType
 from spinta.types.geometry.components import Geometry

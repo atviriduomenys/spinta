@@ -1,8 +1,8 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
 from spinta import commands
-from spinta.components import Context
 from spinta.backends.memory.components import Memory
+from spinta.components import Context
 
 
 @commands.load.register(Context, Memory, dict)

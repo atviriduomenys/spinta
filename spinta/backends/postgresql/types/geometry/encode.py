@@ -1,20 +1,15 @@
-from typing import Any
-from typing import Dict
-from typing import overload
+from typing import Any, Dict, overload
 
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
 
-
 from spinta import commands
-from spinta.types.geometry.helpers import get_display_value
-from spinta.types.geometry.helpers import get_osm_link
-from spinta.formats.components import Format
-from spinta.core.enums import Action
 from spinta.components import Context
-from spinta.formats.html.components import Cell
-from spinta.formats.html.components import Html
+from spinta.core.enums import Action
+from spinta.formats.components import Format
+from spinta.formats.html.components import Cell, Html
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.helpers import get_display_value, get_osm_link
 
 
 @overload

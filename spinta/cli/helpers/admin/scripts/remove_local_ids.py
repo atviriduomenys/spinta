@@ -11,7 +11,6 @@ from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 
-
 RESERVED_MODEL_PREFIX = "_"
 
 
@@ -20,7 +19,7 @@ def remove_explicit_id_properties(context: Context, manifest: str) -> int:
     for model in commands.get_models(context, manifest).values():
         if model.model_type().startswith(RESERVED_MODEL_PREFIX):
             continue
-        prop = model.properties.get("_id")
+        prop = model.id_prop
         if prop is None or not prop.explicitly_given:
             continue
 

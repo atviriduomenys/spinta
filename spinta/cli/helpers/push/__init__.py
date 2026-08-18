@@ -7,7 +7,7 @@ import dateutil.parser
 from multipledispatch import dispatch
 
 from spinta.components import Context, Model, Property
-from spinta.types.datatype import DataType, DateTime, Date, Time
+from spinta.types.datatype import DataType, Date, DateTime, Time
 from spinta.utils.json import fix_data_for_json
 
 

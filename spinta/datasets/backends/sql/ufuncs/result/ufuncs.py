@@ -1,6 +1,6 @@
 import base64
 
-from spinta.core.ufuncs import ufunc, Expr
+from spinta.core.ufuncs import Expr, ufunc
 from spinta.datasets.backends.sql.ufuncs.components import FileSelected
 from spinta.datasets.backends.sql.ufuncs.result.components import SqlResultBuilder
 from spinta.types.file.components import FileData

@@ -1,24 +1,25 @@
 import os
 import pathlib
 from collections import Counter
+
 import pytest
 
 from spinta.auth import ensure_client_folders_exist, get_client_file_path
-from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.script.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.upgrade.scripts.clients import (
-    client_migration_status_message,
-    CLIENT_STATUS_SUCCESS,
     CLIENT_STATUS_FAILED_INVALID,
     CLIENT_STATUS_FAILED_MISSING_ID,
-    CLIENT_STATUS_FAILED_MISSING_SECRET,
     CLIENT_STATUS_FAILED_MISSING_SCOPES,
+    CLIENT_STATUS_FAILED_MISSING_SECRET,
     CLIENT_STATUS_SKIPPED_MIGRATED,
+    CLIENT_STATUS_SUCCESS,
+    client_migration_status_message,
 )
 from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.client import create_old_client_file, get_yaml_data
-from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path
+from spinta.utils.config import get_clients_path, get_id_path, get_keymap_path
 from spinta.utils.types import is_str_uuid
 
 

@@ -1,6 +1,6 @@
 import logging
 
-from spinta.core.ufuncs import ufunc, Bind
+from spinta.core.ufuncs import Bind, ufunc
 from spinta.datasets.backends.wsdl.components import WsdlBackend
 from spinta.exceptions import InvalidSource, InvalidValue
 from spinta.ufuncs.linkbuilder.components import LinkBuilder

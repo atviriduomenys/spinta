@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Iterator
-from typing import List
+from typing import Any, Iterator, List
 
 from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.components import Param
-from spinta.dimensions.param.components import ParamBuilder
-from spinta.dimensions.param.components import ResolvedParams
+from spinta.dimensions.param.components import ParamBuilder, ResolvedParams
 from spinta.manifests.components import Manifest
 
 

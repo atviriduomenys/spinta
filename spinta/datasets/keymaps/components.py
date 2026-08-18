@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from datetime import datetime
-from typing import Optional, Any
+from typing import Any, Optional
 
 from spinta.components import Component
 
@@ -35,6 +35,10 @@ class KeyMap(Component):
         raise NotImplementedError
 
     def validate_data(self, name: str):
+        raise NotImplementedError
+
+    def copy(self) -> "KeyMap":
+        """Creates a new copy of itself with a separate context manager state."""
         raise NotImplementedError
 
 

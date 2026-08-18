@@ -1,14 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
-from typing import Dict
-from typing import Final
-from typing import IO
-from typing import List
-from typing import Literal
-from typing import Optional
-from typing import TypedDict
+from typing import IO, Any, Dict, Final, List, Literal, Optional, TypedDict
 
 from spinta.components import PrepareGiven
 from spinta.dimensions.lang.components import LangData

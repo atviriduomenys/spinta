@@ -1,18 +1,17 @@
 from __future__ import annotations
 
+from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
 from spinta.cli.helpers.script.registry import script_registry
-
-from spinta.cli.helpers.upgrade.components import Script, UpgradeScript, UPGRADE_SCRIPT_TYPE
-from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
+from spinta.cli.helpers.upgrade.components import UPGRADE_SCRIPT_TYPE, Script, UpgradeScript
 from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import (
-    migrate_comments,
     cli_requires_comments_migration,
+    migrate_comments,
 )
 from spinta.cli.helpers.upgrade.scripts.backends.postgresql.schemas import (
-    migrate_schemas,
     cli_requires_schema_migration,
+    migrate_schemas,
 )
-from spinta.cli.helpers.upgrade.scripts.clients import migrate_clients, cli_requires_clients_migration
+from spinta.cli.helpers.upgrade.scripts.clients import cli_requires_clients_migration, migrate_clients
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.initial_setup import (
     requires_sql_keymap_initial_migration,
     sql_keymap_initial_migration,

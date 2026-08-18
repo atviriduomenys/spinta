@@ -10,14 +10,14 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.redirect import remove_from_redirect
 from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.commands import create_exception
-from spinta.commands.write import push_stream, dataitem_from_payload
-from spinta.components import Context, Model, DataItem, DataSubItem, Store, Property
+from spinta.commands.write import dataitem_from_payload, push_stream
+from spinta.components import Context, DataItem, DataSubItem, Model, Property, Store
 from spinta.core.enums import Action
-from spinta.core.ufuncs import asttoexpr, Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.types.datatype import Ref
 from spinta.utils.aiotools import adrain
 from spinta.utils.data import take
-from spinta.utils.nestedstruct import flatten, flat_dicts_to_nested
+from spinta.utils.nestedstruct import flat_dicts_to_nested, flatten
 
 
 @commands.insert.register(Context, Model, PostgreSQL)

@@ -1,11 +1,10 @@
 import re
 
 import pytest
-
 from responses import GET
 
-from spinta.utils.refs import get_ref_id
 from spinta.testing.datasets import pull
+from spinta.utils.refs import get_ref_id
 
 
 @pytest.mark.skip("datasets")

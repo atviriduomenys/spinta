@@ -2,8 +2,7 @@ from pathlib import Path
 
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Context
-from spinta.core.config import RawConfig
-from spinta.core.config import ResourceTuple
+from spinta.core.config import RawConfig, ResourceTuple
 from spinta.core.context import configure_context
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.context import create_test_context

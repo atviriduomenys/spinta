@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
 from spinta import commands
 from spinta.backends.nobackend.components import NoBackend

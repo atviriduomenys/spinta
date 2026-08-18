@@ -10,33 +10,34 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    drop_all_indexes_and_constraints,
-    get_prop_names,
-    PostgresqlMigrationContext,
     ModelMigrationContext,
-    zip_and_migrate_properties,
-    constraint_with_name,
-    PropertyMigrationContext,
     ModelTables,
+    PostgresqlMigrationContext,
+    PropertyMigrationContext,
+    constraint_with_name,
     create_table_migration,
+    drop_all_indexes_and_constraints,
+    extract_sequence_name,
     filter_related_tables,
     gather_prepare_columns,
+    get_prop_names,
+    handle_ordered_distribution_strategies,
     revalidate_table_identifier,
-    extract_sequence_name,
     update_primary_key,
+    zip_and_migrate_properties,
 )
 from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (
-    name_changed,
     get_pg_column_name,
     get_pg_constraint_name,
-    get_pg_removed_name,
-    is_removed,
     get_pg_foreign_key_name,
     get_pg_index_name,
+    get_pg_removed_name,
+    is_removed,
+    name_changed,
 )
 from spinta.components import Context, Model
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, ModelTables, Model)
@@ -169,6 +170,10 @@ def migrate(
         handler=handler,
         model_context=model_ctx,
     )
+    handle_ordered_distribution_strategies(
+        migration_ctx=migration_ctx,
+        table_identifier=target_table_identifier,
+    )
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, NotAvailable, Model)
@@ -180,10 +185,9 @@ def migrate(
     new: Model,
     **kwargs,
 ):
-    handler = migration_ctx.handler
     related_tables = filter_related_tables(new, backend.tables)
     for table in related_tables.values():
-        create_table_migration(table=table, handler=handler)
+        create_table_migration(migration_ctx=migration_ctx, table=table)
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, ModelTables, NotAvailable)
@@ -361,7 +365,6 @@ def _clean_up_old_constraints(
             model_context.mark_foreign_constraint_handled(constrained_table, constraint)
             handler.add_action(
                 ma.DropConstraintMigrationAction(table_identifier=table_identifier, constraint_name=constraint),
-                foreign_key=True,
             )
 
         for index, state in constraint_states.index.items():
@@ -492,7 +495,6 @@ def _handle_model_foreign_key_constraints(
                     ma.DropConstraintMigrationAction(
                         table_identifier=target_table_identifier, constraint_name=id_constraint["name"]
                     ),
-                    True,
                 )
                 handler.add_action(
                     ma.CreateForeignKeyMigrationAction(
@@ -502,7 +504,6 @@ def _handle_model_foreign_key_constraints(
                         local_cols=["_id"],
                         remote_cols=["_id"],
                     ),
-                    True,
                 )
                 return
 
@@ -528,7 +529,6 @@ def _handle_model_foreign_key_constraints(
                 ma.DropConstraintMigrationAction(
                     table_identifier=target_table_identifier, constraint_name=id_constraint["name"]
                 ),
-                True,
             )
             handler.add_action(
                 ma.CreateForeignKeyMigrationAction(
@@ -538,7 +538,6 @@ def _handle_model_foreign_key_constraints(
                     local_cols=["_id"],
                     remote_cols=["_id"],
                 ),
-                True,
             )
             return
 
@@ -551,7 +550,6 @@ def _handle_model_foreign_key_constraints(
                 local_cols=["_id"],
                 remote_cols=["_id"],
             ),
-            True,
         )
 
 
@@ -600,7 +598,7 @@ def _handle_changelog_migration(
     changelog_table = model_tables.reserved.get(TableType.CHANGELOG)
     target_table = backend.get_table(model, TableType.CHANGELOG)
     if changelog_table is None:
-        create_table_migration(table=target_table, handler=handler)
+        create_table_migration(migration_ctx=migration_context, table=target_table)
     else:
         old_table_identifier = migration_context.get_table_identifier(changelog_table)
         new_table_identifier = migration_context.get_table_identifier(model, TableType.CHANGELOG)
@@ -629,6 +627,7 @@ def _handle_changelog_migration(
             handler=handler,
             inspector=inspector,
         )
+        handle_ordered_distribution_strategies(migration_context, new_table_identifier)
 
 
 def _handle_redirect_migration(
@@ -643,7 +642,7 @@ def _handle_redirect_migration(
     redirect_table = model_tables.reserved.get(TableType.REDIRECT)
     target_table = backend.get_table(model, TableType.REDIRECT)
     if redirect_table is None:
-        create_table_migration(table=target_table, handler=handler)
+        create_table_migration(migration_ctx=migration_context, table=target_table)
     else:
         old_table_identifier = migration_context.get_table_identifier(redirect_table)
         new_table_identifier = migration_context.get_table_identifier(model, TableType.REDIRECT)
@@ -664,6 +663,7 @@ def _handle_redirect_migration(
             handler=handler,
             inspector=inspector,
         )
+        handle_ordered_distribution_strategies(migration_context, new_table_identifier)
 
 
 def _generic_reserved_table_constraint_flag(

@@ -5,8 +5,7 @@ from sqlalchemy.engine.base import Engine
 
 from spinta import commands
 from spinta.backends.constants import BackendFeatures
-from spinta.components import Model
-from spinta.components import Property
+from spinta.components import Model, Property
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import BackendUnavailable
 

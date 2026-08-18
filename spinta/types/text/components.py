@@ -1,5 +1,4 @@
-from typing import Dict
-from typing import Optional
+from typing import Dict, Optional
 
 from spinta.components import Property
 from spinta.types.datatype import DataType

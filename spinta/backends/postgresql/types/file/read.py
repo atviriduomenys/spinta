@@ -1,14 +1,13 @@
-from typing import Optional
-from typing import overload
+from typing import Optional, overload
 
-from spinta.typing import FileObjectData
 from spinta import commands
-from spinta.components import Context, Property
-from spinta.backends.postgresql.files import DatabaseFile
-from spinta.types.datatype import File
-from spinta.exceptions import NotFoundError, ItemDoesNotExist
-from spinta.backends.constants import TableType, BackendFeatures
+from spinta.backends.constants import BackendFeatures, TableType
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.files import DatabaseFile
+from spinta.components import Context, Property
+from spinta.exceptions import ItemDoesNotExist, NotFoundError
+from spinta.types.datatype import File
+from spinta.typing import FileObjectData
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 

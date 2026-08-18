@@ -4,40 +4,39 @@ from typing import List
 
 import geoalchemy2.types
 import sqlalchemy as sa
+from typer import echo
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.migrate.cast import CastSupport
 from spinta.backends.postgresql.helpers.migrate.migrate import (
-    PostgresqlMigrationContext,
-    adjust_kwargs,
-    extract_literal_name_from_column,
-    handle_unique_constraint_migration,
-    contains_unique_constraint,
-    handle_index_migration,
-    extract_using_from_columns,
     ModelMigrationContext,
-    contains_constraint_name,
-    constraint_with_columns,
+    PostgresqlMigrationContext,
     PropertyMigrationContext,
+    adjust_kwargs,
     column_cast_warning_message,
+    constraint_with_columns,
+    contains_constraint_name,
+    contains_unique_constraint,
+    extract_literal_name_from_column,
+    extract_using_from_columns,
     gather_prepare_columns,
     get_source_table,
+    handle_index_migration,
+    handle_unique_constraint_migration,
 )
-from spinta.backends.postgresql.helpers.migrate.cast import CastSupport
 from spinta.backends.postgresql.helpers.name import (
-    name_changed,
     get_pg_constraint_name,
-    get_pg_removed_name,
     get_pg_index_name,
+    get_pg_removed_name,
     get_removed_name,
+    name_changed,
 )
 from spinta.components import Context
 from spinta.exceptions import UnableToCastColumnTypes
 from spinta.types.datatype import DataType
-from spinta.utils.schema import NotAvailable, NA
-
-from typer import echo
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.migrate.register(
@@ -110,7 +109,6 @@ def migrate(
     property_ctx: PropertyMigrationContext,
     old: sa.Column,
     new: sa.Column,
-    foreign_key: bool = False,
     **kwargs,
 ):
     inspector = migration_ctx.inspector
@@ -154,7 +152,6 @@ def migrate(
                 comment=new.comment if new.comment != old.comment else False,
                 using=using,
             ),
-            foreign_key,
         )
 
     is_renamed = name_changed(
@@ -170,7 +167,6 @@ def migrate(
         new_column=new,
         handler=handler,
         inspector=inspector,
-        foreign_key=foreign_key,
         renamed=is_renamed,
         model_context=property_ctx.model_context,
     )
@@ -181,7 +177,6 @@ def migrate(
         new_column=new,
         handler=handler,
         inspector=inspector,
-        foreign_key=foreign_key,
         renamed=is_renamed,
         model_context=property_ctx.model_context,
     )
@@ -197,7 +192,6 @@ def migrate(
     property_ctx: PropertyMigrationContext,
     old: NotAvailable,
     new: sa.Column,
-    foreign_key: bool = False,
     **kwargs,
 ):
     inspector = migration_ctx.inspector
@@ -212,7 +206,6 @@ def migrate(
             table_identifier=target_table_identifier,
             column=new,
         ),
-        foreign_key,
     )
 
     new_column_name = new.name
@@ -300,7 +293,6 @@ def migrate(
     node_ctx: PropertyMigrationContext | ModelMigrationContext,
     old: sa.Column,
     new: NotAvailable,
-    foreign_key: bool = False,
     **kwargs,
 ):
     model_ctx = node_ctx
@@ -328,7 +320,7 @@ def migrate(
 
     if any(remove_name == column["name"] for column in columns):
         handler.add_action(
-            ma.DropColumnMigrationAction(table_identifier=target_table_identifier, column_name=remove_name), foreign_key
+            ma.DropColumnMigrationAction(table_identifier=target_table_identifier, column_name=remove_name)
         )
     handler.add_action(
         ma.AlterColumnMigrationAction(
@@ -337,7 +329,6 @@ def migrate(
             new_column_name=remove_name,
             comment=get_removed_name(old.comment or old.name),
         ),
-        foreign_key,
     )
     indexes = inspector.get_indexes(table_name=source_table_name, schema=source_table.schema)
     for index in indexes:
@@ -348,7 +339,6 @@ def migrate(
                     table_identifier=target_table_identifier,
                     index_name=index["name"],
                 ),
-                foreign_key,
             )
     if old.unique:
         unique_constraints = inspector.get_unique_constraints(table_name=source_table_name, schema=source_table.schema)
@@ -360,7 +350,6 @@ def migrate(
                         table_identifier=target_table_identifier,
                         constraint_name=constraint["name"],
                     ),
-                    foreign_key,
                 )
 
 
@@ -374,8 +363,7 @@ def migrate(
     property_ctx: PropertyMigrationContext,
     old: NotAvailable,
     new: List[sa.Column],
-    foreign_key: bool = False,
     **kwargs,
 ):
     for column in new:
-        commands.migrate(context, backend, migration_ctx, property_ctx, old, column, foreign_key=foreign_key, **kwargs)
+        commands.migrate(context, backend, migration_ctx, property_ctx, old, column, **kwargs)

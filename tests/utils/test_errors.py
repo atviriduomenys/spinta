@@ -1,4 +1,4 @@
-from spinta import exceptions, commands
+from spinta import commands, exceptions
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.utils.errors import report_error

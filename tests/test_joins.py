@@ -1,8 +1,7 @@
 import pytest
 
 from spinta.testing.client import TestClient
-from spinta.testing.data import pushdata
-from spinta.testing.data import listdata
+from spinta.testing.data import listdata, pushdata
 
 
 def create_cities(app: TestClient, backend: str):

@@ -1,13 +1,13 @@
 import base64
 
 from spinta import commands
-from spinta.utils.schema import NA
+from spinta.backends.components import Backend
 from spinta.components import Context
-from spinta.types.datatype import File
-from spinta.types.helpers import check_no_extra_keys
 from spinta.formats.components import Format
 from spinta.formats.json.components import Json
-from spinta.backends.components import Backend
+from spinta.types.datatype import File
+from spinta.types.helpers import check_no_extra_keys
+from spinta.utils.schema import NA
 
 
 @commands.load.register(Context, File, object)

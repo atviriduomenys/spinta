@@ -4,9 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.helpers import check_manifest_path
-from spinta.manifests.tabular.components import AsciiManifest
-from spinta.manifests.tabular.components import CsvManifest
-from spinta.manifests.tabular.components import TabularManifest
+from spinta.manifests.tabular.components import AsciiManifest, CsvManifest, TabularManifest
 
 
 @commands.configure.register(Context, TabularManifest)

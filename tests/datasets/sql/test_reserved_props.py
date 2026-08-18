@@ -1,23 +1,21 @@
+from pathlib import Path
 from unittest.mock import ANY
 
 import pytest
 import sqlalchemy as sa
 
-from pathlib import Path
-
-
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.exceptions import (
-    ReservedPropertyTypeShouldMatchPrimaryKey,
-    ReservedPropertySourceOrModelRefShouldBeSet,
     Base32TypeOnlyAllowedOnIdOrRevision,
+    ReservedPropertySourceOrModelRefShouldBeSet,
+    ReservedPropertyTypeShouldMatchPrimaryKey,
 )
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.client import create_client
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.manifests.tabular.helpers import striptable
 
 
 @pytest.fixture(scope="module")

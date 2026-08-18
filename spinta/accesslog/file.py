@@ -1,16 +1,13 @@
-from typing import Any
-from typing import Dict
-from typing import TextIO, Union
-
 import json
-import sys
 import pathlib
+import sys
+from typing import Any, Dict, TextIO, Union
 
 from starlette.requests import Request
 
 from spinta import commands
 from spinta.accesslog import AccessLog
-from spinta.components import Context, Config, Store
+from spinta.components import Config, Context, Store
 
 
 class FileAccessLog(AccessLog):

@@ -1,13 +1,11 @@
+from pathlib import Path
 from unittest.mock import ANY
 
 from responses import RequestsMock
 
 from spinta import commands
 from spinta.core.config import RawConfig
-
-from pathlib import Path
-
-from spinta.manifests.dict.components import MappingMeta, DictFormat, MappedDataset, MappedModels, MappedProperties
+from spinta.manifests.dict.components import DictFormat, MappedDataset, MappedModels, MappedProperties, MappingMeta
 from spinta.manifests.dict.helpers import XMLIterSchemaReader
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 

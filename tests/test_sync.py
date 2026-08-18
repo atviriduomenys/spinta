@@ -2,7 +2,7 @@ import json
 from http import HTTPStatus
 from pathlib import Path, PosixPath
 from typing import Iterator
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,7 +13,7 @@ from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_age
 )
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
-from spinta.exceptions import InvalidCredentialsConfigurationException, AgentRelatedDataServiceDoesNotExist
+from spinta.exceptions import AgentRelatedDataServiceDoesNotExist, InvalidCredentialsConfigurationException
 from spinta.manifests.tabular.helpers import render_tabular_manifest, striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest_and_context

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects import postgresql
+from typing import TYPE_CHECKING, Generator
 
 import sqlalchemy as sa
-from typing import TYPE_CHECKING, Generator
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import UUID
 
 from spinta.backends.helpers import TableIdentifier
 from spinta.backends.postgresql.helpers.name import name_changed
@@ -586,6 +586,7 @@ class DistributeSchema(MigrationAction):
 
 class DistributeReference(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier) -> None:
+        self.table_identifier = table_identifier
         self.query = f"SELECT create_reference_table('{table_identifier.pg_escaped_qualified_name}')"
 
     def execute(self, op: "Operations") -> None:
@@ -594,6 +595,8 @@ class DistributeReference(MigrationAction):
 
 class DistributeTable(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier, column: str) -> None:
+        self.table_identifier = table_identifier
+        self.column = column
         self.query = f"SELECT create_distributed_table('{table_identifier.pg_escaped_qualified_name}', '{column}')"
 
     def execute(self, op: "Operations") -> None:
@@ -611,6 +614,7 @@ class UndistributeSchema(MigrationAction):
 
 class UndistributeTable(MigrationAction):
     def __init__(self, table_identifier: TableIdentifier) -> None:
+        self.table_identifier = table_identifier
         self.query = (
             f"SELECT undistribute_table('{table_identifier.pg_escaped_qualified_name}', cascade_via_foreign_keys=>true)"
         )
@@ -622,13 +626,9 @@ class UndistributeTable(MigrationAction):
 class MigrationHandler:
     def __init__(self) -> None:
         self.migrations: list[MigrationAction] = []
-        self.foreign_key_migration: list[MigrationAction] = []
 
-    def add_action(self, action: MigrationAction, foreign_key: bool = False) -> "MigrationHandler":
-        if foreign_key:
-            self.foreign_key_migration.append(action)
-        else:
-            self.migrations.append(action)
+    def add_action(self, action: MigrationAction) -> "MigrationHandler":
+        self.migrations.append(action)
 
         return self
 
@@ -637,16 +637,10 @@ class MigrationHandler:
             if isinstance(migration, DropConstraintMigrationAction):
                 if migration.constraint_name == constraint_name:
                     return True
-        for migration in self.foreign_key_migration:
-            if isinstance(migration, DropConstraintMigrationAction):
-                if migration.constraint_name == constraint_name:
-                    return True
         return False
 
     def gather_migrations(self) -> Generator[MigrationAction, None, None]:
         for migration in self.migrations:
-            yield migration
-        for migration in self.foreign_key_migration:
             yield migration
 
     def run_migrations(self, op: "Operations") -> None:

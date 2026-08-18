@@ -23,22 +23,30 @@ from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
+    InlineEnumWithName,
     InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
     KeymapNotSet,
     MissingConfigurationParameter,
+    ModelNotFound,
+    NotImplementedFeature,
     PropertyNotFound,
+    ReservedPropertySourceOrModelRefShouldBeSet,
+    ReservedPropertyTypeShouldMatchPrimaryKey,
     UndefinedEnum,
     UnknownPropertyType,
-    ReservedPropertyTypeShouldMatchPrimaryKey,
-    ReservedPropertySourceOrModelRefShouldBeSet,
 )
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.datatype import String, Integer, UUID
-from spinta.types.helpers import check_model_name, check_property_name, check_scope_name
+from spinta.types.datatype import UUID, Integer, Ref, String
+from spinta.types.helpers import (
+    check_model_name,
+    check_property_name,
+    check_scope_name,
+    replace_undeclared_base_with_comment,
+)
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
@@ -152,8 +160,12 @@ def load(
 
     load_model_properties(context, model, Property, data.get("properties"))
 
+    # Quick access static properties
+    model.id_prop = model.properties.get("_id")
+    model.revision_prop = model.properties.get("_revision")
+
     # XXX: Maybe it is worth to leave possibility to override _id access?
-    model.properties["_id"].access = model.access
+    model.id_prop.access = model.access
 
     model.scopes = load_scopes(context, [model], data.get("scopes"))
 
@@ -305,12 +317,12 @@ def _link_model_page(model: Model):
     else:
         # Force '_id' to be page key if other keys failed the checks
         if not model.page.enabled and page_contains_unsupported_keys(model.page):
-            model.page.keys = {"_id": model.properties["_id"]}
+            model.page.keys = {"_id": model.id_prop}
             model.page.enabled = True
 
         # Add _id to internal, if it's not added
         if "_id" not in model.page.keys and "-_id" not in model.page.keys:
-            model.page.keys["_id"] = model.properties["_id"]
+            model.page.keys["_id"] = model.id_prop
 
     if len(model.page.keys) == 0:
         _disable_page_in_model(model)
@@ -319,7 +331,13 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.parent = commands.get_model(context, base.model.manifest, base.parent)
+    parent_name: str = base.parent
+    try:
+        base.parent = commands.get_model(context, base.model.manifest, parent_name)
+    except ModelNotFound:
+        base.parent = parent_name
+        replace_undeclared_base_with_comment(context, base)
+        return
     base.pk = [base.parent.properties[pk] for pk in base.pk] if base.pk else []
     if commands.identifiable(base):
         if base.pk and base.pk != base.parent.external.pkeys:
@@ -519,7 +537,7 @@ def link(context: Context, prop: Property):
 
 
 def _detect_cooperating_reserved_properties_and_check_validity(model: Model) -> None:
-    prop = model.properties.get("_id")
+    prop = model.id_prop
     if prop is None or not prop.explicitly_given:
         return
 
@@ -629,6 +647,14 @@ def check(context: Context, model: Model):
             if prop not in model.flatprops:
                 raise PropertyNotFound(model, property=prop)
 
+    if model.external and not model.external.unknown_primary_key:
+        for pkey in model.external.pkeys:
+            if isinstance(pkey.dtype, Ref) and pkey.dtype.properties:
+                raise NotImplementedFeature(
+                    pkey.dtype,
+                    feature="Ability to use `ref` type (which contains other set properties) as model's primary key",
+                )
+
 
 @check.register(Context, Model, Backend)
 def check(context: Context, model: Model, backend: Backend) -> None:
@@ -643,6 +669,11 @@ def check(context: Context, scope: Scope) -> None:
 @check.register(Context, Property)
 def check(context: Context, prop: Property):
     check_property_name(context, prop)
+    if prop.enums:
+        for enum_name in prop.enums:
+            if enum_name:
+                manager = context.get("error_manager")
+                manager.handle_error(InlineEnumWithName(prop, enum=enum_name))
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)

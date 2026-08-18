@@ -2,7 +2,7 @@ import pathlib
 from typing import Union
 
 from spinta.components import Config
-from spinta.core.config import RawConfig, DEFAULT_CONFIG_PATH
+from spinta.core.config import DEFAULT_CONFIG_PATH, RawConfig
 
 
 def asbool(s: Union[str, bool]) -> bool:

@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from spinta.core.config import RawConfig
-from spinta.testing.manifest import load_manifest_and_context
 from spinta.manifests.tabular.helpers import TabularManifestError
+from spinta.testing.manifest import load_manifest_and_context
 
 
 def test_csv_empty_column(rc: RawConfig, tmp_path: Path):

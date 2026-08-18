@@ -4,9 +4,9 @@ from multipledispatch import dispatch
 from sqlalchemy.cimmutabledict import immutabledict
 
 from spinta.backends.helpers import TableIdentifier
-from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.utils.itertools import ensure_list
+from spinta.utils.sqlalchemy import Convention
 
 
 class _PgNamingConvention(str):
@@ -100,6 +100,10 @@ def get_pg_foreign_key_name(
 def get_pg_index_name(table_name: str, columns: Any) -> str:
     column_names = ensure_list(columns)
     return PG_NAMING_CONVENTION[Convention.IX] % {"table_name": table_name, "column_0_N_name": "_".join(column_names)}
+
+
+def get_pg_pkey_name(table_name: str) -> str:
+    return PG_NAMING_CONVENTION[Convention.PK] % {"table_name": table_name}
 
 
 def is_removed(name: str) -> bool:

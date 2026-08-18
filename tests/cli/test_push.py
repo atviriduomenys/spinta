@@ -1,19 +1,21 @@
 import datetime
 import logging
 import os
+import pathlib
 import re
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
-from requests.exceptions import ReadTimeout, ConnectTimeout
+from requests.exceptions import ConnectTimeout, ReadTimeout
 
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_client, create_rc
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db, Sqlite
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.push import compare_push_state_rows
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -1027,17 +1029,17 @@ def test_push_with_base_different_ref(
         tmp_path / "manifest.csv",
         striptable("""
     d | r | b | m | property | type     | ref      | source      | level | access
-    level4basedatasetref           |          |          |             |       |
+    level4basedatasetref     |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | Location     |          | id       | location    | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
       |   |   |   | name     | string   |          | name        | 4     | open
       |   |   |   | code     | string   |          | code        | 4     | open
       |   |   |   |          |          |          |             |       |
-      |   | Location |           |          |          | name     |             | 4     |
+      |   | Location | |     |          | name     |             | 4     |
       |   |   | City         |          | id       | city        | 4     |
-      |   |   |   | code     |    |          | code        | 4     | open
-      |   |   |   | name     |    |          | name        | 4     | open
+      |   |   |   | code     |          |          | code        | 4     | open
+      |   |   |   | name     |          |          | name        | 4     | open
       |   |   |   | id       | integer  |          | id          | 4     | open
       |   |   |   | location | string   |          | location    | 4     | open
     """),
@@ -3874,3 +3876,106 @@ def test_push_with_array_split(
         ),
         (2, "Poland", [{"_id": lang_mapping[1]["_id"]}, {"_id": lang_mapping[2]["_id"]}]),
     ]
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
+def test_push_with_ref_primary_key(
+    scope: list,
+    context: Context,
+    postgresql: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    geodb: Sqlite,
+    responses,
+    request,
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type     | ref      | source      | level | access
+    level4dataset/ref        |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | country  | cities      | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | country  | ref      | Country  | country     | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    """),
+    )
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == "https://example.com/"
+    remote.app.authorize(scope)
+
+    result = cli.invoke(
+        localrc,
+        [
+            "push",
+            "-o",
+            remote.url,
+            "--credentials",
+            remote.credsfile,
+        ],
+    )
+    assert result.exit_code == 0
+
+    result = remote.app.get("level4dataset/ref/Country")
+    assert result.status_code == 200
+    result_json = result.json()["_data"]
+    country_ids = {data["id"]: data["_id"] for data in result_json}
+
+    assert listdata(result, "id", "name", "code", sort=True) == [
+        (1, "Lietuva", "lt"),
+        (2, "Latvija", "lv"),
+        (3, "Estija", "ee"),
+    ]
+
+    result = remote.app.get("level4dataset/ref/City")
+    assert result.status_code == 200
+    city_id = result.json()["_data"][0]["_id"]
+    assert listdata(result, "id", "name", "country", sort=True) == [
+        (1, "Vilnius", {"_id": country_ids[2]}),
+    ]
+
+    with context.get("store").manifest.keymap as km:
+        assert km.contains("level4dataset/ref/City", country_ids[2])
+
+        assert km.encode("level4dataset/ref/City", country_ids[2]) == city_id
+        assert km.decode("level4dataset/ref/City", city_id) == country_ids[2]
+
+    remote.app.delete("https://example.com/level4dataset/ref/City/:wipe")
+    remote.app.delete("https://example.com/level4dataset/ref/Country/:wipe")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union
 
 from spinta import exceptions
 from spinta.exceptions import InvalidLevel

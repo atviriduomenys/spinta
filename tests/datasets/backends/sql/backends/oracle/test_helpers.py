@@ -8,8 +8,10 @@ definitions and schema reflection operations.
 
 import importlib
 import sys
+
 from sqlalchemy import Column, Integer, MetaData, Table, select
 from sqlalchemy.dialects.oracle import base
+
 from spinta.datasets.backends.sql.backends.oracle.helpers import LONGRAW, SDO_GEOMETRY
 
 
@@ -162,7 +164,7 @@ def test_sdo_geometry_result_processor():
     and parses them to shapely geometry objects. Invalid WKT or NULL values
     return None instead of raising errors.
     """
-    from shapely.geometry import Point, LineString
+    from shapely.geometry import LineString, Point
 
     sdo_type = SDO_GEOMETRY()
     dialect = base.OracleDialect()

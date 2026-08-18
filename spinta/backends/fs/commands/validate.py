@@ -1,13 +1,13 @@
 import os
-
 from pathlib import Path
+
 from spinta import commands
-from spinta.components import Context, Property, DataItem
-from spinta.core.enums import Action
 from spinta.backends.components import Backend
-from spinta.types.datatype import DataType, File
 from spinta.backends.fs.components import FileSystem
-from spinta.exceptions import FileNotFound, ConflictingValue, UnacceptableFileName
+from spinta.components import Context, DataItem, Property
+from spinta.core.enums import Action
+from spinta.exceptions import ConflictingValue, FileNotFound, UnacceptableFileName
+from spinta.types.datatype import DataType, File
 
 
 @commands.simple_data_check.register(Context, DataItem, File, Property, FileSystem, dict)

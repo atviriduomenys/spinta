@@ -2,10 +2,9 @@ from typing import List
 
 from spinta import commands
 from spinta.components import Context, Model
+from spinta.exceptions import MissingRefModel, ModelReferenceKeyNotFound
 from spinta.types.datatype import Ref
-from spinta.exceptions import MissingRefModel
-from spinta.exceptions import ModelReferenceKeyNotFound
-from spinta.types.helpers import set_dtype_backend, replace_undeclared_ref_with_object
+from spinta.types.helpers import replace_undeclared_ref_with_object, set_dtype_backend
 from spinta.types.ref import TYPE_REF
 
 
@@ -46,7 +45,7 @@ def link(context: Context, dtype: Ref) -> None:
     elif dtype.model.external:
         dtype.refprops = [*dtype.model.external.pkeys]
     else:
-        dtype.refprops = [dtype.model.properties["_id"]]
+        dtype.refprops = [dtype.model.id_prop]
 
     if dtype.model.external and dtype.refprops != dtype.model.external.pkeys:
         dtype.model.add_keymap_property_combination(dtype.refprops)

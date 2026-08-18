@@ -3,7 +3,7 @@ from typing import Optional, Union
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import File
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.build_data_patch_for_write.register(Context, File)

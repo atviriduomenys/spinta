@@ -2,21 +2,9 @@ from __future__ import annotations
 
 import dataclasses
 from builtins import staticmethod
-from typing import Any
+from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypedDict, Union
 
-from typing import Dict
-from typing import IO
-from typing import List
-from typing import Optional
-from typing import TYPE_CHECKING
-from typing import Tuple
-from typing import TypedDict
-from typing import Union
-
-from spinta.components import Component
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Store
+from spinta.components import Component, Model, Namespace, Store
 from spinta.core.enums import Access, Mode
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.prefix.components import UriPrefix

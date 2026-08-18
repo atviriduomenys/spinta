@@ -1,17 +1,17 @@
-import pytest
-from _pytest.fixtures import FixtureRequest
-import sqlalchemy as sa
 from pathlib import Path
 
+import pytest
+from _pytest.fixtures import FixtureRequest
+
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
-from spinta.testing.data import send, listdata
+from spinta.testing.data import listdata, send
 from spinta.testing.manifest import bootstrap_manifest
 
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    # 'backends/mongo/Report',
 )
 def test_changes(model, context, app):
     app.authmodel(model, ["insert", "patch", "changes"])
@@ -44,7 +44,6 @@ def test_changes(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    # 'backends/mongo/Report',
 )
 def test_changes_negative_offset(model, context, app):
     app.authmodel(model, ["insert", "patch", "changes"])
@@ -80,7 +79,6 @@ def test_changes_negative_offset(model, context, app):
 
 @pytest.mark.models(
     "backends/postgres/Report",
-    # 'backends/mongo/Report',
 )
 def test_changes_empty_patch(model, context, app):
     app.authmodel(model, ["insert", "patch", "changes"])
@@ -265,7 +263,7 @@ def test_changes_invalid_ref_changelog(
     test3 = send(app, model, "patch", test2, {"id": 0})
 
     # Imitate incorrect changelog
-    engine = sa.create_engine(postgresql)
+    engine = create_postgresql_engine(postgresql)
     with engine.connect() as conn:
         conn.execute(f"""
         UPDATE "example/ref/invalid"."Test/:changelog" 

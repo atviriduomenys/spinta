@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 import contextlib
 
 from zeep.proxy import OperationProxy
 
 from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.backends.wsdl.components import WsdlBackend
-
 from spinta.exceptions import SoapServiceError
 
 

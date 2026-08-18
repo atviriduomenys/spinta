@@ -8,11 +8,11 @@ from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import (
     PostgresqlMigrationContext,
-    json_has_key,
     PropertyMigrationContext,
     get_source_table,
+    json_has_key,
 )
-from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name
+from spinta.backends.postgresql.helpers.name import get_pg_removed_name, name_changed
 from spinta.components import Context
 from spinta.types.text.components import Text
 from spinta.utils.nestedstruct import get_last_attr

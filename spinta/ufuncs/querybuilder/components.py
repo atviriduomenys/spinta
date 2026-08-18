@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import List, Any, Dict, Union
+from typing import Any, Dict, List, Union
 
 from spinta.backends import Backend
-from spinta.components import Page, Property, Model
+from spinta.components import Model, Page, Property
 from spinta.core.ufuncs import Env, Expr
 from spinta.types.datatype import DataType, Object
 from spinta.ufuncs.components import ForeignProperty

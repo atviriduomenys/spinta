@@ -3,7 +3,7 @@ from copy import copy
 from spinta import commands
 from spinta.components import Context, Property
 from spinta.core.enums import Mode
-from spinta.exceptions import PartialTypeNotFound, ParentNodeNotFound, PartialIncorrectProperty
+from spinta.exceptions import ParentNodeNotFound, PartialIncorrectProperty, PartialTypeNotFound
 from spinta.types.datatype import Partial, Ref
 
 

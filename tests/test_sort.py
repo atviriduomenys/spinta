@@ -2,7 +2,6 @@ import pytest
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_sort(model, app):
@@ -45,7 +44,6 @@ def test_sort(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_sort_with_nested_prop(model, app):

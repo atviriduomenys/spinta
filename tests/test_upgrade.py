@@ -11,7 +11,7 @@ from spinta.exceptions import ClientsMigrationRequired
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_old_client_file
 from spinta.testing.utils import get_error_codes
-from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
+from spinta.utils.config import get_clients_path, get_helpers_path, get_id_path, get_keymap_path
 from tests.test_api import ensure_temp_context_and_app
 
 

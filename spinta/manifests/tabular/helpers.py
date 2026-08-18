@@ -1,55 +1,51 @@
 from __future__ import annotations
 
 import csv
-import pathlib
 import logging
+import pathlib
 import textwrap
 import types
 import uuid
-from operator import itemgetter
 from itertools import zip_longest
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import IO
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import NamedTuple
-from typing import Optional
-from typing import Set
-from typing import Tuple
-from typing import TypeVar
-from typing import Union
-from typing import cast
+from operator import itemgetter
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import openpyxl
 import xlsxwriter
 from lark import ParseError
 from tabulate import tabulate
 
-from spinta import commands
-from spinta import spyna
+from spinta import commands, spyna
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Context, Base, PrepareGiven
-from spinta.datasets.components import Resource, Param
-from spinta.dimensions.comments.components import Comment
-from spinta.dimensions.enum.components import EnumItem
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Property
+from spinta.components import Base, Context, Model, Namespace, PrepareGiven, Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
-from spinta.datasets.components import Dataset
-from spinta.dimensions.enum.components import Enums
+from spinta.datasets.components import Dataset, Param, Resource
+from spinta.dimensions.comments.components import Comment
+from spinta.dimensions.enum.components import EnumItem, Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import (
-    MultipleErrors,
-    InvalidBackRefReferenceAmount,
     DataTypeCannotBeUsedForNesting,
+    InvalidBackRefReferenceAmount,
+    MultipleErrors,
     NestedDataTypeMismatch,
     NoModelDefined,
     PropertyNotFound,
@@ -57,39 +53,46 @@ from spinta.exceptions import (
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN, ScopeRow
-from spinta.manifests.tabular.components import BackendRow
-from spinta.manifests.tabular.components import BaseRow
-from spinta.manifests.tabular.components import CommentData
-from spinta.manifests.tabular.components import DESCRIPTION
-from spinta.manifests.tabular.components import DatasetRow
-from spinta.manifests.tabular.components import ParamRow
-from spinta.manifests.tabular.components import EnumRow
-from spinta.manifests.tabular.components import ID
-from spinta.manifests.tabular.components import MANIFEST_COLUMNS
-from spinta.manifests.tabular.components import ManifestColumn
-from spinta.manifests.tabular.components import ManifestRow
-from spinta.manifests.tabular.components import ManifestTableRow
-from spinta.manifests.tabular.components import ModelRow
-from spinta.manifests.tabular.components import PREPARE
-from spinta.manifests.tabular.components import PROPERTY
-from spinta.manifests.tabular.components import PrefixRow
-from spinta.manifests.tabular.components import PropertyRow
-from spinta.manifests.tabular.components import REF
-from spinta.manifests.tabular.components import ResourceRow
-from spinta.manifests.tabular.components import SOURCE
-from spinta.manifests.tabular.components import TITLE
-from spinta.manifests.tabular.components import LEVEL
-from spinta.manifests.tabular.components import TabularFormat
-from spinta.manifests.tabular.constants import DATASET
-from spinta.manifests.tabular.constants import DataTypeEnum
+from spinta.manifests.tabular.components import (
+    ACCESS,
+    COUNT,
+    DESCRIPTION,
+    ELI,
+    ID,
+    LEVEL,
+    MANIFEST_COLUMNS,
+    ORIGIN,
+    PREPARE,
+    PROPERTY,
+    REF,
+    SOURCE,
+    STATUS,
+    TITLE,
+    URI,
+    VISIBILITY,
+    BackendRow,
+    BaseRow,
+    CommentData,
+    DatasetRow,
+    EnumRow,
+    ManifestColumn,
+    ManifestRow,
+    ManifestTableRow,
+    ModelRow,
+    ParamRow,
+    PrefixRow,
+    PropertyRow,
+    ResourceRow,
+    ScopeRow,
+    TabularFormat,
+)
+from spinta.manifests.tabular.constants import DATASET, DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
-from spinta.utils.data import take
-from spinta.utils.schema import NA
-from spinta.utils.schema import NotAvailable
+from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Denorm, ExternalRef, Inherit, Object, Ref
 from spinta.types.text.components import Text
+from spinta.utils.data import take
+from spinta.utils.schema import NA, NotAvailable
 
 log = logging.getLogger(__name__)
 
@@ -650,9 +653,20 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        complete_structure, parent_structure, prop_name = _extract_and_create_parent_data(self, row, row["property"])
+        # Parse the data type once, here at the boundary, and pass the parsed
+        # result inward. Downstream code must not re-parse `row["type"]` or
+        # compare against the raw string: modifiers (`required`, `unique`) and
+        # arguments would make a type such as `backref required` or
+        # `object required` unrecognisable. Parent and nesting resolution only
+        # needs the bare type, while `_handle_datatype` keeps the modifiers.
+        dtype = _resolve_dtype(self, row)
+        bare_row = {**row, "type": dtype["type"]}
+        complete_structure, parent_structure, prop_name = _extract_and_create_parent_data(
+            self, bare_row, bare_row["property"]
+        )
 
-        prop_data = _handle_datatype(self, row)
+        prop_data = _handle_datatype(self, row, dtype)
+
         prop_name = _combine_parent_with_prop(prop_name, prop_data, parent_structure, complete_structure)
 
         # Edge case where there is no nesting, need to couple `prop_data` with `complete_structure`
@@ -745,8 +759,11 @@ def _initial_text_property_schema(given_name: str, dtype: dict, row: dict):
     return result
 
 
-def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict]):
-    dtype: dict = _resolve_dtype(reader, row)
+def _datatype_handler(
+    reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict], dtype: dict = None
+):
+    if dtype is None:
+        dtype = _resolve_dtype(reader, row)
     given_name = row["property"]
     reader.name = _clean_up_prop_name(row["property"].split(".")[-1])
 
@@ -756,7 +773,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
             f"Property {reader.name!r} must be defined in a model context. "
             f"Now it is defined in {context.name!r} {context.type} context."
         )
-    _check_if_property_already_set(reader, row, given_name)
+    _check_if_property_already_set(reader, dtype["type"], given_name)
 
     if reader.state.base and not dtype["type"]:
         dtype["type"] = "inherit"
@@ -801,8 +818,9 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     return new_data
 
 
-def _string_datatype_handler(reader: PropertyReader, row: dict):
-    dtype: dict = _resolve_dtype(reader, row)
+def _string_datatype_handler(reader: PropertyReader, row: dict, dtype: dict = None):
+    if dtype is None:
+        dtype = _resolve_dtype(reader, row)
     given_name = row["property"]
     reader.name = _clean_up_prop_name(row["property"].split(".")[-1])
 
@@ -812,7 +830,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             f"Property {reader.name!r} must be defined in a model context. "
             f"Now it is defined in {context.name!r} {context.type} context."
         )
-    existing_data = _check_if_property_already_set(reader, row, given_name)
+    existing_data = _check_if_property_already_set(reader, dtype["type"], given_name)
     if dtype["type"] == DataTypeEnum.TEXT.value and existing_data:
         reader.error(
             f"Property {reader.name!r} with the same name is already "
@@ -832,8 +850,9 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
     return new_data
 
 
-def _text_datatype_handler(reader: PropertyReader, row: dict):
-    dtype: dict = _resolve_dtype(reader, row)
+def _text_datatype_handler(reader: PropertyReader, row: dict, dtype: dict = None):
+    if dtype is None:
+        dtype = _resolve_dtype(reader, row)
     given_name = row["property"]
     reader.name = _clean_up_prop_name(row["property"].split(".")[-1])
 
@@ -843,7 +862,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
             f"Property {reader.name!r} must be defined in a model context. "
             f"Now it is defined in {context.name!r} {context.type} context."
         )
-    result = _check_if_property_already_set(reader, row, given_name)
+    result = _check_if_property_already_set(reader, dtype["type"], given_name)
     if not (result and result["explicitly_given"] is False and result["type"] == DataTypeEnum.TEXT.value or not result):
         reader.error(
             f"Property {reader.name!r} with the same name is already "
@@ -890,22 +909,23 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
     return new_data
 
 
-def _default_datatype_handler(reader: PropertyReader, row: dict):
-    return _datatype_handler(reader, row, _initial_normal_property_schema)
+def _default_datatype_handler(reader: PropertyReader, row: dict, dtype: dict = None):
+    return _datatype_handler(reader, row, _initial_normal_property_schema, dtype)
 
 
-def _array_datatype_handler(reader: PropertyReader, row: dict):
-    return _datatype_handler(reader, row, _initial_array_property_schema)
+def _array_datatype_handler(reader: PropertyReader, row: dict, dtype: dict = None):
+    return _datatype_handler(reader, row, _initial_array_property_schema, dtype)
 
 
-def _partial_datatype_handler(reader: PropertyReader, row: dict):
-    return _datatype_handler(reader, row, _initial_partial_property_schema)
+def _partial_datatype_handler(reader: PropertyReader, row: dict, dtype: dict = None):
+    return _datatype_handler(reader, row, _initial_partial_property_schema, dtype)
 
 
-def _handle_datatype(reader: PropertyReader, row: dict):
-    dtype: dict = _resolve_dtype(reader, row)
+def _handle_datatype(reader: PropertyReader, row: dict, dtype: dict = None):
+    if dtype is None:
+        dtype = _resolve_dtype(reader, row)
     handler = DATATYPE_HANDLERS.get(dtype["type"], DATATYPE_HANDLERS["_default"])
-    return handler(reader, row)
+    return handler(reader, row, dtype)
 
 
 DATATYPE_HANDLERS = {
@@ -1201,7 +1221,7 @@ def _extract_children_from_nested(base: dict, children_name: str) -> dict:
     return base
 
 
-def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
+def _check_if_property_already_set(reader: PropertyReader, given_type: str, full_name: str):
     # Treat '@' as normal '.', since '_extract_children_from_nested' is able to extract based on type
     split = full_name.replace("@", ".").split(".")
     base = {}
@@ -1247,11 +1267,14 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
             f"Property {full_name!r} with the same name is already defined for this {reader.state.model.name!r} model."
         )
 
+    # `given_type` is the bare data type (modifiers and arguments already
+    # stripped by the caller), so a nesting type such as `object` is recognised
+    # even when it was declared as `object required`.
     if base and (
-        (base["type"] in ALLOWED_PARTIAL_TYPES and given_row["type"] not in ALLOWED_PARTIAL_TYPES)
-        or (base["type"] in ALLOWED_ARRAY_TYPES and given_row["type"] not in ALLOWED_ARRAY_TYPES)
+        (base["type"] in ALLOWED_PARTIAL_TYPES and given_type not in ALLOWED_PARTIAL_TYPES)
+        or (base["type"] in ALLOWED_ARRAY_TYPES and given_type not in ALLOWED_ARRAY_TYPES)
     ):
-        raise DataTypeCannotBeUsedForNesting(dtype=given_row["type"])
+        raise DataTypeCannotBeUsedForNesting(dtype=given_type)
     return base
 
 
@@ -1477,9 +1500,9 @@ class EnumReader(TabularReader):
                     prepare = -prepare["args"][0]
                 else:
                     prepare = row[PREPARE]
-            source = str(prepare)
+            source = str(prepare) if prepare is not NA else None
 
-        if not source:
+        if source is None:
             self.error("At least source or prepare must be specified for an enum.")
 
         self.data = {

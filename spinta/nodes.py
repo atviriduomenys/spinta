@@ -1,22 +1,10 @@
-from typing import Any
-from typing import Dict
-from typing import Literal
-from typing import Optional
-from typing import Tuple
-from typing import Type
-from typing import Union
-from typing import overload
-from spinta import commands
-from spinta import exceptions
-from spinta.components import Component
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import EntryId
-from spinta.components import Node
+from typing import Any, Dict, Literal, Optional, Tuple, Type, Union, overload
+
+from spinta import commands, exceptions
+from spinta.components import Component, Config, Context, EntryId, Node
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DataTypeEnum
-from spinta.utils.schema import NA
-from spinta.utils.schema import resolve_schema
+from spinta.utils.schema import NA, resolve_schema
 
 
 def get_node(

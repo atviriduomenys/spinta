@@ -1,6 +1,6 @@
-from spinta.utils.schema import NA
-from spinta.utils.data import take
 from spinta.testing.utils import get_error_codes
+from spinta.utils.data import take
+from spinta.utils.schema import NA
 
 
 def path(model: str):

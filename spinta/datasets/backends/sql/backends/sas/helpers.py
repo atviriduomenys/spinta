@@ -13,7 +13,6 @@ from datetime import date, datetime, time, timedelta
 
 import sqlalchemy as sa
 
-
 # SAS epoch: January 1, 1960
 SAS_EPOCH_DATE = date(1960, 1, 1)
 

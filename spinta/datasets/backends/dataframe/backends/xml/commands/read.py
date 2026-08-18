@@ -1,6 +1,6 @@
 import io
 import pathlib
-from typing import Iterator, Any
+from typing import Any, Iterator
 
 import requests
 from dask.bag import from_sequence
@@ -11,10 +11,10 @@ from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.commands.read import (
-    parametrize_bases,
     dask_get_all,
-    get_pkeys_if_ref,
     get_dask_dataframe_meta,
+    get_pkeys_if_ref,
+    parametrize_bases,
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams

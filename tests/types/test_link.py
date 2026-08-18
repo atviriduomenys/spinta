@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import MissingRefModel, PropertyNotFound, FieldNotInResource, LangNotDeclared
+from spinta.exceptions import FieldNotInResource, LangNotDeclared, MissingRefModel, PropertyNotFound
 from spinta.testing.manifest import load_manifest, load_manifest_get_context
 from spinta.types.datatype import Object
 
