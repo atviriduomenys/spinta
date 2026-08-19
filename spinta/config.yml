@@ -215,6 +215,18 @@ check:
     names:
       type: boolean
 
+health:
+  type: object
+  items:
+    min_free_disk_space:
+      type: integer
+    min_free_memory:
+      type: integer
+    backend_timeout:
+      type: integer
+    cache_time:
+      type: integer
+
 root:
   type: string
 

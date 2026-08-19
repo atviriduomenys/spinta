@@ -1,13 +1,12 @@
 import importlib
 import inspect
-import itertools
 import pathlib
 import time
 import types
 
 from spinta import commands
 from spinta.backends.constants import BackendOrigin
-from spinta.backends.helpers import load_backend
+from spinta.backends.helpers import get_all_backends, load_backend
 from spinta.components import Context, Store
 from spinta.exceptions import RequiredConfigParam
 from spinta.manifests.helpers import create_internal_manifest, create_manifest
@@ -78,18 +77,7 @@ def wait(
         seconds = rc.get("wait", cast=int, required=True)
 
     # Collect all backends
-    backends = set(
-        itertools.chain(
-            store.backends.values(),
-            store.manifest.backends.values(),
-            (
-                resource.backend
-                for dataset in commands.get_datasets(context, store.manifest).values()
-                for resource in dataset.resources.values()
-                if resource.backend
-            ),
-        )
-    )
+    backends = get_all_backends(context, store)
 
     # XXX: Probably whole this has to be moved to cli
     # Wait while all backends are up.

@@ -19,6 +19,16 @@ Backwards incompatible:
 
 Bug fixes:
 
+- The ``postgresql`` backend availability check (``commands.wait``) treats any
+  ``DBAPIError``, not just ``OperationalError``, as an unavailable backend,
+  matching the ``sql`` backend check. A driver rejecting the connection with
+  another ``DBAPIError`` subclass escaped as an unhandled exception instead of
+  reporting the backend as unavailable (`#1873`_).
+- Both the ``postgresql`` and the ``sql`` backend availability checks
+  (``commands.wait``) leaked the SQLAlchemy engine they created when the
+  connection failed, disposing it only when it succeeded. With ``/health``
+  running these checks on every probe, an unreachable data source leaked an
+  engine and its connection pool per probe (`#1873`_).
 - Escape Mermaid/HTML-structural characters (`` ` ``, ``"``, ``{``, ``}``, ``<``, ``>`` and newlines) in
   generated Mermaid class diagrams (``write_mermaid_manifest``). Model names, labels, property names and
   enum values were interpolated into the diagram source unescaped, so a crafted enum value could break out
@@ -56,8 +66,45 @@ Improvements:
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
+- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
+  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
+  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
+  are ``spinta`` itself, ``backends`` (healthy only if every known backend, that
+  is every data source, is reachable), ``disk`` (enough free disk space on
+  ``data_path``) and ``memory`` (enough available RAM). Backends are collected
+  the same way ``spinta wait`` collects them, so on an internal SQL manifest,
+  where datasets are loaded lazily, resource backends of datasets that have not
+  been loaded yet are not checked. Only these flags are
+  reported: since the probe is not authenticated, individual backend names,
+  paths, free space and driver errors are written to the log instead of to the
+  response. Note that an unhealthy service is reported in the body, not in the
+  status code: the endpoint answers ``200`` with ``healthy: false``, because
+  UAPI declares ``503`` to be the ``ServiceNotAvailable`` error object.
+  Consumers, including container and load balancer probes, must therefore
+  inspect ``healthy`` rather than the status code. Configurable via
+  ``health.min_free_disk_space`` (MB, defaults to ``1024``),
+  ``health.min_free_memory`` (MB, defaults to ``256``),
+  ``health.backend_timeout`` (seconds a backend's driver may spend connecting,
+  defaults to ``5``) and ``health.cache_time`` (seconds to reuse a result,
+  defaults to ``5``, set to ``0`` to check on every request). The result is
+  cached and only one check runs at a time, because each check opens a real
+  connection to every backend and the endpoint is not authenticated, so without
+  it the probe could be used to exhaust the backends' connection limits. Nothing
+  cancels a running check: how long a backend check may take is the driver's own
+  connect timeout, which is set for the drivers that accept one (``psycopg2``,
+  ``psycopg``, ``pymysql``, ``mysqldb``, ``pyodbc`` and ``oracledb``), and how
+  long the probe as a whole may take is up to whoever probes. Waiting for
+  backends to come up on startup is unaffected and keeps waiting as long as it
+  did before. Available memory is measured against this process' control group
+  limit when it has one, because ``/proc/meminfo``, which ``psutil`` reads,
+  reports the memory of the host and not of the container, so a container about
+  to be killed for using up its memory would otherwise look perfectly healthy.
+  Like the other utility routes, ``/health`` is matched before the catch-all
+  route, so it shadows a root level namespace or model named ``health``, if
+  there is one (`#1873`_).
 
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
