@@ -6,10 +6,12 @@ import sqlalchemy as sa
 from multipledispatch import dispatch
 from tqdm import tqdm
 
+from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import DistributionType
 from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.migrate.actions import (
     DistributeReference,
     DistributeSchema,
@@ -19,8 +21,9 @@ from spinta.backends.postgresql.helpers.migrate.actions import (
     UndistributeTable,
 )
 from spinta.cli.helpers.message import cli_message
-from spinta.components import Context, Model
+from spinta.components import Base, Context, Model
 from spinta.exceptions import NotImplementedFeature
+from spinta.types.datatype import Ref
 
 
 @dataclasses.dataclass
@@ -189,6 +192,37 @@ def invalidate_default_distribution(
             return plan
 
 
+def valid_schema_distribution_base(model: Model, base: Base) -> bool:
+    if not commands.identifiable(base):
+        return True
+
+    base_parent = base.parent
+    if base_parent.external.dataset == model.external.dataset:
+        return True
+
+    if (
+        base_parent.distribution_strategy
+        and base_parent.distribution_strategy.distribution_type is DistributionType.COPY
+    ):
+        return True
+
+    return False
+
+
+def valid_schema_distribution_reference(model: Model, ref: Ref) -> bool:
+    if not commands.identifiable(ref.prop):
+        return True
+
+    ref_model = ref.model
+    if ref_model.external.dataset == model.external.dataset:
+        return True
+
+    if ref_model.distribution_strategy and ref_model.distribution_strategy.distribution_type is DistributionType.COPY:
+        return True
+
+    return False
+
+
 def valid_schema_distribution_foreign_key(plan: ShardingPlan, schema: str, foreign_key: dict) -> bool:
     if foreign_key["referred_schema"] == schema:
         return True
@@ -222,6 +256,30 @@ def invalidate_default_schema_distributions(
     inspector = sa.inspect(backend.engine)
 
     plan_copy = deepcopy(plan)
+    store = context.get("store")
+    manifest = store.manifest
+    namespaces = commands.get_namespaces(context, manifest)
+    for name, namespace in namespaces.items():
+        if not namespace.models:
+            continue
+
+        pg_ns_name = get_pg_name(name)
+        if pg_ns_name not in plan.schemas:
+            continue
+
+        for model in namespace.models.values():
+            if model.base and not valid_schema_distribution_base(model, model.base):
+                invalid_schemas.add(pg_ns_name)
+                invalid_schemas.add(get_pg_name(model.base.parent.external.dataset.name))
+
+            for prop in model.properties.values():
+                if not isinstance(prop.dtype, Ref):
+                    continue
+
+                if not valid_schema_distribution_reference(model, prop.dtype):
+                    invalid_schemas.add(pg_ns_name)
+                    invalid_schemas.add(get_pg_name(prop.dtype.model.external.dataset.name))
+
     for schema in plan.schemas:
         tables = inspector.get_table_names(schema=schema)
 

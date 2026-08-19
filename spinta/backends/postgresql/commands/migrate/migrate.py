@@ -16,7 +16,7 @@ from spinta.backends.postgresql.helpers.migrate.citus import (
     create_sharding_plan,
     distribute_all,
     gather_current_sharding_plan,
-    invalidate_default_schema_distributions,
+    invalidate_default_distribution,
     undistribute_all,
 )
 from spinta.backends.postgresql.helpers.migrate.migrate import (
@@ -103,7 +103,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         )
     )
     sharding_plan = create_sharding_plan(context, sorted_models).get(backend.name, ShardingPlan())
-    sharding_plan = invalidate_default_schema_distributions(context, backend, sharding_plan)
+    sharding_plan = invalidate_default_distribution(context, backend, sharding_plan)
     current_sharding_plan = gather_current_sharding_plan(context, schemas=allowed_old_namespaces).get(
         backend.name, ShardingPlan()
     )
