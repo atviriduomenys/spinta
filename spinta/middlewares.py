@@ -141,24 +141,24 @@ class DebugAwareGZipMiddleware(GZipMiddleware):
     """
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        # Copied over from GZipMiddleware 0.52.1 version
-
-        if scope["type"] != "http":
+        # Copied over from GZipMiddleware 1.60.0 version
+        if scope["type"] != "http":  # pragma: no cover
             await self.app(scope, receive, send)
             return
 
         headers = Headers(scope=scope)
-
+        responder: ASGIApp
         if "gzip" in headers.get("Accept-Encoding", ""):
             responder = DebugAwareGZipResponder(
                 self.app,
                 self.minimum_size,
                 compresslevel=self.compresslevel,
+                thread_minimum_size=self.thread_minimum_size,
+                exclude_content_types=self.exclude_content_types,
             )
         else:
             responder = DebugAwareIdentityResponder(
-                self.app,
-                self.minimum_size,
+                self.app, self.minimum_size, exclude_content_types=self.exclude_content_types
             )
 
         await responder(scope, receive, send)
