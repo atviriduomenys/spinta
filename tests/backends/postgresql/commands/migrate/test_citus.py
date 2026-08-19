@@ -439,6 +439,16 @@ def test_migrate_from_empty_default_schema_distribution_invalidation(
     assert not current_citus_state.distributed
 
     result = cli.invoke(rc, ["migrate", "-p"])
+
+    order = (
+        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test_data._id', columns=['data._id'])}"
+        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+    )
+    if order not in result.output:
+        order = (
+            f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+            f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test_data._id', columns=['data._id'])}"
+        )
     assert result.output.endswith(
         f"BEGIN;\n\n"
         f"{add_schema('distribute/example')}"
@@ -477,8 +487,7 @@ def test_migrate_from_empty_default_schema_distribution_invalidation(
         'KEY("data._id") REFERENCES "distribute/data"."Data" (_id)\n'
         ");\n"
         "\n"
-        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
-        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test_data._id', columns=['data._id'])}"
+        f"{order}"
         f"{add_column_comment(table_identifier=test_table_identifier, column='_txn')}"
         f"{add_column_comment(table_identifier=test_table_identifier, column='_created')}"
         f"{add_column_comment(table_identifier=test_table_identifier, column='_updated')}"
