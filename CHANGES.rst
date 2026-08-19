@@ -6,6 +6,12 @@ Changes
 
 Backwards incompatible:
 
+- The ``iss`` claim of issued access tokens no longer carries a trailing slash.
+  RFC 8414 requires the issuer identifier to match the metadata URL with the
+  well-known suffix removed, so ``server_url`` is now normalised before being
+  used as ``iss``. Tokens are not validated against ``iss``, so existing tokens
+  keep working, but consumers comparing the claim to a configured
+  ``server_url`` value verbatim will need to strip the slash (`#631`_).
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and
   the backend was unused. The ``mongo`` backend type, its ``pymongo``
@@ -42,6 +48,18 @@ Bug fixes:
 
 Improvements:
 
+- Added an OAuth2 token introspection endpoint at ``POST /auth/introspect``
+  (`RFC 7662`). Clients authenticate with ``client_secret_basic`` and must have
+  the ``auth_introspect`` scope; the response reports ``active``, ``client_id``,
+  ``scope``, ``sub``, ``aud``, ``iss``, ``exp``, ``iat`` and ``jti`` for a valid
+  access token, and ``{"active": false}`` otherwise (`#631`_).
+- Added an authorization server metadata endpoint at
+  ``GET /.well-known/oauth-authorization-server`` (`RFC 8414`), advertising the
+  issuer, token, introspection and JWKS endpoint URLs, the supported
+  ``client_credentials`` grant and the supported client authentication methods
+  (`#631`_).
+- Added the ``auth_introspect`` scope, which grants a client permission to
+  introspect access tokens issued to any client (`#631`_).
 - Added support for Python ``3.14``. Bumped ``sqlean-py`` to ``>=3.50.4.5``, which
   is the first release providing prebuilt wheels for CPython ``3.14`` (older
   releases failed to build from source on ``3.14``), and added ``3.14`` to the CI
@@ -53,6 +71,7 @@ Improvements:
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
 
+.. _#631: https://github.com/atviriduomenys/dvms/issues/631
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
