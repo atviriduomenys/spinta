@@ -32,6 +32,7 @@ from spinta.auth import (
     delete_client_file,
     get_auth_request,
     get_auth_token,
+    get_authorization_server_metadata,
     get_clients_list,
     get_clients_path,
     has_scope,
@@ -112,6 +113,33 @@ async def get_verification_keys(request: Request) -> JSONResponse:
     elif default_key := load_key_from_file(config, KeyType.public):
         content["keys"].append(default_key)
     return JSONResponse(content=content)
+
+
+async def auth_introspect(request: Request) -> JSONResponse:
+    context = request.state.context
+    auth_server = context.get("auth.server")
+    if not auth_server.enabled():
+        raise NoAuthServer()
+
+    return auth_server.create_endpoint_response(
+        "introspection",
+        StarletteOAuth2Data(
+            method=request.method,
+            uri=str(request.url.replace(query="")),
+            headers=request.headers,
+            form=await request.form(),
+            query=request.query_params,
+        ),
+    )
+
+
+async def authorization_server_metadata(request: Request) -> JSONResponse:
+    context = request.state.context
+    auth_server = context.get("auth.server")
+    if not auth_server.enabled():
+        raise NoAuthServer()
+
+    return JSONResponse(content=get_authorization_server_metadata(context))
 
 
 def _auth_accesslog(context: Context, request: Request, payload: dict, output_format: str):
@@ -449,7 +477,9 @@ def init(context: Context):
         Route("/favicon.ico", favicon, methods=["GET"]),
         Route("/version", version, methods=["GET"]),
         Route("/auth/token", auth_token, methods=["POST"]),
+        Route("/auth/introspect", auth_introspect, methods=["POST"]),
         Route("/.well-known/jwks.json", get_verification_keys, methods=["GET"]),
+        Route("/.well-known/oauth-authorization-server", authorization_server_metadata, methods=["GET"]),
         Route("/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}", srid_check, methods=["GET"]),
         Route("/auth/clients", auth_clients_get_all, methods=["GET"]),
         Route("/auth/clients", auth_clients_add, methods=["POST"]),

@@ -18,7 +18,7 @@ from typing import Any, List, Literal, Set, Tuple, Type, TypedDict, Union
 
 import requests
 import ruamel.yaml
-from authlib.oauth2 import OAuth2Error, OAuth2Request, rfc6749, rfc6750
+from authlib.oauth2 import OAuth2Error, OAuth2Request, rfc6749, rfc6750, rfc7662
 from authlib.oauth2.rfc6749 import OAuth2Payload, grants, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6749.util import scope_to_list
@@ -116,6 +116,9 @@ class Scopes(enum.Enum):
     # Grants access to manipulate client files through API
     AUTH_CLIENTS = "auth_clients"
 
+    # Grants access to introspect access tokens issued to any client
+    AUTH_INTROSPECT = "auth_introspect"
+
     # Grants access to change its own client file backends
     CLIENT_BACKENDS_UPDATE_SELF = "client_backends_update_self"
 
@@ -145,6 +148,11 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         )
         self._context = context
         self._private_key = load_key(context, KeyType.private, required=False)
+        self.register_endpoint(IntrospectionEndpoint)
+
+    @property
+    def context(self) -> Context:
+        return self._context
 
     def enabled(self) -> bool:
         return self._private_key is not None
@@ -190,6 +198,37 @@ class ResourceProtector(rfc6749.ResourceProtector):
     ):
         super().__init__()
         self.register_token_validator(Validator(context))
+
+
+class IntrospectionEndpoint(rfc7662.IntrospectionEndpoint):
+    CLIENT_AUTH_METHODS = ["client_secret_basic"]
+
+    def query_token(self, token_string: str, token_type_hint: str) -> Token | None:
+        if token_type_hint and token_type_hint != "access_token":
+            return None
+
+        protector: ResourceProtector = self.server.context.get("auth.resource_protector")
+        try:
+            return authenticate_token(protector, token_string, "bearer")
+        except (InvalidToken, JoseError, KeyError):
+            return None
+
+    def check_permission(self, token: Token, client: Client, request: OAuth2Request) -> bool:
+        return client_has_scope(self.server.context, client, Scopes.AUTH_INTROSPECT)
+
+    def introspect_token(self, token: Token) -> dict:
+        return {
+            "active": True,
+            "token_type": "Bearer",
+            "client_id": token.get_client_id(),
+            "scope": token.get_scope(),
+            "sub": token.get_sub(),
+            "aud": token.get_aud(),
+            "iss": token.get_iss(),
+            "exp": token.get_exp(),
+            "iat": token.get_iat(),
+            "jti": token.get_jti(),
+        }
 
 
 def load_all_public_keys(context: Context) -> list[RSAKey]:
@@ -350,7 +389,7 @@ class Client(rfc6749.ClientMixin):
         return passwords.verify(client_secret, self.secret_hash)
 
     def check_endpoint_auth_method(self, method: str, endpoint: str) -> bool:
-        if endpoint == "token":
+        if endpoint in ("token", "introspection"):
             return method == self.token_endpoint_auth_method
         return False
 
@@ -449,6 +488,15 @@ class Token(rfc6749.TokenMixin):
 
     def get_jti(self) -> str:
         return self._token.get("jti", "")
+
+    def get_iss(self) -> str:
+        return self._token.get("iss", "")
+
+    def get_exp(self) -> int | None:
+        return self._token.get("exp")
+
+    def get_iat(self) -> int | None:
+        return self._token.get("iat")
 
     # Currently required implementations for authlib >= 1.0
     # https://gist.github.com/lepture/506bfc29b827fae87981fc58eff2393e#token-model
@@ -730,6 +778,31 @@ def create_client_access_token(context: Context, client: Union[str, Client]):
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
 
+def get_issuer(config: Config) -> str:
+    """Issuer identifier of this authorization server.
+
+    RFC 8414 section 2 requires `issuer` to be identical to the URL the metadata
+    document was retrieved from with the well-known suffix removed, so it must
+    not carry a trailing slash.
+    """
+    return config.server_url.rstrip("/")
+
+
+def get_authorization_server_metadata(context: Context) -> dict:
+    config = context.get("config")
+    issuer = get_issuer(config)
+    return {
+        "issuer": issuer,
+        "token_endpoint": f"{issuer}/auth/token",
+        "introspection_endpoint": f"{issuer}/auth/introspect",
+        "jwks_uri": f"{issuer}/.well-known/jwks.json",
+        "grant_types_supported": ["client_credentials"],
+        "response_types_supported": [],
+        "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+        "introspection_endpoint_auth_methods_supported": ["client_secret_basic"],
+    }
+
+
 def create_access_token(
     context: Context,
     private_key,
@@ -752,7 +825,7 @@ def create_access_token(
     scopes = " ".join(sorted(scopes)) if scopes else ""
     jti = str(uuid.uuid4())
     payload = {
-        "iss": config.server_url,
+        "iss": get_issuer(config),
         "sub": client,
         "aud": client,
         "iat": iat,
@@ -769,6 +842,15 @@ def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     if is_uuid:
         client_file = get_id_path(path) / client[:2] / client[2:4] / f"{client[4:]}.yml"
     return client_file
+
+
+def client_has_scope(context: Context, client: Client, scope: Union[Scopes, str]) -> bool:
+    config = context.get("config")
+
+    if isinstance(scope, Scopes):
+        scope = scope.value
+
+    return bool({f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"} & client.scopes)
 
 
 def check_scope(context: Context, scope: Union[Scopes, str]) -> bool:
