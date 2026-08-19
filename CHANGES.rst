@@ -4,6 +4,34 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Generated OpenAPI specifications changed, so that one file can be used both
+  for importing endpoints into an API gateway and for validating requests and
+  responses against it (`#2004`_):
+
+  - ``servers`` are no longer hardcoded to ``get.data.gov.lt``. For a data
+    service they are built from ``--udts-cfg``, one entry per environment, each
+    ending with the data service path, and ``paths`` are relative to that base.
+    Without a configuration file a single relative server URL is generated. Data
+    set level exports get no ``servers`` at all (`#1526`_).
+  - ``traceparent`` and ``tracestate`` headers are no longer ``required``.
+  - Properties that are not ``required`` now accept ``null``, including
+    ``_revision``, since Spinta returns ``null`` for every property that has no
+    value. Reference properties are wrapped into ``anyOf``.
+  - ``components.securitySchemes`` is now generated. Operations already
+    referenced the ``UAPI_auth`` scheme, which was never declared, making the
+    document invalid.
+  - ``/health`` is no longer generated, because Spinta API does not implement
+    it, and ``/version`` is generated as ``/:version`` next to the new
+    ``/:token``, matching how an API gateway routes agent level endpoints inside
+    a data service.
+  - Model schema names are unique within a data service: they keep the data set
+    path, for example ``at280_israsas_DalyvioAsmensIsrasas``. Tag and operation
+    tag names now follow schema names, so a whole manifest export tags
+    operations by the full model name instead of the model name alone. Data set
+    level exports are unchanged.
+
 Bug fixes:
 
 - Fixed token validation when ``token_validation_keys_download_url`` was
@@ -16,6 +44,24 @@ Bug fixes:
 - Fixed incorrect citus distribution script generation when using `spinta migrate`
   on fresh database, when manifest contains models with cross schema references (`#2008`_).
 
+Improvements:
+
+- Added a new ``spinta udts`` command group for UDTS data service agent exports,
+  with its first command ``spinta udts oas``. It exports an OpenAPI
+  specification of one UDTS data service, covering all data sets under the
+  ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
+  (matched on segment boundary, so ``.../at280/1`` does not match
+  ``.../at280/10``). Without ``--path`` the only data service of the manifest is
+  used, or, if there are several, the command lists them and fails; ``--list``
+  lists the data services and their data sets. Environments, service level
+  ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,
+  an example of which is shipped as
+  ``spinta/manifests/open_api/udts_cfg.example.yml``. Output is written to
+  ``--output`` as YAML or JSON, chosen by file extension, or to standard output
+  (`#2004`_).
+
+.. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
+.. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
 
 1.1.0 (2026-08-19)

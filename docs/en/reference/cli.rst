@@ -158,3 +158,115 @@ Example
   `example/dataset/City` --> "[0..1]" `example/dataset/Country` : city<br/>«optional»
   classDef Concept stroke:#8FB58F,fill:#F0FDF0,color:#000000;
   classDef Entity stroke:#9D8787,fill:#F5E8DF,color:#000000;
+
+.. _cli_udts_oas:
+
+udts oas
+========
+
+The ``udts oas`` CLI command exports an OpenAPI specification of one UDTS data
+service, covering all data sets of that service.
+
+A UDTS data service is identified by the leading part of a data set path::
+
+   datasets/{form}/{org}/{is}/{service}/{version}/{dataset}/{model}
+   └────────────── data service ──────────────┘ └── content ──┘
+
+The generated specification is meant to be used both for importing endpoints
+into an API gateway and for validating requests and responses against it, so
+``servers`` hold the data service base URL of every environment, while ``paths``
+are relative to it.
+
+Usage
+-----
+
+.. code-block:: bash
+
+   spinta udts oas <manifest-files-to-load> -o <path-to-output-file> --path <data-service-path> --udts-cfg <path-to-config-file>
+
+Arguments
+---------
+
+- ``<manifest-files-to-load>``
+  One or more manifest files that will be loaded.
+
+- ``-o``, ``--output``
+  OPTIONAL. Output file name. Specification is written in YAML if the file
+  extension is `.yml` or `.yaml`, otherwise in JSON. Without this option the
+  specification is written to standard output as JSON.
+
+- ``--path``
+  OPTIONAL. Data service path. All data sets equal to it or starting with it are
+  included. If not given and the manifest holds exactly one data service, that
+  service is used, otherwise the command fails listing the data services found.
+
+- ``--udts-cfg``
+  OPTIONAL. YAML file with the information that is not part of a manifest:
+  environments, service level ``info`` and the authorization server. An example
+  file is shipped as ``spinta/manifests/open_api/udts_cfg.example.yml``.
+
+- ``--api-version``
+  OPTIONAL. Value of ``info.version``. Overrides ``info.version`` given in the
+  configuration file.
+
+- ``--list``
+  OPTIONAL. List data services found in the manifest together with their data
+  sets and exit.
+
+Example
+-------
+
+**Command**:
+
+.. code-block:: bash
+
+   spinta udts oas manifest.csv -o at280.json \
+       --path datasets/gov/rc/jadis/at280/1 \
+       --udts-cfg vartai.yml
+
+**Configuration file (`vartai.yml`)**:
+
+.. code-block:: yaml
+
+   info:
+     title: JADIS data service
+   servers:
+     - url: https://get.data.gov.lt
+       description: Production
+     - url: https://test-get.data.gov.lt
+       description: Testing
+   auth:
+     token_url: https://get.data.gov.lt/auth/token
+
+**Output (`at280.json`)**:
+
+.. code-block:: json
+
+   {
+     "openapi": "3.1.0",
+     "info": {"title": "JADIS data service", "version": ""},
+     "servers": [
+       {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Production"},
+       {"url": "https://test-get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Testing"}
+     ],
+     "paths": {
+       "/:version": {},
+       "/:token": {},
+       "/at280_israsas/DalyvioAsmensIsrasas": {},
+       "/at280_israsas/DalyvioAsmensIsrasas/{id}": {}
+     }
+   }
+
+**Listing data services**:
+
+.. code-block:: bash
+
+   spinta udts oas manifest.csv --list
+
+.. code-block:: text
+
+   datasets/gov/rc/jadis/at280/1
+     datasets/gov/rc/jadis/at280/1/at280_adresai
+     datasets/gov/rc/jadis/at280/1/at280_israsas
+   datasets/gov/rc/ntr/n249/1
+     datasets/gov/rc/ntr/n249/1/n249_israsas

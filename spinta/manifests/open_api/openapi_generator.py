@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Model
 from spinta.core.context import configure_context, create_context
 from spinta.core.enums import Level
 from spinta.dimensions.enum.components import EnumItem
+from spinta.exceptions import DataServiceNotFound
+from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_config import (
     BASE_TAGS,
     COMMON_SCHEMAS,
@@ -21,14 +23,23 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_MAPPING,
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
-    SERVERS,
+    SECURITY_SCHEMES,
     STANDARD_OBJECT_PROPERTIES,
     VERSION,
 )
+from spinta.manifests.open_api.service import (
+    datasets_under_service,
+    find_services,
+    relative_path,
+    service_schema_name,
+)
+from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NA
 
-UTILITY_PATHS = ["/version", "/health"]
+#: Agent level endpoints, given in action form, because an API gateway exposes
+#: each data service under its own context path and routes these separately.
+UTILITY_PATHS = ["/:version", "/:token"]
 
 GLOBAL_ID_LEVEL_THRESHOLD = 4
 
@@ -61,26 +72,51 @@ def _get_schema_name(model: Model) -> str:
     return model.name.replace("/", "_")
 
 
-def _get_main_schema_name(model: Model, use_basename_for_schema_names: bool) -> str:
-    """Get primary schema name for a model, depending on mode."""
-    return model.basename if use_basename_for_schema_names else _get_schema_name(model)
+def _model_dataset_name(model: Model) -> str | None:
+    if hasattr(model, "external") and hasattr(model.external, "dataset"):
+        return model.external.dataset.name
+    return None
 
 
-def _get_main_membership_key(model: Model, use_basename_for_schema_names: bool) -> str:
-    """Key used for membership checks in main_dataset_schema_names."""
-    return _get_main_schema_name(model, use_basename_for_schema_names)
+class SchemaNamer:
+    """Resolves component schema names for models.
+
+    Models included in the generated specification are named by the given
+    naming function, all other models, referenced from the included ones, keep
+    their full underscored name, which is unique across the whole manifest.
+    """
+
+    def __init__(self, models: dict[str, Model], name_included: Callable[[Model], str] = _get_schema_name):
+        self._included = {model.name for model in models.values()}
+        self._name_included = name_included
+
+    def is_included(self, model: Model) -> bool:
+        return model.name in self._included
+
+    def name(self, model: Model) -> str:
+        return self._name_included(model) if self.is_included(model) else _get_schema_name(model)
 
 
-def _resolve_ref_schema_name_for_model(
-    ref_model: Model,
-    main_dataset_schema_names: set[str] | None,
-    use_basename_for_schema_names: bool,
-) -> str:
-    """Resolve schema name for a referenced model, honoring main dataset overrides."""
-    main_key = _get_main_membership_key(ref_model, use_basename_for_schema_names)
-    if main_dataset_schema_names and main_key in main_dataset_schema_names:
-        return main_key
-    return _get_schema_name(ref_model)
+def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
+    """Allow `null` in a property schema.
+
+    Spinta returns `null` for every property that has no value, so anything not
+    listed in `required` has to accept it, otherwise response validation fails.
+    """
+    if "$ref" in schema:
+        ref = {key: value for key, value in schema.items() if key != "example"}
+        nullable = {"anyOf": [ref, {"type": "null"}]}
+        if "example" in schema:
+            nullable["example"] = schema["example"]
+        return nullable
+
+    schema = copy.deepcopy(schema)
+    dtype = schema.get("type")
+    if isinstance(dtype, str):
+        schema["type"] = [dtype, "null"]
+    elif isinstance(dtype, list) and "null" not in dtype:
+        schema["type"] = [*dtype, "null"]
+    return schema
 
 
 class OpenAPISchemaRegistry:
@@ -95,8 +131,9 @@ class OpenAPISchemaRegistry:
 class DataTypeHandler:
     """Handles data type conversions and schema generation"""
 
-    def __init__(self, schema_registry: OpenAPISchemaRegistry):
+    def __init__(self, schema_registry: OpenAPISchemaRegistry, namer: SchemaNamer):
         self.schema_registry = schema_registry
+        self.namer = namer
 
     def get_dtype_name(self, dtype) -> str:
         """Extract consistent data type name from dtype object"""
@@ -136,8 +173,6 @@ class DataTypeHandler:
         self,
         model_property,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
         """Convert a model property to OpenAPI schema"""
 
@@ -152,37 +187,26 @@ class DataTypeHandler:
             }
 
         if self.is_reference_type(dtype):
-            ref_schema_name = _resolve_ref_schema_name_for_model(
-                dtype.model,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-            )
+            ref_schema_name = self.namer.name(dtype.model)
             example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = ref_schema["example"]
             return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
 
         if self.is_array_type(dtype):
-            items_schema = self.convert_to_openapi_schema(
-                dtype.items,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
+            items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
             example_item = items_schema.get("example", "example_item")
             return {"type": "array", "items": items_schema, "example": [example_item]}
 
         dtype_name = self.get_dtype_name(dtype)
-        return self.schema_registry.type_mapping.mappings.get(
-            dtype_name, {"type": "string", "example": "Example value"}
+        return copy.deepcopy(
+            self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string", "example": "Example value"})
         )
 
     def get_example_value(
         self,
         model_property,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> Any:
         """Generate example values for properties. When schemas is provided, use ref schema example for reference types."""
         dtype = model_property.dtype
@@ -192,23 +216,13 @@ class DataTypeHandler:
             return enum_values[0] if enum_values else "UNKNOWN"
 
         if self.is_reference_type(dtype):
-            ref_schema_name = _resolve_ref_schema_name_for_model(
-                dtype.model,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-            )
+            ref_schema_name = self.namer.name(dtype.model)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return ref_schema["example"]
             return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
 
         if self.is_array_type(dtype):
-            item_example = self.get_example_value(
-                dtype.items,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
-            return [item_example]
+            return [self.get_example_value(dtype.items, schemas=schemas)]
 
         dtype_name = self.get_dtype_name(dtype)
         return self.schema_registry.example_values.values.get(dtype_name, "Example value")
@@ -217,28 +231,28 @@ class DataTypeHandler:
 class PathGenerator:
     """Handles OpenAPI path generation and operations"""
 
-    def __init__(self, dtype_handler: DataTypeHandler):
+    def __init__(self, dtype_handler: DataTypeHandler, namer: SchemaNamer):
         self.dtype_handler = dtype_handler
-        self.use_basename_for_schema_names = False
+        self.namer = namer
 
     def should_create_property_endpoint(self, model_property) -> bool:
         """Determine if a property should have its own endpoint"""
         dtype_name = self.dtype_handler.get_dtype_name(model_property.dtype)
         return dtype_name in PROPERTY_TYPES_IN_PATHS
 
-    def create_path_mappings(self, model: Model, dataset_name: str) -> list[tuple[str, str, str, tuple | None]]:
+    def create_path_mappings(self, model: Model, path_prefix: str) -> list[tuple[str, str, str, tuple | None]]:
         """Create path mappings for a model"""
-        actual_model_name = model.basename
+        model_path = "/".join(part for part in (path_prefix, model.basename) if part)
 
         path_mappings = [
-            ("/{model_name}", f"/{dataset_name}/{actual_model_name}", "collection", None),
-            ("/{model_name}/{id}", f"/{dataset_name}/{actual_model_name}/{{id}}", "single", None),
+            ("/{model_name}", f"/{model_path}", "collection", None),
+            ("/{model_name}/{id}", f"/{model_path}/{{id}}", "single", None),
         ]
 
         for prop_name, model_property in model.get_given_properties().items():
             if self.should_create_property_endpoint(model_property):
                 template_path = "/{model_name}/{id}/{field}"
-                actual_path = f"/{dataset_name}/{actual_model_name}/{{id}}/{prop_name}"
+                actual_path = f"/{model_path}/{{id}}/{prop_name}"
                 path_mappings.append((template_path, actual_path, "property", (prop_name, model_property)))
 
         return path_mappings
@@ -284,12 +298,15 @@ class PathGenerator:
         operation = {}
 
         if model:
-            operation["tags"] = [model.basename]
+            operation["tags"] = [self.namer.name(model)]
         elif "tags" in method_config:
             operation["tags"] = method_config["tags"]
 
         if "security" in method_config:
-            operation["security"] = method_config["security"]
+            operation["security"] = copy.deepcopy(method_config["security"])
+
+        if "requestBody" in method_config:
+            operation["requestBody"] = copy.deepcopy(method_config["requestBody"])
 
         for spec_field in ["summary", "description"]:
             if spec_field in method_config:
@@ -389,7 +406,7 @@ class PathGenerator:
         model_property: tuple | None = None,
     ) -> str:
         """Resolve the appropriate schema reference"""
-        model_schema_name = _get_main_schema_name(model, self.use_basename_for_schema_names) if model else None
+        model_schema_name = self.namer.name(model) if model else None
         if model_schema_name and path_type:
             return self._get_model_schema_ref(model_schema_name, path_type, model_property)
 
@@ -525,16 +542,12 @@ class ComponentSchemaBuilder:
 class SchemaGenerator:
     """Handles OpenAPI schema generation for models."""
 
-    def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry):
+    def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry, namer: SchemaNamer):
         self.dtype_handler = dtype_handler
         self.schema_registry = schema_registry
+        self.namer = namer
 
-    def create_all_model_schemas(
-        self,
-        models: dict,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
-    ) -> dict[str, Any]:
+    def create_all_model_schemas(self, models: dict) -> dict[str, Any]:
         """Build all model schemas (main + collection + refs) in one pass.
 
         Returns the complete schemas dict for components/schemas.
@@ -545,18 +558,11 @@ class SchemaGenerator:
         schemas = {}
 
         for model in models.values():
-            self._create_referenced_model_schemas(
-                schemas,
-                model,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-            )
+            self._create_referenced_model_schemas(schemas, model)
 
         for model in models.values():
-            schema_name = _get_main_schema_name(model, use_basename_for_schema_names)
-            schemas[schema_name] = self._create_model_schema(
-                model, schemas, main_dataset_schema_names, use_basename_for_schema_names
-            )
+            schema_name = self.namer.name(model)
+            schemas[schema_name] = self._create_model_schema(model, schemas)
             schemas[f"{schema_name}Collection"] = self._create_collection_schema(model, schema_name)
 
         return schemas
@@ -565,33 +571,24 @@ class SchemaGenerator:
         self,
         model,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
-        properties = self.schema_registry.standard_object_properties.copy()
+        properties = copy.deepcopy(self.schema_registry.standard_object_properties)
         required_fields = []
 
         for prop_name, model_property in model.get_given_properties().items():
-            prop_schema = self.dtype_handler.convert_to_openapi_schema(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
-            properties[prop_name] = prop_schema
+            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
 
             if hasattr(model_property.dtype, "required") and model_property.dtype.required:
                 required_fields.append(prop_name)
+            else:
+                prop_schema = _nullable(prop_schema)
+
+            properties[prop_name] = prop_schema
 
         schema = {
             "type": "object",
             "properties": properties,
-            "example": self._create_example(
-                model,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            ),
+            "example": self._create_example(model, schemas=schemas),
         }
 
         if required_fields:
@@ -604,8 +601,6 @@ class SchemaGenerator:
         model,
         property_filter: set[str] | None = None,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
         example = {
             "_type": model.basename,
@@ -615,12 +610,7 @@ class SchemaGenerator:
         for prop_name, model_property in model.get_given_properties().items():
             if property_filter and prop_name not in property_filter:
                 continue
-            example[prop_name] = self.dtype_handler.get_example_value(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
+            example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
         return example
 
     def _create_collection_schema(self, model, schema_name: str) -> dict[str, Any]:
@@ -632,13 +622,7 @@ class SchemaGenerator:
             },
         }
 
-    def _create_referenced_model_schemas(
-        self,
-        schemas: dict,
-        model: Model,
-        main_dataset_schema_names: set[str] | None,
-        use_basename_for_schema_names: bool = False,
-    ) -> None:
+    def _create_referenced_model_schemas(self, schemas: dict, model: Model) -> None:
         for model_property in model.get_given_properties().values():
             dtype = model_property.dtype
 
@@ -650,48 +634,32 @@ class SchemaGenerator:
 
             ref_model = dtype.model
             ref_schema_name = _get_schema_name(ref_model)
-            ref_main_key = _get_main_membership_key(ref_model, use_basename_for_schema_names)
 
-            if ref_schema_name in schemas:
-                continue
-            if main_dataset_schema_names is not None and ref_main_key in main_dataset_schema_names:
+            if ref_schema_name in schemas or self.namer.is_included(ref_model):
                 continue
 
             ref_level = getattr(model_property, "level", None)
 
             refprops = getattr(dtype, "refprops", None) or []
-            schemas[ref_schema_name] = self._build_ref_model_schema(
-                schemas,
-                ref_model,
-                refprops,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-                ref_level,
-            )
+            schemas[ref_schema_name] = self._build_ref_model_schema(schemas, ref_model, refprops, ref_level)
 
     def _resolve_nested_ref_schema_name(
         self,
         schemas: dict,
         nested_ref_model: Model,
         nested_refprops: list,
-        main_dataset_schema_names: set[str] | None,
-        use_basename_for_schema_names: bool = False,
         ref_level: Level | None = None,
     ) -> str:
-        nested_main_key = (
-            nested_ref_model.basename if use_basename_for_schema_names else _get_schema_name(nested_ref_model)
-        )
-        is_main_dataset_model = main_dataset_schema_names is not None and nested_main_key in main_dataset_schema_names
-        base_name = nested_ref_model.basename if is_main_dataset_model else _get_schema_name(nested_ref_model)
-        schema_name = f"{base_name}_Ref" if is_main_dataset_model else base_name
+        base_name = self.namer.name(nested_ref_model)
+        # Included models already have a full schema under their own name, so a
+        # partial, ref only schema gets a separate one.
+        schema_name = f"{base_name}_Ref" if self.namer.is_included(nested_ref_model) else base_name
 
         if schema_name not in schemas:
             schemas[schema_name] = self._build_ref_model_schema(
                 schemas,
                 nested_ref_model,
                 nested_refprops,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
                 ref_level,
             )
 
@@ -702,8 +670,6 @@ class SchemaGenerator:
         schemas: dict,
         model,
         refprops: list,
-        main_dataset_schema_names: set[str] | None,
-        use_basename_for_schema_names: bool = False,
         ref_level: Level | int | None = None,
     ) -> dict[str, Any]:
         level_value: int | None = None
@@ -713,7 +679,7 @@ class SchemaGenerator:
         is_global_ref = level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
 
         if is_global_ref:
-            properties = self.schema_registry.standard_object_properties.copy()
+            properties = copy.deepcopy(self.schema_registry.standard_object_properties)
             example = {
                 "_type": model.basename,
                 "_id": EXAMPLE_UUID_OBJECT_ID,
@@ -721,7 +687,7 @@ class SchemaGenerator:
             }
             return {"type": "object", "properties": properties, "example": example}
 
-        properties = self.schema_registry.standard_object_properties.copy()
+        properties = copy.deepcopy(self.schema_registry.standard_object_properties)
         required_fields = []
 
         refprop_names = {prop.name for prop in refprops if hasattr(prop, "name")}
@@ -741,8 +707,6 @@ class SchemaGenerator:
                     schemas,
                     inner_dtype.model,
                     nested_refprops,
-                    main_dataset_schema_names,
-                    use_basename_for_schema_names,
                     ref_level,
                 )
                 ref_schema = schemas.get(schema_name)
@@ -757,17 +721,14 @@ class SchemaGenerator:
                     "example": example,
                 }
             else:
-                prop_schema = self.dtype_handler.convert_to_openapi_schema(
-                    model_property,
-                    schemas=schemas,
-                    main_dataset_schema_names=main_dataset_schema_names,
-                    use_basename_for_schema_names=use_basename_for_schema_names,
-                )
-
-            properties[prop_name] = prop_schema
+                prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
 
             if hasattr(model_property.dtype, "required") and model_property.dtype.required:
                 required_fields.append(prop_name)
+            else:
+                prop_schema = _nullable(prop_schema)
+
+            properties[prop_name] = prop_schema
 
         example = {
             "_type": model.basename,
@@ -777,12 +738,7 @@ class SchemaGenerator:
         for prop_name, model_property in model.get_given_properties().items():
             if refprop_names and prop_name not in refprop_names:
                 continue
-            example[prop_name] = self.dtype_handler.get_example_value(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
+            example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
 
         if level_value is not None and level_value < GLOBAL_ID_LEVEL_THRESHOLD:
             properties.pop("_id", None)
@@ -799,15 +755,18 @@ class SchemaGenerator:
 class OpenAPIGenerator:
     """Generate OpenAPI specs using manifest data"""
 
-    def __init__(self, main_dataset_name: str | None = None, api_version: str | None = None):
+    def __init__(
+        self,
+        main_dataset_name: str | None = None,
+        api_version: str | None = None,
+        service_path: str | None = None,
+        config: UdtsConfig | None = None,
+    ):
         self.main_dataset_name = main_dataset_name
         self.api_version = api_version if api_version is not None else ""
+        self.service_path = service_path
+        self.config = config if config is not None else UdtsConfig()
 
-        self.schema_registry = OpenAPISchemaRegistry()
-        self.dtype_handler = DataTypeHandler(self.schema_registry)
-
-        self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry)
-        self.path_generator = PathGenerator(self.dtype_handler)
         self.component_builder = ComponentSchemaBuilder()
 
     def generate_spec(self, manifest) -> dict[str, Any]:
@@ -816,7 +775,6 @@ class OpenAPIGenerator:
             "openapi": VERSION,
             "info": copy.deepcopy(INFO),
             "externalDocs": copy.deepcopy(EXTERNAL_DOCS),
-            "servers": copy.deepcopy(SERVERS),
             "tags": copy.deepcopy(BASE_TAGS),
             "components": {},
         }
@@ -824,41 +782,63 @@ class OpenAPIGenerator:
 
         datasets, models = self._extract_manifest_data(manifest)
 
-        if self.main_dataset_name is not None:
+        if self.service_path is not None:
+            datasets, models = self._filter_by_service_path(datasets, models)
+            namer = SchemaNamer(models, lambda model: service_schema_name(model, self.service_path))
+        elif self.main_dataset_name is not None:
             datasets, models = self._filter_by_main_dataset(datasets, models)
+            namer = SchemaNamer(models, lambda model: model.basename)
+        else:
+            namer = SchemaNamer(models)
 
+        self.schema_registry = OpenAPISchemaRegistry()
+        self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
+        self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
+        self.path_generator = PathGenerator(self.dtype_handler, namer)
+        self.namer = namer
+
+        self._set_servers(specification)
         self._override_info(specification, datasets)
         self._set_tags(specification, models)
 
-        use_basename_for_schema_names = self.main_dataset_name is not None
-        main_dataset_schema_names = (
-            {m.basename for m in models.values()}
-            if use_basename_for_schema_names
-            else {_get_schema_name(m) for m in models.values()}
-        )
-        self.path_generator.use_basename_for_schema_names = use_basename_for_schema_names
-        model_schemas = self.schema_generator.create_all_model_schemas(
-            models, main_dataset_schema_names, use_basename_for_schema_names
-        )
+        model_schemas = self.schema_generator.create_all_model_schemas(models)
         specification.setdefault("components", {}).setdefault("schemas", {}).update(model_schemas)
 
         self._create_paths(specification, datasets, models)
 
         self._create_component_schemas(specification)
         self._add_common_schemas(specification)
+        self._add_security_schemes(specification)
 
         return specification
 
     def _extract_manifest_data(self, manifest) -> tuple[Any, dict]:
-        context = create_context()
-        manifests = [manifest]
-        context = configure_context(context, manifests)
-        rows = _read_and_return_manifest(context, manifests, check_config=False, ensure_backends=False)
+        if isinstance(manifest, ManifestPath):
+            context = create_context()
+            manifests = [manifest]
+            context = configure_context(context, manifests)
+            manifest = _read_and_return_manifest(context, manifests, check_config=False, ensure_backends=False)
 
-        datasets = rows.get_objects()["dataset"].items()
-        models = rows.get_objects()["model"]
+        datasets = manifest.get_objects()["dataset"].items()
+        models = manifest.get_objects()["model"]
 
         return datasets, models
+
+    def _filter_by_service_path(self, datasets: Any, models: dict) -> tuple[list, dict]:
+        """Select all data sets of one UDTS data service."""
+        datasets_list = list(datasets)
+        dataset_names = [name for name, _ in datasets_list]
+        names = set(datasets_under_service(dataset_names, self.service_path))
+
+        if not names:
+            raise DataServiceNotFound(
+                service=self.service_path,
+                available=", ".join(find_services(dataset_names)) or "none",
+            )
+
+        filtered_datasets = [(name, dataset) for name, dataset in datasets_list if name in names]
+        filtered_models = {key: model for key, model in models.items() if _model_dataset_name(model) in names}
+        return filtered_datasets, filtered_models
 
     def _filter_by_main_dataset(self, datasets: Any, models: dict) -> tuple[list, dict]:
         datasets_list = list(datasets)
@@ -869,25 +849,46 @@ class OpenAPIGenerator:
                 f"Available: {[name for name, _ in datasets_list]}"
             )
         filtered_models = {
-            key: model
-            for key, model in models.items()
-            if (
-                hasattr(model, "external")
-                and hasattr(model.external, "dataset")
-                and model.external.dataset.name == self.main_dataset_name
-            )
+            key: model for key, model in models.items() if _model_dataset_name(model) == self.main_dataset_name
         }
         return filtered_datasets, filtered_models
 
+    def _set_servers(self, spec: dict[str, Any]) -> None:
+        """One entry per environment, each ending with the data service path.
+
+        An API gateway derives the API context path from the path part of the
+        first server URL, and model paths are relative to it.
+        """
+        if self.service_path is None:
+            return
+        spec["servers"] = self.config.resolve_servers(self.service_path)
+        if self.config.external_docs:
+            spec["externalDocs"] = copy.deepcopy(self.config.external_docs)
+
     def _override_info(self, spec: dict[str, Any], datasets: dict):
+        if self.service_path is not None:
+            # A data service holds many data sets, so its description can not be
+            # taken from any single one of them.
+            spec["info"].update(copy.deepcopy(self.config.info))
+            if self.api_version:
+                spec["info"]["version"] = self.api_version
+            return
+
         _, dataset = next(iter(datasets))
         spec["info"]["summary"] = dataset.title
         spec["info"]["description"] = dataset.description
 
+    def _add_security_schemes(self, spec: dict[str, Any]) -> None:
+        schemes = copy.deepcopy(SECURITY_SCHEMES)
+        schemes["UAPI_auth"]["flows"]["clientCredentials"]["tokenUrl"] = self.config.resolve_token_url(
+            spec.get("servers", [])
+        )
+        spec.setdefault("components", {})["securitySchemes"] = schemes
+
     def _set_tags(self, spec: dict[str, Any], models: dict):
         description = "Operations with"
         for model in models.values():
-            model_schema_name = model.basename
+            model_schema_name = self.namer.name(model)
             spec["tags"].append({"name": model_schema_name, "description": f"{description} {model_schema_name}"})
 
     def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
@@ -900,10 +901,13 @@ class OpenAPIGenerator:
             paths[path] = self.path_generator.create_path(path_config)
 
         for dataset_name, _ in datasets:
+            # Model paths are relative to the data service base, which is given
+            # in `servers`.
+            path_prefix = relative_path(dataset_name, self.service_path) if self.service_path else dataset_name
             for model in self._get_dataset_models(dataset_name, models):
                 for path_key, actual_path, path_type, model_property in self.path_generator.create_path_mappings(
                     model,
-                    dataset_name,
+                    path_prefix,
                 ):
                     path_config = PATHS_CONFIG.get(path_key)
                     if not path_config:
@@ -928,15 +932,7 @@ class OpenAPIGenerator:
         schemas = spec.setdefault("components", {}).setdefault("schemas", {})
         for schema_name, schema_config in COMMON_SCHEMAS.items():
             if schema_name not in schemas:
-                schemas[schema_name] = schema_config
+                schemas[schema_name] = copy.deepcopy(schema_config)
 
     def _get_dataset_models(self, dataset_name: str, models: dict) -> list:
-        return [
-            model
-            for model in models.values()
-            if (
-                hasattr(model, "external")
-                and hasattr(model.external, "dataset")
-                and model.external.dataset.name == dataset_name
-            )
-        ]
+        return [model for model in models.values() if _model_dataset_name(model) == dataset_name]

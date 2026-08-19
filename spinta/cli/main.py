@@ -15,6 +15,7 @@ from spinta.cli.helpers.typer import add
 from spinta.cli.init import init
 from spinta.cli.keymap import keymap
 from spinta.cli.show import show
+from spinta.cli.udts import app as udts
 from spinta.cli.uncomment import uncomment
 from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
@@ -58,6 +59,8 @@ add(app, "keymap", keymap, short_help="Manage keymap database")
 
 add(app, "getall", get.getall, short_help="Show data from yaml dsn as json")
 add(app, "sync", sync.sync, short_help="Initiate DSA sync with Catalog")
+
+add(app, "udts", udts, short_help="UDTS data service agent exports")
 
 
 @app.callback(invoke_without_command=True)

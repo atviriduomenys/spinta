@@ -1,0 +1,45 @@
+# UDTS duomenų paslaugos OpenAPI (OAS) generavimo konfigūracija.
+#
+#   spinta udts oas manifest.csv -o at280.json \
+#       --path datasets/gov/rc/jadis/at280/1 \
+#       --udts-cfg vartai.yml
+#
+# Čia surašoma tai, ko manifeste nėra: aplinkų adresai, paslaugos lygmens
+# aprašas ir autorizacijos serveris. Visi laukai neprivalomi.
+
+# Paslaugos aprašas. Patenka į OAS `info`.
+info:
+  title: JADIS duomenų paslauga
+  summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
+  description: |
+    Išsamesnis paslaugos aprašas, matomas vartų dokumentacijoje.
+  version: "1"
+  contact:
+    name: Registrų centras
+    url: https://www.registrucentras.lt/
+    email: info@registrucentras.lt
+  license:
+    name: CC-BY 4.0
+    url: https://creativecommons.org/licenses/by/4.0/
+
+# Aplinkos. Kiekviena aplinka – atskiras įrašas; vartai iš PIRMOJO įrašo kelio
+# dalies išsiveda API context-path.
+#
+# `url` galima nurodyti dviem būdais:
+#   - tik adresas (be kelio) – tuomet prilipdomas `--path` paslaugos kelias.
+#     Taip vienas failas tinka visoms to paties agento paslaugoms;
+#   - pilnas adresas su paslaugos keliu – naudojamas toks, koks yra.
+servers:
+  - url: https://get.data.gov.lt
+    description: Gamybinė (išoriniai vartai)
+  - url: https://test-get.data.gov.lt
+    description: Testavimo
+
+# Autorizacijos serveris. `token_url` patenka į
+# `components.securitySchemes.UAPI_auth` kaip `clientCredentials` srauto adresas.
+auth:
+  token_url: https://get.data.gov.lt/auth/token
+
+# Nuoroda į išorinę dokumentaciją.
+externalDocs:
+  url: https://ivpk.github.io/uapi
