@@ -14,10 +14,6 @@ EXTERNAL_DOCS = {"url": "https://ivpk.github.io/uapi"}
 
 BASE_TAGS = [{"name": "utility", "description": "Utility operations performed on the API itself"}]
 
-SERVERS = [
-    {"url": "get.data.gov.lt", "description": "Data access server"},
-]
-
 PROPERTY_EXAMPLE = {
     "string": "Example string",
     "integer": 42,
@@ -36,7 +32,7 @@ PROPERTY_EXAMPLE = {
 STANDARD_OBJECT_PROPERTIES = {
     "_type": {"type": "string"},
     "_id": {"type": "string", "format": "uuidv4"},
-    "_revision": {"type": "string"},
+    "_revision": {"type": ["string", "null"]},
 }
 
 PROPERTY_MAPPING = {
@@ -57,7 +53,7 @@ PROPERTY_MAPPING = {
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
 
 PATHS_CONFIG = {
-    "/version": {
+    "/:version": {
         "parameters": ["traceparent", "tracestate"],
         "get": {
             "tags": ["utility"],
@@ -77,21 +73,41 @@ PATHS_CONFIG = {
             },
         },
     },
-    "/health": {
+    "/:token": {
         "parameters": ["traceparent", "tracestate"],
-        "get": {
+        "post": {
             "tags": ["utility"],
-            "security": [{}],
-            "summary": "Perform the API health check",
-            "description": "Performs API helth check with a check of the underlying system health\n",
-            "operationId": "apiHealth",
+            "security": [{"UAPI_client": []}],
+            "summary": "Get an access token",
+            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n",
+            "operationId": "apiToken",
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/x-www-form-urlencoded": {
+                        "schema": {
+                            "type": "object",
+                            "required": ["grant_type"],
+                            "properties": {
+                                "grant_type": {"type": "string", "enum": ["client_credentials"]},
+                                "scope": {
+                                    "type": "string",
+                                    "description": "Space separated list of requested scopes.",
+                                    "examples": ["uapi:/datasets/gov/example/City/:getall"],
+                                },
+                            },
+                        }
+                    }
+                },
+            },
             "responses": {
                 "200": {
                     "description": "OK",
                     "headers": COMMON_RESPONSE_HEADERS,
-                    "content": {"application/json": {"schema": "health"}},
+                    "content": {"application/json": {"schema": "token"}},
                 },
                 "400": {"$ref": "error400"},
+                "401": {"$ref": "error401"},
                 "500": {"$ref": "error500"},
                 "503": {"$ref": "error503"},
             },
@@ -278,7 +294,7 @@ PARAMETER_COMPONENTS = {
         "name": "traceparent",
         "in": "header",
         "description": "The `traceparent` request header represents the incoming request in a tracing system in a common format, understood by all vendors. For more context check [***trace-context***](https://w3c.github.io/trace-context/) documentation.",
-        "required": True,
+        "required": False,
         "schema": {
             "type": "string",
             "pattern": "^[0-9]{2}-[a-f0-9]{32}-[a-f0-9]{16}-[0-9]{2}",
@@ -289,7 +305,7 @@ PARAMETER_COMPONENTS = {
     "tracestate": {
         "name": "tracestate",
         "in": "header",
-        "required": True,
+        "required": False,
         "description": "The main purpose of the `tracestate` HTTP header is to provide additional vendor-specific trace identification information across different distributed tracing systems and is a companion header for the `traceparent` field. It also conveys information about the request's position in multiple distributed tracing graphs.\nFor more context check [***trace-context***](https://w3c.github.io/trace-context/) documentation.",
         "schema": {
             "type": "string",
@@ -474,17 +490,13 @@ COMMON_SCHEMAS = {
             "build": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
         },
     },
-    "health": {
+    "token": {
         "type": "object",
         "properties": {
-            "healthy": {"type": "boolean"},
-            "dependencies": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {"name": {"type": "string", "examples": ["Spinta"]}, "healthy": {"type": "boolean"}},
-                },
-            },
+            "access_token": {"type": "string", "description": "Access token to be used as a `Bearer` token."},
+            "token_type": {"type": "string", "examples": ["Bearer"]},
+            "expires_in": {"type": "integer", "description": "Token lifetime in seconds.", "examples": [864000]},
+            "scope": {"type": "string", "description": "Space separated list of granted scopes."},
         },
     },
     "UniqueConstraint": {
@@ -637,5 +649,25 @@ COMMON_SCHEMAS = {
             },
         },
         "additionalProperties": True,
+    },
+}
+
+#: `security` in path configs references `UAPI_auth`, which has to be declared
+#: in `components.securitySchemes`. Token URL comes from `--udts-cfg`.
+SECURITY_SCHEMES = {
+    "UAPI_auth": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 `client_credentials` grant. Scopes are named after the data being accessed.",
+        "flows": {
+            "clientCredentials": {
+                "tokenUrl": "",
+                "scopes": {},
+            }
+        },
+    },
+    "UAPI_client": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Client identifier and secret, used to get an access token.",
     },
 }

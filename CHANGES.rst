@@ -10,6 +10,32 @@ Changes
 
 Backwards incompatible:
 
+- Generated OpenAPI specifications changed, so that one file can be used both
+  for importing endpoints into an API gateway and for validating requests and
+  responses against it (`#2004`_):
+
+  - ``servers`` are no longer hardcoded to ``get.data.gov.lt``. For a data
+    service they are built from ``--udts-cfg``, one entry per environment, each
+    ending with the data service path, and ``paths`` are relative to that base.
+    Without a configuration file a single relative server URL is generated. Data
+    set level exports get no ``servers`` at all (`#1526`_).
+  - ``traceparent`` and ``tracestate`` headers are no longer ``required``.
+  - Properties that are not ``required`` now accept ``null``, including
+    ``_revision``, since Spinta returns ``null`` for every property that has no
+    value. Reference properties are wrapped into ``anyOf``.
+  - ``components.securitySchemes`` is now generated. Operations already
+    referenced the ``UAPI_auth`` scheme, which was never declared, making the
+    document invalid.
+  - ``/health`` is no longer generated, because Spinta API does not implement
+    it, and ``/version`` is generated as ``/:version`` next to the new
+    ``/:token``, matching how an API gateway routes agent level endpoints inside
+    a data service.
+  - Model schema names are unique within a data service: they keep the data set
+    path, for example ``at280_israsas_DalyvioAsmensIsrasas``. Tag and operation
+    tag names now follow schema names, so a whole manifest export tags
+    operations by the full model name instead of the model name alone. Data set
+    level exports are unchanged.
+
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and
   the backend was unused. The ``mongo`` backend type, its ``pymongo``
@@ -56,31 +82,27 @@ Improvements:
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
-- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
-  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
-  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
-  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
-  ``memory`` (enough available RAM). Only these flags are reported: since the
-  probe is not authenticated, paths, free space and errors are written to the
-  log instead of to the response. Available memory is measured against the
-  limit of the control group the process belongs to, falling back to the memory
-  of the host when it is not limited, so that a container is not reported as
-  healthy right before being killed for using up the memory it was given. Note
-  that an unhealthy service is reported in the body, not in the status code: the
-  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
-  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
-  container and load balancer probes, must therefore inspect ``healthy`` rather
-  than the status code. Thresholds are configurable via
-  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
-  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
-  routes, ``/health`` is matched before the catch-all route, so it shadows a
-  root level namespace or model named ``health``, if there is one (`#1873`_).
+- Added a new ``spinta udts`` command group for UDTS data service agent exports,
+  with its first command ``spinta udts oas``. It exports an OpenAPI
+  specification of one UDTS data service, covering all data sets under the
+  ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
+  (matched on segment boundary, so ``.../at280/1`` does not match
+  ``.../at280/10``). Without ``--path`` the only data service of the manifest is
+  used, or, if there are several, the command lists them and fails; ``--list``
+  lists the data services and their data sets. Environments, service level
+  ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,
+  an example of which is shipped as
+  ``spinta/manifests/open_api/udts_cfg.example.yml``. Output is written to
+  ``--output`` as YAML or JSON, chosen by file extension, or to standard output
+  (`#2004`_).
 
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
 .. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
+.. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
+.. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
 
 
 1.0.0 (2026-07-23)

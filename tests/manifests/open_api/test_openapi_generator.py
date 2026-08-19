@@ -1,10 +1,13 @@
 import pytest
 
+from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest
+from spinta.manifests.open_api.udts_config import UdtsConfig
 from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_REFS,
+    MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
 )
 
@@ -16,7 +19,7 @@ def test_basic_structure(open_manifest_path_factory, manifest_data):
     open_manifest_path = open_manifest_path_factory(manifest_data)
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
-    expected_keys = {"openapi", "info", "servers", "tags", "externalDocs", "paths", "components"}
+    expected_keys = {"openapi", "info", "tags", "externalDocs", "paths", "components"}
     actual_keys = set(open_api_spec.keys())
 
     missing_keys = expected_keys - actual_keys
@@ -62,8 +65,11 @@ def test_components_paths(open_manifest_path: ManifestPath):
 
     assert expected_paths.issubset(actual_paths), f"Missing paths: {expected_paths - actual_paths}"
 
-    assert "/version" in actual_paths
-    assert "/health" in actual_paths
+    # Agent level endpoints are given in action form, `/health` is not
+    # implemented by Spinta API, so it must not be declared.
+    assert "/:version" in actual_paths
+    assert "/:token" in actual_paths
+    assert "/health" not in actual_paths
 
 
 def test_model_path_contents(open_manifest_path: ManifestPath):
@@ -112,24 +118,18 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
             "description": "Test description",
         },
         "externalDocs": {"url": "https://ivpk.github.io/uapi"},
-        "servers": [
-            {
-                "description": "Data access server",
-                "url": "get.data.gov.lt",
-            }
-        ],
         "tags": [  # Utility is a default tag, others are generated from models. Should not be duplicated.
             {
                 "name": "utility",
                 "description": "Utility operations performed on the API itself",
             },
             {
-                "name": "Organization",
-                "description": "Operations with Organization",
+                "name": "datasets_demo_system_data_Organization",
+                "description": "Operations with datasets_demo_system_data_Organization",
             },
             {
-                "name": "ProcessingUnit",
-                "description": "Operations with ProcessingUnit",
+                "name": "datasets_demo_system_data_ProcessingUnit",
+                "description": "Operations with datasets_demo_system_data_ProcessingUnit",
             },
         ],
     }
@@ -141,7 +141,7 @@ def _validate_operation_id_contains(operation_id: str, path: str, *required_term
         assert term in operation_id, f"OperationId '{operation_id}' should contain '{term}' for {path}"
 
 
-def _validate_operation_structure(operation: dict, model_name: str, path: str, operation_type="GET"):
+def _validate_operation_structure(operation: dict, tag_name: str, path: str, operation_type="GET"):
     """Validate basic operation structure and return the operation data."""
 
     assert operation_type.lower() in operation, f"Missing {operation_type} operation in {path}"
@@ -149,7 +149,7 @@ def _validate_operation_structure(operation: dict, model_name: str, path: str, o
     op_data = operation[operation_type.lower()]
     assert "operationId" in op_data, f"Missing operationId in {operation_type} {path}"
     assert "responses" in op_data, f"Missing responses in {operation_type} {path}"
-    assert op_data["tags"] == [model_name], f"Unexpected operation tags {operation['tags']}"
+    assert op_data["tags"] == [tag_name], f"Unexpected operation tags {op_data['tags']}"
 
     return op_data
 
@@ -172,7 +172,7 @@ def _validate_get_response_schema(responses: dict, path: str, expected_ref: str)
     assert schema["$ref"] == expected_ref, f"Schema ref should be '{expected_ref}', got '{schema['$ref']}' for {path}"
 
 
-def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *additional_terms):
+def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, tag_name: str, *additional_terms):
     assert path in paths, f"Missing path: {path}"
 
     operations = paths[path]
@@ -182,7 +182,7 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
         if method == "parameters":
             continue
 
-        op_data = _validate_operation_structure(operations, model_name, path, method)
+        op_data = _validate_operation_structure(operations, tag_name, path, method)
         _validate_operation_id_contains(op_data["operationId"], path, model_name, *additional_terms)
 
         if method.lower() == "get":
@@ -193,23 +193,24 @@ def _test_collection_path_content(paths: dict, dataset_name: str, model_name: st
     api_path = f"/{dataset_name}/{model_name}"
     model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}Collection"
-    _test_api_path(paths, api_path, expected_ref, model_name)
+    _test_api_path(paths, api_path, expected_ref, model_name, model_schema_name)
 
 
 def _test_single_item_path_content(paths: dict, dataset_name: str, model_name: str):
     api_path = f"/{dataset_name}/{model_name}/{{id}}"
     model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}"
-    _test_api_path(paths, api_path, expected_ref, model_name)
+    _test_api_path(paths, api_path, expected_ref, model_name, model_schema_name)
 
 
 def _test_property_path_content(paths: dict, dataset_name: str, model_name: str, property_name: str):
     path = f"/{dataset_name}/{model_name}/{{id}}/{property_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
 
     assert path in paths, f"Missing property path: {path}"
 
     operations = paths[path]
-    op_data = _validate_operation_structure(operations, model_name, path)
+    op_data = _validate_operation_structure(operations, model_schema_name, path)
 
     _validate_operation_id_contains(op_data["operationId"], path, model_name, property_name)
 
@@ -238,9 +239,12 @@ def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
-    allowed_methods = [method.lower() for method in SUPPORTED_HTTP_METHODS]
+    allowed_methods = {method.lower() for method in SUPPORTED_HTTP_METHODS}
 
     for path, operations in paths.items():
+        if path == "/:token":
+            continue
+
         actual_methods = set(operations.keys())
 
         http_methods = {
@@ -370,10 +374,10 @@ def test_organization_schema_details(open_manifest_path: ManifestPath):
     org_schema = schemas[model_schema_name]
     properties = org_schema["properties"]
 
-    assert properties["org_name"]["type"] == "string"
-    assert properties["annual_revenue"]["type"] == "number"
-    assert properties["coordinates"]["type"] == "string"
-    assert properties["established_date"]["type"] == "string"
+    assert properties["org_name"]["type"] == ["string", "null"]
+    assert properties["annual_revenue"]["type"] == ["number", "null"]
+    assert properties["coordinates"]["type"] == ["string", "null"]
+    assert properties["established_date"]["type"] == ["string", "null"]
 
 
 def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
@@ -386,23 +390,23 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     pu_schema = schemas[model_schema_name]
     properties = pu_schema["properties"]
 
-    assert properties["unit_name"]["type"] == "string"
+    assert properties["unit_name"]["type"] == ["string", "null"]
 
-    assert properties["unit_type"]["type"] == "string"
+    assert properties["unit_type"]["type"] == ["string", "null"]
     assert "enum" in properties["unit_type"]
     expected_enum = ["FAC", "TRT", "OUT", "OTH"]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
 
-    assert properties["unit_version"]["type"] == "integer"
+    assert properties["unit_version"]["type"] == ["integer", "null"]
     assert "enum" in properties["unit_version"]
     assert set(properties["unit_version"]["enum"]) == {1, 2}
 
-    assert properties["unit_kind"]["type"] == "string"
+    assert properties["unit_kind"]["type"] == ["string", "null"]
     assert "enum" in properties["unit_kind"]
     assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
 
-    assert properties["efficiency_rate"]["type"] == "number"
-    assert properties["capacity"]["type"] == "integer"
+    assert properties["efficiency_rate"]["type"] == ["number", "null"]
+    assert properties["capacity"]["type"] == ["integer", "null"]
 
 
 def test_version_schema_structure(open_manifest_path: ManifestPath):
@@ -481,8 +485,15 @@ def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path
     territory_schema = schemas["Territory"]
     properties = territory_schema["properties"]
 
-    assert properties["city"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_Municipality"
-    assert properties["region"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
+    # Ref properties are not required, so they are wrapped to accept `null`.
+    assert properties["city"]["anyOf"] == [
+        {"$ref": "#/components/schemas/datasets_gov_vssa_demo_Municipality"},
+        {"type": "null"},
+    ]
+    assert properties["region"]["anyOf"] == [
+        {"$ref": "#/components/schemas/datasets_gov_vssa_demo_County"},
+        {"type": "null"},
+    ]
 
 
 def test_main_model_ref_properties_have_proper_examples(open_manifest_path_factory):
@@ -573,3 +584,164 @@ def test_api_version(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST)
     open_api_spec = create_openapi_manifest(open_manifest_path, api_version="2.1.8")
     assert open_api_spec["info"]["version"] == "2.1.8"
+
+
+SERVICE_PATH = "datasets/gov/rc/jadis/at280/1"
+
+
+def _service_spec(open_manifest_path_factory, service_path=SERVICE_PATH, config=None, **kwargs):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SERVICES)
+    return create_openapi_manifest(open_manifest_path, service_path=service_path, config=config, **kwargs)
+
+
+def test_service_includes_all_its_datasets(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert set(open_api_spec["paths"]) == {
+        "/:version",
+        "/:token",
+        "/at280_israsas/DalyvioAsmensIsrasas",
+        "/at280_israsas/DalyvioAsmensIsrasas/{id}",
+        "/at280_israsas/Adresas",
+        "/at280_israsas/Adresas/{id}",
+        "/at280_adresai/Adresas",
+        "/at280_adresai/Adresas/{id}",
+    }
+
+
+def test_service_filter_matches_on_segment_boundary(open_manifest_path_factory):
+    """`.../at280/1` must not match `.../at280/10`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert not [path for path in open_api_spec["paths"] if "at280_kitas" in path]
+
+    other = _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/jadis/at280/10")
+    assert set(other["paths"]) == {"/:version", "/:token", "/at280_kitas/Adresas", "/at280_kitas/Adresas/{id}"}
+
+
+def test_service_of_another_information_system_is_not_included(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert not [path for path in open_api_spec["paths"] if "n249" in path]
+
+
+def test_service_unknown_path_raises(open_manifest_path_factory):
+    with pytest.raises(DataServiceNotFound) as error:
+        _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/jadis/at280/2")
+
+    assert "datasets/gov/rc/jadis/at280/1" in str(error.value)
+
+
+def test_service_schema_names_are_unique_for_same_model_name(open_manifest_path_factory):
+    """Data sets of one service can hold models of the same name."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schemas = open_api_spec["components"]["schemas"]
+    assert "at280_israsas_Adresas" in schemas
+    assert "at280_adresai_Adresas" in schemas
+    assert "Adresas" not in schemas
+
+    tags = {tag["name"] for tag in open_api_spec["tags"]}
+    assert {"at280_israsas_Adresas", "at280_adresai_Adresas"}.issubset(tags)
+
+
+def test_service_ref_between_datasets_uses_full_schema(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schemas = open_api_spec["components"]["schemas"]
+    properties = schemas["at280_israsas_DalyvioAsmensIsrasas"]["properties"]
+    assert properties["adresas"]["anyOf"] == [
+        {"$ref": "#/components/schemas/at280_adresai_Adresas"},
+        {"type": "null"},
+    ]
+
+
+def test_service_ref_to_missing_dataset_does_not_break_generation(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/ntr/n249/1")
+
+    properties = open_api_spec["components"]["schemas"]["n249_israsas_Israsas"]["properties"]
+    assert "vieta" in properties
+
+
+def test_service_utility_paths(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    paths = open_api_spec["paths"]
+    assert "/health" not in paths
+    assert paths["/:version"]["get"]["operationId"] == "apiVersion"
+    assert paths["/:token"]["post"]["operationId"] == "apiToken"
+
+
+def test_service_security_schemes(open_manifest_path_factory):
+    config = UdtsConfig(auth={"token_url": "https://rc-agentas.lt/auth/token"})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    schemes = open_api_spec["components"]["securitySchemes"]
+    assert schemes["UAPI_auth"]["flows"]["clientCredentials"]["tokenUrl"] == "https://rc-agentas.lt/auth/token"
+    assert schemes["UAPI_client"]["scheme"] == "basic"
+
+
+def test_service_security_schemes_default_token_url(open_manifest_path_factory):
+    config = UdtsConfig(servers=[{"url": "https://get.data.gov.lt"}])
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    scheme = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]
+    assert scheme["flows"]["clientCredentials"]["tokenUrl"] == f"https://get.data.gov.lt/{SERVICE_PATH}/:token"
+
+
+def test_service_servers_from_config(open_manifest_path_factory):
+    config = UdtsConfig(
+        servers=[
+            {"url": "https://get.data.gov.lt", "description": "Production"},
+            {"url": f"https://test-get.data.gov.lt/{SERVICE_PATH}", "description": "Testing"},
+        ]
+    )
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert open_api_spec["servers"] == [
+        {"url": f"https://get.data.gov.lt/{SERVICE_PATH}", "description": "Production"},
+        {"url": f"https://test-get.data.gov.lt/{SERVICE_PATH}", "description": "Testing"},
+    ]
+
+
+def test_service_servers_without_config_are_relative(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert open_api_spec["servers"] == [{"url": f"/{SERVICE_PATH}"}]
+
+
+def test_service_info_from_config(open_manifest_path_factory):
+    config = UdtsConfig(info={"title": "JADIS", "summary": "Data service", "version": "1"})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    info = open_api_spec["info"]
+    assert info["title"] == "JADIS"
+    assert info["summary"] == "Data service"
+    assert info["version"] == "1"
+    # Not taken from any single data set of the service.
+    assert info["description"] != "Išrašo duomenys"
+
+
+def test_service_api_version_overrides_config(open_manifest_path_factory):
+    config = UdtsConfig(info={"version": "1"})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config, api_version="2.1.8")
+
+    assert open_api_spec["info"]["version"] == "2.1.8"
+
+
+def test_trace_headers_are_not_required(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    parameters = open_api_spec["components"]["parameters"]
+    assert parameters["traceparent"]["required"] is False
+    assert parameters["tracestate"]["required"] is False
+
+
+def test_revision_accepts_null(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
+    assert properties["_revision"]["type"] == ["string", "null"]
+    # Required properties keep their plain type.
+    assert properties["id"]["type"] == "string"
+    assert properties["gatve"]["type"] == ["string", "null"]

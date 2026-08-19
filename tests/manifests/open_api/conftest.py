@@ -96,6 +96,39 @@ id | d | r | b | m | property         | type     | ref                          
     """)
 
 
+#: One agent serving several information systems, as in the Registrų centras
+#: case: two data sets under one data service, models of the same name in both,
+#: an adjacent service version, a second information system and a `ref` to a
+#: data set that is not in the manifest.
+MANIFEST_WITH_SERVICES = striptable("""
+id | d | r | b | m | property   | type            | ref                                                 | level | access | title           | description
+   | datasets/gov/rc/jadis/at280/1/at280_israsas |  |                                                   |       |        | AT280 išrašas   | Išrašo duomenys
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | DalyvioAsmensIsrasas |           | kodas                                               |       |        |                 |
+   |   |   |   |   | kodas      | string required |                                                     | 4     | open   |                 |
+   |   |   |   |   | adresas    | ref             | datasets/gov/rc/jadis/at280/1/at280_adresai/Adresas | 4     | open   |                 |
+   |   |   |   | Adresas        |                 | kodas                                               |       |        |                 |
+   |   |   |   |   | kodas      | string required |                                                     | 4     | open   |                 |
+   |                            |                 |                                                     |       |        |                 |
+   | datasets/gov/rc/jadis/at280/1/at280_adresai |  |                                                   |       |        | AT280 adresai   | Adresų duomenys
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | Adresas        |                 | id                                                  |       |        |                 |
+   |   |   |   |   | id         | string required |                                                     | 4     | open   |                 |
+   |   |   |   |   | gatve      | string          |                                                     | 4     | open   |                 |
+   |                            |                 |                                                     |       |        |                 |
+   | datasets/gov/rc/jadis/at280/10/at280_kitas |   |                                                   |       |        | AT280 v10       |
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | Adresas        |                 | id                                                  |       |        |                 |
+   |   |   |   |   | id         | string required |                                                     | 4     | open   |                 |
+   |                            |                 |                                                     |       |        |                 |
+   | datasets/gov/rc/ntr/n249/1/n249_israsas |     |                                                     |       |        | N249 išrašas    |
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | Israsas        |                 | nr                                                  |       |        |                 |
+   |   |   |   |   | nr         | string required |                                                     | 4     | open   |                 |
+   |   |   |   |   | vieta      | ref             | datasets/gov/rc/ar/nesantis/Vieta                   | 4     | open   |                 |
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
@@ -141,3 +174,8 @@ def open_manifest_path_factory(tmp_path, rc):
 
     for file_handle in opened_files:
         file_handle.close()
+
+
+@pytest.fixture
+def manifest_with_services():
+    return MANIFEST_WITH_SERVICES
