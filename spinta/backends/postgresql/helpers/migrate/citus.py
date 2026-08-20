@@ -272,7 +272,7 @@ def invalidate_default_schema_distributions(
                 invalid_schemas.add(pg_ns_name)
                 invalid_schemas.add(get_pg_name(model.base.parent.external.dataset.name))
 
-            for prop in model.properties.values():
+            for prop in model.flatprops.values():
                 if not isinstance(prop.dtype, Ref):
                     continue
 
