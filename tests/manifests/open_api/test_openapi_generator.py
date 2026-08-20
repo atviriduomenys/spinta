@@ -849,3 +849,11 @@ def test_yaml_output_has_no_anchors(open_manifest_path_factory, tmp_path):
     assert "adresas2" in written
     assert "&id" not in written
     assert "*id" not in written
+
+
+def test_token_response_requires_rfc_6749_fields(open_manifest_path_factory):
+    """Without `required` the response validation would accept an empty body."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["schemas"]["token"]
+    assert schema["required"] == ["access_token", "token_type"]
