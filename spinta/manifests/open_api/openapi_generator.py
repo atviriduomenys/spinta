@@ -23,6 +23,7 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_MAPPING,
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
+    SCOPE_DESCRIPTION,
     SECURITY_SCHEMES,
     STANDARD_OBJECT_PROPERTIES,
     VERSION,
@@ -72,6 +73,18 @@ def _get_schema_name(model: Model) -> str:
     return model.name.replace("/", "_")
 
 
+def _requested_scopes(spec: dict[str, Any], scheme: str) -> set[str]:
+    """Collect scopes that operations request from a given security scheme."""
+    scopes = set()
+    for operations in spec.get("paths", {}).values():
+        for method, operation in operations.items():
+            if method == "parameters" or not isinstance(operation, dict):
+                continue
+            for requirement in operation.get("security", []):
+                scopes.update(requirement.get(scheme, []))
+    return scopes
+
+
 def _model_dataset_name(model: Model) -> str | None:
     if hasattr(model, "external") and hasattr(model.external, "dataset"):
         return model.external.dataset.name
@@ -116,6 +129,13 @@ def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
         schema["type"] = [dtype, "null"]
     elif isinstance(dtype, list) and "null" not in dtype:
         schema["type"] = [*dtype, "null"]
+
+    # `type` and `enum` are validated together, so a value has to be listed in
+    # both for `null` to be accepted.
+    enum = schema.get("enum")
+    if isinstance(enum, list) and None not in enum:
+        schema["enum"] = [*enum, None]
+
     return schema
 
 
@@ -313,7 +333,7 @@ class PathGenerator:
                 operation[spec_field] = method_config[spec_field]
 
         if "operationId" in method_config:
-            model_name = model.basename if model else None
+            model_name = self.namer.name(model) if model else None
             operation["operationId"] = self._build_operation_id(
                 method_config["operationId"], model_name=model_name, model_property=model_property
             )
@@ -880,9 +900,9 @@ class OpenAPIGenerator:
 
     def _add_security_schemes(self, spec: dict[str, Any]) -> None:
         schemes = copy.deepcopy(SECURITY_SCHEMES)
-        schemes["UAPI_auth"]["flows"]["clientCredentials"]["tokenUrl"] = self.config.resolve_token_url(
-            spec.get("servers", [])
-        )
+        flow = schemes["UAPI_auth"]["flows"]["clientCredentials"]
+        flow["tokenUrl"] = self.config.resolve_token_url(spec.get("servers", []))
+        flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in sorted(_requested_scopes(spec, "UAPI_auth"))}
         spec.setdefault("components", {})["securitySchemes"] = schemes
 
     def _set_tags(self, spec: dict[str, Any], models: dict):

@@ -392,18 +392,20 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
 
     assert properties["unit_name"]["type"] == ["string", "null"]
 
+    # Optional enum properties list `null` too, otherwise `enum` would reject a
+    # value that `type` allows.
     assert properties["unit_type"]["type"] == ["string", "null"]
     assert "enum" in properties["unit_type"]
-    expected_enum = ["FAC", "TRT", "OUT", "OTH"]
+    expected_enum = ["FAC", "TRT", "OUT", "OTH", None]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
 
     assert properties["unit_version"]["type"] == ["integer", "null"]
     assert "enum" in properties["unit_version"]
-    assert set(properties["unit_version"]["enum"]) == {1, 2}
+    assert set(properties["unit_version"]["enum"]) == {1, 2, None}
 
     assert properties["unit_kind"]["type"] == ["string", "null"]
     assert "enum" in properties["unit_kind"]
-    assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
+    assert set(properties["unit_kind"]["enum"]) == {"A", "B", None}
 
     assert properties["efficiency_rate"]["type"] == ["number", "null"]
     assert properties["capacity"]["type"] == ["integer", "null"]
@@ -745,3 +747,48 @@ def test_revision_accepts_null(open_manifest_path_factory):
     # Required properties keep their plain type.
     assert properties["id"]["type"] == "string"
     assert properties["gatve"]["type"] == ["string", "null"]
+
+
+def _operation_ids(open_api_spec: dict) -> list[str]:
+    return [
+        operation["operationId"]
+        for operations in open_api_spec["paths"].values()
+        for method, operation in operations.items()
+        if method != "parameters" and "operationId" in operation
+    ]
+
+
+def test_service_operation_ids_are_unique(open_manifest_path_factory):
+    """Same model name in two data sets must not produce the same operation id."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    operation_ids = _operation_ids(open_api_spec)
+    assert len(operation_ids) == len(set(operation_ids))
+    assert "getAllat280_israsas_Adresas" in operation_ids
+    assert "getAllat280_adresai_Adresas" in operation_ids
+
+
+def test_service_required_enum_property_is_not_nullable(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
+    assert properties["id"]["type"] == "string"
+    assert "enum" not in properties["id"]
+
+
+def test_service_requested_scopes_are_declared(open_manifest_path_factory):
+    """Every scope an operation requests has to be declared in the flow."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+    requested = {
+        scope
+        for operations in open_api_spec["paths"].values()
+        for method, operation in operations.items()
+        if method != "parameters" and isinstance(operation, dict)
+        for requirement in operation.get("security", [])
+        for scope in requirement.get("UAPI_auth", [])
+    }
+
+    assert requested
+    assert requested <= set(declared)
