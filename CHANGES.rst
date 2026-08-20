@@ -22,19 +22,22 @@ Backwards incompatible:
   - ``traceparent`` and ``tracestate`` headers are no longer ``required``.
   - Properties that are not ``required`` now accept ``null``, including
     ``_revision``, since Spinta returns ``null`` for every property that has no
-    value. Reference properties are wrapped into ``anyOf``.
-  - ``components.securitySchemes`` is now generated. Operations already
-    referenced the ``UAPI_auth`` scheme, which was never declared, making the
-    document invalid.
+    value. Reference properties are wrapped into ``anyOf`` and enum properties
+    list ``null`` among their values, because ``type`` and ``enum`` are
+    validated together.
+  - ``components.securitySchemes`` is now generated, together with the scopes
+    the operations request. Operations already referenced the ``UAPI_auth``
+    scheme, which was never declared, making the document invalid.
   - ``/health`` is no longer generated, because Spinta API does not implement
     it, and ``/version`` is generated as ``/:version`` next to the new
     ``/:token``, matching how an API gateway routes agent level endpoints inside
     a data service.
   - Model schema names are unique within a data service: they keep the data set
-    path, for example ``at280_israsas_DalyvioAsmensIsrasas``. Tag and operation
-    tag names now follow schema names, so a whole manifest export tags
-    operations by the full model name instead of the model name alone. Data set
-    level exports are unchanged.
+    path, for example ``at280_israsas_DalyvioAsmensIsrasas``. Tags and operation
+    ids follow schema names, so data sets of one service holding models of the
+    same name no longer produce colliding schemas, tags and operation ids. In a
+    whole manifest export tags and operation ids now use the full model name
+    instead of the model name alone; data set level exports are unchanged.
 
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and

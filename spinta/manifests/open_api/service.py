@@ -14,9 +14,14 @@ Specification: https://ivpk.github.io/uapi/draft/#section/Architecture/API-URL-s
 
 from __future__ import annotations
 
+import re
+
 from spinta.components import Model
 
 SERVICE_PATH_ROOT = "datasets"
+
+#: Service version is a single positive integer number.
+version_re = re.compile(r"^[1-9][0-9]*$")
 
 #: Number of segments in ``datasets/{form}/{org}/{is}/{service}``.
 SERVICE_PATH_SEGMENTS = 5
@@ -29,7 +34,7 @@ def _is_version_segment(segment: str) -> bool:
     version of the service." The version segment is optional, in which case the
     latest service version is used.
     """
-    return segment.isdigit()
+    return version_re.match(segment) is not None
 
 
 def service_path_of(dataset_name: str) -> str | None:
