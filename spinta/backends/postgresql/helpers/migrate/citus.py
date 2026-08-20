@@ -22,9 +22,8 @@ from spinta.backends.postgresql.helpers.migrate.actions import (
     UndistributeTable,
 )
 from spinta.cli.helpers.message import cli_message
-from spinta.components import Base, Context, Model
+from spinta.components import Context, Model
 from spinta.exceptions import NotImplementedFeature
-from spinta.types.datatype import Ref
 
 
 @dataclasses.dataclass
