@@ -652,8 +652,11 @@ COMMON_SCHEMAS = {
     },
 }
 
+SCOPE_DESCRIPTION = "Access to the data of this data service."
+
 #: `security` in path configs references `UAPI_auth`, which has to be declared
-#: in `components.securitySchemes`. Token URL comes from `--udts-cfg`.
+#: in `components.securitySchemes`. Token URL comes from `--udts-cfg`, scopes
+#: are collected from the operations that request them.
 SECURITY_SCHEMES = {
     "UAPI_auth": {
         "type": "oauth2",

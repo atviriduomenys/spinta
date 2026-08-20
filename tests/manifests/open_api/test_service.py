@@ -22,6 +22,8 @@ SERVICE = "datasets/gov/rc/jadis/at280/1"
         # Version segment is optional.
         ("datasets/gov/vssa/smarty/udts_sm_test/pim", "datasets/gov/vssa/smarty/udts_sm_test"),
         ("datasets/gov/rc/jadis/at280/1/at280_israsas/sub", "datasets/gov/rc/jadis/at280/1"),
+        # Version is a positive integer, so `0` is a data set name.
+        ("datasets/gov/rc/jadis/at280/0/israsas", "datasets/gov/rc/jadis/at280"),
         # Data set sitting at the data service level itself.
         ("datasets/gov/rc/jadis/at280/1", "datasets/gov/rc/jadis/at280/1"),
         ("datasets/gov/rc/jadis/at280", "datasets/gov/rc/jadis/at280"),
@@ -43,6 +45,9 @@ def test_service_path_of(dataset_name, expected):
         ("datasets/gov/rc/jadis", False),
         # Version segment is a plain number, `v1` is not a version.
         ("datasets/gov/rc/jadis/at280/v1", False),
+        # Version is a positive integer, `0` and non ASCII digits are not.
+        ("datasets/gov/rc/jadis/at280/0", False),
+        ("datasets/gov/rc/jadis/at280/²", False),
     ],
 )
 def test_is_service_level_path(path, expected):
