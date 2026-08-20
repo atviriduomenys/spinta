@@ -210,7 +210,7 @@ class DataTypeHandler:
             ref_schema_name = self.namer.name(dtype.model)
             example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
-                example = ref_schema["example"]
+                example = copy.deepcopy(ref_schema["example"])
             return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
 
         if self.is_array_type(dtype):
@@ -238,14 +238,14 @@ class DataTypeHandler:
         if self.is_reference_type(dtype):
             ref_schema_name = self.namer.name(dtype.model)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
-                return ref_schema["example"]
+                return copy.deepcopy(ref_schema["example"])
             return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
 
         if self.is_array_type(dtype):
             return [self.get_example_value(dtype.items, schemas=schemas)]
 
         dtype_name = self.get_dtype_name(dtype)
-        return self.schema_registry.example_values.values.get(dtype_name, "Example value")
+        return copy.deepcopy(self.schema_registry.example_values.values.get(dtype_name, "Example value"))
 
 
 class PathGenerator:
@@ -730,7 +730,7 @@ class SchemaGenerator:
                     ref_level,
                 )
                 ref_schema = schemas.get(schema_name)
-                example = ref_schema.get("example") if ref_schema else None
+                example = copy.deepcopy(ref_schema.get("example")) if ref_schema else None
                 if example is None:
                     example = {
                         "_type": inner_dtype.model.basename,

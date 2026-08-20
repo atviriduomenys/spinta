@@ -25,6 +25,7 @@ PROPERTY_EXAMPLE = {
     "text": "Example text content",
     "binary": "base64encodeddata==",
     "file": {"_name": "example.pdf", "_content_type": "application/pdf", "_size": 1024},
+    "object": {},
     "geometry": "POINT (6088198 505579)",
     "money": 99.99,
 }
@@ -48,6 +49,7 @@ PROPERTY_MAPPING = {
     "file": {"type": "string", "format": "binary"},
     "geometry": {"type": "string", "description": "Geometry data in WKT format"},
     "money": {"type": "number"},
+    "object": {"type": "object"},
 }
 
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
@@ -212,7 +214,7 @@ PATHS_CONFIG = {
                     "headers": COMMON_RESPONSE_HEADERS,
                     "content": {
                         "application/json": {
-                            "schema": "oneOf[absent,boolean,integer,number,binary,string,text,datetime,date,time,temporal,geometry,money,file,ref,backref,array,url,uri,object]"
+                            "schema": "oneOf[absent,boolean,integer,number,binary,string,text,datetime,date,time,temporal,geometry,money,file,image,ref,backref,array,url,uri,object]"
                         }
                     },
                 },
@@ -497,6 +499,17 @@ COMMON_SCHEMAS = {
             "token_type": {"type": "string", "examples": ["Bearer"]},
             "expires_in": {"type": "integer", "description": "Token lifetime in seconds.", "examples": [864000]},
             "scope": {"type": "string", "description": "Space separated list of granted scopes."},
+        },
+    },
+    "image": {
+        "type": "object",
+        "properties": {
+            "_name": {"type": "string", "description": "Image file name"},
+            "_content_type": {
+                "type": "string",
+                "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the image.",
+            },
+            "_size": {"type": "integer", "description": "Image size in bytes."},
         },
     },
     "UniqueConstraint": {

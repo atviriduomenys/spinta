@@ -12,6 +12,7 @@ from spinta.cli.helpers.message import cli_error, cli_message
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
+from spinta.exceptions import InvalidUdtsConfig
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
 from spinta.manifests.open_api.service import datasets_under_service, find_services, is_service_level_path
 from spinta.manifests.open_api.udts_config import UdtsConfig
@@ -52,7 +53,10 @@ def oas(
 
     service_path = _resolve_service_path(path, services, dataset_names)
 
-    config = UdtsConfig.from_path(udts_cfg) if udts_cfg else UdtsConfig()
+    try:
+        config = UdtsConfig.from_path(udts_cfg) if udts_cfg else UdtsConfig()
+    except InvalidUdtsConfig as error:
+        cli_error(str(error))
     if udts_cfg and not config.auth.get("token_url"):
         cli_message(f"{udts_cfg}: no `auth.token_url` given, deriving it from the first server URL.")
 

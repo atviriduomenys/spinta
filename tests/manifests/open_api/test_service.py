@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 
+from spinta.exceptions import InvalidUdtsConfig
 from spinta.manifests.open_api import udts_config
 from spinta.manifests.open_api.service import (
     datasets_under_service,
@@ -131,3 +132,34 @@ def test_example_config_file_is_valid():
     assert config.info["title"]
     assert config.resolve_servers(SERVICE)[0]["url"].endswith(SERVICE)
     assert config.resolve_token_url(config.resolve_servers(SERVICE))
+
+
+@pytest.mark.parametrize(
+    "config, error",
+    [
+        ("info: something\n", "`info` must be a mapping"),
+        ("auth: something\n", "`auth` must be a mapping"),
+        ("servers: something\n", "`servers` must be a list"),
+        ("servers:\n  - https://get.data.gov.lt\n", "every `servers` entry must be a mapping"),
+        ("servers:\n  - description: Production\n", "has no `url`"),
+        # An URL without a scheme would silently lose the data service path.
+        ("servers:\n  - url: get.data.gov.lt\n", "has no scheme"),
+    ],
+)
+def test_config_rejects_malformed_values(tmp_path, config, error):
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig) as raised:
+        UdtsConfig.from_path(path)
+
+    assert error in str(raised.value)
+
+
+def test_config_accepts_relative_server_url(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text(f"servers:\n  - url: /{SERVICE}\n", encoding="utf-8")
+
+    config = UdtsConfig.from_path(path)
+
+    assert config.resolve_servers(SERVICE) == [{"url": f"/{SERVICE}"}]

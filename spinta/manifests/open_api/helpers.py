@@ -391,12 +391,14 @@ def write_openapi_manifest(spec: dict, output: str | None = None) -> None:
         return
 
     path = Path(output)
+    # Specification holds non ASCII text, so the encoding can not be left to the
+    # platform default.
     if path.suffix in (".yml", ".yaml"):
         yaml = YAML()
         yaml.default_flow_style = False
-        with path.open("w") as file:
+        with path.open("w", encoding="utf-8") as file:
             yaml.dump(spec, file)
     else:
-        with path.open("w") as file:
+        with path.open("w", encoding="utf-8") as file:
             json.dump(spec, file, indent=2, ensure_ascii=False)
             file.write("\n")
