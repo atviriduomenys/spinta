@@ -126,6 +126,9 @@ id | d | r | b | m | property   | type            | ref                         
    |   |   |   | Israsas        |                 | nr                                                  |       |        |                 |
    |   |   |   |   | nr         | string required |                                                     | 4     | open   |                 |
    |   |   |   |   | vieta      | ref             | datasets/gov/rc/ar/nesantis/Vieta                   | 4     | open   |                 |
+   |   |   |   |   | adresas    | ref             | datasets/gov/rc/jadis/at280/1/at280_adresai/Adresas | 4     | open   |                 |
+   |   |   |   |   | adresas2   | ref             | datasets/gov/rc/jadis/at280/1/at280_adresai/Adresas | 4     | open   |                 |
+   |   |   |   |   | zemelapis  | image           |                                                     | 4     | open   |                 |
 """)
 
 

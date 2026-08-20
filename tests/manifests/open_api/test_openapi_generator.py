@@ -2,7 +2,7 @@ import pytest
 
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
-from spinta.manifests.open_api.helpers import create_openapi_manifest
+from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from tests.manifests.open_api.conftest import (
     MANIFEST,
@@ -792,3 +792,60 @@ def test_service_requested_scopes_are_declared(open_manifest_path_factory):
 
     assert requested
     assert requested <= set(declared)
+
+
+OTHER_SERVICE_PATH = "datasets/gov/rc/ntr/n249/1"
+
+
+def _schema_refs(open_api_spec: dict) -> set[str]:
+    refs = set()
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "$ref" and isinstance(value, str):
+                    refs.add(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(open_api_spec)
+    return refs
+
+
+def test_every_schema_ref_resolves(open_manifest_path_factory):
+    """A dangling `$ref` makes the whole document invalid."""
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
+
+    declared = set(open_api_spec["components"]["schemas"])
+    used = {ref for ref in _schema_refs(open_api_spec) if ref.startswith("#/components/schemas/")}
+
+    assert used
+    assert {ref for ref in used if ref.rsplit("/", 1)[1] not in declared} == set()
+
+
+def test_ref_to_missing_dataset_is_an_object(open_manifest_path_factory):
+    """Such a `ref` is downgraded to an object, so it must not be typed a string."""
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
+
+    properties = open_api_spec["components"]["schemas"]["n249_israsas_Israsas"]["properties"]
+    assert properties["vieta"]["type"] == ["object", "null"]
+
+
+def test_yaml_output_has_no_anchors(open_manifest_path_factory, tmp_path):
+    """Shared objects would be written as anchors and aliases.
+
+    Two properties referencing one model outside the exported service is the
+    case where the same example object used to be reused.
+    """
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
+
+    output = tmp_path / "spec.yaml"
+    write_openapi_manifest(open_api_spec, str(output))
+    written = output.read_text(encoding="utf-8")
+
+    assert "adresas2" in written
+    assert "&id" not in written
+    assert "*id" not in written
