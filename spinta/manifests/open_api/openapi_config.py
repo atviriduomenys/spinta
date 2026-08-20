@@ -494,6 +494,9 @@ COMMON_SCHEMAS = {
     },
     "token": {
         "type": "object",
+        # `access_token` and `token_type` are required by RFC 6749, so a
+        # response without them is not a successful token response.
+        "required": ["access_token", "token_type"],
         "properties": {
             "access_token": {"type": "string", "description": "Access token to be used as a `Bearer` token."},
             "token_type": {"type": "string", "examples": ["Bearer"]},
