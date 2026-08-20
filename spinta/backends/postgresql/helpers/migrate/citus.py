@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import sqlalchemy as sa
 from multipledispatch import dispatch
+from sqlalchemy import ForeignKey
 from tqdm import tqdm
 
 from spinta import commands
@@ -192,38 +193,7 @@ def invalidate_default_distribution(
             return plan
 
 
-def valid_schema_distribution_base(model: Model, base: Base) -> bool:
-    if not commands.identifiable(base):
-        return True
-
-    base_parent = base.parent
-    if base_parent.external.dataset == model.external.dataset:
-        return True
-
-    if (
-        base_parent.distribution_strategy
-        and base_parent.distribution_strategy.distribution_type is DistributionType.COPY
-    ):
-        return True
-
-    return False
-
-
-def valid_schema_distribution_reference(model: Model, ref: Ref) -> bool:
-    if not commands.identifiable(ref.prop):
-        return True
-
-    ref_model = ref.model
-    if ref_model.external.dataset == model.external.dataset:
-        return True
-
-    if ref_model.distribution_strategy and ref_model.distribution_strategy.distribution_type is DistributionType.COPY:
-        return True
-
-    return False
-
-
-def valid_schema_distribution_foreign_key(plan: ShardingPlan, schema: str, foreign_key: dict) -> bool:
+def valid_schema_distribution_foreign_key_inspect(plan: ShardingPlan, schema: str, foreign_key: dict) -> bool:
     if foreign_key["referred_schema"] == schema:
         return True
 
@@ -232,6 +202,18 @@ def valid_schema_distribution_foreign_key(plan: ShardingPlan, schema: str, forei
             reference.pg_schema_name == foreign_key["referred_schema"]
             and reference.pg_table_name == foreign_key["referred_table"]
         ):
+            return True
+
+    return False
+
+
+def valid_schema_distribution_foreign_key_orm(plan: ShardingPlan, schema: str, foreign_key: ForeignKey) -> bool:
+    referred_table = foreign_key.column.table
+    if referred_table.schema == schema:
+        return True
+
+    for reference in plan.references:
+        if reference.pg_schema_name == referred_table.schema and reference.pg_table_name == referred_table.name:
             return True
 
     return False
@@ -268,17 +250,14 @@ def invalidate_default_schema_distributions(
             continue
 
         for model in namespace.models.values():
-            if model.base and not valid_schema_distribution_base(model, model.base):
-                invalid_schemas.add(pg_ns_name)
-                invalid_schemas.add(get_pg_name(model.base.parent.external.dataset.name))
+            table = backend.get_table(model)
+            if not table.foreign_keys:
+                continue
 
-            for prop in model.flatprops.values():
-                if not isinstance(prop.dtype, Ref):
-                    continue
-
-                if not valid_schema_distribution_reference(model, prop.dtype):
-                    invalid_schemas.add(pg_ns_name)
-                    invalid_schemas.add(get_pg_name(prop.dtype.model.external.dataset.name))
+            for key in table.foreign_keys:
+                if not valid_schema_distribution_foreign_key_orm(plan, table.schema, key):
+                    invalid_schemas.add(key.column.table.schema)
+                    invalid_schemas.add(table.schema)
 
     for schema in plan.schemas:
         tables = inspector.get_table_names(schema=schema)
@@ -289,7 +268,7 @@ def invalidate_default_schema_distributions(
                 continue
 
             for key in foreign_keys:
-                if not valid_schema_distribution_foreign_key(plan, schema, key):
+                if not valid_schema_distribution_foreign_key_inspect(plan, schema, key):
                     invalid_schemas.add(key["referred_schema"])
                     invalid_schemas.add(schema)
 
