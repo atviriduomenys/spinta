@@ -20,6 +20,8 @@ from urllib.parse import urlsplit, urlunsplit
 
 from ruamel.yaml import YAML
 
+from spinta.exceptions import InvalidUdtsConfig
+
 yaml = YAML(typ="safe")
 
 KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs"])
@@ -41,17 +43,27 @@ class UdtsConfig:
     @classmethod
     def from_path(cls, path: pathlib.Path | str) -> UdtsConfig:
         path = pathlib.Path(path)
-        data = yaml.load(path.read_text()) or {}
+        data = yaml.load(path.read_text(encoding="utf-8")) or {}
 
         if not isinstance(data, dict):
-            raise ValueError(f"{path}: UDTS configuration must be a mapping.")
+            raise InvalidUdtsConfig(path=str(path), error="configuration must be a mapping.")
 
         for key in sorted(set(data) - KNOWN_KEYS):
             warnings.warn(f"{path}: unknown UDTS configuration key {key!r}, ignoring it.", UserWarning)
 
+        for key in ("info", "auth", "externalDocs"):
+            if key in data and data[key] is not None and not isinstance(data[key], dict):
+                raise InvalidUdtsConfig(path=str(path), error=f"`{key}` must be a mapping.")
+
+        servers = data.get("servers") or []
+        if not isinstance(servers, list):
+            raise InvalidUdtsConfig(path=str(path), error="`servers` must be a list.")
+        for server in servers:
+            _check_server(server, path)
+
         return cls(
             info=data.get("info") or {},
-            servers=data.get("servers") or [],
+            servers=servers,
             auth=data.get("auth") or {},
             external_docs=data.get("externalDocs") or {},
         )
@@ -87,6 +99,27 @@ class UdtsConfig:
 
         base = servers[0].get("url", "") if servers else ""
         return f"{base}{TOKEN_PATH}"
+
+
+def _check_server(server: Any, path: pathlib.Path) -> None:
+    if not isinstance(server, dict):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"every `servers` entry must be a mapping with an `url`, got {server!r}.",
+        )
+
+    url = server.get("url")
+    if not isinstance(url, str) or not url:
+        raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
+
+    # An URL without a scheme has no host to speak of and `urlsplit` reads it as
+    # a path, which would silently drop the data service path. A relative URL is
+    # allowed by OpenAPI, but it has to start with a slash.
+    if not urlsplit(url).scheme and not url.startswith("/"):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"server URL {url!r} has no scheme, use `https://{url}` or a path starting with `/`.",
+        )
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
