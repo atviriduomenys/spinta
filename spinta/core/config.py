@@ -199,7 +199,7 @@ class RawConfig:
     # ConfigSource name for source that will be used to anchor user-specified sources
     anchor: str | None = None
 
-    def __init__(self, sources: ConfigSource | None = None):
+    def __init__(self, sources: list[ConfigSource] | None = None):
         self._locked = False
         self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
@@ -237,7 +237,8 @@ class RawConfig:
             pos = (i for i, s in enumerate(self.sources) if s.name == target)
             pos = next(pos, None)
             if pos is None:
-                raise Exception(f"Given after value {target!r} does not exist.")
+                argument = "after" if after else "before"
+                raise Exception(f"Given {argument} value {target!r} does not exist.")
             pos += 0 if before else 1
             self.sources[pos:pos] = sources
         else:
@@ -245,9 +246,16 @@ class RawConfig:
 
         self._keys = self._update_keys()
 
+        env, _ = self._get_config_value(("env",), default=None)
         for config in sources:
-            nested_configs = config.get(("config",)) or []
-            nested_configs = self._cast_value(nested_configs, list, [])
+            env_configs = []
+            if env:
+                env_configs = config.get(("config", env)) or []
+                env_configs = self._cast_value(env_configs, list, [])
+            global_configs = config.get(("config",)) or []
+            global_configs = self._cast_value(global_configs, list, [])
+
+            nested_configs = env_configs + global_configs
             if not nested_configs:
                 continue
             self.read(
