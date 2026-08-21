@@ -50,8 +50,12 @@ from spinta.exceptions import (
     error_response,
 )
 from spinta.formats.html.helpers import get_templates
-from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware, StrictTransportSecurityMiddleware, \
-    DebugAwareGZipMiddleware
+from spinta.middlewares import (
+    ContextMiddleware,
+    DebugAwareGZipMiddleware,
+    PathNormalizationMiddleware,
+    StrictTransportSecurityMiddleware,
+)
 from spinta.urlparams import Version, get_response_type
 
 log = logging.getLogger(__name__)

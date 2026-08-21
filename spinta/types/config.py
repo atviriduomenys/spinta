@@ -9,8 +9,8 @@ from spinta.adapters.soap_plugins import register_soap_ufuncs
 from spinta.auth import client_name_exists, get_clients_path
 from spinta.backends.components import DistributionStrategy
 from spinta.backends.constants import DistributionType
-from spinta.commands import load, check
-from spinta.components import Context, Config
+from spinta.commands import check, load
+from spinta.components import Config, Context
 from spinta.core.config import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 from spinta.core.enums import Access
 from spinta.core.ufuncs import ufunc
