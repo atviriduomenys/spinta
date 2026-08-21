@@ -1117,5 +1117,5 @@ def test_rdf_gzip(
     result = app.get("/example/rdf/gzip/Country/:format/rdf", headers={"Accept-Encoding": accept_encoding})
     assert result.status_code == 200
     assert result.headers.get("Content-Encoding", None) == content_encoding
-    assert result.headers["Vary"] == "Accept-Encoding"
+    assert result.headers["Vary"] == "Accept, Accept-Language, Authorization, Accept-Encoding"
     assert "application/rdf+xml" in result.headers["Content-Type"]

@@ -652,5 +652,5 @@ def test_csv_gzip(
     result = app.get("/example/csv/gzip/Country/:format/csv", headers={"Accept-Encoding": accept_encoding})
     assert result.status_code == 200
     assert result.headers.get("Content-Encoding", None) == content_encoding
-    assert result.headers["Vary"] == "Accept-Encoding"
+    assert result.headers["Vary"] == "Accept, Accept-Language, Authorization, Accept-Encoding"
     assert "text/csv" in result.headers["Content-Type"]
