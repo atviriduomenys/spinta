@@ -161,6 +161,29 @@ id | d | r | b | m | property | type            | ref | level | access
 """)
 
 
+#: Two data sets outside the exported service, whose paths map to one schema
+#: name, referenced from a model of the service.
+MANIFEST_WITH_COLLIDING_EXTERNAL_REFS = striptable("""
+id | d | r | b | m | property | type            | ref                           | level | access
+   | datasets/gov/rc/x/ext/1/a_b |            |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | C            |                 | p                             |       |
+   |   |   |   |   | p        | string required |                               | 4     | open
+   |                          |                 |                               |       |
+   | datasets/gov/rc/x/ext/1/a/b |            |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | C            |                 | q                             |       |
+   |   |   |   |   | q        | string required |                               | 4     | open
+   |                          |                 |                               |       |
+   | datasets/gov/rc/jadis/at280/1/ds |        |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | Israsas      |                 | nr                            |       |
+   |   |   |   |   | nr       | string required |                               | 4     | open
+   |   |   |   |   | first    | ref             | datasets/gov/rc/x/ext/1/a_b/C | 4     | open
+   |   |   |   |   | second   | ref             | datasets/gov/rc/x/ext/1/a/b/C | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST

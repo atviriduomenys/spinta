@@ -13,7 +13,11 @@ from typer import echo
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import NotImplementedFeature
 from spinta.manifests.components import Manifest, ManifestPath
-from spinta.manifests.open_api.openapi_generator import DEFAULT_SCOPE_MAX_LENGTH, OpenAPIGenerator
+from spinta.manifests.open_api.openapi_generator import (
+    DEFAULT_SCOPE_MAX_LENGTH,
+    DEFAULT_SCOPE_PREFIX,
+    OpenAPIGenerator,
+)
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 
@@ -362,6 +366,7 @@ def create_openapi_manifest(
     api_version: str | None = None,
     service_path: str | None = None,
     config: UdtsConfig | None = None,
+    scope_prefix: str = DEFAULT_SCOPE_PREFIX,
     scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
 ) -> dict:
     """Create OpenAPI specification from manifest data.
@@ -378,6 +383,7 @@ def create_openapi_manifest(
         api_version=api_version,
         service_path=service_path,
         config=config,
+        scope_prefix=scope_prefix,
         scope_max_length=scope_max_length,
     )
     return generator.generate_spec(manifest)
