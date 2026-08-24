@@ -19,6 +19,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from spinta.exceptions import InvalidUdtsConfig
 
@@ -43,7 +44,12 @@ class UdtsConfig:
     @classmethod
     def from_path(cls, path: pathlib.Path | str) -> UdtsConfig:
         path = pathlib.Path(path)
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}
+        try:
+            data = yaml.load(path.read_text(encoding="utf-8")) or {}
+        except OSError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"can not be read, {error.strerror or error}.")
+        except YAMLError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {error}.")
 
         if not isinstance(data, dict):
             raise InvalidUdtsConfig(path=str(path), error="configuration must be a mapping.")

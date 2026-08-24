@@ -25,6 +25,7 @@ PROPERTY_EXAMPLE = {
     "text": "Example text content",
     "binary": "base64encodeddata==",
     "file": {"_name": "example.pdf", "_content_type": "application/pdf", "_size": 1024},
+    "image": {"_name": "example.png", "_content_type": "image/png", "_size": 2048},
     "object": {},
     "geometry": "POINT (6088198 505579)",
     "money": 99.99,
@@ -46,7 +47,10 @@ PROPERTY_MAPPING = {
     "time": {"type": "string", "format": "time"},
     "text": {"type": "string"},
     "binary": {"type": "string", "format": "binary"},
-    "file": {"type": "string", "format": "binary"},
+    # In a model response a file is an object, its content is served by the
+    # property endpoint.
+    "file": {"$ref": "#/components/schemas/file"},
+    "image": {"$ref": "#/components/schemas/image"},
     "geometry": {"type": "string", "description": "Geometry data in WKT format"},
     "money": {"type": "number"},
     "object": {"type": "object"},
