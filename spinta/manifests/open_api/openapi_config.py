@@ -134,7 +134,7 @@ PATHS_CONFIG = {
             },
         },
         "get": {
-            "security": [{"UAPI_auth": ["uapi:/"]}],
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get multiple objects.",
             "description": "Return list of objects for a given model.\n",
             "operationId": "getAll",
@@ -170,7 +170,7 @@ PATHS_CONFIG = {
             "responses": {"200": {"description": "OK"}, "400": {"$ref": "error400"}},
         },
         "get": {
-            "security": [{"UAPI_auth": ["uapi:/"]}],
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get a single object by given {id}.",
             "description": "Retrieve a single specific object based on it's unique object identifier {id}\n",
             "operationId": "getOne",
@@ -208,7 +208,7 @@ PATHS_CONFIG = {
             },
         },
         "get": {
-            "security": [{"UAPI_auth": ["uapi:/"]}],
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "For a given specific object by {id}, retrieve a {property} from it's structure (subresource).",
             "description": "Retrieve a specific property from an object structure.\n\nBy default when retrieving object you recive all data items from it's structure, using this service you retrieve a specific property from it's structure.\n\nIf provided {property} is a file instead of getting the data, file is provided instead as binary bit stream.\n",
             "operationId": "getProperty",
@@ -670,6 +670,21 @@ COMMON_SCHEMAS = {
         },
         "additionalProperties": True,
     },
+}
+
+#: Prefix of UDTS format scopes, `scope_prefix_udts` in Spinta configuration.
+SCOPE_PREFIX = "uapi:/"
+
+#: Scope template of UDTS format, see `spinta.auth.get_scope_name`.
+SCOPE_TEMPLATE = "{prefix}{name}/:{action}"
+
+#: Action each read operation authorizes against, see `spinta.urlparams.get_action`.
+#: A collection is read with `getall`, or with `search` when the request narrows
+#: it down with query parameters.
+PATH_TYPE_ACTIONS = {
+    "collection": ("getall", "search"),
+    "single": ("getone",),
+    "property": ("getone",),
 }
 
 SCOPE_DESCRIPTION = "Access to the data of this data service."

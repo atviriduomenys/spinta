@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Model
+from spinta.config import CONFIG
 from spinta.core.context import configure_context, create_context
 from spinta.core.enums import Level
 from spinta.dimensions.enum.components import EnumItem
@@ -18,12 +19,15 @@ from spinta.manifests.open_api.openapi_config import (
     HEADER_COMPONENTS,
     INFO,
     PARAMETER_COMPONENTS,
+    PATH_TYPE_ACTIONS,
     PATHS_CONFIG,
     PROPERTY_EXAMPLE,
     PROPERTY_MAPPING,
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
     SCOPE_DESCRIPTION,
+    SCOPE_PREFIX,
+    SCOPE_TEMPLATE,
     SECURITY_SCHEMES,
     STANDARD_OBJECT_PROPERTIES,
     VERSION,
@@ -37,12 +41,18 @@ from spinta.manifests.open_api.service import (
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NA
+from spinta.utils.scopes import name_to_scope
+
+AUTH_SCHEME = "UAPI_auth"
 
 #: Agent level endpoints, given in action form, because an API gateway exposes
 #: each data service under its own context path and routes these separately.
 UTILITY_PATHS = ["/:version", "/:token"]
 
 GLOBAL_ID_LEVEL_THRESHOLD = 4
+
+#: Used when the generator is called without a loaded Spinta configuration.
+DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 
 EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
 EXAMPLE_UUID_OBJECT_ID = "abdd1245-bbf9-4085-9366-f11c0f737c1d"
@@ -278,9 +288,10 @@ class DataTypeHandler:
 class PathGenerator:
     """Handles OpenAPI path generation and operations"""
 
-    def __init__(self, dtype_handler: DataTypeHandler, namer: SchemaNamer):
+    def __init__(self, dtype_handler: DataTypeHandler, namer: SchemaNamer, scope_max_length: int):
         self.dtype_handler = dtype_handler
         self.namer = namer
+        self.scope_max_length = scope_max_length
 
     def should_create_property_endpoint(self, model_property) -> bool:
         """Determine if a property should have its own endpoint"""
@@ -350,7 +361,7 @@ class PathGenerator:
             operation["tags"] = method_config["tags"]
 
         if "security" in method_config:
-            operation["security"] = copy.deepcopy(method_config["security"])
+            operation["security"] = self._build_security(method_config["security"], model, path_type, model_property)
 
         if "requestBody" in method_config:
             operation["requestBody"] = copy.deepcopy(method_config["requestBody"])
@@ -373,6 +384,48 @@ class PathGenerator:
         )
 
         return operation
+
+    def _build_security(
+        self,
+        security: list[dict],
+        model: Model | None,
+        path_type: str | None,
+        model_property: tuple | None,
+    ) -> list[dict]:
+        """Fill in the scopes a model operation authorizes against.
+
+        Each accepted action is given as a separate security requirement,
+        because a token carrying any one of them is enough.
+        """
+        if model is None or path_type not in PATH_TYPE_ACTIONS:
+            return copy.deepcopy(security)
+
+        requirements = []
+        for requirement in security:
+            if AUTH_SCHEME not in requirement:
+                requirements.append(copy.deepcopy(requirement))
+                continue
+            requirements.extend(
+                {AUTH_SCHEME: [scope]} for scope in self._model_scopes(model, path_type, model_property)
+            )
+        return requirements
+
+    def _model_scopes(self, model: Model, path_type: str, model_property: tuple | None) -> list[str]:
+        if path_type == "property" and model_property:
+            name = f"{model.model_type()}/@{getattr(model_property[1], 'place', model_property[0])}"
+        else:
+            name = model.model_type()
+
+        return [
+            name_to_scope(
+                SCOPE_TEMPLATE,
+                name,
+                maxlen=self.scope_max_length,
+                params={"prefix": SCOPE_PREFIX, "action": action},
+                is_udts=True,
+            )
+            for action in PATH_TYPE_ACTIONS[path_type]
+        ]
 
     def _build_operation_id(self, base_id: str, model_name: str = None, model_property: tuple | None = None) -> str:
         """Build operation ID with optional model and property names"""
@@ -808,11 +861,13 @@ class OpenAPIGenerator:
         api_version: str | None = None,
         service_path: str | None = None,
         config: UdtsConfig | None = None,
+        scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
     ):
         self.main_dataset_name = main_dataset_name
         self.api_version = api_version if api_version is not None else ""
         self.service_path = service_path
         self.config = config if config is not None else UdtsConfig()
+        self.scope_max_length = scope_max_length
 
         self.component_builder = ComponentSchemaBuilder()
 
@@ -845,7 +900,7 @@ class OpenAPIGenerator:
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
-        self.path_generator = PathGenerator(self.dtype_handler, namer)
+        self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_max_length)
         self.namer = namer
 
         self._set_servers(specification)
@@ -931,9 +986,9 @@ class OpenAPIGenerator:
 
     def _add_security_schemes(self, spec: dict[str, Any]) -> None:
         schemes = copy.deepcopy(SECURITY_SCHEMES)
-        flow = schemes["UAPI_auth"]["flows"]["clientCredentials"]
+        flow = schemes[AUTH_SCHEME]["flows"]["clientCredentials"]
         flow["tokenUrl"] = self.config.resolve_token_url(spec.get("servers", []))
-        flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in sorted(_requested_scopes(spec, "UAPI_auth"))}
+        flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in sorted(_requested_scopes(spec, AUTH_SCHEME))}
         spec.setdefault("components", {})["securitySchemes"] = schemes
 
     def _set_tags(self, spec: dict[str, Any], models: dict):
