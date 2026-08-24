@@ -142,8 +142,11 @@ def test_example_config_file_is_valid():
         ("servers: something\n", "`servers` must be a list"),
         ("servers:\n  - https://get.data.gov.lt\n", "every `servers` entry must be a mapping"),
         ("servers:\n  - description: Production\n", "has no `url`"),
-        # An URL without a scheme would silently lose the data service path.
-        ("servers:\n  - url: get.data.gov.lt\n", "has no scheme"),
+        # An URL without a scheme and host would silently lose the data service
+        # path; `urlsplit` reads `localhost:8080` as scheme `localhost`.
+        ("servers:\n  - url: get.data.gov.lt\n", "has no scheme and host"),
+        ("servers:\n  - url: localhost:8080\n", "has no scheme and host"),
+        ("servers:\n  - url: https:example.com\n", "has no scheme and host"),
     ],
 )
 def test_config_rejects_malformed_values(tmp_path, config, error):

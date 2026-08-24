@@ -100,14 +100,27 @@ class SchemaNamer:
     """
 
     def __init__(self, models: dict[str, Model], name_included: Callable[[Model], str] = _get_schema_name):
-        self._included = {model.name for model in models.values()}
-        self._name_included = name_included
+        self._names: dict[str, str] = {}
+
+        taken = set()
+        for model in sorted(models.values(), key=lambda model: model.name):
+            # Path separators become underscores, so different data set paths
+            # can produce one name, `a_b` and `a/b` for example, and one schema
+            # would then silently replace the other.
+            base = name_included(model)
+            name = base
+            number = 1
+            while name in taken:
+                number += 1
+                name = f"{base}_{number}"
+            taken.add(name)
+            self._names[model.name] = name
 
     def is_included(self, model: Model) -> bool:
-        return model.name in self._included
+        return model.name in self._names
 
     def name(self, model: Model) -> str:
-        return self._name_included(model) if self.is_included(model) else _get_schema_name(model)
+        return self._names.get(model.name) or _get_schema_name(model)
 
 
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:

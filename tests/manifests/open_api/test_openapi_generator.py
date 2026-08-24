@@ -6,6 +6,7 @@ from spinta.manifests.open_api.helpers import create_openapi_manifest, write_ope
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from tests.manifests.open_api.conftest import (
     MANIFEST,
+    MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
@@ -857,3 +858,23 @@ def test_token_response_requires_rfc_6749_fields(open_manifest_path_factory):
 
     schema = open_api_spec["components"]["schemas"]["token"]
     assert schema["required"] == ["access_token", "token_type"]
+
+
+def test_schema_names_of_colliding_dataset_paths_are_disambiguated(open_manifest_path_factory):
+    """`a_b` and `a/b` map to one name, so one schema would replace the other."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_DATASETS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    assert {"a_b_C", "a_b_C_2"} <= set(schemas)
+
+    # Each path references the schema of its own model.
+    referenced = {
+        path: operations["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        for path, operations in open_api_spec["paths"].items()
+        if path in ("/a/b/C/{id}", "/a_b/C/{id}")
+    }
+    assert len(set(referenced.values())) == 2
+    for path, ref in referenced.items():
+        properties = schemas[ref.rsplit("/", 1)[1]]["properties"]
+        assert ("x" in properties) == (path == "/a_b/C/{id}")

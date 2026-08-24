@@ -102,12 +102,15 @@ def relative_path(name: str, service_path: str) -> str:
 
 
 def service_schema_name(model: Model, service_path: str) -> str:
-    """Build a component schema name, unique within a data service.
+    """Build a component schema name for a model of a data service.
 
     Data sets of one service can hold models of the same name, so the data set
     path is kept as part of the schema name::
 
         datasets/gov/rc/jadis/at280/1/at280_israsas/DalyvioAsmensIsrasas
         -> at280_israsas_DalyvioAsmensIsrasas
+
+    Path separators become underscores, so the result is not unique on its own;
+    the names of one specification are made unique by `SchemaNamer`.
     """
     return relative_path(model.name, service_path).replace("/", "_")
