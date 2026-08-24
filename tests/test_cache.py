@@ -50,6 +50,7 @@ def test_cache_control_postgres_get_one(context, app):
     )
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    # Vary might change depending on GzipMiddleware min size parameter, in this case response was less than 512 bytes, so it did not add compression
     assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization"
     assert resp.headers["ETag"] == changelog_data["_revision"]
     assert resp.headers["Last-Modified"] == format_datetime(
@@ -89,7 +90,7 @@ def test_cache_control_postgres_get_all(context, app):
     )
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
-    assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization"
+    assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization, Accept-Encoding"
     assert resp.headers["ETag"] == changelog_data["_revision"]
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
