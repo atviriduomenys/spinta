@@ -112,14 +112,20 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     if not isinstance(url, str) or not url:
         raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
 
-    # An URL without a scheme has no host to speak of and `urlsplit` reads it as
-    # a path, which would silently drop the data service path. A relative URL is
-    # allowed by OpenAPI, but it has to start with a slash.
-    if not urlsplit(url).scheme and not url.startswith("/"):
-        raise InvalidUdtsConfig(
-            path=str(path),
-            error=f"server URL {url!r} has no scheme, use `https://{url}` or a path starting with `/`.",
-        )
+    # OpenAPI allows a relative URL, but it has to start with a slash. Anything
+    # else has to carry both a scheme and a host, otherwise `urlsplit` reads the
+    # host as a path (`localhost:8080` is read as scheme `localhost`) and the
+    # data service path is silently dropped.
+    if not url.startswith("/"):
+        parts = urlsplit(url)
+        if not parts.scheme or not parts.netloc:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error=(
+                    f"server URL {url!r} has no scheme and host, "
+                    "use `https://host.example.com` or a path starting with `/`."
+                ),
+            )
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
