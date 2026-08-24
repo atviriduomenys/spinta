@@ -28,6 +28,12 @@ Backwards incompatible:
   - ``components.securitySchemes`` is now generated, together with the scopes
     the operations request. Operations already referenced the ``UAPI_auth``
     scheme, which was never declared, making the document invalid.
+  - Model operations request the scopes Spinta actually checks, built from the
+    model or property and the action, instead of the bare ``uapi:/`` prefix,
+    which is not a scope. Reading a collection accepts ``:getall`` or
+    ``:search``, a single object and a property ``:getone``. Scope length
+    follows the ``scope_max_length`` configuration option, as it does in
+    Spinta.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
     instead of strings. ``file`` and ``image`` properties reference the file

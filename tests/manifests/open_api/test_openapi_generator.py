@@ -1,9 +1,13 @@
 import pytest
 
+from spinta import commands
+from spinta.auth import get_scope_name
+from spinta.core.enums import Action
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
 from spinta.manifests.open_api.udts_config import UdtsConfig
+from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_COLLIDING_DATASETS,
@@ -907,3 +911,40 @@ def test_file_and_image_properties_are_objects(open_manifest_path: ManifestPath)
     assert specs["anyOf"] == [{"$ref": "#/components/schemas/file"}, {"type": "null"}]
     assert schemas["image"]["type"] == "object"
     assert schemas["file"]["type"] == "object"
+
+
+def test_model_operations_request_real_scopes(rc, open_manifest_path: ManifestPath):
+    """Scopes have to be the ones Spinta itself checks, they are not `uapi:/`.
+
+    Their length depends on `scope_max_length`, so they are compared against
+    `spinta.auth`, which builds the scopes Spinta authorizes against.
+    """
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+
+    def scope(node, action):
+        return get_scope_name(context, node, action, is_udts=True)
+
+    paths = open_api_spec["paths"]
+    # A collection is read with `getall`, or with `search` when the request
+    # narrows it down, and a token carrying either one is enough.
+    assert paths["/datasets/demo/system_data/Organization"]["get"]["security"] == [
+        {"UAPI_auth": [scope(model, Action.GETALL)]},
+        {"UAPI_auth": [scope(model, Action.SEARCH)]},
+    ]
+    assert paths["/datasets/demo/system_data/Organization/{id}"]["get"]["security"] == [
+        {"UAPI_auth": [scope(model, Action.GETONE)]},
+    ]
+    assert paths["/datasets/demo/system_data/Organization/{id}/org_logo"]["get"]["security"] == [
+        {"UAPI_auth": [scope(model.properties["org_logo"], Action.GETONE)]},
+    ]
+
+
+def test_scope_max_length_is_honoured(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path, scope_max_length=200)
+
+    security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
+    assert security == [{"UAPI_auth": ["uapi:/datasets/demo/system_data/Organization/:getone"]}]
