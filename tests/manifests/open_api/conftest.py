@@ -132,6 +132,22 @@ id | d | r | b | m | property   | type            | ref                         
 """)
 
 
+#: Two data set paths of one service that map to one schema name when path
+#: separators are replaced with underscores.
+MANIFEST_WITH_COLLIDING_DATASETS = striptable("""
+id | d | r | b | m | property | type            | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/a_b |        |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | C            |                 | x   |       |
+   |   |   |   |   | x        | string required |     | 4     | open
+   |                          |                 |     |       |
+   | datasets/gov/rc/jadis/at280/1/a/b |        |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | C            |                 | y   |       |
+   |   |   |   |   | y        | string required |     | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST

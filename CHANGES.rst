@@ -37,7 +37,9 @@ Backwards incompatible:
     ``/:token``, matching how an API gateway routes agent level endpoints inside
     a data service.
   - Model schema names are unique within a data service: they keep the data set
-    path, for example ``at280_israsas_DalyvioAsmensIsrasas``. Tags and operation
+    path, for example ``at280_israsas_DalyvioAsmensIsrasas``, and colliding
+    names, which two data set paths can produce once separators become
+    underscores, get a number suffix. Tags and operation
     ids follow schema names, so data sets of one service holding models of the
     same name no longer produce colliding schemas, tags and operation ids. In a
     whole manifest export tags and operation ids now use the full model name
