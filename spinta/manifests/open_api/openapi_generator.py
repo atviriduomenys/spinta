@@ -91,6 +91,15 @@ def _model_dataset_name(model: Model) -> str | None:
     return None
 
 
+def _derived_schema_names(name: str) -> tuple[str, ...]:
+    """Names of all schemas a model of a given name gets.
+
+    A model named `X` also takes `XCollection` and `X_Ref`, so a model named
+    `XCollection` would silently replace the collection schema of `X`.
+    """
+    return name, f"{name}Collection", f"{name}_Ref"
+
+
 class SchemaNamer:
     """Resolves component schema names for models.
 
@@ -99,10 +108,15 @@ class SchemaNamer:
     their full underscored name, which is unique across the whole manifest.
     """
 
-    def __init__(self, models: dict[str, Model], name_included: Callable[[Model], str] = _get_schema_name):
+    def __init__(
+        self,
+        models: dict[str, Model],
+        name_included: Callable[[Model], str] = _get_schema_name,
+        reserved: set[str] | None = None,
+    ):
         self._names: dict[str, str] = {}
 
-        taken = set()
+        taken = set(reserved or ())
         for model in sorted(models.values(), key=lambda model: model.name):
             # Path separators become underscores, so different data set paths
             # can produce one name, `a_b` and `a/b` for example, and one schema
@@ -110,10 +124,10 @@ class SchemaNamer:
             base = name_included(model)
             name = base
             number = 1
-            while name in taken:
+            while any(derived in taken for derived in _derived_schema_names(name)):
                 number += 1
                 name = f"{base}_{number}"
-            taken.add(name)
+            taken.update(_derived_schema_names(name))
             self._names[model.name] = name
 
     def is_included(self, model: Model) -> bool:
@@ -815,14 +829,18 @@ class OpenAPIGenerator:
 
         datasets, models = self._extract_manifest_data(manifest)
 
+        # Common schemas are added to the same dict, so a model must not take
+        # one of their names.
+        reserved = set(COMMON_SCHEMAS)
+
         if self.service_path is not None:
             datasets, models = self._filter_by_service_path(datasets, models)
-            namer = SchemaNamer(models, lambda model: service_schema_name(model, self.service_path))
+            namer = SchemaNamer(models, lambda model: service_schema_name(model, self.service_path), reserved)
         elif self.main_dataset_name is not None:
             datasets, models = self._filter_by_main_dataset(datasets, models)
-            namer = SchemaNamer(models, lambda model: model.basename)
+            namer = SchemaNamer(models, lambda model: model.basename, reserved)
         else:
-            namer = SchemaNamer(models)
+            namer = SchemaNamer(models, reserved=reserved)
 
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry, namer)

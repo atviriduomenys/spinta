@@ -30,8 +30,9 @@ Backwards incompatible:
     scheme, which was never declared, making the document invalid.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
-    instead of strings, and ``image`` properties get a schema, so that every
-    ``$ref`` in the document resolves.
+    instead of strings. ``file`` and ``image`` properties reference the file
+    and the new image schema, matching the object Spinta returns for them in a
+    model response, so that every ``$ref`` in the document resolves.
   - ``/health`` is no longer generated, because Spinta API does not implement
     it, and ``/version`` is generated as ``/:version`` next to the new
     ``/:token``, matching how an API gateway routes agent level endpoints inside

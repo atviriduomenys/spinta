@@ -7,6 +7,7 @@ from spinta.manifests.open_api.udts_config import UdtsConfig
 from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_COLLIDING_DATASETS,
+    MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
@@ -878,3 +879,31 @@ def test_schema_names_of_colliding_dataset_paths_are_disambiguated(open_manifest
     for path, ref in referenced.items():
         properties = schemas[ref.rsplit("/", 1)[1]]["properties"]
         assert ("x" in properties) == (path == "/a_b/C/{id}")
+
+
+def test_collection_schema_is_not_taken_by_another_model(open_manifest_path_factory):
+    """A model named `DataCollection` must not replace the collection of `Data`."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_MODELS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    collection_ref = open_api_spec["paths"]["/ds/Data"]["get"]["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]["$ref"]
+
+    assert "_data" in schemas[collection_ref.rsplit("/", 1)[1]]["properties"]
+    assert "y" in schemas["ds_DataCollection_2"]["properties"]
+
+
+def test_file_and_image_properties_are_objects(open_manifest_path: ManifestPath):
+    """Spinta returns an object for them, the content is served by their endpoint."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schemas = open_api_spec["components"]["schemas"]
+    logo = schemas["datasets_demo_system_data_Organization"]["properties"]["org_logo"]
+    specs = schemas["datasets_demo_system_data_ProcessingUnit"]["properties"]["technical_specs"]
+
+    assert logo["anyOf"] == [{"$ref": "#/components/schemas/image"}, {"type": "null"}]
+    assert specs["anyOf"] == [{"$ref": "#/components/schemas/file"}, {"type": "null"}]
+    assert schemas["image"]["type"] == "object"
+    assert schemas["file"]["type"] == "object"

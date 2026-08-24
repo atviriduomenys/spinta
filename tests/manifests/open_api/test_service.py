@@ -166,3 +166,16 @@ def test_config_accepts_relative_server_url(tmp_path):
     config = UdtsConfig.from_path(path)
 
     assert config.resolve_servers(SERVICE) == [{"url": f"/{SERVICE}"}]
+
+
+def test_config_reports_missing_file(tmp_path):
+    with pytest.raises(InvalidUdtsConfig, match="can not be read"):
+        UdtsConfig.from_path(tmp_path / "nera.yml")
+
+
+def test_config_reports_malformed_yaml(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text("info: [\n", encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match="not a valid YAML file"):
+        UdtsConfig.from_path(path)

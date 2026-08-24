@@ -148,6 +148,19 @@ id | d | r | b | m | property | type            | ref | level | access
 """)
 
 
+#: A model named `XCollection` next to a model named `X`, whose collection
+#: schema takes that same name.
+MANIFEST_WITH_COLLIDING_MODELS = striptable("""
+id | d | r | b | m | property | type            | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |        |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | Data         |                 | x   |       |
+   |   |   |   |   | x        | string required |     | 4     | open
+   |   |   |   | DataCollection |               | y   |       |
+   |   |   |   |   | y        | string required |     | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST

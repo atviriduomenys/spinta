@@ -37,8 +37,12 @@ servers:
 
 # Autorizacijos serveris. `token_url` patenka į
 # `components.securitySchemes.UAPI_auth` kaip `clientCredentials` srauto adresas.
-auth:
-  token_url: https://get.data.gov.lt/auth/token
+#
+# Nenurodžius, jis išvedamas iš pirmojo `servers` įrašo ir `/:token` – t. y. iš
+# to paties adreso, kuriuo token'ą per vartus pasiekia gavėjas. Nurodyti reikia
+# tik tada, kai autorizacijos serveris yra kitur.
+#auth:
+#  token_url: https://am.example.lt/auth/token
 
 # Nuoroda į išorinę dokumentaciją.
 externalDocs:
