@@ -64,10 +64,11 @@ servers:
     description: Gamybinė (išoriniai vartai)
   - url: https://test-get.data.gov.lt
     description: Testavimo
-
-auth:
-  token_url: https://get.data.gov.lt/auth/token
 ```
+
+`auth.token_url` neprivalomas: nenurodžius, jis išvedamas iš pirmojo `servers`
+įrašo ir `/:token`, t. y. iš to paties adreso, kuriuo token'ą per vartus pasiekia
+gavėjas. Nurodyti verta tik tada, kai autorizacijos serveris yra kitur.
 
 `servers` – po vieną įrašą kiekvienai aplinkai. Adresą galima nurodyti dviem
 būdais:
