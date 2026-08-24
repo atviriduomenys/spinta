@@ -31,9 +31,13 @@ Backwards incompatible:
   - Model operations request the scopes Spinta actually checks, built from the
     model or property and the action, instead of the bare ``uapi:/`` prefix,
     which is not a scope. Reading a collection accepts ``:getall`` or
-    ``:search``, a single object and a property ``:getone``. Scope length
-    follows the ``scope_max_length`` configuration option, as it does in
-    Spinta.
+    ``:search``, a single object and a property ``:getone``, and ``HEAD``
+    operations, which Spinta authorizes as ``GET``, are no longer advertised as
+    unauthenticated. Scopes follow the ``scope_prefix_udts`` and
+    ``scope_max_length`` configuration options, as they do in Spinta.
+  - Responses of ``file`` and ``image`` property endpoints are described as
+    binary content of any media type, which is what Spinta serves there, not as
+    a JSON metadata object.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
     instead of strings. ``file`` and ``image`` properties reference the file

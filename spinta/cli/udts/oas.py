@@ -65,8 +65,9 @@ def oas(
         service_path=service_path,
         config=config,
         api_version=api_version,
-        # Scopes are built the same way Spinta builds them, and their length
-        # depends on this configuration value.
+        # Scopes are built the same way Spinta builds them, so they follow the
+        # same configuration.
+        scope_prefix=context.get("config").scope_prefix_udts,
         scope_max_length=context.get("config").scope_max_length,
     )
     write_openapi_manifest(spec, output)

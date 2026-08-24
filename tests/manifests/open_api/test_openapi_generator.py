@@ -11,6 +11,7 @@ from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_COLLIDING_DATASETS,
+    MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
@@ -226,19 +227,9 @@ def _test_property_path_content(paths: dict, dataset_name: str, model_name: str,
     response_200 = responses["200"]
     assert "content" in response_200, f"Missing content in 200 response for {path}"
 
-    content = response_200["content"]
-    assert "application/json" in content, f"Missing application/json in {path}"
-
-    json_content = content["application/json"]
-    assert "schema" in json_content, f"Missing schema in {path}"
-
-    schema = json_content["schema"]
-    assert "$ref" in schema, f"Missing $ref in {path} schema"
-
-    ref = schema["$ref"]
-    assert ref.startswith("#/components/schemas/"), (
-        f"Property path schema ref should start with '#/components/schemas/', got '{ref}'"
-    )
+    # Property endpoints are generated for file and image properties, which
+    # serve the file content with the media type it was stored with.
+    assert response_200["content"] == {"*/*": {"schema": {"type": "string", "format": "binary"}}}
 
 
 def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
@@ -948,3 +939,42 @@ def test_scope_max_length_is_honoured(open_manifest_path: ManifestPath):
 
     security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
     assert security == [{"UAPI_auth": ["uapi:/datasets/demo/system_data/Organization/:getone"]}]
+
+
+def test_referenced_models_outside_the_service_get_own_schemas(open_manifest_path_factory):
+    """External `a_b/C` and `a/b/C` map to one name, so one would replace the other."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_EXTERNAL_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    properties = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]
+    first = properties["first"]["anyOf"][0]["$ref"]
+    second = properties["second"]["anyOf"][0]["$ref"]
+
+    assert first != second
+    assert {first.rsplit("/", 1)[1], second.rsplit("/", 1)[1]} <= set(open_api_spec["components"]["schemas"])
+
+
+def test_model_head_operations_request_scopes(rc, open_manifest_path: ManifestPath):
+    """Spinta authorizes `HEAD` against the same actions as `GET`."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+
+    paths = open_api_spec["paths"]
+    assert paths["/datasets/demo/system_data/Organization"]["head"]["security"] == [
+        {"UAPI_auth": [get_scope_name(context, model, Action.GETALL, is_udts=True)]},
+        {"UAPI_auth": [get_scope_name(context, model, Action.SEARCH, is_udts=True)]},
+    ]
+    assert paths["/datasets/demo/system_data/Organization/{id}"]["head"]["security"] == [
+        {"UAPI_auth": [get_scope_name(context, model, Action.GETONE, is_udts=True)]},
+    ]
+
+
+def test_scope_prefix_is_configurable(open_manifest_path: ManifestPath):
+    """Deployments can override `scope_prefix_udts`."""
+    open_api_spec = create_openapi_manifest(open_manifest_path, scope_prefix="kita:/", scope_max_length=200)
+
+    security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
+    assert security == [{"UAPI_auth": ["kita:/datasets/demo/system_data/Organization/:getone"]}]

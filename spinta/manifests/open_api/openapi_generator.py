@@ -26,7 +26,6 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
     SCOPE_DESCRIPTION,
-    SCOPE_PREFIX,
     SCOPE_TEMPLATE,
     SECURITY_SCHEMES,
     STANDARD_OBJECT_PROPERTIES,
@@ -52,6 +51,7 @@ UTILITY_PATHS = ["/:version", "/:token"]
 GLOBAL_ID_LEVEL_THRESHOLD = 4
 
 #: Used when the generator is called without a loaded Spinta configuration.
+DEFAULT_SCOPE_PREFIX = CONFIG["scope_prefix_udts"]
 DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 
 EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
@@ -121,27 +121,36 @@ class SchemaNamer:
     def __init__(
         self,
         models: dict[str, Model],
+        all_models: dict[str, Model] | None = None,
         name_included: Callable[[Model], str] = _get_schema_name,
         reserved: set[str] | None = None,
     ):
+        self._included = {model.name for model in models.values()}
         self._names: dict[str, str] = {}
+        self._taken = set(reserved or ())
 
-        taken = set(reserved or ())
         for model in sorted(models.values(), key=lambda model: model.name):
-            # Path separators become underscores, so different data set paths
-            # can produce one name, `a_b` and `a/b` for example, and one schema
-            # would then silently replace the other.
-            base = name_included(model)
-            name = base
-            number = 1
-            while any(derived in taken for derived in _derived_schema_names(name)):
-                number += 1
-                name = f"{base}_{number}"
-            taken.update(_derived_schema_names(name))
-            self._names[model.name] = name
+            self._assign(model, name_included(model))
+
+        # Models referenced from the included ones get a schema of their own.
+        for model in sorted((all_models or {}).values(), key=lambda model: model.name):
+            if model.name not in self._names:
+                self._assign(model, _get_schema_name(model))
+
+    def _assign(self, model: Model, base: str) -> None:
+        # Path separators become underscores, so different data set paths can
+        # produce one name, `a_b` and `a/b` for example, and one schema would
+        # then silently replace the other.
+        name = base
+        number = 1
+        while any(derived in self._taken for derived in _derived_schema_names(name)):
+            number += 1
+            name = f"{base}_{number}"
+        self._taken.update(_derived_schema_names(name))
+        self._names[model.name] = name
 
     def is_included(self, model: Model) -> bool:
-        return model.name in self._names
+        return model.name in self._included
 
     def name(self, model: Model) -> str:
         return self._names.get(model.name) or _get_schema_name(model)
@@ -288,9 +297,16 @@ class DataTypeHandler:
 class PathGenerator:
     """Handles OpenAPI path generation and operations"""
 
-    def __init__(self, dtype_handler: DataTypeHandler, namer: SchemaNamer, scope_max_length: int):
+    def __init__(
+        self,
+        dtype_handler: DataTypeHandler,
+        namer: SchemaNamer,
+        scope_prefix: str,
+        scope_max_length: int,
+    ):
         self.dtype_handler = dtype_handler
         self.namer = namer
+        self.scope_prefix = scope_prefix
         self.scope_max_length = scope_max_length
 
     def should_create_property_endpoint(self, model_property) -> bool:
@@ -421,7 +437,7 @@ class PathGenerator:
                 SCOPE_TEMPLATE,
                 name,
                 maxlen=self.scope_max_length,
-                params={"prefix": SCOPE_PREFIX, "action": action},
+                params={"prefix": self.scope_prefix, "action": action},
                 is_udts=True,
             )
             for action in PATH_TYPE_ACTIONS[path_type]
@@ -493,8 +509,11 @@ class PathGenerator:
         content = {}
 
         for media_type, media_config in content_config.items():
-            schema_ref = self._resolve_schema_ref(media_config.get("schema"), model, path_type, model_property)
-            content[media_type] = {"schema": {"$ref": schema_ref}}
+            schema = media_config.get("schema")
+            if isinstance(schema, dict):
+                content[media_type] = {"schema": copy.deepcopy(schema)}
+            else:
+                content[media_type] = {"schema": {"$ref": self._resolve_schema_ref(schema, model, path_type)}}
 
         return content
 
@@ -503,28 +522,18 @@ class PathGenerator:
         schema_name: str = None,
         model: Model | None = None,
         path_type: str = None,
-        model_property: tuple | None = None,
     ) -> str:
         """Resolve the appropriate schema reference"""
         model_schema_name = self.namer.name(model) if model else None
         if model_schema_name and path_type:
-            return self._get_model_schema_ref(model_schema_name, path_type, model_property)
+            # A collection is wrapped into a `_data` envelope.
+            suffix = "Collection" if path_type == "collection" else ""
+            return f"#/components/schemas/{model_schema_name}{suffix}"
 
         if schema_name:
             return f"#/components/schemas/{schema_name}"
 
         return f"#/components/schemas/{model_schema_name or 'object'}"
-
-    def _get_model_schema_ref(self, model_schema_name: str, path_type: str, model_property: tuple | None) -> str:
-        """Get schema reference for model endpoints based on path type"""
-        if path_type == "collection":
-            return f"#/components/schemas/{model_schema_name}Collection"
-        elif path_type == "property" and model_property:
-            property_dtype = model_property[1].dtype
-            base_type = self.dtype_handler.get_dtype_name(property_dtype)
-            return f"#/components/schemas/{base_type}"
-        else:
-            return f"#/components/schemas/{model_schema_name}"
 
 
 class ComponentSchemaBuilder:
@@ -733,7 +742,7 @@ class SchemaGenerator:
                 continue
 
             ref_model = dtype.model
-            ref_schema_name = _get_schema_name(ref_model)
+            ref_schema_name = self.namer.name(ref_model)
 
             if ref_schema_name in schemas or self.namer.is_included(ref_model):
                 continue
@@ -861,12 +870,14 @@ class OpenAPIGenerator:
         api_version: str | None = None,
         service_path: str | None = None,
         config: UdtsConfig | None = None,
+        scope_prefix: str = DEFAULT_SCOPE_PREFIX,
         scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
     ):
         self.main_dataset_name = main_dataset_name
         self.api_version = api_version if api_version is not None else ""
         self.service_path = service_path
         self.config = config if config is not None else UdtsConfig()
+        self.scope_prefix = scope_prefix
         self.scope_max_length = scope_max_length
 
         self.component_builder = ComponentSchemaBuilder()
@@ -882,7 +893,8 @@ class OpenAPIGenerator:
         }
         specification["info"]["version"] = self.api_version
 
-        datasets, models = self._extract_manifest_data(manifest)
+        datasets, all_models = self._extract_manifest_data(manifest)
+        models = all_models
 
         # Common schemas are added to the same dict, so a model must not take
         # one of their names.
@@ -890,17 +902,23 @@ class OpenAPIGenerator:
 
         if self.service_path is not None:
             datasets, models = self._filter_by_service_path(datasets, models)
-            namer = SchemaNamer(models, lambda model: service_schema_name(model, self.service_path), reserved)
+
+            def name_included(model: Model) -> str:
+                return service_schema_name(model, self.service_path)
         elif self.main_dataset_name is not None:
             datasets, models = self._filter_by_main_dataset(datasets, models)
-            namer = SchemaNamer(models, lambda model: model.basename, reserved)
+
+            def name_included(model: Model) -> str:
+                return model.basename
         else:
-            namer = SchemaNamer(models, reserved=reserved)
+            name_included = _get_schema_name
+
+        namer = SchemaNamer(models, all_models, name_included, reserved)
 
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
-        self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_max_length)
+        self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_prefix, self.scope_max_length)
         self.namer = namer
 
         self._set_servers(specification)

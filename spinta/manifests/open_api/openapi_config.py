@@ -122,7 +122,8 @@ PATHS_CONFIG = {
     "/{model_name}": {
         "parameters": ["traceparent", "tracestate", "Cache-Control", "If-None-Match", "Accept-Language"],
         "head": {
-            "security": [{}],
+            # Spinta authorizes `HEAD` against the same actions as `GET`.
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
             "operationId": "modelHead",
@@ -163,7 +164,8 @@ PATHS_CONFIG = {
     "/{model_name}/{id}": {
         "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
         "head": {
-            "security": [{}],
+            # Spinta authorizes `HEAD` against the same actions as `GET`.
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
             "operationId": "headOne",
@@ -196,7 +198,8 @@ PATHS_CONFIG = {
     "/{model_name}/{id}/{field}": {
         "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language", "property"],
         "head": {
-            "security": [{}],
+            # Spinta authorizes `HEAD` against the same actions as `GET`.
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
             "operationId": "headProperty",
@@ -217,9 +220,10 @@ PATHS_CONFIG = {
                     "description": "OK",
                     "headers": COMMON_RESPONSE_HEADERS,
                     "content": {
-                        "application/json": {
-                            "schema": "oneOf[absent,boolean,integer,number,binary,string,text,datetime,date,time,temporal,geometry,money,file,image,ref,backref,array,url,uri,object]"
-                        }
+                        # Property endpoints are generated for file and image
+                        # properties, which serve the file content with the
+                        # media type it was stored with.
+                        "*/*": {"schema": {"type": "string", "format": "binary"}}
                     },
                 },
                 "304": {
