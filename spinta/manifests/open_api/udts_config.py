@@ -111,8 +111,10 @@ class UdtsConfig:
         if token_url:
             return token_url
 
-        base = servers[0].get("url", "") if servers else ""
-        return f"{base}{TOKEN_PATH}"
+        # A server URL may carry a query or a fragment, so the token path is
+        # added to its path, not to the end of the whole URL.
+        base = urlsplit(servers[0].get("url", "") if servers else "")
+        return urlunsplit(base._replace(path=f"{base.path}{TOKEN_PATH}"))
 
 
 def _check_server(server: Any, path: pathlib.Path) -> None:
