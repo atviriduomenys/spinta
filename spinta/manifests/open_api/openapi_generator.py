@@ -308,6 +308,7 @@ class PathGenerator:
         self.namer = namer
         self.scope_prefix = scope_prefix
         self.scope_max_length = scope_max_length
+        self.operation_ids: set[str] = set()
 
     def should_create_property_endpoint(self, model_property) -> bool:
         """Determine if a property should have its own endpoint"""
@@ -444,10 +445,24 @@ class PathGenerator:
         ]
 
     def _build_operation_id(self, base_id: str, model_name: str = None, model_property: tuple | None = None) -> str:
-        """Build operation ID with optional model and property names"""
+        """Build operation ID with optional model and property names.
+
+        Names are concatenated, which is not injective, model `A` with property
+        `bc` and model `Ab` with property `c` build one id, so a colliding one
+        gets a number suffix.
+        """
         property_name = model_property[0] if model_property else ""
         model_suffix = model_name or ""
-        return f"{base_id}{model_suffix}{property_name}"
+
+        base = f"{base_id}{model_suffix}{property_name}"
+        operation_id = base
+        number = 1
+        while operation_id in self.operation_ids:
+            number += 1
+            operation_id = f"{base}_{number}"
+
+        self.operation_ids.add(operation_id)
+        return operation_id
 
     def _build_parameter_refs(self, parameters: list) -> list[dict]:
         """Build parameter reference objects"""

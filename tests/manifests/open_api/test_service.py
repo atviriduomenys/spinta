@@ -262,3 +262,22 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
     config = UdtsConfig(servers=[{"url": f"https://get.data.gov.lt/{SERVICE}/?env=prod"}])
 
     assert config.resolve_servers(SERVICE) == [{"url": f"https://get.data.gov.lt/{SERVICE}?env=prod"}]
+
+
+@pytest.mark.parametrize(
+    "config, error",
+    [
+        # `urlsplit` raises on such a value.
+        ('servers:\n  - url: "https://["\n', "is not a valid URL"),
+        ("info:\n  version: 1\n", "`info.version` must be a string"),
+        ("info:\n  license: something\n", "`info.license` must be a mapping"),
+        ("externalDocs:\n  description: docs\n", "`externalDocs.url` must be a non empty string"),
+        ("externalDocs:\n  url: https://ivpk.github.io/uapi\n  description: 1\n", "must be a string"),
+    ],
+)
+def test_config_rejects_values_openapi_would_reject(tmp_path, config, error):
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match=error):
+        UdtsConfig.from_path(path)
