@@ -68,6 +68,10 @@ servers:
     description: Testavimo
 ```
 
+Laukai, kurių OpenAPI neapibrėžia, į specifikaciją nepatenka – apie tokį lauką
+parodomas įspėjimas. Taip pastebimos rašybos klaidos (`titel` vietoj `title`),
+kurios kitaip tyliai paliktų lauką neužpildytą. `x-` plėtiniai išsaugomi.
+
 `auth.token_url` neprivalomas: nenurodžius, jis išvedamas iš pirmojo `servers`
 įrašo ir `/:token`, t. y. iš to paties adreso, kuriuo token'ą per vartus pasiekia
 gavėjas. Nurodyti verta tik tada, kai autorizacijos serveris yra kitur.
