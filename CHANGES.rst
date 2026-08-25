@@ -113,7 +113,8 @@ Improvements:
   specification of one UDTS data service, covering all data sets under the
   ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
   (matched on segment boundary, so ``.../at280/1`` does not match
-  ``.../at280/10``). Without ``--path`` the only data service of the manifest is
+  ``.../at280/10``, and an unversioned ``.../at280`` does not reach into the
+  versioned service). Without ``--path`` the only data service of the manifest is
   used, or, if there are several, the command lists them and fails; ``--list``
   lists the data services and their data sets. Environments, service level
   ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,

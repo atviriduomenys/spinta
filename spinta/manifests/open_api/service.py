@@ -89,6 +89,16 @@ def is_under_service(name: str, service_path: str) -> bool:
 
 
 def datasets_under_service(dataset_names: list[str], service_path: str) -> list[str]:
+    """Data sets belonging to a given data service.
+
+    A data service path selects exactly the data sets of that service, so an
+    unversioned `.../at280` does not reach into `.../at280/1`, which is a data
+    service of its own. A path of another shape, which is accepted with a
+    warning, selects by prefix.
+    """
+    if is_service_level_path(service_path):
+        return [name for name in dataset_names if service_path_of(name) == service_path]
+
     return [name for name in dataset_names if is_under_service(name, service_path)]
 
 
