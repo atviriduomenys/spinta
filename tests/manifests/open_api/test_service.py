@@ -1,4 +1,5 @@
 import pathlib
+import re
 
 import pytest
 
@@ -332,3 +333,44 @@ def test_config_reports_a_non_utf8_file(tmp_path):
 
     with pytest.raises(InvalidUdtsConfig, match="is not an UTF-8 file"):
         UdtsConfig.from_path(path)
+
+
+@pytest.mark.parametrize(
+    "config, warning, kept",
+    [
+        ("info:\n  titel: JADIS\n", "unknown `info` key 'titel'", {"info": {}}),
+        (
+            "servers:\n  - url: https://host\n    descrption: Production\n",
+            "unknown `servers` entry key 'descrption'",
+            {"servers": [{"url": "https://host"}]},
+        ),
+        (
+            "info:\n  contact:\n    naem: RC\n",
+            "unknown `info.contact` key 'naem'",
+            {"info": {"contact": {}}},
+        ),
+        ("auth:\n  tokenurl: https://host/auth/token\n", "unknown `auth` key 'tokenurl'", {"auth": {}}),
+    ],
+)
+def test_config_leaves_out_unknown_nested_keys(tmp_path, config, warning, kept):
+    """Such a key is usually a typo, which would also leave the field unset."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.warns(UserWarning, match=re.escape(warning)):
+        config = UdtsConfig.from_path(path)
+
+    for key, value in kept.items():
+        assert getattr(config, key) == value
+
+
+def test_config_keeps_openapi_fields_and_extensions(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text(
+        "info:\n  title: JADIS\n  termsOfService: https://example.lt\n  x-vidinis: taip\n",
+        encoding="utf-8",
+    )
+
+    config = UdtsConfig.from_path(path)
+
+    assert config.info == {"title": "JADIS", "termsOfService": "https://example.lt", "x-vidinis": "taip"}
