@@ -63,6 +63,9 @@ class UdtsConfig:
             if key in data and data[key] is not None and not isinstance(data[key], dict):
                 raise InvalidUdtsConfig(path=str(path), error=f"`{key}` must be a mapping.")
 
+        _check_info(data.get("info") or {}, path)
+        _check_external_docs(data.get("externalDocs") or {}, path)
+
         token_url = (data.get("auth") or {}).get("token_url")
         if token_url is not None:
             _check_url(token_url, path, "`auth.token_url`")
@@ -131,6 +134,33 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     _check_url(url, path, "server URL")
 
 
+def _check_info(info: dict, path: pathlib.Path) -> None:
+    """`info` is emitted as given, so its values have to be of OpenAPI types."""
+    for key in ("title", "version", "summary", "description"):
+        value = info.get(key)
+        if value is not None and not isinstance(value, str):
+            raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a string, got {value!r}.")
+
+    for key in ("contact", "license"):
+        value = info.get(key)
+        if value is not None and not isinstance(value, dict):
+            raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a mapping, got {value!r}.")
+
+
+def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
+    if not external_docs:
+        return
+
+    _check_url(external_docs.get("url"), path, "`externalDocs.url`")
+
+    description = external_docs.get("description")
+    if description is not None and not isinstance(description, str):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"`externalDocs.description` must be a string, got {description!r}.",
+        )
+
+
 def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
     if not isinstance(url, str) or not url:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {url!r}.")
@@ -140,7 +170,10 @@ def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
     # host as a path (`localhost:8080` is read as scheme `localhost`) and the
     # data service path is silently dropped.
     if not url.startswith("/"):
-        parts = urlsplit(url)
+        try:
+            parts = urlsplit(url)
+        except ValueError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
         if not parts.scheme or not parts.netloc:
             raise InvalidUdtsConfig(
                 path=str(path),

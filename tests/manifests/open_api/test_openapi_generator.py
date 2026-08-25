@@ -13,6 +13,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
+    MANIFEST_WITH_COLLIDING_OPERATION_IDS,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
@@ -1027,3 +1028,12 @@ def test_path_parameters_have_a_placeholder(open_manifest_path: ManifestPath):
             parameter = components[parameter["$ref"].rsplit("/", 1)[1]]
             if parameter["in"] == "path":
                 assert f"{{{parameter['name']}}}" in path, f"{parameter['name']!r} has no placeholder in {path}"
+
+
+def test_operation_ids_of_colliding_names_are_disambiguated(open_manifest_path_factory):
+    """Model `A` with property `bc` and model `Ab` with property `c` build one id."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_OPERATION_IDS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    operation_ids = _operation_ids(open_api_spec)
+    assert len(operation_ids) == len(set(operation_ids))
