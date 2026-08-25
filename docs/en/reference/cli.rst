@@ -196,9 +196,13 @@ Arguments
   specification is written to standard output as JSON.
 
 - ``--path``
-  OPTIONAL. Data service path. All data sets equal to it or starting with it are
-  included. If not given and the manifest holds exactly one data service, that
-  service is used, otherwise the command fails listing the data services found.
+  OPTIONAL. Data service path. All data sets of that data service are included:
+  the ones equal to it and the ones starting with it followed by ``/``, so
+  ``datasets/gov/rc/jadis/at280/1`` does not include
+  ``datasets/gov/rc/jadis/at280/10``, and an unversioned
+  ``datasets/gov/rc/jadis/at280`` does not include the versioned service either.
+  If not given and the manifest holds exactly one data service, that service is
+  used, otherwise the command fails listing the data services found.
 
 - ``--udts-cfg``
   OPTIONAL. YAML file with the information that is not part of a manifest:

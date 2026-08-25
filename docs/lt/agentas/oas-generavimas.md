@@ -38,8 +38,10 @@ spinta udts oas manifest.csv -o at280.json \
     --udts-cfg vartai.yml
 ```
 
-- `--path` – duomenų paslaugos kelias. Atrenkami rinkiniai, kurių pavadinimas
-  lygus šiam keliui arba prasideda juo. Jei manifeste yra tik viena paslauga,
+- `--path` – duomenų paslaugos kelias. Atrenkami visi tos paslaugos rinkiniai:
+  kurių pavadinimas lygus keliui arba prasideda juo, po kurio eina `/`. Todėl
+  `.../at280/1` nepagauna `.../at280/10`, o `.../at280` be versijos nepagauna
+  versijuotos `.../at280/1` paslaugos. Jei manifeste yra tik viena paslauga,
   `--path` galima praleisti.
 - `-o` – išvesties failas. `.yml` arba `.yaml` plėtinys duoda YAML, kitu atveju
   rašomas JSON. Be `-o` specifikacija spausdinama į standartinę išvestį.
