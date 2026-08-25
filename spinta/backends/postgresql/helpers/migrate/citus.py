@@ -7,12 +7,10 @@ from multipledispatch import dispatch
 from sqlalchemy import ForeignKey
 from tqdm import tqdm
 
-from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import DistributionType
 from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.migrate.actions import (
     DistributeReference,
     DistributeSchema,
