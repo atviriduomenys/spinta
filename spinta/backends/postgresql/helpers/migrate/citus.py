@@ -206,7 +206,7 @@ def valid_schema_distribution_foreign_key_inspect(plan: ShardingPlan, schema: st
     return False
 
 
-def valid_schema_distribution_foreign_key_orm(plan: ShardingPlan, schema: str, foreign_key: ForeignKey) -> bool:
+def valid_schema_distribution_foreign_key_orm(plan: ShardingPlan, schema: str | None, foreign_key: ForeignKey) -> bool:
     referred_table = foreign_key.column.table
     if referred_table.schema == schema:
         return True
@@ -237,26 +237,15 @@ def invalidate_default_schema_distributions(
     inspector = sa.inspect(backend.engine)
 
     plan_copy = deepcopy(plan)
-    store = context.get("store")
-    manifest = store.manifest
-    namespaces = commands.get_namespaces(context, manifest)
-    for name, namespace in namespaces.items():
-        if not namespace.models:
+
+    for table in backend.tables.values():
+        if not table.foreign_keys:
             continue
 
-        pg_ns_name = get_pg_name(name)
-        if pg_ns_name not in plan.schemas:
-            continue
-
-        for model in namespace.models.values():
-            table = backend.get_table(model)
-            if not table.foreign_keys:
-                continue
-
-            for key in table.foreign_keys:
-                if not valid_schema_distribution_foreign_key_orm(plan, table.schema, key):
-                    invalid_schemas.add(key.column.table.schema)
-                    invalid_schemas.add(table.schema)
+        for key in table.foreign_keys:
+            if not valid_schema_distribution_foreign_key_orm(plan, table.schema, key):
+                invalid_schemas.add(key.column.table.schema)
+                invalid_schemas.add(table.schema)
 
     for schema in plan.schemas:
         tables = inspector.get_table_names(schema=schema)

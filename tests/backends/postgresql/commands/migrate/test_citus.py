@@ -3,6 +3,7 @@ from pathlib import Path
 from sqlalchemy.engine import Engine
 
 from spinta import commands
+from spinta.backends.constants import TableType
 from spinta.backends.helpers import TableIdentifier, get_table_identifier
 from spinta.backends.postgresql.helpers.migrate.citus import gather_current_sharding_plan
 from spinta.core.config import RawConfig
@@ -496,6 +497,158 @@ def test_migrate_from_empty_default_schema_distribution_invalidation(
         f"{add_column_comment(table_identifier=test_table_identifier, column='id')}"
         f"{add_column_comment(table_identifier=test_table_identifier, column='data._id')}"
         f"{add_table_comment(table_identifier=test_table_identifier, comment='distribute/example/Test')}"
+        f"{add_changelog_table(table_identifier=test_table_identifier)}"
+        f"{add_redirect_table(table_identifier=test_table_identifier)}"
+        'CREATE TABLE "distribute/new"."New" (\n'
+        "    _txn UUID, \n"
+        "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
+        "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
+        "    _id UUID NOT NULL, \n"
+        "    _revision TEXT, \n"
+        "    id INTEGER, \n"
+        '    CONSTRAINT "pk_New" PRIMARY KEY (_id)\n'
+        ");\n"
+        "\n"
+        f"{add_index(table_identifier=new_table_identifier, index_name='ix_New__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='id')}"
+        f"{add_table_comment(table_identifier=new_table_identifier, comment='distribute/new/New')}"
+        f"{add_changelog_table(table_identifier=new_table_identifier)}"
+        f"{add_redirect_table(table_identifier=new_table_identifier)}"
+        f"{add_schema_distribution(schema='distribute/new')}"
+        f"COMMIT;\n\n"
+    )
+    result = cli.invoke(rc, ["migrate"])
+    assert result.exit_code == 0
+
+    updated_citus_state = gather_current_sharding_plan(context, backend)
+    assert updated_citus_state.schemas == {"distribute/new"}
+    assert not updated_citus_state.references
+    assert not updated_citus_state.distributed
+    assert {data_table_identifier, test_table_identifier}.issubset(updated_citus_state.local)
+    assert not {new_table_identifier}.issubset(updated_citus_state.local)
+
+
+def test_migrate_from_empty_default_schema_distribution_invalidation_list(
+    migration_db: Engine,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+):
+    initial_manifest = """
+         d                  | r | b | m    | property | type    | ref
+    """
+    context, rc = bootstrap_distribute_manifest(
+        rc=rc,
+        path=tmp_path,
+        manifest=initial_manifest,
+        default_distribution_strategy="schema",
+    )
+
+    override_manifest(
+        context,
+        tmp_path,
+        """
+     d                  | r | b | m    | property | type    | ref
+     distribute/example |   |   |      |          |         |
+                        |   |   | Test |          |         |
+                        |   |   |      | id       | integer |
+                        |   |   |      | data[]   | ref     | distribute/data/Data
+     distribute/data    |   |   |      |          |         |
+                        |   |   | Data |          |         |
+                        |   |   |      | id       | integer |
+     distribute/new     |   |   |      |          |         |
+                        |   |   | New  |          |         |
+                        |   |   |      | id       | integer |
+    """,
+    )
+    manifest = context.get("store").manifest
+    backend = manifest.backend
+
+    data_table_identifier = TableIdentifier(schema="distribute/data", base_name="Data")
+    test_table_identifier = TableIdentifier(schema="distribute/example", base_name="Test")
+    test_list_table_identifier = test_table_identifier.change_table_type(new_type=TableType.LIST, table_arg="data")
+    new_table_identifier = TableIdentifier(schema="distribute/new", base_name="New")
+
+    current_citus_state = gather_current_sharding_plan(context, backend)
+    assert not current_citus_state.schemas
+    assert not current_citus_state.references
+    assert not current_citus_state.distributed
+
+    result = cli.invoke(rc, ["migrate", "-p"])
+    order = (
+        f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__id', columns=['_id'])}"
+        f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__txn', columns=['_txn'])}"
+    )
+    if order not in result.output:
+        order = (
+            f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__txn', columns=['_txn'])}"
+            f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__id', columns=['_id'])}"
+        )
+    assert result.output.endswith(
+        f"BEGIN;\n\n"
+        f"{add_schema('distribute/example')}"
+        f"{add_schema('distribute/data')}"
+        f"{add_schema('distribute/new')}"
+        'CREATE TABLE "distribute/data"."Data" (\n'
+        "    _txn UUID, \n"
+        "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
+        "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
+        "    _id UUID NOT NULL, \n"
+        "    _revision TEXT, \n"
+        "    id INTEGER, \n"
+        '    CONSTRAINT "pk_Data" PRIMARY KEY (_id)\n'
+        ");\n"
+        "\n"
+        f"{add_index(table_identifier=data_table_identifier, index_name='ix_Data__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=data_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=data_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=data_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=data_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=data_table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=data_table_identifier, column='id')}"
+        f"{add_table_comment(table_identifier=data_table_identifier, comment='distribute/data/Data')}"
+        f"{add_changelog_table(table_identifier=data_table_identifier)}"
+        f"{add_redirect_table(table_identifier=data_table_identifier)}"
+        'CREATE TABLE "distribute/example"."Test" (\n'
+        "    _txn UUID, \n"
+        "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
+        "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
+        "    _id UUID NOT NULL, \n"
+        "    _revision TEXT, \n"
+        "    id INTEGER, \n"
+        "    data JSONB, \n"
+        '    CONSTRAINT "pk_Test" PRIMARY KEY (_id)\n'
+        ");\n"
+        "\n"
+        f"{add_index(table_identifier=test_table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='id')}"
+        f"{add_column_comment(table_identifier=test_table_identifier, column='data')}"
+        f"{add_table_comment(table_identifier=test_table_identifier, comment='distribute/example/Test')}"
+        'CREATE TABLE "distribute/example"."Test/:list/data" (\n'
+        "    _txn UUID, \n"
+        "    _rid UUID, \n"
+        "    _id UUID, \n"
+        '    CONSTRAINT "fk_Test/:list/data__rid_Test" FOREIGN KEY(_rid) REFERENCES '
+        '"distribute/example"."Test" (_id) ON DELETE CASCADE, \n'
+        '    CONSTRAINT "fk_Test/:list/data__id_distribute/data.Data" FOREIGN '
+        'KEY(_id) REFERENCES "distribute/data"."Data" (_id) ON DELETE CASCADE ON '
+        "UPDATE CASCADE\n"
+        ");\n\n"
+        f"{order}"
+        f"{add_column_comment(table_identifier=test_list_table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=test_list_table_identifier, column='_rid')}"
+        f"{add_column_comment(table_identifier=test_list_table_identifier, column='_id')}"
+        f"{add_table_comment(table_identifier=test_list_table_identifier, comment='distribute/example/Test/:list/data')}"
         f"{add_changelog_table(table_identifier=test_table_identifier)}"
         f"{add_redirect_table(table_identifier=test_table_identifier)}"
         'CREATE TABLE "distribute/new"."New" (\n'
