@@ -37,7 +37,9 @@ Backwards incompatible:
     ``scope_max_length`` configuration options, as they do in Spinta.
   - Responses of ``file`` and ``image`` property endpoints are described as
     binary content of any media type, which is what Spinta serves there, not as
-    a JSON metadata object.
+    a JSON metadata object. The ``file`` and ``image`` schemas name the file
+    ``_id``, as Spinta does, instead of ``_name``, and allow the null values
+    left after a file is deleted.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
     instead of strings. ``file`` and ``image`` properties reference the file

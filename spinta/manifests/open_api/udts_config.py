@@ -61,6 +61,10 @@ class UdtsConfig:
             if key in data and data[key] is not None and not isinstance(data[key], dict):
                 raise InvalidUdtsConfig(path=str(path), error=f"`{key}` must be a mapping.")
 
+        token_url = (data.get("auth") or {}).get("token_url")
+        if token_url is not None:
+            _check_url(token_url, path, "`auth.token_url`")
+
         servers = data.get("servers") or []
         if not isinstance(servers, list):
             raise InvalidUdtsConfig(path=str(path), error="`servers` must be a list.")
@@ -118,6 +122,13 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     if not isinstance(url, str) or not url:
         raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
 
+    _check_url(url, path, "server URL")
+
+
+def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
+    if not isinstance(url, str) or not url:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {url!r}.")
+
     # OpenAPI allows a relative URL, but it has to start with a slash. Anything
     # else has to carry both a scheme and a host, otherwise `urlsplit` reads the
     # host as a path (`localhost:8080` is read as scheme `localhost`) and the
@@ -128,7 +139,7 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
             raise InvalidUdtsConfig(
                 path=str(path),
                 error=(
-                    f"server URL {url!r} has no scheme and host, "
+                    f"{what} {url!r} has no scheme and host, "
                     "use `https://host.example.com` or a path starting with `/`."
                 ),
             )
