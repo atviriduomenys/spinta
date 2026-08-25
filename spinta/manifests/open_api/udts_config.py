@@ -152,8 +152,12 @@ def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
-    parts = urlsplit(url.rstrip("/"))
-    path = parts.path
+    # A trailing slash is removed from the path, not from the whole URL, which
+    # can end with a query string or a fragment. An API gateway takes the API
+    # context path from this path, and falls back to the API title when it is
+    # left empty by a trailing slash.
+    parts = urlsplit(url)
+    path = parts.path.rstrip("/")
 
     if not path:
         return urlunsplit(parts._replace(path=f"/{service_path}"))
@@ -165,4 +169,4 @@ def _resolve_server_url(url: str, service_path: str) -> str:
             UserWarning,
         )
 
-    return urlunsplit(parts)
+    return urlunsplit(parts._replace(path=path))
