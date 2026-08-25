@@ -48,6 +48,8 @@ class UdtsConfig:
             data = yaml.load(path.read_text(encoding="utf-8"))
         except OSError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"can not be read, {error.strerror or error}.")
+        except UnicodeDecodeError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"is not an UTF-8 file, {error}.")
         except YAMLError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {error}.")
 
@@ -166,6 +168,11 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
         # OpenAPI License Object requires a name.
         _check_string(license_.get("name"), path, "`info.license.name`")
         _check_optional_string(license_.get("identifier"), path, "`info.license.identifier`")
+        if license_.get("identifier") is not None and license_.get("url") is not None:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error="`info.license` can have either an `identifier` or an `url`, not both.",
+            )
         if license_.get("url") is not None:
             _check_url(license_["url"], path, "`info.license.url`")
 

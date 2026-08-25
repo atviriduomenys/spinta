@@ -69,6 +69,26 @@ def test_datasets_under_service_matches_on_segment_boundary():
     ]
 
 
+def test_datasets_under_service_does_not_reach_into_a_versioned_service():
+    """An unversioned path is a prefix of every versioned service of the same name."""
+    names = [
+        "datasets/gov/rc/jadis/at280/foo",
+        "datasets/gov/rc/jadis/at280/1/bar",
+    ]
+
+    assert datasets_under_service(names, "datasets/gov/rc/jadis/at280") == ["datasets/gov/rc/jadis/at280/foo"]
+    assert datasets_under_service(names, SERVICE) == ["datasets/gov/rc/jadis/at280/1/bar"]
+
+
+def test_datasets_under_a_path_of_another_shape_are_matched_by_prefix():
+    """Such a path is accepted with a warning, see `spinta udts oas --path`."""
+    names = ["datasets/gov/rc/jadis/at280/1/at280_israsas", "datasets/gov/rc/jadis/at280/1/at280_adresai"]
+
+    assert datasets_under_service(names, "datasets/gov/rc/jadis/at280/1/at280_israsas") == [
+        "datasets/gov/rc/jadis/at280/1/at280_israsas",
+    ]
+
+
 def test_find_services_groups_datasets():
     names = [
         "datasets/gov/rc/jadis/at280/1/at280_israsas",
@@ -280,6 +300,11 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         # OpenAPI License Object requires a name.
         ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
+        # OpenAPI License Object allows either one.
+        (
+            "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n    url: https://example.com\n",
+            "either an `identifier` or an `url`",
+        ),
     ],
 )
 def test_config_rejects_values_openapi_would_reject(tmp_path, config, error):
@@ -297,3 +322,11 @@ def test_config_warns_about_unknown_keys_of_any_type(tmp_path):
 
     with pytest.warns(UserWarning, match="unknown UDTS configuration key"):
         assert UdtsConfig.from_path(path).servers == []
+
+
+def test_config_reports_a_non_utf8_file(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_bytes(b"info:\n  title: \xff\xfe\n")
+
+    with pytest.raises(InvalidUdtsConfig, match="is not an UTF-8 file"):
+        UdtsConfig.from_path(path)
