@@ -1010,3 +1010,20 @@ def test_token_endpoint_errors_are_oauth_errors(open_manifest_path_factory):
     schema = open_api_spec["components"]["schemas"]["tokenError"]
     assert schema["required"] == ["error"]
     assert "invalid_client" in schema["properties"]["error"]["enum"]
+
+
+def test_path_parameters_have_a_placeholder(open_manifest_path: ManifestPath):
+    """A path parameter must name a template expression of its path."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    components = open_api_spec["components"]["parameters"]
+    for path, operations in open_api_spec["paths"].items():
+        parameters = list(operations.get("parameters", []))
+        for method, operation in operations.items():
+            if method != "parameters" and isinstance(operation, dict):
+                parameters.extend(operation.get("parameters", []))
+
+        for parameter in parameters:
+            parameter = components[parameter["$ref"].rsplit("/", 1)[1]]
+            if parameter["in"] == "path":
+                assert f"{{{parameter['name']}}}" in path, f"{parameter['name']!r} has no placeholder in {path}"

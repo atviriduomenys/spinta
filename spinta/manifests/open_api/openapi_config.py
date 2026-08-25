@@ -196,7 +196,8 @@ PATHS_CONFIG = {
         },
     },
     "/{model_name}/{id}/{field}": {
-        "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language", "property"],
+        # Property name is part of the generated path, so it is not a parameter.
+        "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
         "head": {
             # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
