@@ -248,7 +248,7 @@ RESPONSE_COMPONENTS = {
     "tokenError400": {
         "description": "Bad Request",
         "headers": [],
-        "content": {"application/json": {"schema": "tokenError"}},
+        "content": {"application/json": {"schema": {"anyOf": ["tokenError", {"errors": ["InvalidScopes"]}]}}},
     },
     "tokenError401": {
         "description": "Unauthorized",
@@ -259,38 +259,38 @@ RESPONSE_COMPONENTS = {
         "description": "Bad Request",
         "headers": [],
         "content": {
-            "application/json": {"schema": {"oneOf": ["UniqueConstraint", "NoItemRevision", "InvalidOperandValue"]}}
+            "application/json": {"schema": {"errors": ["UniqueConstraint", "NoItemRevision", "InvalidOperandValue"]}}
         },
     },
     "error401": {
         "description": "Bad Request",
         "headers": [],
-        "content": {"application/json": {"schema": {"oneOf": ["AuthorizedClientsOnly", "InvalidToken"]}}},
+        "content": {"application/json": {"schema": {"errors": ["AuthorizedClientsOnly", "InvalidToken"]}}},
     },
     "error403": {
         "description": "Forbidden",
         "headers": [],
-        "content": {"application/json": {"schema": "Forbidden"}},
+        "content": {"application/json": {"schema": {"errors": ["Forbidden"]}}},
     },
     "error404": {
         "description": "Not Found",
         "headers": [],
-        "content": {"application/json": {"schema": "ItemDoesNotExist"}},
+        "content": {"application/json": {"schema": {"errors": ["ItemDoesNotExist"]}}},
     },
     "error409": {
         "description": "Bad Request",
         "headers": [],
-        "content": {"application/json": {"schema": "ConflictingValue"}},
+        "content": {"application/json": {"schema": {"errors": ["ConflictingValue"]}}},
     },
     "error500": {
         "description": "Internal Server Error",
         "headers": [],
-        "content": {"application/json": {"schema": {"oneOf": ["UnhandledException", "MultipleRowsFound"]}}},
+        "content": {"application/json": {"schema": {"errors": ["UnhandledException", "MultipleRowsFound"]}}},
     },
     "error503": {
         "description": "Service Unavailable",
         "headers": [],
-        "content": {"application/json": {"schema": "ServiceNotAvailable"}},
+        "content": {"application/json": {"schema": {"errors": ["ServiceNotAvailable"]}}},
     },
 }
 
@@ -554,6 +554,19 @@ COMMON_SCHEMAS = {
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the image.",
             },
         },
+    },
+    "InvalidScopes": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "InvalidScopes"},
+            "type": {"type": "string", "description": "system"},
+            "template": {
+                "type": "string",
+                "description": "Request contains invalid, unknown or malformed scopes: {scopes}.",
+            },
+            "message": {"type": "string"},
+        },
+        "additionalProperties": True,
     },
     "UniqueConstraint": {
         "type": "object",
