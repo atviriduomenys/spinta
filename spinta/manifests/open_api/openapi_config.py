@@ -24,8 +24,8 @@ PROPERTY_EXAMPLE = {
     "time": "11:44:11",
     "text": "Example text content",
     "binary": "base64encodeddata==",
-    "file": {"_id": "example.pdf", "_content_type": "application/pdf", "_size": 1024},
-    "image": {"_id": "example.png", "_content_type": "image/png", "_size": 2048},
+    "file": {"_id": "example.pdf", "_content_type": "application/pdf"},
+    "image": {"_id": "example.png", "_content_type": "image/png"},
     "object": {},
     "geometry": "POINT (6088198 505579)",
     "money": 99.99,
@@ -112,8 +112,8 @@ PATHS_CONFIG = {
                     "headers": COMMON_RESPONSE_HEADERS,
                     "content": {"application/json": {"schema": "token"}},
                 },
-                "400": {"$ref": "error400"},
-                "401": {"$ref": "error401"},
+                "400": {"$ref": "tokenError400"},
+                "401": {"$ref": "tokenError401"},
                 "500": {"$ref": "error500"},
                 "503": {"$ref": "error503"},
             },
@@ -242,6 +242,18 @@ PATHS_CONFIG = {
 }
 
 RESPONSE_COMPONENTS = {
+    # Token endpoint answers with an OAuth 2.0 error, see RFC 6749 section 5.2,
+    # not with a Spinta one.
+    "tokenError400": {
+        "description": "Bad Request",
+        "headers": [],
+        "content": {"application/json": {"schema": "tokenError"}},
+    },
+    "tokenError401": {
+        "description": "Unauthorized",
+        "headers": [],
+        "content": {"application/json": {"schema": "tokenError"}},
+    },
     "error400": {
         "description": "Bad Request",
         "headers": [],
@@ -474,7 +486,6 @@ COMMON_SCHEMAS = {
                 "type": ["string", "null"],
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the file.",
             },
-            "_size": {"type": ["integer", "null"], "description": "File size in bytes."},
         },
     },
     "url": {"type": "string", "description": "Uniform Resource Locator. Used to provide links to external sources."},
@@ -502,6 +513,25 @@ COMMON_SCHEMAS = {
             "build": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
         },
     },
+    "tokenError": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+            "error": {
+                "type": "string",
+                "enum": [
+                    "invalid_request",
+                    "invalid_client",
+                    "invalid_grant",
+                    "unauthorized_client",
+                    "unsupported_grant_type",
+                    "invalid_scope",
+                ],
+            },
+            "error_description": {"type": "string"},
+            "error_uri": {"type": "string"},
+        },
+    },
     "token": {
         "type": "object",
         # `access_token` and `token_type` are required by RFC 6749, so a
@@ -522,7 +552,6 @@ COMMON_SCHEMAS = {
                 "type": ["string", "null"],
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the image.",
             },
-            "_size": {"type": ["integer", "null"], "description": "Image size in bytes."},
         },
     },
     "UniqueConstraint": {
