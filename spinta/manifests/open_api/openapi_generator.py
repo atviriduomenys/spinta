@@ -658,8 +658,25 @@ class ComponentSchemaBuilder:
     def _build_schema_ref(self, schema_config) -> dict[str, Any]:
         if isinstance(schema_config, str):
             return {"$ref": f"#/components/schemas/{schema_config}"}
-        elif isinstance(schema_config, dict) and "oneOf" in schema_config:
-            return {"oneOf": [{"$ref": f"#/components/schemas/{schema}"} for schema in schema_config["oneOf"]]}
+
+        if isinstance(schema_config, dict):
+            if "oneOf" in schema_config:
+                return {"oneOf": [self._build_schema_ref(schema) for schema in schema_config["oneOf"]]}
+
+            if "anyOf" in schema_config:
+                return {"anyOf": [self._build_schema_ref(schema) for schema in schema_config["anyOf"]]}
+
+            # Spinta answers with an envelope, see `spinta.api.error_response`.
+            if "errors" in schema_config:
+                errors = [self._build_schema_ref(schema) for schema in schema_config["errors"]]
+                return {
+                    "type": "object",
+                    "required": ["errors"],
+                    "properties": {
+                        "errors": {"type": "array", "items": errors[0] if len(errors) == 1 else {"oneOf": errors}}
+                    },
+                }
+
         return schema_config
 
 

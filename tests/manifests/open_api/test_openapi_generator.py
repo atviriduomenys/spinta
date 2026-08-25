@@ -996,21 +996,54 @@ def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: Mani
     assert set(example) == {"_id", "_content_type"}
 
 
-def test_token_endpoint_errors_are_oauth_errors(open_manifest_path_factory):
-    """The token endpoint answers with an RFC 6749 error, not with a Spinta one."""
+def test_token_endpoint_errors(open_manifest_path_factory):
+    """The token endpoint answers with an RFC 6749 error, or with a Spinta one.
+
+    An unknown scope raises `InvalidScopes`, see `tests/test_auth.py`, while
+    authlib answers a failed client authentication with an OAuth error.
+    """
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     responses = open_api_spec["paths"]["/:token"]["post"]["responses"]
     assert responses["400"] == {"$ref": "#/components/responses/tokenError400"}
     assert responses["401"] == {"$ref": "#/components/responses/tokenError401"}
 
-    for name in ("tokenError400", "tokenError401"):
-        response = open_api_spec["components"]["responses"][name]
-        assert response["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/tokenError"}
+    components = open_api_spec["components"]["responses"]
+    assert components["tokenError400"]["content"]["application/json"]["schema"] == {
+        "anyOf": [
+            {"$ref": "#/components/schemas/tokenError"},
+            _errors_envelope({"$ref": "#/components/schemas/InvalidScopes"}),
+        ],
+    }
+    assert components["tokenError401"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/tokenError",
+    }
 
     schema = open_api_spec["components"]["schemas"]["tokenError"]
     assert schema["required"] == ["error"]
     assert "invalid_client" in schema["properties"]["error"]["enum"]
+
+
+def _errors_envelope(items: dict) -> dict:
+    return {"type": "object", "required": ["errors"], "properties": {"errors": {"type": "array", "items": items}}}
+
+
+def test_error_responses_use_the_spinta_envelope(open_manifest_path_factory):
+    """Spinta answers with `{"errors": [...]}`, see `spinta.api.error_response`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    responses = open_api_spec["components"]["responses"]
+    assert responses["error404"]["content"]["application/json"]["schema"] == _errors_envelope(
+        {"$ref": "#/components/schemas/ItemDoesNotExist"},
+    )
+    assert responses["error401"]["content"]["application/json"]["schema"] == _errors_envelope(
+        {
+            "oneOf": [
+                {"$ref": "#/components/schemas/AuthorizedClientsOnly"},
+                {"$ref": "#/components/schemas/InvalidToken"},
+            ],
+        },
+    )
 
 
 def test_path_parameters_have_a_placeholder(open_manifest_path: ManifestPath):
