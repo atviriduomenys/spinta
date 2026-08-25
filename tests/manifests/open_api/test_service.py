@@ -99,6 +99,24 @@ def test_resolve_servers_appends_service_path():
     ]
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://get.data.gov.lt",
+        "https://get.data.gov.lt/",
+        # A trailing slash on the path, not on the whole URL.
+        "https://get.data.gov.lt/?env=prod",
+    ],
+)
+def test_resolve_servers_appends_to_a_host_only_url(url):
+    config = UdtsConfig(servers=[{"url": url}])
+
+    resolved = config.resolve_servers(SERVICE)[0]["url"]
+
+    assert resolved.startswith(f"https://get.data.gov.lt/{SERVICE}")
+    assert config.resolve_token_url([{"url": resolved}]).startswith(f"https://get.data.gov.lt/{SERVICE}/:token")
+
+
 def test_resolve_servers_keeps_given_service_path():
     config = UdtsConfig(servers=[{"url": f"https://get.data.gov.lt/{SERVICE}/"}])
 
@@ -237,3 +255,10 @@ def test_default_token_url_is_built_from_the_server_path(server, expected):
 
 def test_default_token_url_without_servers():
     assert UdtsConfig().resolve_token_url([]) == "/:token"
+
+
+def test_resolve_servers_drops_a_trailing_slash_of_the_path():
+    """An API gateway falls back to the API title when the path is left empty."""
+    config = UdtsConfig(servers=[{"url": f"https://get.data.gov.lt/{SERVICE}/?env=prod"}])
+
+    assert config.resolve_servers(SERVICE) == [{"url": f"https://get.data.gov.lt/{SERVICE}?env=prod"}]
