@@ -41,9 +41,11 @@ Backwards incompatible:
     ``_id``, as Spinta does, instead of ``_name``, carry only the fields a
     response actually holds, and allow the null values left after a file is
     deleted.
-  - The token endpoint documents its ``400`` and ``401`` responses as OAuth 2.0
-    errors, which is what Spinta returns there, instead of the Spinta error
-    envelope used by the data endpoints.
+  - Error responses are described as the ``{"errors": [...]}`` envelope Spinta
+    answers with, instead of a bare error object. The token endpoint documents
+    its ``401`` response as an OAuth 2.0 error and its ``400`` response as
+    either that or an ``InvalidScopes`` envelope, which is what an unknown scope
+    produces.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
     instead of strings. ``file`` and ``image`` properties reference the file

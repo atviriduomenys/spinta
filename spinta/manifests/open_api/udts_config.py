@@ -191,6 +191,7 @@ def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
 
     try:
         parts = urlsplit(url)
+        parts.port  # noqa: B018  Port is parsed only when it is read.
     except ValueError as error:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 

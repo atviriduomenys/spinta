@@ -297,6 +297,8 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ("servers:\n  - url: https://host\n    description: 1\n", "must be a string"),
         # A relative URL is parsed too.
         ('servers:\n  - url: "//["\n', "is not a valid URL"),
+        # A port is parsed only when it is read.
+        ("servers:\n  - url: https://host:abc\n", "is not a valid URL"),
         # OpenAPI License Object requires a name.
         ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
