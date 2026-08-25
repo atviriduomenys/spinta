@@ -38,8 +38,12 @@ Backwards incompatible:
   - Responses of ``file`` and ``image`` property endpoints are described as
     binary content of any media type, which is what Spinta serves there, not as
     a JSON metadata object. The ``file`` and ``image`` schemas name the file
-    ``_id``, as Spinta does, instead of ``_name``, and allow the null values
-    left after a file is deleted.
+    ``_id``, as Spinta does, instead of ``_name``, carry only the fields a
+    response actually holds, and allow the null values left after a file is
+    deleted.
+  - The token endpoint documents its ``400`` and ``401`` responses as OAuth 2.0
+    errors, which is what Spinta returns there, instead of the Spinta error
+    envelope used by the data endpoints.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
     instead of strings. ``file`` and ``image`` properties reference the file

@@ -986,9 +986,27 @@ def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: Mani
 
     schemas = open_api_spec["components"]["schemas"]
     for name in ("file", "image"):
-        assert set(schemas[name]["properties"]) == {"_id", "_content_type", "_size"}
+        # A response carries only these two, see `prepare_dtype_for_response`.
+        assert set(schemas[name]["properties"]) == {"_id", "_content_type"}
         # Values are null once the file is deleted.
         assert schemas[name]["properties"]["_id"]["type"] == ["string", "null"]
 
     example = schemas["datasets_demo_system_data_ProcessingUnit"]["example"]["technical_specs"]
-    assert set(example) == {"_id", "_content_type", "_size"}
+    assert set(example) == {"_id", "_content_type"}
+
+
+def test_token_endpoint_errors_are_oauth_errors(open_manifest_path_factory):
+    """The token endpoint answers with an RFC 6749 error, not with a Spinta one."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    responses = open_api_spec["paths"]["/:token"]["post"]["responses"]
+    assert responses["400"] == {"$ref": "#/components/responses/tokenError400"}
+    assert responses["401"] == {"$ref": "#/components/responses/tokenError401"}
+
+    for name in ("tokenError400", "tokenError401"):
+        response = open_api_spec["components"]["responses"][name]
+        assert response["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/tokenError"}
+
+    schema = open_api_spec["components"]["schemas"]["tokenError"]
+    assert schema["required"] == ["error"]
+    assert "invalid_client" in schema["properties"]["error"]["enum"]
