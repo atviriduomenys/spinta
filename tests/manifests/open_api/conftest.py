@@ -184,6 +184,21 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+#: Models whose names, concatenated with their file property names, build one
+#: operation id: `A` + `bc` and `Ab` + `c`.
+MANIFEST_WITH_COLLIDING_OPERATION_IDS = striptable("""
+id | d | r | b | m | property | type            | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | A            |                 | x   |       |
+   |   |   |   |   | x        | string required |     | 4     | open
+   |   |   |   |   | bc       | file            |     | 4     | open
+   |   |   |   | Ab           |                 | y   |       |
+   |   |   |   |   | y        | string required |     | 4     | open
+   |   |   |   |   | c        | file            |     | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST

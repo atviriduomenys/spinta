@@ -137,7 +137,7 @@ PATHS_CONFIG = {
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get multiple objects.",
-            "description": "Return list of objects for a given model.\n",
+            "description": "Return list of objects for a given model.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`.\n",
             "operationId": "getAll",
             "parameters": ["query"],
             "responses": {
