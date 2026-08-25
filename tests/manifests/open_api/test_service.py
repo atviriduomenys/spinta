@@ -217,3 +217,23 @@ def test_config_accepts_empty_file(tmp_path, config):
     path.write_text(config, encoding="utf-8")
 
     assert UdtsConfig.from_path(path).servers == []
+
+
+@pytest.mark.parametrize(
+    "server, expected",
+    [
+        (f"https://get.data.gov.lt/{SERVICE}", f"https://get.data.gov.lt/{SERVICE}/:token"),
+        # Query and fragment stay where they belong.
+        (f"https://get.data.gov.lt/{SERVICE}?env=prod", f"https://get.data.gov.lt/{SERVICE}/:token?env=prod"),
+        (f"https://get.data.gov.lt/{SERVICE}#frag", f"https://get.data.gov.lt/{SERVICE}/:token#frag"),
+        (f"/{SERVICE}", f"/{SERVICE}/:token"),
+    ],
+)
+def test_default_token_url_is_built_from_the_server_path(server, expected):
+    config = UdtsConfig(servers=[{"url": server}])
+
+    assert config.resolve_token_url(config.resolve_servers(SERVICE)) == expected
+
+
+def test_default_token_url_without_servers():
+    assert UdtsConfig().resolve_token_url([]) == "/:token"
