@@ -27,6 +27,16 @@ yaml = YAML(typ="safe")
 
 KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs"])
 
+#: Fields of the OpenAPI objects the configuration is copied into, plus the
+#: fields of `auth`, which is ours. Everything else, apart from `x-` extensions,
+#: is a typo or an unsupported field and is left out.
+INFO_KEYS = frozenset(["title", "summary", "description", "termsOfService", "contact", "license", "version"])
+CONTACT_KEYS = frozenset(["name", "url", "email"])
+LICENSE_KEYS = frozenset(["name", "identifier", "url"])
+SERVER_KEYS = frozenset(["url", "description", "variables"])
+EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
+AUTH_KEYS = frozenset(["token_url"])
+
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
 TOKEN_PATH = "/:token"
@@ -81,10 +91,10 @@ class UdtsConfig:
             _check_server(server, path)
 
         return cls(
-            info=data.get("info") or {},
-            servers=servers,
-            auth=data.get("auth") or {},
-            external_docs=data.get("externalDocs") or {},
+            info=_clean_info(data.get("info") or {}, path),
+            servers=[_keep_known(server, SERVER_KEYS, path, "`servers` entry") for server in servers],
+            auth=_keep_known(data.get("auth") or {}, AUTH_KEYS, path, "`auth`"),
+            external_docs=_keep_known(data.get("externalDocs") or {}, EXTERNAL_DOCS_KEYS, path, "`externalDocs`"),
         )
 
     def resolve_servers(self, service_path: str) -> list[dict[str, Any]]:
@@ -135,6 +145,32 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
 
     _check_url(url, path, "server URL")
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
+
+
+def _keep_known(mapping: dict, known: frozenset[str], path: pathlib.Path, what: str) -> dict:
+    """Leave out fields OpenAPI does not define, keeping `x-` extensions.
+
+    Such a field is usually a typo, which would both make the document invalid
+    and silently leave the intended field unset.
+    """
+    kept = {}
+    for key, value in mapping.items():
+        if isinstance(key, str) and (key in known or key.startswith("x-")):
+            kept[key] = value
+        else:
+            warnings.warn(f"{path}: unknown {what} key {key!r}, ignoring it.", UserWarning)
+    return kept
+
+
+def _clean_info(info: dict, path: pathlib.Path) -> dict:
+    info = _keep_known(info, INFO_KEYS, path, "`info`")
+
+    if "contact" in info:
+        info["contact"] = _keep_known(info["contact"], CONTACT_KEYS, path, "`info.contact`")
+    if "license" in info:
+        info["license"] = _keep_known(info["license"], LICENSE_KEYS, path, "`info.license`")
+
+    return info
 
 
 def _check_string(value: Any, path: pathlib.Path, what: str) -> None:
