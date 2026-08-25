@@ -30,9 +30,9 @@ SERVICE_PATH_SEGMENTS = 5
 def _is_version_segment(segment: str) -> bool:
     """UDTS service version is a single positive integer number.
 
-    Spec: "Version number is a singe positive integer number specifying major
-    version of the service." The version segment is optional, in which case the
-    latest service version is used.
+    Specification describes it as a single positive integer number giving the
+    major version of the service. The version segment is optional, in which case
+    the latest service version is used.
     """
     return version_re.match(segment) is not None
 
