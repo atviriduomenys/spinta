@@ -273,6 +273,13 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ("info:\n  license: something\n", "`info.license` must be a mapping"),
         ("externalDocs:\n  description: docs\n", "`externalDocs.url` must be a non empty string"),
         ("externalDocs:\n  url: https://ivpk.github.io/uapi\n  description: 1\n", "must be a string"),
+        # Whole server mapping is copied into the document.
+        ("servers:\n  - url: https://host\n    description: 1\n", "must be a string"),
+        # A relative URL is parsed too.
+        ('servers:\n  - url: "//["\n', "is not a valid URL"),
+        # OpenAPI License Object requires a name.
+        ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
+        ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
     ],
 )
 def test_config_rejects_values_openapi_would_reject(tmp_path, config, error):
@@ -281,3 +288,12 @@ def test_config_rejects_values_openapi_would_reject(tmp_path, config, error):
 
     with pytest.raises(InvalidUdtsConfig, match=error):
         UdtsConfig.from_path(path)
+
+
+def test_config_warns_about_unknown_keys_of_any_type(tmp_path):
+    """Keys of different types do not sort together."""
+    path = tmp_path / "vartai.yml"
+    path.write_text("1: x\nnezinomas: y\n", encoding="utf-8")
+
+    with pytest.warns(UserWarning, match="unknown UDTS configuration key"):
+        assert UdtsConfig.from_path(path).servers == []

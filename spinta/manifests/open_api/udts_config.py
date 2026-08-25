@@ -56,7 +56,7 @@ class UdtsConfig:
         if not isinstance(data, dict):
             raise InvalidUdtsConfig(path=str(path), error="configuration must be a mapping.")
 
-        for key in sorted(set(data) - KNOWN_KEYS):
+        for key in sorted(set(data) - KNOWN_KEYS, key=str):
             warnings.warn(f"{path}: unknown UDTS configuration key {key!r}, ignoring it.", UserWarning)
 
         for key in ("info", "auth", "externalDocs"):
@@ -132,19 +132,42 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
         raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
 
     _check_url(url, path, "server URL")
+    _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
+
+
+def _check_string(value: Any, path: pathlib.Path, what: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {value!r}.")
+
+
+def _check_optional_string(value: Any, path: pathlib.Path, what: str) -> None:
+    if value is not None and not isinstance(value, str):
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a string, got {value!r}.")
 
 
 def _check_info(info: dict, path: pathlib.Path) -> None:
     """`info` is emitted as given, so its values have to be of OpenAPI types."""
     for key in ("title", "version", "summary", "description"):
-        value = info.get(key)
-        if value is not None and not isinstance(value, str):
-            raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a string, got {value!r}.")
+        _check_optional_string(info.get(key), path, f"`info.{key}`")
 
     for key in ("contact", "license"):
         value = info.get(key)
         if value is not None and not isinstance(value, dict):
             raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a mapping, got {value!r}.")
+
+    contact = info.get("contact") or {}
+    for key in ("name", "email"):
+        _check_optional_string(contact.get(key), path, f"`info.contact.{key}`")
+    if contact.get("url") is not None:
+        _check_url(contact["url"], path, "`info.contact.url`")
+
+    license_ = info.get("license")
+    if license_ is not None:
+        # OpenAPI License Object requires a name.
+        _check_string(license_.get("name"), path, "`info.license.name`")
+        _check_optional_string(license_.get("identifier"), path, "`info.license.identifier`")
+        if license_.get("url") is not None:
+            _check_url(license_["url"], path, "`info.license.url`")
 
 
 def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
@@ -153,35 +176,28 @@ def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
 
     _check_url(external_docs.get("url"), path, "`externalDocs.url`")
 
-    description = external_docs.get("description")
-    if description is not None and not isinstance(description, str):
-        raise InvalidUdtsConfig(
-            path=str(path),
-            error=f"`externalDocs.description` must be a string, got {description!r}.",
-        )
+    _check_optional_string(external_docs.get("description"), path, "`externalDocs.description`")
 
 
 def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
-    if not isinstance(url, str) or not url:
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {url!r}.")
+    _check_string(url, path, what)
+
+    try:
+        parts = urlsplit(url)
+    except ValueError as error:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 
     # OpenAPI allows a relative URL, but it has to start with a slash. Anything
     # else has to carry both a scheme and a host, otherwise `urlsplit` reads the
     # host as a path (`localhost:8080` is read as scheme `localhost`) and the
     # data service path is silently dropped.
-    if not url.startswith("/"):
-        try:
-            parts = urlsplit(url)
-        except ValueError as error:
-            raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
-        if not parts.scheme or not parts.netloc:
-            raise InvalidUdtsConfig(
-                path=str(path),
-                error=(
-                    f"{what} {url!r} has no scheme and host, "
-                    "use `https://host.example.com` or a path starting with `/`."
-                ),
-            )
+    if not url.startswith("/") and (not parts.scheme or not parts.netloc):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(
+                f"{what} {url!r} has no scheme and host, use `https://host.example.com` or a path starting with `/`."
+            ),
+        )
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
