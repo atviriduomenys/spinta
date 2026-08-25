@@ -179,3 +179,28 @@ def test_config_reports_malformed_yaml(tmp_path):
 
     with pytest.raises(InvalidUdtsConfig, match="not a valid YAML file"):
         UdtsConfig.from_path(path)
+
+
+@pytest.mark.parametrize(
+    "token_url, error",
+    [
+        (123, "must be a non empty string"),
+        ('""', "must be a non empty string"),
+        ("localhost:8080", "has no scheme and host"),
+    ],
+)
+def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
+    path = tmp_path / "vartai.yml"
+    path.write_text(f"auth:\n  token_url: {token_url}\n", encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match=error):
+        UdtsConfig.from_path(path)
+
+
+def test_config_accepts_token_url(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text("auth:\n  token_url: https://am.example.lt/auth/token\n", encoding="utf-8")
+
+    config = UdtsConfig.from_path(path)
+
+    assert config.resolve_token_url([]) == "https://am.example.lt/auth/token"
