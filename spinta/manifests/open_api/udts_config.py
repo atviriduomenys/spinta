@@ -45,12 +45,14 @@ class UdtsConfig:
     def from_path(cls, path: pathlib.Path | str) -> UdtsConfig:
         path = pathlib.Path(path)
         try:
-            data = yaml.load(path.read_text(encoding="utf-8")) or {}
+            data = yaml.load(path.read_text(encoding="utf-8"))
         except OSError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"can not be read, {error.strerror or error}.")
         except YAMLError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {error}.")
 
+        if data is None:
+            data = {}
         if not isinstance(data, dict):
             raise InvalidUdtsConfig(path=str(path), error="configuration must be a mapping.")
 
@@ -65,7 +67,9 @@ class UdtsConfig:
         if token_url is not None:
             _check_url(token_url, path, "`auth.token_url`")
 
-        servers = data.get("servers") or []
+        servers = data.get("servers")
+        if servers is None:
+            servers = []
         if not isinstance(servers, list):
             raise InvalidUdtsConfig(path=str(path), error="`servers` must be a list.")
         for server in servers:

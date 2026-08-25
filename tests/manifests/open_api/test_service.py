@@ -137,6 +137,11 @@ def test_example_config_file_is_valid():
 @pytest.mark.parametrize(
     "config, error",
     [
+        # Falsy values are not a missing value, they are malformed ones.
+        ("[]\n", "configuration must be a mapping"),
+        ("false\n", "configuration must be a mapping"),
+        ("servers: {}\n", "`servers` must be a list"),
+        ("servers: false\n", "`servers` must be a list"),
         ("info: something\n", "`info` must be a mapping"),
         ("auth: something\n", "`auth` must be a mapping"),
         ("servers: something\n", "`servers` must be a list"),
@@ -204,3 +209,11 @@ def test_config_accepts_token_url(tmp_path):
     config = UdtsConfig.from_path(path)
 
     assert config.resolve_token_url([]) == "https://am.example.lt/auth/token"
+
+
+@pytest.mark.parametrize("config", ["", "# only a comment\n"])
+def test_config_accepts_empty_file(tmp_path, config):
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    assert UdtsConfig.from_path(path).servers == []
