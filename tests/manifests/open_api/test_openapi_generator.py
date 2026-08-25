@@ -978,3 +978,17 @@ def test_scope_prefix_is_configurable(open_manifest_path: ManifestPath):
 
     security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
     assert security == [{"UAPI_auth": ["kita:/datasets/demo/system_data/Organization/:getone"]}]
+
+
+def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: ManifestPath):
+    """Spinta names the file `_id`, see `spinta.types.file.components.FileData`."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schemas = open_api_spec["components"]["schemas"]
+    for name in ("file", "image"):
+        assert set(schemas[name]["properties"]) == {"_id", "_content_type", "_size"}
+        # Values are null once the file is deleted.
+        assert schemas[name]["properties"]["_id"]["type"] == ["string", "null"]
+
+    example = schemas["datasets_demo_system_data_ProcessingUnit"]["example"]["technical_specs"]
+    assert set(example) == {"_id", "_content_type", "_size"}

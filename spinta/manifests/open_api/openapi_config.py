@@ -24,8 +24,8 @@ PROPERTY_EXAMPLE = {
     "time": "11:44:11",
     "text": "Example text content",
     "binary": "base64encodeddata==",
-    "file": {"_name": "example.pdf", "_content_type": "application/pdf", "_size": 1024},
-    "image": {"_name": "example.png", "_content_type": "image/png", "_size": 2048},
+    "file": {"_id": "example.pdf", "_content_type": "application/pdf", "_size": 1024},
+    "image": {"_id": "example.png", "_content_type": "image/png", "_size": 2048},
     "object": {},
     "geometry": "POINT (6088198 505579)",
     "money": 99.99,
@@ -466,13 +466,15 @@ COMMON_SCHEMAS = {
     },
     "file": {
         "type": "object",
+        # Spinta names the file `_id`, see `spinta.types.file.components.FileData`,
+        # and leaves the values null when the file is deleted.
         "properties": {
-            "_name": {"type": "string", "description": "File name"},
+            "_id": {"type": ["string", "null"], "description": "File name"},
             "_content_type": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the file.",
             },
-            "_size": {"type": "integer", "description": "File size in bytes."},
+            "_size": {"type": ["integer", "null"], "description": "File size in bytes."},
         },
     },
     "url": {"type": "string", "description": "Uniform Resource Locator. Used to provide links to external sources."},
@@ -515,12 +517,12 @@ COMMON_SCHEMAS = {
     "image": {
         "type": "object",
         "properties": {
-            "_name": {"type": "string", "description": "Image file name"},
+            "_id": {"type": ["string", "null"], "description": "Image file name"},
             "_content_type": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the image.",
             },
-            "_size": {"type": "integer", "description": "Image size in bytes."},
+            "_size": {"type": ["integer", "null"], "description": "Image size in bytes."},
         },
     },
     "UniqueConstraint": {
