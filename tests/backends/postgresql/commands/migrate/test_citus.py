@@ -580,14 +580,30 @@ def test_migrate_from_empty_default_schema_distribution_invalidation_list(
     assert not current_citus_state.distributed
 
     result = cli.invoke(rc, ["migrate", "-p"])
-    order = (
+    index_order = (
         f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__id', columns=['_id'])}"
         f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__txn', columns=['_txn'])}"
     )
-    if order not in result.output:
-        order = (
+    if index_order not in result.output:
+        index_order = (
             f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__txn', columns=['_txn'])}"
             f"{add_index(table_identifier=test_list_table_identifier, index_name='ix_Test/:list/data__id', columns=['_id'])}"
+        )
+
+    constraint_order = (
+        '    CONSTRAINT "fk_Test/:list/data__rid_Test" FOREIGN KEY(_rid) REFERENCES '
+        '"distribute/example"."Test" (_id) ON DELETE CASCADE, \n'
+        '    CONSTRAINT "fk_Test/:list/data__id_distribute/data.Data" FOREIGN '
+        'KEY(_id) REFERENCES "distribute/data"."Data" (_id) ON DELETE CASCADE ON '
+        "UPDATE CASCADE\n"
+    )
+    if constraint_order not in result.output:
+        constraint_order = (
+            '    CONSTRAINT "fk_Test/:list/data__id_distribute/data.Data" FOREIGN '
+            'KEY(_id) REFERENCES "distribute/data"."Data" (_id) ON DELETE CASCADE ON '
+            "UPDATE CASCADE, \n"
+            '    CONSTRAINT "fk_Test/:list/data__rid_Test" FOREIGN KEY(_rid) REFERENCES '
+            '"distribute/example"."Test" (_id) ON DELETE CASCADE\n'
         )
     assert result.output.endswith(
         f"BEGIN;\n\n"
@@ -638,13 +654,9 @@ def test_migrate_from_empty_default_schema_distribution_invalidation_list(
         "    _txn UUID, \n"
         "    _rid UUID, \n"
         "    _id UUID, \n"
-        '    CONSTRAINT "fk_Test/:list/data__rid_Test" FOREIGN KEY(_rid) REFERENCES '
-        '"distribute/example"."Test" (_id) ON DELETE CASCADE, \n'
-        '    CONSTRAINT "fk_Test/:list/data__id_distribute/data.Data" FOREIGN '
-        'KEY(_id) REFERENCES "distribute/data"."Data" (_id) ON DELETE CASCADE ON '
-        "UPDATE CASCADE\n"
+        f"{constraint_order}"
         ");\n\n"
-        f"{order}"
+        f"{index_order}"
         f"{add_column_comment(table_identifier=test_list_table_identifier, column='_txn')}"
         f"{add_column_comment(table_identifier=test_list_table_identifier, column='_rid')}"
         f"{add_column_comment(table_identifier=test_list_table_identifier, column='_id')}"
