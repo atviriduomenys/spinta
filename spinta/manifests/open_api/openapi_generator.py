@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from functools import partial
+from typing import Any, Callable, Union
 
 from spinta.cli.manifest import _read_and_return_manifest
-from spinta.components import Model
+from spinta.components import Model, Property
 from spinta.config import CONFIG
 from spinta.core.context import configure_context, create_context
-from spinta.core.enums import Level
+from spinta.core.enums import Action, Level
 from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
@@ -53,6 +54,31 @@ GLOBAL_ID_LEVEL_THRESHOLD = 4
 #: Used when the generator is called without a loaded Spinta configuration.
 DEFAULT_SCOPE_PREFIX = CONFIG["scope_prefix_udts"]
 DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
+
+#: Scope a model or a property is authorized against, see `spinta.auth`.
+ScopeNameFunc = Callable[[Union[Model, Property], Action], str]
+
+
+def default_scope_name(
+    node: Model | Property,
+    action: Action,
+    prefix: str = DEFAULT_SCOPE_PREFIX,
+    maxlen: int = DEFAULT_SCOPE_MAX_LENGTH,
+) -> str:
+    """Build a scope the way `spinta.auth.get_scope_name` does.
+
+    Used when the generator is called without the configured scope formatter,
+    which is where a deployment can replace this.
+    """
+    name = f"{node.model.model_type()}/@{node.place}" if isinstance(node, Property) else node.model_type()
+    return name_to_scope(
+        SCOPE_TEMPLATE,
+        name,
+        maxlen=maxlen,
+        params={"prefix": prefix, "action": action.value},
+        is_udts=True,
+    )
+
 
 EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
 EXAMPLE_UUID_OBJECT_ID = "abdd1245-bbf9-4085-9366-f11c0f737c1d"
@@ -297,17 +323,10 @@ class DataTypeHandler:
 class PathGenerator:
     """Handles OpenAPI path generation and operations"""
 
-    def __init__(
-        self,
-        dtype_handler: DataTypeHandler,
-        namer: SchemaNamer,
-        scope_prefix: str,
-        scope_max_length: int,
-    ):
+    def __init__(self, dtype_handler: DataTypeHandler, namer: SchemaNamer, scope_name: ScopeNameFunc):
         self.dtype_handler = dtype_handler
         self.namer = namer
-        self.scope_prefix = scope_prefix
-        self.scope_max_length = scope_max_length
+        self.scope_name = scope_name
         self.operation_ids: set[str] = set()
 
     def should_create_property_endpoint(self, model_property) -> bool:
@@ -428,21 +447,8 @@ class PathGenerator:
         return requirements
 
     def _model_scopes(self, model: Model, path_type: str, model_property: tuple | None) -> list[str]:
-        if path_type == "property" and model_property:
-            name = f"{model.model_type()}/@{getattr(model_property[1], 'place', model_property[0])}"
-        else:
-            name = model.model_type()
-
-        return [
-            name_to_scope(
-                SCOPE_TEMPLATE,
-                name,
-                maxlen=self.scope_max_length,
-                params={"prefix": self.scope_prefix, "action": action},
-                is_udts=True,
-            )
-            for action in PATH_TYPE_ACTIONS[path_type]
-        ]
+        node = model_property[1] if path_type == "property" and model_property else model
+        return [self.scope_name(node, action) for action in PATH_TYPE_ACTIONS[path_type]]
 
     def _build_operation_id(self, base_id: str, model_name: str = None, model_property: tuple | None = None) -> str:
         """Build operation ID with optional model and property names.
@@ -904,6 +910,7 @@ class OpenAPIGenerator:
         api_version: str | None = None,
         service_path: str | None = None,
         config: UdtsConfig | None = None,
+        scope_name: ScopeNameFunc | None = None,
         scope_prefix: str = DEFAULT_SCOPE_PREFIX,
         scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
     ):
@@ -911,8 +918,11 @@ class OpenAPIGenerator:
         self.api_version = api_version if api_version is not None else ""
         self.service_path = service_path
         self.config = config if config is not None else UdtsConfig()
-        self.scope_prefix = scope_prefix
-        self.scope_max_length = scope_max_length
+        self.scope_name = scope_name or partial(
+            default_scope_name,
+            prefix=scope_prefix,
+            maxlen=scope_max_length,
+        )
 
         self.component_builder = ComponentSchemaBuilder()
 
@@ -952,7 +962,7 @@ class OpenAPIGenerator:
         self.schema_registry = OpenAPISchemaRegistry()
         self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
-        self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_prefix, self.scope_max_length)
+        self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_name)
         self.namer = namer
 
         self._set_servers(specification)

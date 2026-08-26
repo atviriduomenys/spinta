@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+from functools import partial
 from typing import List, Optional
 
 from typer import Argument, Option, echo
@@ -60,15 +61,15 @@ def oas(
     if udts_cfg and not config.auth.get("token_url"):
         cli_message(f"{udts_cfg}: no `auth.token_url` given, deriving it from the first server URL.")
 
+    spinta_config = context.get("config")
     spec = create_openapi_manifest(
         manifest,
         service_path=service_path,
         config=config,
         api_version=api_version,
-        # Scopes are built the same way Spinta builds them, so they follow the
-        # same configuration.
-        scope_prefix=context.get("config").scope_prefix_udts,
-        scope_max_length=context.get("config").scope_max_length,
+        # Scopes are built by the formatter Spinta authorizes with, see
+        # `spinta.auth.authorized`, so a deployment replacing it is followed.
+        scope_name=partial(spinta_config.scope_formatter, context, is_udts=True),
     )
     write_openapi_manifest(spec, output)
 

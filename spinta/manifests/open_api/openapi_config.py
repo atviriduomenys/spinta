@@ -1,3 +1,5 @@
+from spinta.core.enums import Action
+
 PROPERTY_TYPES_IN_PATHS = {"file", "image"}
 
 VERSION = "3.1.0"
@@ -732,9 +734,9 @@ SCOPE_TEMPLATE = "{prefix}{name}/:{action}"
 #: A collection is read with `getall`, or with `search` when the request narrows
 #: it down with query parameters.
 PATH_TYPE_ACTIONS = {
-    "collection": ("getall", "search"),
-    "single": ("getone",),
-    "property": ("getone",),
+    "collection": (Action.GETALL, Action.SEARCH),
+    "single": (Action.GETONE,),
+    "property": (Action.GETONE,),
 }
 
 SCOPE_DESCRIPTION = "Access to the data of this data service."
