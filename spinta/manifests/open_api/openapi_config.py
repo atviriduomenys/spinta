@@ -732,7 +732,11 @@ SCOPE_TEMPLATE = "{prefix}{name}/:{action}"
 
 #: Action each read operation authorizes against, see `spinta.urlparams.get_action`.
 #: A collection is read with `getall`, or with `search` when the request narrows
-#: it down with query parameters.
+#: it down with query parameters. Both are emitted as alternative security
+#: requirements, because OpenAPI can not make a requirement depend on query
+#: parameters. Requiring both instead would deny a token Spinta accepts, while
+#: this way a request Spinta denies is denied by Spinta, so do not "fix" it into
+#: one requirement holding both scopes.
 PATH_TYPE_ACTIONS = {
     "collection": (Action.GETALL, Action.SEARCH),
     "single": (Action.GETONE,),
