@@ -17,7 +17,7 @@ import re
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -101,7 +101,7 @@ class UdtsConfig:
         for server in servers:
             _check_server(server, path)
 
-        _check_resolved_token_url(token_url, servers, path)
+        _check_derived_token_url(token_url, servers, path)
 
         return cls(
             info=_clean_info(data.get("info") or {}, path),
@@ -164,9 +164,12 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
             ),
         )
 
-    _check_url(url, path, "server URL")
+    _check_url(url, path, "server URL", relative=True)
     parts = urlsplit(url)
     if not parts.scheme and not url.startswith("/"):
+        # Without a scheme `urlsplit` reads the host as a path
+        # (`localhost:8080` is read as scheme `localhost`), which would silently
+        # drop the data service path.
         raise InvalidUdtsConfig(
             path=str(path),
             error=(
@@ -177,24 +180,30 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
 
 
-def _check_resolved_token_url(token_url: str | None, servers: list, path: pathlib.Path) -> None:
-    """Require TLS when a token URL resolves to an absolute URL.
+def _check_derived_token_url(token_url: str | None, servers: list, path: pathlib.Path) -> None:
+    """Check the token URL derived from the first server.
 
-    OpenAPI permits relative URLs. When both the token URL and the first server
-    are relative there is no scheme to validate here; the document consumer
-    resolves them against the location of the OpenAPI document.
+    A given `auth.token_url` is checked where it is read. Without one it is
+    derived from the first server, which may be relative, while the OpenAPI
+    schema types the `tokenUrl` of a flow as an absolute `uri` — hence the
+    warning rather than an error, the server itself is valid.
     """
-    if not servers:
+    if token_url or not servers:
         return
 
-    server_url = servers[0].get("url", "")
-    resolved = urljoin(server_url, token_url) if token_url else server_url
-    scheme = urlsplit(resolved).scheme.lower()
-    if scheme and scheme != "https":
-        what = "`auth.token_url`" if token_url else "token URL derived from the first server"
+    parts = urlsplit(servers[0].get("url", ""))
+    if not parts.scheme or not parts.hostname:
+        warnings.warn(
+            f"{path}: no server with a scheme and a host and no `auth.token_url`, so the token endpoint of "
+            "`components.securitySchemes` is left relative, while OpenAPI expects an absolute URL.",
+            UserWarning,
+        )
+        return
+
+    if parts.scheme.lower() != "https":
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"{what} must use HTTPS, got {resolved!r}.",
+            error=f"token URL derived from the first server must use HTTPS, got {servers[0]['url']!r}.",
         )
 
 
@@ -277,7 +286,21 @@ def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
     _check_optional_string(external_docs.get("description"), path, "`externalDocs.description`")
 
 
-def _check_url(url: Any, path: pathlib.Path, what: str, *, require_https: bool = False) -> None:
+def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False, require_https: bool = False) -> None:
+    """Check a value copied into an URL field of the document.
+
+    Pass `relative` for the fields the OpenAPI schema types as `uri-reference`,
+    which is `servers[].url` alone. Everything else, `info.termsOfService`, the
+    `url` of `info.contact`, of `info.license` and of `externalDocs`, and the
+    `tokenUrl` of an OAuth flow, is typed `uri` there and has to be absolute.
+
+    The prose of the specification does permit a relative reference in any URI
+    field, sections 4.6 and 4.7, so this looks stricter than the specification
+    reads. It is not: a validator asserting `format` follows the schema and
+    rejects a relative value in an `uri` field, and this document exists to be
+    validated. This has been loosened once and brought back, so do not loosen it
+    again without checking the schema of the OpenAPI version being generated.
+    """
     _check_string(url, path, what)
 
     # `urlsplit` parses an URL, it does not validate one.
@@ -303,14 +326,20 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, require_https: bool =
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 
     if not parts.scheme:
-        # OpenAPI URL fields may be relative references. Network-path
-        # references (`//host/path`) have a host but inherit the scheme.
-        return
+        # A network-path reference (`//host/path`) has a host but inherits the
+        # scheme, so it is relative as well.
+        if relative:
+            return
+
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} has no scheme and host, use `https://host.example.com`.",
+        )
 
     if not parts.hostname:
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"{what} {url!r} has a scheme but no host, use `https://host.example.com` or a relative path.",
+            error=f"{what} {url!r} has a scheme but no host, use `https://host.example.com`.",
         )
 
     if require_https and parts.scheme.lower() != "https":
