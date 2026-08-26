@@ -144,6 +144,14 @@ def test_resolve_servers_keeps_given_service_path():
     assert config.resolve_servers(SERVICE) == [{"url": f"https://get.data.gov.lt/{SERVICE}"}]
 
 
+def test_resolve_servers_warns_on_a_doubled_slash():
+    """An API gateway derives a context path with the doubled slash from it."""
+    config = UdtsConfig(servers=[{"url": f"https://get.data.gov.lt//{SERVICE}"}])
+
+    with pytest.warns(UserWarning, match="does not match data service path"):
+        config.resolve_servers(SERVICE)
+
+
 def test_resolve_servers_warns_on_different_path():
     config = UdtsConfig(servers=[{"url": "https://get.data.gov.lt/kitas/kelias"}])
 
@@ -300,6 +308,9 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ('servers:\n  - url: "//["\n', "is not a valid URL"),
         # A port is parsed only when it is read.
         ("servers:\n  - url: https://host:abc\n", "is not a valid URL"),
+        # Server variables are not supported, so a template has nothing to fill it.
+        ('servers:\n  - url: "https://{env}.example.lt"\n', "is a template, which is not supported"),
+        ('servers:\n  - url: "https://host:{port}"\n', "is a template, which is not supported"),
         # OpenAPI License Object requires a name.
         ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),

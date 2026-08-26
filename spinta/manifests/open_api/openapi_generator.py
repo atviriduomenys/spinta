@@ -37,7 +37,7 @@ from spinta.manifests.open_api.service import (
     relative_path,
     service_schema_name,
 )
-from spinta.manifests.open_api.udts_config import UdtsConfig
+from spinta.manifests.open_api.udts_config import TOKEN_PATH, UdtsConfig
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
@@ -1038,8 +1038,20 @@ class OpenAPIGenerator:
         schemes = copy.deepcopy(SECURITY_SCHEMES)
         flow = schemes[AUTH_SCHEME]["flows"]["clientCredentials"]
         flow["tokenUrl"] = self.config.resolve_token_url(spec.get("servers", []))
-        flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in sorted(_requested_scopes(spec, AUTH_SCHEME))}
+        scopes = sorted(_requested_scopes(spec, AUTH_SCHEME))
+        flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in scopes}
         spec.setdefault("components", {})["securitySchemes"] = schemes
+
+        self._set_scope_example(spec, scopes)
+
+    def _set_scope_example(self, spec: dict[str, Any], scopes: list[str]) -> None:
+        """Show a scope of this data service in the token request example."""
+        token_path = spec.get("paths", {}).get(TOKEN_PATH)
+        if not token_path or not scopes:
+            return
+
+        content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
+        content["schema"]["properties"]["scope"]["examples"] = [scopes[0]]
 
     def _set_tags(self, spec: dict[str, Any], models: dict):
         description = "Operations with"

@@ -1070,3 +1070,15 @@ def test_operation_ids_of_colliding_names_are_disambiguated(open_manifest_path_f
 
     operation_ids = _operation_ids(open_api_spec)
     assert len(operation_ids) == len(set(operation_ids))
+
+
+def test_token_request_example_uses_a_scope_of_the_service(open_manifest_path_factory):
+    """A hardcoded example would disagree with a configured scope prefix."""
+    open_api_spec = _service_spec(open_manifest_path_factory, scope_prefix="kita:/")
+
+    content = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]
+    example = content["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]["examples"]
+    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+
+    assert example == [sorted(declared)[0]]
+    assert example[0].startswith("kita:/")

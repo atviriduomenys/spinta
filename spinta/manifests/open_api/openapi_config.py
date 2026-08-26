@@ -96,10 +96,11 @@ PATHS_CONFIG = {
                             "required": ["grant_type"],
                             "properties": {
                                 "grant_type": {"type": "string", "enum": ["client_credentials"]},
+                                # Example is filled in with a scope of this
+                                # data service, see `_add_security_schemes`.
                                 "scope": {
                                     "type": "string",
                                     "description": "Space separated list of requested scopes.",
-                                    "examples": ["uapi:/datasets/gov/example/City/:getall"],
                                 },
                             },
                         }
