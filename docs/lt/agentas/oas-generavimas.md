@@ -87,6 +87,34 @@ būdais:
 - **pilnas adresas su paslaugos keliu** – naudojamas toks, koks yra. Jei jo
   kelias nesutampa su `--path`, parodomas įspėjimas.
 
+## Scope'ai specifikacijoje
+
+Kiekviena duomenų operacija specifikacijoje nurodo scope'ą, kurio Spinta iš
+tikrųjų reikalauja – jis sudaromas iš modelio (ar savybės) ir veiksmo tuo pačiu
+formatteriu, kurį naudoja pati autorizacija, tad seka ir `scope_prefix_udts` bei
+`scope_max_length` nustatymus.
+
+Vienas atvejis nusipelno paaiškinimo. Kolekcijos skaitymas autorizuojamas
+skirtingai, priklausomai nuo užklausos:
+
+```
+GET /at280_israsas/Adresas              → …/:getall
+GET /at280_israsas/Adresas?limit(10)    → …/:search
+```
+
+Tai ta pati operacija, o OpenAPI neturi būdo susieti reikalaujamo scope'o su
+užklausos parametrais. Todėl specifikacijoje abu scope'ai surašomi kaip **dvi
+alternatyvos**, o operacijos aprašyme pasakyta, kuris kuriai užklausos formai
+priklauso. Alternatyvos nėra sukeičiamos: tokenui reikia to scope'o, kurį
+atitinka jo daroma užklausa.
+
+Praktinė pasekmė: jei vartai kada nors bus sukonfigūruoti scope'us tikrinti
+pagal šį failą, jie gali praleisti užklausą, kurią Spinta atmes su 403.
+Alternatyva – reikalauti abiejų scope'ų – elgtųsi blogiau: vartai atmestų
+užklausą, kurią Spinta būtų aptarnavusi, o klaida ateitų iš vartų, tad nė
+nesimatytų, kad API ją priima. Sprendžia ir tikrina Spinta; specifikacija čia
+aprašo sutartį.
+
 ## Ką su failu daryti vartuose
 
 Tas pats failas naudojamas dviem paskirtim:
