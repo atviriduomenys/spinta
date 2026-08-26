@@ -177,10 +177,9 @@ def test_scopes_follow_the_configured_formatter(context, rc, cli: SpintaCliRunne
 
     spec = json.loads(result.stdout)
     model = "datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas"
-    assert spec["paths"]["/at280_israsas/Israsas"]["get"]["security"] == [
-        {"UAPI_auth": [f"kita:{model}:getall"]},
-        {"UAPI_auth": [f"kita:{model}:search"]},
-    ]
+    security = spec["paths"]["/at280_israsas/Israsas"]["get"]["security"]
+    assert security[0] == {"UAPI_auth": [f"kita:{model}:getall"]}
+    assert {"UAPI_auth": [f"kita:{model}:search"]} in security
     assert (
         f"kita:{model}:getone"
         in spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]

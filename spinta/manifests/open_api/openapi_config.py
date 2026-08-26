@@ -727,8 +727,9 @@ COMMON_SCHEMAS = {
 #: Prefix of UDTS format scopes, `scope_prefix_udts` in Spinta configuration.
 SCOPE_PREFIX = "uapi:/"
 
-#: Scope template of UDTS format, see `spinta.auth.get_scope_name`.
+#: Scope templates of UDTS format, see `spinta.auth.get_scope_name`.
 SCOPE_TEMPLATE = "{prefix}{name}/:{action}"
+ROOT_SCOPE_TEMPLATE = "{prefix}:{action}"
 
 #: Action each read operation authorizes against, see `spinta.urlparams.get_action`.
 #: A collection is read with `getall`, or with `search` when the request narrows
