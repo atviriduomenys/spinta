@@ -162,8 +162,9 @@ def test_api_version(context, rc, cli: SpintaCliRunner, tmp_path):
     assert json.loads(result.stdout)["info"]["version"] == "2.1.8"
 
 
-def custom_scope_formatter(context, node, action, is_udts=False):
-    """Stands in for a deployment replacing `scope_formatter`."""
+def custom_scope_formatter(context, node, action, udts=False, /):
+    """Stands in for a formatter whose UDTS flag is positional-only."""
+    assert udts is True
     name = node.model.model_type() if hasattr(node, "model") else node.model_type()
     return f"kita:{name}:{action.value}"
 

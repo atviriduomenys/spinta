@@ -17,7 +17,7 @@ import re
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -42,6 +42,11 @@ AUTH_KEYS = frozenset(["token_url"])
 
 #: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
 malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
+
+#: Characters allowed in an RFC 3986 URI reference. Non-ASCII characters have
+#: to be percent-encoded (or encoded in a host with IDNA) before they are put
+#: into an OpenAPI URL field.
+invalid_uri_character_re = re.compile(r"[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]")
 
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
@@ -86,7 +91,7 @@ class UdtsConfig:
 
         token_url = (data.get("auth") or {}).get("token_url")
         if token_url is not None:
-            _check_url(token_url, path, "`auth.token_url`")
+            _check_url(token_url, path, "`auth.token_url`", require_https=True)
 
         servers = data.get("servers")
         if servers is None:
@@ -96,7 +101,7 @@ class UdtsConfig:
         for server in servers:
             _check_server(server, path)
 
-        _warn_on_relative_token_url(data, servers, path)
+        _check_resolved_token_url(token_url, servers, path)
 
         return cls(
             info=_clean_info(data.get("info") or {}, path),
@@ -159,25 +164,37 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
             ),
         )
 
-    _check_url(url, path, "server URL", relative=True)
+    _check_url(url, path, "server URL")
+    parts = urlsplit(url)
+    if not parts.scheme and not url.startswith("/"):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(
+                f"server URL {url!r} has no scheme and host, "
+                "use `https://host.example.com` or a path starting with `/`."
+            ),
+        )
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
 
 
-def _warn_on_relative_token_url(data: dict, servers: list, path: pathlib.Path) -> None:
-    """Warn when the token URL can only be derived as a relative one.
+def _check_resolved_token_url(token_url: str | None, servers: list, path: pathlib.Path) -> None:
+    """Require TLS when a token URL resolves to an absolute URL.
 
-    It is derived from the first server, while the OpenAPI schema types it as
-    an absolute `uri`.
+    OpenAPI permits relative URLs. When both the token URL and the first server
+    are relative there is no scheme to validate here; the document consumer
+    resolves them against the location of the OpenAPI document.
     """
-    if (data.get("auth") or {}).get("token_url") or not servers:
+    if not servers:
         return
 
-    parts = urlsplit(servers[0].get("url", ""))
-    if not parts.scheme or not parts.hostname:
-        warnings.warn(
-            f"{path}: no server with a host and no `auth.token_url`, so the token endpoint of "
-            "`components.securitySchemes` is left relative, while OpenAPI expects an absolute URL.",
-            UserWarning,
+    server_url = servers[0].get("url", "")
+    resolved = urljoin(server_url, token_url) if token_url else server_url
+    scheme = urlsplit(resolved).scheme.lower()
+    if scheme and scheme != "https":
+        what = "`auth.token_url`" if token_url else "token URL derived from the first server"
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} must use HTTPS, got {resolved!r}.",
         )
 
 
@@ -260,12 +277,18 @@ def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
     _check_optional_string(external_docs.get("description"), path, "`externalDocs.description`")
 
 
-def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False) -> None:
+def _check_url(url: Any, path: pathlib.Path, what: str, *, require_https: bool = False) -> None:
     _check_string(url, path, what)
 
     # `urlsplit` parses an URL, it does not validate one.
     if any(character.isspace() for character in url):
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, it holds whitespace.")
+
+    if invalid := invalid_uri_character_re.search(url):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} is not a valid URL, it holds invalid character {invalid.group()!r}.",
+        )
 
     if malformed_escape_re.search(url):
         raise InvalidUdtsConfig(
@@ -279,21 +302,19 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
     except ValueError as error:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 
-    if parts.scheme and parts.hostname:
+    if not parts.scheme:
+        # OpenAPI URL fields may be relative references. Network-path
+        # references (`//host/path`) have a host but inherit the scheme.
         return
 
-    # A server URL is a `uri-reference` in the OpenAPI schema, so it can be
-    # relative, but it has to start with a slash. Everything else is an `uri`
-    # there and has to be absolute. Without a scheme `urlsplit` reads the host
-    # as a path (`localhost:8080` is read as scheme `localhost`), which would
-    # silently drop the data service path.
-    if relative and url.startswith("/"):
-        return
+    if not parts.hostname:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} has a scheme but no host, use `https://host.example.com` or a relative path.",
+        )
 
-    hint = "use `https://host.example.com`"
-    if relative:
-        hint += " or a path starting with `/`"
-    raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} has no scheme and host, {hint}.")
+    if require_https and parts.scheme.lower() != "https":
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must use HTTPS, got {url!r}.")
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
