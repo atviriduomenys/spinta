@@ -215,7 +215,9 @@ def test_config_accepts_relative_server_url(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text(f"servers:\n  - url: /{SERVICE}\n", encoding="utf-8")
 
-    config = UdtsConfig.from_path(path)
+    # Such a server leaves the token endpoint relative, which is warned about.
+    with pytest.warns(UserWarning, match="is left relative"):
+        config = UdtsConfig.from_path(path)
 
     assert config.resolve_servers(SERVICE) == [{"url": f"/{SERVICE}"}]
 
@@ -320,6 +322,10 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ("info:\n  termsOfService: 1\n", "`info.termsOfService` must be a non empty string"),
         # OpenAPI Info Object requires it to be an URL.
         ("info:\n  termsOfService: not-a-url\n", "`info.termsOfService` 'not-a-url' has no scheme and host"),
+        # OpenAPI schema types these as `uri`, a relative one is not enough.
+        ("externalDocs:\n  url: /docs\n", "`externalDocs.url` '/docs' has no scheme and host"),
+        ("info:\n  termsOfService: /terms\n", "`info.termsOfService` '/terms' has no scheme and host"),
+        ("auth:\n  token_url: /auth/token\n", "`auth.token_url` '/auth/token' has no scheme and host"),
         # OpenAPI License Object allows either one.
         (
             "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n    url: https://example.com\n",
@@ -412,3 +418,12 @@ def test_config_accepts_a_percent_escaped_url(tmp_path):
     path.write_text("servers:\n  - url: https://host/a%20b\n", encoding="utf-8")
 
     assert UdtsConfig.from_path(path).servers == [{"url": "https://host/a%20b"}]
+
+
+def test_config_warns_when_the_token_url_stays_relative(tmp_path):
+    """A server URL can be relative, the token endpoint of the flow can not."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(f"servers:\n  - url: /{SERVICE}\n", encoding="utf-8")
+
+    with pytest.warns(UserWarning, match="is left relative"):
+        UdtsConfig.from_path(path)

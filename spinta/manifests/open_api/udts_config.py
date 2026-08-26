@@ -96,6 +96,8 @@ class UdtsConfig:
         for server in servers:
             _check_server(server, path)
 
+        _warn_on_relative_token_url(data, servers, path)
+
         return cls(
             info=_clean_info(data.get("info") or {}, path),
             servers=[_keep_known(server, SERVER_KEYS, path, "`servers` entry") for server in servers],
@@ -157,8 +159,25 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
             ),
         )
 
-    _check_url(url, path, "server URL")
+    _check_url(url, path, "server URL", relative=True)
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
+
+
+def _warn_on_relative_token_url(data: dict, servers: list, path: pathlib.Path) -> None:
+    """Warn when the token URL can only be derived as a relative one.
+
+    It is derived from the first server, while the OpenAPI schema types it as
+    an absolute `uri`.
+    """
+    if (data.get("auth") or {}).get("token_url") or not servers:
+        return
+
+    if not urlsplit(servers[0].get("url", "")).netloc:
+        warnings.warn(
+            f"{path}: no server with a host and no `auth.token_url`, so the token endpoint of "
+            "`components.securitySchemes` is left relative, while OpenAPI expects an absolute URL.",
+            UserWarning,
+        )
 
 
 def _keep_known(mapping: dict, known: frozenset[str], path: pathlib.Path, what: str) -> dict:
@@ -240,7 +259,7 @@ def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
     _check_optional_string(external_docs.get("description"), path, "`externalDocs.description`")
 
 
-def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
+def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False) -> None:
     _check_string(url, path, what)
 
     # `urlsplit` parses an URL, it does not validate one.
@@ -259,17 +278,21 @@ def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
     except ValueError as error:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 
-    # OpenAPI allows a relative URL, but it has to start with a slash. Anything
-    # else has to carry both a scheme and a host, otherwise `urlsplit` reads the
-    # host as a path (`localhost:8080` is read as scheme `localhost`) and the
-    # data service path is silently dropped.
-    if not url.startswith("/") and (not parts.scheme or not parts.netloc):
-        raise InvalidUdtsConfig(
-            path=str(path),
-            error=(
-                f"{what} {url!r} has no scheme and host, use `https://host.example.com` or a path starting with `/`."
-            ),
-        )
+    if parts.scheme and parts.netloc:
+        return
+
+    # A server URL is a `uri-reference` in the OpenAPI schema, so it can be
+    # relative, but it has to start with a slash. Everything else is an `uri`
+    # there and has to be absolute. Without a scheme `urlsplit` reads the host
+    # as a path (`localhost:8080` is read as scheme `localhost`), which would
+    # silently drop the data service path.
+    if relative and url.startswith("/"):
+        return
+
+    hint = "use `https://host.example.com`"
+    if relative:
+        hint += " or a path starting with `/`"
+    raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} has no scheme and host, {hint}.")
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
