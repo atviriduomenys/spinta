@@ -195,8 +195,12 @@ def _check_optional_string(value: Any, path: pathlib.Path, what: str) -> None:
 
 def _check_info(info: dict, path: pathlib.Path) -> None:
     """`info` is emitted as given, so its values have to be of OpenAPI types."""
-    for key in ("title", "version", "summary", "description", "termsOfService"):
+    for key in ("title", "version", "summary", "description"):
         _check_optional_string(info.get(key), path, f"`info.{key}`")
+
+    # OpenAPI Info Object requires it to be an URL.
+    if info.get("termsOfService") is not None:
+        _check_url(info["termsOfService"], path, "`info.termsOfService`")
 
     for key in ("contact", "license"):
         value = info.get(key)
