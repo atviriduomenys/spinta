@@ -314,7 +314,9 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         # OpenAPI License Object requires a name.
         ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
-        ("info:\n  termsOfService: 1\n", "`info.termsOfService` must be a string"),
+        ("info:\n  termsOfService: 1\n", "`info.termsOfService` must be a non empty string"),
+        # OpenAPI Info Object requires it to be an URL.
+        ("info:\n  termsOfService: not a url\n", "`info.termsOfService` 'not a url' has no scheme and host"),
         # OpenAPI License Object allows either one.
         (
             "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n    url: https://example.com\n",
