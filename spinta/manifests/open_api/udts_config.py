@@ -145,6 +145,14 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     if not isinstance(url, str) or not url:
         raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
 
+    if "{" in url or "}" in url:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(
+                f"server URL {url!r} is a template, which is not supported, give each environment an URL of its own."
+            ),
+        )
+
     _check_url(url, path, "server URL")
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
 
@@ -257,7 +265,7 @@ def _resolve_server_url(url: str, service_path: str) -> str:
     if not path:
         return urlunsplit(parts._replace(path=f"/{service_path}"))
 
-    if path.lstrip("/") != service_path:
+    if path != f"/{service_path}":
         warnings.warn(
             f"Server URL {url!r} path does not match data service path {service_path!r}. "
             "Leaving it as given, API gateway will derive a different context path.",
