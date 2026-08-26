@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pathlib
-from functools import partial
 from typing import List, Optional
 
 from typer import Argument, Option, echo
@@ -62,6 +61,12 @@ def oas(
         cli_message(f"{udts_cfg}: no `auth.token_url` given, deriving it from the first server URL.")
 
     spinta_config = context.get("config")
+
+    def scope_name(node, action):
+        # Runtime authorization passes the UDTS flag positionally. Do the same
+        # here so configured formatters may rename it or make it positional-only.
+        return spinta_config.scope_formatter(context, node, action, True)
+
     spec = create_openapi_manifest(
         manifest,
         service_path=service_path,
@@ -69,7 +74,7 @@ def oas(
         api_version=api_version,
         # Scopes are built by the formatter Spinta authorizes with, see
         # `spinta.auth.authorized`, so a deployment replacing it is followed.
-        scope_name=partial(spinta_config.scope_formatter, context, is_udts=True),
+        scope_name=scope_name,
     )
     write_openapi_manifest(spec, output)
 

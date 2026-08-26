@@ -208,6 +208,8 @@ Arguments
   OPTIONAL. YAML file with the information that is not part of a manifest:
   environments, service level ``info`` and the authorization server. An example
   file is shipped as ``spinta/manifests/open_api/udts_cfg.example.yml``.
+  OpenAPI URL fields may use relative references. An absolute
+  ``auth.token_url`` must use HTTPS.
 
 - ``--api-version``
   OPTIONAL. Value of ``info.version``. Overrides ``info.version`` given in the
