@@ -303,6 +303,7 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         # OpenAPI License Object requires a name.
         ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
+        ("info:\n  termsOfService: 1\n", "`info.termsOfService` must be a string"),
         # OpenAPI License Object allows either one.
         (
             "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n    url: https://example.com\n",
@@ -338,18 +339,18 @@ def test_config_reports_a_non_utf8_file(tmp_path):
 @pytest.mark.parametrize(
     "config, warning, kept",
     [
-        ("info:\n  titel: JADIS\n", "unknown `info` key 'titel'", {"info": {}}),
+        ("info:\n  titel: JADIS\n", "`info` key 'titel' is not supported", {"info": {}}),
         (
             "servers:\n  - url: https://host\n    descrption: Production\n",
-            "unknown `servers` entry key 'descrption'",
+            "`servers` entry key 'descrption' is not supported",
             {"servers": [{"url": "https://host"}]},
         ),
         (
             "info:\n  contact:\n    naem: RC\n",
-            "unknown `info.contact` key 'naem'",
+            "`info.contact` key 'naem' is not supported",
             {"info": {"contact": {}}},
         ),
-        ("auth:\n  tokenurl: https://host/auth/token\n", "unknown `auth` key 'tokenurl'", {"auth": {}}),
+        ("auth:\n  tokenurl: https://host/auth/token\n", "`auth` key 'tokenurl' is not supported", {"auth": {}}),
     ],
 )
 def test_config_leaves_out_unknown_nested_keys(tmp_path, config, warning, kept):
@@ -362,6 +363,20 @@ def test_config_leaves_out_unknown_nested_keys(tmp_path, config, warning, kept):
 
     for key, value in kept.items():
         assert getattr(config, key) == value
+
+
+def test_config_leaves_out_server_variables(tmp_path):
+    """An environment is described by an URL of its own, not by a template."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(
+        "servers:\n  - url: https://host\n    variables:\n      port:\n        default: '443'\n",
+        encoding="utf-8",
+    )
+
+    with pytest.warns(UserWarning, match=re.escape("`servers` entry key 'variables' is not supported")):
+        config = UdtsConfig.from_path(path)
+
+    assert config.servers == [{"url": "https://host"}]
 
 
 def test_config_keeps_openapi_fields_and_extensions(tmp_path):
