@@ -308,6 +308,9 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ('servers:\n  - url: "//["\n', "is not a valid URL"),
         # A port is parsed only when it is read.
         ("servers:\n  - url: https://host:abc\n", "is not a valid URL"),
+        # `urlsplit` parses an URL, it does not validate one.
+        ('servers:\n  - url: "https://host/a b"\n', "it holds whitespace"),
+        ('servers:\n  - url: "https://host/%zz"\n', "percent sign has to start an escape"),
         # Server variables are not supported, so a template has nothing to fill it.
         ('servers:\n  - url: "https://{env}.example.lt"\n', "is a template, which is not supported"),
         ('servers:\n  - url: "https://host:{port}"\n', "is a template, which is not supported"),
@@ -316,7 +319,7 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
         ("info:\n  termsOfService: 1\n", "`info.termsOfService` must be a non empty string"),
         # OpenAPI Info Object requires it to be an URL.
-        ("info:\n  termsOfService: not a url\n", "`info.termsOfService` 'not a url' has no scheme and host"),
+        ("info:\n  termsOfService: not-a-url\n", "`info.termsOfService` 'not-a-url' has no scheme and host"),
         # OpenAPI License Object allows either one.
         (
             "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n    url: https://example.com\n",
@@ -402,3 +405,10 @@ def test_config_keeps_openapi_fields_and_extensions(tmp_path):
     config = UdtsConfig.from_path(path)
 
     assert config.info == {"title": "JADIS", "termsOfService": "https://example.lt", "x-vidinis": "taip"}
+
+
+def test_config_accepts_a_percent_escaped_url(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text("servers:\n  - url: https://host/a%20b\n", encoding="utf-8")
+
+    assert UdtsConfig.from_path(path).servers == [{"url": "https://host/a%20b"}]

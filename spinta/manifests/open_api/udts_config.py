@@ -13,6 +13,7 @@ An example file is shipped as `udts_cfg.example.yml` next to this module.
 from __future__ import annotations
 
 import pathlib
+import re
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
@@ -38,6 +39,9 @@ LICENSE_KEYS = frozenset(["name", "identifier", "url"])
 SERVER_KEYS = frozenset(["url", "description"])
 EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
 AUTH_KEYS = frozenset(["token_url"])
+
+#: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
+malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
 
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
@@ -238,6 +242,16 @@ def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
 
 def _check_url(url: Any, path: pathlib.Path, what: str) -> None:
     _check_string(url, path, what)
+
+    # `urlsplit` parses an URL, it does not validate one.
+    if any(character.isspace() for character in url):
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, it holds whitespace.")
+
+    if malformed_escape_re.search(url):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} is not a valid URL, a percent sign has to start an escape of two hex digits.",
+        )
 
     try:
         parts = urlsplit(url)
