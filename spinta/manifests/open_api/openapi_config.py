@@ -140,7 +140,7 @@ PATHS_CONFIG = {
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get multiple objects.",
-            "description": "Return list of objects for a given model.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`.\n",
+            "description": "Return list of objects for a given model.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`. The two are listed as alternative security requirements, because OpenAPI can not make a requirement depend on query parameters, so they are not interchangeable: a token needs the scope of the request it makes.\n",
             "operationId": "getAll",
             "parameters": ["query"],
             "responses": {
