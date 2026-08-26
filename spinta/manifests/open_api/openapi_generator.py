@@ -669,12 +669,14 @@ class ComponentSchemaBuilder:
             # Spinta answers with an envelope, see `spinta.api.error_response`.
             if "errors" in schema_config:
                 errors = [self._build_schema_ref(schema) for schema in schema_config["errors"]]
+                # Error schemas are not discriminated, every one of them accepts
+                # any error object, and Spinta answers with error codes beyond
+                # the ones named here, so the alternatives are not exclusive.
+                items = errors[0] if len(errors) == 1 else {"anyOf": errors}
                 return {
                     "type": "object",
                     "required": ["errors"],
-                    "properties": {
-                        "errors": {"type": "array", "items": errors[0] if len(errors) == 1 else {"oneOf": errors}}
-                    },
+                    "properties": {"errors": {"type": "array", "items": items}},
                 }
 
         return schema_config
