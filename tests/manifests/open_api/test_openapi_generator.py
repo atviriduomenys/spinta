@@ -1135,3 +1135,12 @@ def test_model_schema_accepts_a_real_object(open_manifest_path: ManifestPath):
     }
 
     assert not list(_validator(open_api_spec, schema).iter_errors(body))
+
+
+def test_service_path_and_main_dataset_name_are_alternatives(open_manifest_path: ManifestPath):
+    with pytest.raises(ValueError, match="not both"):
+        create_openapi_manifest(
+            open_manifest_path,
+            main_dataset_name="datasets/demo/system_data",
+            service_path=SERVICE_PATH,
+        )

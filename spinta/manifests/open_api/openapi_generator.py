@@ -914,6 +914,12 @@ class OpenAPIGenerator:
         scope_prefix: str = DEFAULT_SCOPE_PREFIX,
         scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
     ):
+        if main_dataset_name is not None and service_path is not None:
+            # One covers a data service with all of its data sets, the other a
+            # single data set, so silently taking one of them would export
+            # something the caller did not ask for.
+            raise ValueError("Give either `main_dataset_name` or `service_path`, not both.")
+
         self.main_dataset_name = main_dataset_name
         self.api_version = api_version if api_version is not None else ""
         self.service_path = service_path
