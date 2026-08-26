@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from spinta import commands
@@ -1036,9 +1038,10 @@ def test_error_responses_use_the_spinta_envelope(open_manifest_path_factory):
     assert responses["error404"]["content"]["application/json"]["schema"] == _errors_envelope(
         {"$ref": "#/components/schemas/ItemDoesNotExist"},
     )
+    # Alternatives are not exclusive, every error schema accepts any error.
     assert responses["error401"]["content"]["application/json"]["schema"] == _errors_envelope(
         {
-            "oneOf": [
+            "anyOf": [
                 {"$ref": "#/components/schemas/AuthorizedClientsOnly"},
                 {"$ref": "#/components/schemas/InvalidToken"},
             ],
@@ -1082,3 +1085,53 @@ def test_token_request_example_uses_a_scope_of_the_service(open_manifest_path_fa
 
     assert example == [sorted(declared)[0]]
     assert example[0].startswith("kita:/")
+
+
+def _validator(open_api_spec: dict, schema: dict):
+    """Build a validator of a schema of the generated specification."""
+    jsonschema = pytest.importorskip("jsonschema")
+
+    schemas = open_api_spec["components"]["schemas"]
+    resolved = json.dumps({"$defs": schemas, **schema}).replace("#/components/schemas/", "#/$defs/")
+    return jsonschema.Draft202012Validator(json.loads(resolved))
+
+
+def _error_body(code: str) -> dict:
+    """Error as `spinta.api.error_response` builds it."""
+    return {"errors": [{"type": "system", "code": code, "template": "t", "context": {}, "message": "m"}]}
+
+
+@pytest.mark.parametrize(
+    "response, body",
+    [
+        ("error400", _error_body("UniqueConstraint")),
+        # Spinta answers with error codes beyond the ones the response names.
+        ("error400", _error_body("SomeOtherError")),
+        ("error401", _error_body("InvalidToken")),
+        ("error404", _error_body("ItemDoesNotExist")),
+        ("tokenError400", {"error": "invalid_client", "error_description": "Invalid client name"}),
+        ("tokenError400", _error_body("InvalidScopes")),
+    ],
+)
+def test_error_responses_accept_real_bodies(open_manifest_path_factory, response, body):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["responses"][response]["content"]["application/json"]["schema"]
+    assert not list(_validator(open_api_spec, schema).iter_errors(body))
+
+
+def test_model_schema_accepts_a_real_object(open_manifest_path: ManifestPath):
+    """Values Spinta leaves empty come as null, and a file comes as an object."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schema = open_api_spec["components"]["schemas"]["datasets_demo_system_data_ProcessingUnit"]
+    body = {
+        "_type": "datasets/demo/system_data/ProcessingUnit",
+        "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
+        "_revision": None,
+        "unit_name": None,
+        "unit_type": None,
+        "technical_specs": {"_id": "specs.pdf", "_content_type": "application/pdf"},
+    }
+
+    assert not list(_validator(open_api_spec, schema).iter_errors(body))
