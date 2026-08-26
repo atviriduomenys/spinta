@@ -907,6 +907,45 @@ def test_file_and_image_properties_are_objects(open_manifest_path: ManifestPath)
     assert schemas["file"]["type"] == "object"
 
 
+def test_model_operations_accept_namespace_scopes(rc, open_manifest_path: ManifestPath):
+    """Spinta accepts a scope of the model or of any namespace above it."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+
+    requested = [
+        requirement["UAPI_auth"][0]
+        for requirement in open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
+    ]
+
+    assert requested == [
+        get_scope_name(context, node, Action.GETONE, is_udts=True) for node in [model, model.ns, *model.ns.parents()]
+    ]
+    # The namespace of the data set and the root namespace among them.
+    assert "uapi:/datasets/demo/system_data/:getone" in requested
+    assert "uapi:/:getone" in requested
+
+
+def test_hidden_property_takes_its_own_scope_only(rc, open_manifest_path_factory):
+    """`spinta.auth.authorized` does not widen a hidden property."""
+    from spinta.manifests.open_api.openapi_generator import _authorized_nodes
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+    prop = model.properties["org_logo"]
+
+    prop.hidden = True
+    try:
+        assert _authorized_nodes(model, "property", ("org_logo", prop)) == [prop]
+    finally:
+        prop.hidden = False
+
+    assert _authorized_nodes(model, "property", ("org_logo", prop))[:2] == [prop, model]
+
+
 def test_model_operations_request_real_scopes(rc, open_manifest_path: ManifestPath):
     """Scopes have to be the ones Spinta itself checks, they are not `uapi:/`.
 
@@ -925,23 +964,23 @@ def test_model_operations_request_real_scopes(rc, open_manifest_path: ManifestPa
     paths = open_api_spec["paths"]
     # A collection is read with `getall`, or with `search` when the request
     # narrows it down, and a token carrying either one is enough.
-    assert paths["/datasets/demo/system_data/Organization"]["get"]["security"] == [
-        {"UAPI_auth": [scope(model, Action.GETALL)]},
-        {"UAPI_auth": [scope(model, Action.SEARCH)]},
-    ]
-    assert paths["/datasets/demo/system_data/Organization/{id}"]["get"]["security"] == [
-        {"UAPI_auth": [scope(model, Action.GETONE)]},
-    ]
-    assert paths["/datasets/demo/system_data/Organization/{id}/org_logo"]["get"]["security"] == [
-        {"UAPI_auth": [scope(model.properties["org_logo"], Action.GETONE)]},
-    ]
+    collection = paths["/datasets/demo/system_data/Organization"]["get"]["security"]
+    assert collection[0] == {"UAPI_auth": [scope(model, Action.GETALL)]}
+    assert {"UAPI_auth": [scope(model, Action.SEARCH)]} in collection
+
+    assert paths["/datasets/demo/system_data/Organization/{id}"]["get"]["security"][0] == {
+        "UAPI_auth": [scope(model, Action.GETONE)],
+    }
+    assert paths["/datasets/demo/system_data/Organization/{id}/org_logo"]["get"]["security"][0] == {
+        "UAPI_auth": [scope(model.properties["org_logo"], Action.GETONE)],
+    }
 
 
 def test_scope_max_length_is_honoured(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path, scope_max_length=200)
 
     security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
-    assert security == [{"UAPI_auth": ["uapi:/datasets/demo/system_data/Organization/:getone"]}]
+    assert security[0] == {"UAPI_auth": ["uapi:/datasets/demo/system_data/Organization/:getone"]}
 
 
 def test_referenced_models_outside_the_service_get_own_schemas(open_manifest_path_factory):
@@ -966,13 +1005,13 @@ def test_model_head_operations_request_scopes(rc, open_manifest_path: ManifestPa
     model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
 
     paths = open_api_spec["paths"]
-    assert paths["/datasets/demo/system_data/Organization"]["head"]["security"] == [
-        {"UAPI_auth": [get_scope_name(context, model, Action.GETALL, is_udts=True)]},
-        {"UAPI_auth": [get_scope_name(context, model, Action.SEARCH, is_udts=True)]},
-    ]
-    assert paths["/datasets/demo/system_data/Organization/{id}"]["head"]["security"] == [
-        {"UAPI_auth": [get_scope_name(context, model, Action.GETONE, is_udts=True)]},
-    ]
+    collection = paths["/datasets/demo/system_data/Organization"]["head"]["security"]
+    assert collection[0] == {"UAPI_auth": [get_scope_name(context, model, Action.GETALL, is_udts=True)]}
+    assert {"UAPI_auth": [get_scope_name(context, model, Action.SEARCH, is_udts=True)]} in collection
+
+    assert paths["/datasets/demo/system_data/Organization/{id}"]["head"]["security"][0] == {
+        "UAPI_auth": [get_scope_name(context, model, Action.GETONE, is_udts=True)],
+    }
 
 
 def test_scope_prefix_is_configurable(open_manifest_path: ManifestPath):
@@ -980,7 +1019,9 @@ def test_scope_prefix_is_configurable(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path, scope_prefix="kita:/", scope_max_length=200)
 
     security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
-    assert security == [{"UAPI_auth": ["kita:/datasets/demo/system_data/Organization/:getone"]}]
+    assert security[0] == {"UAPI_auth": ["kita:/datasets/demo/system_data/Organization/:getone"]}
+    # Namespaces above the model are alternatives of their own.
+    assert {"UAPI_auth": ["kita:/datasets/demo/system_data/:getone"]} in security
 
 
 def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: ManifestPath):

@@ -6,7 +6,7 @@ from functools import partial
 from typing import Any, Callable, Union
 
 from spinta.cli.manifest import _read_and_return_manifest
-from spinta.components import Model, Property
+from spinta.components import Model, Namespace, Property
 from spinta.config import CONFIG
 from spinta.core.context import configure_context, create_context
 from spinta.core.enums import Action, Level
@@ -26,6 +26,7 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_MAPPING,
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
+    ROOT_SCOPE_TEMPLATE,
     SCOPE_DESCRIPTION,
     SCOPE_TEMPLATE,
     SECURITY_SCHEMES,
@@ -55,8 +56,30 @@ GLOBAL_ID_LEVEL_THRESHOLD = 4
 DEFAULT_SCOPE_PREFIX = CONFIG["scope_prefix_udts"]
 DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 
-#: Scope a model or a property is authorized against, see `spinta.auth`.
-ScopeNameFunc = Callable[[Union[Model, Property], Action], str]
+#: Scope a node is authorized against, see `spinta.auth`.
+ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
+
+
+def _authorized_nodes(model: Model, path_type: str, model_property: tuple | None) -> list[Model | Property | Namespace]:
+    """Nodes a scope of which authorizes the operation.
+
+    Spinta accepts a scope of the node itself or of any namespace above it, see
+    `spinta.auth.authorized`, so a token carrying a data service or a namespace
+    scope authorizes a model of it. A hidden property takes its own scope only.
+    """
+    if path_type == "property" and model_property:
+        prop = model_property[1]
+        if getattr(prop, "hidden", False):
+            return [prop]
+        nodes = [prop, model]
+    else:
+        nodes = [model]
+
+    namespace = getattr(model, "ns", None)
+    if namespace is not None:
+        nodes += [namespace, *namespace.parents()]
+
+    return nodes
 
 
 def default_scope_name(
@@ -70,9 +93,15 @@ def default_scope_name(
     Used when the generator is called without the configured scope formatter,
     which is where a deployment can replace this.
     """
-    name = f"{node.model.model_type()}/@{node.place}" if isinstance(node, Property) else node.model_type()
+    if isinstance(node, Namespace):
+        name = node.name
+    elif isinstance(node, Property):
+        name = f"{node.model.model_type()}/@{node.place}"
+    else:
+        name = node.model_type()
+
     return name_to_scope(
-        SCOPE_TEMPLATE,
+        SCOPE_TEMPLATE if name else ROOT_SCOPE_TEMPLATE,
         name,
         maxlen=maxlen,
         params={"prefix": prefix, "action": action.value},
@@ -447,8 +476,8 @@ class PathGenerator:
         return requirements
 
     def _model_scopes(self, model: Model, path_type: str, model_property: tuple | None) -> list[str]:
-        node = model_property[1] if path_type == "property" and model_property else model
-        return [self.scope_name(node, action) for action in PATH_TYPE_ACTIONS[path_type]]
+        nodes = _authorized_nodes(model, path_type, model_property)
+        return [self.scope_name(node, action) for action in PATH_TYPE_ACTIONS[path_type] for node in nodes]
 
     def _build_operation_id(self, base_id: str, model_name: str = None, model_property: tuple | None = None) -> str:
         """Build operation ID with optional model and property names.
