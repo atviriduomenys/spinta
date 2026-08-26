@@ -31,9 +31,10 @@ Backwards incompatible:
   - Model operations request the scopes Spinta actually checks, built from the
     model or property and the action, instead of the bare ``uapi:/`` prefix,
     which is not a scope. Reading a collection accepts ``:getall`` or
-    ``:search``, a single object and a property ``:getone``, and ``HEAD``
-    operations, which Spinta authorizes as ``GET``, are no longer advertised as
-    unauthenticated. Scopes are built by the ``scope_formatter`` of the
+    ``:search``, a single object and a property ``:getone``. Every namespace
+    above the model is listed as an alternative, because Spinta accepts a scope
+    of any of them, and ``HEAD`` operations, which Spinta authorizes as ``GET``,
+    are no longer advertised as unauthenticated. Scopes are built by the ``scope_formatter`` of the
     configuration, the one Spinta authorizes with, so they follow every option
     it honours, ``scope_prefix_udts`` and ``scope_max_length`` among them.
   - Responses of ``file`` and ``image`` property endpoints are described as

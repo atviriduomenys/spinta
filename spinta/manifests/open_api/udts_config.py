@@ -172,7 +172,8 @@ def _warn_on_relative_token_url(data: dict, servers: list, path: pathlib.Path) -
     if (data.get("auth") or {}).get("token_url") or not servers:
         return
 
-    if not urlsplit(servers[0].get("url", "")).netloc:
+    parts = urlsplit(servers[0].get("url", ""))
+    if not parts.scheme or not parts.hostname:
         warnings.warn(
             f"{path}: no server with a host and no `auth.token_url`, so the token endpoint of "
             "`components.securitySchemes` is left relative, while OpenAPI expects an absolute URL.",
@@ -278,7 +279,7 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
     except ValueError as error:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 
-    if parts.scheme and parts.netloc:
+    if parts.scheme and parts.hostname:
         return
 
     # A server URL is a `uri-reference` in the OpenAPI schema, so it can be
