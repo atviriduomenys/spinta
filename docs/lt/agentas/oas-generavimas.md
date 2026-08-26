@@ -78,6 +78,8 @@ Kiekviena aplinka aprašoma savo `url`, todėl OpenAPI `servers[].variables`
 `auth.token_url` neprivalomas: nenurodžius, jis išvedamas iš pirmojo `servers`
 įrašo ir `/:token`, t. y. iš to paties adreso, kuriuo token'ą per vartus pasiekia
 gavėjas. Nurodyti verta tik tada, kai autorizacijos serveris yra kitur.
+Galima nurodyti ir santykinį adresą, pavyzdžiui, `/auth/token`; absoliutus
+token'o adresas privalo naudoti HTTPS.
 
 `servers` – po vieną įrašą kiekvienai aplinkai. Adresą galima nurodyti dviem
 būdais:
