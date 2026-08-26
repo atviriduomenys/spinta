@@ -198,6 +198,10 @@ def test_example_config_file_is_valid():
         # path; `urlsplit` reads `localhost:8080` as scheme `localhost`.
         ("servers:\n  - url: get.data.gov.lt\n", "has no scheme and host"),
         ("servers:\n  - url: localhost:8080\n", "has a scheme but no host"),
+        # OpenAPI schema types these as `uri`, a relative one is not enough.
+        ("externalDocs:\n  url: /docs\n", "`externalDocs.url` '/docs' has no scheme and host"),
+        ("info:\n  termsOfService: /terms\n", "`info.termsOfService` '/terms' has no scheme and host"),
+        ("auth:\n  token_url: /auth/token\n", "`auth.token_url` '/auth/token' has no scheme and host"),
         ("servers:\n  - url: https:example.com\n", "has a scheme but no host"),
     ],
 )
@@ -260,14 +264,13 @@ def test_config_accepts_token_url(tmp_path):
     assert config.resolve_token_url([]) == "https://am.example.lt/auth/token"
 
 
-@pytest.mark.parametrize("token_url", ["/auth/token", "auth/token"])
-def test_config_accepts_relative_token_url(tmp_path, token_url):
+def test_config_warns_when_the_token_url_stays_relative(tmp_path):
+    """A server URL can be relative, the token endpoint of the flow can not."""
     path = tmp_path / "vartai.yml"
-    path.write_text(f"auth:\n  token_url: {token_url}\n", encoding="utf-8")
+    path.write_text(f"servers:\n  - url: /{SERVICE}\n", encoding="utf-8")
 
-    config = UdtsConfig.from_path(path)
-
-    assert config.resolve_token_url([]) == token_url
+    with pytest.warns(UserWarning, match="is left relative"):
+        UdtsConfig.from_path(path)
 
 
 def test_config_rejects_token_url_derived_from_insecure_server(tmp_path):
@@ -448,24 +451,28 @@ def test_config_accepts_a_percent_escaped_url(tmp_path):
     assert UdtsConfig.from_path(path).servers == [{"url": "https://host/a%20b"}]
 
 
-def test_config_accepts_relative_openapi_urls(tmp_path):
+def test_config_requires_absolute_openapi_urls(tmp_path):
+    """Only `servers[].url` is a `uri-reference` in the OpenAPI schema."""
     path = tmp_path / "vartai.yml"
     path.write_text(
         "info:\n"
-        "  termsOfService: /terms\n"
+        "  termsOfService: https://example.lt/terms\n"
         "  contact:\n"
-        "    url: contacts\n"
+        "    url: https://example.lt/contacts\n"
         "  license:\n"
         "    name: Example\n"
-        "    url: ../license\n"
+        "    url: https://example.lt/license\n"
         "externalDocs:\n"
-        "  url: /docs\n",
+        "  url: https://example.lt/docs\n",
         encoding="utf-8",
     )
 
     config = UdtsConfig.from_path(path)
 
-    assert config.info["termsOfService"] == "/terms"
-    assert config.info["contact"]["url"] == "contacts"
-    assert config.info["license"]["url"] == "../license"
-    assert config.external_docs["url"] == "/docs"
+    assert config.info["termsOfService"] == "https://example.lt/terms"
+    assert config.external_docs["url"] == "https://example.lt/docs"
+
+    for field in ("info:\n  contact:\n    url: contacts\n", "info:\n  license:\n    name: E\n    url: ../license\n"):
+        path.write_text(field, encoding="utf-8")
+        with pytest.raises(InvalidUdtsConfig, match="has no scheme and host"):
+            UdtsConfig.from_path(path)
