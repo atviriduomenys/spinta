@@ -29,11 +29,13 @@ KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs"])
 
 #: Fields of the OpenAPI objects the configuration is copied into, plus the
 #: fields of `auth`, which is ours. Everything else, apart from `x-` extensions,
-#: is a typo or an unsupported field and is left out.
+#: is a typo or a field this configuration does not support and is left out.
+#: Server variables are left out as well, because an environment is described by
+#: an URL of its own, not by a template.
 INFO_KEYS = frozenset(["title", "summary", "description", "termsOfService", "contact", "license", "version"])
 CONTACT_KEYS = frozenset(["name", "url", "email"])
 LICENSE_KEYS = frozenset(["name", "identifier", "url"])
-SERVER_KEYS = frozenset(["url", "description", "variables"])
+SERVER_KEYS = frozenset(["url", "description"])
 EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
 AUTH_KEYS = frozenset(["token_url"])
 
@@ -158,7 +160,7 @@ def _keep_known(mapping: dict, known: frozenset[str], path: pathlib.Path, what: 
         if isinstance(key, str) and (key in known or key.startswith("x-")):
             kept[key] = value
         else:
-            warnings.warn(f"{path}: unknown {what} key {key!r}, ignoring it.", UserWarning)
+            warnings.warn(f"{path}: {what} key {key!r} is not supported, leaving it out.", UserWarning)
     return kept
 
 
@@ -185,7 +187,7 @@ def _check_optional_string(value: Any, path: pathlib.Path, what: str) -> None:
 
 def _check_info(info: dict, path: pathlib.Path) -> None:
     """`info` is emitted as given, so its values have to be of OpenAPI types."""
-    for key in ("title", "version", "summary", "description"):
+    for key in ("title", "version", "summary", "description", "termsOfService"):
         _check_optional_string(info.get(key), path, f"`info.{key}`")
 
     for key in ("contact", "license"):
