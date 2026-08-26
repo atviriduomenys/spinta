@@ -160,3 +160,28 @@ def test_api_version(context, rc, cli: SpintaCliRunner, tmp_path):
     )
 
     assert json.loads(result.stdout)["info"]["version"] == "2.1.8"
+
+
+def custom_scope_formatter(context, node, action, is_udts=False):
+    """Stands in for a deployment replacing `scope_formatter`."""
+    name = node.model.model_type() if hasattr(node, "model") else node.model_type()
+    return f"kita:{name}:{action.value}"
+
+
+def test_scopes_follow_the_configured_formatter(context, rc, cli: SpintaCliRunner, tmp_path):
+    """Spinta authorizes with the formatter of its configuration."""
+    path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
+    localrc = rc.fork({"scope_formatter": "tests.cli.test_udts_oas:custom_scope_formatter"})
+
+    result = cli.invoke(localrc, ["udts", "oas", path])
+
+    spec = json.loads(result.stdout)
+    model = "datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas"
+    assert spec["paths"]["/at280_israsas/Israsas"]["get"]["security"] == [
+        {"UAPI_auth": [f"kita:{model}:getall"]},
+        {"UAPI_auth": [f"kita:{model}:search"]},
+    ]
+    assert (
+        f"kita:{model}:getone"
+        in spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+    )

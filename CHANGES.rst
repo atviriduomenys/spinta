@@ -33,8 +33,9 @@ Backwards incompatible:
     which is not a scope. Reading a collection accepts ``:getall`` or
     ``:search``, a single object and a property ``:getone``, and ``HEAD``
     operations, which Spinta authorizes as ``GET``, are no longer advertised as
-    unauthenticated. Scopes follow the ``scope_prefix_udts`` and
-    ``scope_max_length`` configuration options, as they do in Spinta.
+    unauthenticated. Scopes are built by the ``scope_formatter`` of the
+    configuration, the one Spinta authorizes with, so they follow every option
+    it honours, ``scope_prefix_udts`` and ``scope_max_length`` among them.
   - Responses of ``file`` and ``image`` property endpoints are described as
     binary content of any media type, which is what Spinta serves there, not as
     a JSON metadata object. The ``file`` and ``image`` schemas name the file
