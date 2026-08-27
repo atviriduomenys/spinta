@@ -259,6 +259,24 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+#: An array whose relation goes through an intermediate table, which the array
+#: holds in `model`, the same attribute a reference holds its target in.
+MANIFEST_WITH_INTERMEDIATE_TABLE = striptable("""
+id | d | r | b | m | property | type            | ref                                          | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |       |                                              |       |
+   |   | test                 | memory          |                                              |       |
+   |   |   |   | Kalba        |                 | kodas                                        |       |
+   |   |   |   |   | kodas    | string required |                                              | 4     | open
+   |   |   |   | Israsas      |                 | id                                           |       |
+   |   |   |   |   | id       | string required |                                              | 4     | open
+   |   |   |   |   | kalbos   | array           | datasets/gov/rc/jadis/at280/1/ds/IsrasoKalba | 4     | open
+   |   |   |   |   | kalbos[] | ref             | datasets/gov/rc/jadis/at280/1/ds/Kalba       | 4     | open
+   |   |   |   | IsrasoKalba  |                 | israsas, kalba                               |       |
+   |   |   |   |   | israsas  | ref             | datasets/gov/rc/jadis/at280/1/ds/Israsas     | 4     | open
+   |   |   |   |   | kalba    | ref             | datasets/gov/rc/jadis/at280/1/ds/Kalba       | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST

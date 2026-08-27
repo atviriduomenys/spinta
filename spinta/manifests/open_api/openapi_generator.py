@@ -339,17 +339,19 @@ class DataTypeHandler:
                 **{"enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"},
             }
 
+        # An array of an intermediate table holds that table in `model`, which
+        # makes it look like a reference, while it is a list all the same.
+        if self.is_array_type(dtype):
+            items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
+            example_item = items_schema.get("example", "example_item")
+            return {"type": "array", "items": items_schema, "example": [example_item]}
+
         if self.is_reference_type(dtype):
             ref_schema_name = self._ref_schema_name(model_property, dtype)
             example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
             return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
-
-        if self.is_array_type(dtype):
-            items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
-            example_item = items_schema.get("example", "example_item")
-            return {"type": "array", "items": items_schema, "example": [example_item]}
 
         dtype_name = self.get_dtype_name(dtype)
         return copy.deepcopy(
@@ -368,14 +370,15 @@ class DataTypeHandler:
             enum_values = self.get_enum_values(model_property)
             return enum_values[0] if enum_values else "UNKNOWN"
 
+        # An array is read before a reference, see `convert_to_openapi_schema`.
+        if self.is_array_type(dtype):
+            return [self.get_example_value(dtype.items, schemas=schemas)]
+
         if self.is_reference_type(dtype):
             ref_schema_name = self._ref_schema_name(model_property, dtype)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return copy.deepcopy(ref_schema["example"])
             return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
-
-        if self.is_array_type(dtype):
-            return [self.get_example_value(dtype.items, schemas=schemas)]
 
         dtype_name = self.get_dtype_name(dtype)
         return copy.deepcopy(self.schema_registry.example_values.values.get(dtype_name, "Example value"))
