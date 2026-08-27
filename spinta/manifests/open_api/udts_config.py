@@ -98,6 +98,7 @@ class UdtsConfig:
         token_url = (data.get("auth") or {}).get("token_url")
         if token_url is not None:
             _check_url(token_url, path, "`auth.token_url`", require_https=True)
+            _check_no_fragment(token_url, path, "`auth.token_url`")
 
         servers = data.get("servers")
         if servers is None:
@@ -171,6 +172,9 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
         )
 
     _check_url(url, path, "server URL", relative=True)
+    # A server URL is the base of every path, and the token endpoint is derived
+    # from it, so a fragment of its own would end up in both.
+    _check_no_fragment(url, path, f"server URL {url!r}")
     parts = urlsplit(url)
     if not parts.scheme and not url.startswith("/"):
         # Without a scheme `urlsplit` reads the host as a path
@@ -336,6 +340,16 @@ def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
     _check_url(external_docs.get("url"), path, "`externalDocs.url`")
 
     _check_optional_string(external_docs.get("description"), path, "`externalDocs.description`")
+
+
+def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
+    """An endpoint carries no fragment, RFC 6749 section 3.2.
+
+    A fragment is never sent in a request, so an endpoint holding one is not the
+    endpoint a client calls.
+    """
+    if urlsplit(url).fragment:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {url!r}.")
 
 
 def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False, require_https: bool = False) -> None:
