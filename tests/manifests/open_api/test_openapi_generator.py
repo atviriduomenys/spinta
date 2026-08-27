@@ -13,6 +13,8 @@ from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
     MANIFEST,
+    MANIFEST_WITH_ARRAY_IN_REFERENCE,
+    MANIFEST_WITH_ARRAY_LAYERS,
     MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
@@ -1393,3 +1395,40 @@ def test_optional_array_item_accepts_null(open_manifest_path_factory):
     schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
 
     assert not list(_validator(open_api_spec, schema).iter_errors({"kalbos": [None]}))
+
+
+def test_dynamic_array_holds_anything(open_manifest_path_factory):
+    """Such an array declares no item property, see `spinta.types.array.link`."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_LAYERS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    zymos = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["zymos"]
+
+    assert zymos == {"type": ["array", "null"], "example": []}
+
+
+def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_LAYERS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    outer = schemas["ds_Israsas"]["properties"]["kalbos"]
+    inner = outer["items"]
+
+    assert outer["type"] == ["array", "null"]
+    assert inner["type"] == ["array", "null"]
+    # A schema of the innermost reference is built, so the `$ref` resolves.
+    assert inner["items"]["anyOf"][0]["$ref"].rsplit("/", 1)[1] in schemas
+
+
+def test_array_among_reference_properties_stays_a_list(open_manifest_path_factory):
+    """A reference schema keeps the array layers of the property it holds."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_IN_REFERENCE)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    reference = schemas["ds_A"]["properties"]["bref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    kalbos = schemas[reference]["properties"]["kalbos"]
+
+    assert kalbos["type"] == ["array", "null"]
+    assert kalbos["items"]["anyOf"][0]["$ref"].rsplit("/", 1)[1] in schemas

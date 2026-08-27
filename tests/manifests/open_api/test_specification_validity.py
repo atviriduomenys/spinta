@@ -12,6 +12,8 @@ from spinta.manifests.open_api.helpers import create_openapi_manifest
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from tests.manifests.open_api.conftest import (
     MANIFEST,
+    MANIFEST_WITH_ARRAY_IN_REFERENCE,
+    MANIFEST_WITH_ARRAY_LAYERS,
     MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_MODELS,
@@ -78,6 +80,9 @@ def _assert_valid(open_api_spec: dict) -> None:
         (MANIFEST_WITH_NESTED_REF_LEVELS, {}),
         # An array of an intermediate table is a list, not a reference.
         (MANIFEST_WITH_INTERMEDIATE_TABLE, {"service_path": SERVICE_PATH}),
+        # Arrays nest, and a dynamic one declares nothing about its items.
+        (MANIFEST_WITH_ARRAY_LAYERS, {"service_path": SERVICE_PATH}),
+        (MANIFEST_WITH_ARRAY_IN_REFERENCE, {"service_path": SERVICE_PATH}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):
