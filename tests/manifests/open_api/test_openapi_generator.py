@@ -1299,8 +1299,13 @@ def test_file_download_declares_range_responses(open_manifest_path: ManifestPath
 
     operations = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}/org_logo"]
     assert {"$ref": "#/components/parameters/Range"} in operations["parameters"]
-    assert "206" in operations["get"]["responses"]
-    assert "416" in operations["get"]["responses"]
+
+    responses = operations["get"]["responses"]
+    assert "416" in responses
+    # A partial response carries the part of the file that was asked for.
+    assert responses["206"]["content"] == {"*/*": {"schema": {"type": "string", "format": "binary"}}}
+    # A response of a status that carries no body keeps none.
+    assert "content" not in responses["304"]
 
 
 def test_error_responses_name_their_status(open_manifest_path_factory):
