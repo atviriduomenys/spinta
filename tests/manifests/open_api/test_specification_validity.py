@@ -16,6 +16,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
@@ -75,6 +76,8 @@ def _assert_valid(open_api_spec: dict) -> None:
         # A reference reached through another one keeps a level of its own.
         (MANIFEST_WITH_NESTED_REF_LEVELS, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_NESTED_REF_LEVELS, {}),
+        # An array of an intermediate table is a list, not a reference.
+        (MANIFEST_WITH_INTERMEDIATE_TABLE, {"service_path": SERVICE_PATH}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):

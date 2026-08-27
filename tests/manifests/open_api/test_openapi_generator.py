@@ -18,6 +18,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
@@ -1363,3 +1364,17 @@ def test_nested_reference_keeps_its_own_level(open_manifest_path_factory):
     # Level 4 of `cref` carries a global identifier, not the key of its target.
     assert "_id" in schemas[inner]["properties"]
     assert "kodas" not in schemas[inner]["properties"]
+
+
+def test_array_through_an_intermediate_table_is_a_list(open_manifest_path_factory):
+    """Such an array holds the intermediate table in `model`, as a reference does."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_INTERMEDIATE_TABLE)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
+    kalbos = schema["properties"]["kalbos"]
+
+    assert kalbos["type"] == ["array", "null"]
+    # Items are of the model the array item refers to, not of the intermediate.
+    assert kalbos["items"]["$ref"] == "#/components/schemas/ds_Kalba_Ref"
+    assert isinstance(schema["example"]["kalbos"], list)
