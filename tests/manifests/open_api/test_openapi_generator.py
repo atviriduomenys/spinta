@@ -1124,8 +1124,28 @@ def test_token_request_example_uses_a_scope_of_the_service(open_manifest_path_fa
     example = content["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]["examples"]
     declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
 
-    assert example == [sorted(declared)[0]]
+    assert example[0] in declared
     assert example[0].startswith("kita:/")
+    # A scope of a model of this data service, not of the agent, which the
+    # widest of the declared alternatives, the root namespace, would be.
+    assert example[0].startswith(f"kita:/{SERVICE_PATH}/")
+    assert example[0] != sorted(declared)[0]
+
+
+def test_authorized_operations_declare_authentication_errors(open_manifest_path_factory):
+    """Response validation has to accept an ordinary authentication failure."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    for path, operations in open_api_spec["paths"].items():
+        for method, operation in operations.items():
+            if method == "parameters" or not isinstance(operation, dict):
+                continue
+            if not any("UAPI_auth" in requirement for requirement in operation.get("security", [])):
+                continue
+
+            responses = operation["responses"]
+            assert "401" in responses, f"{method} {path}"
+            assert "403" in responses, f"{method} {path}"
 
 
 def _validator(open_api_spec: dict, schema: dict):
