@@ -219,7 +219,7 @@ PATHS_CONFIG = {
     },
     "/{model_name}/{id}/{field}": {
         # Property name is part of the generated path, so it is not a parameter.
-        "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
+        "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language", "Range"],
         "head": {
             # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
@@ -253,6 +253,11 @@ PATHS_CONFIG = {
                         "*/*": {"schema": {"type": "string", "format": "binary"}}
                     },
                 },
+                "206": {
+                    "description": "Partial Content",
+                    "headers": COMMON_RESPONSE_HEADERS,
+                    "content": {"*/*": {"schema": {"type": "string", "format": "binary"}}},
+                },
                 "304": {
                     "description": "Not Modified",
                     "headers": COMMON_RESPONSE_HEADERS,
@@ -261,6 +266,7 @@ PATHS_CONFIG = {
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
+                "416": {"description": "Range Not Satisfiable"},
                 "500": {"$ref": "error500"},
                 "503": {"$ref": "error503"},
             },
@@ -289,7 +295,7 @@ RESPONSE_COMPONENTS = {
         },
     },
     "error401": {
-        "description": "Bad Request",
+        "description": "Unauthorized",
         "headers": [],
         "content": {"application/json": {"schema": {"errors": ["AuthorizedClientsOnly", "InvalidToken"]}}},
     },
@@ -304,7 +310,7 @@ RESPONSE_COMPONENTS = {
         "content": {"application/json": {"schema": {"errors": ["ItemDoesNotExist"]}}},
     },
     "error409": {
-        "description": "Bad Request",
+        "description": "Conflict",
         "headers": [],
         "content": {"application/json": {"schema": {"errors": ["ConflictingValue"]}}},
     },
@@ -368,6 +374,13 @@ PARAMETER_COMPONENTS = {
         "required": False,
         "description": "`Cache-Control` header should be used if service supports caching. It allows the user to provide directives from their side. `no-cache` can be used to request revalidation of data with the origin server before reuse. `no-store` can be used to request to not store the data in caches.\n\nMultiple directives can be used separated by `, `. If they are conflicting, most restrictive directive should be honored.",
         "schema": {"type": "string", "examples": ["no-cache"]},
+    },
+    "Range": {
+        "name": "Range",
+        "in": "header",
+        "required": False,
+        "description": "Part of a file to return, see [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#field.range). A file is served with `Accept-Ranges: bytes`.",
+        "schema": {"type": "string", "examples": ["bytes=0-1023"]},
     },
     "If-None-Match": {
         "name": "If-None-Match",

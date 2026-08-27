@@ -41,7 +41,8 @@ Backwards incompatible:
     it honours, ``scope_prefix_udts`` and ``scope_max_length`` among them.
   - Responses of ``file`` and ``image`` property endpoints are described as
     binary content of any media type, which is what Spinta serves there, not as
-    a JSON metadata object. The ``file`` and ``image`` schemas name the file
+    a JSON metadata object, together with the ``Range`` header and the ``206``
+    and ``416`` responses a range request produces. The ``file`` and ``image`` schemas name the file
     ``_id``, as Spinta does, instead of ``_name``, carry only the fields a
     response actually holds, and allow the null values left after a file is
     deleted.

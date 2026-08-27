@@ -199,6 +199,29 @@ id | d | r | b | m | property | type            | ref | level | access
 """)
 
 
+#: One model referenced from two data sets of the service at different levels,
+#: which the reference carries differently: an `_id` or the natural key.
+MANIFEST_WITH_REF_SHAPES = striptable("""
+id | d | r | b | m | property | type            | ref                               | level | access
+   | datasets/gov/rc/x/ext/1/ext |           |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | Vieta        |                 | kodas                             |       |
+   |   |   |   |   | kodas    | string required |                                   | 4     | open
+   |                          |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/pirmas |   |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | A            |                 | id                                |       |
+   |   |   |   |   | id       | string required |                                   | 4     | open
+   |   |   |   |   | vieta    | ref             | datasets/gov/rc/x/ext/1/ext/Vieta | 4     | open
+   |                          |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/antras |   |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | B            |                 | id                                |       |
+   |   |   |   |   | id       | string required |                                   | 4     | open
+   |   |   |   |   | vieta    | ref             | datasets/gov/rc/x/ext/1/ext/Vieta | 3     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
