@@ -661,11 +661,10 @@ def test_service_ref_between_datasets_uses_a_reference_schema(open_manifest_path
         {"type": "null"},
     ]
 
-    # The target keeps its full schema, which requires its own fields, while the
-    # reference schema holds what a level 4 reference carries.
-    assert schemas["at280_adresai_Adresas"]["required"] == ["id"]
-    assert "_id" in schemas["at280_adresai_Adresas_Ref"]["properties"]
-    assert "required" not in schemas["at280_adresai_Adresas_Ref"]
+    # The target keeps its full schema, holding every property of the model,
+    # while the reference schema holds what a level 4 reference carries.
+    assert "gatve" in schemas["at280_adresai_Adresas"]["properties"]
+    assert set(schemas["at280_adresai_Adresas_Ref"]["properties"]) == {"_type", "_id", "_revision"}
 
 
 def test_model_schema_accepts_a_real_reference_value(open_manifest_path_factory):
@@ -1276,22 +1275,35 @@ def test_one_referenced_model_gets_a_schema_per_shape(open_manifest_path_factory
     assert "_id" not in schemas[local_ref]["properties"]
 
 
-def test_hidden_required_property_is_not_required(rc, open_manifest_path: ManifestPath):
-    """A hidden property is left out of an ordinary response."""
-    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
-    manifest = context.get("store").manifest
-    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
-    model.properties["org_name"].dtype.required = True
-    model.properties["org_name"].hidden = True
-    try:
-        open_api_spec = create_openapi_manifest(open_manifest_path)
-    finally:
-        model.properties["org_name"].dtype.required = False
-        model.properties["org_name"].hidden = False
+def test_model_schemas_require_nothing(rc, open_manifest_path_factory):
+    """A response carries what the request selected, so nothing is always there.
 
-    schema = open_api_spec["components"]["schemas"]["datasets_demo_system_data_Organization"]
-    assert "org_name" in schema["properties"]
-    assert "org_name" not in schema.get("required", [])
+    A required property of a manifest holds a value in the data; it reaches a
+    response only when the request asks for it, and a hidden one is left out of
+    an ordinary response altogether.
+    """
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SERVICES)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    model_schemas = [name for name in schemas if name.startswith("at280_")]
+
+    assert model_schemas
+    for name in model_schemas:
+        assert "required" not in schemas[name], name
+
+    # A property holding a value is still not nullable.
+    assert schemas["at280_adresai_Adresas"]["properties"]["id"]["type"] == "string"
+    assert schemas["at280_adresai_Adresas"]["properties"]["gatve"]["type"] == ["string", "null"]
+
+
+def test_model_schema_accepts_a_projected_response(open_manifest_path_factory):
+    """`?select(gatve)` answers with that property alone."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]
+
+    assert not list(_validator(open_api_spec, schema).iter_errors({"gatve": "Vilniaus"}))
 
 
 def test_file_download_declares_range_responses(open_manifest_path: ManifestPath):
@@ -1300,6 +1312,10 @@ def test_file_download_declares_range_responses(open_manifest_path: ManifestPath
 
     operations = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}/org_logo"]
     assert {"$ref": "#/components/parameters/Range"} in operations["parameters"]
+
+    # `Range` is a parameter of the path, so a `HEAD` is ranged as well.
+    assert "206" in operations["head"]["responses"]
+    assert "416" in operations["head"]["responses"]
 
     responses = operations["get"]["responses"]
     assert "416" in responses
