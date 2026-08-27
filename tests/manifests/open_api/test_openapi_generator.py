@@ -8,6 +8,7 @@ from spinta.core.enums import Action
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
+from spinta.manifests.open_api.openapi_config import RESPONSE_COMPONENTS
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
@@ -16,6 +17,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
@@ -1233,3 +1235,54 @@ def test_collection_head_takes_the_query_parameter(open_manifest_path_factory):
 
     scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
     assert any(scope.endswith("/:search") for scope in scopes)
+
+
+def test_one_referenced_model_gets_a_schema_per_shape(open_manifest_path_factory):
+    """A reference carries an `_id` or the natural key, depending on its level."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REF_SHAPES)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    global_ref = schemas["pirmas_A"]["properties"]["vieta"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    local_ref = schemas["antras_B"]["properties"]["vieta"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+
+    assert global_ref != local_ref
+    assert "_id" in schemas[global_ref]["properties"]
+    assert "kodas" in schemas[local_ref]["properties"]
+    assert "_id" not in schemas[local_ref]["properties"]
+
+
+def test_hidden_required_property_is_not_required(rc, open_manifest_path: ManifestPath):
+    """A hidden property is left out of an ordinary response."""
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+    model.properties["org_name"].dtype.required = True
+    model.properties["org_name"].hidden = True
+    try:
+        open_api_spec = create_openapi_manifest(open_manifest_path)
+    finally:
+        model.properties["org_name"].dtype.required = False
+        model.properties["org_name"].hidden = False
+
+    schema = open_api_spec["components"]["schemas"]["datasets_demo_system_data_Organization"]
+    assert "org_name" in schema["properties"]
+    assert "org_name" not in schema.get("required", [])
+
+
+def test_file_download_declares_range_responses(open_manifest_path: ManifestPath):
+    """A file is served by `FileResponse`, which answers a range request."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    operations = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}/org_logo"]
+    assert {"$ref": "#/components/parameters/Range"} in operations["parameters"]
+    assert "206" in operations["get"]["responses"]
+    assert "416" in operations["get"]["responses"]
+
+
+def test_error_responses_name_their_status(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert open_api_spec["components"]["responses"]["error401"]["description"] == "Unauthorized"
+    # Read operations do not answer 409, so the response is not emitted.
+    assert RESPONSE_COMPONENTS["error409"]["description"] == "Conflict"
