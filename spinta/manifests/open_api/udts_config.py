@@ -229,8 +229,39 @@ def _keep_known(mapping: dict, known: frozenset[str], path: pathlib.Path, what: 
         if value is None and not key.startswith("x-"):
             continue
 
+        if key.startswith("x-"):
+            _check_json_value(value, path, f"{what} key {key!r}")
+
         kept[key] = value
     return kept
+
+
+def _check_json_value(value: Any, path: pathlib.Path, what: str) -> None:
+    """Check that a value survives being written out.
+
+    An extension holds whatever it holds, but the specification is written as
+    JSON, and safe YAML reads values JSON does not know: an unquoted date comes
+    as `datetime.date`, `!!binary` as `bytes`.
+    """
+    if isinstance(value, (str, bool, int, float)) or value is None:
+        return
+
+    if isinstance(value, list):
+        for item in value:
+            _check_json_value(item, path, what)
+        return
+
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise InvalidUdtsConfig(path=str(path), error=f"{what} holds a key {key!r}, which is not a string.")
+            _check_json_value(item, path, what)
+        return
+
+    raise InvalidUdtsConfig(
+        path=str(path),
+        error=f"{what} holds {value!r} of type {type(value).__name__}, which JSON has no value for, quote it.",
+    )
 
 
 def _clean_info(info: dict, path: pathlib.Path) -> dict:
