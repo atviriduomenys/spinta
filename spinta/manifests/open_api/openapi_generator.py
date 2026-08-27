@@ -11,6 +11,7 @@ from spinta.components import Model, Namespace, Property
 from spinta.config import CONFIG
 from spinta.core.context import configure_context, create_context
 from spinta.core.enums import Action, Level
+from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
@@ -331,8 +332,20 @@ class DataTypeHandler:
         return hasattr(model_property, "enum") and model_property.enum
 
     def get_enum_value(self, dtype: DataType, enum_item: EnumItem) -> Any:
-        """Converts enum value to property type"""
-        value = enum_item.prepare if enum_item.prepare and enum_item.prepare is not NA else enum_item.source
+        """Give the value an enum item stands for, `NA` if it stands for none.
+
+        `source` holds the value of the source system and `prepare` the value
+        Spinta gives out, so `prepare` is the one an API client sees, `0`,
+        `False` and `None` included. That is why it is compared against `NA`
+        instead of being tested for truth. Only a string property may leave
+        `prepare` out, and there `source` is the value itself.
+
+        A value given as a formula, `noop()` among them, stands for something
+        the data does rather than for a value, so there is nothing to list.
+        """
+        value = enum_item.source if enum_item.prepare is NA else enum_item.prepare
+        if isinstance(value, Expr):
+            return NA
         return dtype.load(value)
 
     def get_enum_values(self, model_property) -> list[str]:
@@ -342,9 +355,10 @@ class DataTypeHandler:
 
         enum = model_property.enum
         if isinstance(enum, dict):
-            return [self.get_enum_value(model_property.dtype, enum_value) for enum_value in enum.values()]
-        else:
-            return [enum_prop.strip('"') for enum_prop in enum]
+            values = [self.get_enum_value(model_property.dtype, enum_value) for enum_value in enum.values()]
+            return [value for value in values if value is not NA]
+
+        return [enum_prop.strip('"') for enum_prop in enum]
 
     def convert_to_openapi_schema(
         self,
@@ -355,12 +369,11 @@ class DataTypeHandler:
 
         dtype = model_property.dtype
 
-        if self.is_enum_property(model_property):
-            enum_values = self.get_enum_values(model_property)
+        if enum_values := self.get_enum_values(model_property):
             dtype_name = self.get_dtype_name(dtype)
             return {
                 **copy.deepcopy(self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string"})),
-                **{"enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"},
+                **{"enum": enum_values, "example": enum_values[0]},
             }
 
         # An array of an intermediate table holds that table in `model`, which
@@ -399,9 +412,8 @@ class DataTypeHandler:
         """Generate example values for properties. When schemas is provided, use ref schema example for reference types."""
         dtype = model_property.dtype
 
-        if self.is_enum_property(model_property):
-            enum_values = self.get_enum_values(model_property)
-            return enum_values[0] if enum_values else "UNKNOWN"
+        if enum_values := self.get_enum_values(model_property):
+            return enum_values[0]
 
         # An array is read before a reference, see `convert_to_openapi_schema`.
         if self.is_array_type(dtype):

@@ -20,6 +20,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
@@ -810,6 +811,27 @@ def test_service_required_enum_property_is_not_nullable(open_manifest_path_facto
     properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
     assert properties["id"]["type"] == "string"
     assert "enum" not in properties["id"]
+
+
+def test_service_enum_lists_the_values_a_client_sees(open_manifest_path_factory):
+    """`prepare` gives the value, `source` only fills in where it is missing."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_VALUES)
+
+    properties = open_api_spec["components"]["schemas"]["ds_Testamentas"]["properties"]
+
+    # `0` and an empty string are values, not missing ones.
+    assert properties["sudaryta"]["enum"] == [1, 0, None]
+    assert properties["zyma"]["enum"] == ["", "V", None]
+
+
+def test_service_enum_of_formulas_leaves_the_property_alone(open_manifest_path_factory):
+    """A formula says what the data does, so there is no value to list."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_VALUES)
+
+    rusis = open_api_spec["components"]["schemas"]["ds_Testamentas"]["properties"]["rusis"]
+
+    assert "enum" not in rusis
+    assert rusis["type"] == ["integer", "null"]
 
 
 def test_service_schema_names_hold_only_allowed_characters(open_manifest_path_factory):

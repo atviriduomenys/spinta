@@ -26,6 +26,14 @@ Backwards incompatible:
     value. Reference properties are wrapped into ``anyOf`` and enum properties
     list ``null`` among their values, because ``type`` and ``enum`` are
     validated together.
+  - Enum values are taken from ``prepare``, the value Spinta gives out, and
+    only fall back to ``source`` where the manifest leaves ``prepare`` out,
+    which a string property may. ``0``, ``false`` and an empty string are
+    values of their own and are no longer dropped as if they were missing. An
+    enum value given as a formula, ``noop()`` among them, says what the data
+    does rather than what it holds, so it is left out of the listing instead of
+    breaking the export, and a property whose values are all formulas keeps its
+    plain type without a made up ``UNKNOWN`` example (`#2653`_).
   - ``components.securitySchemes`` is now generated, together with the scopes
     the operations request. Operations already referenced the ``UAPI_auth``
     scheme, which was never declared, making the document invalid.
@@ -115,6 +123,7 @@ Improvements:
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
 .. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
+.. _#2653: https://github.com/atviriduomenys/katalogas/issues/2653
 
 1.1.0 (2026-08-19)
 =====================
