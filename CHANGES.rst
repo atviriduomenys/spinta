@@ -60,6 +60,11 @@ Backwards incompatible:
     it, and ``/version`` is generated as ``/:version`` next to the new
     ``/:token``, matching how an API gateway routes agent level endpoints inside
     a data service.
+  - A ``ref`` property references a schema of what the reference carries, an
+    ``_id`` or the reference properties depending on its level, also when the
+    target is a model of the same data service, whose full schema requires its
+    own fields. One model referenced in more than one shape gets a schema per
+    shape.
   - Model schema names are unique within a data service: they keep the data set
     path, for example ``at280_israsas_DalyvioAsmensIsrasas``, and colliding
     names, which two data set paths can produce once separators become

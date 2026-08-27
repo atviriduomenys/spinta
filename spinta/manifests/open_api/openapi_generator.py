@@ -227,7 +227,9 @@ class SchemaNamer:
         """
         shapes = self._ref_shapes.setdefault(model.name, {})
         if shape not in shapes:
-            base = self.name(model)
+            # A model of the specification keeps its full schema under its own
+            # name, so its reference schemas are named apart.
+            base = f"{self.name(model)}_Ref" if self.is_included(model) else self.name(model)
             name = base
             number = 1
             while shapes and any(derived in self._taken for derived in _derived_schema_names(name)):
@@ -284,8 +286,6 @@ class DataTypeHandler:
         self.namer = namer
 
     def _ref_schema_name(self, model_property, dtype) -> str:
-        if self.namer.is_included(dtype.model):
-            return self.namer.name(dtype.model)
         return self.namer.ref_name(dtype.model, _reference_shape(model_property, dtype))
 
     def get_dtype_name(self, dtype) -> str:
@@ -847,16 +847,15 @@ class SchemaGenerator:
                 continue
 
             ref_model = dtype.model
-            if self.namer.is_included(ref_model):
-                continue
-
             ref_schema_name = self.namer.ref_name(ref_model, _reference_shape(model_property, dtype))
             if ref_schema_name in schemas:
                 continue
 
             ref_level = getattr(model_property, "level", None)
-
             refprops = getattr(dtype, "refprops", None) or []
+
+            # Placed before building, because a model can be reached from itself.
+            schemas[ref_schema_name] = {}
             schemas[ref_schema_name] = self._build_ref_model_schema(schemas, ref_model, refprops, ref_level)
 
     def _resolve_nested_ref_schema_name(
@@ -866,12 +865,15 @@ class SchemaGenerator:
         nested_refprops: list,
         ref_level: Level | None = None,
     ) -> str:
-        base_name = self.namer.name(nested_ref_model)
-        # Included models already have a full schema under their own name, so a
-        # partial, ref only schema gets a separate one.
-        schema_name = f"{base_name}_Ref" if self.namer.is_included(nested_ref_model) else base_name
+        shape = (
+            getattr(ref_level, "value", ref_level),
+            tuple(prop.name for prop in nested_refprops if hasattr(prop, "name")),
+        )
+        schema_name = self.namer.ref_name(nested_ref_model, shape)
 
         if schema_name not in schemas:
+            # Placed before building, because a model can be reached from itself.
+            schemas[schema_name] = {}
             schemas[schema_name] = self._build_ref_model_schema(
                 schemas,
                 nested_ref_model,
