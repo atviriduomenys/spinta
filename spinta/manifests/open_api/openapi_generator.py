@@ -60,6 +60,22 @@ DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
 
 
+def _innermost_property(model_property):
+    """Property holding the value of an array, through every array layer.
+
+    Arrays nest, and a dynamic array declares no item property at all, see
+    `spinta.types.array.link`, in which case there is nothing to describe and
+    `None` is returned.
+    """
+    while True:
+        dtype = model_property.dtype
+        if not hasattr(dtype, "items"):
+            return model_property
+        if dtype.items is None:
+            return None
+        model_property = dtype.items
+
+
 def _reference_shape(model_property, dtype) -> tuple:
     level = getattr(model_property, "level", None)
     refprops = getattr(dtype, "refprops", None) or []
@@ -342,6 +358,9 @@ class DataTypeHandler:
         # An array of an intermediate table holds that table in `model`, which
         # makes it look like a reference, while it is a list all the same.
         if self.is_array_type(dtype):
+            if dtype.items is None:
+                return {"type": "array", "example": []}
+
             items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
 
             # An item is a property of its own, and an empty one is serialized
@@ -378,6 +397,8 @@ class DataTypeHandler:
 
         # An array is read before a reference, see `convert_to_openapi_schema`.
         if self.is_array_type(dtype):
+            if dtype.items is None:
+                return []
             return [self.get_example_value(dtype.items, schemas=schemas)]
 
         if self.is_reference_type(dtype):
@@ -845,8 +866,9 @@ class SchemaGenerator:
             # level of its own, and the schema of a reference is built from it.
             # `convert_to_openapi_schema` reads the item property as well, so
             # naming the schema from the array would name one it never builds.
-            if self.dtype_handler.is_array_type(model_property.dtype) and hasattr(model_property.dtype, "items"):
-                model_property = model_property.dtype.items
+            model_property = _innermost_property(model_property)
+            if model_property is None:
+                continue
 
             dtype = model_property.dtype
 
@@ -920,37 +942,24 @@ class SchemaGenerator:
             if refprop_names and prop_name not in refprop_names:
                 continue
 
-            dtype = model_property.dtype
-
             # A reference carries what its own level says, also when it is
             # reached through another reference, so the level of the one being
-            # built does not apply to it. An array holds it in the item.
-            inner_property = model_property
-            if self.dtype_handler.is_array_type(dtype) and hasattr(dtype, "items"):
-                inner_property = dtype.items
-            inner_dtype = inner_property.dtype
+            # built does not apply to it. Arrays hold it in their item.
+            inner_property = _innermost_property(model_property)
+            inner_dtype = inner_property.dtype if inner_property is not None else None
 
-            if self.dtype_handler.is_reference_type(inner_dtype):
-                nested_refprops = getattr(inner_dtype, "refprops", None) or []
-                schema_name = self._resolve_nested_ref_schema_name(
+            if inner_dtype is not None and self.dtype_handler.is_reference_type(inner_dtype):
+                # Building it here, because a schema of a model reached only
+                # from a reference is not built anywhere else.
+                self._resolve_nested_ref_schema_name(
                     schemas,
                     inner_dtype.model,
-                    nested_refprops,
+                    getattr(inner_dtype, "refprops", None) or [],
                     getattr(inner_property, "level", None),
                 )
-                ref_schema = schemas.get(schema_name)
-                example = copy.deepcopy(ref_schema.get("example")) if ref_schema else None
-                if example is None:
-                    example = {
-                        "_type": inner_dtype.model.basename,
-                        "_id": EXAMPLE_UUID_REF_ID,
-                    }
-                prop_schema = {
-                    "$ref": f"#/components/schemas/{schema_name}",
-                    "example": example,
-                }
-            else:
-                prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
+
+            # Conversion names the same schema and keeps every array layer.
+            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
 
             # A response carries what it was asked for, see
             # `_create_model_schema`, so nothing is listed as required here.

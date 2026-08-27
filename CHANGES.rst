@@ -71,7 +71,10 @@ Backwards incompatible:
     own fields. One model referenced in more than one shape gets a schema per
     shape, and an array of references follows the level of its item. An array
     whose relation goes through an intermediate table is described as a list of
-    the referenced model, not as a reference to that table.
+    the referenced model, not as a reference to that table. Arrays keep every
+    layer they nest, an item accepts ``null`` unless the manifest says it always
+    holds a value, and a dynamic array, which declares no items, no longer
+    breaks the export.
   - Model schema names are unique within a data service: they keep the data set
     path, for example ``at280_israsas_DalyvioAsmensIsrasas``, and colliding
     names, which two data set paths can produce once separators become
