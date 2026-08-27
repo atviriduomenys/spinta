@@ -343,6 +343,12 @@ class DataTypeHandler:
         # makes it look like a reference, while it is a list all the same.
         if self.is_array_type(dtype):
             items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
+
+            # An item is a property of its own, and an empty one is serialized
+            # as a null of the list, see `_prepare_array_for_response`.
+            if not getattr(dtype.items.dtype, "required", False):
+                items_schema = _nullable(items_schema)
+
             example_item = items_schema.get("example", "example_item")
             return {"type": "array", "items": items_schema, "example": [example_item]}
 
