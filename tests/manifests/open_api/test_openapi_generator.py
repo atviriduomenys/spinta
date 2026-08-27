@@ -13,6 +13,7 @@ from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
     MANIFEST,
+    MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
@@ -1314,3 +1315,18 @@ def test_error_responses_name_their_status(open_manifest_path_factory):
     assert open_api_spec["components"]["responses"]["error401"]["description"] == "Unauthorized"
     # Read operations do not answer 409, so the response is not emitted.
     assert RESPONSE_COMPONENTS["error409"]["description"] == "Conflict"
+
+
+def test_array_reference_uses_the_schema_of_its_item(open_manifest_path_factory):
+    """The item property carries the level the reference schema is built from."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    items = schemas["ds_Israsas"]["properties"]["kalbos"]["items"]
+    referenced = items["$ref"].rsplit("/", 1)[1]
+
+    assert referenced in schemas
+    # Level 3 of the item carries the natural key, not a global `_id`.
+    assert "kodas" in schemas[referenced]["properties"]
+    assert "_id" not in schemas[referenced]["properties"]

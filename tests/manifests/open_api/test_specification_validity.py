@@ -12,6 +12,7 @@ from spinta.manifests.open_api.helpers import create_openapi_manifest
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from tests.manifests.open_api.conftest import (
     MANIFEST,
+    MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
@@ -64,6 +65,12 @@ def _assert_valid(open_api_spec: dict) -> None:
         (MANIFEST_WITH_COLLIDING_DATASETS, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_COLLIDING_MODELS, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_COLLIDING_OPERATION_IDS, {"service_path": SERVICE_PATH}),
+        # An array holds its reference in the item property, with a level of its
+        # own, so the reference schema is named from another shape than the one
+        # the array property would give.
+        (MANIFEST_WITH_ARRAY_REFS, {"service_path": SERVICE_PATH}),
+        (MANIFEST_WITH_ARRAY_REFS, {}),
+        (MANIFEST_WITH_ARRAY_REFS, {"main_dataset_name": "datasets/gov/rc/jadis/at280/1/ds"}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):

@@ -838,10 +838,14 @@ class SchemaGenerator:
 
     def _create_referenced_model_schemas(self, schemas: dict, model: Model) -> None:
         for model_property in model.get_given_properties().values():
-            dtype = model_property.dtype
+            # An array holds its reference in the item property, which carries a
+            # level of its own, and the schema of a reference is built from it.
+            # `convert_to_openapi_schema` reads the item property as well, so
+            # naming the schema from the array would name one it never builds.
+            if self.dtype_handler.is_array_type(model_property.dtype) and hasattr(model_property.dtype, "items"):
+                model_property = model_property.dtype.items
 
-            if self.dtype_handler.is_array_type(dtype):
-                dtype = dtype.items.dtype if hasattr(dtype, "items") else dtype
+            dtype = model_property.dtype
 
             if not self.dtype_handler.is_reference_type(dtype):
                 continue
