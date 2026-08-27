@@ -222,6 +222,24 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+#: An array of references, where the item property carries the level, and the
+#: array property carries one of its own.
+MANIFEST_WITH_ARRAY_REFS = striptable("""
+id | d | r | b | m | property   | type            | ref                               | level | access
+   | datasets/gov/rc/x/ext/1/ext |             |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Kalba          |                 | kodas                             |       |
+   |   |   |   |   | kodas      | string required |                                   | 4     | open
+   |                            |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/ds |         |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Israsas        |                 | id                                |       |
+   |   |   |   |   | id         | string required |                                   | 4     | open
+   |   |   |   |   | kalbos     | array           |                                   | 4     | open
+   |   |   |   |   | kalbos[]   | ref             | datasets/gov/rc/x/ext/1/ext/Kalba | 3     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
