@@ -277,6 +277,43 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+#: A dynamic array, which declares no item property, and an array of arrays.
+MANIFEST_WITH_ARRAY_LAYERS = striptable("""
+id | d | r | b | m | property   | type            | ref                               | level | access
+   | datasets/gov/rc/x/ext/1/ext |             |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Kalba          |                 | kodas                             |       |
+   |   |   |   |   | kodas      | string required |                                   | 4     | open
+   |                            |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/ds |         |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Israsas        |                 | id                                |       |
+   |   |   |   |   | id         | string required |                                   | 4     | open
+   |   |   |   |   | zymos      | array           |                                   | 4     | open
+   |   |   |   |   | kalbos     | array           |                                   | 4     | open
+   |   |   |   |   | kalbos[]   | array           |                                   | 4     | open
+   |   |   |   |   | kalbos[][] | ref             | datasets/gov/rc/x/ext/1/ext/Kalba | 4     | open
+""")
+
+#: An array standing among the reference properties of a reference.
+MANIFEST_WITH_ARRAY_IN_REFERENCE = striptable("""
+id | d | r | b | m | property | type            | ref                                   | level | access
+   | datasets/gov/rc/x/ext/1/ext |           |                                       |       |
+   |   | test                 | memory          |                                       |       |
+   |   |   |   | Kalba        |                 | kodas                                 |       |
+   |   |   |   |   | kodas    | string required |                                       | 4     | open
+   |   |   |   | B            |                 | kalbos                                |       |
+   |   |   |   |   | kalbos   | array           |                                       | 4     | open
+   |   |   |   |   | kalbos[] | ref             | datasets/gov/rc/x/ext/1/ext/Kalba     | 4     | open
+   |                          |                 |                                       |       |
+   | datasets/gov/rc/jadis/at280/1/ds |       |                                       |       |
+   |   | test                 | memory          |                                       |       |
+   |   |   |   | A            |                 | id                                    |       |
+   |   |   |   |   | id       | string required |                                       | 4     | open
+   |   |   |   |   | bref     | ref             | datasets/gov/rc/x/ext/1/ext/B[kalbos] | 3     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
