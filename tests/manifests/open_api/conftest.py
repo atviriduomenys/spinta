@@ -314,6 +314,24 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+# Enum values real data services hold: `0`, which is a value and not a missing
+# one, and a formula, which is not a value at all.
+MANIFEST_WITH_ENUM_VALUES = striptable("""
+id | d | r | b | m | property   | type            | source | prepare | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |        |         |       |
+   |   | test                   | memory          |        |         |       |
+   |   |   |   | Testamentas    |                 |        |         |       |
+   |   |   |   |   | id         | string required |        |         | 4     | open
+   |   |   |   |   | sudaryta   | integer         |        |         | 4     | open
+   |                            | enum            |        | 1       |       |
+   |                            |                 |        | 0       |       |
+   |   |   |   |   | rusis      | integer         |        |         | 4     | open
+   |                            | enum            |        | noop()  |       |
+   |   |   |   |   | zyma       | string          |        |         | 4     | open
+   |                            | enum            |        | ''      |       |
+   |                            |                 | V      |         |       |
+""")
+
 # Names that hold characters an OpenAPI component name may not, as the data
 # service template in the metadata repository does.
 MANIFEST_WITH_UNNAMABLE_NAMES = striptable("""

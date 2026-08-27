@@ -18,6 +18,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
@@ -84,7 +85,8 @@ def _assert_valid(open_api_spec: dict) -> None:
         # Arrays nest, and a dynamic one declares nothing about its items.
         (MANIFEST_WITH_ARRAY_LAYERS, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_ARRAY_IN_REFERENCE, {"service_path": SERVICE_PATH}),
-        # Names real data services hold.
+        # Values and names real data services hold.
+        (MANIFEST_WITH_ENUM_VALUES, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_UNNAMABLE_NAMES, {"service_path": SERVICE_PATH}),
     ],
 )
