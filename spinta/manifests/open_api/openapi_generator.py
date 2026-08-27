@@ -573,7 +573,7 @@ class PathGenerator:
                 header: {"$ref": f"#/components/headers/{header}"} for header in response_config["headers"]
             }
 
-        if "content" in response_config and status_code == "200":
+        if "content" in response_config:
             response["content"] = self._build_response_content(
                 response_config["content"], model, path_type, model_property
             )
@@ -1015,9 +1015,13 @@ class OpenAPIGenerator:
         datasets, all_models = self._extract_manifest_data(manifest)
         models = all_models
 
-        # Common schemas are added to the same dict, so a model must not take
-        # one of their names.
-        reserved = set(COMMON_SCHEMAS)
+        # Common schemas are added to the same dict, and the base tags to the
+        # same list, so a model must not take a name of either; OpenAPI wants
+        # unique tag names too. A model name starts with an upper case letter,
+        # see `spinta.types.model.load`, so it can not take a base tag name as
+        # they are written today, but the names are allocated once and this
+        # keeps that true.
+        reserved = set(COMMON_SCHEMAS) | {tag["name"] for tag in BASE_TAGS}
 
         if self.service_path is not None:
             datasets, models = self._filter_by_service_path(datasets, models)
