@@ -12,6 +12,7 @@ An example file is shipped as `udts_cfg.example.yml` next to this module.
 
 from __future__ import annotations
 
+import math
 import pathlib
 import re
 import warnings
@@ -243,6 +244,11 @@ def _check_json_value(value: Any, path: pathlib.Path, what: str) -> None:
     JSON, and safe YAML reads values JSON does not know: an unquoted date comes
     as `datetime.date`, `!!binary` as `bytes`.
     """
+    if isinstance(value, float) and not math.isfinite(value):
+        # JSON has no value for these, and `json.dump` writes them out as bare
+        # `NaN` and `Infinity`, which a strict parser does not read.
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} holds {value!r}, which JSON has no value for.")
+
     if isinstance(value, (str, bool, int, float)) or value is None:
         return
 
