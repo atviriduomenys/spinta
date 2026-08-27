@@ -60,6 +60,12 @@ DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
 
 
+def _reference_shape(model_property, dtype) -> tuple:
+    level = getattr(model_property, "level", None)
+    refprops = getattr(dtype, "refprops", None) or []
+    return getattr(level, "value", level), tuple(prop.name for prop in refprops if hasattr(prop, "name"))
+
+
 def _authorized_nodes(model: Model, path_type: str, model_property: tuple | None) -> list[Model | Property | Namespace]:
     """Nodes a scope of which authorizes the operation.
 
@@ -182,6 +188,7 @@ class SchemaNamer:
     ):
         self._included = {model.name for model in models.values()}
         self._names: dict[str, str] = {}
+        self._ref_shapes: dict[str, dict[Any, str]] = {}
         self._taken = set(reserved or ())
 
         for model in sorted(models.values(), key=lambda model: model.name):
@@ -209,6 +216,26 @@ class SchemaNamer:
 
     def name(self, model: Model) -> str:
         return self._names.get(model.name) or _get_schema_name(model)
+
+    def ref_name(self, model: Model, shape: Any) -> str:
+        """Name of a partial schema of a model referenced from an included one.
+
+        Such a schema holds what the reference carries, which depends on its
+        level and reference properties, see `_build_ref_model_schema`. One model
+        can be referenced in more than one shape, and each shape is a schema of
+        its own, otherwise the first one would answer for all of them.
+        """
+        shapes = self._ref_shapes.setdefault(model.name, {})
+        if shape not in shapes:
+            base = self.name(model)
+            name = base
+            number = 1
+            while shapes and any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            shapes[shape] = name
+        return shapes[shape]
 
 
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
@@ -255,6 +282,11 @@ class DataTypeHandler:
     def __init__(self, schema_registry: OpenAPISchemaRegistry, namer: SchemaNamer):
         self.schema_registry = schema_registry
         self.namer = namer
+
+    def _ref_schema_name(self, model_property, dtype) -> str:
+        if self.namer.is_included(dtype.model):
+            return self.namer.name(dtype.model)
+        return self.namer.ref_name(dtype.model, _reference_shape(model_property, dtype))
 
     def get_dtype_name(self, dtype) -> str:
         """Extract consistent data type name from dtype object"""
@@ -308,7 +340,7 @@ class DataTypeHandler:
             }
 
         if self.is_reference_type(dtype):
-            ref_schema_name = self.namer.name(dtype.model)
+            ref_schema_name = self._ref_schema_name(model_property, dtype)
             example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
@@ -337,7 +369,7 @@ class DataTypeHandler:
             return enum_values[0] if enum_values else "UNKNOWN"
 
         if self.is_reference_type(dtype):
-            ref_schema_name = self.namer.name(dtype.model)
+            ref_schema_name = self._ref_schema_name(model_property, dtype)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return copy.deepcopy(ref_schema["example"])
             return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
@@ -756,9 +788,13 @@ class SchemaGenerator:
         for prop_name, model_property in model.get_given_properties().items():
             prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
 
-            if hasattr(model_property.dtype, "required") and model_property.dtype.required:
+            # A hidden property is left out of an ordinary response, see
+            # `spinta.backends.helpers.get_select_prop_names`, so requiring it
+            # would reject one. It keeps its type for a response selecting it.
+            required = getattr(model_property.dtype, "required", False)
+            if required and not getattr(model_property, "hidden", False):
                 required_fields.append(prop_name)
-            else:
+            elif not required:
                 prop_schema = _nullable(prop_schema)
 
             properties[prop_name] = prop_schema
@@ -811,9 +847,11 @@ class SchemaGenerator:
                 continue
 
             ref_model = dtype.model
-            ref_schema_name = self.namer.name(ref_model)
+            if self.namer.is_included(ref_model):
+                continue
 
-            if ref_schema_name in schemas or self.namer.is_included(ref_model):
+            ref_schema_name = self.namer.ref_name(ref_model, _reference_shape(model_property, dtype))
+            if ref_schema_name in schemas:
                 continue
 
             ref_level = getattr(model_property, "level", None)
