@@ -342,6 +342,10 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         # a server would reach the token endpoint derived from it.
         ('servers:\n  - url: "https://host/x#frag"\n', "must hold no fragment"),
         ('auth:\n  token_url: "https://am.example.lt/auth/token#frag"\n', "must hold no fragment"),
+        # A bare `#` starts the component just as well, and `token_url` is
+        # copied into the document as it is given.
+        ('auth:\n  token_url: "https://am.example.lt/auth/token#"\n', "must hold no fragment"),
+        ('servers:\n  - url: "https://host/x#"\n', "must hold no fragment"),
         # A relative URL is parsed too.
         ('servers:\n  - url: "//["\n', "is not a valid URL"),
         # A port is parsed only when it is read.
