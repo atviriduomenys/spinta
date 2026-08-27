@@ -352,6 +352,8 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         # OpenAPI License Object requires a name.
         ("info:\n  license:\n    url: https://example.com\n", "`info.license.name` must be a non empty string"),
         ("info:\n  contact:\n    name: 1\n", "`info.contact.name` must be a string"),
+        # `info.contact.email` is `format: email` in the OpenAPI schema.
+        ("info:\n  contact:\n    email: not-an-email\n", "is not an email address"),
         ("info:\n  termsOfService: 1\n", "`info.termsOfService` must be a non empty string"),
         # RFC 3986 does not allow these characters in URI references.
         ("servers:\n  - url: 'https://host\\evil/path'\n", "invalid character"),

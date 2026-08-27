@@ -43,6 +43,11 @@ AUTH_KEYS = frozenset(["token_url"])
 #: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
 malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
 
+#: A shape of an email address, as `spinta.cli.pii` reads one. `format: email`
+#: of the OpenAPI schema asks for RFC 5322, which is not worth repeating here;
+#: this catches the value that is not an address at all.
+email_re = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+
 #: Characters allowed in an RFC 3986 URI reference. Non-ASCII characters have
 #: to be percent-encoded (or encoded in a host with IDNA) before they are put
 #: into an OpenAPI URL field.
@@ -266,6 +271,10 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
     contact = info.get("contact") or {}
     for key in ("name", "email"):
         _check_optional_string(contact.get(key), path, f"`info.contact.{key}`")
+
+    email = contact.get("email")
+    if email is not None and not email_re.match(email):
+        raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.email` {email!r} is not an email address.")
     if contact.get("url") is not None:
         _check_url(contact["url"], path, "`info.contact.url`")
 

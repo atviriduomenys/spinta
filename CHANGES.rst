@@ -34,7 +34,9 @@ Backwards incompatible:
     ``:search``, a single object and a property ``:getone``. Every namespace
     above the model is listed as an alternative, because Spinta accepts a scope
     of any of them, and ``HEAD`` operations, which Spinta authorizes as ``GET``,
-    are no longer advertised as unauthenticated. Scopes are built by the ``scope_formatter`` of the
+    are no longer advertised as unauthenticated. Every authorized operation
+    declares the ``401`` and ``403`` responses an authentication failure
+    produces. Scopes are built by the ``scope_formatter`` of the
     configuration, the one Spinta authorizes with, so they follow every option
     it honours, ``scope_prefix_udts`` and ``scope_max_length`` among them.
   - Responses of ``file`` and ``image`` property endpoints are described as

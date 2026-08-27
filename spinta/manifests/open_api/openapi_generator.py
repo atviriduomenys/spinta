@@ -1089,16 +1089,37 @@ class OpenAPIGenerator:
         flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in scopes}
         spec.setdefault("components", {})["securitySchemes"] = schemes
 
-        self._set_scope_example(spec, scopes)
+        self._set_scope_example(spec)
 
-    def _set_scope_example(self, spec: dict[str, Any], scopes: list[str]) -> None:
-        """Show a scope of this data service in the token request example."""
+    def _set_scope_example(self, spec: dict[str, Any]) -> None:
+        """Show a scope of one model of this data service in the token request.
+
+        Namespaces above the model are requested as alternatives too, and the
+        root namespace of the agent is among them, so a scope is taken from a
+        data path, where the narrowest one comes first, and not from the
+        declared ones, where sorting would put the widest first.
+        """
         token_path = spec.get("paths", {}).get(TOKEN_PATH)
-        if not token_path or not scopes:
+        if not token_path:
+            return
+
+        scope = next(
+            (
+                requirement[AUTH_SCHEME][0]
+                for path, operations in spec.get("paths", {}).items()
+                if path not in UTILITY_PATHS
+                for method, operation in operations.items()
+                if method != "parameters" and isinstance(operation, dict)
+                for requirement in operation.get("security", [])
+                if requirement.get(AUTH_SCHEME)
+            ),
+            None,
+        )
+        if scope is None:
             return
 
         content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
-        content["schema"]["properties"]["scope"]["examples"] = [scopes[0]]
+        content["schema"]["properties"]["scope"]["examples"] = [scope]
 
     def _set_tags(self, spec: dict[str, Any], models: dict):
         description = "Operations with"
