@@ -507,6 +507,9 @@ def test_config_treats_a_null_of_a_known_field_as_absent(tmp_path, config, attri
         "info:\n  x-data: 2026-08-27\n",
         "info:\n  x-sarasas:\n    - 2026-08-27\n",
         "servers:\n  - url: https://host\n    x-data: 2026-08-27\n",
+        # `json.dump` writes these out as bare `NaN` and `Infinity`.
+        "info:\n  x-reiksme: .nan\n",
+        "info:\n  x-reiksme: .inf\n",
     ],
 )
 def test_config_rejects_an_extension_json_can_not_hold(tmp_path, config):
