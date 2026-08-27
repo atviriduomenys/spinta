@@ -476,3 +476,23 @@ def test_config_requires_absolute_openapi_urls(tmp_path):
         path.write_text(field, encoding="utf-8")
         with pytest.raises(InvalidUdtsConfig, match="has no scheme and host"):
             UdtsConfig.from_path(path)
+
+
+@pytest.mark.parametrize(
+    "config, attribute, expected",
+    [
+        # A null of a known field is the field left out, OpenAPI holds no nulls.
+        ("servers:\n  - url: https://host\n    description: null\n", "servers", [{"url": "https://host"}]),
+        # This one used to reach `_clean_info` and be treated as a mapping.
+        ("info:\n  contact: null\n", "info", {}),
+        ("info:\n  title: null\n", "info", {}),
+        ("auth:\n  token_url: null\n", "auth", {}),
+        # An extension holds whatever it holds.
+        ("info:\n  x-vidinis: null\n", "info", {"x-vidinis": None}),
+    ],
+)
+def test_config_treats_a_null_of_a_known_field_as_absent(tmp_path, config, attribute, expected):
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    assert getattr(UdtsConfig.from_path(path), attribute) == expected
