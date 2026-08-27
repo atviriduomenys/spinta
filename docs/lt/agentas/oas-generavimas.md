@@ -70,7 +70,13 @@ servers:
 
 Laukai, kurių OpenAPI neapibrėžia, į specifikaciją nepatenka – apie tokį lauką
 parodomas įspėjimas. Taip pastebimos rašybos klaidos (`titel` vietoj `title`),
-kurios kitaip tyliai paliktų lauką neužpildytą. `x-` plėtiniai išsaugomi.
+kurios kitaip tyliai paliktų lauką neužpildytą.
+
+`x-` plėtiniai išsaugomi ten, kur juos apibrėžia pati OpenAPI, t. y. `info`,
+`info.contact`, `info.license`, `servers` įrašuose ir `externalDocs`. Failo
+viršuje ir `auth` viduje jie neturi kur patekti – `auth` yra ne OpenAPI
+objektas, o mūsų pačių laukas, – tad apie juos parodomas toks pat įspėjimas
+kaip apie bet kurį nežinomą lauką.
 
 Kiekviena aplinka aprašoma savo `url`, todėl OpenAPI `servers[].variables`
 šablonai nenaudojami – nurodyti juos galima, bet jie praleidžiami.

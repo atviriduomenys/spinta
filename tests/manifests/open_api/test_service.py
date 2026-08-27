@@ -453,6 +453,20 @@ def test_config_keeps_openapi_fields_and_extensions(tmp_path):
     assert config.info == {"title": "JADIS", "termsOfService": "https://example.lt", "x-vidinis": "taip"}
 
 
+def test_config_leaves_out_an_extension_of_auth(tmp_path):
+    """`auth` is ours, not an OpenAPI object, so nothing would emit one."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(
+        "auth:\n  token_url: https://am.example.lt/auth/token\n  x-vidinis: taip\n",
+        encoding="utf-8",
+    )
+
+    with pytest.warns(UserWarning, match="`auth` key 'x-vidinis' is not supported"):
+        config = UdtsConfig.from_path(path)
+
+    assert config.auth == {"token_url": "https://am.example.lt/auth/token"}
+
+
 def test_config_accepts_a_percent_escaped_url(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text("servers:\n  - url: https://host/a%20b\n", encoding="utf-8")
