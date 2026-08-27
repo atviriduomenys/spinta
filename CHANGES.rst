@@ -69,7 +69,9 @@ Backwards incompatible:
     ``_id`` or the reference properties depending on its level, also when the
     target is a model of the same data service, whose full schema requires its
     own fields. One model referenced in more than one shape gets a schema per
-    shape, and an array of references follows the level of its item.
+    shape, and an array of references follows the level of its item. An array
+    whose relation goes through an intermediate table is described as a list of
+    the referenced model, not as a reference to that table.
   - Model schema names are unique within a data service: they keep the data set
     path, for example ``at280_israsas_DalyvioAsmensIsrasas``, and colliding
     names, which two data set paths can produce once separators become
