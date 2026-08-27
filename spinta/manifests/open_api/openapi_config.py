@@ -226,13 +226,17 @@ PATHS_CONFIG = {
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
             "operationId": "headProperty",
+            # `Range` is a parameter of the path, so a `HEAD` is ranged as well,
+            # and `starlette.responses.FileResponse` answers it the same way.
             "responses": {
                 "200": {"description": "OK"},
+                "206": {"description": "Partial Content", "headers": COMMON_RESPONSE_HEADERS},
                 "304": {"description": "Not Modified"},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
+                "416": {"description": "Range Not Satisfiable"},
                 "500": {"$ref": "error500"},
                 "503": {"$ref": "error503"},
             },

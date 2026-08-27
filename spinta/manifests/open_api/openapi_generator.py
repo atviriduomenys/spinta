@@ -783,32 +783,26 @@ class SchemaGenerator:
         schemas: dict | None = None,
     ) -> dict[str, Any]:
         properties = copy.deepcopy(self.schema_registry.standard_object_properties)
-        required_fields = []
 
         for prop_name, model_property in model.get_given_properties().items():
             prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
 
-            # A hidden property is left out of an ordinary response, see
-            # `spinta.backends.helpers.get_select_prop_names`, so requiring it
-            # would reject one. It keeps its type for a response selecting it.
-            required = getattr(model_property.dtype, "required", False)
-            if required and not getattr(model_property, "hidden", False):
-                required_fields.append(prop_name)
-            elif not required:
+            # Required in a manifest means the data holds a value, not that a
+            # response carries the property: a request selects what it wants,
+            # see `spinta.backends.helpers.get_select_prop_names`, and a hidden
+            # property is left out of an ordinary response altogether. So
+            # nothing is listed as required, while a property that always holds
+            # a value is not made nullable.
+            if not getattr(model_property.dtype, "required", False):
                 prop_schema = _nullable(prop_schema)
 
             properties[prop_name] = prop_schema
 
-        schema = {
+        return {
             "type": "object",
             "properties": properties,
             "example": self._create_example(model, schemas=schemas),
         }
-
-        if required_fields:
-            schema["required"] = required_fields
-
-        return schema
 
     def _create_example(
         self,
@@ -910,7 +904,6 @@ class SchemaGenerator:
             return {"type": "object", "properties": properties, "example": example}
 
         properties = copy.deepcopy(self.schema_registry.standard_object_properties)
-        required_fields = []
 
         refprop_names = {prop.name for prop in refprops if hasattr(prop, "name")}
 
@@ -945,9 +938,9 @@ class SchemaGenerator:
             else:
                 prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
 
-            if hasattr(model_property.dtype, "required") and model_property.dtype.required:
-                required_fields.append(prop_name)
-            else:
+            # A response carries what it was asked for, see
+            # `_create_model_schema`, so nothing is listed as required here.
+            if not getattr(model_property.dtype, "required", False):
                 prop_schema = _nullable(prop_schema)
 
             properties[prop_name] = prop_schema
@@ -966,12 +959,7 @@ class SchemaGenerator:
             properties.pop("_id", None)
             example.pop("_id", None)
 
-        schema = {"type": "object", "properties": properties, "example": example}
-
-        if required_fields:
-            schema["required"] = required_fields
-
-        return schema
+        return {"type": "object", "properties": properties, "example": example}
 
 
 class OpenAPIGenerator:

@@ -20,6 +20,11 @@ Backwards incompatible:
     Without a configuration file a single relative server URL is generated. Data
     set level exports get no ``servers`` at all (`#1526`_).
   - ``traceparent`` and ``tracestate`` headers are no longer ``required``.
+  - Model schemas list no ``required`` properties, because a response carries
+    what the request selected, ``?select(status)`` for one, and a hidden
+    property is left out of an ordinary response altogether. Required in a
+    manifest means the data holds a value, which is why such a property is not
+    made nullable.
   - Properties that are not ``required`` now accept ``null``, including
     ``_revision``, since Spinta returns ``null`` for every property that has no
     value. Reference properties are wrapped into ``anyOf`` and enum properties
