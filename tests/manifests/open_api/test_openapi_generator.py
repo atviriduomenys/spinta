@@ -1342,7 +1342,8 @@ def test_array_reference_uses_the_schema_of_its_item(open_manifest_path_factory)
 
     schemas = open_api_spec["components"]["schemas"]
     items = schemas["ds_Israsas"]["properties"]["kalbos"]["items"]
-    referenced = items["$ref"].rsplit("/", 1)[1]
+    # An optional item accepts a null of the list as well.
+    referenced = items["anyOf"][0]["$ref"].rsplit("/", 1)[1]
 
     assert referenced in schemas
     # Level 3 of the item carries the natural key, not a global `_id`.
@@ -1375,6 +1376,20 @@ def test_array_through_an_intermediate_table_is_a_list(open_manifest_path_factor
     kalbos = schema["properties"]["kalbos"]
 
     assert kalbos["type"] == ["array", "null"]
-    # Items are of the model the array item refers to, not of the intermediate.
-    assert kalbos["items"]["$ref"] == "#/components/schemas/ds_Kalba_Ref"
+    # Items are of the model the array item refers to, not of the intermediate,
+    # and an empty item comes as a null of the list.
+    assert kalbos["items"]["anyOf"] == [
+        {"$ref": "#/components/schemas/ds_Kalba_Ref"},
+        {"type": "null"},
+    ]
     assert isinstance(schema["example"]["kalbos"], list)
+
+
+def test_optional_array_item_accepts_null(open_manifest_path_factory):
+    """An empty item is serialized as a null of the list."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_INTERMEDIATE_TABLE)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
+
+    assert not list(_validator(open_api_spec, schema).iter_errors({"kalbos": [None]}))
