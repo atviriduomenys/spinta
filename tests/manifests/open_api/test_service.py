@@ -307,7 +307,6 @@ def test_config_accepts_empty_file(tmp_path, config):
         (f"https://get.data.gov.lt/{SERVICE}", f"https://get.data.gov.lt/{SERVICE}/:token"),
         # Query and fragment stay where they belong.
         (f"https://get.data.gov.lt/{SERVICE}?env=prod", f"https://get.data.gov.lt/{SERVICE}/:token?env=prod"),
-        (f"https://get.data.gov.lt/{SERVICE}#frag", f"https://get.data.gov.lt/{SERVICE}/:token#frag"),
         (f"/{SERVICE}", f"/{SERVICE}/:token"),
     ],
 )
@@ -339,6 +338,10 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ("externalDocs:\n  url: https://ivpk.github.io/uapi\n  description: 1\n", "must be a string"),
         # Whole server mapping is copied into the document.
         ("servers:\n  - url: https://host\n    description: 1\n", "must be a string"),
+        # An endpoint holds no fragment, RFC 6749 section 3.2, and a fragment of
+        # a server would reach the token endpoint derived from it.
+        ('servers:\n  - url: "https://host/x#frag"\n', "must hold no fragment"),
+        ('auth:\n  token_url: "https://am.example.lt/auth/token#frag"\n', "must hold no fragment"),
         # A relative URL is parsed too.
         ('servers:\n  - url: "//["\n', "is not a valid URL"),
         # A port is parsed only when it is read.
