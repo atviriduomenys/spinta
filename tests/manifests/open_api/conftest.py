@@ -314,6 +314,17 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+# Names that hold characters an OpenAPI component name may not, as the data
+# service template in the metadata repository does.
+MANIFEST_WITH_UNNAMABLE_NAMES = striptable("""
+id | d | r | b | m | property | type            | level | access
+   | datasets/gov/rc/jadis/at280/1/(duom_rink) |   |     |
+   |   | test                 | memory          |       |
+   |   |   |   | Esybe        |                 |       |
+   |   |   |   |   | kodas    | string required | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
