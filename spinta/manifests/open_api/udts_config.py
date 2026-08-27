@@ -347,8 +347,13 @@ def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
 
     A fragment is never sent in a request, so an endpoint holding one is not the
     endpoint a client calls.
+
+    What RFC 3986 forbids here is the component, which a bare `#` starts just as
+    well as one with text after it, and `urlsplit` parses that into an empty
+    fragment indistinguishable from none at all. So the delimiter is what is
+    looked for. An escaped `%23` is a character of the path and stays allowed.
     """
-    if urlsplit(url).fragment:
+    if "#" in url:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {url!r}.")
 
 
