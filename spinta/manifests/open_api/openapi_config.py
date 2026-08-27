@@ -383,7 +383,7 @@ PARAMETER_COMPONENTS = {
         "name": "Range",
         "in": "header",
         "required": False,
-        "description": "Part of a file to return, see [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#field.range). A file is served with `Accept-Ranges: bytes`.",
+        "description": "Part of a file to return, see [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#field.range). A file kept in a file system is served with `Accept-Ranges: bytes`; one kept in a database is returned whole, with `200`.",
         "schema": {"type": "string", "examples": ["bytes=0-1023"]},
     },
     "If-None-Match": {
