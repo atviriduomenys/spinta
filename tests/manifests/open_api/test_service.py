@@ -542,6 +542,35 @@ def test_config_rejects_an_extension_json_can_not_hold(tmp_path, config):
         UdtsConfig.from_path(path)
 
 
+@pytest.mark.parametrize(
+    "config",
+    [
+        # Safe YAML builds the value an anchor of an enclosing container asks
+        # for, and `json.dump` raises on it instead of writing anything.
+        "info:\n  x-loop: &a\n    - *a\n",
+        "info:\n  x-loop: &a\n    b: *a\n",
+        # The anchor does not have to point at the container right above it.
+        "info:\n  x-loop: &a\n    - - *a\n",
+        "servers:\n  - url: https://host\n    x-loop: &a\n      - *a\n",
+    ],
+)
+def test_config_rejects_an_extension_containing_itself(tmp_path, config):
+    """Such a value used to recurse until Python gave up."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match="containing itself"):
+        UdtsConfig.from_path(path)
+
+
+def test_config_accepts_one_anchor_used_twice(tmp_path):
+    """An anchor spells a value once, it does not make the value recursive."""
+    path = tmp_path / "vartai.yml"
+    path.write_text("info:\n  x-a: &a [1, 2]\n  x-b: [*a, *a]\n", encoding="utf-8")
+
+    assert UdtsConfig.from_path(path).info == {"x-a": [1, 2], "x-b": [[1, 2], [1, 2]]}
+
+
 def test_config_accepts_a_quoted_extension(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text('info:\n  x-data: "2026-08-27"\n', encoding="utf-8")
