@@ -215,10 +215,16 @@ def _keep_known(mapping: dict, known: frozenset[str], path: pathlib.Path, what: 
     """
     kept = {}
     for key, value in mapping.items():
-        if isinstance(key, str) and (key in known or key.startswith("x-")):
-            kept[key] = value
-        else:
+        if not isinstance(key, str) or (key not in known and not key.startswith("x-")):
             warnings.warn(f"{path}: {what} key {key!r} is not supported, leaving it out.", UserWarning)
+            continue
+
+        # OpenAPI objects hold no null values, so a null of a known field is the
+        # field left out. An extension holds whatever it holds.
+        if value is None and not key.startswith("x-"):
+            continue
+
+        kept[key] = value
     return kept
 
 
