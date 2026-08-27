@@ -83,6 +83,9 @@ Backwards incompatible:
     same name no longer produce colliding schemas, tags and operation ids. In a
     whole manifest export tags and operation ids now use the full model name
     instead of the model name alone; data set level exports are unchanged.
+    Characters an OpenAPI component name may not hold, which a name in a
+    manifest may, are replaced with an underscore before the name is claimed,
+    so uniqueness still holds.
 
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and

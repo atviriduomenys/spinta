@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Callable, Union
@@ -152,6 +153,10 @@ class ExampleValues:
     values: dict[str, Any] = field(default_factory=lambda: PROPERTY_EXAMPLE)
 
 
+#: Characters an OpenAPI component name is allowed to hold.
+unnamable_re = re.compile(r"[^a-zA-Z0-9._-]")
+
+
 def _get_schema_name(model: Model) -> str:
     """Convert model name to unique OpenAPI schema name.
 
@@ -216,6 +221,9 @@ class SchemaNamer:
                 self._assign(model, _get_schema_name(model))
 
     def _assign(self, model: Model, base: str) -> None:
+        # A manifest is not required to name things the way OpenAPI names a
+        # component, so anything else is written as an underscore.
+        base = unnamable_re.sub("_", base)
         # Path separators become underscores, so different data set paths can
         # produce one name, `a_b` and `a/b` for example, and one schema would
         # then silently replace the other.

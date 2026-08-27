@@ -26,6 +26,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_UNNAMABLE_NAMES,
 )
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
@@ -598,8 +599,14 @@ def test_api_version(open_manifest_path_factory):
 SERVICE_PATH = "datasets/gov/rc/jadis/at280/1"
 
 
-def _service_spec(open_manifest_path_factory, service_path=SERVICE_PATH, config=None, **kwargs):
-    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SERVICES)
+def _service_spec(
+    open_manifest_path_factory,
+    service_path=SERVICE_PATH,
+    config=None,
+    manifest_data=MANIFEST_WITH_SERVICES,
+    **kwargs,
+):
+    open_manifest_path = open_manifest_path_factory(manifest_data)
     return create_openapi_manifest(open_manifest_path, service_path=service_path, config=config, **kwargs)
 
 
@@ -803,6 +810,13 @@ def test_service_required_enum_property_is_not_nullable(open_manifest_path_facto
     properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
     assert properties["id"]["type"] == "string"
     assert "enum" not in properties["id"]
+
+
+def test_service_schema_names_hold_only_allowed_characters(open_manifest_path_factory):
+    """A component name an institution gives has to pass `^[a-zA-Z0-9._-]+$`."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_UNNAMABLE_NAMES)
+
+    assert "_duom_rink__Esybe" in open_api_spec["components"]["schemas"]
 
 
 def test_service_requested_scopes_are_declared(open_manifest_path_factory):

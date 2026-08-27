@@ -24,6 +24,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_UNNAMABLE_NAMES,
 )
 
 SERVICE_PATH = "datasets/gov/rc/jadis/at280/1"
@@ -83,6 +84,8 @@ def _assert_valid(open_api_spec: dict) -> None:
         # Arrays nest, and a dynamic one declares nothing about its items.
         (MANIFEST_WITH_ARRAY_LAYERS, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_ARRAY_IN_REFERENCE, {"service_path": SERVICE_PATH}),
+        # Names real data services hold.
+        (MANIFEST_WITH_UNNAMABLE_NAMES, {"service_path": SERVICE_PATH}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):
