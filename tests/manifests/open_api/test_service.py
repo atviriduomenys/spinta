@@ -498,3 +498,28 @@ def test_config_treats_a_null_of_a_known_field_as_absent(tmp_path, config, attri
     path.write_text(config, encoding="utf-8")
 
     assert getattr(UdtsConfig.from_path(path), attribute) == expected
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        # Safe YAML reads an unquoted date as `datetime.date`.
+        "info:\n  x-data: 2026-08-27\n",
+        "info:\n  x-sarasas:\n    - 2026-08-27\n",
+        "servers:\n  - url: https://host\n    x-data: 2026-08-27\n",
+    ],
+)
+def test_config_rejects_an_extension_json_can_not_hold(tmp_path, config):
+    """The specification is written as JSON."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match="which JSON has no value for"):
+        UdtsConfig.from_path(path)
+
+
+def test_config_accepts_a_quoted_extension(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text('info:\n  x-data: "2026-08-27"\n', encoding="utf-8")
+
+    assert UdtsConfig.from_path(path).info == {"x-data": "2026-08-27"}
