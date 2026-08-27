@@ -113,7 +113,8 @@ class UdtsConfig:
         return cls(
             info=_clean_info(data.get("info") or {}, path),
             servers=[_keep_known(server, SERVER_KEYS, path, "`servers` entry") for server in servers],
-            auth=_keep_known(data.get("auth") or {}, AUTH_KEYS, path, "`auth`"),
+            # `auth` is ours, not an OpenAPI object, so it takes no extensions.
+            auth=_keep_known(data.get("auth") or {}, AUTH_KEYS, path, "`auth`", extensions=False),
             external_docs=_keep_known(data.get("externalDocs") or {}, EXTERNAL_DOCS_KEYS, path, "`externalDocs`"),
         )
 
@@ -217,24 +218,31 @@ def _check_derived_token_url(token_url: str | None, servers: list, path: pathlib
         )
 
 
-def _keep_known(mapping: dict, known: frozenset[str], path: pathlib.Path, what: str) -> dict:
+def _keep_known(
+    mapping: dict, known: frozenset[str], path: pathlib.Path, what: str, *, extensions: bool = True
+) -> dict:
     """Leave out fields OpenAPI does not define, keeping `x-` extensions.
 
     Such a field is usually a typo, which would both make the document invalid
     and silently leave the intended field unset.
+
+    Pass `extensions=False` for a mapping that is not copied into an OpenAPI
+    object, where an extension has nowhere to go and keeping it would only hide
+    the fact that nothing reads it.
     """
     kept = {}
     for key, value in mapping.items():
-        if not isinstance(key, str) or (key not in known and not key.startswith("x-")):
+        is_extension = extensions and isinstance(key, str) and key.startswith("x-")
+        if not isinstance(key, str) or (key not in known and not is_extension):
             warnings.warn(f"{path}: {what} key {key!r} is not supported, leaving it out.", UserWarning)
             continue
 
         # OpenAPI objects hold no null values, so a null of a known field is the
         # field left out. An extension holds whatever it holds.
-        if value is None and not key.startswith("x-"):
+        if value is None and not is_extension:
             continue
 
-        if key.startswith("x-"):
+        if is_extension:
             _check_json_value(value, path, f"{what} key {key!r}")
 
         kept[key] = value
