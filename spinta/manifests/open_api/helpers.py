@@ -407,6 +407,10 @@ def write_openapi_manifest(spec: dict, output: str | None = None) -> None:
     if path.suffix in (".yml", ".yaml"):
         yaml = YAML()
         yaml.default_flow_style = False
+        # One object reached from two places, which a `--udts-cfg` anchor also
+        # produces, would be written as an anchor and an alias, and not every
+        # consumer of the specification reads those.
+        yaml.representer.ignore_aliases = lambda *_: True
         with path.open("w", encoding="utf-8") as file:
             yaml.dump(spec, file)
     else:

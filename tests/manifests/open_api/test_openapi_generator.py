@@ -1205,3 +1205,18 @@ def test_service_path_and_main_dataset_name_are_alternatives(open_manifest_path:
             main_dataset_name="datasets/demo/system_data",
             service_path=SERVICE_PATH,
         )
+
+
+def test_yaml_output_has_no_anchors_from_the_configuration(open_manifest_path_factory, tmp_path):
+    """A `--udts-cfg` anchor leaves one object reached from two places."""
+    shared = {"raktas": "reiksme"}
+    config = UdtsConfig(info={"x-bendra": shared, "x-kita": shared}, servers=[{"url": "https://get.data.gov.lt"}])
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    output = tmp_path / "spec.yaml"
+    write_openapi_manifest(open_api_spec, str(output))
+    written = output.read_text(encoding="utf-8")
+
+    assert "x-bendra" in written
+    assert "&id" not in written
+    assert "*id" not in written
