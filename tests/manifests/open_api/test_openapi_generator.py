@@ -1220,3 +1220,16 @@ def test_yaml_output_has_no_anchors_from_the_configuration(open_manifest_path_fa
     assert "x-bendra" in written
     assert "&id" not in written
     assert "*id" not in written
+
+
+def test_collection_head_takes_the_query_parameter(open_manifest_path_factory):
+    """`HEAD` is narrowed down by the same query as `GET`, and takes `:search`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    operations = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]
+    query = {"$ref": "#/components/parameters/query"}
+    assert query in operations["head"]["parameters"]
+    assert query in operations["get"]["parameters"]
+
+    scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
+    assert any(scope.endswith("/:search") for scope in scopes)

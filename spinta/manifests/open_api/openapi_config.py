@@ -130,6 +130,10 @@ PATHS_CONFIG = {
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
             "operationId": "modelHead",
+            # `HEAD` is narrowed down by the same query as `GET`, see
+            # `spinta.urlparams.get_action`, which is why it takes the `search`
+            # scope as well.
+            "parameters": ["query"],
             "responses": {
                 "200": {"description": "OK"},
                 "304": {"description": "Not Modified"},
