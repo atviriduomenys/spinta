@@ -912,9 +912,14 @@ class SchemaGenerator:
                 continue
 
             dtype = model_property.dtype
-            inner_dtype = dtype
-            if self.dtype_handler.is_array_type(inner_dtype):
-                inner_dtype = inner_dtype.items.dtype if hasattr(inner_dtype, "items") else inner_dtype
+
+            # A reference carries what its own level says, also when it is
+            # reached through another reference, so the level of the one being
+            # built does not apply to it. An array holds it in the item.
+            inner_property = model_property
+            if self.dtype_handler.is_array_type(dtype) and hasattr(dtype, "items"):
+                inner_property = dtype.items
+            inner_dtype = inner_property.dtype
 
             if self.dtype_handler.is_reference_type(inner_dtype):
                 nested_refprops = getattr(inner_dtype, "refprops", None) or []
@@ -922,7 +927,7 @@ class SchemaGenerator:
                     schemas,
                     inner_dtype.model,
                     nested_refprops,
-                    ref_level,
+                    getattr(inner_property, "level", None),
                 )
                 ref_schema = schemas.get(schema_name)
                 example = copy.deepcopy(ref_schema.get("example")) if ref_schema else None

@@ -16,6 +16,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
@@ -71,6 +72,9 @@ def _assert_valid(open_api_spec: dict) -> None:
         (MANIFEST_WITH_ARRAY_REFS, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_ARRAY_REFS, {}),
         (MANIFEST_WITH_ARRAY_REFS, {"main_dataset_name": "datasets/gov/rc/jadis/at280/1/ds"}),
+        # A reference reached through another one keeps a level of its own.
+        (MANIFEST_WITH_NESTED_REF_LEVELS, {"service_path": SERVICE_PATH}),
+        (MANIFEST_WITH_NESTED_REF_LEVELS, {}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):
