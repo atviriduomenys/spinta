@@ -649,15 +649,38 @@ def test_service_schema_names_are_unique_for_same_model_name(open_manifest_path_
     assert {"at280_israsas_Adresas", "at280_adresai_Adresas"}.issubset(tags)
 
 
-def test_service_ref_between_datasets_uses_full_schema(open_manifest_path_factory):
+def test_service_ref_between_datasets_uses_a_reference_schema(open_manifest_path_factory):
+    """A reference carries what its level says, not the whole target model."""
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     schemas = open_api_spec["components"]["schemas"]
     properties = schemas["at280_israsas_DalyvioAsmensIsrasas"]["properties"]
     assert properties["adresas"]["anyOf"] == [
-        {"$ref": "#/components/schemas/at280_adresai_Adresas"},
+        {"$ref": "#/components/schemas/at280_adresai_Adresas_Ref"},
         {"type": "null"},
     ]
+
+    # The target keeps its full schema, which requires its own fields, while the
+    # reference schema holds what a level 4 reference carries.
+    assert schemas["at280_adresai_Adresas"]["required"] == ["id"]
+    assert "_id" in schemas["at280_adresai_Adresas_Ref"]["properties"]
+    assert "required" not in schemas["at280_adresai_Adresas_Ref"]
+
+
+def test_model_schema_accepts_a_real_reference_value(open_manifest_path_factory):
+    """A level 4 reference is serialized as `{"_id": ...}`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["schemas"]["at280_israsas_DalyvioAsmensIsrasas"]
+    body = {
+        "_type": "datasets/gov/rc/jadis/at280/1/at280_israsas/DalyvioAsmensIsrasas",
+        "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
+        "_revision": None,
+        "kodas": "K1",
+        "adresas": {"_id": "12345678-1234-5678-9abc-123456789012"},
+    }
+
+    assert not list(_validator(open_api_spec, schema).iter_errors(body))
 
 
 def test_service_ref_to_missing_dataset_does_not_break_generation(open_manifest_path_factory):
