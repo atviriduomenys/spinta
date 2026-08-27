@@ -249,12 +249,17 @@ def _keep_known(
     return kept
 
 
-def _check_json_value(value: Any, path: pathlib.Path, what: str) -> None:
+def _check_json_value(value: Any, path: pathlib.Path, what: str, enclosing: frozenset[int] = frozenset()) -> None:
     """Check that a value survives being written out.
 
     An extension holds whatever it holds, but the specification is written as
     JSON, and safe YAML reads values JSON does not know: an unquoted date comes
     as `datetime.date`, `!!binary` as `bytes`.
+
+    `enclosing` holds the containers this value sits in, because a YAML anchor
+    can point back at one of them and JSON has no way to write that. Only the
+    containers on the way down are held, so the same anchor used twice side by
+    side, which is an ordinary way to spell one value once, still passes.
     """
     if isinstance(value, float) and not math.isfinite(value):
         # JSON has no value for these, and `json.dump` writes them out as bare
@@ -264,16 +269,24 @@ def _check_json_value(value: Any, path: pathlib.Path, what: str) -> None:
     if isinstance(value, (str, bool, int, float)) or value is None:
         return
 
+    if isinstance(value, (list, dict)):
+        if id(value) in enclosing:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error=f"{what} holds a value containing itself, which JSON has no way to write.",
+            )
+        enclosing = enclosing | {id(value)}
+
     if isinstance(value, list):
         for item in value:
-            _check_json_value(item, path, what)
+            _check_json_value(item, path, what, enclosing)
         return
 
     if isinstance(value, dict):
         for key, item in value.items():
             if not isinstance(key, str):
                 raise InvalidUdtsConfig(path=str(path), error=f"{what} holds a key {key!r}, which is not a string.")
-            _check_json_value(item, path, what)
+            _check_json_value(item, path, what, enclosing)
         return
 
     raise InvalidUdtsConfig(
