@@ -240,6 +240,25 @@ id | d | r | b | m | property   | type            | ref                         
 """)
 
 
+#: A level 3 reference, whose natural key holds a level 4 reference of its own.
+MANIFEST_WITH_NESTED_REF_LEVELS = striptable("""
+id | d | r | b | m | property | type            | ref                           | level | access
+   | datasets/gov/rc/x/ext/1/ext |           |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | C            |                 | kodas                         |       |
+   |   |   |   |   | kodas    | string required |                               | 4     | open
+   |   |   |   | B            |                 | cref                          |       |
+   |   |   |   |   | cref     | ref             | datasets/gov/rc/x/ext/1/ext/C | 4     | open
+   |   |   |   |   | pav      | string          |                               | 4     | open
+   |                          |                 |                               |       |
+   | datasets/gov/rc/jadis/at280/1/ds |       |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | A            |                 | id                            |       |
+   |   |   |   |   | id       | string required |                               | 4     | open
+   |   |   |   |   | bref     | ref             | datasets/gov/rc/x/ext/1/ext/B | 3     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST

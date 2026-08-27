@@ -18,6 +18,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
@@ -1346,3 +1347,19 @@ def test_array_reference_uses_the_schema_of_its_item(open_manifest_path_factory)
     # Level 3 of the item carries the natural key, not a global `_id`.
     assert "kodas" in schemas[referenced]["properties"]
     assert "_id" not in schemas[referenced]["properties"]
+
+
+def test_nested_reference_keeps_its_own_level(open_manifest_path_factory):
+    """A level 4 reference inside a natural key carries an `_id`, not a key."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_NESTED_REF_LEVELS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    outer = schemas["ds_A"]["properties"]["bref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    # Level 3 of `bref` carries the natural key of the target, which is `cref`.
+    assert "cref" in schemas[outer]["properties"]
+
+    inner = schemas[outer]["properties"]["cref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    # Level 4 of `cref` carries a global identifier, not the key of its target.
+    assert "_id" in schemas[inner]["properties"]
+    assert "kodas" not in schemas[inner]["properties"]
