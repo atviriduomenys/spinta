@@ -100,8 +100,20 @@ Bug fixes:
   ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
   through ``rc.get()`` from lower-priority sources. Removed keys are now
   unavailable at all levels (`#1990`_).
+- Fixed configuration values set through `RawConfig.fork()` shadowing
+  configuration from lower priority sources. A fork often contains only a
+  partial configuration, for example a `keymaps.default` with only `type` set,
+  which previously dropped the `dsn` defined by lower priority sources. Forked
+  configuration is now merged with lower priority sources, while explicitly
+  set values (e.g. via environment variables or CLI arguments) still replace
+  lower priority ones (`#2001`_).
+- Fixed `RawConfig` modifying the configuration dictionaries it reads from.
+  A global `spinta.config:CONFIG` dict imported by multiple `RawConfig`
+  instances lost its `environments` section after the first read, which made
+  environment specific configuration (e.g. test backend DSNs) unavailable in
+  long running processes and in later configuration reads (`#2001`_).
 
-
+.. _#2001: https://github.com/atviriduomenys/spinta/pull/2001
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
 .. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
@@ -142,7 +154,6 @@ New Features:
   contains all models that fit under citus reference sharding optimization criteria (`#1989`_).
 
 .. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
-
 
 1.1.0 (2026-08-19)
 =====================

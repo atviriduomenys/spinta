@@ -22,6 +22,17 @@ if typing.TYPE_CHECKING:
 Schema = Dict[str, Any]
 Key = Tuple[str]
 
+
+class InnerKeys(list):
+    """Child key names derived from the structure of a merge source.
+
+    In contrast to explicitly set values (e.g. a comma separated list of names
+    set via `SPINTA_BACKENDS=one,two`), these child key names don't replace
+    child key names from lower priority sources, but are added to them, and
+    they don't make the key explicitly set (see `RawConfig._key_exists`).
+    """
+
+
 yaml = YAML(typ="safe")
 
 log = logging.getLogger(__name__)
@@ -68,6 +79,11 @@ class KeyFormat(str, enum.Enum):
 class ConfigSource:
     name: str
 
+    # When `merge` is True (see `ForkConfig`), child key names read from this
+    # source are added to child key names from lower priority sources instead
+    # of replacing them, and are not marked as explicitly set.
+    merge = False
+
     def __init__(self, name=None, config=None):
         self.name = self.getname(name)
         self.config = config
@@ -85,7 +101,12 @@ class ConfigSource:
         config = {}
         for k, v in self.config.items():
             v = dict(_traverse(v, k))
-            v.update(_get_inner_keys(v, depth=len(k)))
+            inner = _get_inner_keys(v, depth=len(k))
+            if self.merge:
+                # Mark child key names derived from this source structure, so
+                # they could be distinguished from explicitly set values.
+                inner = {key: InnerKeys(names) for key, names in inner.items()}
+            v.update(inner)
             config.update(v)
         self.config = config
 
@@ -108,13 +129,31 @@ class ConfigSource:
 
 class PyDict(ConfigSource):
     def read(self, schema: Schema):
-        envs = self.config.pop("environments", {})
-        config = {tuple(k.split(".")): v for k, v in self.config.items()}
+        # Don't modify given config dict, it can be shared, e.g. a global
+        # `spinta.config.CONFIG` dict can be imported by multiple `RawConfig`
+        # instances.
+        config = dict(self.config)
+        envs = config.pop("environments", {})
+        config = {tuple(k.split(".")): v for k, v in config.items()}
         for env, values in envs.items():
             for k, v in values.items():
                 config[("environments", env) + tuple(k.split("."))] = v
         self.config = config
         super().read(schema)
+
+
+class ForkConfig(PyDict):
+    """Configuration source created by `RawConfig.fork`.
+
+    Unlike regular configuration sources, which declare the full structure of
+    their subtrees and replace child key names declared by lower priority
+    sources, a fork often contains only a partial configuration, e.g. only
+    `keymaps.default.type` without `keymaps.default.dsn`. Child key names from
+    this source are added to child key names from lower priority sources, so
+    such partial forks don't shadow the rest of the configuration.
+    """
+
+    merge = True
 
 
 class Path(PyDict):
@@ -237,7 +276,7 @@ class RawConfig:
         rc = RawConfig(list(self.sources))
         if sources:
             if isinstance(sources, dict):
-                rc.add("fork", _flatten_dotted(sources))
+                rc.read([ForkConfig("fork", sources)], after)
             else:
                 rc.read(sources, after)
         else:
@@ -368,20 +407,47 @@ class RawConfig:
             schema = self._schema
             for i in range(1, n + 1):
                 schema = self._get_key_schema(schema, key[i - 1])
-                if schema is None or schema["type"] != "object":
-                    # Skip all non object keys, only objects can have keys.
+                if schema is None:
+                    # Skip unknown keys, only keys known to the schema can
+                    # have child keys.
+                    break
+                if schema["type"] != "object":
+                    # The schema declares this key as a scalar, but configuration
+                    # may still use it as a nested object (e.g. a property
+                    # `type` given as `{"name": ..., ...}`). Allow one more level
+                    # of child collection so such dict values can be reconstructed,
+                    # but do not mark the key as explicitly set based on these
+                    # derived children.
+                    if i < n:
+                        k = tuple(key[:i])
+                        if k not in keys:
+                            keys[k] = config, []
+                        if key[i] not in keys[k][1]:
+                            keys[k][1].append(key[i])
                     break
                 k = tuple(key[:i])
                 v = config.get(k, env)
                 if v is not NA:
-                    # Source has explicit value set. Empty values reset the
-                    # current key list, but nested keys are still added back.
                     if isinstance(v, str):
-                        v = [x.strip() for x in v.split(",") if x.strip()]
+                        # Explicit comma separated child key names.
+                        keys[k] = config, [x.strip() for x in v.split(",") if x.strip()]
+                        explicit.add(k)
+                    elif isinstance(v, InnerKeys):
+                        # Child key names derived from the structure of a merge
+                        # source (see `ForkConfig`). Add them to child key names
+                        # already declared by lower priority sources instead of
+                        # replacing them, so a partial forked subtree would not
+                        # shadow the rest of the configuration.
+                        if k in keys:
+                            existing = keys[k][1]
+                            keys[k] = config, existing + [c for c in v if c not in existing]
+                        else:
+                            keys[k] = config, list(v)
                     else:
-                        v = list(v)
-                    keys[k] = config, v
-                    explicit.add(k)
+                        # Source has explicit value set. Empty values reset the
+                        # current key list, but nested keys are still added back.
+                        keys[k] = config, list(v)
+                        explicit.add(k)
                 if i < n:
                     # Collect all parent keys.
                     if k not in keys:
@@ -439,21 +505,6 @@ class RawConfig:
 
     def get_source_names(self) -> List[str]:
         return [source.name for source in self.sources]
-
-
-def _flatten_dotted(d, _prefix=""):
-    """Flatten nested dict to dotted key notation.
-
-    Non-dict values (scalars, lists, etc.) are kept as-is.
-    """
-    result = {}
-    for key, val in d.items():
-        full_key = f"{_prefix}.{key}" if _prefix else key
-        if isinstance(val, dict):
-            result.update(_flatten_dotted(val, full_key))
-        else:
-            result[full_key] = val
-    return result
 
 
 def _traverse(value, path=()):
