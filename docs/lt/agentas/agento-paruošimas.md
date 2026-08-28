@@ -28,6 +28,14 @@ Pats savaime Agentas su visomis Python priklausomybėmis diske užima apie 2 GB 
 
 Agento veikimas turėtu būti nuolat stebimas ir reikiami resursai didinami, pagal poreikį.
 
+Disko vietos ir atminties likutį Agentas stebi ir pats — `/health` adresu jis pateikia savo būsenos suvestinę, kurią galima naudoti stebėsenos sistemoje ar konteinerio būsenos tikrinime. Pagal nutylėjimą būsena tampa nesveika, kai lieka mažiau nei 2 GB laisvos vietos diske arba mažiau nei 256 MB prieinamos atminties. Šios ribos parinktos taip, kad aukščiau nurodytus minimalius reikalavimus atitinkanti sistema būtų sveika, o įspėjimas ateitų dar likus laiko sureaguoti.
+
+:::{note}
+Nesveika būsena nurodoma atsakymo `healthy` lauke, o ne HTTP statuso kode — endpoint'as visada grąžina `200`. Stebėsenos sistemą reikia konfigūruoti tikrinti būtent šį lauką.
+:::
+
+Ribas galima keisti `health.min_free_disk_space` ir `health.min_free_memory` parametrais; jas verta didinti kartu su Agentui skiriamais resursais. Plačiau apie šiuos parametrus rašoma angliškos dokumentacijos skyriuje „Configuration → Health probe configuration“.
+
 ## Operacinės sistemos paruošimas
 
 ### Papildomų OS paketų diegimas

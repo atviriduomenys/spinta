@@ -267,6 +267,13 @@ CONFIG = {
     # Response HTTP Strict Transport Security (HSTS) header. `max-age` must be at
     # least 31536000 seconds (1 year) and `includeSubDomains` must be specified.
     "http_strict_transport_security": "max-age=31536000; includeSubDomains",
+    # `/health` probe thresholds.
+    "health": {
+        # Minimum amount of free disk space (MB) on `data_path`.
+        "min_free_disk_space": 2048,
+        # Minimum amount of available RAM (MB).
+        "min_free_memory": 256,
+    },
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",
@@ -340,6 +347,7 @@ CONFIG = {
             "default_access_level": "open",
             "access": "open",
             "sync_retry_count": 0,
+            "default_distribution_strategy": "undistributed",
         },
     },
     "texts": {

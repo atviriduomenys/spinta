@@ -27,6 +27,7 @@ from spinta.testing.migration import (
     add_redirect_table,
     add_schema,
     add_table_comment,
+    drop_changelog,
     drop_column,
     drop_index,
     drop_table,
@@ -34,6 +35,7 @@ from spinta.testing.migration import (
     get_table_unique_constraint_columns,
     rename_changelog,
     rename_column,
+    rename_constraint,
     rename_index,
     rename_redirect,
     rename_table,
@@ -845,11 +847,7 @@ def test_migrate_remove_model(migration_db: Engine, rc: RawConfig, cli: SpintaCl
         "\n"
         f"{drop_table(table_identifier=test_table_identifier, remove_model_only=True)}"
         f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test__txn')}"
-        f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.CHANGELOG), remove_model_only=True)}"
-        'ALTER SEQUENCE "migrate/example"."Test/:changelog__id_seq" RENAME TO '
-        '"__Test/:changelog__id_seq";\n'
-        "\n"
-        f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test/:changelog__txn')}"
+        f"{drop_changelog(table_identifier=test_table_identifier.change_table_type(new_type=TableType.CHANGELOG), remove_model_only=True)}"
         f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.REDIRECT), remove_model_only=True)}"
         f"{drop_index(table_identifier=test_table_identifier, index_name='ix_Test/:redirect_redirect')}"
         f"{drop_table(table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), remove_model_only=True)}"
@@ -1031,12 +1029,9 @@ def test_migrate_rename_model(migration_db: Engine, rc: RawConfig, cli: SpintaCl
         f"{rename_changelog(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
         f"{rename_redirect(old_table_identifier=test_table_identifier, new_table_identifier=new_table_identifier)}"
         f"{rename_table(old_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), new_table_identifier=new_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'))}"
-        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someRef._id', new_index_name='ix_New_someRef._id')}"
-        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test__txn', new_index_name='ix_New__txn')}"
-        'ALTER TABLE "migrate/example"."New" RENAME CONSTRAINT '
-        '"fk_Test_someRef._id_Ref" TO '
-        '"fk_New_someRef._id_NewRef";\n'
-        "\n"
+        f"{rename_index(table_identifier=new_table_identifier, old_index_name='ix_Test_someRef._id', new_index_name='ix_New_someRef._id')}"
+        f"{rename_constraint(table_identifier=new_table_identifier, old_constraint_name='fk_Test_someRef._id_Ref', new_constraint_name='fk_New_someRef._id_NewRef')}"
+        f"{rename_index(table_identifier=new_table_identifier, old_index_name='ix_Test__txn', new_index_name='ix_New__txn')}"
         "COMMIT;\n"
         "\n"
     )
@@ -1159,9 +1154,7 @@ def test_migrate_rename_property(migration_db: Engine, rc: RawConfig, cli: Spint
     assert result.output.endswith(
         "BEGIN;\n\n"
         f"{rename_column(table_identifier=ref_table_identifier, column='someText', new_name='newText')}"
-        'ALTER TABLE "migrate/example"."Ref" RENAME CONSTRAINT '
-        '"uq_Ref_someText" TO "uq_Ref_newText";\n'
-        "\n"
+        f"{rename_constraint(table_identifier=ref_table_identifier, old_constraint_name='uq_Ref_someText', new_constraint_name='uq_Ref_newText')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someText', new_name='newText')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._id', new_name='newFile._id')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._content_type', new_name='newFile._content_type')}"
@@ -1169,13 +1162,10 @@ def test_migrate_rename_property(migration_db: Engine, rc: RawConfig, cli: Spint
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._bsize', new_name='newFile._bsize')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someFile._blocks', new_name='newFile._blocks')}"
         f"{rename_table(old_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='someFile'), new_table_identifier=test_table_identifier.change_table_type(new_type=TableType.FILE, table_arg='newFile'))}"
-        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someOther._id', new_index_name='ix_Test_newOther._id')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someRef.someText', new_name='newRef.newText')}"
         f"{rename_column(table_identifier=test_table_identifier, column='someOther._id', new_name='newOther._id')}"
-        'ALTER TABLE "migrate/example"."Test" RENAME CONSTRAINT '
-        '"fk_Test_someOther._id_Ref" TO '
-        '"fk_Test_newOther._id_Ref";\n'
-        "\n"
+        f"{rename_index(table_identifier=test_table_identifier, old_index_name='ix_Test_someOther._id', new_index_name='ix_Test_newOther._id')}"
+        f"{rename_constraint(table_identifier=test_table_identifier, old_constraint_name='fk_Test_someOther._id_Ref', new_constraint_name='fk_Test_newOther._id_Ref')}"
         "COMMIT;\n"
         "\n"
     )

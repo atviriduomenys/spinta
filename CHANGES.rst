@@ -1,7 +1,11 @@
 Changes
 #######
 
-1.1.0 (unreleased)
+1.2.0 (unreleased)
+=====================
+
+
+1.1.0 (2026-08-19)
 =====================
 
 Backwards incompatible:
@@ -15,6 +19,14 @@ Backwards incompatible:
 
 Bug fixes:
 
+- Escape Mermaid/HTML-structural characters (`` ` ``, ``"``, ``{``, ``}``, ``<``, ``>`` and newlines) in
+  generated Mermaid class diagrams (``write_mermaid_manifest``). Model names, labels, property names and
+  enum values were interpolated into the diagram source unescaped, so a crafted enum value could break out
+  of its token and inject Mermaid directives (for example a ``click ... href "javascript:..."`` link),
+  leading to stored XSS or a render-time denial of service for anyone viewing the diagram. Values are now
+  entity-encoded at every interpolation site; Mermaid decodes these back to the original glyph,
+  so display is preserved while the injection is neutralized. Newlines, which cannot be represented in the
+  line-oriented grammar, are collapsed to spaces (`#513`_).
 - Replaced the deprecated ``asyncio.get_event_loop().run_until_complete()`` calls
   in the ``import``, ``export``, ``pull`` and ``bootstrap`` commands with
   ``asyncio.run()``. On Python ``3.14`` ``asyncio.get_event_loop()`` no longer
@@ -47,6 +59,26 @@ Improvements:
   rejects non-recommended signing algorithms by default, an explicit
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
+- Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
+- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
+  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
+  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
+  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
+  ``memory`` (enough available RAM). Only these flags are reported: since the
+  probe is not authenticated, paths, free space and errors are written to the
+  log instead of to the response. Available memory is measured against the
+  limit of the control group the process belongs to, falling back to the memory
+  of the host when it is not limited, so that a container is not reported as
+  healthy right before being killed for using up the memory it was given. Note
+  that an unhealthy service is reported in the body, not in the status code: the
+  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
+  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
+  container and load balancer probes, must therefore inspect ``healthy`` rather
+  than the status code. Thresholds are configurable via
+  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
+  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
+  routes, ``/health`` is matched before the catch-all route, so it shadows a
+  root level namespace or model named ``health``, if there is one (`#1873`_).
 - Configuration sources are now documented with their precedence order
   (defaults, configuration files, ``.env`` file, environment variables and
   command line arguments), and the ``config_path`` directory and the
@@ -57,11 +89,12 @@ Improvements:
   (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
   (`#1990`_).
 
+.. _#513: https://github.com/atviriduomenys/dvms/issues/513
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
-
 .. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
-
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
+.. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
 
 
 1.0.0 (2026-07-23)

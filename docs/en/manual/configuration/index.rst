@@ -75,6 +75,7 @@ prefixes, see :ref:`inspecting-config` for details.
    manifest
    soap-custom-adapters
    front-page
+   health
 
 
 .. _inspecting-config:
