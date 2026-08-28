@@ -56,8 +56,28 @@ Improvements:
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
+- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
+  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
+  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
+  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
+  ``memory`` (enough available RAM). Only these flags are reported: since the
+  probe is not authenticated, paths, free space and errors are written to the
+  log instead of to the response. Available memory is measured against the
+  limit of the control group the process belongs to, falling back to the memory
+  of the host when it is not limited, so that a container is not reported as
+  healthy right before being killed for using up the memory it was given. Note
+  that an unhealthy service is reported in the body, not in the status code: the
+  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
+  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
+  container and load balancer probes, must therefore inspect ``healthy`` rather
+  than the status code. Thresholds are configurable via
+  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
+  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
+  routes, ``/health`` is matched before the catch-all route, so it shadows a
+  root level namespace or model named ``health``, if there is one (`#1873`_).
 
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
