@@ -23,6 +23,7 @@ from spinta.auth import (
     ensure_client_folders_exist,
     get_client_file_path,
     get_clients_path,
+    get_issuer,
     load_key,
     load_key_from_file,
     query_client,
@@ -113,7 +114,7 @@ def test_app(context, app):
     key = import_key(json.loads((config.config_path / "keys/public.json").read_text()))
     token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token == {
-        "iss": config.server_url,
+        "iss": get_issuer(config),
         "sub": client_id,
         "aud": client_id,
         "iat": int(token["iat"]),
@@ -1367,3 +1368,122 @@ class TestTokenCheckContractScopes:
         context.set("auth.token", token)
 
         assert token.check_contract_scopes(context) is None
+
+
+@pytest.fixture
+def introspect_app(backends, rc, tmp_path, request):
+    confdir = pathlib.Path(__file__).parent / "config"
+    shutil.copytree(str(confdir / "keys"), str(tmp_path / "keys"))
+
+    path = get_clients_path(tmp_path)
+    ensure_client_folders_exist(path)
+    create_client_file(
+        path,
+        name="introspector",
+        client_id=str(uuid.uuid4()),
+        secret="introspector-secret",
+        scopes=["spinta_auth_introspect"],
+        add_secret=True,
+    )
+    create_client_file(
+        path,
+        name="reader",
+        client_id=str(uuid.uuid4()),
+        secret="reader-secret",
+        scopes=["spinta_getall"],
+        add_secret=True,
+    )
+
+    rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+    return create_test_client(context)
+
+
+def _get_access_token(app, name: str, secret: str, scope: str = "spinta_getall") -> str:
+    resp = app.post(
+        "/auth/token",
+        auth=(name, secret),
+        data={"grant_type": "client_credentials", "scope": scope},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
+def _introspect(app, token: str, auth=("introspector", "introspector-secret")):
+    return app.post("/auth/introspect", auth=auth, data={"token": token})
+
+
+def test_introspect_active_token(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    assert payload["active"] is True
+    assert payload["token_type"] == "Bearer"
+    assert payload["scope"] == "spinta_getall"
+    assert payload["exp"] > payload["iat"]
+    assert payload["jti"]
+
+
+def test_introspect_unknown_token(introspect_app):
+    resp = _introspect(introspect_app, "not-a-jwt")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_expired_token(introspect_app, context):
+    private_key = load_key(context, KeyType.private)
+    token = create_access_token(context, private_key, "reader", expires_in=-10, scopes={"spinta_getall"})
+
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_requires_scope(introspect_app):
+    """A client without `auth_introspect` may not introspect another client's token."""
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+
+    resp = _introspect(introspect_app, token, auth=("reader", "reader-secret"))
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_own_token_requires_scope(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = _introspect(introspect_app, token, auth=("reader", "reader-secret"))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["active"] is False
+
+
+def test_introspect_requires_client_auth(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = introspect_app.post("/auth/introspect", data={"token": token})
+    assert resp.status_code == 401, resp.text
+
+
+def test_authorization_server_metadata(introspect_app):
+    resp = introspect_app.get("/.well-known/oauth-authorization-server")
+    assert resp.status_code == 200, resp.text
+
+    metadata = resp.json()
+    issuer = metadata["issuer"]
+    assert not issuer.endswith("/")
+    assert metadata["token_endpoint"] == f"{issuer}/auth/token"
+    assert metadata["introspection_endpoint"] == f"{issuer}/auth/introspect"
+    assert metadata["jwks_uri"] == f"{issuer}/.well-known/jwks.json"
+    assert metadata["grant_types_supported"] == ["client_credentials"]
+    assert metadata["token_endpoint_auth_methods_supported"] == ["client_secret_basic"]
+
+
+def test_metadata_issuer_matches_token_issuer(introspect_app):
+    """RFC 8414 requires the advertised issuer to match the `iss` claim."""
+    metadata = introspect_app.get("/.well-known/oauth-authorization-server").json()
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    payload = _introspect(introspect_app, token).json()
+    assert payload["iss"] == metadata["issuer"]
