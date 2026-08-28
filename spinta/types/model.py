@@ -363,7 +363,7 @@ def configure(context: Context, prop: Property):
             custom_type = pydoc.locate(prop_type)
             if custom_type is None:
                 raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type)
-        elif isinstance(prop_type, list):
+        elif isinstance(prop_type, (list, dict)):
             values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
             prop_type = values.pop("name", None)
             if prop_type is None:
