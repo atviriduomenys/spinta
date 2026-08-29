@@ -1,5 +1,7 @@
 import posixpath
 
+from starlette.datastructures import Headers
+from starlette.middleware.gzip import GZipMiddleware, GZipResponder, IdentityResponder
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -111,3 +113,52 @@ class ContextMiddleware:
                 await self.app(scope, receive, send)
         else:
             await self.app(scope, receive, send)
+
+
+class DebugAwareGZipResponder(GZipResponder):
+    async def send_with_compression(self, message: Message) -> None:
+        if message["type"] == "http.response.debug":
+            await self.send(message)
+            return
+
+        await super().send_with_compression(message)
+
+
+class DebugAwareIdentityResponder(IdentityResponder):
+    async def send_with_compression(self, message: Message) -> None:
+        if message["type"] == "http.response.debug":
+            await self.send(message)
+            return
+
+        await super().send_with_compression(message)
+
+
+class DebugAwareGZipMiddleware(GZipMiddleware):
+    """
+    This Middleware wraps GZipMiddleware and IdentityMiddleware to allow
+    debug messages to be sent without compression (compression removes debug messages, which causes errors with TestClient
+    using TemplateResponse).
+    """
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # Copied over from GZipMiddleware 1.60.0 version
+        if scope["type"] != "http":  # pragma: no cover
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        responder: ASGIApp
+        if "gzip" in headers.get("Accept-Encoding", ""):
+            responder = DebugAwareGZipResponder(
+                self.app,
+                self.minimum_size,
+                compresslevel=self.compresslevel,
+                thread_minimum_size=self.thread_minimum_size,
+                exclude_content_types=self.exclude_content_types,
+            )
+        else:
+            responder = DebugAwareIdentityResponder(
+                self.app, self.minimum_size, exclude_content_types=self.exclude_content_types
+            )
+
+        await responder(scope, receive, send)
