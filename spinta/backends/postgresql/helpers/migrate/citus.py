@@ -151,7 +151,9 @@ def create_sharding_plan(context: Context, models: list[Model], **kwargs) -> dic
         if not isinstance(model.backend, PostgreSQL):
             continue
 
-        if not model.external or not model.external.dataset:
+        if (not model.external or not model.external.dataset) and (
+            model.distribution_strategy is None or model.distribution_strategy.default
+        ):
             continue
 
         distribution_strategy = model.distribution_strategy
@@ -217,12 +219,21 @@ def invalidate_default_schema_distributions(
     if not plan.schemas:
         return plan
 
-    invalid_schemas = set()
+    invalid_schemas = {None}
 
     inspector = sa.inspect(backend.engine)
 
     plan_copy = deepcopy(plan)
-    for schema in plan.schemas:
+
+    for reference in plan.references:
+        invalid_schemas.add(reference.pg_schema_name)
+
+    for table in plan.distributed.keys():
+        invalid_schemas.add(table.pg_schema_name)
+
+    all_schemas = set(inspector.get_schema_names())
+
+    for schema in all_schemas - invalid_schemas:
         tables = inspector.get_table_names(schema=schema)
 
         for table in tables:
