@@ -255,3 +255,42 @@ def test_sort_models_by_ref_with_base(
         "datasets/basetest/Country",
         "datasets/basetest/Place",
     ]
+
+
+# Namespace can be both generated from a model/dataset path and explicitly
+# declared. Regardless of the order in which they appear, the declaration must
+# merge onto the existing namespace (keeping the models collected under it)
+# instead of raising a duplicate error. See issues #1256 and #1271.
+@pytest.mark.parametrize(
+    "manifest",
+    [
+        # Model first, namespace declared afterwards.
+        """
+     d | r | b | m | property | type   | ref | access
+     datasets/gov/example      |        |     |
+       |   |   | City          |        |     |
+       |   |   |   | name      | string |     | open
+     datasets/gov/example      |  |  |  |  | ns |  |
+     """,
+        # Namespace declared before the model that lives in it.
+        """
+     d | r | b | m | property | type   | ref | access
+     datasets/gov/example      |  |  |  |  | ns |  |
+     datasets/gov/example      |        |     |
+       |   |   | City          |        |     |
+       |   |   |   | name      | string |     | open
+     """,
+    ],
+)
+def test_declared_namespace_merges_and_preserves_models(rc: RawConfig, manifest: str):
+    context, store_manifest = load_manifest_and_context(rc, manifest)
+
+    ns = commands.get_namespace(context, store_manifest, "datasets/gov/example")
+    # The explicit declaration turned the namespace into a declared one.
+    assert ns.generated is False
+    assert ns.redeclared is False
+
+    model = commands.get_model(context, store_manifest, "datasets/gov/example/City")
+    # The model stays wired to the (merged) namespace and is not lost.
+    assert model.ns is ns
+    assert model in ns.models.values()
