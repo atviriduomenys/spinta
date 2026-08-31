@@ -24,9 +24,9 @@ SERVICE = "datasets/gov/rc/jadis/at280/1"
         # Version segment is optional.
         ("datasets/gov/vssa/smarty/udts_sm_test/pim", "datasets/gov/vssa/smarty/udts_sm_test"),
         ("datasets/gov/rc/jadis/at280/1/at280_israsas/sub", "datasets/gov/rc/jadis/at280/1"),
-        # Version is a positive integer, so `0` is a data set name.
+        # Version is a positive integer, so `0` is a dataset name.
         ("datasets/gov/rc/jadis/at280/0/israsas", "datasets/gov/rc/jadis/at280"),
-        # Data set sitting at the data service level itself.
+        # Dataset sitting at the data service level itself.
         ("datasets/gov/rc/jadis/at280/1", "datasets/gov/rc/jadis/at280/1"),
         ("datasets/gov/rc/jadis/at280", "datasets/gov/rc/jadis/at280"),
         # Does not reach data service level.

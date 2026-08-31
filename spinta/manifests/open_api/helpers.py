@@ -377,7 +377,7 @@ def create_openapi_manifest(
     or as an already loaded manifest.
 
     Given `service_path`, the specification covers one UDTS data service with
-    all of its data sets. Given `main_dataset_name`, it covers a single data
+    all of its datasets. Given `main_dataset_name`, it covers a single data
     set.
     """
     generator = OpenAPIGenerator(

@@ -33,7 +33,7 @@ def oas(
 ):
     """Export OpenAPI specification of one UDTS data service
 
-    Specification covers all data sets of the given data service and is meant to
+    Specification covers all datasets of the given data service and is meant to
     be used both for importing endpoints into an API gateway and for validating
     requests and responses against it.
     """
@@ -81,7 +81,7 @@ def oas(
 
 def _echo_services(services: dict[str, list[str]]) -> None:
     if not services:
-        cli_error("Manifest has no data sets belonging to a data service.")
+        cli_error("Manifest has no datasets belonging to a data service.")
 
     for service, dataset_names in services.items():
         echo(service)
@@ -92,7 +92,7 @@ def _echo_services(services: dict[str, list[str]]) -> None:
 def _resolve_service_path(path: str | None, services: dict[str, list[str]], dataset_names: list[str]) -> str:
     if path is None:
         if not services:
-            cli_error("Manifest has no data sets belonging to a data service, give one with `--path`.")
+            cli_error("Manifest has no datasets belonging to a data service, give one with `--path`.")
         if len(services) > 1:
             cli_error(
                 "Manifest contains more than one data service, choose one with `--path`:\n"
@@ -103,7 +103,7 @@ def _resolve_service_path(path: str | None, services: dict[str, list[str]], data
     path = path.strip("/")
 
     # A path of another shape is not an error, it just is not what UDTS
-    # describes, so data sets under it are still exported.
+    # describes, so datasets under it are still exported.
     if not is_service_level_path(path):
         cli_message(
             f"Given path {path!r} is not an UDTS data service path "
@@ -112,7 +112,7 @@ def _resolve_service_path(path: str | None, services: dict[str, list[str]], data
 
     if not datasets_under_service(dataset_names, path):
         cli_error(
-            f"Path {path!r} has no data sets in manifest. Data services found in it:\n"
+            f"Path {path!r} has no datasets in manifest. Data services found in it:\n"
             + ("".join(f"  {service}\n" for service in services) or "  none\n")
         )
 

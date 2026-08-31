@@ -97,9 +97,9 @@ id | d | r | b | m | property         | type     | ref                          
 
 
 #: One agent serving several information systems, as in the Registrų centras
-#: case: two data sets under one data service, models of the same name in both,
+#: case: two datasets under one data service, models of the same name in both,
 #: an adjacent service version, a second information system and a `ref` to a
-#: data set that is not in the manifest.
+#: dataset that is not in the manifest.
 MANIFEST_WITH_SERVICES = striptable("""
 id | d | r | b | m | property   | type            | ref                                                 | level | access | title           | description
    | datasets/gov/rc/jadis/at280/1/at280_israsas |  |                                                   |       |        | AT280 išrašas   | Išrašo duomenys
@@ -132,7 +132,7 @@ id | d | r | b | m | property   | type            | ref                         
 """)
 
 
-#: Two data set paths of one service that map to one schema name when path
+#: Two dataset paths of one service that map to one schema name when path
 #: separators are replaced with underscores.
 MANIFEST_WITH_COLLIDING_DATASETS = striptable("""
 id | d | r | b | m | property | type            | ref | level | access
@@ -161,7 +161,7 @@ id | d | r | b | m | property | type            | ref | level | access
 """)
 
 
-#: Two data sets outside the exported service, whose paths map to one schema
+#: Two datasets outside the exported service, whose paths map to one schema
 #: name, referenced from a model of the service.
 MANIFEST_WITH_COLLIDING_EXTERNAL_REFS = striptable("""
 id | d | r | b | m | property | type            | ref                           | level | access
@@ -199,7 +199,7 @@ id | d | r | b | m | property | type            | ref | level | access
 """)
 
 
-#: One model referenced from two data sets of the service at different levels,
+#: One model referenced from two datasets of the service at different levels,
 #: which the reference carries differently: an `_id` or the natural key.
 MANIFEST_WITH_REF_SHAPES = striptable("""
 id | d | r | b | m | property | type            | ref                               | level | access
