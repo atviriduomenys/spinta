@@ -50,7 +50,7 @@ AUTH_SCHEME = "UAPI_auth"
 
 #: Agent level endpoints, given in action form, because an API gateway exposes
 #: each data service under its own context path and routes these separately.
-UTILITY_PATHS = ["/:version", "/:token"]
+UTILITY_PATHS = ["/:version", "/:health", "/:token"]
 
 GLOBAL_ID_LEVEL_THRESHOLD = 4
 

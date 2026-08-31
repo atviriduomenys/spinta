@@ -81,6 +81,31 @@ PATHS_CONFIG = {
             },
         },
     },
+    "/:health": {
+        "parameters": ["traceparent", "tracestate"],
+        "get": {
+            "tags": ["utility"],
+            "security": [{}],
+            "summary": "Check whether the service is operational",
+            "description": (
+                "Report whether the service and everything it needs is operational.\n\n"
+                "An unhealthy service is reported in the body, not in the status code: the answer is "
+                "`200` with `healthy` set to `false`, because `503` stands for the `ServiceNotAvailable` "
+                "error object. A probe has to read `healthy` rather than the status code.\n"
+            ),
+            "operationId": "apiHealth",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "headers": [*COMMON_RESPONSE_HEADERS, "Cache-Control"],
+                    "content": {"application/json": {"schema": "health"}},
+                },
+                "400": {"$ref": "error400"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+    },
     "/:token": {
         "parameters": ["traceparent", "tracestate"],
         "post": {
@@ -346,6 +371,11 @@ HEADER_COMPONENTS = {
         "required": False,
         "schema": {"type": "string", "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"]},
     },
+    "Cache-Control": {
+        "description": "The `Cache-Control` header tells caches what they may do with the response. A probe answers `no-store`, because a cached answer would report a state the service no longer is in.",
+        "required": False,
+        "schema": {"type": "string", "examples": ["no-store"]},
+    },
 }
 
 PARAMETER_COMPONENTS = {
@@ -540,6 +570,26 @@ COMMON_SCHEMAS = {
     "backref": {
         "type": "string",
         "description": "Backwards link showing that another model has a link to this one. This item does not hold any data",
+    },
+    "health": {
+        "type": "object",
+        "properties": {
+            "healthy": {
+                "type": "boolean",
+                "description": "Whether every dependency below is healthy.",
+            },
+            "dependencies": {
+                "type": "array",
+                "description": "What the service checked, one entry per dependency. Which ones are reported is up to the service and can change between versions, so read the entries rather than expect a given set.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "examples": ["spinta", "disk", "memory"]},
+                        "healthy": {"type": "boolean"},
+                    },
+                },
+            },
+        },
     },
     "version": {
         "type": "object",
