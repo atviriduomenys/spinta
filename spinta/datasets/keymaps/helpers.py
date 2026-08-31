@@ -1,4 +1,6 @@
-from typing import Any, Generator
+from typing import Any, Callable, Generator
+
+from spinta.datasets.keymaps.components import KeyMap
 
 
 def prepare_keymap_values(value: Any) -> Any | list[Any]:
@@ -17,3 +19,7 @@ def _extract_items_from_source(source: Any) -> Generator[Any, None, None]:
             yield from _extract_items_from_source(item)
     else:
         yield source
+
+
+def keymap_copy_lambda(keymap: KeyMap) -> Callable[[], KeyMap]:
+    return lambda km=keymap: keymap.copy()

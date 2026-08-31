@@ -4,6 +4,11 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Fixed an issue with multiple declared keymaps, where last declared keymap would overwrite all previous ones (`#2018`_).
+
+.. _#2018: https://github.com/atviriduomenys/spinta/issues/2018
 
 1.1.0 (2026-08-19)
 =====================
