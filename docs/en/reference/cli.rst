@@ -165,9 +165,9 @@ udts oas
 ========
 
 The ``udts oas`` CLI command exports an OpenAPI specification of one UDTS data
-service, covering all data sets of that service.
+service, covering all datasets of that service.
 
-A UDTS data service is identified by the leading part of a data set path::
+A UDTS data service is identified by the leading part of a dataset path::
 
    datasets/{form}/{org}/{is}/{service}/{version}/{dataset}/{model}
    └────────────── data service ──────────────┘ └── content ──┘
@@ -196,7 +196,7 @@ Arguments
   specification is written to standard output as JSON.
 
 - ``--path``
-  OPTIONAL. Data service path. All data sets of that data service are included:
+  OPTIONAL. Data service path. All datasets of that data service are included:
   the ones equal to it and the ones starting with it followed by ``/``, so
   ``datasets/gov/rc/jadis/at280/1`` does not include
   ``datasets/gov/rc/jadis/at280/10``, and an unversioned

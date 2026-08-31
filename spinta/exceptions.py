@@ -321,7 +321,7 @@ class InvalidUdtsConfig(UserError):
 
 
 class DataServiceNotFound(UserError):
-    template = "Data service {service!r} has no data sets in manifest. Available data services: {available}."
+    template = "Data service {service!r} has no datasets in manifest. Available data services: {available}."
 
 
 class ModelReferenceKeyNotFound(BaseError):

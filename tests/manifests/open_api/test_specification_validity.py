@@ -59,7 +59,7 @@ def _assert_valid(open_api_spec: dict) -> None:
         (MANIFEST, {}),
         (MANIFEST_WITH_SOAP_PREPARE, {}),
         (MANIFEST_WITH_REFS, {}),
-        # One data set, as the catalog calls it.
+        # One dataset, as the catalog calls it.
         (MANIFEST, {"main_dataset_name": "datasets/demo/system_data"}),
         (MANIFEST_WITH_REFS, {"main_dataset_name": "datasets/gov/cemetery"}),
         # One data service, as `spinta udts oas` exports it.

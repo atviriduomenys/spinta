@@ -84,12 +84,12 @@ def test_unknown_service_path(context, rc, cli: SpintaCliRunner, tmp_path):
     result = cli.invoke(rc, ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/2"], fail=False)
 
     assert result.exit_code == 1
-    assert "has no data sets in manifest" in result.stderr
+    assert "has no datasets in manifest" in result.stderr
     assert "datasets/gov/rc/jadis/at280/1" in result.stderr
 
 
 def test_path_is_not_service_level(context, rc, cli: SpintaCliRunner, tmp_path):
-    """A path of another shape is a warning, data sets under it are exported."""
+    """A path of another shape is a warning, datasets under it are exported."""
     path = _manifest(context, tmp_path)
 
     result = cli.invoke(rc, ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/1/at280_israsas"])

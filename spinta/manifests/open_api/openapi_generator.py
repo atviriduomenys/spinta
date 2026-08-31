@@ -225,7 +225,7 @@ class SchemaNamer:
         # A manifest is not required to name things the way OpenAPI names a
         # component, so anything else is written as an underscore.
         base = unnamable_re.sub("_", base)
-        # Path separators become underscores, so different data set paths can
+        # Path separators become underscores, so different dataset paths can
         # produce one name, `a_b` and `a/b` for example, and one schema would
         # then silently replace the other.
         name = base
@@ -1019,8 +1019,8 @@ class OpenAPIGenerator:
         scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
     ):
         if main_dataset_name is not None and service_path is not None:
-            # One covers a data service with all of its data sets, the other a
-            # single data set, so silently taking one of them would export
+            # One covers a data service with all of its datasets, the other a
+            # single dataset, so silently taking one of them would export
             # something the caller did not ask for.
             raise ValueError("Give either `main_dataset_name` or `service_path`, not both.")
 
@@ -1107,7 +1107,7 @@ class OpenAPIGenerator:
         return datasets, models
 
     def _filter_by_service_path(self, datasets: Any, models: dict) -> tuple[list, dict]:
-        """Select all data sets of one UDTS data service."""
+        """Select all datasets of one UDTS data service."""
         datasets_list = list(datasets)
         dataset_names = [name for name, _ in datasets_list]
         names = set(datasets_under_service(dataset_names, self.service_path))
@@ -1149,7 +1149,7 @@ class OpenAPIGenerator:
 
     def _override_info(self, spec: dict[str, Any], datasets: dict):
         if self.service_path is not None:
-            # A data service holds many data sets, so its description can not be
+            # A data service holds many datasets, so its description can not be
             # taken from any single one of them.
             spec["info"].update(copy.deepcopy(self.config.info))
             if self.api_version:

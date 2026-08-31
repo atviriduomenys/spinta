@@ -38,9 +38,9 @@ def _is_version_segment(segment: str) -> bool:
 
 
 def service_path_of(dataset_name: str) -> str | None:
-    """Return the data service path a given data set belongs to.
+    """Return the data service path a given dataset belongs to.
 
-    Returns `None` if the data set path does not reach the data service level.
+    Returns `None` if the dataset path does not reach the data service level.
     """
     segments = dataset_name.split("/")
     if len(segments) < SERVICE_PATH_SEGMENTS or segments[0] != SERVICE_PATH_ROOT:
@@ -70,7 +70,7 @@ def is_service_level_path(path: str) -> bool:
 
 
 def find_services(dataset_names: list[str]) -> dict[str, list[str]]:
-    """Group given data set names by the data service they belong to."""
+    """Group given dataset names by the data service they belong to."""
     services: dict[str, list[str]] = {}
     for name in sorted(dataset_names):
         service = service_path_of(name)
@@ -80,7 +80,7 @@ def find_services(dataset_names: list[str]) -> dict[str, list[str]]:
 
 
 def is_under_service(name: str, service_path: str) -> bool:
-    """Check if a data set belongs to a given data service.
+    """Check if a dataset belongs to a given data service.
 
     Matching is done on segment boundary, so `.../at280/1` does not match
     `.../at280/10`.
@@ -89,9 +89,9 @@ def is_under_service(name: str, service_path: str) -> bool:
 
 
 def datasets_under_service(dataset_names: list[str], service_path: str) -> list[str]:
-    """Data sets belonging to a given data service.
+    """Datasets belonging to a given data service.
 
-    A data service path selects exactly the data sets of that service, so an
+    A data service path selects exactly the datasets of that service, so an
     unversioned `.../at280` does not reach into `.../at280/1`, which is a data
     service of its own. A path of another shape, which is accepted with a
     warning, selects by prefix.
@@ -103,7 +103,7 @@ def datasets_under_service(dataset_names: list[str], service_path: str) -> list[
 
 
 def relative_path(name: str, service_path: str) -> str:
-    """Strip the data service path from a data set or model path."""
+    """Strip the data service path from a dataset or model path."""
     if name == service_path:
         return ""
     if name.startswith(f"{service_path}/"):
@@ -114,7 +114,7 @@ def relative_path(name: str, service_path: str) -> str:
 def service_schema_name(model: Model, service_path: str) -> str:
     """Build a component schema name for a model of a data service.
 
-    Data sets of one service can hold models of the same name, so the data set
+    Datasets of one service can hold models of the same name, so the dataset
     path is kept as part of the schema name::
 
         datasets/gov/rc/jadis/at280/1/at280_israsas/DalyvioAsmensIsrasas
