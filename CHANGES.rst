@@ -105,8 +105,8 @@ Bug fixes:
 
 Improvements:
 
-- Added a new ``spinta udts`` command group for UDTS data service agent exports,
-  with its first command ``spinta udts oas``. It exports an OpenAPI
+- Added a new ``spinta udts`` command group for UDTS data service agent
+  operations, with its first command ``spinta udts oas``. It exports an OpenAPI
   specification of one UDTS data service, covering all datasets under the
   ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
   (matched on segment boundary, so ``.../at280/1`` does not match
@@ -114,20 +114,6 @@ Improvements:
   versioned service). Without ``--path`` the only data service of the manifest is
   used, or, if there are several, the command lists them and fails; ``--list``
   lists the data services and their datasets. Environments, service level
-  ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,
-  an example of which is shipped as
-  ``spinta/manifests/open_api/udts_cfg.example.yml``. Output is written to
-  ``--output`` as YAML or JSON, chosen by file extension, or to standard output
-  (`#2004`_).
-- Added a new ``spinta udts`` command group for UDTS data service agent exports,
-  with its first command ``spinta udts oas``. It exports an OpenAPI
-  specification of one UDTS data service, covering all data sets under the
-  ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
-  (matched on segment boundary, so ``.../at280/1`` does not match
-  ``.../at280/10``, and an unversioned ``.../at280`` does not reach into the
-  versioned service). Without ``--path`` the only data service of the manifest is
-  used, or, if there are several, the command lists them and fails; ``--list``
-  lists the data services and their data sets. Environments, service level
   ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,
   an example of which is shipped as
   ``spinta/manifests/open_api/udts_cfg.example.yml``. Output is written to

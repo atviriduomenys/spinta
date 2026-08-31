@@ -60,7 +60,7 @@ add(app, "keymap", keymap, short_help="Manage keymap database")
 add(app, "getall", get.getall, short_help="Show data from yaml dsn as json")
 add(app, "sync", sync.sync, short_help="Initiate DSA sync with Catalog")
 
-add(app, "udts", udts, short_help="UDTS data service agent exports")
+add(app, "udts", udts, short_help="UDTS data service agent operations")
 
 
 @app.callback(invoke_without_command=True)
