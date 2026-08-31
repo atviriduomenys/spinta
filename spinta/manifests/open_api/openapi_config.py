@@ -1,6 +1,9 @@
 from spinta.core.enums import Action
 
+#: Property types Spinta serves under `/{model}/{id}/{property}`. Anything else
+#: raises `UnavailableSubresource`, see `spinta.commands.read.getone`.
 PROPERTY_TYPES_IN_PATHS = {"file", "image"}
+OBJECT_PROPERTY_TYPE = "object"
 
 VERSION = "3.1.0"
 INFO = {
@@ -301,6 +304,89 @@ PATHS_CONFIG = {
             },
         },
     },
+    "/{model_name}/{id}/{field}:ref": {
+        # Property name is part of the generated path, so it is not a parameter.
+        "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
+        "head": {
+            # Spinta authorizes `HEAD` against the same actions as `GET`.
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
+            "summary": "Return only headers for the API.",
+            "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
+            "operationId": "headPropertyRef",
+            "responses": {
+                "200": {"description": "OK"},
+                "304": {"description": "Not Modified"},
+                "400": {"$ref": "error400"},
+                "401": {"$ref": "error401"},
+                "403": {"$ref": "error403"},
+                "404": {"$ref": "error404"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+        "get": {
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
+            "summary": "Get the metadata of a file property",
+            "description": "Return what is known about the file a property holds, its name and its media type, instead of the file itself. The file itself is served by the same path without the `:ref` action.\n",
+            "operationId": "getPropertyRef",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "headers": COMMON_RESPONSE_HEADERS,
+                    "content": {"application/json": {"schema": "fileRef"}},
+                },
+                "304": {"description": "Not Modified", "headers": COMMON_RESPONSE_HEADERS},
+                "400": {"$ref": "error400"},
+                "401": {"$ref": "error401"},
+                "403": {"$ref": "error403"},
+                "404": {"$ref": "error404"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+    },
+    "/{model_name}/{id}/{object_field}": {
+        # Property name is part of the generated path, so it is not a parameter.
+        "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
+        "head": {
+            # Spinta authorizes `HEAD` against the same actions as `GET`.
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
+            "summary": "Return only headers for the API.",
+            "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
+            "operationId": "headObjectProperty",
+            "responses": {
+                "200": {"description": "OK"},
+                "304": {"description": "Not Modified"},
+                "400": {"$ref": "error400"},
+                "401": {"$ref": "error401"},
+                "403": {"$ref": "error403"},
+                "404": {"$ref": "error404"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+        "get": {
+            "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
+            "summary": "Get one object property of an object",
+            "description": "Return a single object property of a given object, instead of the whole object. The answer holds what the property itself holds, together with `_type` and `_revision` of the object it belongs to.\n",
+            "operationId": "getObjectProperty",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "headers": COMMON_RESPONSE_HEADERS,
+                    # Schema is the object the property holds, per property.
+                    "content": {"application/json": {"schema": None}},
+                },
+                "304": {"description": "Not Modified", "headers": COMMON_RESPONSE_HEADERS},
+                "400": {"$ref": "error400"},
+                "401": {"$ref": "error401"},
+                "403": {"$ref": "error403"},
+                "404": {"$ref": "error404"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+    },
 }
 
 RESPONSE_COMPONENTS = {
@@ -591,6 +677,19 @@ COMMON_SCHEMAS = {
             },
         },
     },
+    "fileRef": {
+        "type": "object",
+        "description": "What is known about a file a property holds. `_id` and `_content_type` are null while the property holds no file.",
+        "properties": {
+            "_type": {"type": "string", "examples": ["datasets/gov/rc/jadis/at280/1/ds/Israsas.byla"]},
+            "_revision": {"type": ["string", "null"]},
+            "_id": {"type": ["string", "null"], "description": "File name"},
+            "_content_type": {
+                "type": ["string", "null"],
+                "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the file.",
+            },
+        },
+    },
     "version": {
         "type": "object",
         "properties": {
@@ -832,7 +931,12 @@ PATH_TYPE_ACTIONS = {
     "collection": (Action.GETALL, Action.SEARCH),
     "single": (Action.GETONE,),
     "property": (Action.GETONE,),
+    "propertyRef": (Action.GETONE,),
+    "objectProperty": (Action.GETONE,),
 }
+
+#: Path types of one property, which authorize against that property.
+PROPERTY_PATH_TYPES = frozenset(["property", "propertyRef", "objectProperty"])
 
 SCOPE_DESCRIPTION = "Access to the data of this data service."
 
