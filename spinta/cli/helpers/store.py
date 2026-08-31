@@ -16,6 +16,7 @@ from spinta.backends.helpers import validate_and_return_begin, validate_and_retu
 from spinta.cli.helpers.upgrade.scripts.clients import requires_client_migration
 from spinta.components import Config, Context, Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
+from spinta.datasets.keymaps.helpers import keymap_copy_lambda
 from spinta.exceptions import ClientsMigrationRequired
 from spinta.manifests.components import Manifest
 
@@ -166,4 +167,4 @@ def attach_backends(context: Context, store: Store, manifest: Manifest) -> None:
 
 def attach_keymaps(context: Context, store: Store) -> None:
     for keymap in store.keymaps.values():
-        context.attach(f"keymap.{keymap.name}", lambda: keymap.copy())
+        context.attach(f"keymap.{keymap.name}", keymap_copy_lambda(keymap))

@@ -23,6 +23,7 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.message import cli_message
 from spinta.components import Context, Model, Node, Store, UrlParams
 from spinta.core.enums import Action
+from spinta.datasets.keymaps.helpers import keymap_copy_lambda
 from spinta.exceptions import BaseError, NoBackendConfigured, error_response
 from spinta.formats.components import Format
 from spinta.renderer import render
@@ -150,7 +151,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(
                     f"keymap.{model.keymap.name}",
-                    lambda: model.keymap.copy(),
+                    keymap_copy_lambda(model.keymap),
                 )
 
             return await commands.getone(
@@ -179,7 +180,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(
                     f"keymap.{model.keymap.name}",
-                    lambda: model.keymap.copy(),
+                    keymap_copy_lambda(model.keymap),
                 )
 
             return await commands.getall(
