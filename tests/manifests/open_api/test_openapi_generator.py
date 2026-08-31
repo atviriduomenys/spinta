@@ -650,7 +650,7 @@ def test_service_unknown_path_raises(open_manifest_path_factory):
 
 
 def test_service_schema_names_are_unique_for_same_model_name(open_manifest_path_factory):
-    """Data sets of one service can hold models of the same name."""
+    """Datasets of one service can hold models of the same name."""
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     schemas = open_api_spec["components"]["schemas"]
@@ -757,7 +757,7 @@ def test_service_info_from_config(open_manifest_path_factory):
     assert info["title"] == "JADIS"
     assert info["summary"] == "Data service"
     assert info["version"] == "1"
-    # Not taken from any single data set of the service.
+    # Not taken from any single dataset of the service.
     assert info["description"] != "Išrašo duomenys"
 
 
@@ -796,7 +796,7 @@ def _operation_ids(open_api_spec: dict) -> list[str]:
 
 
 def test_service_operation_ids_are_unique(open_manifest_path_factory):
-    """Same model name in two data sets must not produce the same operation id."""
+    """Same model name in two datasets must not produce the same operation id."""
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     operation_ids = _operation_ids(open_api_spec)
@@ -988,7 +988,7 @@ def test_model_operations_accept_namespace_scopes(rc, open_manifest_path: Manife
     assert requested == [
         get_scope_name(context, node, Action.GETONE, is_udts=True) for node in [model, model.ns, *model.ns.parents()]
     ]
-    # The namespace of the data set and the root namespace among them.
+    # The namespace of the dataset and the root namespace among them.
     assert "uapi:/datasets/demo/system_data/:getone" in requested
     assert "uapi:/:getone" in requested
 

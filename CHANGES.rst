@@ -83,14 +83,14 @@ Backwards incompatible:
     layer they nest, an item accepts ``null`` unless the manifest says it always
     holds a value, and a dynamic array, which declares no items, no longer
     breaks the export.
-  - Model schema names are unique within a data service: they keep the data set
+  - Model schema names are unique within a data service: they keep the dataset
     path, for example ``at280_israsas_DalyvioAsmensIsrasas``, and colliding
-    names, which two data set paths can produce once separators become
+    names, which two dataset paths can produce once separators become
     underscores, get a number suffix. Tags and operation
-    ids follow schema names, so data sets of one service holding models of the
+    ids follow schema names, so datasets of one service holding models of the
     same name no longer produce colliding schemas, tags and operation ids. In a
     whole manifest export tags and operation ids now use the full model name
-    instead of the model name alone; data set level exports are unchanged.
+    instead of the model name alone; dataset level exports are unchanged.
     Characters an OpenAPI component name may not hold, which a name in a
     manifest may, are replaced with an underscore before the name is claimed,
     so uniqueness still holds.
@@ -99,13 +99,13 @@ Improvements:
 
 - Added a new ``spinta udts`` command group for UDTS data service agent exports,
   with its first command ``spinta udts oas``. It exports an OpenAPI
-  specification of one UDTS data service, covering all data sets under the
+  specification of one UDTS data service, covering all datasets under the
   ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
   (matched on segment boundary, so ``.../at280/1`` does not match
   ``.../at280/10``, and an unversioned ``.../at280`` does not reach into the
   versioned service). Without ``--path`` the only data service of the manifest is
   used, or, if there are several, the command lists them and fails; ``--list``
-  lists the data services and their data sets. Environments, service level
+  lists the data services and their datasets. Environments, service level
   ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,
   an example of which is shipped as
   ``spinta/manifests/open_api/udts_cfg.example.yml``. Output is written to
