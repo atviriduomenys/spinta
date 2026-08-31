@@ -139,12 +139,23 @@ Kadangi `paths` yra reliatyvūs paslaugos bazei, rankomis jų karpyti nereikia.
 Jei paslaugos kelias vartuose vis dėlto skiriasi, jį galima nurodyti politikos
 `basePath` lauke.
 
-Agento lygmens endpoint'ai (`/version`, `/auth/token`) guli agento šaknyje, o ne
-po paslaugos keliu, todėl specifikacijoje jie aprašomi veiksmo forma – `/:version`
-ir `/:token`. Vartuose jiems reikia atskirų Dynamic Routing taisyklių:
+Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) guli agento
+šaknyje, o ne po paslaugos keliu, todėl specifikacijoje jie aprašomi veiksmo
+forma – `/:version`, `/:health` ir `/:token`. Vartuose jiems reikia atskirų
+Dynamic Routing taisyklių:
 
 | Match expression | Redirect to |
 |---|---|
 | `/:version` | `{#api.properties['uapi_version']}` |
+| `/:health` | `{#api.properties['uapi_health']}` |
 | `/:token` | `{#api.properties['uapi_token']}` |
 | `/(.*)` | `{#api.properties['uapi_data_prefix']}{#group[0]}` |
+
+> **Dėmesio:** `/:health` taisyklės vartuose kol kas nėra – yra tik `/:version`
+> ir `/:token`. Kol ji nepridėta, importuotas `/:health` endpoint'as per vartus
+> neatsakys, nors pati Spinta `/health` jau turi. Taisyklės pavadinimas
+> (`uapi_health`) čia pasiūlytas pagal esamų analogiją.
+
+`/health` atsako visada `200`; ar paslauga sveika, sako `healthy` laukas, nes
+`503` UDTS'e reiškia `ServiceNotAvailable` klaidos objektą. Tikrinantis
+komponentas turi skaityti `healthy`, o ne atsakymo kodą.

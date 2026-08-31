@@ -616,6 +616,7 @@ def test_service_includes_all_its_datasets(open_manifest_path_factory):
 
     assert set(open_api_spec["paths"]) == {
         "/:version",
+        "/:health",
         "/:token",
         "/at280_israsas/DalyvioAsmensIsrasas",
         "/at280_israsas/DalyvioAsmensIsrasas/{id}",
@@ -633,7 +634,13 @@ def test_service_filter_matches_on_segment_boundary(open_manifest_path_factory):
     assert not [path for path in open_api_spec["paths"] if "at280_kitas" in path]
 
     other = _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/jadis/at280/10")
-    assert set(other["paths"]) == {"/:version", "/:token", "/at280_kitas/Adresas", "/at280_kitas/Adresas/{id}"}
+    assert set(other["paths"]) == {
+        "/:version",
+        "/:health",
+        "/:token",
+        "/at280_kitas/Adresas",
+        "/at280_kitas/Adresas/{id}",
+    }
 
 
 def test_service_of_another_information_system_is_not_included(open_manifest_path_factory):
@@ -706,9 +713,33 @@ def test_service_utility_paths(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     paths = open_api_spec["paths"]
+    # An agent level endpoint is reached under the data service path, so it is
+    # written in the action form the API gateway routes there.
     assert "/health" not in paths
+    assert "/version" not in paths
     assert paths["/:version"]["get"]["operationId"] == "apiVersion"
+    assert paths["/:health"]["get"]["operationId"] == "apiHealth"
     assert paths["/:token"]["post"]["operationId"] == "apiToken"
+
+
+def test_service_health_is_not_authorized(open_manifest_path_factory):
+    """A probe calls it without credentials, see `spinta.api.health`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert open_api_spec["paths"]["/:health"]["get"]["security"] == [{}]
+
+
+def test_service_health_response_matches_what_spinta_answers(open_manifest_path_factory, app):
+    """The document has to describe the probe Spinta actually serves."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    schemas = open_api_spec["components"]["schemas"]
+
+    response = app.get("/health")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    jsonschema.validate(response.json(), schemas["health"])
 
 
 def test_service_security_schemes(open_manifest_path_factory):

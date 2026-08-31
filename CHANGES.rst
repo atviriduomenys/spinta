@@ -65,10 +65,12 @@ Backwards incompatible:
     instead of strings. ``file`` and ``image`` properties reference the file
     and the new image schema, matching the object Spinta returns for them in a
     model response, so that every ``$ref`` in the document resolves.
-  - ``/health`` is no longer generated, because Spinta API does not implement
-    it, and ``/version`` is generated as ``/:version`` next to the new
-    ``/:token``, matching how an API gateway routes agent level endpoints inside
-    a data service.
+  - ``/version`` is generated as ``/:version``, next to the new ``/:token`` and
+    ``/:health``, matching how an API gateway routes agent level endpoints
+    inside a data service. The ``health`` schema describes the probe Spinta
+    answers with (`#1873`_): a ``healthy`` flag and a ``dependencies`` list.
+    Note that the API gateway has a routing rule for ``/:version`` and
+    ``/:token`` only, so ``/:health`` needs one added before it answers there.
   - A ``ref`` property references a schema of what the reference carries, an
     ``_id`` or the reference properties depending on its level, also when the
     target is a model of the same data service, whose full schema requires its
@@ -109,6 +111,7 @@ Improvements:
   (`#2004`_).
 
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
 .. _#2653: https://github.com/atviriduomenys/katalogas/issues/2653
 
