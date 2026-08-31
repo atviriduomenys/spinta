@@ -62,9 +62,16 @@ Backwards incompatible:
     produces.
   - Properties of type ``object``, which is also what a ``ref`` to a model
     missing from the manifest is downgraded to, are described as objects
-    instead of strings. ``file`` and ``image`` properties reference the file
-    and the new image schema, matching the object Spinta returns for them in a
-    model response, so that every ``$ref`` in the document resolves.
+    instead of strings, together with what they hold, one nested layer after
+    another. Such a property is served under a path of its own, as a file
+    property is, so it gets one, answering with the object plus the ``_type``
+    and the ``_revision`` of the object it belongs to. A file property gets a
+    second path, the ``:ref`` action, which answers with what is known about
+    the file, its name and media type, instead of the file itself. Both were
+    missing, while Spinta has served them all along. ``file`` and ``image``
+    properties reference the file and the new image schema, matching the object
+    Spinta returns for them in a model response, so that every ``$ref`` in the
+    document resolves.
   - ``/version`` is generated as ``/:version``, next to the new ``/:token`` and
     ``/:health``, matching how an API gateway routes agent level endpoints
     inside a data service. The ``health`` schema describes the probe Spinta

@@ -21,11 +21,13 @@ from spinta.manifests.open_api.openapi_config import (
     EXTERNAL_DOCS,
     HEADER_COMPONENTS,
     INFO,
+    OBJECT_PROPERTY_TYPE,
     PARAMETER_COMPONENTS,
     PATH_TYPE_ACTIONS,
     PATHS_CONFIG,
     PROPERTY_EXAMPLE,
     PROPERTY_MAPPING,
+    PROPERTY_PATH_TYPES,
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
     ROOT_SCOPE_TEMPLATE,
@@ -42,7 +44,7 @@ from spinta.manifests.open_api.service import (
     service_schema_name,
 )
 from spinta.manifests.open_api.udts_config import TOKEN_PATH, UdtsConfig
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Object
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
 
@@ -91,7 +93,7 @@ def _authorized_nodes(model: Model, path_type: str, model_property: tuple | None
     `spinta.auth.authorized`, so a token carrying a data service or a namespace
     scope authorizes a model of it. A hidden property takes its own scope only.
     """
-    if path_type == "property" and model_property:
+    if path_type in PROPERTY_PATH_TYPES and model_property:
         prop = model_property[1]
         if getattr(prop, "hidden", False):
             return [prop]
@@ -211,6 +213,7 @@ class SchemaNamer:
         self._included = {model.name for model in models.values()}
         self._names: dict[str, str] = {}
         self._ref_shapes: dict[str, dict[Any, str]] = {}
+        self._object_names: dict[tuple[str, str], str] = {}
         self._taken = set(reserved or ())
 
         for model in sorted(models.values(), key=lambda model: model.name):
@@ -263,6 +266,24 @@ class SchemaNamer:
             self._taken.update(_derived_schema_names(name))
             shapes[shape] = name
         return shapes[shape]
+
+    def object_name(self, model: Model, prop_name: str) -> str:
+        """Name of the schema of what one object property holds.
+
+        The property is served under a path of its own, see
+        `spinta.commands.read.getone`, so it needs a schema of its own.
+        """
+        key = (model.name, prop_name)
+        if key not in self._object_names:
+            base = unnamable_re.sub("_", f"{self.name(model)}_{prop_name}")
+            name = base
+            number = 1
+            while any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            self._object_names[key] = name
+        return self._object_names[key]
 
 
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
@@ -360,6 +381,32 @@ class DataTypeHandler:
 
         return [enum_prop.strip('"') for enum_prop in enum]
 
+    def property_schema(self, model_property, schemas: dict | None = None) -> dict[str, Any]:
+        """Schema of a property as a response carries it.
+
+        Required in a manifest means the data holds a value, not that a
+        response carries the property: a request selects what it wants, see
+        `spinta.backends.helpers.get_select_prop_names`, and a hidden property
+        is left out of an ordinary response altogether. So nothing is listed as
+        required, while a property that always holds a value is not made
+        nullable.
+        """
+        schema = self.convert_to_openapi_schema(model_property, schemas=schemas)
+        if not getattr(model_property.dtype, "required", False):
+            schema = _nullable(schema)
+        return schema
+
+    def object_properties(self, dtype: Object, schemas: dict | None = None) -> dict[str, Any]:
+        """Schemas of what an object property holds, one level at a time.
+
+        A nested object reaches this again through `convert_to_openapi_schema`,
+        so every layer is described.
+        """
+        return {
+            name: self.property_schema(model_property, schemas=schemas)
+            for name, model_property in (dtype.properties or {}).items()
+        }
+
     def convert_to_openapi_schema(
         self,
         model_property,
@@ -398,6 +445,9 @@ class DataTypeHandler:
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
             return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
+
+        if isinstance(dtype, Object) and dtype.properties:
+            return {"type": "object", "properties": self.object_properties(dtype, schemas=schemas)}
 
         dtype_name = self.get_dtype_name(dtype)
         return copy.deepcopy(
@@ -440,10 +490,19 @@ class PathGenerator:
         self.scope_name = scope_name
         self.operation_ids: set[str] = set()
 
-    def should_create_property_endpoint(self, model_property) -> bool:
-        """Determine if a property should have its own endpoint"""
+    def property_path_types(self, model_property) -> list[str]:
+        """Paths Spinta serves for a property, in the order they are written.
+
+        A file is served both as its content and, under the `:ref` action, as
+        what is known about it; an object property is served as itself. Every
+        other type raises `UnavailableSubresource`, so it gets no path.
+        """
         dtype_name = self.dtype_handler.get_dtype_name(model_property.dtype)
-        return dtype_name in PROPERTY_TYPES_IN_PATHS
+        if dtype_name in PROPERTY_TYPES_IN_PATHS:
+            return ["property", "propertyRef"]
+        if dtype_name == OBJECT_PROPERTY_TYPE:
+            return ["objectProperty"]
+        return []
 
     def create_path_mappings(self, model: Model, path_prefix: str) -> list[tuple[str, str, str, tuple | None]]:
         """Create path mappings for a model"""
@@ -454,11 +513,16 @@ class PathGenerator:
             ("/{model_name}/{id}", f"/{model_path}/{{id}}", "single", None),
         ]
 
+        templates = {
+            "property": ("/{model_name}/{id}/{field}", "{prop}"),
+            "propertyRef": ("/{model_name}/{id}/{field}:ref", "{prop}:ref"),
+            "objectProperty": ("/{model_name}/{id}/{object_field}", "{prop}"),
+        }
         for prop_name, model_property in model.get_given_properties().items():
-            if self.should_create_property_endpoint(model_property):
-                template_path = "/{model_name}/{id}/{field}"
-                actual_path = f"/{model_path}/{{id}}/{prop_name}"
-                path_mappings.append((template_path, actual_path, "property", (prop_name, model_property)))
+            for path_type in self.property_path_types(model_property):
+                template_path, segment = templates[path_type]
+                actual_path = f"/{model_path}/{{id}}/{segment.format(prop=prop_name)}"
+                path_mappings.append((template_path, actual_path, path_type, (prop_name, model_property)))
 
         return path_mappings
 
@@ -645,7 +709,9 @@ class PathGenerator:
             if isinstance(schema, dict):
                 content[media_type] = {"schema": copy.deepcopy(schema)}
             else:
-                content[media_type] = {"schema": {"$ref": self._resolve_schema_ref(schema, model, path_type)}}
+                content[media_type] = {
+                    "schema": {"$ref": self._resolve_schema_ref(schema, model, path_type, model_property)}
+                }
 
         return content
 
@@ -654,13 +720,20 @@ class PathGenerator:
         schema_name: str = None,
         model: Model | None = None,
         path_type: str = None,
+        model_property: tuple | None = None,
     ) -> str:
         """Resolve the appropriate schema reference"""
         model_schema_name = self.namer.name(model) if model else None
-        if model_schema_name and path_type:
+
+        # An operation of a model answers with the model, an operation of one
+        # property with a schema of that property alone.
+        if model_schema_name and path_type in ("collection", "single"):
             # A collection is wrapped into a `_data` envelope.
             suffix = "Collection" if path_type == "collection" else ""
             return f"#/components/schemas/{model_schema_name}{suffix}"
+
+        if path_type == "objectProperty" and model and model_property:
+            return f"#/components/schemas/{self.namer.object_name(model, model_property[0])}"
 
         if schema_name:
             return f"#/components/schemas/{schema_name}"
@@ -825,7 +898,31 @@ class SchemaGenerator:
             schemas[schema_name] = self._create_model_schema(model, schemas)
             schemas[f"{schema_name}Collection"] = self._create_collection_schema(model, schema_name)
 
+        for model in models.values():
+            self._create_object_property_schemas(schemas, model)
+
         return schemas
+
+    def _create_object_property_schemas(self, schemas: dict, model) -> None:
+        """Schemas of the object properties served under a path of their own.
+
+        The answer holds what the property holds, together with the `_type` and
+        the `_revision` of the object it belongs to, see
+        `spinta.commands.read.getone` of an `Object` property.
+        """
+        for prop_name, model_property in model.get_given_properties().items():
+            # A `ref` to a model missing from the manifest is downgraded to an
+            # object holding nothing, see `spinta.types.helpers`, and is served
+            # like any other object property, so it gets a schema all the same.
+            if not isinstance(model_property.dtype, Object):
+                continue
+
+            properties = {
+                "_type": {"type": "string"},
+                "_revision": {"type": ["string", "null"]},
+                **self.dtype_handler.object_properties(model_property.dtype, schemas=schemas),
+            }
+            schemas[self.namer.object_name(model, prop_name)] = {"type": "object", "properties": properties}
 
     def _create_model_schema(
         self,
@@ -835,18 +932,7 @@ class SchemaGenerator:
         properties = copy.deepcopy(self.schema_registry.standard_object_properties)
 
         for prop_name, model_property in model.get_given_properties().items():
-            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
-
-            # Required in a manifest means the data holds a value, not that a
-            # response carries the property: a request selects what it wants,
-            # see `spinta.backends.helpers.get_select_prop_names`, and a hidden
-            # property is left out of an ordinary response altogether. So
-            # nothing is listed as required, while a property that always holds
-            # a value is not made nullable.
-            if not getattr(model_property.dtype, "required", False):
-                prop_schema = _nullable(prop_schema)
-
-            properties[prop_name] = prop_schema
+            properties[prop_name] = self.dtype_handler.property_schema(model_property, schemas=schemas)
 
         return {
             "type": "object",

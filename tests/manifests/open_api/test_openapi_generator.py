@@ -872,6 +872,35 @@ def test_service_schema_names_hold_only_allowed_characters(open_manifest_path_fa
     assert "_duom_rink__Esybe" in open_api_spec["components"]["schemas"]
 
 
+@pytest.mark.models("backends/postgres/Subitem")
+def test_object_property_response_matches_what_spinta_answers(model, app, context):
+    """The schema of an object property has to describe the subresource."""
+    jsonschema = pytest.importorskip("jsonschema")
+    app.authmodel(model, ["insert", "getone", "subobj_getone"])
+    created = app.post(f"/{model}", json={"subobj": {"foo": "a", "bar": 1}}).json()
+
+    response = app.get(f"/{model}/{created['_id']}/subobj")
+
+    assert response.status_code == 200
+    schemas = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]
+    jsonschema.validate(response.json(), schemas["backends_postgres_Subitem_subobj"])
+
+
+@pytest.mark.models("backends/postgres/Subitem")
+def test_file_property_reference_matches_what_spinta_answers(model, app, context):
+    """`:ref` answers with what is known about the file, not with the file."""
+    jsonschema = pytest.importorskip("jsonschema")
+    app.authmodel(model, ["insert", "getone", "pdf_getone"])
+    created = app.post(f"/{model}", json={}).json()
+
+    response = app.get(f"/{model}/{created['_id']}/pdf:ref")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    schemas = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]
+    jsonschema.validate(response.json(), schemas["fileRef"])
+
+
 def test_service_requested_scopes_are_declared(open_manifest_path_factory):
     """Every scope an operation requests has to be declared in the flow."""
     open_api_spec = _service_spec(open_manifest_path_factory)
