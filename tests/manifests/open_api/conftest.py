@@ -343,6 +343,18 @@ id | d | r | b | m | property | type            | level | access
 """)
 
 
+# A model declaring `_id` of its own, whose identifiers are the keys the data
+# holds, `AE` of a country for one, and not UUIDs.
+MANIFEST_WITH_DECLARED_ID = striptable("""
+id | d | r | b | m | property | type            | ref   | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |       |         |       |
+   |   | test                 | memory          |       |         |       |
+   |   |   |   | Salis        |                 | kodas | salys   |       |
+   |   |   |   |   | _id      | string          |       |         |       | open
+   |   |   |   |   | kodas    | string required |       | kodas   | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
