@@ -99,6 +99,21 @@ Backwards incompatible:
     those five alone, see ``spinta.exceptions.error_response``; ``context`` was
     not described at all, which left every error schema open to anything. The
     keys of ``context`` depend on the error, so those stay open.
+  - The errors a response names are built from the classes that raise them, so
+    the catalogue cannot drift from what Spinta answers, and it had: ``code``
+    and ``template`` are taken from the class and given as constants. Two
+    errors that were named, ``Forbidden`` and ``ServiceNotAvailable``, exist
+    nowhere in Spinta; four templates had drifted from the code; and the errors
+    that a real ``403`` and a real ``404`` answer with, ``InsufficientScopeError``
+    and ``ModelNotFound`` among them, were missing. Status codes with more
+    errors than a document can list, ``400`` with over a hundred of them, are
+    answered for by a schema accepting any error object, which every response
+    names last, because Spinta answers with more error codes than are listed
+    and an error that is not its own, one ``authlib`` raises, carries the
+    ``code`` and the ``message`` alone.
+  - The ``429`` answer is described as an object of its own, left open,
+    because a rate limit is applied in front of the service and the body is
+    decided there.
   - Error responses are described as the ``{"errors": [...]}`` envelope Spinta
     answers with, instead of a bare error object. The token endpoint documents
     its ``401`` response as an OAuth 2.0 error and its ``400`` response as

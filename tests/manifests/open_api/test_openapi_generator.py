@@ -1288,7 +1288,14 @@ def test_token_endpoint_errors(open_manifest_path_factory):
     components = open_api_spec["components"]["responses"]
     alternatives = components["tokenError400"]["content"]["application/json"]["schema"]["anyOf"]
     assert alternatives[0] == {"$ref": "#/components/schemas/tokenError"}
-    assert _envelope_shape(alternatives[1]) == _errors_envelope({"$ref": "#/components/schemas/InvalidScopes"})
+    assert _envelope_shape(alternatives[1]) == _errors_envelope(
+        {
+            "anyOf": [
+                {"$ref": "#/components/schemas/InvalidScopes"},
+                {"$ref": "#/components/schemas/Error"},
+            ],
+        },
+    )
     assert components["tokenError401"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/tokenError",
     }
@@ -1317,17 +1324,22 @@ def test_error_responses_use_the_spinta_envelope(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     responses = open_api_spec["components"]["responses"]
-    assert _envelope_shape(responses["error404"]["content"]["application/json"]["schema"]) == _errors_envelope(
-        {"$ref": "#/components/schemas/ItemDoesNotExist"},
-    )
-    # Alternatives are not exclusive, every error schema accepts any error.
-    assert _envelope_shape(responses["error401"]["content"]["application/json"]["schema"]) == _errors_envelope(
+    envelope = _envelope_shape(responses["error401"]["content"]["application/json"]["schema"])
+    assert envelope == _errors_envelope(
         {
             "anyOf": [
                 {"$ref": "#/components/schemas/AuthorizedClientsOnly"},
+                {"$ref": "#/components/schemas/BasicAuthRequired"},
                 {"$ref": "#/components/schemas/InvalidToken"},
+                # Spinta answers with more error codes than a document lists.
+                {"$ref": "#/components/schemas/Error"},
             ],
         },
+    )
+
+    # A status code with too many errors to name is answered for by `Error`.
+    assert _envelope_shape(responses["error400"]["content"]["application/json"]["schema"]) == _errors_envelope(
+        {"$ref": "#/components/schemas/Error"},
     )
 
 
@@ -1720,3 +1732,41 @@ def test_error_schema_accepts_the_error_spinta_answers(model, app, context):
     schema = components["responses"]["error400"]["content"]["application/json"]["schema"]
     resolver = jsonschema.RefResolver.from_schema({"components": components})
     jsonschema.validate(response.json(), {**schema, "components": components}, resolver=resolver)
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_error_responses_accept_the_errors_spinta_answers(model, app, context):
+    """Every error named in the document has to be one Spinta really answers.
+
+    The named ones pin `code` and `template` to what the class carries, so a
+    document naming an error that does not exist, or a template that drifted,
+    fails here instead of in an API gateway.
+    """
+    jsonschema = pytest.importorskip("jsonschema")
+    components = create_openapi_manifest(context.get("store").manifest)["components"]
+
+    def check(response_name: str, response) -> None:
+        schema = components["responses"][response_name]["content"]["application/json"]["schema"]
+        resolver = jsonschema.RefResolver.from_schema({"components": components})
+        jsonschema.validate(response.json(), {**schema, "components": components}, resolver=resolver)
+
+    app.authorize([])
+    # `authlib` answers this one, so it carries a code and a message alone.
+    forbidden = app.get(f"/{model}")
+    assert forbidden.json()["errors"][0]["code"] == "InsufficientScopeError"
+    check("error403", forbidden)
+
+    app.authmodel(model, ["getone", "getall", "search"])
+    check("error404", app.get(f"/{model}/4d741843-4e94-4890-81e9-7ca01b1f96e8"))
+    check("error404", app.get("/nera/tokio/Modelio"))
+    check("error400", app.get(f"/{model}?_select=no_such_property"))
+
+
+def test_named_errors_carry_the_template_of_their_class():
+    """Copied beside the class, a template drifts; taken from it, it cannot."""
+    from spinta import exceptions
+    from spinta.manifests.open_api.openapi_config import NAMED_ERRORS
+
+    for errors in NAMED_ERRORS.values():
+        for name, schema in errors.items():
+            assert schema["properties"]["template"]["const"] == getattr(exceptions, name).template

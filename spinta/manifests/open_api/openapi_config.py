@@ -523,12 +523,132 @@ PATHS_CONFIG = {
     },
 }
 
+#: Fields of an error object, see `spinta.exceptions.error_response`. An error
+#: that is not Spinta's own, one `authlib` raises for one, is answered with the
+#: `code` and the `message` alone, see `spinta.api.error_response`.
+ERROR_CONTEXT = {
+    "type": "object",
+    "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+    "example": {"component": "spinta.components.Model", "manifest": "default"},
+}
+ERROR_MESSAGE = {
+    "type": "string",
+    "description": "The template of this error, filled in with its context.",
+}
+
+
+def _error_schema(name: str, template: str | None = None) -> dict:
+    """Schema of one error object.
+
+    `code` is the name of the class that raised it and `template` the template
+    of that class, both of them fixed, so both are given as constants, taken
+    from the class rather than copied beside it, where they drifted apart
+    before. `type` is decided per error, out of what it happened on.
+    """
+    schema = {
+        "type": "object",
+        "description": f"Error object of `{name}`.",
+        "properties": {
+            "type": {
+                "type": "string",
+                "description": "What the error happened on, `system` when it is nothing in particular.",
+                "example": "system",
+            },
+            "code": {"type": "string", "const": name, "example": name},
+            "message": dict(ERROR_MESSAGE),
+            "context": dict(ERROR_CONTEXT),
+        },
+        "additionalProperties": False,
+    }
+    if template is not None:
+        schema["properties"]["template"] = {"type": "string", "const": template, "example": template}
+        schema["properties"]["message"]["example"] = template
+    return schema
+
+
+def _errors_of(status_code: int) -> dict[str, dict]:
+    """Schemas of the errors Spinta answers with under a status code."""
+    import inspect
+
+    from spinta import exceptions
+
+    return {
+        name: _error_schema(name, obj.template)
+        for name, obj in sorted(vars(exceptions).items())
+        if inspect.isclass(obj)
+        and issubclass(obj, exceptions.BaseError)
+        and obj is not exceptions.BaseError
+        and getattr(obj, "status_code", None) == status_code
+    }
+
+
+#: Errors named one by one, where a status code has few enough of them to be
+#: worth naming. `400` and `500` have over a hundred each, so they are answered
+#: for by `Error` alone.
+NAMED_ERRORS = {status: _errors_of(status) for status in (401, 403, 404, 409, 415)}
+
+#: Any error object at all, which is what a response accepts beside the ones it
+#: names: Spinta answers with more error codes than a document can list, and an
+#: error that is not its own carries the `code` and the `message` alone.
+GENERIC_ERROR = {
+    "Error": {
+        "type": "object",
+        "description": "Any error object. Every error carries a `code` and a `message`; an error of Spinta itself carries the `template` it was built from, the `context` it happened in, and what that context is.",
+        "properties": {
+            "type": {"type": "string", "description": "What the error happened on.", "example": "system"},
+            "code": {"type": "string", "description": "Name of the error.", "example": "ModelNotFound"},
+            "template": {"type": "string", "description": "Template the message was built from."},
+            "message": dict(ERROR_MESSAGE),
+            "context": dict(ERROR_CONTEXT),
+        },
+        "additionalProperties": False,
+    },
+    # `authlib` answers a missing or insufficient scope with this, and it is
+    # not an error of Spinta, so it carries no template and no context.
+    "InsufficientScopeError": {
+        "type": "object",
+        "description": "Error object of an access token that does not carry a scope the operation needs.",
+        "properties": {
+            "code": {"type": "string", "const": "InsufficientScopeError", "example": "InsufficientScopeError"},
+            "message": {
+                "type": "string",
+                "description": "Which scopes would have been enough.",
+                "example": "insufficient_scope: Missing one of required scopes: uapi:/datasets/gov/rc/jadis/at280/1/:getall",
+            },
+        },
+        "additionalProperties": False,
+    },
+    "InvalidScopes": {
+        "type": "object",
+        "description": "Error object of a token request naming a scope that does not exist.",
+        "properties": {
+            "type": {"type": "string", "example": "system"},
+            "code": {"type": "string", "const": "InvalidScopes", "example": "InvalidScopes"},
+            "template": {
+                "type": "string",
+                "const": "Request contains invalid, unknown or malformed scopes: {scopes}.",
+                "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
+            },
+            "message": dict(ERROR_MESSAGE),
+            "context": dict(ERROR_CONTEXT),
+        },
+        "additionalProperties": False,
+    },
+}
+
+
+def _named_errors(status_code: int, *also: str) -> list[str]:
+    """Errors a response names, the one accepting any error object last."""
+    return [*sorted(NAMED_ERRORS.get(status_code, {})), *also, "Error"]
+
+
 RESPONSE_COMPONENTS = {
     # Rate limiting is applied by an API gateway or by whatever else stands in
-    # front of the service, a WAF or a reverse proxy, not by Spinta itself.
+    # front of the service, a WAF or a reverse proxy, not by Spinta itself, so
+    # what the body holds is decided there and is not described here.
     "error429": {
         "description": "Too Many Requests",
-        "content": {"application/json": {"schema": "TooManyRequests"}},
+        "content": {"application/json": {"schema": "RateLimited"}},
     },
     # Token endpoint answers with an OAuth 2.0 error, see RFC 6749 section 5.2,
     # not with a Spinta one.
@@ -537,7 +657,7 @@ RESPONSE_COMPONENTS = {
         "headers": [],
         "content": {
             "application/json": {
-                "schema": {"anyOf": ["tokenError", {"errors": ["InvalidScopes"]}]},
+                "schema": {"anyOf": ["tokenError", {"errors": ["InvalidScopes", "Error"]}]},
                 # An alternative of two, so neither schema example answers for it.
                 "example": {"error": "invalid_client", "error_description": "Client authentication failed."},
             }
@@ -548,42 +668,48 @@ RESPONSE_COMPONENTS = {
         "headers": [],
         "content": {"application/json": {"schema": "tokenError"}},
     },
+    # An error response names the errors of its status code and accepts any
+    # other: `400` alone has over a hundred of them, and an error that is not
+    # Spinta's own carries the `code` and the `message` alone.
     "error400": {
         "description": "Bad Request",
         "headers": [],
-        "content": {
-            "application/json": {"schema": {"errors": ["UniqueConstraint", "NoItemRevision", "InvalidOperandValue"]}}
-        },
+        "content": {"application/json": {"schema": {"errors": _named_errors(400)}}},
     },
     "error401": {
         "description": "Unauthorized",
         "headers": [],
-        "content": {"application/json": {"schema": {"errors": ["AuthorizedClientsOnly", "InvalidToken"]}}},
+        "content": {"application/json": {"schema": {"errors": _named_errors(401)}}},
     },
     "error403": {
         "description": "Forbidden",
         "headers": [],
-        "content": {"application/json": {"schema": {"errors": ["Forbidden"]}}},
+        "content": {"application/json": {"schema": {"errors": _named_errors(403, "InsufficientScopeError")}}},
     },
     "error404": {
         "description": "Not Found",
         "headers": [],
-        "content": {"application/json": {"schema": {"errors": ["ItemDoesNotExist"]}}},
+        "content": {"application/json": {"schema": {"errors": _named_errors(404)}}},
     },
     "error409": {
         "description": "Conflict",
         "headers": [],
-        "content": {"application/json": {"schema": {"errors": ["ConflictingValue"]}}},
+        "content": {"application/json": {"schema": {"errors": _named_errors(409)}}},
+    },
+    "error415": {
+        "description": "Unsupported Media Type",
+        "headers": [],
+        "content": {"application/json": {"schema": {"errors": _named_errors(415)}}},
     },
     "error500": {
         "description": "Internal Server Error",
         "headers": [],
-        "content": {"application/json": {"schema": {"errors": ["UnhandledException", "MultipleRowsFound"]}}},
+        "content": {"application/json": {"schema": {"errors": _named_errors(500)}}},
     },
     "error503": {
         "description": "Service Unavailable",
         "headers": [],
-        "content": {"application/json": {"schema": {"errors": ["ServiceNotAvailable"]}}},
+        "content": {"application/json": {"schema": {"errors": _named_errors(503)}}},
     },
 }
 
@@ -596,12 +722,24 @@ HEADER_COMPONENTS = {
     "Content-Length": {
         "description": "The `Content-Length` header indicates the size of the response body, in bytes, sent to the recipient.",
         "required": False,
-        "schema": {"type": "integer", "minimum": 0, "examples": [1024, 8021]},
+        "schema": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9223372036854775807,
+            "examples": [1024, 8021],
+            "example": 1024,
+        },
     },
     "ETag": {
         "description": "`ETag` header is an entity tag that uniquely represents the requested resource. It is a revision number for this item.",
         "required": False,
-        "schema": {"type": "string", "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"]},
+        "schema": {
+            "type": "string",
+            "pattern": UUID_PATTERN,
+            "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
+            "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
+        },
     },
     "Cache-Control": {
         "description": "The `Cache-Control` header tells caches what they may do with the response. A probe answers `no-store`, because a cached answer would report a state the service no longer is in.",
@@ -653,7 +791,13 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": "Using `If-None-Match` client can provide a revision number of an object to server to check if modification to the object has occured, if not, server will return `304 - Not Modified`.",
-        "schema": {"type": "string", "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"]},
+        # A revision, which is a UUID, see `spinta.backends`.
+        "schema": {
+            "type": "string",
+            "pattern": UUID_PATTERN,
+            "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
+            "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
+        },
     },
     "Accept-Language": {
         "name": "Accept-Language",
@@ -712,7 +856,16 @@ PARAMETER_COMPONENTS = {
     },
 }
 
+
 COMMON_SCHEMAS = {
+    # Error objects, built from the classes that raise them.
+    **GENERIC_ERROR,
+    "RateLimited": {
+        "type": "object",
+        "description": "Answer of a rate limit reached. A limit is applied by an API gateway or by whatever else stands in front of the service, a WAF or a reverse proxy, and never by Spinta, so what the body holds is decided there and is left open here.",
+        "example": {"message": "Rate limit exceeded"},
+    },
+    **{name: schema for errors in NAMED_ERRORS.values() for name, schema in errors.items()},
     "absent": {
         "type": "object",
         "description": "For objects that have been deleted during change, `type` value is changed to `absent`",
@@ -849,6 +1002,7 @@ COMMON_SCHEMAS = {
         "properties": {
             "next": {
                 "type": "string",
+                "pattern": "^[A-Za-z0-9+/]+={0,2}$",
                 "description": "Token of the next page. Absent when the listing ended.",
                 "examples": ["WyIyMDI2LTA4LTMxIl0="],
                 "example": "WyIyMDI2LTA4LTMxIl0=",
@@ -916,9 +1070,12 @@ COMMON_SCHEMAS = {
                 "description": "Access token to be used as a `Bearer` token.",
                 "example": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dldC5kYXRhLmdvdi5sdCJ9.-",
             },
-            "token_type": {"type": "string", "examples": ["Bearer"], "example": "Bearer"},
+            "token_type": {"type": "string", "const": "Bearer", "examples": ["Bearer"], "example": "Bearer"},
             "expires_in": {
                 "type": "integer",
+                "format": "int64",
+                "minimum": 0,
+                "maximum": 9223372036854775807,
                 "description": "Token lifetime in seconds.",
                 "examples": [864000],
                 "example": 864000,
@@ -940,345 +1097,6 @@ COMMON_SCHEMAS = {
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the image.",
             },
         },
-    },
-    "InvalidScopes": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `InvalidScopes`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "InvalidScopes",
-                "example": "InvalidScopes",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Request contains invalid, unknown or malformed scopes: {scopes}.",
-                "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
-            },
-            "message": {"type": "string"},
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "UniqueConstraint": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `UniqueConstraint`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "UniqueConstraint",
-                "example": "UniqueConstraint",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Given value already exists.",
-                "example": "Given value already exists.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "NoItemRevision": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `NoItemRevision`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "NoItemRevision",
-                "example": "NoItemRevision",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "_revision must be given on rewrite operation.",
-                "example": "_revision must be given on rewrite operation.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "InvalidOperandValue": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `InvalidOperandValue`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "InvalidOperandValue",
-                "example": "InvalidOperandValue",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Invalid operand value for {operator!r} operator.",
-                "example": "Invalid operand value for {operator!r} operator.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "AuthorizedClientsOnly": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `AuthorizedClientsOnly`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "AuthorizedClientsOnly",
-                "example": "AuthorizedClientsOnly",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "This resource can only be accessed by an authorized client.",
-                "example": "This resource can only be accessed by an authorized client.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "InvalidToken": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `InvalidToken`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "InvalidToken",
-                "example": "InvalidToken",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Invalid token",
-                "example": "Invalid token",
-            },
-            "headers": {"type": "string", "description": "{'WWW-Authenticate': 'Bearer error'='invalid_token'}"},
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "Forbidden": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `Forbidden`.",
-        "properties": {
-            "code": {"type": "string", "description": "Forbidden", "example": "Forbidden"},
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Access is forbidden",
-                "example": "Access is forbidden",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "ItemDoesNotExist": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `ItemDoesNotExist`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "ItemDoesNotExist",
-                "example": "ItemDoesNotExist",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Resource {id!r} not found.",
-                "example": "Resource {id!r} not found.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "ConflictingValue": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `ConflictingValue`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "ConflictingValue",
-                "example": "ConflictingValue",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Conflicting Value",
-                "example": "Conflicting Value",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "UnhandledException": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `UnhandledException`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "UnhandledException",
-                "example": "UnhandledException",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Unhandled exception {exception}: {error}.",
-                "example": "Unhandled exception {exception}: {error}.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "properties": {"exception": {"type": "string", "description": "error.__class__.__name__"}},
-                "example": {"exception": "ValueError"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "MultipleRowsFound": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `MultipleRowsFound`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "MultipleRowsFound",
-                "example": "MultipleRowsFound",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Multiple rows were found.",
-                "example": "Multiple rows were found.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "TooManyRequests": {
-        "type": "object",
-        "description": "Error object answered when a rate limit in front of the service was reached. Spinta does not limit requests itself.",
-        "properties": {
-            "code": {"type": "string", "description": "TooManyRequests", "example": "TooManyRequests"},
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {"type": "string", "description": "Too many requests.", "example": "Too many requests."},
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a rendered template.",
-                "example": "Too many requests.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "ServiceNotAvailable": {
-        "type": "object",
-        "description": "Error object Spinta answers with when the request fails with `ServiceNotAvailable`.",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "Service Not Available",
-                "example": "Service Not Available",
-            },
-            "type": {"type": "string", "description": "system", "example": "system"},
-            "template": {
-                "type": "string",
-                "description": "Service is currently not available.",
-                "example": "Service is currently not available.",
-            },
-            "message": {
-                "type": "string",
-                "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
-            },
-            "context": {
-                "type": "object",
-                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
-                "example": {"component": "spinta.components.Model", "manifest": "default"},
-            },
-        },
-        "additionalProperties": False,
     },
 }
 
