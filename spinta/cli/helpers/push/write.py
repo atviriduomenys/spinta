@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 import pprintpp
 import requests
 import sqlalchemy as sa
-from requests import HTTPError
 
 import spinta.cli.push as cli_push
 from spinta import spyna
@@ -26,7 +25,6 @@ from spinta.utils.response import RequestResult, request
 
 def _prepare_rows_for_push(rows: Iterable[PushRow]) -> Iterator[PushRow]:
     for row in rows:
-        print("PREP FOR PUSH", row)
         row.data["_op"] = row.op
         if row.op == "patch":
             where = {
