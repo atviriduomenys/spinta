@@ -21,10 +21,12 @@ from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.json import fix_data_for_json
+from spinta.utils.response import RequestResult, request
 
 
 def _prepare_rows_for_push(rows: Iterable[PushRow]) -> Iterator[PushRow]:
     for row in rows:
+        print("PREP FOR PUSH", row)
         row.data["_op"] = row.op
         if row.op == "patch":
             where = {
@@ -69,7 +71,7 @@ def prepare_rows_with_errors(
             "GET",
             rows=[],
             data="",
-            ignore_errors=[404],
+            ignore_statuses=[404],
             error_counter=error_counter,
             timeout=timeout,
         )
@@ -161,11 +163,11 @@ def _push_to_remote_spinta(
 
         data = fix_data_for_json(row.data)
         tmp = data
+
         if "_page" in data:
             tmp = copy(data)
             tmp.pop("_page")
         data = json.dumps(tmp, ensure_ascii=False)
-
         if ready and (len(chunk) + len(data) + slen > chunk_size or row.push):
             yield from _send_and_receive(
                 client,
@@ -306,79 +308,62 @@ def send_request(
     client: requests.Session,
     server: str,
     method: str,
-    rows: List[PushRow],
+    rows: list[PushRow],
     data: str,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
     stop_on_error: bool = False,
-    ignore_errors: Optional[List[int]] = None,
-    error_counter: ErrorCounter = None,
-) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
-    data = data.encode("utf-8")
-    if not ignore_errors:
-        ignore_errors = []
-
-    try:
-        resp = client.request(method, server, data=data, timeout=timeout)
-    except requests.exceptions.ReadTimeout:
-        if error_counter:
-            error_counter.increase()
-        cli_push.log.error(
-            f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-        )
-        if stop_on_error:
-            raise
-        return None, None
-    except requests.exceptions.ConnectTimeout:
-        if error_counter:
-            error_counter.increase()
-        cli_push.log.error(
-            f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-        )
-        if stop_on_error:
-            raise
-        return None, None
-    except IOError as e:
-        if error_counter:
-            error_counter.increase()
-        cli_push.log.error(
-            ("Error when sending and receiving data.%s\nError: %s"),
-            get_row_for_error(rows),
-            e,
-        )
-        if stop_on_error:
-            raise
-        return None, None
-
-    try:
-        resp.raise_for_status()
-    except HTTPError:
-        if resp.status_code not in ignore_errors:
-            if error_counter:
-                error_counter.increase()
-            try:
-                recv = resp.json()
-            except requests.JSONDecodeError:
+    ignore_statuses: list[int] | None = None,
+    error_counter: ErrorCounter | None = None,
+) -> tuple[int | None, dict[str, Any] | None]:
+    def on_error(result: RequestResult) -> None:
+        match result.exception:
+            case requests.exceptions.ReadTimeout:
                 cli_push.log.error(
-                    ("Error when sending and receiving data.\nServer response (status=%s):\n%s"),
-                    resp.status_code,
-                    textwrap.indent(resp.text, "    "),
+                    f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
                 )
-                if stop_on_error:
-                    raise
-            else:
-                errors = recv.get("errors")
+            case requests.exceptions.ConnectTimeout:
                 cli_push.log.error(
-                    ("Error when sending and receiving data.%s\nServer response (status=%s):\n%s"),
+                    f"Connect timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+                )
+            case requests.JSONDecodeError:
+                cli_push.log.error(
+                    "Error when sending and receiving data.\nServer response (status=%s):\n%s",
+                    resp.status_code,
+                    textwrap.indent(resp.text or "", "    "),
+                )
+            case requests.RequestException:
+                cli_push.log.error(
+                    "Error when sending and receiving data.%s\nError: %s",
+                    get_row_for_error(rows),
+                    result.exception,
+                )
+            case _:
+                errors = result.data.get("errors") if isinstance(result.data, dict) else None
+                error_message = result.data
+                if not result.data and result.text:
+                    error_message = result.text
+                cli_push.log.error(
+                    "Error when sending and receiving data.%s\nServer response (status=%s):\n%s",
                     get_row_for_error(rows, errors),
                     resp.status_code,
-                    textwrap.indent(pprintpp.pformat(recv), "    "),
+                    textwrap.indent(pprintpp.pformat(error_message), "    "),
                 )
-            if stop_on_error:
-                raise
-        return resp.status_code, None
 
-    return resp.status_code, resp.json()
+    data = data.encode("utf-8")
+    resp = request(
+        client,
+        server,
+        method,
+        data=data,
+        timeout=timeout,
+        stop_on_error=stop_on_error,
+        ignore_statuses=ignore_statuses,
+        error_counter=error_counter,
+        on_error=on_error,
+    )
+
+    return resp.status_code, resp.data
 
 
 def push(

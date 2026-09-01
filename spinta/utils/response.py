@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import itertools
 import json
+import textwrap
 import time
+from dataclasses import dataclass, field
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
-from typing import Any, Dict, List, Optional, Tuple, cast
-from urllib.error import HTTPError
+from typing import Any, Callable, cast
 
+import pprintpp
 import requests
 import tqdm
 from starlette.datastructures import UploadFile
@@ -26,6 +28,29 @@ from spinta.core.enums import Action
 from spinta.exceptions import BaseError, NoBackendConfigured, error_response
 from spinta.formats.components import Format
 from spinta.renderer import render
+
+
+@dataclass(frozen=True)
+class RequestResult:
+    status_code: int | None
+    data: Any | None
+    text: str | None
+    exception: requests.RequestException | None = None
+    ignored: bool = False
+    response: requests.Response | None = field(default=None, repr=False)
+
+    @property
+    def ok(self) -> bool:
+        return self.exception is None and (
+            self.ignored or self.status_code is not None and 200 <= self.status_code < 300
+        )
+
+    def raise_for_error(self) -> None:
+        if self.exception is not None:
+            raise self.exception
+
+        if not self.ok and self.response is not None:
+            self.response.raise_for_status()
 
 
 async def _check_post(context: Context, request: Request, params: UrlParams):
@@ -284,46 +309,57 @@ async def get_request_data(node: Node, request: Request):
     return data
 
 
-def get_request(
+def request(
     client: requests.Session,
     server: str,
-    timeout: Tuple[float, float],
+    method: str,
+    timeout: tuple[float, float],
+    data: Any | None = None,
     *,
     stop_on_error: bool = False,
-    ignore_errors: Optional[List[int]] = None,
-    error_counter: ErrorCounter = None,
-) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
-    if not ignore_errors:
-        ignore_errors = []
+    ignore_statuses: list[int] | None = None,
+    error_counter: ErrorCounter | None = None,
+    on_error: Callable[[RequestResult], None] | None = None,
+) -> RequestResult:
+    if ignore_statuses is None:
+        ignore_statuses = []
 
+    exc = None
     try:
-        resp = client.get(
-            server,
-            timeout=timeout,
+        response = client.request(method, server, data=data, timeout=timeout)
+    except requests.RequestException as e:
+        exc = e
+        result = RequestResult(
+            status_code=None,
+            data=None,
+            text=None,
+            exception=exc,
         )
-    except IOError:
+    else:
+        try:
+            response_data = response.json()
+        except requests.JSONDecodeError as e:
+            response_data = None
+            exc = e
+
+        result = RequestResult(
+            status_code=response.status_code,
+            data=response_data,
+            text=response.text,
+            ignored=response.status_code in ignore_statuses,
+            response=response,
+            exception=exc,
+        )
+
+    if not result.ok:
+        if on_error:
+            on_error(result)
         if error_counter:
             error_counter.increase()
         if stop_on_error:
-            raise
-        return None, None
-    try:
-        resp.raise_for_status()
-    except (HTTPError, requests.exceptions.HTTPError):
-        if resp.status_code not in ignore_errors:
-            if error_counter:
-                error_counter.increase()
-            try:
-                resp.json()
-            except requests.JSONDecodeError:
-                if stop_on_error:
-                    raise
+            result.raise_for_error()
 
-            if stop_on_error:
-                raise
-        return resp.status_code, None
-
-    return resp.status_code, resp.json()
+    return result
 
 
 def get_request_with_retries(
@@ -333,27 +369,76 @@ def get_request_with_retries(
     retries: int,
     delay_range: tuple[float],
     *,
-    error_counter: ErrorCounter = None,
-    progress_bar: tqdm.tqdm = None,
+    error_counter: ErrorCounter | None = None,
+    progress_bar: tqdm.tqdm | None = None,
 ):
-    status_code, resp = get_request(client, server, timeout=timeout)
-    if status_code == 200:
-        return status_code, resp
+    def on_error(result: RequestResult) -> None:
+        match result.exception:
+            case requests.exceptions.ReadTimeout:
+                cli_message(
+                    f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
+                    progress_bar=progress_bar,
+                )
+            case requests.exceptions.ConnectTimeout:
+                cli_message(
+                    f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
+                    progress_bar=progress_bar,
+                )
+            case requests.JSONDecodeError:
+                cli_message(
+                    f"""
+                    ERROR ({result.status_code}): Failed to fetch data from {server}:
+                    {textwrap.indent(resp.text or "", "    ")}""",
+                    progress_bar=progress_bar,
+                )
+            case requests.RequestException:
+                cli_message(
+                    f"""
+                    ERROR ({result.status_code}): Failed to fetch data from {server}:
+                    {result.exception}""",
+                    progress_bar=progress_bar,
+                )
+            case _:
+                error_message = result.data
+                if not result.data and result.text:
+                    error_message = result.text
+                cli_message(
+                    f"""
+                    ERROR ({result.status_code}): Failed to fetch data from {server}:
+                    {textwrap.indent(pprintpp.pformat(error_message), "    ")}""",
+                    progress_bar=progress_bar,
+                )
 
-    cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
+    resp = request(
+        client,
+        server,
+        "GET",
+        timeout=timeout,
+        on_error=on_error,
+        error_counter=error_counter,
+    )
+    status_code = resp.status_code
+    if status_code == 200:
+        return status_code, resp.data
+
     for i in range(retries):
         delay = delay_range[min(i, len(delay_range) - 1)]
 
         cli_message(f"Retrying ({i + 1}/{retries}) in {delay} seconds...", progress_bar=progress_bar)
         time.sleep(delay)
 
-        status_code, resp = get_request(client, server, timeout=timeout)
+        resp = request(
+            client,
+            server,
+            "GET",
+            timeout=timeout,
+            on_error=on_error,
+            error_counter=error_counter,
+        )
+        status_code = resp.status_code
         if status_code == 200:
-            return status_code, resp
+            return status_code, resp.data
 
-        cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
-
-    error_counter.increase()
     return status_code, resp
 
 
