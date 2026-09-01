@@ -957,8 +957,13 @@ COMMON_SCHEMAS = {
                 "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
             },
             "message": {"type": "string"},
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "UniqueConstraint": {
         "type": "object",
@@ -979,8 +984,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "NoItemRevision": {
         "type": "object",
@@ -1001,8 +1011,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "InvalidOperandValue": {
         "type": "object",
@@ -1023,8 +1038,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "AuthorizedClientsOnly": {
         "type": "object",
@@ -1045,8 +1065,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "InvalidToken": {
         "type": "object",
@@ -1068,8 +1093,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "Forbidden": {
         "type": "object",
@@ -1086,8 +1116,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "ItemDoesNotExist": {
         "type": "object",
@@ -1108,8 +1143,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "ConflictingValue": {
         "type": "object",
@@ -1130,8 +1170,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "UnhandledException": {
         "type": "object",
@@ -1148,16 +1193,18 @@ COMMON_SCHEMAS = {
                 "description": "Unhandled exception {exception}: {error}.",
                 "example": "Unhandled exception {exception}: {error}.",
             },
-            "context": {
-                "type": "object",
-                "properties": {"exception": {"type": "string", "description": "error.__class__.__name__"}},
-            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "properties": {"exception": {"type": "string", "description": "error.__class__.__name__"}},
+                "example": {"exception": "ValueError"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "MultipleRowsFound": {
         "type": "object",
@@ -1178,8 +1225,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "TooManyRequests": {
         "type": "object",
@@ -1193,8 +1245,13 @@ COMMON_SCHEMAS = {
                 "description": "Message within the error object contains a rendered template.",
                 "example": "Too many requests.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
     "ServiceNotAvailable": {
         "type": "object",
@@ -1215,8 +1272,13 @@ COMMON_SCHEMAS = {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
             },
+            "context": {
+                "type": "object",
+                "description": "What the error happened on: the model, the property, the manifest and whatever else the template of this error names. Which keys it holds depends on the error.",
+                "example": {"component": "spinta.components.Model", "manifest": "default"},
+            },
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     },
 }
 
