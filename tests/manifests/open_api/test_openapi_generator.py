@@ -1700,3 +1700,23 @@ def test_every_operation_answers_a_rate_limit(open_manifest_path_factory):
             if method in ("parameters", "servers"):
                 continue
             assert "429" in operation["responses"], f"{method} {path}"
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_error_schema_accepts_the_error_spinta_answers(model, app, context):
+    """An error object holds five fields, see `spinta.exceptions.error_response`.
+
+    The schema says so and accepts nothing else, so this checks a real one
+    against it rather than the five fields being right by memory.
+    """
+    jsonschema = pytest.importorskip("jsonschema")
+    app.authmodel(model, ["getall", "search"])
+
+    response = app.get(f"/{model}?_select=no_such_property")
+
+    assert response.status_code == 400
+    assert sorted(response.json()["errors"][0]) == ["code", "context", "message", "template", "type"]
+    components = create_openapi_manifest(context.get("store").manifest)["components"]
+    schema = components["responses"]["error400"]["content"]["application/json"]["schema"]
+    resolver = jsonschema.RefResolver.from_schema({"components": components})
+    jsonschema.validate(response.json(), {**schema, "components": components}, resolver=resolver)
