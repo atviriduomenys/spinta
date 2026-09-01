@@ -373,7 +373,7 @@ def get_request_with_retries(
     progress_bar: tqdm.tqdm | None = None,
 ):
     def on_error(result: RequestResult) -> None:
-        match result.exception:
+        match type(result.exception):
             case requests.exceptions.ReadTimeout:
                 cli_message(
                     f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
@@ -388,7 +388,7 @@ def get_request_with_retries(
                 cli_message(
                     f"""
                     ERROR ({result.status_code}): Failed to fetch data from {server}:
-                    {textwrap.indent(resp.text or "", "    ")}""",
+                    {textwrap.indent(result.text or "", "    ")}""",
                     progress_bar=progress_bar,
                 )
             case requests.RequestException:

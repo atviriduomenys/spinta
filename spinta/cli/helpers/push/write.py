@@ -315,7 +315,7 @@ def send_request(
     error_counter: ErrorCounter | None = None,
 ) -> tuple[int | None, dict[str, Any] | None]:
     def on_error(result: RequestResult) -> None:
-        match result.exception:
+        match type(result.exception):
             case requests.exceptions.ReadTimeout:
                 cli_push.log.error(
                     f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
@@ -327,8 +327,8 @@ def send_request(
             case requests.JSONDecodeError:
                 cli_push.log.error(
                     "Error when sending and receiving data.\nServer response (status=%s):\n%s",
-                    resp.status_code,
-                    textwrap.indent(resp.text or "", "    "),
+                    result.status_code,
+                    textwrap.indent(result.text or "", "    "),
                 )
             case requests.RequestException:
                 cli_push.log.error(
@@ -344,7 +344,7 @@ def send_request(
                 cli_push.log.error(
                     "Error when sending and receiving data.%s\nServer response (status=%s):\n%s",
                     get_row_for_error(rows, errors),
-                    resp.status_code,
+                    result.status_code,
                     textwrap.indent(pprintpp.pformat(error_message), "    "),
                 )
 
