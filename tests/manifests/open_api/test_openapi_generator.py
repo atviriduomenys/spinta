@@ -979,6 +979,33 @@ def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_facto
     assert open_api_spec["paths"]["/ds/Salis/{id}"]["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
 
 
+def test_example_identifiers_are_not_all_one(open_manifest_path_factory):
+    """One identifier everywhere reads as if every model answered the same object."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    schemas = open_api_spec["components"]["schemas"]
+
+    israsas = schemas["at280_israsas_DalyvioAsmensIsrasas"]["example"]
+    adresas = schemas["at280_adresai_Adresas"]["example"]
+
+    assert israsas["_id"] != adresas["_id"]
+    assert israsas["_id"] != israsas["_revision"]
+
+    # A request and the answer beside it speak about one object.
+    identifier = open_api_spec["components"]["parameters"]["id_at280_israsas_DalyvioAsmensIsrasas"]
+    assert identifier["schema"]["example"] == israsas["_id"]
+
+    # A reference points at the example of what it references.
+    assert israsas["adresas"]["_id"] == adresas["_id"]
+
+
+def test_generating_twice_gives_the_same_document(open_manifest_path_factory):
+    """A regenerated file has to differ only where the manifest did."""
+    first = _service_spec(open_manifest_path_factory)
+    second = _service_spec(open_manifest_path_factory)
+
+    assert json.dumps(first) == json.dumps(second)
+
+
 def test_service_requested_scopes_are_declared(open_manifest_path_factory):
     """Every scope an operation requests has to be declared in the flow."""
     open_api_spec = _service_spec(open_manifest_path_factory)

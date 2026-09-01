@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import re
+import uuid
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Callable, Union
@@ -144,9 +145,35 @@ def default_scope_name(
     )
 
 
-EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
-EXAMPLE_UUID_OBJECT_ID = "abdd1245-bbf9-4085-9366-f11c0f737c1d"
-EXAMPLE_UUID_REVISION = "16dabe62-61e9-4549-a6bd-07cecfbc3508"
+#: Namespace the identifiers of examples are derived in. Fixed, so that one
+#: manifest gives one document, and a regenerated file differs only where the
+#: manifest did.
+EXAMPLE_NAMESPACE = uuid.UUID("abdd1245-bbf9-4085-9366-f11c0f737c1d")
+
+
+def _example_uuid(seed: str) -> str:
+    """An identifier of an example, one per name.
+
+    Every example of a document would otherwise carry one identifier, which
+    reads as if every model answered with the same object, and a reference
+    would point at something other than the example of what it references.
+
+    Version and variant bits are those of a version 4 UUID, because Spinta
+    accepts no other shape as an object identifier, see
+    `spinta.backends.is_object_id`.
+    """
+    digest = bytearray(uuid.uuid5(EXAMPLE_NAMESPACE, seed).bytes)
+    digest[6] = (digest[6] & 0x0F) | 0x40
+    digest[8] = (digest[8] & 0x3F) | 0x80
+    return str(uuid.UUID(bytes=bytes(digest)))
+
+
+def _example_id(model: Model) -> str:
+    return _example_uuid(model.name)
+
+
+def _example_revision(model: Model) -> str:
+    return _example_uuid(f"{model.name} revision")
 
 
 @dataclass
@@ -450,7 +477,7 @@ class DataTypeHandler:
 
         if self.is_reference_type(dtype):
             ref_schema_name = self._ref_schema_name(model_property, dtype)
-            example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
+            example = {"_type": dtype.model.basename, "_id": _example_id(dtype.model)}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
             return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
@@ -484,7 +511,7 @@ class DataTypeHandler:
             ref_schema_name = self._ref_schema_name(model_property, dtype)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return copy.deepcopy(ref_schema["example"])
-            return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
+            return {"_type": dtype.model.basename, "_id": _example_id(dtype.model)}
 
         dtype_name = self.get_dtype_name(dtype)
         return copy.deepcopy(self.schema_registry.example_values.values.get(dtype_name, "Example value"))
@@ -697,10 +724,19 @@ class PathGenerator:
         `spinta.types.model` and `spinta.backends.is_object_id`. The pattern of
         a UUID would reject it, and a gateway validating requests would reject
         the request with it.
+
+        The example is the identifier of the example of the same model, so a
+        request and the answer beside it speak about one object.
         """
         dtype = model.id_prop.dtype if model.id_prop else None
-        if dtype is None or isinstance(dtype, PrimaryKey):
+        if dtype is None:
             return None
+
+        if isinstance(dtype, PrimaryKey):
+            parameter = copy.deepcopy(PARAMETER_COMPONENTS["id"])
+            parameter["schema"]["examples"] = [_example_id(model)]
+            parameter["schema"]["example"] = _example_id(model)
+            return parameter
 
         schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
         schema.pop("example", None)
@@ -860,7 +896,10 @@ class ComponentSchemaBuilder:
 
         config_source, creator_func, collector_func = type_map[component_type]
 
-        for ref_key in collector_func(path_config):
+        # Sorted, because the collectors gather into a set, and its order is
+        # not the same between runs, which would reorder the components of a
+        # file every time it is generated.
+        for ref_key in sorted(collector_func(path_config)):
             if ref_key in components:
                 continue
 
@@ -1041,8 +1080,8 @@ class SchemaGenerator:
     ) -> dict[str, Any]:
         example = {
             "_type": model.basename,
-            "_id": EXAMPLE_UUID_OBJECT_ID,
-            "_revision": EXAMPLE_UUID_REVISION,
+            "_id": _example_id(model),
+            "_revision": _example_revision(model),
         }
         for prop_name, model_property in model.get_given_properties().items():
             if property_filter and prop_name not in property_filter:
@@ -1128,8 +1167,8 @@ class SchemaGenerator:
             properties = copy.deepcopy(self.schema_registry.standard_object_properties)
             example = {
                 "_type": model.basename,
-                "_id": EXAMPLE_UUID_OBJECT_ID,
-                "_revision": EXAMPLE_UUID_REVISION,
+                "_id": _example_id(model),
+                "_revision": _example_revision(model),
             }
             return {"type": "object", "properties": properties, "example": example}
 
@@ -1169,8 +1208,8 @@ class SchemaGenerator:
 
         example = {
             "_type": model.basename,
-            "_id": EXAMPLE_UUID_OBJECT_ID,
-            "_revision": EXAMPLE_UUID_REVISION,
+            "_id": _example_id(model),
+            "_revision": _example_revision(model),
         }
         for prop_name, model_property in model.get_given_properties().items():
             if refprop_names and prop_name not in refprop_names:

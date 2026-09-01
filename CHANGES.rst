@@ -39,6 +39,14 @@ Backwards incompatible:
     data holds, ``AE`` of a country for one, which the pattern of a UUID
     rejects and a gateway validating requests would reject with it. Models
     keeping a UUID identifier keep the shared parameter.
+  - Examples carry an identifier of their own, one per model, instead of
+    repeating a single one across the document, which read as if every model
+    answered with the same object. The identifier of a model is the example of
+    its ``{id}`` parameter as well, so a request and the answer beside it speak
+    about one object, and a reference example points at the example of the
+    model it references. They are derived from the model name, so a regenerated
+    file differs only where the manifest did; component order was made stable
+    for the same reason.
   - Query examples name properties of the model they belong to. A generic
     example is worse than none, because an API client fills the request with
     it, and ``?_select=string`` comes back as ``FieldNotInResource``. They are
