@@ -44,7 +44,7 @@ from spinta.manifests.open_api.service import (
     service_schema_name,
 )
 from spinta.manifests.open_api.udts_config import TOKEN_PATH, UdtsConfig
-from spinta.types.datatype import DataType, Object
+from spinta.types.datatype import DataType, Object, PrimaryKey
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
 
@@ -498,6 +498,8 @@ class PathGenerator:
         self.namer = namer
         self.scope_name = scope_name
         self.operation_ids: set[str] = set()
+        #: Parameters built for one model, added to the components of the document.
+        self.model_parameters: dict[str, dict] = {}
         #: Servers of the agent root, for the endpoints served there.
         self.agent_servers: list[dict[str, Any]] = []
 
@@ -555,7 +557,7 @@ class PathGenerator:
         operations = {}
 
         if "parameters" in path_config:
-            operations["parameters"] = self._build_parameter_refs(path_config["parameters"])
+            operations["parameters"] = self._build_parameter_refs(path_config["parameters"], model)
 
         # An endpoint of the agent is not served under the data service path,
         # so it carries a server of its own, which OpenAPI allows per path.
@@ -604,7 +606,7 @@ class PathGenerator:
             )
 
         if "parameters" in method_config:
-            operation["parameters"] = self._build_parameter_refs(method_config["parameters"])
+            operation["parameters"] = self._build_parameter_refs(method_config["parameters"], model)
 
         operation["responses"] = self._build_responses(
             method_config.get("responses", {}), model, path_type, model_property
@@ -661,9 +663,77 @@ class PathGenerator:
         self.operation_ids.add(operation_id)
         return operation_id
 
-    def _build_parameter_refs(self, parameters: list) -> list[dict]:
-        """Build parameter reference objects"""
-        return [{"$ref": f"#/components/parameters/{param}"} for param in parameters]
+    def _build_parameter_refs(self, parameters: list, model: Model | None = None) -> list[dict]:
+        """Build parameter reference objects.
+
+        Two of them read differently for every model: the identifier, whose
+        type a model can declare itself, and the query, whose examples are only
+        of use when they name properties the model has. Such a parameter gets a
+        component of its own, so a document holds one per model instead of the
+        same one inlined into every path.
+        """
+        refs = []
+        for param in parameters:
+            if model is not None and param in MODEL_PARAMETERS:
+                param = self._model_parameter(param, model)
+            refs.append({"$ref": f"#/components/parameters/{param}"})
+        return refs
+
+    def _model_parameter(self, param: str, model: Model) -> str:
+        """Name of a parameter as it reads for a given model, building it once."""
+        name = f"{param}_{self.namer.name(model)}"
+        if name not in self.model_parameters:
+            built = MODEL_PARAMETERS[param](self, model)
+            if built is None:
+                return param
+            self.model_parameters[name] = {**built, "name": PARAMETER_COMPONENTS[param]["name"]}
+        return name
+
+    def _id_parameter(self, model: Model) -> dict | None:
+        """Identifier of a model, which is not always a UUID.
+
+        A model can declare `_id` with a type of its own, and then the value is
+        the key the data holds, `AE` of a country for one, see
+        `spinta.types.model` and `spinta.backends.is_object_id`. The pattern of
+        a UUID would reject it, and a gateway validating requests would reject
+        the request with it.
+        """
+        dtype = model.id_prop.dtype if model.id_prop else None
+        if dtype is None or isinstance(dtype, PrimaryKey):
+            return None
+
+        schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
+        schema.pop("example", None)
+        return {
+            "in": "path",
+            "required": True,
+            "description": (
+                "Object identifier.\n\nThis model declares `_id` of its own, so the identifier is the "
+                "key the data holds, not a UUID.\n"
+            ),
+            "schema": schema,
+        }
+
+    def _query_parameter(self, model: Model) -> dict | None:
+        """Query of a model, with examples naming properties the model has.
+
+        A generic example is worse than none: an API client fills the request
+        with it, and `_select=string` comes back as `FieldNotInResource`.
+        """
+        names = [name for name in model.get_given_properties() if not name.startswith("_")]
+        if not names:
+            return None
+
+        parameter = copy.deepcopy(PARAMETER_COMPONENTS["query"])
+        properties = parameter["schema"]["properties"]
+        for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0])):
+            properties[key]["examples"] = [value]
+            # An API client reads `example` of a property, not `examples`, and
+            # fills the request with the type name when it finds neither.
+            properties[key]["example"] = value
+        properties["_limit"]["example"] = properties["_limit"]["examples"][0]
+        parameter["example"] = {"_select": ",".join(names[:2]), "_limit": 10, "_sort": names[0]}
+        return parameter
 
     def _build_responses(
         self,
@@ -755,6 +825,13 @@ class PathGenerator:
             return f"#/components/schemas/{schema_name}"
 
         return f"#/components/schemas/{model_schema_name or 'object'}"
+
+
+#: Parameters that read differently for every model.
+MODEL_PARAMETERS = {
+    "id": PathGenerator._id_parameter,
+    "query": PathGenerator._query_parameter,
+}
 
 
 class ComponentSchemaBuilder:
@@ -1193,6 +1270,7 @@ class OpenAPIGenerator:
         self._create_paths(specification, datasets, models)
 
         self._create_component_schemas(specification)
+        self._add_model_parameters(specification)
         self._add_common_schemas(specification)
         self._add_security_schemes(specification)
 
@@ -1351,6 +1429,11 @@ class OpenAPIGenerator:
         """Build all component schemas (parameters, responses, headers) from all path configs."""
         for path_config in PATHS_CONFIG.values():
             self.component_builder.create_components_for_path(spec, path_config)
+
+    def _add_model_parameters(self, spec: dict[str, Any]) -> None:
+        """Parameters built while the paths were written, one per model."""
+        parameters = spec.setdefault("components", {}).setdefault("parameters", {})
+        parameters.update(copy.deepcopy(self.path_generator.model_parameters))
 
     def _add_common_schemas(self, spec: dict[str, Any]) -> None:
         schemas = spec.setdefault("components", {}).setdefault("schemas", {})
