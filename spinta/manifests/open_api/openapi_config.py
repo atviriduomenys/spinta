@@ -150,6 +150,100 @@ PATHS_CONFIG = {
             },
         },
     },
+    "/version": {
+        # Served by the agent itself, so it takes a server of its own.
+        "servers": "agent",
+        "parameters": ["traceparent", "tracestate"],
+        "get": {
+            "tags": ["utility"],
+            "security": [{}],
+            "summary": "Get API version, from the agent itself",
+            "description": "Get the version of the API that is being called.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:version`.\n",
+            "operationId": "apiVersionOfAgent",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "headers": COMMON_RESPONSE_HEADERS,
+                    "content": {"application/json": {"schema": "version"}},
+                },
+                "400": {"$ref": "error400"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+    },
+    "/health": {
+        # Served by the agent itself, so it takes a server of its own.
+        "servers": "agent",
+        "parameters": ["traceparent", "tracestate"],
+        "get": {
+            "tags": ["utility"],
+            "security": [{}],
+            "summary": "Check whether the service is operational, from the agent itself",
+            "description": (
+                "Report whether the service and everything it needs is operational.\n\n"
+                "An unhealthy service is reported in the body, not in the status code: the answer is "
+                "`200` with `healthy` set to `false`, because `503` stands for the `ServiceNotAvailable` "
+                "error object. A probe has to read `healthy` rather than the status code.\n\n"
+                "This is the endpoint of the agent, called at its own address. An API gateway serves the "
+                "same endpoint inside a data service, as `/:health`.\n"
+            ),
+            "operationId": "apiHealthOfAgent",
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "headers": [*COMMON_RESPONSE_HEADERS, "Cache-Control"],
+                    "content": {"application/json": {"schema": "health"}},
+                },
+                "400": {"$ref": "error400"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+    },
+    "/auth/token": {
+        # Served by the agent itself, so it takes a server of its own.
+        "servers": "agent",
+        "parameters": ["traceparent", "tracestate"],
+        "post": {
+            "tags": ["utility"],
+            "security": [{"UAPI_client": []}],
+            "summary": "Get an access token, from the agent itself",
+            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:token`.\n",
+            "operationId": "apiTokenOfAgent",
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/x-www-form-urlencoded": {
+                        "schema": {
+                            "type": "object",
+                            "required": ["grant_type"],
+                            "properties": {
+                                "grant_type": {"type": "string", "enum": ["client_credentials"]},
+                                # Example is filled in with a scope of this
+                                # data service, see `_add_security_schemes`.
+                                "scope": {
+                                    "type": "string",
+                                    "description": "Space separated list of requested scopes.",
+                                },
+                            },
+                        }
+                    }
+                },
+            },
+            "responses": {
+                "200": {
+                    "description": "OK",
+                    "headers": COMMON_RESPONSE_HEADERS,
+                    "content": {"application/json": {"schema": "token"}},
+                },
+                "400": {"$ref": "tokenError400"},
+                "401": {"$ref": "tokenError401"},
+                "500": {"$ref": "error500"},
+                "503": {"$ref": "error503"},
+            },
+        },
+    },
     "/{model_name}": {
         "parameters": ["traceparent", "tracestate", "Cache-Control", "If-None-Match", "Accept-Language"],
         "head": {

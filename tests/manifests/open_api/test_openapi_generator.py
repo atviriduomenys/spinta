@@ -9,6 +9,7 @@ from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
 from spinta.manifests.open_api.openapi_config import RESPONSE_COMPONENTS
+from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS
 from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
@@ -84,11 +85,11 @@ def test_components_paths(open_manifest_path: ManifestPath):
 
     assert expected_paths.issubset(actual_paths), f"Missing paths: {expected_paths - actual_paths}"
 
-    # Agent level endpoints are given in action form, `/health` is not
-    # implemented by Spinta API, so it must not be declared.
-    assert "/:version" in actual_paths
-    assert "/:token" in actual_paths
-    assert "/health" not in actual_paths
+    # A whole manifest export has no data service base, so agent endpoints are
+    # given at the addresses the agent serves them at, and the action form,
+    # which only an API gateway routes, is left out.
+    assert {"/version", "/health", "/auth/token"} <= actual_paths
+    assert "/:version" not in actual_paths
 
 
 def test_model_path_contents(open_manifest_path: ManifestPath):
@@ -251,7 +252,7 @@ def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
     allowed_methods = {method.lower() for method in SUPPORTED_HTTP_METHODS}
 
     for path, operations in paths.items():
-        if path == "/:token":
+        if path in ("/:token", "/auth/token"):
             continue
 
         actual_methods = set(operations.keys())
@@ -618,6 +619,9 @@ def test_service_includes_all_its_datasets(open_manifest_path_factory):
         "/:version",
         "/:health",
         "/:token",
+        "/version",
+        "/health",
+        "/auth/token",
         "/at280_israsas/DalyvioAsmensIsrasas",
         "/at280_israsas/DalyvioAsmensIsrasas/{id}",
         "/at280_israsas/Adresas",
@@ -638,6 +642,9 @@ def test_service_filter_matches_on_segment_boundary(open_manifest_path_factory):
         "/:version",
         "/:health",
         "/:token",
+        "/version",
+        "/health",
+        "/auth/token",
         "/at280_kitas/Adresas",
         "/at280_kitas/Adresas/{id}",
     }
@@ -713,13 +720,40 @@ def test_service_utility_paths(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     paths = open_api_spec["paths"]
-    # An agent level endpoint is reached under the data service path, so it is
-    # written in the action form the API gateway routes there.
-    assert "/health" not in paths
-    assert "/version" not in paths
+    # An API gateway reaches an agent endpoint under the data service path, in
+    # the action form it routes there; a client calling the agent reaches the
+    # same endpoint at the address the agent serves it at. Both are given, and
+    # the second carries a server of its own.
     assert paths["/:version"]["get"]["operationId"] == "apiVersion"
     assert paths["/:health"]["get"]["operationId"] == "apiHealth"
     assert paths["/:token"]["post"]["operationId"] == "apiToken"
+    assert "servers" not in paths["/:version"]
+
+    assert paths["/version"]["get"]["operationId"] == "apiVersionOfAgent"
+    assert paths["/health"]["get"]["operationId"] == "apiHealthOfAgent"
+    assert paths["/auth/token"]["post"]["operationId"] == "apiTokenOfAgent"
+
+
+def test_agent_endpoints_are_the_routes_spinta_serves():
+    """The address form has to be an address Spinta answers at."""
+    import inspect
+    import re
+
+    from spinta.api import init
+
+    routes = set(re.findall(r'Route\("([^"]+)"', inspect.getsource(init)))
+
+    assert set(AGENT_UTILITY_PATHS) <= routes, f"not served: {sorted(set(AGENT_UTILITY_PATHS) - routes)}"
+
+
+def test_service_agent_endpoints_drop_the_data_service_path(open_manifest_path_factory):
+    """They are served by the agent, not under the data service path."""
+    config = UdtsConfig(servers=[{"url": "https://get.data.gov.lt"}])
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert open_api_spec["servers"] == [{"url": f"https://get.data.gov.lt/{SERVICE_PATH}"}]
+    for path in ("/version", "/health", "/auth/token"):
+        assert open_api_spec["paths"][path]["servers"] == [{"url": "https://get.data.gov.lt"}]
 
 
 def test_service_health_is_not_authorized(open_manifest_path_factory):
