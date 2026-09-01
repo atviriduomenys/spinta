@@ -34,6 +34,20 @@ Backwards incompatible:
     does rather than what it holds, so it is left out of the listing instead of
     breaking the export, and a property whose values are all formulas keeps its
     plain type without a made up ``UNKNOWN`` example (`#2653`_).
+  - The identifier in a path is described per model. A model can declare
+    ``_id`` with a type of its own, and then its identifiers are the keys the
+    data holds, ``AE`` of a country for one, which the pattern of a UUID
+    rejects and a gateway validating requests would reject with it. Models
+    keeping a UUID identifier keep the shared parameter.
+  - Query examples name properties of the model they belong to. A generic
+    example is worse than none, because an API client fills the request with
+    it, and ``?_select=string`` comes back as ``FieldNotInResource``. They are
+    given as ``example`` as well as ``examples``, which is what an API client
+    reads. ``_count`` and ``_page`` are no longer listed as parameters taking a
+    value: ``count()`` is written without one and refuses ``?_count=1``, and
+    ``_page`` takes the token the previous answer gave. Both are described in
+    the query parameter instead, so a request built from the document works as
+    it is.
   - ``components.securitySchemes`` is now generated, together with the scopes
     the operations request. Operations already referenced the ``UAPI_auth``
     scheme, which was never declared, making the document invalid.

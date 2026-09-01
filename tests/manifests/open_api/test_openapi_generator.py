@@ -21,6 +21,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_DECLARED_ID,
     MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_REF_LEVELS,
@@ -935,6 +936,49 @@ def test_file_property_reference_matches_what_spinta_answers(model, app, context
     jsonschema.validate(response.json(), schemas["fileRef"])
 
 
+@pytest.mark.models("backends/postgres/Subitem")
+def test_query_example_shape_is_answered_by_spinta(model, app):
+    """The query an API client builds out of the examples has to work.
+
+    Which properties the examples name is checked where the document is built,
+    see `test_collection_head_takes_the_query_parameter`; what is checked here
+    is that a query of that shape, of real property names, is answered.
+    """
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"scalar": "a"})
+
+    response = app.get(f"/{model}?_select=scalar&_limit=10&_sort=scalar")
+
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.models("backends/postgres/Subitem")
+def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, context):
+    """A model keeping a UUID identifier keeps the pattern of one."""
+    jsonschema = pytest.importorskip("jsonschema")
+    app.authmodel(model, ["insert", "getone"])
+    created = app.post(f"/{model}", json={}).json()
+    parameters = create_openapi_manifest(context.get("store").manifest)["components"]["parameters"]
+
+    jsonschema.validate(created["_id"], parameters["id"]["schema"])
+
+
+def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_factory):
+    """A model can declare `_id` of its own, and then it holds the data key."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
+    parameters = open_api_spec["components"]["parameters"]
+
+    identifier = parameters["id_ds_Salis"]
+    assert identifier["schema"] == {"type": "string"}
+    # The value the data holds, which the shared parameter would reject.
+    jsonschema.validate("AE", identifier["schema"])
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate("AE", parameters["id"]["schema"])
+
+    assert open_api_spec["paths"]["/ds/Salis/{id}"]["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
+
+
 def test_service_requested_scopes_are_declared(open_manifest_path_factory):
     """Every scope an operation requests has to be declared in the flow."""
     open_api_spec = _service_spec(open_manifest_path_factory)
@@ -1386,9 +1430,15 @@ def test_collection_head_takes_the_query_parameter(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     operations = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]
-    query = {"$ref": "#/components/parameters/query"}
+    # Examples name properties of the model, so the query is a parameter of it.
+    query = {"$ref": "#/components/parameters/query_at280_israsas_DalyvioAsmensIsrasas"}
     assert query in operations["head"]["parameters"]
     assert query in operations["get"]["parameters"]
+
+    examples = open_api_spec["components"]["parameters"][query["$ref"].rsplit("/", 1)[1]]
+    properties = examples["schema"]["properties"]
+    assert properties["_select"]["example"] == "kodas,adresas"
+    assert properties["_sort"]["example"] == "kodas"
 
     scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
     assert any(scope.endswith("/:search") for scope in scopes)
