@@ -149,7 +149,7 @@ def _update_row_from_push_state(
     if target_checksum == state_checksum:
         skip_update = True
         # Check if pushed state did not have errors while pushing already existing data
-        if getattr(state_row, "error") or getattr(state_row, "data"):
+        if getattr(state_row, "error") or getattr(state_row, "data") or not getattr(state_row, "pushed"):
             skip_update = False
 
         # Check if revisions match, they need match in order to do proper updates
