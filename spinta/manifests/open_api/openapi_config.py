@@ -8,11 +8,11 @@ OBJECT_PROPERTY_TYPE = "object"
 VERSION = "3.1.0"
 INFO = {
     "version": "1.0.0",
+    "description": "Data service of an UDTS agent. Every model of the service is served as a listing and as single objects, described below.",
     "title": "Universal application programming interface",
     "contact": {"name": "VSSA", "url": "https://vssa.lrv.lt/", "email": "info@vssa.lt"},
     "license": {"name": "CC-BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
     "summary": "Universal API specification, provided as OpenAPI JSON file for Lithuanian\ngovernment institutions as a template for implementing API's for data\nexchange in a standardized and interoperable manner.\n",
-    "description": "",
 }
 
 EXTERNAL_DOCS = {"url": "https://ivpk.github.io/uapi"}
@@ -36,10 +36,22 @@ PROPERTY_EXAMPLE = {
     "money": 99.99,
 }
 
+#: A revision is a UUID, as is an identifier, see `spinta.backends`.
+UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
 STANDARD_OBJECT_PROPERTIES = {
-    "_type": {"type": "string"},
-    "_id": {"type": "string", "format": "uuidv4"},
-    "_revision": {"type": ["string", "null"]},
+    "_type": {"type": "string", "description": "Name of the model this object belongs to."},
+    "_id": {
+        "type": "string",
+        "format": "uuidv4",
+        "pattern": UUID_PATTERN,
+        "description": "Identifier of the object.",
+    },
+    "_revision": {
+        "type": ["string", "null"],
+        "pattern": UUID_PATTERN,
+        "description": "Revision of the object, which changes with every change of it.",
+    },
 }
 
 PROPERTY_MAPPING = {
@@ -80,6 +92,7 @@ PATHS_CONFIG = {
                 },
                 "400": {"$ref": "error400"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -105,6 +118,7 @@ PATHS_CONFIG = {
                 },
                 "400": {"$ref": "error400"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -119,13 +133,19 @@ PATHS_CONFIG = {
             "operationId": "apiToken",
             "requestBody": {
                 "required": True,
+                "description": "Credentials of the client, given as an OAuth 2.0 `client_credentials` request, see RFC 6749 section 4.4.2.",
                 "content": {
                     "application/x-www-form-urlencoded": {
                         "schema": {
                             "type": "object",
                             "required": ["grant_type"],
                             "properties": {
-                                "grant_type": {"type": "string", "enum": ["client_credentials"]},
+                                "grant_type": {
+                                    "type": "string",
+                                    "enum": ["client_credentials"],
+                                    "description": "The only grant this endpoint serves.",
+                                    "example": "client_credentials",
+                                },
                                 # Example is filled in with a scope of this
                                 # data service, see `_add_security_schemes`.
                                 "scope": {
@@ -146,6 +166,7 @@ PATHS_CONFIG = {
                 "400": {"$ref": "tokenError400"},
                 "401": {"$ref": "tokenError401"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -168,6 +189,7 @@ PATHS_CONFIG = {
                 },
                 "400": {"$ref": "error400"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -197,6 +219,7 @@ PATHS_CONFIG = {
                 },
                 "400": {"$ref": "error400"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -213,13 +236,19 @@ PATHS_CONFIG = {
             "operationId": "apiTokenOfAgent",
             "requestBody": {
                 "required": True,
+                "description": "Credentials of the client, given as an OAuth 2.0 `client_credentials` request, see RFC 6749 section 4.4.2.",
                 "content": {
                     "application/x-www-form-urlencoded": {
                         "schema": {
                             "type": "object",
                             "required": ["grant_type"],
                             "properties": {
-                                "grant_type": {"type": "string", "enum": ["client_credentials"]},
+                                "grant_type": {
+                                    "type": "string",
+                                    "enum": ["client_credentials"],
+                                    "description": "The only grant this endpoint serves.",
+                                    "example": "client_credentials",
+                                },
                                 # Example is filled in with a scope of this
                                 # data service, see `_add_security_schemes`.
                                 "scope": {
@@ -240,6 +269,7 @@ PATHS_CONFIG = {
                 "400": {"$ref": "tokenError400"},
                 "401": {"$ref": "tokenError401"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -264,6 +294,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -290,6 +321,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -310,6 +342,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -335,6 +368,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -360,6 +394,7 @@ PATHS_CONFIG = {
                 "404": {"$ref": "error404"},
                 "416": {"description": "Range Not Satisfiable"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -394,6 +429,7 @@ PATHS_CONFIG = {
                 "404": {"$ref": "error404"},
                 "416": {"description": "Range Not Satisfiable"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -415,6 +451,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -435,6 +472,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -456,6 +494,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -477,6 +516,7 @@ PATHS_CONFIG = {
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
                 "500": {"$ref": "error500"},
+                "429": {"$ref": "error429"},
                 "503": {"$ref": "error503"},
             },
         },
@@ -484,12 +524,24 @@ PATHS_CONFIG = {
 }
 
 RESPONSE_COMPONENTS = {
+    # Rate limiting is applied by an API gateway or by whatever else stands in
+    # front of the service, a WAF or a reverse proxy, not by Spinta itself.
+    "error429": {
+        "description": "Too Many Requests",
+        "content": {"application/json": {"schema": "TooManyRequests"}},
+    },
     # Token endpoint answers with an OAuth 2.0 error, see RFC 6749 section 5.2,
     # not with a Spinta one.
     "tokenError400": {
         "description": "Bad Request",
         "headers": [],
-        "content": {"application/json": {"schema": {"anyOf": ["tokenError", {"errors": ["InvalidScopes"]}]}}},
+        "content": {
+            "application/json": {
+                "schema": {"anyOf": ["tokenError", {"errors": ["InvalidScopes"]}]},
+                # An alternative of two, so neither schema example answers for it.
+                "example": {"error": "invalid_client", "error_description": "Client authentication failed."},
+            }
+        },
     },
     "tokenError401": {
         "description": "Unauthorized",
@@ -625,8 +677,12 @@ PARAMETER_COMPONENTS = {
                 },
                 "_limit": {
                     "type": "integer",
+                    "format": "int64",
+                    # A page is at most `default_page_size`, see `spinta.types.config`.
+                    "minimum": 1,
+                    "maximum": 100000,
                     "examples": [10],
-                    "description": "Limit result to given number of objects.",
+                    "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`.",
                 },
                 "_sort": {
                     "type": "string",
@@ -727,6 +783,7 @@ COMMON_SCHEMAS = {
     },
     "file": {
         "type": "object",
+        "description": "What is known about a file a property holds.",
         # Spinta names the file `_id`, see `spinta.types.file.components.FileData`,
         # and leaves the values null when the file is deleted.
         "properties": {
@@ -748,13 +805,20 @@ COMMON_SCHEMAS = {
     },
     "health": {
         "type": "object",
+        "description": "Whether the service and everything it needs is operational.",
         "properties": {
             "healthy": {
                 "type": "boolean",
                 "description": "Whether every dependency below is healthy.",
+                "example": True,
             },
             "dependencies": {
                 "type": "array",
+                "example": [
+                    {"name": "spinta", "healthy": True},
+                    {"name": "disk", "healthy": True},
+                    {"name": "memory", "healthy": True},
+                ],
                 "description": "What the service checked, one entry per dependency. Which ones are reported is up to the service and can change between versions, so read the entries rather than expect a given set.",
                 "items": {
                     "type": "object",
@@ -779,15 +843,29 @@ COMMON_SCHEMAS = {
             },
         },
     },
+    "page": {
+        "type": "object",
+        "description": "Where the next page of a listing starts. Given back in `_page.next` and sent as `_page` of the next request.",
+        "properties": {
+            "next": {
+                "type": "string",
+                "description": "Token of the next page. Absent when the listing ended.",
+                "examples": ["WyIyMDI2LTA4LTMxIl0="],
+                "example": "WyIyMDI2LTA4LTMxIl0=",
+            }
+        },
+    },
     "version": {
         "type": "object",
+        "description": "Versions of the API, of its implementation and of the specifications it follows.",
         "properties": {
             "api": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
             "implementation": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "examples": ["Spinta"]},
-                    "version": {"type": "string", "examples": [0.1]},
+                    "name": {"type": "string", "examples": ["Spinta"], "example": "Spinta"},
+                    # A version is a string, and `0.1` was a number.
+                    "version": {"type": "string", "examples": ["1.2.0"], "example": "1.2.0"},
                 },
             },
             "dsa": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.1.0"]}}},
@@ -797,6 +875,7 @@ COMMON_SCHEMAS = {
     },
     "tokenError": {
         "type": "object",
+        "description": "An OAuth 2.0 error of the token endpoint, see RFC 6749 section 5.2.",
         "required": ["error"],
         "properties": {
             "error": {
@@ -809,25 +888,51 @@ COMMON_SCHEMAS = {
                     "unsupported_grant_type",
                     "invalid_scope",
                 ],
+                "description": "Error code of the token endpoint, see RFC 6749 section 5.2.",
+                "example": "invalid_client",
             },
-            "error_description": {"type": "string"},
-            "error_uri": {"type": "string"},
+            "error_description": {
+                "type": "string",
+                "description": "What went wrong, for a person reading it.",
+                "example": "Client authentication failed.",
+            },
+            "error_uri": {
+                "type": "string",
+                "description": "Address of a page describing the error.",
+                "format": "uri",
+                "example": "https://ivpk.github.io/uapi",
+            },
         },
     },
     "token": {
         "type": "object",
+        "description": "An OAuth 2.0 access token, see RFC 6749 section 5.1.",
         # `access_token` and `token_type` are required by RFC 6749, so a
         # response without them is not a successful token response.
         "required": ["access_token", "token_type"],
         "properties": {
-            "access_token": {"type": "string", "description": "Access token to be used as a `Bearer` token."},
-            "token_type": {"type": "string", "examples": ["Bearer"]},
-            "expires_in": {"type": "integer", "description": "Token lifetime in seconds.", "examples": [864000]},
-            "scope": {"type": "string", "description": "Space separated list of granted scopes."},
+            "access_token": {
+                "type": "string",
+                "description": "Access token to be used as a `Bearer` token.",
+                "example": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dldC5kYXRhLmdvdi5sdCJ9.-",
+            },
+            "token_type": {"type": "string", "examples": ["Bearer"], "example": "Bearer"},
+            "expires_in": {
+                "type": "integer",
+                "description": "Token lifetime in seconds.",
+                "examples": [864000],
+                "example": 864000,
+            },
+            "scope": {
+                "type": "string",
+                "description": "Space separated list of granted scopes.",
+                "example": "uapi:/datasets/gov/rc/jadis/at280/1/:getall",
+            },
         },
     },
     "image": {
         "type": "object",
+        "description": "What is known about an image a property holds.",
         "properties": {
             "_id": {"type": ["string", "null"], "description": "Image file name"},
             "_content_type": {
@@ -838,12 +943,18 @@ COMMON_SCHEMAS = {
     },
     "InvalidScopes": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `InvalidScopes`.",
         "properties": {
-            "code": {"type": "string", "description": "InvalidScopes"},
-            "type": {"type": "string", "description": "system"},
+            "code": {
+                "type": "string",
+                "description": "InvalidScopes",
+                "example": "InvalidScopes",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
             "template": {
                 "type": "string",
                 "description": "Request contains invalid, unknown or malformed scopes: {scopes}.",
+                "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
             },
             "message": {"type": "string"},
         },
@@ -851,10 +962,19 @@ COMMON_SCHEMAS = {
     },
     "UniqueConstraint": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `UniqueConstraint`.",
         "properties": {
-            "code": {"type": "string", "description": "UniqueConstraint"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Given value already exists."},
+            "code": {
+                "type": "string",
+                "description": "UniqueConstraint",
+                "example": "UniqueConstraint",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Given value already exists.",
+                "example": "Given value already exists.",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -864,10 +984,19 @@ COMMON_SCHEMAS = {
     },
     "NoItemRevision": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `NoItemRevision`.",
         "properties": {
-            "code": {"type": "string", "description": "NoItemRevision"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "_revision must be given on rewrite operation."},
+            "code": {
+                "type": "string",
+                "description": "NoItemRevision",
+                "example": "NoItemRevision",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "_revision must be given on rewrite operation.",
+                "example": "_revision must be given on rewrite operation.",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -877,10 +1006,19 @@ COMMON_SCHEMAS = {
     },
     "InvalidOperandValue": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `InvalidOperandValue`.",
         "properties": {
-            "code": {"type": "string", "description": "InvalidOperandValue"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Invalid operand value for {operator!r} operator."},
+            "code": {
+                "type": "string",
+                "description": "InvalidOperandValue",
+                "example": "InvalidOperandValue",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Invalid operand value for {operator!r} operator.",
+                "example": "Invalid operand value for {operator!r} operator.",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -890,12 +1028,18 @@ COMMON_SCHEMAS = {
     },
     "AuthorizedClientsOnly": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `AuthorizedClientsOnly`.",
         "properties": {
-            "code": {"type": "string", "description": "AuthorizedClientsOnly"},
-            "type": {"type": "string", "description": "system"},
+            "code": {
+                "type": "string",
+                "description": "AuthorizedClientsOnly",
+                "example": "AuthorizedClientsOnly",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
             "template": {
                 "type": "string",
                 "description": "This resource can only be accessed by an authorized client.",
+                "example": "This resource can only be accessed by an authorized client.",
             },
             "message": {
                 "type": "string",
@@ -906,10 +1050,19 @@ COMMON_SCHEMAS = {
     },
     "InvalidToken": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `InvalidToken`.",
         "properties": {
-            "code": {"type": "string", "description": "InvalidToken"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Invalid token"},
+            "code": {
+                "type": "string",
+                "description": "InvalidToken",
+                "example": "InvalidToken",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Invalid token",
+                "example": "Invalid token",
+            },
             "headers": {"type": "string", "description": "{'WWW-Authenticate': 'Bearer error'='invalid_token'}"},
             "message": {
                 "type": "string",
@@ -920,10 +1073,15 @@ COMMON_SCHEMAS = {
     },
     "Forbidden": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `Forbidden`.",
         "properties": {
-            "code": {"type": "string", "description": "Forbidden"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Access is forbidden"},
+            "code": {"type": "string", "description": "Forbidden", "example": "Forbidden"},
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Access is forbidden",
+                "example": "Access is forbidden",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -933,10 +1091,19 @@ COMMON_SCHEMAS = {
     },
     "ItemDoesNotExist": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `ItemDoesNotExist`.",
         "properties": {
-            "code": {"type": "string", "description": "ItemDoesNotExist"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Resource {id!r} not found."},
+            "code": {
+                "type": "string",
+                "description": "ItemDoesNotExist",
+                "example": "ItemDoesNotExist",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Resource {id!r} not found.",
+                "example": "Resource {id!r} not found.",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -946,10 +1113,19 @@ COMMON_SCHEMAS = {
     },
     "ConflictingValue": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `ConflictingValue`.",
         "properties": {
-            "code": {"type": "string", "description": "ConflictingValue"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Conflicting Value"},
+            "code": {
+                "type": "string",
+                "description": "ConflictingValue",
+                "example": "ConflictingValue",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Conflicting Value",
+                "example": "Conflicting Value",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -959,10 +1135,19 @@ COMMON_SCHEMAS = {
     },
     "UnhandledException": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `UnhandledException`.",
         "properties": {
-            "code": {"type": "string", "description": "UnhandledException"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Unhandled exception {exception}: {error}."},
+            "code": {
+                "type": "string",
+                "description": "UnhandledException",
+                "example": "UnhandledException",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Unhandled exception {exception}: {error}.",
+                "example": "Unhandled exception {exception}: {error}.",
+            },
             "context": {
                 "type": "object",
                 "properties": {"exception": {"type": "string", "description": "error.__class__.__name__"}},
@@ -976,10 +1161,19 @@ COMMON_SCHEMAS = {
     },
     "MultipleRowsFound": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `MultipleRowsFound`.",
         "properties": {
-            "code": {"type": "string", "description": "MultipleRowsFound"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Multiple rows were found."},
+            "code": {
+                "type": "string",
+                "description": "MultipleRowsFound",
+                "example": "MultipleRowsFound",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Multiple rows were found.",
+                "example": "Multiple rows were found.",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -987,12 +1181,36 @@ COMMON_SCHEMAS = {
         },
         "additionalProperties": True,
     },
+    "TooManyRequests": {
+        "type": "object",
+        "description": "Error object answered when a rate limit in front of the service was reached. Spinta does not limit requests itself.",
+        "properties": {
+            "code": {"type": "string", "description": "TooManyRequests", "example": "TooManyRequests"},
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {"type": "string", "description": "Too many requests.", "example": "Too many requests."},
+            "message": {
+                "type": "string",
+                "description": "Message within the error object contains a rendered template.",
+                "example": "Too many requests.",
+            },
+        },
+        "additionalProperties": True,
+    },
     "ServiceNotAvailable": {
         "type": "object",
+        "description": "Error object Spinta answers with when the request fails with `ServiceNotAvailable`.",
         "properties": {
-            "code": {"type": "string", "description": "Service Not Available"},
-            "type": {"type": "string", "description": "system"},
-            "template": {"type": "string", "description": "Service is currently not available."},
+            "code": {
+                "type": "string",
+                "description": "Service Not Available",
+                "example": "Service Not Available",
+            },
+            "type": {"type": "string", "description": "system", "example": "system"},
+            "template": {
+                "type": "string",
+                "description": "Service is currently not available.",
+                "example": "Service is currently not available.",
+            },
             "message": {
                 "type": "string",
                 "description": "Message within the error object contains a more detailed description of the server errors.\nThese should include more detailed overview of the internal, business logic or request processing errors that have occurred.",
@@ -1035,7 +1253,7 @@ SCOPE_DESCRIPTION = "Access to the data of this data service."
 SECURITY_SCHEMES = {
     "UAPI_auth": {
         "type": "oauth2",
-        "description": "OAuth 2.0 `client_credentials` grant. Scopes are named after the data being accessed.",
+        "description": "OAuth 2.0 `client_credentials` grant. Scopes are named after the data being accessed. Access tokens are JWTs, handled as RFC8725 requires: signed with RS512, never accepted unsigned, and checked against the issuer and the audience.",
         "flows": {
             "clientCredentials": {
                 "tokenUrl": "",
@@ -1046,6 +1264,6 @@ SECURITY_SCHEMES = {
     "UAPI_client": {
         "type": "http",
         "scheme": "basic",
-        "description": "Client identifier and secret, used to get an access token.",
+        "description": "Client identifier and secret, used to get an access token. Basic authentication is what RFC 6749 section 2.3.1 defines for the token endpoint, and it is used there alone, over HTTPS.",
     },
 }
