@@ -95,7 +95,16 @@ def test_path_is_not_service_level(context, rc, cli: SpintaCliRunner, tmp_path):
     result = cli.invoke(rc, ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/1/at280_israsas"])
 
     assert "is not an UDTS data service path" in result.stderr
-    assert set(json.loads(result.stdout)["paths"]) == {"/:version", "/:health", "/:token", "/Israsas", "/Israsas/{id}"}
+    assert set(json.loads(result.stdout)["paths"]) == {
+        "/:version",
+        "/:health",
+        "/:token",
+        "/version",
+        "/health",
+        "/auth/token",
+        "/Israsas",
+        "/Israsas/{id}",
+    }
 
 
 def test_output_json(context, rc, cli: SpintaCliRunner, tmp_path):
@@ -129,6 +138,9 @@ def test_output_json(context, rc, cli: SpintaCliRunner, tmp_path):
         "/:version",
         "/:health",
         "/:token",
+        "/version",
+        "/health",
+        "/auth/token",
         "/at280_israsas/Israsas",
         "/at280_israsas/Israsas/{id}",
     }

@@ -137,6 +137,24 @@ class UdtsConfig:
             servers.append(server)
         return servers
 
+    def resolve_agent_servers(self, service_path: str) -> list[dict[str, Any]]:
+        """Build `servers` of the agent root, where its own endpoints live.
+
+        `/version`, `/health` and `/auth/token` are served by the agent itself,
+        not under the data service path, so a request sent straight to the agent
+        needs a server without that path. An API gateway reaches the same
+        endpoints inside the data service instead, through a routing rule, and
+        those paths are written in the action form, `/:version` for one.
+        """
+        servers = []
+        for server in self.resolve_servers(service_path):
+            server = dict(server)
+            parts = urlsplit(server.get("url", ""))
+            path = parts.path.removesuffix(f"/{service_path}")
+            server["url"] = urlunsplit(parts._replace(path=path)) or "/"
+            servers.append(server)
+        return servers
+
     def resolve_token_url(self, servers: list[dict[str, Any]]) -> str:
         """Return the authorization server token endpoint.
 
