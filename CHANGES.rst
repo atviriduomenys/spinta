@@ -72,12 +72,19 @@ Backwards incompatible:
     properties reference the file and the new image schema, matching the object
     Spinta returns for them in a model response, so that every ``$ref`` in the
     document resolves.
-  - ``/version`` is generated as ``/:version``, next to the new ``/:token`` and
-    ``/:health``, matching how an API gateway routes agent level endpoints
-    inside a data service. The ``health`` schema describes the probe Spinta
-    answers with (`#1873`_): a ``healthy`` flag and a ``dependencies`` list.
-    Note that the API gateway has a routing rule for ``/:version`` and
-    ``/:token`` only, so ``/:health`` needs one added before it answers there.
+  - Agent level endpoints are generated twice in a data service export, once
+    in each form that answers for a reader of the file. ``/:version``,
+    ``/:health`` and ``/:token`` are relative to the data service base, which
+    is how an API gateway routes them inside a data service; ``/version``,
+    ``/health`` and ``/auth/token`` carry a ``servers`` entry of their own,
+    the same URLs without the data service path, which is where the agent
+    serves them, so a client calling the agent, an imported collection in an
+    API client for one, reaches them too. A whole manifest or dataset export
+    has no data service base and gets the second form only. The ``health``
+    schema describes the probe Spinta answers with (`#1873`_): a ``healthy``
+    flag and a ``dependencies`` list. The ``tokenUrl`` of ``UAPI_auth`` is
+    still built from the first server, so a deployment reached without the
+    gateway gives it in ``auth.token_url``.
   - A ``ref`` property references a schema of what the reference carries, an
     ``_id`` or the reference properties depending on its level, also when the
     target is a model of the same data service, whose full schema requires its

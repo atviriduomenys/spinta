@@ -140,9 +140,18 @@ Jei paslaugos kelias vartuose vis dėlto skiriasi, jį galima nurodyti politikos
 `basePath` lauke.
 
 Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) guli agento
-šaknyje, o ne po paslaugos keliu, todėl specifikacijoje jie aprašomi veiksmo
-forma – `/:version`, `/:health` ir `/:token`. Vartuose jiems reikia atskirų
-Dynamic Routing taisyklių:
+šaknyje, o ne po paslaugos keliu. Specifikacijoje kiekvienas jų aprašomas
+**dukart**, nes failą skaito du skirtingi vartotojai:
+
+- **`/:version`, `/:health`, `/:token`** – forma, kuria vartai juos
+  maršrutizuoja paslaugos viduje. Šie keliai eina nuo dokumento `servers`, t. y.
+  nuo paslaugos bazės;
+- **`/version`, `/health`, `/auth/token`** – adresai, kuriais juos aptarnauja
+  pati Spinta. Šie keliai turi savo `servers` įrašą (paslaugos kelias
+  nukirptas), tad veikia ir kreipiantis tiesiai į agentą – pavyzdžiui,
+  įsikėlus specifikaciją į Postmaną.
+
+Vartuose `:`-formai reikia Dynamic Routing taisyklių:
 
 | Match expression | Redirect to |
 |---|---|
@@ -151,11 +160,10 @@ Dynamic Routing taisyklių:
 | `/:token` | `{#api.properties['uapi_token']}` |
 | `/(.*)` | `{#api.properties['uapi_data_prefix']}{#group[0]}` |
 
-> **Dėmesio:** `/:health` taisyklės vartuose kol kas nėra – yra tik `/:version`
-> ir `/:token`. Kol ji nepridėta, importuotas `/:health` endpoint'as per vartus
-> neatsakys, nors pati Spinta `/health` jau turi. Taisyklės pavadinimas
-> (`uapi_health`) čia pasiūlytas pagal esamų analogiją.
-
 `/health` atsako visada `200`; ar paslauga sveika, sako `healthy` laukas, nes
 `503` UDTS'e reiškia `ServiceNotAvailable` klaidos objektą. Tikrinantis
 komponentas turi skaityti `healthy`, o ne atsakymo kodą.
+
+`components.securitySchemes.UAPI_auth` token'o adresas išvedamas iš pirmojo
+`servers` įrašo, t. y. `:`-forma. Kreipiantis tiesiai į agentą, tinkamą adresą
+reikia nurodyti `auth.token_url` lauke.

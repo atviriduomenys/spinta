@@ -50,9 +50,18 @@ from spinta.utils.scopes import name_to_scope
 
 AUTH_SCHEME = "UAPI_auth"
 
-#: Agent level endpoints, given in action form, because an API gateway exposes
-#: each data service under its own context path and routes these separately.
-UTILITY_PATHS = ["/:version", "/:health", "/:token"]
+#: Endpoints of the agent, as an API gateway routes them inside a data service:
+#: each service has a context path of its own, and these are routed separately,
+#: which is what the action form stands for.
+GATEWAY_UTILITY_PATHS = ["/:version", "/:health", "/:token"]
+
+#: The same endpoints at the addresses the agent serves them at. A data service
+#: export carries both, because the file is read both by a gateway and by a
+#: client calling the agent, and each needs the form that answers for it.
+AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
+
+#: Paths that authorize against no model.
+UTILITY_PATHS = GATEWAY_UTILITY_PATHS + AGENT_UTILITY_PATHS
 
 GLOBAL_ID_LEVEL_THRESHOLD = 4
 
@@ -489,6 +498,8 @@ class PathGenerator:
         self.namer = namer
         self.scope_name = scope_name
         self.operation_ids: set[str] = set()
+        #: Servers of the agent root, for the endpoints served there.
+        self.agent_servers: list[dict[str, Any]] = []
 
     def property_path_types(self, model_property) -> list[str]:
         """Paths Spinta serves for a property, in the order they are written.
@@ -546,8 +557,13 @@ class PathGenerator:
         if "parameters" in path_config:
             operations["parameters"] = self._build_parameter_refs(path_config["parameters"])
 
+        # An endpoint of the agent is not served under the data service path,
+        # so it carries a server of its own, which OpenAPI allows per path.
+        if path_config.get("servers") == "agent" and self.agent_servers:
+            operations["servers"] = copy.deepcopy(self.agent_servers)
+
         for method_name, method_config in path_config.items():
-            if method_name == "parameters":
+            if method_name in ("parameters", "servers"):
                 continue
 
             operations[method_name] = self._build_operation(
@@ -1163,6 +1179,8 @@ class OpenAPIGenerator:
         self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
         self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_name)
+        if self.service_path is not None:
+            self.path_generator.agent_servers = self.config.resolve_agent_servers(self.service_path)
         self.namer = namer
 
         self._set_servers(specification)
@@ -1264,8 +1282,9 @@ class OpenAPIGenerator:
         data path, where the narrowest one comes first, and not from the
         declared ones, where sorting would put the widest first.
         """
-        token_path = spec.get("paths", {}).get(TOKEN_PATH)
-        if not token_path:
+        token_paths = [spec.get("paths", {}).get(path) for path in (TOKEN_PATH, "/auth/token")]
+        token_paths = [path for path in token_paths if path]
+        if not token_paths:
             return
 
         scope = next(
@@ -1283,8 +1302,9 @@ class OpenAPIGenerator:
         if scope is None:
             return
 
-        content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
-        content["schema"]["properties"]["scope"]["examples"] = [scope]
+        for token_path in token_paths:
+            content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
+            content["schema"]["properties"]["scope"]["examples"] = [scope]
 
     def _set_tags(self, spec: dict[str, Any], models: dict):
         description = "Operations with"
@@ -1295,7 +1315,10 @@ class OpenAPIGenerator:
     def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
         paths = {}
 
-        for path in UTILITY_PATHS:
+        # Only a data service export has a base of its own, so only there is
+        # the action form of an agent endpoint of any use.
+        utility_paths = AGENT_UTILITY_PATHS if self.service_path is None else UTILITY_PATHS
+        for path in utility_paths:
             path_config = PATHS_CONFIG.get(path)
             if not path_config:
                 raise ValueError(f"No config found for path: {path}")
