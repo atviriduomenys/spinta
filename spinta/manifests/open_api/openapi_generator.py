@@ -168,6 +168,10 @@ def _example_uuid(seed: str) -> str:
     return str(uuid.UUID(bytes=bytes(digest)))
 
 
+#: A page token, as `_page.next` of an answer carries one.
+EXAMPLE_PAGE_TOKEN = "WyIyMDI2LTA4LTMxIl0="
+
+
 def _example_id(model: Model) -> str:
     return _example_uuid(model.name)
 
@@ -477,7 +481,7 @@ class DataTypeHandler:
 
         if self.is_reference_type(dtype):
             ref_schema_name = self._ref_schema_name(model_property, dtype)
-            example = {"_type": dtype.model.basename, "_id": _example_id(dtype.model)}
+            example = {"_id": _example_id(dtype.model)}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
             return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
@@ -511,7 +515,7 @@ class DataTypeHandler:
             ref_schema_name = self._ref_schema_name(model_property, dtype)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return copy.deepcopy(ref_schema["example"])
-            return {"_type": dtype.model.basename, "_id": _example_id(dtype.model)}
+            return {"_id": _example_id(dtype.model)}
 
         dtype_name = self.get_dtype_name(dtype)
         return copy.deepcopy(self.schema_registry.example_values.values.get(dtype_name, "Example value"))
@@ -863,6 +867,48 @@ class PathGenerator:
         return f"#/components/schemas/{model_schema_name or 'object'}"
 
 
+def _error_example(schema_name: str) -> dict[str, str] | None:
+    """An error object of a named error, built from what its schema declares."""
+    schema = COMMON_SCHEMAS.get(schema_name) or {}
+    properties = schema.get("properties") or {}
+    example = {
+        name: properties[name]["example"]
+        for name in ("type", "code", "template", "message")
+        if name in properties and "example" in properties[name]
+    }
+    if "template" in example:
+        example.setdefault("message", example["template"])
+    return example or None
+
+
+def _model_description(model: Model) -> str:
+    """What a manifest says about a model, or what its name says.
+
+    A description of every component is asked for by the linters an API gateway
+    is checked with, and a manifest usually carries one; where it does not, the
+    name of the model is still more than nothing.
+    """
+    given = " ".join(part for part in (getattr(model, "title", ""), getattr(model, "description", "")) if part)
+    return given.strip() or f"Objects of `{model.name}`."
+
+
+def _referenced_components(spec: Any, kind: str) -> set[str]:
+    """Names of the components of a kind that the document refers to."""
+    prefix = f"#/components/{kind}/"
+    found = set()
+    stack = [spec]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            reference = node.get("$ref")
+            if isinstance(reference, str) and reference.startswith(prefix):
+                found.add(reference[len(prefix) :])
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return found
+
+
 #: Parameters that read differently for every model.
 MODEL_PARAMETERS = {
     "id": PathGenerator._id_parameter,
@@ -973,7 +1019,10 @@ class ComponentSchemaBuilder:
             for media_type, content_config in config["content"].items():
                 schema_config = content_config.get("schema")
                 if schema_config:
-                    response["content"][media_type] = {"schema": self._build_schema_ref(schema_config)}
+                    media = {"schema": self._build_schema_ref(schema_config)}
+                    if "example" in content_config:
+                        media["example"] = copy.deepcopy(content_config["example"])
+                    response["content"][media_type] = media
 
         return response
 
@@ -995,10 +1044,21 @@ class ComponentSchemaBuilder:
                 # any error object, and Spinta answers with error codes beyond
                 # the ones named here, so the alternatives are not exclusive.
                 items = errors[0] if len(errors) == 1 else {"anyOf": errors}
+                first = schema_config["errors"][0]
+                example = _error_example(first) if isinstance(first, str) else None
+                errors_schema = {
+                    "type": "array",
+                    "description": "Errors the request failed with, one entry each.",
+                    "items": items,
+                }
+                if example is not None:
+                    errors_schema["example"] = [example]
                 return {
                     "type": "object",
+                    "description": "Envelope Spinta answers an error with.",
                     "required": ["errors"],
-                    "properties": {"errors": {"type": "array", "items": items}},
+                    "properties": {"errors": errors_schema},
+                    **({"example": {"errors": [example]}} if example is not None else {}),
                 }
 
         return schema_config
@@ -1049,25 +1109,44 @@ class SchemaGenerator:
             if not isinstance(model_property.dtype, Object):
                 continue
 
+            standard = self._standard_properties(f"{model.name}.{prop_name}", model)
             properties = {
-                "_type": {"type": "string"},
-                "_revision": {"type": ["string", "null"]},
+                "_type": standard["_type"],
+                "_revision": standard["_revision"],
                 **self.dtype_handler.object_properties(model_property.dtype, schemas=schemas),
             }
-            schemas[self.namer.object_name(model, prop_name)] = {"type": "object", "properties": properties}
+            schemas[self.namer.object_name(model, prop_name)] = {
+                "type": "object",
+                "description": f"Property `{prop_name}` of `{model.name}`, as it is served on its own.",
+                "properties": properties,
+            }
+
+    def _standard_properties(self, type_name: str, model: Model) -> dict[str, Any]:
+        """The properties every object carries, with the `_type` it carries.
+
+        `_type` of an answer is always the name of what answered, so it is
+        given as a constant: a reader sees which model a schema belongs to, and
+        a validator catches a schema used for the wrong one.
+        """
+        properties = copy.deepcopy(self.schema_registry.standard_object_properties)
+        properties["_type"] = {**properties["_type"], "const": type_name, "example": type_name}
+        properties["_id"]["example"] = _example_id(model)
+        properties["_revision"]["example"] = _example_revision(model)
+        return properties
 
     def _create_model_schema(
         self,
         model,
         schemas: dict | None = None,
     ) -> dict[str, Any]:
-        properties = copy.deepcopy(self.schema_registry.standard_object_properties)
+        properties = self._standard_properties(model.name, model)
 
         for prop_name, model_property in model.get_given_properties().items():
             properties[prop_name] = self.dtype_handler.property_schema(model_property, schemas=schemas)
 
         return {
             "type": "object",
+            "description": _model_description(model),
             "properties": properties,
             "example": self._create_example(model, schemas=schemas),
         }
@@ -1079,7 +1158,7 @@ class SchemaGenerator:
         schemas: dict | None = None,
     ) -> dict[str, Any]:
         example = {
-            "_type": model.basename,
+            "_type": model.name,
             "_id": _example_id(model),
             "_revision": _example_revision(model),
         }
@@ -1090,11 +1169,25 @@ class SchemaGenerator:
         return example
 
     def _create_collection_schema(self, model, schema_name: str) -> dict[str, Any]:
+        """A listing, as `render` writes one: the objects and the next page.
+
+        There is no `_type` beside them, and `_page` is there whenever a page
+        of a listing was answered, see `spinta.formats`.
+        """
         return {
             "type": "object",
+            "description": f"A page of `{model.name}` objects.",
             "properties": {
-                "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{schema_name}"}},
+                "_data": {
+                    "type": "array",
+                    "description": "Objects of this page.",
+                    "items": {"$ref": f"#/components/schemas/{schema_name}"},
+                },
+                "_page": {"$ref": "#/components/schemas/page"},
+            },
+            "example": {
+                "_data": [self._create_example(model)],
+                "_page": {"next": EXAMPLE_PAGE_TOKEN},
             },
         }
 
@@ -1164,15 +1257,17 @@ class SchemaGenerator:
         is_global_ref = level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
 
         if is_global_ref:
-            properties = copy.deepcopy(self.schema_registry.standard_object_properties)
-            example = {
-                "_type": model.basename,
-                "_id": _example_id(model),
-                "_revision": _example_revision(model),
+            # A reference of this level is serialized as the identifier alone,
+            # neither `_type` nor `_revision` is carried, so neither is listed.
+            properties = {"_id": copy.deepcopy(self.schema_registry.standard_object_properties["_id"])}
+            return {
+                "type": "object",
+                "description": f"A reference to `{model.name}`, carrying its identifier.",
+                "properties": properties,
+                "example": {"_id": _example_id(model)},
             }
-            return {"type": "object", "properties": properties, "example": example}
 
-        properties = copy.deepcopy(self.schema_registry.standard_object_properties)
+        properties = {}
 
         refprop_names = {prop.name for prop in refprops if hasattr(prop, "name")}
 
@@ -1206,11 +1301,7 @@ class SchemaGenerator:
 
             properties[prop_name] = prop_schema
 
-        example = {
-            "_type": model.basename,
-            "_id": _example_id(model),
-            "_revision": _example_revision(model),
-        }
+        example = {}
         for prop_name, model_property in model.get_given_properties().items():
             if refprop_names and prop_name not in refprop_names:
                 continue
@@ -1220,7 +1311,16 @@ class SchemaGenerator:
             properties.pop("_id", None)
             example.pop("_id", None)
 
-        return {"type": "object", "properties": properties, "example": example}
+        for prop_name, value in example.items():
+            if prop_name in properties and isinstance(properties[prop_name], dict):
+                properties[prop_name].setdefault("example", value)
+
+        return {
+            "type": "object",
+            "description": f"A reference to `{model.name}`, carrying the properties it is referenced by.",
+            "properties": properties,
+            "example": example,
+        }
 
 
 class OpenAPIGenerator:
@@ -1312,6 +1412,7 @@ class OpenAPIGenerator:
         self._add_model_parameters(specification)
         self._add_common_schemas(specification)
         self._add_security_schemes(specification)
+        self._drop_unused_components(specification)
 
         return specification
 
@@ -1422,12 +1523,15 @@ class OpenAPIGenerator:
         for token_path in token_paths:
             content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
             content["schema"]["properties"]["scope"]["examples"] = [scope]
+            content["schema"]["properties"]["scope"]["example"] = scope
+            content["example"] = {"grant_type": "client_credentials", "scope": scope}
 
     def _set_tags(self, spec: dict[str, Any], models: dict):
-        description = "Operations with"
+        """Tags of the document, in the order a reader looks for a name in."""
         for model in models.values():
             model_schema_name = self.namer.name(model)
-            spec["tags"].append({"name": model_schema_name, "description": f"{description} {model_schema_name}"})
+            spec["tags"].append({"name": model_schema_name, "description": f"Operations with {model_schema_name}"})
+        spec["tags"].sort(key=lambda tag: tag["name"])
 
     def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
         paths = {}
@@ -1475,10 +1579,48 @@ class OpenAPIGenerator:
         parameters.update(copy.deepcopy(self.path_generator.model_parameters))
 
     def _add_common_schemas(self, spec: dict[str, Any]) -> None:
+        """Add the shared schemas the document refers to, and only those.
+
+        A schema nothing points at is noise: a reader has to work out whether
+        it is a leftover, and a linter reports it as orphaned. Adding is
+        repeated, because a schema added here can refer to another one.
+        """
         schemas = spec.setdefault("components", {}).setdefault("schemas", {})
-        for schema_name, schema_config in COMMON_SCHEMAS.items():
-            if schema_name not in schemas:
-                schemas[schema_name] = copy.deepcopy(schema_config)
+        while True:
+            wanted = _referenced_components(spec, "schemas") & set(COMMON_SCHEMAS)
+            missing = wanted - set(schemas)
+            if not missing:
+                return
+            for schema_name in sorted(missing):
+                schemas[schema_name] = copy.deepcopy(COMMON_SCHEMAS[schema_name])
+
+    def _drop_unused_components(self, spec: dict[str, Any]) -> None:
+        """Leave out the components nothing refers to.
+
+        Every model carries a parameter of its own now, so the shared ones are
+        left over whenever every model replaced them, and a data service using
+        no files refers to none of the schemas a file needs.
+        """
+        components = spec.get("components", {})
+        # Only the shared components are dropped. Schemas of the models are the
+        # point of the document, and a catalog level export has no paths at all
+        # to refer to them.
+        shared = {
+            "parameters": set(PARAMETER_COMPONENTS) | set(self.path_generator.model_parameters),
+            "schemas": set(COMMON_SCHEMAS),
+            "headers": set(HEADER_COMPONENTS),
+            "responses": set(RESPONSE_COMPONENTS),
+        }
+        for kind, candidates in shared.items():
+            declared = components.get(kind)
+            if not declared:
+                continue
+            while True:
+                unused = (set(declared) & candidates) - _referenced_components(spec, kind)
+                if not unused:
+                    break
+                for name in unused:
+                    del declared[name]
 
     def _get_dataset_models(self, dataset_name: str, models: dict) -> list:
         return [model for model in models.values() if _model_dataset_name(model) == dataset_name]

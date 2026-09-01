@@ -56,6 +56,23 @@ Backwards incompatible:
     ``_page`` takes the token the previous answer gave. Both are described in
     the query parameter instead, so a request built from the document works as
     it is.
+  - The document answers what an OpenAPI linter asks of it, checked with
+    ``vacuum`` and the full rule set an API gateway is reviewed with. Every
+    schema carries a description, taken from the manifest where a model has
+    one; components nothing refers to are no longer written out, which also
+    makes the files smaller; every operation declares the ``429`` a rate limit
+    in front of the service answers with, Spinta itself limiting nothing; tags
+    are sorted; the token request body, the error responses and the fields of
+    the shared schemas carry examples; ``info.description`` is no longer an
+    empty string; and ``implementation.version`` of ``/version`` is given a
+    string example, where a number stood in a field typed as a string.
+  - Three things the document said about a response were not what Spinta
+    answers, found while checking the above. ``_type`` is the full model name,
+    not the model name alone. A listing carries ``_data`` and ``_page``, and no
+    ``_type`` beside them, so ``_page`` is described and ``_type`` is gone. A
+    reference of level 4 carries the identifier alone, so its schema holds that
+    alone, instead of also naming ``_type`` and ``_revision``, which a
+    reference never carries.
   - ``components.securitySchemes`` is now generated, together with the scopes
     the operations request. Operations already referenced the ``UAPI_auth``
     scheme, which was never declared, making the document invalid.
