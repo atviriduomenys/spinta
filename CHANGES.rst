@@ -58,6 +58,18 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - An identifier a model declares itself is described as the key its data
+    holds, on both sides. In a response it was described as a UUID, which would
+    have had a gateway validating responses refuse every object of such a model,
+    ``AE`` of a country for one. In a request it is reached by an equals sign,
+    ``/=AE``, where the model is keyed by a single property or keeps a
+    ``base32`` identifier, see
+    ``spinta.backends.helpers.is_accessible_by_equals_sign``; the document said
+    nothing of it, so a request built from the document was answered with
+    ``ModelNotFound``. The example is the value of the property the model is
+    keyed by, so the identifier and the object beside it agree. ``format`` of a
+    UUID is written as ``uuid``, which is the format the registry gives;
+    ``uuidv4`` is not one and no tool recognised it.
   - Query examples name properties of the model they belong to. A generic
     example is worse than none, because an API client fills the request with
     it, and ``?_select=string`` comes back as ``FieldNotInResource``. They are
