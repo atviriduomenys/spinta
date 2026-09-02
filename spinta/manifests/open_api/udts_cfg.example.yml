@@ -44,6 +44,11 @@ servers:
 #auth:
 #  token_url: https://am.example.lt/auth/token
 
+# Ribos, kurių laikosi vartai, tikrindami užklausas pagal šį aprašą. Spinta pati
+# viršutinės `_limit` ribos neturi, tad tai yra apsauga, dedama prieš ją.
+#limits:
+#  max_limit: 100000
+
 # Nuoroda į išorinę dokumentaciją.
 externalDocs:
   url: https://ivpk.github.io/uapi

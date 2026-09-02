@@ -47,6 +47,17 @@ Backwards incompatible:
     model it references. They are derived from the model name, so a regenerated
     file differs only where the manifest did; component order was made stable
     for the same reason.
+  - Everything a request carries is bounded, so that an API gateway validating
+    requests can refuse one before it reaches the service: ``_select`` and
+    ``_sort`` take names, dotted paths and calls up to a thousand characters,
+    an identifier a model declares itself takes one path segment, ``scope``
+    takes scopes separated by spaces, and the request headers take printable
+    characters. ``_limit`` takes a number from one to ``limits.max_limit`` of
+    the configuration, defaulting to ``100000``: Spinta answers any limit above
+    zero, so an upper bound is a policy of the deployment rather than a bound
+    of the service, which is why it is configured. Nothing is bounded on the
+    response side, where the shape of a value is what the manifest says and a
+    guess would have the gateway refuse data the service holds.
   - Query examples name properties of the model they belong to. A generic
     example is worse than none, because an API client fills the request with
     it, and ``?_select=string`` comes back as ``FieldNotInResource``. They are
