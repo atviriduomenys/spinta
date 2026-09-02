@@ -1770,3 +1770,24 @@ def test_named_errors_carry_the_template_of_their_class():
     for errors in NAMED_ERRORS.values():
         for name, schema in errors.items():
             assert schema["properties"]["template"]["const"] == getattr(exceptions, name).template
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_limit_bounds_are_the_ones_spinta_holds_to(model, app, open_manifest_path_factory):
+    """A bound the document states has to be one the service really applies.
+
+    `_limit` below one is refused and there is no upper bound at all, not even
+    the width of an integer, so stating one would have a gateway validating
+    requests refuse a request Spinta answers.
+    """
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"status": "ok"})
+
+    assert app.get(f"/{model}?_limit=0").status_code == 400
+    assert app.get(f"/{model}?_limit=-1").status_code == 400
+    assert app.get(f"/{model}?_limit=99999999999999999999").status_code == 200
+
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+    limit = parameters["query_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["properties"]["_limit"]
+    assert limit["minimum"] == 1
+    assert "maximum" not in limit

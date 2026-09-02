@@ -821,10 +821,10 @@ PARAMETER_COMPONENTS = {
                 },
                 "_limit": {
                     "type": "integer",
-                    "format": "int64",
-                    # A page is at most `default_page_size`, see `spinta.types.config`.
+                    # A limit below one is refused; there is no upper bound, and
+                    # a value beyond 64 bits is answered as well, so neither a
+                    # `maximum` nor a `format` is given.
                     "minimum": 1,
-                    "maximum": 100000,
                     "examples": [10],
                     "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`.",
                 },
