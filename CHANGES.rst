@@ -18,8 +18,28 @@ Bug fixes:
   instances lost its `environments` section after the first read, which made
   environment specific configuration (e.g. test backend DSNs) unavailable in
   long running processes and in later configuration reads (`#2001`_).
+- Fixed configuration keys removed by a higher-priority source (for example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
+  through ``rc.get()`` from lower-priority sources. Removed keys are now
+  unavailable at all levels (`#1990`_).
+
+
+Improvements:
+
+- Configuration sources are now documented with their precedence order
+  (defaults, configuration files, ``.env`` file, environment variables and
+  command line arguments), and the ``config_path`` directory and the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file are described. Setting a configuration key to an empty
+  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
+  subtree recursively, while a parent key with a non-empty list of names
+  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
+  (`#1990`_).
+
 
 .. _#2001: https://github.com/atviriduomenys/spinta/pull/2001
+.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 
 
 1.1.0 (2026-08-19)
@@ -55,11 +75,6 @@ Bug fixes:
   connections accumulated across the test suite and exhausted the PostgreSQL
   ``max_connections`` limit (``FATAL: sorry, too many clients already``)
   (`#1556`_).
-- Fixed configuration keys removed by a higher-priority source (for example
-  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
-  through ``rc.get()`` from lower-priority sources. Removed keys are now
-  unavailable at all levels (`#1990`_).
-
 - Fixed key-id based public key selection in token validation: ``decode_token``
   now reads the standard ``kid`` JWS header field (previously it looked for a
   non-standard ``key`` field that is never present, so the ``kid`` fast path was
@@ -96,20 +111,9 @@ Improvements:
   ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
   routes, ``/health`` is matched before the catch-all route, so it shadows a
   root level namespace or model named ``health``, if there is one (`#1873`_).
-- Configuration sources are now documented with their precedence order
-  (defaults, configuration files, ``.env`` file, environment variables and
-  command line arguments), and the ``config_path`` directory and the
-  recommended ``{config_path}/config.yaml`` location for the main
-  configuration file are described. Setting a configuration key to an empty
-  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
-  subtree recursively, while a parent key with a non-empty list of names
-  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
-  (`#1990`_).
 
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
 .. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
-.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
-.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
 
