@@ -5,10 +5,12 @@
 #       --udts-cfg vartai.yml
 #
 # Čia surašoma tai, ko manifeste nėra: aplinkų adresai, paslaugos lygmens
-# aprašas ir autorizacijos serveris. Visi laukai neprivalomi.
+# aprašas ir autorizacijos serveris. Failas PRIVALOMAS, ir jame privalomi du
+# dalykai – `info.title` ir bent vienas `servers` įrašas. Visa kita neprivaloma.
 
 # Paslaugos aprašas. Patenka į OAS `info`.
 info:
+  # PRIVALOMA. Vardas, kuriuo paslauga matoma vartuose.
   title: JADIS duomenų paslauga
   summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
   description: |
@@ -29,6 +31,7 @@ info:
 #   - tik adresas (be kelio) – tuomet prilipdomas `--path` paslaugos kelias.
 #     Taip vienas failas tinka visoms to paties agento paslaugoms;
 #   - pilnas adresas su paslaugos keliu – naudojamas toks, koks yra.
+# PRIVALOMA. Bent vienas įrašas.
 servers:
   - url: https://get.data.gov.lt
     description: Gamybinė (išoriniai vartai)

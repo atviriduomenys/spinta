@@ -48,6 +48,12 @@ def _manifest(context, tmp_path, manifest=MANIFEST):
     return path
 
 
+def _config(tmp_path, config=UDTS_CFG):
+    path = tmp_path / "vartai.yml"
+    path.write_text(config)
+    return path
+
+
 def test_list(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path)
 
@@ -61,7 +67,7 @@ def test_list(context, rc, cli: SpintaCliRunner, tmp_path):
 def test_without_path_and_several_services(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path)
 
-    result = cli.invoke(rc, ["udts", "oas", path], fail=False)
+    result = cli.invoke(rc, ["udts", "oas", path, "--udts-cfg", _config(tmp_path)], fail=False)
 
     assert result.exit_code == 1
     assert "more than one data service" in result.stderr
@@ -71,17 +77,21 @@ def test_without_path_and_several_services(context, rc, cli: SpintaCliRunner, tm
 def test_without_path_and_one_service(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
 
-    result = cli.invoke(rc, ["udts", "oas", path])
+    result = cli.invoke(rc, ["udts", "oas", path, "--udts-cfg", _config(tmp_path)])
 
     spec = json.loads(result.stdout)
-    assert spec["servers"] == [{"url": "/datasets/gov/rc/jadis/at280/1"}]
+    assert spec["servers"][0]["url"] == "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1"
     assert "/at280_israsas/Israsas" in spec["paths"]
 
 
 def test_unknown_service_path(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path)
 
-    result = cli.invoke(rc, ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/2"], fail=False)
+    result = cli.invoke(
+        rc,
+        ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/2", "--udts-cfg", _config(tmp_path)],
+        fail=False,
+    )
 
     assert result.exit_code == 1
     assert "has no datasets in manifest" in result.stderr
@@ -92,7 +102,10 @@ def test_path_is_not_service_level(context, rc, cli: SpintaCliRunner, tmp_path):
     """A path of another shape is a warning, datasets under it are exported."""
     path = _manifest(context, tmp_path)
 
-    result = cli.invoke(rc, ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/1/at280_israsas"])
+    result = cli.invoke(
+        rc,
+        ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/1/at280_israsas", "--udts-cfg", _config(tmp_path)],
+    )
 
     assert "is not an UDTS data service path" in result.stderr
     assert set(json.loads(result.stdout)["paths"]) == {
@@ -152,7 +165,10 @@ def test_output_yaml(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path)
     output = tmp_path / "at280.yaml"
 
-    cli.invoke(rc, ["udts", "oas", path, "-o", output, "--path", "datasets/gov/rc/jadis/at280/1"])
+    cli.invoke(
+        rc,
+        ["udts", "oas", path, "-o", output, "--path", "datasets/gov/rc/jadis/at280/1", "--udts-cfg", _config(tmp_path)],
+    )
 
     written = output.read_text()
     spec = yaml.load(written)
@@ -169,7 +185,17 @@ def test_api_version(context, rc, cli: SpintaCliRunner, tmp_path):
 
     result = cli.invoke(
         rc,
-        ["udts", "oas", path, "--path", "datasets/gov/rc/jadis/at280/1", "--api-version", "2.1.8"],
+        [
+            "udts",
+            "oas",
+            path,
+            "--path",
+            "datasets/gov/rc/jadis/at280/1",
+            "--api-version",
+            "2.1.8",
+            "--udts-cfg",
+            _config(tmp_path),
+        ],
     )
 
     assert json.loads(result.stdout)["info"]["version"] == "2.1.8"
@@ -187,7 +213,7 @@ def test_scopes_follow_the_configured_formatter(context, rc, cli: SpintaCliRunne
     path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
     localrc = rc.fork({"scope_formatter": "tests.cli.test_udts_oas:custom_scope_formatter"})
 
-    result = cli.invoke(localrc, ["udts", "oas", path])
+    result = cli.invoke(localrc, ["udts", "oas", path, "--udts-cfg", _config(tmp_path)])
 
     spec = json.loads(result.stdout)
     model = "datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas"
@@ -198,3 +224,43 @@ def test_scopes_follow_the_configured_formatter(context, rc, cli: SpintaCliRunne
         f"kita:{model}:getone"
         in spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
     )
+
+
+def test_configuration_is_required(context, rc, cli: SpintaCliRunner, tmp_path):
+    """A data service is published with a name and with its environments."""
+    path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
+
+    result = cli.invoke(rc, ["udts", "oas", path], fail=False)
+
+    assert result.exit_code == 1
+    assert "`--udts-cfg` is required" in result.stderr
+    assert "udts_cfg.example.yml" in result.stderr
+
+
+def test_title_is_required(context, rc, cli: SpintaCliRunner, tmp_path):
+    path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
+    config = _config(tmp_path, "servers:\n  - url: https://get.data.gov.lt\n")
+
+    result = cli.invoke(rc, ["udts", "oas", path, "--udts-cfg", config], fail=False)
+
+    assert result.exit_code == 1
+    assert "`info.title` is required" in result.stderr
+
+
+def test_at_least_one_server_is_required(context, rc, cli: SpintaCliRunner, tmp_path):
+    path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
+    config = _config(tmp_path, "info:\n  title: JADIS\nservers: []\n")
+
+    result = cli.invoke(rc, ["udts", "oas", path, "--udts-cfg", config], fail=False)
+
+    assert result.exit_code == 1
+    assert "`servers` is required" in result.stderr
+
+
+def test_listing_services_needs_no_configuration(context, rc, cli: SpintaCliRunner, tmp_path):
+    """`--list` reads the manifest, it writes no document."""
+    path = _manifest(context, tmp_path)
+
+    result = cli.invoke(rc, ["udts", "oas", path, "--list"])
+
+    assert "datasets/gov/rc/jadis/at280/1" in result.stdout
