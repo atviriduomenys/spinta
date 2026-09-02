@@ -164,6 +164,30 @@ Vartuose `:`-formai reikia Dynamic Routing taisyklių:
 `503` UDTS'e reiškia `ServiceNotAvailable` klaidos objektą. Tikrinantis
 komponentas turi skaityti `healthy`, o ne atsakymo kodą.
 
+## Užklausų tikrinimas vartuose
+
+Viskas, ką gavėjas **atsiunčia**, apraše apribota, kad vartai galėtų atmesti
+netinkamą užklausą dar nepasiekusią paslaugos:
+
+| Kur | Riba |
+|---|---|
+| `_limit` | nuo 1 iki `limits.max_limit` (pagal nutylėjimą 100000) |
+| `_select`, `_sort` | vardai, keliai su taškais ir funkcijos, iki 1000 simbolių |
+| `{id}` | vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių |
+| `scope` | tarpais skirti scope'ai |
+| `traceparent`, `tracestate`, `Cache-Control`, `Accept-Language` | spausdinami ASCII simboliai, iki 1024 |
+
+Viršutinė `_limit` riba yra **vartų politika, o ne Spintos elgsena** – Spinta
+atsako į bet kokį didesnį už nulį limitą. Todėl ji nurodoma konfigūracijoje:
+
+```yaml
+limits:
+  max_limit: 10000
+```
+
+Atsakymų laukams ribų nededama: jų formos aprašo manifestas, ir bet koks
+spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
+
 `components.securitySchemes.UAPI_auth` token'o adresas išvedamas iš pirmojo
 `servers` įrašo, t. y. `:`-forma. Kreipiantis tiesiai į agentą, tinkamą adresą
 reikia nurodyti `auth.token_url` lauke.

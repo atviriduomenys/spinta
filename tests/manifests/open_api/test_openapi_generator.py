@@ -9,9 +9,13 @@ from spinta.core.enums import Action
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
-from spinta.manifests.open_api.openapi_config import PARAMETER_COMPONENTS, RESPONSE_COMPONENTS
+from spinta.manifests.open_api.openapi_config import (
+    DECLARED_ID_PATTERN,
+    PARAMETER_COMPONENTS,
+    RESPONSE_COMPONENTS,
+)
 from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS
-from spinta.manifests.open_api.udts_config import UdtsConfig
+from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from tests.manifests.open_api.conftest import (
     MANIFEST,
@@ -974,7 +978,13 @@ def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_facto
     parameters = open_api_spec["components"]["parameters"]
 
     identifier = parameters["id_ds_Salis"]
-    assert identifier["schema"] == {"type": "string"}
+    # Bounded, because a request carries it, but of no stated shape, because
+    # only the data knows what its keys look like.
+    assert identifier["schema"] == {"type": "string", "pattern": DECLARED_ID_PATTERN}
+    jsonschema.validate("AE", identifier["schema"])
+    jsonschema.validate("ąčę-2026/x".replace("/", ""), identifier["schema"])
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate("a/b", identifier["schema"])
     # The value the data holds, which the pattern of a UUID would reject.
     jsonschema.validate("AE", identifier["schema"])
     with pytest.raises(jsonschema.ValidationError):
@@ -1773,21 +1783,56 @@ def test_named_errors_carry_the_template_of_their_class():
 
 
 @pytest.mark.models("backends/postgres/Report")
-def test_limit_bounds_are_the_ones_spinta_holds_to(model, app, open_manifest_path_factory):
-    """A bound the document states has to be one the service really applies.
-
-    `_limit` below one is refused and there is no upper bound at all, not even
-    the width of an integer, so stating one would have a gateway validating
-    requests refuse a request Spinta answers.
-    """
+def test_limit_lower_bound_is_the_one_spinta_holds_to(model, app, open_manifest_path_factory):
+    """A limit below one is refused by Spinta, so the document says so too."""
     app.authmodel(model, ["insert", "getall", "search"])
     app.post(f"/{model}", json={"status": "ok"})
 
     assert app.get(f"/{model}?_limit=0").status_code == 400
     assert app.get(f"/{model}?_limit=-1").status_code == 400
+    # Spinta holds to no upper bound of its own, not even the width of an
+    # integer, so the one in the document is a limit applied in front of it.
     assert app.get(f"/{model}?_limit=99999999999999999999").status_code == 200
 
     parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
     limit = parameters["query_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["properties"]["_limit"]
     assert limit["minimum"] == 1
-    assert "maximum" not in limit
+    assert limit["maximum"] == DEFAULT_MAX_LIMIT
+
+
+def test_limit_upper_bound_comes_from_the_configuration(open_manifest_path_factory):
+    """The bound is a policy of the deployment, so a deployment sets it."""
+    config = UdtsConfig(limits={"max_limit": 500})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    parameters = open_api_spec["components"]["parameters"]
+    limit = parameters["query_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["properties"]["_limit"]
+    assert limit["maximum"] == 500
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manifest_path_factory):
+    """A pattern that refuses a query Spinta answers would break a client."""
+    jsonschema = pytest.importorskip("jsonschema")
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"status": "ok", "count": 1})
+
+    selects = ["status", "status,count", "count()", "_id,_revision", "notes.note", "status, count"]
+    sorts = ["status", "-status", "+status", "status,-count", "notes.note"]
+    for value in selects:
+        assert app.get(f"/{model}?_select={value}").status_code == 200, value
+    for value in sorts:
+        assert app.get(f"/{model}?_sort={value}").status_code == 200, value
+
+    properties = _service_spec(open_manifest_path_factory)["components"]["parameters"][
+        "query_at280_israsas_DalyvioAsmensIsrasas"
+    ]["schema"]["properties"]
+    for value in selects:
+        jsonschema.validate(value, properties["_select"])
+    for value in sorts:
+        jsonschema.validate(value, properties["_sort"])
+
+    # And something no query holds is refused.
+    for value in ("status;drop", "<script>", "a" * 1001):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(value, properties["_select"])

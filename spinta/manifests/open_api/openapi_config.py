@@ -73,6 +73,20 @@ PROPERTY_MAPPING = {
     "object": {"type": "object"},
 }
 
+#: A header value is printable ASCII, RFC 9110 section 5.5. The grammar of each
+#: header is not repeated here; what is stated is the character set and a bound,
+#: so a request carrying anything else is refused before it reaches the service.
+HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]{1,1024}$"
+
+#: Scopes as `scope_formatter` builds them, separated by spaces, see
+#: `spinta.auth`. A long name is hashed, so a scope holds no more than this.
+SCOPE_PATTERN = "^[A-Za-z0-9_:/.@-]+( [A-Za-z0-9_:/.@-]+)*$"
+
+#: An identifier a model declares itself holds the key of the data, of a shape
+#: only that data knows, see `spinta.backends.is_object_id`. What can be said is
+#: that it is one path segment, so it carries no slash, and that it is bounded.
+DECLARED_ID_PATTERN = "^[^/]{1,512}$"
+
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
 
 PATHS_CONFIG = {
@@ -150,6 +164,7 @@ PATHS_CONFIG = {
                                 # data service, see `_add_security_schemes`.
                                 "scope": {
                                     "type": "string",
+                                    "pattern": SCOPE_PATTERN,
                                     "description": "Space separated list of requested scopes.",
                                 },
                             },
@@ -253,6 +268,7 @@ PATHS_CONFIG = {
                                 # data service, see `_add_security_schemes`.
                                 "scope": {
                                     "type": "string",
+                                    "pattern": SCOPE_PATTERN,
                                     "description": "Space separated list of requested scopes.",
                                 },
                             },
@@ -748,6 +764,7 @@ HEADER_COMPONENTS = {
     },
 }
 
+
 PARAMETER_COMPONENTS = {
     "traceparent": {
         "name": "traceparent",
@@ -768,6 +785,7 @@ PARAMETER_COMPONENTS = {
         "description": "The main purpose of the `tracestate` HTTP header is to provide additional vendor-specific trace identification information across different distributed tracing systems and is a companion header for the `traceparent` field. It also conveys information about the request's position in multiple distributed tracing graphs.\nFor more context check [***trace-context***](https://w3c.github.io/trace-context/) documentation.",
         "schema": {
             "type": "string",
+            "pattern": HEADER_VALUE_PATTERN,
             "description": "Consists of a `list` of `list-members` separated by commas (`,`)",
             "examples": ["rojo=00f067aa0ba902b7,congo=t61rcWkgMzE"],
         },
@@ -777,7 +795,7 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": "`Cache-Control` header should be used if service supports caching. It allows the user to provide directives from their side. `no-cache` can be used to request revalidation of data with the origin server before reuse. `no-store` can be used to request to not store the data in caches.\n\nMultiple directives can be used separated by `, `. If they are conflicting, most restrictive directive should be honored.",
-        "schema": {"type": "string", "examples": ["no-cache"]},
+        "schema": {"type": "string", "pattern": HEADER_VALUE_PATTERN, "examples": ["no-cache"]},
     },
     "Range": {
         "name": "Range",
@@ -804,7 +822,7 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": '`Accept-Language` header is used to indicate the language preference of the user. It\'s a list of values with quality factors (e.g., `"de, en"`).',
-        "schema": {"type": "string", "examples": ["lt"]},
+        "schema": {"type": "string", "pattern": HEADER_VALUE_PATTERN, "examples": ["lt"]},
     },
     "query": {
         "name": "query",
@@ -816,6 +834,10 @@ PARAMETER_COMPONENTS = {
             "properties": {
                 "_select": {
                     "type": "string",
+                    # Names, dotted paths and function calls, which is what the
+                    # query language holds here; the characters are bounded so a
+                    # gateway validating requests refuses anything else.
+                    "pattern": "^[A-Za-z0-9_.,@() +-]{1,1000}$",
                     "examples": ["name,country.name,country.continent.name"],
                     "description": "Comma separated list of properties to include in the result.",
                 },
@@ -830,6 +852,8 @@ PARAMETER_COMPONENTS = {
                 },
                 "_sort": {
                     "type": "string",
+                    # The same, with `+` or `-` for the direction and no calls.
+                    "pattern": "^[A-Za-z0-9_.,@ +-]{1,1000}$",
                     "examples": ["-code,country.name"],
                     "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction.",
                 },
