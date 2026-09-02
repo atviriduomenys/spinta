@@ -313,9 +313,9 @@ def request(
     client: requests.Session,
     server: str,
     method: str,
-    timeout: tuple[float, float],
-    data: Any | None = None,
     *,
+    timeout: tuple[float, float] | None = None,
+    data: Any | None = None,
     stop_on_error: bool = False,
     ignore_statuses: list[int] | None = None,
     error_counter: ErrorCounter | None = None,
@@ -371,7 +371,7 @@ def get_request_with_retries(
     *,
     error_counter: ErrorCounter | None = None,
     progress_bar: tqdm.tqdm | None = None,
-):
+) -> tuple[int | None, dict | None]:
     def on_error(result: RequestResult) -> None:
         exception = result.exception
         if isinstance(exception, requests.exceptions.ReadTimeout):
@@ -381,21 +381,21 @@ def get_request_with_retries(
             )
         elif isinstance(exception, requests.exceptions.ConnectTimeout):
             cli_message(
-                f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
+                f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
                 progress_bar=progress_bar,
             )
         elif isinstance(exception, requests.JSONDecodeError):
             cli_message(
-                f"""
-                ERROR ({result.status_code}): Failed to fetch data from {server}:
-                {textwrap.indent(result.text or "", "    ")}""",
+                (
+                    f"ERROR ({result.status_code}): Given response from {server} is not in JSON format:\n"
+                    f"{textwrap.indent(result.text or '', '    ')}"
+                ),
                 progress_bar=progress_bar,
             )
-        elif isinstance(exception, (requests.RequestException, OSError)):
+        elif isinstance(exception, IOError):
+            # requests.RequestException is child of IOError
             cli_message(
-                f"""
-                ERROR ({result.status_code}): Failed to fetch data from {server}:
-                {result.exception}""",
+                f"ERROR: Failed to fetch data from {server}:\n{textwrap.indent(str(exception) or '', '    ')}",
                 progress_bar=progress_bar,
             )
         else:
@@ -403,9 +403,10 @@ def get_request_with_retries(
             if not result.data and result.text:
                 error_message = result.text
             cli_message(
-                f"""
-                ERROR ({result.status_code}): Failed to fetch data from {server}:
-                {textwrap.indent(pprintpp.pformat(error_message), "    ")}""",
+                (
+                    f"ERROR ({result.status_code}): Failed to fetch data from {server}:\n"
+                    f"{textwrap.indent(pprintpp.pformat(error_message), '    ')}"
+                ),
                 progress_bar=progress_bar,
             )
 
@@ -439,7 +440,7 @@ def get_request_with_retries(
         if status_code == 200:
             return status_code, resp.data
 
-    return status_code, resp
+    return status_code, resp.data
 
 
 def _extract_latest_change(context: Context, model: Model, target_id: str = None) -> dict | None:
