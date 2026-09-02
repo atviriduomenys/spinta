@@ -315,38 +315,38 @@ def send_request(
     error_counter: ErrorCounter | None = None,
 ) -> tuple[int | None, dict[str, Any] | None]:
     def on_error(result: RequestResult) -> None:
-        match type(result.exception):
-            case requests.exceptions.ReadTimeout:
-                cli_push.log.error(
-                    f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-                )
-            case requests.exceptions.ConnectTimeout:
-                cli_push.log.error(
-                    f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-                )
-            case requests.JSONDecodeError:
-                cli_push.log.error(
-                    "Error when sending and receiving data.\nServer response (status=%s):\n%s",
-                    result.status_code,
-                    textwrap.indent(result.text or "", "    "),
-                )
-            case requests.RequestException:
-                cli_push.log.error(
-                    "Error when sending and receiving data.%s\nError: %s",
-                    get_row_for_error(rows),
-                    result.exception,
-                )
-            case _:
-                errors = result.data.get("errors") if isinstance(result.data, dict) else None
-                error_message = result.data
-                if not result.data and result.text:
-                    error_message = result.text
-                cli_push.log.error(
-                    "Error when sending and receiving data.%s\nServer response (status=%s):\n%s",
-                    get_row_for_error(rows, errors),
-                    result.status_code,
-                    textwrap.indent(pprintpp.pformat(error_message), "    "),
-                )
+        exception = result.exception
+        if isinstance(exception, requests.exceptions.ReadTimeout):
+            cli_push.log.error(
+                f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+            )
+        elif isinstance(exception, requests.exceptions.ConnectTimeout):
+            cli_push.log.error(
+                f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+            )
+        elif isinstance(exception, requests.JSONDecodeError):
+            cli_push.log.error(
+                "Error when sending and receiving data.\nServer response (status=%s):\n%s",
+                result.status_code,
+                textwrap.indent(result.text or "", "    "),
+            )
+        elif isinstance(exception, (requests.RequestException, OSError)):
+            cli_push.log.error(
+                "Error when sending and receiving data.%s\nError: %s",
+                get_row_for_error(rows),
+                result.exception,
+            )
+        else:
+            errors = result.data.get("errors") if isinstance(result.data, dict) else None
+            error_message = result.data
+            if not result.data and result.text:
+                error_message = result.text
+            cli_push.log.error(
+                "Error when sending and receiving data.%s\nServer response (status=%s):\n%s",
+                get_row_for_error(rows, errors),
+                result.status_code,
+                textwrap.indent(pprintpp.pformat(error_message), "    "),
+            )
 
     data = data.encode("utf-8")
     resp = request(

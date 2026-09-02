@@ -35,7 +35,7 @@ class RequestResult:
     status_code: int | None
     data: Any | None
     text: str | None
-    exception: requests.RequestException | None = None
+    exception: Exception | None = None
     ignored: bool = False
     response: requests.Response | None = field(default=None, repr=False)
 
@@ -327,7 +327,7 @@ def request(
     exc = None
     try:
         response = client.request(method, server, data=data, timeout=timeout)
-    except requests.RequestException as e:
+    except Exception as e:
         exc = e
         result = RequestResult(
             status_code=None,
@@ -338,7 +338,7 @@ def request(
     else:
         try:
             response_data = response.json()
-        except requests.JSONDecodeError as e:
+        except Exception as e:
             response_data = None
             exc = e
 
@@ -373,41 +373,41 @@ def get_request_with_retries(
     progress_bar: tqdm.tqdm | None = None,
 ):
     def on_error(result: RequestResult) -> None:
-        match type(result.exception):
-            case requests.exceptions.ReadTimeout:
-                cli_message(
-                    f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
-                    progress_bar=progress_bar,
-                )
-            case requests.exceptions.ConnectTimeout:
-                cli_message(
-                    f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
-                    progress_bar=progress_bar,
-                )
-            case requests.JSONDecodeError:
-                cli_message(
-                    f"""
-                    ERROR ({result.status_code}): Failed to fetch data from {server}:
-                    {textwrap.indent(result.text or "", "    ")}""",
-                    progress_bar=progress_bar,
-                )
-            case requests.RequestException:
-                cli_message(
-                    f"""
-                    ERROR ({result.status_code}): Failed to fetch data from {server}:
-                    {result.exception}""",
-                    progress_bar=progress_bar,
-                )
-            case _:
-                error_message = result.data
-                if not result.data and result.text:
-                    error_message = result.text
-                cli_message(
-                    f"""
-                    ERROR ({result.status_code}): Failed to fetch data from {server}:
-                    {textwrap.indent(pprintpp.pformat(error_message), "    ")}""",
-                    progress_bar=progress_bar,
-                )
+        exception = result.exception
+        if isinstance(exception, requests.exceptions.ReadTimeout):
+            cli_message(
+                f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
+                progress_bar=progress_bar,
+            )
+        elif isinstance(exception, requests.exceptions.ConnectTimeout):
+            cli_message(
+                f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
+                progress_bar=progress_bar,
+            )
+        elif isinstance(exception, requests.JSONDecodeError):
+            cli_message(
+                f"""
+                ERROR ({result.status_code}): Failed to fetch data from {server}:
+                {textwrap.indent(result.text or "", "    ")}""",
+                progress_bar=progress_bar,
+            )
+        elif isinstance(exception, (requests.RequestException, OSError)):
+            cli_message(
+                f"""
+                ERROR ({result.status_code}): Failed to fetch data from {server}:
+                {result.exception}""",
+                progress_bar=progress_bar,
+            )
+        else:
+            error_message = result.data
+            if not result.data and result.text:
+                error_message = result.text
+            cli_message(
+                f"""
+                ERROR ({result.status_code}): Failed to fetch data from {server}:
+                {textwrap.indent(pprintpp.pformat(error_message), "    ")}""",
+                progress_bar=progress_bar,
+            )
 
     resp = request(
         client,
