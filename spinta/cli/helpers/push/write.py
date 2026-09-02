@@ -322,7 +322,7 @@ def send_request(
                 )
             case requests.exceptions.ConnectTimeout:
                 cli_push.log.error(
-                    f"Connect timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+                    f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
                 )
             case requests.JSONDecodeError:
                 cli_push.log.error(
