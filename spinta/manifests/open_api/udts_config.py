@@ -148,6 +148,25 @@ class UdtsConfig:
             servers.append(server)
         return servers
 
+    def check_publishable(self, path: Any) -> None:
+        """Check what a data service cannot be published without.
+
+        An API gateway takes the context path of the API out of the first
+        server URL and shows the title to whoever looks the service up, so a
+        document without them cannot be deployed. Reading a file does not ask
+        for them, because a file is read for other reasons as well; exporting a
+        data service does.
+        """
+        title = self.info.get("title")
+        if not isinstance(title, str) or not title.strip():
+            raise InvalidUdtsConfig(path=str(path), error="`info.title` is required, give the data service a name.")
+
+        if not self.servers:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error="`servers` is required, give at least one environment the data service is served at.",
+            )
+
     def max_limit(self) -> int:
         """Largest `_limit` a request may ask for.
 

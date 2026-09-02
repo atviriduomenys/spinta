@@ -47,6 +47,13 @@ Backwards incompatible:
     model it references. They are derived from the model name, so a regenerated
     file differs only where the manifest did; component order was made stable
     for the same reason.
+  - ``--udts-cfg`` is required to export a data service, and two of its fields
+    are required in turn: ``info.title`` and ``servers`` with at least one
+    entry. An API gateway takes the context path of the API out of the first
+    server URL and shows the title to whoever looks the service up, so a
+    document without them cannot be deployed, and it is better said while the
+    file is written than after it is imported. ``--list`` needs no
+    configuration, it only reads the manifest.
   - Everything a request carries is bounded, so that an API gateway validating
     requests can refuse one before it reaches the service: ``_select`` and
     ``_sort`` take names, dotted paths and calls up to a thousand characters,

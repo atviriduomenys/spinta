@@ -205,12 +205,18 @@ Arguments
   used, otherwise the command fails listing the data services found.
 
 - ``--udts-cfg``
-  OPTIONAL. YAML file with the information that is not part of a manifest:
-  environments, service level ``info`` and the authorization server. An example
-  file is shipped as ``spinta/manifests/open_api/udts_cfg.example.yml``.
+  REQUIRED, except with ``--list``. YAML file with the information that is not
+  part of a manifest: environments, service level ``info`` and the
+  authorization server. An example file is shipped as
+  ``spinta/manifests/open_api/udts_cfg.example.yml``.
+  Two of its fields are required: ``info.title``, the name the data service is
+  seen under, and ``servers`` with at least one entry, the first of which an
+  API gateway takes the API context path from. A specification without them
+  cannot be deployed, so it is not written.
   Only a server URL may be relative, every other URL field of the
   configuration has to carry a scheme and a host, and ``auth.token_url`` has to
-  use HTTPS.
+  use HTTPS. ``limits.max_limit`` sets the largest ``_limit`` a request may ask
+  for, defaulting to ``100000``.
 
 - ``--api-version``
   OPTIONAL. Value of ``info.version``. Overrides ``info.version`` given in the
