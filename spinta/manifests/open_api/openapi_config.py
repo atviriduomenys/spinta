@@ -43,7 +43,9 @@ STANDARD_OBJECT_PROPERTIES = {
     "_type": {"type": "string", "description": "Name of the model this object belongs to."},
     "_id": {
         "type": "string",
-        "format": "uuidv4",
+        # `uuid` is the format the registry gives; `uuidv4` is not one, so no
+        # tool recognised it. The version is said by the pattern below.
+        "format": "uuid",
         "pattern": UUID_PATTERN,
         "description": "Identifier of the object.",
     },
@@ -86,6 +88,14 @@ SCOPE_PATTERN = "^[A-Za-z0-9_:/.@-]+( [A-Za-z0-9_:/.@-]+)*$"
 #: only that data knows, see `spinta.backends.is_object_id`. What can be said is
 #: that it is one path segment, so it carries no slash, and that it is bounded.
 DECLARED_ID_PATTERN = "^[^/]{1,512}$"
+
+#: The same, where the value is reached by an equals sign, which
+#: `spinta.backends.helpers.is_accessible_by_equals_sign` asks for: a `base32`
+#: identifier, and a `string` one of a model keyed by a single property.
+EQUALS_ID_PATTERN = "^=[^/]{1,512}$"
+
+#: A `base32` identifier, of the alphabet RFC 4648 gives, behind an equals sign.
+BASE32_ID_PATTERN = "^=[A-Z2-7]{1,512}$"
 
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
 

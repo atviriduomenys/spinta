@@ -10,7 +10,7 @@ from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
 from spinta.manifests.open_api.openapi_config import (
-    DECLARED_ID_PATTERN,
+    EQUALS_ID_PATTERN,
     PARAMETER_COMPONENTS,
     RESPONSE_COMPONENTS,
 )
@@ -978,17 +978,22 @@ def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_facto
     parameters = open_api_spec["components"]["parameters"]
 
     identifier = parameters["id_ds_Salis"]
-    # Bounded, because a request carries it, but of no stated shape, because
-    # only the data knows what its keys look like.
-    assert identifier["schema"] == {"type": "string", "pattern": DECLARED_ID_PATTERN}
-    jsonschema.validate("AE", identifier["schema"])
-    jsonschema.validate("ąčę-2026/x".replace("/", ""), identifier["schema"])
+    # A string identifier of a model keyed by a single property is reached by an
+    # equals sign, see `is_accessible_by_equals_sign`, and is otherwise of no
+    # stated shape, because only the data knows what its keys look like.
+    assert identifier["schema"]["type"] == "string"
+    assert identifier["schema"]["pattern"] == EQUALS_ID_PATTERN
+    # The example is the value of the property the model is keyed by, behind
+    # the equals sign a request needs.
+    assert identifier["schema"]["example"].startswith("=")
+    jsonschema.validate("=AE", identifier["schema"])
+    jsonschema.validate("=ąčę-2026", identifier["schema"])
+    for value in ("AE", "=a/b"):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(value, identifier["schema"])
+    # The pattern of a UUID would reject the value the data holds either way.
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate("a/b", identifier["schema"])
-    # The value the data holds, which the pattern of a UUID would reject.
-    jsonschema.validate("AE", identifier["schema"])
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate("AE", {**identifier["schema"], "pattern": PARAMETER_COMPONENTS["id"]["schema"]["pattern"]})
+        jsonschema.validate("=AE", {"type": "string", "pattern": PARAMETER_COMPONENTS["id"]["schema"]["pattern"]})
 
     assert open_api_spec["paths"]["/ds/Salis/{id}"]["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
 
@@ -1836,3 +1841,16 @@ def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manife
     for value in ("status;drop", "<script>", "a" * 1001):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(value, properties["_select"])
+
+
+def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manifest_path_factory):
+    """A model keyed by its own data answers with that key, not with a UUID."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
+
+    identifier = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]["_id"]
+
+    assert "pattern" not in identifier
+    assert identifier.get("format") != "uuid"
+    # The value the data holds, which the shape of a UUID would refuse.
+    jsonschema.validate("AE", identifier)

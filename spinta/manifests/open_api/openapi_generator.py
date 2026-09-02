@@ -17,9 +17,11 @@ from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_config import (
+    BASE32_ID_PATTERN,
     BASE_TAGS,
     COMMON_SCHEMAS,
     DECLARED_ID_PATTERN,
+    EQUALS_ID_PATTERN,
     EXTERNAL_DOCS,
     HEADER_COMPONENTS,
     INFO,
@@ -46,7 +48,7 @@ from spinta.manifests.open_api.service import (
     service_schema_name,
 )
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
-from spinta.types.datatype import DataType, Object, PrimaryKey
+from spinta.types.datatype import Base32, DataType, Object, PrimaryKey, String
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
 
@@ -747,19 +749,29 @@ class PathGenerator:
 
         schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
         schema.pop("example", None)
-        if schema.get("type") == "string":
+        equals = _reached_by_equals_sign(model)
+        if isinstance(dtype, Base32):
+            schema["pattern"] = BASE32_ID_PATTERN
+        elif schema.get("type") == "string":
             # The shape of such a key is known only to the data, so what is
             # stated is that it is one path segment, and that it is bounded.
-            schema["pattern"] = DECLARED_ID_PATTERN
-        return {
-            "in": "path",
-            "required": True,
-            "description": (
-                "Object identifier.\n\nThis model declares `_id` of its own, so the identifier is the "
-                "key the data holds, not a UUID.\n"
-            ),
-            "schema": schema,
-        }
+            schema["pattern"] = EQUALS_ID_PATTERN if equals else DECLARED_ID_PATTERN
+        example = _declared_id_example(self.dtype_handler, model)
+        if equals and isinstance(example, str):
+            example = f"={example}"
+        if example is not None:
+            schema["example"] = example
+
+        description = (
+            "Object identifier.\n\nThis model declares `_id` of its own, so the identifier is the "
+            "key the data holds, not a UUID.\n"
+        )
+        if equals:
+            description += (
+                "\nIt is reached by an equals sign in front of the value, `/=AE` for one, see "
+                "`spinta.backends.helpers.is_accessible_by_equals_sign`.\n"
+            )
+        return {"in": "path", "required": True, "description": description, "schema": schema}
 
     def _query_parameter(self, model: Model) -> dict | None:
         """Query of a model, with examples naming properties the model has.
@@ -890,6 +902,39 @@ def _error_example(schema_name: str) -> dict[str, str] | None:
     if "template" in example:
         example.setdefault("message", example["template"])
     return example or None
+
+
+def _declared_id_example(dtype_handler, model: Model) -> Any:
+    """A value of an identifier a model declares itself.
+
+    The key of the data is the value of the property the model is keyed by, so
+    the example of that property is the example of the identifier, and the two
+    agree wherever both are shown.
+    """
+    external = getattr(model, "external", None)
+    keys = getattr(external, "pkeys", None) or []
+    example = dtype_handler.get_example_value(keys[0] if keys else model.id_prop)
+
+    # A model can be keyed by an integer while declaring `_id` a string, and
+    # then the identifier is that number written out.
+    if isinstance(model.id_prop.dtype, String) and not isinstance(example, str):
+        return str(example)
+    return example
+
+
+def _reached_by_equals_sign(model: Model) -> bool:
+    """Whether the identifier of a model is given behind an equals sign.
+
+    Mirrors `spinta.backends.helpers.is_accessible_by_equals_sign`, which is not
+    called here because it wants a value, while this asks about the model.
+    """
+    dtype = model.id_prop.dtype if model.id_prop else None
+    if isinstance(dtype, Base32):
+        return True
+    if isinstance(dtype, String):
+        external = getattr(model, "external", None)
+        return len(getattr(external, "pkeys", None) or []) <= 1
+    return False
 
 
 def _model_description(model: Model) -> str:
@@ -1138,11 +1183,23 @@ class SchemaGenerator:
         `_type` of an answer is always the name of what answered, so it is
         given as a constant: a reader sees which model a schema belongs to, and
         a validator catches a schema used for the wrong one.
+
+        `_id` is a UUID only where the model leaves it to Spinta. A model
+        declaring `_id` of its own answers with the key its data holds, and the
+        shape of a UUID would refuse every object of it.
         """
         properties = copy.deepcopy(self.schema_registry.standard_object_properties)
         properties["_type"] = {**properties["_type"], "const": type_name, "example": type_name}
-        properties["_id"]["example"] = _example_id(model)
         properties["_revision"]["example"] = _example_revision(model)
+
+        dtype = model.id_prop.dtype if model.id_prop else None
+        if dtype is None or isinstance(dtype, PrimaryKey):
+            properties["_id"]["example"] = _example_id(model)
+        else:
+            schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
+            schema["description"] = "Identifier of the object, the key its data holds."
+            schema["example"] = _declared_id_example(self.dtype_handler, model)
+            properties["_id"] = schema
         return properties
 
     def _create_model_schema(
