@@ -1,12 +1,114 @@
 import json
+import sys
 
 import pytest
 import requests
 from _pytest.capture import CaptureFixture
-from requests import ConnectTimeout, ReadTimeout, Timeout
+from requests import ConnectTimeout, HTTPError, JSONDecodeError, ReadTimeout, Timeout
 from responses import GET, RequestsMock
 
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.utils.response import RequestResult, get_request_with_retries, request
+
+
+def test_request_error_counter(responses: RequestsMock):
+    server = "https://www.example.com"
+    error_counter = ErrorCounter(max_count=10)
+    responses.add(GET, server, body="RESULT", status=400)
+
+    assert not error_counter.has_errors()
+    assert not error_counter.has_reached_max()
+    assert error_counter.count == 0
+
+    client = requests.Session()
+    result = request(client, server, "GET", error_counter=error_counter)
+    assert isinstance(result, RequestResult)
+    assert result.status_code == 400
+    assert result.data is None
+    assert result.text == "RESULT"
+    assert result.ok is False
+    assert isinstance(result.exception, requests.JSONDecodeError)
+
+    assert error_counter.has_errors()
+    assert not error_counter.has_reached_max()
+    assert error_counter.count == 1
+
+
+def test_request_on_error(responses: RequestsMock, capsys: CaptureFixture):
+    def _on_error(response: RequestResult):
+        print("ON ERROR INTERCEPTION", file=sys.stderr)
+
+    server = "https://www.example.com"
+    responses.add(GET, server, body="RESULT", status=400)
+
+    client = requests.Session()
+    result = request(client, server, "GET", on_error=_on_error)
+    assert isinstance(result, RequestResult)
+    assert result.status_code == 400
+    assert result.data is None
+    assert result.text == "RESULT"
+    assert result.ok is False
+    assert isinstance(result.exception, requests.JSONDecodeError)
+
+    cap = capsys.readouterr()
+    assert cap.err == "ON ERROR INTERCEPTION\n"
+
+
+def test_request_ignore_status(responses: RequestsMock):
+    server = "https://www.example.com"
+    responses.add(GET, server, body="RESULT", status=400)
+
+    client = requests.Session()
+    result = request(client, server, "GET", ignore_statuses=[400])
+    assert isinstance(result, RequestResult)
+    assert result.status_code == 400
+    assert result.data is None
+    assert result.text == "RESULT"
+    assert isinstance(result.exception, requests.JSONDecodeError)
+    assert result.ok is True
+    assert result.ignored is True
+
+
+def test_request_stop_on_error_http_error(responses: RequestsMock):
+    server = "https://www.example.com"
+    responses.add(
+        GET,
+        server,
+        json={"_errors": ["SpintaError"]},
+        status=400,
+    )
+
+    client = requests.Session()
+    with pytest.raises(HTTPError):
+        request(client, server, "GET", stop_on_error=True)
+
+
+def test_request_stop_on_error_json_decode_error(responses: RequestsMock):
+    server = "https://www.example.com"
+    responses.add(
+        GET,
+        server,
+        body="TEST",
+        status=400,
+    )
+
+    client = requests.Session()
+    with pytest.raises(JSONDecodeError):
+        request(client, server, "GET", stop_on_error=True)
+
+
+@pytest.mark.parametrize("timeout_type", [ReadTimeout, ConnectTimeout])
+def test_request_stop_on_error_timeout_error(responses: RequestsMock, timeout_type: type[Timeout]):
+    server = "https://www.example.com"
+    responses.add(
+        GET,
+        server,
+        body=timeout_type(),
+    )
+
+    client = requests.Session()
+    with pytest.raises(timeout_type):
+        request(client, server, "GET", stop_on_error=True)
 
 
 def test_request_json_response(responses: RequestsMock):

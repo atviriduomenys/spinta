@@ -41,8 +41,8 @@ class RequestResult:
 
     @property
     def ok(self) -> bool:
-        return self.exception is None and (
-            self.ignored or self.status_code is not None and 200 <= self.status_code < 300
+        return self.ignored or (
+            self.exception is None and (self.status_code is not None and 200 <= self.status_code < 300)
         )
 
     def raise_for_error(self) -> None:
@@ -341,7 +341,6 @@ def request(
         except Exception as e:
             response_data = None
             exc = e
-
         result = RequestResult(
             status_code=response.status_code,
             data=response_data,
