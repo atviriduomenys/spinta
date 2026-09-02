@@ -19,6 +19,7 @@ from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_config import (
     BASE_TAGS,
     COMMON_SCHEMAS,
+    DECLARED_ID_PATTERN,
     EXTERNAL_DOCS,
     HEADER_COMPONENTS,
     INFO,
@@ -44,7 +45,7 @@ from spinta.manifests.open_api.service import (
     relative_path,
     service_schema_name,
 )
-from spinta.manifests.open_api.udts_config import TOKEN_PATH, UdtsConfig
+from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
 from spinta.types.datatype import DataType, Object, PrimaryKey
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
@@ -533,6 +534,8 @@ class PathGenerator:
         self.model_parameters: dict[str, dict] = {}
         #: Servers of the agent root, for the endpoints served there.
         self.agent_servers: list[dict[str, Any]] = []
+        #: Largest `_limit` a request may ask for, see `UdtsConfig.max_limit`.
+        self.max_limit: int = DEFAULT_MAX_LIMIT
 
     def property_path_types(self, model_property) -> list[str]:
         """Paths Spinta serves for a property, in the order they are written.
@@ -744,6 +747,10 @@ class PathGenerator:
 
         schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
         schema.pop("example", None)
+        if schema.get("type") == "string":
+            # The shape of such a key is known only to the data, so what is
+            # stated is that it is one path segment, and that it is bounded.
+            schema["pattern"] = DECLARED_ID_PATTERN
         return {
             "in": "path",
             "required": True,
@@ -772,6 +779,10 @@ class PathGenerator:
             # fills the request with the type name when it finds neither.
             properties[key]["example"] = value
         properties["_limit"]["example"] = properties["_limit"]["examples"][0]
+        # Spinta answers any limit above zero, so an upper bound is a limit an
+        # API gateway applies in front of it, taken from the configuration.
+        properties["_limit"]["format"] = "int64"
+        properties["_limit"]["maximum"] = self.max_limit
         parameter["example"] = {"_select": ",".join(names[:2]), "_limit": 10, "_sort": names[0]}
         return parameter
 
@@ -1395,6 +1406,7 @@ class OpenAPIGenerator:
         self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
         self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_name)
+        self.path_generator.max_limit = self.config.max_limit()
         if self.service_path is not None:
             self.path_generator.agent_servers = self.config.resolve_agent_servers(self.service_path)
         self.namer = namer

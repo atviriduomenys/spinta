@@ -27,7 +27,7 @@ from spinta.exceptions import InvalidUdtsConfig
 
 yaml = YAML(typ="safe")
 
-KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs"])
+KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs", "limits"])
 
 #: Fields of the OpenAPI objects the configuration is copied into, plus the
 #: fields of `auth`, which is ours. Everything else, apart from `x-` extensions,
@@ -40,6 +40,12 @@ LICENSE_KEYS = frozenset(["name", "identifier", "url"])
 SERVER_KEYS = frozenset(["url", "description"])
 EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
 AUTH_KEYS = frozenset(["token_url"])
+LIMITS_KEYS = frozenset(["max_limit"])
+
+#: Largest `_limit` a request may ask for. Spinta itself holds to no upper
+#: bound, so this is a limit an API gateway applies in front of it, and the
+#: number is the largest page Spinta builds at once, `default_page_size`.
+DEFAULT_MAX_LIMIT = 100000
 
 #: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
 malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
@@ -67,6 +73,7 @@ class UdtsConfig:
     servers: list[dict[str, Any]] = field(default_factory=list)
     auth: dict[str, Any] = field(default_factory=dict)
     external_docs: dict[str, Any] = field(default_factory=dict)
+    limits: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_path(cls, path: pathlib.Path | str) -> UdtsConfig:
@@ -95,6 +102,8 @@ class UdtsConfig:
         _check_info(data.get("info") or {}, path)
         _check_external_docs(data.get("externalDocs") or {}, path)
 
+        _check_limits(data.get("limits") or {}, path)
+
         token_url = (data.get("auth") or {}).get("token_url")
         if token_url is not None:
             _check_url(token_url, path, "`auth.token_url`", require_https=True)
@@ -116,6 +125,8 @@ class UdtsConfig:
             # `auth` is ours, not an OpenAPI object, so it takes no extensions.
             auth=_keep_known(data.get("auth") or {}, AUTH_KEYS, path, "`auth`", extensions=False),
             external_docs=_keep_known(data.get("externalDocs") or {}, EXTERNAL_DOCS_KEYS, path, "`externalDocs`"),
+            # `limits` is ours, not an OpenAPI object, so it takes no extensions.
+            limits=_keep_known(data.get("limits") or {}, LIMITS_KEYS, path, "`limits`", extensions=False),
         )
 
     def resolve_servers(self, service_path: str) -> list[dict[str, Any]]:
@@ -136,6 +147,15 @@ class UdtsConfig:
             server["url"] = _resolve_server_url(server.get("url", ""), service_path)
             servers.append(server)
         return servers
+
+    def max_limit(self) -> int:
+        """Largest `_limit` a request may ask for.
+
+        Spinta answers any limit above zero, so this is not its bound but one an
+        API gateway applies in front of it, which is why it is configured rather
+        than read out of the service.
+        """
+        return self.limits.get("max_limit") or DEFAULT_MAX_LIMIT
 
     def resolve_agent_servers(self, service_path: str) -> list[dict[str, Any]]:
         """Build `servers` of the agent root, where its own endpoints live.
@@ -370,6 +390,20 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
             )
         if license_.get("url") is not None:
             _check_url(license_["url"], path, "`info.license.url`")
+
+
+def _check_limits(limits: dict, path: pathlib.Path) -> None:
+    if not isinstance(limits, dict):
+        raise InvalidUdtsConfig(path=str(path), error="`limits` must be a mapping.")
+
+    max_limit = limits.get("max_limit")
+    if max_limit is None:
+        return
+    if not isinstance(max_limit, int) or isinstance(max_limit, bool) or max_limit < 1:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"`limits.max_limit` must be a whole number of one or more, got {max_limit!r}.",
+        )
 
 
 def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
