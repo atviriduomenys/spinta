@@ -112,6 +112,24 @@ Bug fixes:
   instances lost its `environments` section after the first read, which made
   environment specific configuration (e.g. test backend DSNs) unavailable in
   long running processes and in later configuration reads (`#2001`_).
+- Fixed configuration keys removed by a higher-priority source (for example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
+  through ``rc.get()`` from lower-priority sources. Removed keys are now
+  unavailable at all levels (`#1990`_).
+
+
+Improvements:
+
+- Configuration sources are now documented with their precedence order
+  (defaults, configuration files, ``.env`` file, environment variables and
+  command line arguments), and the ``config_path`` directory and the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file are described. Setting a configuration key to an empty
+  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
+  subtree recursively, while a parent key with a non-empty list of names
+  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
+  (`#1990`_).
+
 
 .. _#2001: https://github.com/atviriduomenys/spinta/pull/2001
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
@@ -121,6 +139,7 @@ Bug fixes:
 .. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 .. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
 .. _#2055: https://github.com/atviriduomenys/spinta/issues/2055
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 
 Improvements:
 
