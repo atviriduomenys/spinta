@@ -55,6 +55,16 @@ Manifeste nėra aplinkų adresų, paslaugos lygmens aprašo ir autorizacijos
 serverio – tai nurodoma atskirame YAML faile. Pavyzdinis failas yra Spinta
 pakete, `spinta/manifests/open_api/udts_cfg.example.yml`.
 
+**Failas privalomas**, ir jame privalomi du dalykai:
+
+- **`info.title`** – vardas, kuriuo paslauga matoma vartuose;
+- **`servers`** – bent vienas įrašas; iš pirmojo vartai išsiveda API
+  context-path.
+
+Be jų aprašo į vartus įkelti nepavyktų, todėl `spinta udts oas` to nė
+nebando ir nutraukia darbą su aiškia klaida. `--list` konfigūracijos
+nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
+
 ```yaml
 info:
   title: JADIS duomenų paslauga

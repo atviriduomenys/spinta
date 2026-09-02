@@ -26,7 +26,7 @@ def oas(
     ),
     path: Optional[str] = Option(None, "--path", help="Data service path, for example `datasets/gov/rc/jadis/at280/1`"),
     udts_cfg: Optional[pathlib.Path] = Option(
-        None, "--udts-cfg", help="YAML file with environments, `info` and authorization server"
+        None, "--udts-cfg", help="YAML file with environments, `info` and authorization server, required"
     ),
     api_version: Optional[str] = Option(None, "--api-version", help="Value of `info.version`"),
     list_services: bool = Option(False, "--list", help="List data services found in a manifest and exit"),
@@ -53,8 +53,16 @@ def oas(
 
     service_path = _resolve_service_path(path, services, dataset_names)
 
+    if udts_cfg is None:
+        cli_error(
+            "`--udts-cfg` is required: a data service is published with a name and with the environments "
+            "it is served at, which a manifest does not hold. An example of the file is shipped as "
+            "`spinta/manifests/open_api/udts_cfg.example.yml`."
+        )
+
     try:
-        config = UdtsConfig.from_path(udts_cfg) if udts_cfg else UdtsConfig()
+        config = UdtsConfig.from_path(udts_cfg)
+        config.check_publishable(udts_cfg)
     except InvalidUdtsConfig as error:
         cli_error(str(error))
     if udts_cfg and not config.auth.get("token_url"):
