@@ -1,6 +1,8 @@
+import pytest
 from ruamel.yaml import YAML
 
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
+from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")
 
@@ -678,6 +680,126 @@ def test_schema_default_value():
     rc = RawConfig()
     rc.add("defaults", {"accesslog.type": "file"})
     assert rc.get("accesslog", "buffer_size") == 300
+
+
+def test_pydict_read_does_not_modify_input():
+    config = {
+        "environments": {
+            "test": {
+                "backends.default.dsn": "sqlite:///test.db",
+            },
+        },
+    }
+    rc = RawConfig()
+    rc.read([PyDict("test", config)])
+    assert config == {
+        "environments": {
+            "test": {
+                "backends.default.dsn": "sqlite:///test.db",
+            },
+        },
+    }
+    rc.add("t", {"env": "test"})
+    assert rc.get("backends", "default", "dsn") == "sqlite:///test.db"
+
+
+def test_path_read_does_not_modify_imported_config():
+    # `spinta.config:CONFIG` is a global dict, shared by all `RawConfig`
+    # instances in the process, it must not be modified by reading it.
+    from spinta.config import CONFIG
+
+    assert "environments" in CONFIG
+    rc1 = RawConfig()
+    rc1.read([Path("defaults", "spinta.config:CONFIG")])
+    assert "environments" in CONFIG
+    dsn = rc1.get("environments", "test", "backends", "default", "dsn")
+
+    rc2 = RawConfig()
+    rc2.read([Path("defaults", "spinta.config:CONFIG")])
+    assert "environments" in CONFIG
+    assert rc2.get("environments", "test", "backends", "default", "dsn") == dsn
+
+
+def test_fork_partial_subtree_keeps_lower_priority_keys():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict(
+                "defaults",
+                {
+                    "keymaps.default": {
+                        "type": "sqlalchemy",
+                        "dsn": "sqlite:///keymap.db",
+                    },
+                },
+            ),
+        ]
+    )
+    rc = rc.fork({"keymaps": {"default": {"sync_transaction_size": 4}}})
+    assert rc.keys("keymaps", "default") == ["type", "dsn", "sync_transaction_size"]
+    assert rc.get("keymaps", "default", "dsn") == "sqlite:///keymap.db"
+    assert rc.get("keymaps", "default", "sync_transaction_size") == 4
+
+
+def test_fork_adds_new_keys_to_lower_priority_ones():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict(
+                "defaults",
+                {
+                    "backends": {
+                        "one": {"dsn": "1"},
+                        "two": {"dsn": "2"},
+                    },
+                },
+            ),
+        ]
+    )
+    rc = rc.fork({"backends": {"three": {"dsn": "3"}}})
+    assert rc.keys("backends") == ["one", "two", "three"]
+    assert rc.get("backends", "one", "dsn") == "1"
+    assert rc.get("backends", "three", "dsn") == "3"
+
+
+def test_fork_explicit_value_still_resets_lower_priority_keys():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict(
+                "defaults",
+                {
+                    "backends": {
+                        "one": {"dsn": "1"},
+                        "two": {"dsn": "2"},
+                    },
+                },
+            ),
+        ]
+    )
+    rc = rc.fork({"backends": ["one"]})
+    assert rc.keys("backends") == ["one"]
+    assert rc.get("backends", "one", "dsn") == "1"
+    assert rc.get("backends", "two", "dsn") is NA
+
+
+def test_fork_scalar_value_for_keys_raises_error():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict(
+                "defaults",
+                {
+                    "backends": {
+                        "one": {"dsn": "1"},
+                        "two": {"dsn": "2"},
+                    },
+                },
+            ),
+        ]
+    )
+    with pytest.raises(Exception, match=r"expected a mapping or a list of key names"):
+        rc.fork({"backends": "one"})
 
 
 def test_to_dict():

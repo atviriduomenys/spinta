@@ -4,6 +4,51 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Fixed configuration values set through `RawConfig.fork()` shadowing
+  configuration from lower priority sources. A fork often contains only a
+  partial configuration, for example a `keymaps.default` with only `type` set,
+  which previously dropped the `dsn` defined by lower priority sources. Forked
+  configuration is now merged with lower priority sources, while explicitly
+  set values (e.g. via environment variables or CLI arguments) still replace
+  lower priority ones (`#2001`_).
+- Fixed `RawConfig` modifying the configuration dictionaries it reads from.
+  A global `spinta.config:CONFIG` dict imported by multiple `RawConfig`
+  instances lost its `environments` section after the first read, which made
+  environment specific configuration (e.g. test backend DSNs) unavailable in
+  long running processes and in later configuration reads (`#2001`_).
+- Fixed configuration keys removed by a higher-priority source (for example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
+  through ``rc.get()`` from lower-priority sources. Removed keys are now
+  unavailable at all levels (`#1990`_).
+
+
+Improvements:
+
+- Configuration values for keys that hold a list of keys (for example
+  ``{'backends': 'one'}``) now raise an error in all configuration sources
+  that support complex values, such as configuration files, `rc.add()` and
+  `RawConfig.fork()`. A list of key names (for example ``{'backends':
+  ['one']}``) or a mapping declaring the whole subtree must be used instead.
+  Comma separated key names in environment variables (for example
+  ``SPINTA_BACKENDS=one``), `.env` files and command line arguments (for
+  example ``backends=one``) are still supported (`#2001`_).
+- Configuration sources are now documented with their precedence order
+  (defaults, configuration files, ``.env`` file, environment variables and
+  command line arguments), and the ``config_path`` directory and the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file are described. Setting a configuration key to an empty
+  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
+  subtree recursively, while a parent key with a non-empty list of names
+  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
+  (`#1990`_).
+
+
+.. _#2001: https://github.com/atviriduomenys/spinta/pull/2001
+.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
+
 
 1.1.0 (2026-08-19)
 =====================
@@ -38,7 +83,6 @@ Bug fixes:
   connections accumulated across the test suite and exhausted the PostgreSQL
   ``max_connections`` limit (``FATAL: sorry, too many clients already``)
   (`#1556`_).
-
 - Fixed key-id based public key selection in token validation: ``decode_token``
   now reads the standard ``kid`` JWS header field (previously it looked for a
   non-standard ``key`` field that is never present, so the ``kid`` fast path was
@@ -78,7 +122,6 @@ Improvements:
 
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
 .. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
-.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
 

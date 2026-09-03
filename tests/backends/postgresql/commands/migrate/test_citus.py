@@ -347,7 +347,7 @@ def test_migrate_mixed_distribution(
         default_distribution_strategy="schema",
         model_distribution={
             "distribute/data/New": {
-                "distribute": "copy",
+                "distribute": ["copy"],
             },
             "distribute/data/Data": {
                 "distribute": {
@@ -449,7 +449,7 @@ def test_migrate_default_schema_distribution_invalidation(
     assert not {new_table_identifier}.issubset(updated_citus_state.local)
 
     result = cli.invoke(
-        rc.fork({"models": {"distribute/data/Data": {"distribute": "copy"}}}),
+        rc.fork({"models": {"distribute/data/Data": {"distribute": ["copy"]}}}),
         ["migrate", "-p"],
     )
     assert result.output.endswith(
@@ -460,7 +460,7 @@ def test_migrate_default_schema_distribution_invalidation(
     )
 
     result = cli.invoke(
-        rc.fork({"models": {"distribute/data/Data": {"distribute": "copy"}}}),
+        rc.fork({"models": {"distribute/data/Data": {"distribute": ["copy"]}}}),
         ["migrate"],
     )
     assert result.exit_code == 0
