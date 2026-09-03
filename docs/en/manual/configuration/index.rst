@@ -295,6 +295,18 @@ This will remove all configuration options except `backends.pg` and
 `backends.fs`. In this case, `backends.sql` will be removed and will not be
 available at any level.
 
+Comma separated values, like `SPINTA_BACKENDS=pg,fs`, are supported only by
+sources that can set simple values, like environment variables, `.env` files
+and command line arguments. Configuration files and other sources that support
+complex values must use a YAML list instead::
+
+    backends:
+      - pg
+      - fs
+
+Setting a scalar value on a key that holds a list of suboption names, for
+example `backends: pg`, is an error.
+
 
 
 .. _config_path:

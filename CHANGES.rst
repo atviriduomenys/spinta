@@ -26,6 +26,14 @@ Bug fixes:
 
 Improvements:
 
+- Configuration values for keys that hold a list of keys (for example
+  ``{'backends': 'one'}``) now raise an error in all configuration sources
+  that support complex values, such as configuration files, `rc.add()` and
+  `RawConfig.fork()`. A list of key names (for example ``{'backends':
+  ['one']}``) or a mapping declaring the whole subtree must be used instead.
+  Comma separated key names in environment variables (for example
+  ``SPINTA_BACKENDS=one``), `.env` files and command line arguments (for
+  example ``backends=one``) are still supported (`#2001`_).
 - Configuration sources are now documented with their precedence order
   (defaults, configuration files, ``.env`` file, environment variables and
   command line arguments), and the ``config_path`` directory and the

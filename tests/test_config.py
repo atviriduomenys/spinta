@@ -1,3 +1,4 @@
+import pytest
 from ruamel.yaml import YAML
 
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
@@ -776,10 +777,29 @@ def test_fork_explicit_value_still_resets_lower_priority_keys():
             ),
         ]
     )
-    rc = rc.fork({"backends": "one"})
+    rc = rc.fork({"backends": ["one"]})
     assert rc.keys("backends") == ["one"]
     assert rc.get("backends", "one", "dsn") == "1"
     assert rc.get("backends", "two", "dsn") is NA
+
+
+def test_fork_scalar_value_for_keys_raises_error():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict(
+                "defaults",
+                {
+                    "backends": {
+                        "one": {"dsn": "1"},
+                        "two": {"dsn": "2"},
+                    },
+                },
+            ),
+        ]
+    )
+    with pytest.raises(Exception, match=r"expected a mapping or a list of key names"):
+        rc.fork({"backends": "one"})
 
 
 def test_to_dict():
