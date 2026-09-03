@@ -140,6 +140,7 @@ class PyDict(ConfigSource):
                 config[("environments", env) + tuple(k.split("."))] = v
         self.config = config
         super().read(schema)
+        _check_keys(self.config, schema, self.name)
 
 
 class ForkConfig(PyDict):
@@ -176,7 +177,7 @@ class CliArgs(PyDict):
             if "," in val:
                 val = [v.strip() for v in val.split(",")]
             config[key] = val
-        self.config = config
+        self.config = _parse_object_key_values(config, schema)
         super().read(schema)
 
 
@@ -193,6 +194,7 @@ class EnvVars(ConfigSource):
             if len(key) > 1 and key[0] not in schema["items"] and key[1] in schema["items"]:
                 key = ("environments",) + key
             config[key] = val
+        config = _parse_object_key_values(config, schema)
         self.config = config
         super().read(schema)
 
@@ -301,6 +303,13 @@ class RawConfig:
         env, _ = self._get_config_value(("env",), default=None)
         if self._key_exists(key):
             value, config = self._get_config_value(key, default, env)
+            schema = _get_key_path_schema(self._schema, key)
+            if schema is not None and schema.get("type") == "object":
+                # The schema declares this key as an object (e.g. `backends`
+                # is a mapping of backend names to backend configs), so its
+                # value is the list of child key names, and a reset value,
+                # like an empty string, is returned as an empty list.
+                value = self.keys(*key)
         else:
             value, config = default, None
 
@@ -406,7 +415,7 @@ class RawConfig:
             n = len(key)
             schema = self._schema
             for i in range(1, n + 1):
-                schema = self._get_key_schema(schema, key[i - 1])
+                schema = _get_key_schema(schema, key[i - 1])
                 if schema is None:
                     # Skip unknown keys, only keys known to the schema can
                     # have child keys.
@@ -429,9 +438,16 @@ class RawConfig:
                 v = config.get(k, env)
                 if v is not NA:
                     if isinstance(v, str):
-                        # Explicit comma separated child key names.
-                        keys[k] = config, [x.strip() for x in v.split(",") if x.strip()]
-                        explicit.add(k)
+                        # This should never happen, all configuration sources
+                        # must either parse comma separated values of
+                        # object-type keys into lists (see
+                        # `_parse_object_key_values`) or raise an error (see
+                        # `_check_keys`).
+                        raise Exception(
+                            f"Invalid configuration value {v!r} for key {'.'.join(k)!r} in {config.name} config: "
+                            f"expected a mapping or a list of key names, but got a scalar value, "
+                            f"use a list instead, e.g. {'.'.join(k)}: ['one']."
+                        )
                     elif isinstance(v, InnerKeys):
                         # Child key names derived from the structure of a merge
                         # source (see `ForkConfig`). Add them to child key names
@@ -455,18 +471,6 @@ class RawConfig:
                     if key[i] not in keys[k][1]:
                         keys[k][1].append(key[i])
 
-    def _get_key_schema(self, schema: Schema, key: str):
-        if schema["type"] == "object":
-            if "items" in schema:
-                if key in schema["items"]:
-                    return schema["items"][key]
-            if "case" in schema:
-                for items in schema["case"].values():
-                    if key in items:
-                        return items[key]
-            if "keys" in schema and schema["keys"]["type"] == "string":
-                return schema["values"]
-
     def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
         assert isinstance(key, tuple)
         for config in reversed(self.sources):
@@ -478,12 +482,8 @@ class RawConfig:
             if val is not NA:
                 return val, config
         if default is NA:
-            schema = self._schema
-            for k in key:
-                schema = self._get_key_schema(schema, k)
-                if schema is None:
-                    break
-            else:
+            schema = _get_key_path_schema(self._schema, key)
+            if schema is not None:
                 default = schema.get("default", NA)
         return default, None
 
@@ -505,6 +505,91 @@ class RawConfig:
 
     def get_source_names(self) -> List[str]:
         return [source.name for source in self.sources]
+
+
+def _get_key_schema(schema: Schema, key: str):
+    if schema.get("type") == "object":
+        if "items" in schema:
+            if key in schema["items"]:
+                return schema["items"][key]
+        if "case" in schema:
+            for items in schema["case"].values():
+                if key in items:
+                    return items[key]
+        if "keys" in schema and schema["keys"]["type"] == "string":
+            return schema["values"]
+
+
+def _get_key_path_schema(schema: Schema, key: Key) -> Optional[Schema]:
+    """Resolve a schema node for a full configuration key path."""
+    for k in key:
+        schema = _get_key_schema(schema, k)
+        if schema is None:
+            break
+    return schema
+
+
+def _check_keys(config: Dict[tuple, Any], schema: Schema, name: str):
+    """Check that keys, which declare a list of child keys, don't have scalar
+    values set.
+
+    A fork is a python `dict`, so a list of child key names can be given
+    directly as a `list`, for example `{'backends': ['one']}`, or as a mapping
+    declaring the whole subtree, for example `{'backends': {'one': {...}}}`.
+    Setting a scalar value, e.g. `{'backends': 'one'}`, is most likely a
+    mistake, so an error is raised.
+    """
+    for key, value in config.items():
+        node = schema
+        for k in key:
+            node = _get_key_schema(node, k)
+            if node is None:
+                # Skip unknown keys, only keys known to the schema can have
+                # child keys.
+                break
+        else:
+            if node.get("type") == "object" and not isinstance(value, (dict, list)):
+                raise Exception(
+                    f"Invalid configuration value {value!r} for key {'.'.join(key)!r} in {name} config: "
+                    f"expected a mapping or a list of key names, but got a scalar value, "
+                    f"use a list instead, e.g. {'.'.join(key)}: ['one']."
+                )
+
+
+def _parse_object_key_values(config: dict, schema: Schema) -> dict:
+    """Parse values of object-type keys given as comma separated strings.
+
+    Keys with `type: object` schema (e.g. `backends`) hold a list of child key
+    names. Environment variables and command line arguments can only have
+    scalar values, so such lists are given as comma separated strings, for
+    example `SPINTA_BACKENDS=one,two`. This converts those strings to lists,
+    so `RawConfig` always receives object key values as declared in
+    `spinta/config.yml`, that is, as lists of child key names.
+
+    An empty string is converted to an empty list, which resets the list of
+    child keys. Keys unknown to the schema and keys declared as scalars are
+    left as is.
+
+    Keys can be full key paths given as tuples, like in a flattened config, or
+    dotted key names, like in command line arguments, before they are split
+    into key path tuples by `PyDict.read`.
+    """
+    result = {}
+    for key, value in config.items():
+        if isinstance(value, str):
+            path = key if isinstance(key, tuple) else tuple(key.split("."))
+            if path[:1] == ("environments",) and len(path) > 2:
+                # Environment specific keys, like `("environments", "test",
+                # "backends")`, don't map to the configuration schema
+                # directly, their schema is the same as the schema of the key
+                # without the environment prefix.
+                node = _get_key_path_schema(schema, path[2:])
+            else:
+                node = _get_key_path_schema(schema, path)
+            if node is not None and node.get("type") == "object":
+                value = [v.strip() for v in value.split(",") if v.strip()]
+        result[key] = value
+    return result
 
 
 def _traverse(value, path=()):
