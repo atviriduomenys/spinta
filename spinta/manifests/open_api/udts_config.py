@@ -95,7 +95,7 @@ class UdtsConfig:
         for key in sorted(set(data) - KNOWN_KEYS, key=str):
             warnings.warn(f"{path}: unknown UDTS configuration key {key!r}, ignoring it.", UserWarning)
 
-        for key in ("info", "auth", "externalDocs"):
+        for key in ("info", "auth", "externalDocs", "limits"):
             if key in data and data[key] is not None and not isinstance(data[key], dict):
                 raise InvalidUdtsConfig(path=str(path), error=f"`{key}` must be a mapping.")
 

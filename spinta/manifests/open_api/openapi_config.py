@@ -130,8 +130,8 @@ PATHS_CONFIG = {
             "description": (
                 "Report whether the service and everything it needs is operational.\n\n"
                 "An unhealthy service is reported in the body, not in the status code: the answer is "
-                "`200` with `healthy` set to `false`, because `503` stands for the `ServiceNotAvailable` "
-                "error object. A probe has to read `healthy` rather than the status code.\n"
+                "`200` with `healthy` set to `false`, because `503` says the service did not answer at "
+                "all. A probe has to read `healthy` rather than the status code.\n"
             ),
             "operationId": "apiHealth",
             "responses": {
@@ -230,8 +230,8 @@ PATHS_CONFIG = {
             "description": (
                 "Report whether the service and everything it needs is operational.\n\n"
                 "An unhealthy service is reported in the body, not in the status code: the answer is "
-                "`200` with `healthy` set to `false`, because `503` stands for the `ServiceNotAvailable` "
-                "error object. A probe has to read `healthy` rather than the status code.\n\n"
+                "`200` with `healthy` set to `false`, because `503` says the service did not answer at "
+                "all. A probe has to read `healthy` rather than the status code.\n\n"
                 "This is the endpoint of the agent, called at its own address. An API gateway serves the "
                 "same endpoint inside a data service, as `/:health`.\n"
             ),
@@ -560,6 +560,8 @@ ERROR_CONTEXT = {
 ERROR_MESSAGE = {
     "type": "string",
     "description": "The template of this error, filled in with its context.",
+    # A named error replaces this with its own template.
+    "example": "Model 'datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas' not found.",
 }
 
 
@@ -574,6 +576,9 @@ def _error_schema(name: str, template: str | None = None) -> dict:
     schema = {
         "type": "object",
         "description": f"Error object of `{name}`.",
+        # `error_response` writes all of them, every time, so an object holding
+        # fewer is not an error of Spinta.
+        "required": ["type", "code", "template", "context", "message"],
         "properties": {
             "type": {
                 "type": "string",
@@ -620,6 +625,9 @@ GENERIC_ERROR = {
     "Error": {
         "type": "object",
         "description": "Any error object. Every error carries a `code` and a `message`; an error of Spinta itself carries the `template` it was built from, the `context` it happened in, and what that context is.",
+        # Two of them are written by every error, of Spinta or not, see
+        # `spinta.api.error_response`; the rest only by an error of Spinta.
+        "required": ["code", "message"],
         "properties": {
             "type": {"type": "string", "description": "What the error happened on.", "example": "system"},
             "code": {"type": "string", "description": "Name of the error.", "example": "ModelNotFound"},
@@ -634,6 +642,7 @@ GENERIC_ERROR = {
     "InsufficientScopeError": {
         "type": "object",
         "description": "Error object of an access token that does not carry a scope the operation needs.",
+        "required": ["code", "message"],
         "properties": {
             "code": {"type": "string", "const": "InsufficientScopeError", "example": "InsufficientScopeError"},
             "message": {
@@ -647,6 +656,7 @@ GENERIC_ERROR = {
     "InvalidScopes": {
         "type": "object",
         "description": "Error object of a token request naming a scope that does not exist.",
+        "required": ["type", "code", "template", "context", "message"],
         "properties": {
             "type": {"type": "string", "example": "system"},
             "code": {"type": "string", "const": "InvalidScopes", "example": "InvalidScopes"},
@@ -762,7 +772,7 @@ HEADER_COMPONENTS = {
         "required": False,
         "schema": {
             "type": "string",
-            "pattern": UUID_PATTERN,
+            "pattern": HEADER_VALUE_PATTERN,
             "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
             "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
         },
@@ -783,7 +793,9 @@ PARAMETER_COMPONENTS = {
         "required": False,
         "schema": {
             "type": "string",
-            "pattern": "^[0-9]{2}-[a-f0-9]{32}-[a-f0-9]{16}-[0-9]{2}",
+            # Version, trace id, parent id and flags, hexadecimal throughout,
+            # W3C trace-context. Anchored at both ends, so nothing follows.
+            "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
             "description": "Consists of `version` `trace-id` `parent-id` `trace-flags` separated by `-`. \n\n`trace-id` recommended to be in UUIDv4",
             "examples": ["00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"],
         },
@@ -819,10 +831,10 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": "Using `If-None-Match` client can provide a revision number of an object to server to check if modification to the object has occured, if not, server will return `304 - Not Modified`.",
-        # A revision, which is a UUID, see `spinta.backends`.
+        # It carries a revision, whose shape a model can declare itself.
         "schema": {
             "type": "string",
-            "pattern": UUID_PATTERN,
+            "pattern": HEADER_VALUE_PATTERN,
             "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
             "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
         },
@@ -1036,7 +1048,7 @@ COMMON_SCHEMAS = {
         "properties": {
             "next": {
                 "type": "string",
-                "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+                "pattern": "^[A-Za-z0-9_-]+={0,2}$",
                 "description": "Token of the next page. Absent when the listing ended.",
                 "examples": ["WyIyMDI2LTA4LTMxIl0="],
                 "example": "WyIyMDI2LTA4LTMxIl0=",
