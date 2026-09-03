@@ -1934,3 +1934,54 @@ def test_token_url_of_a_catalog_export_is_a_path_it_holds(open_manifest_path: Ma
 
     flow = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]
     assert flow["tokenUrl"] in open_api_spec["paths"]
+
+
+def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_factory):
+    """A document must not show a request its own schema refuses."""
+    jsonschema = pytest.importorskip("jsonschema")
+    config = UdtsConfig(limits={"max_limit": 5})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    query = open_api_spec["components"]["parameters"]["query_at280_israsas_DalyvioAsmensIsrasas"]
+    limit = query["schema"]["properties"]["_limit"]
+
+    assert limit["example"] == 5
+    jsonschema.validate(limit["example"], limit)
+    jsonschema.validate(query["example"]["_limit"], limit)
+
+
+def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_factory):
+    """`scope_formatter` is configured, so it builds what it likes, RFC 6749."""
+    jsonschema = pytest.importorskip("jsonschema")
+    request_body = _service_spec(open_manifest_path_factory)["paths"]["/:token"]["post"]["requestBody"]
+    scope = request_body["content"]["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]
+
+    for value in ("uapi:/datasets/gov/rc/:getall", "kita:modelis:getall", "tenant+read", "tenant$read", "a b"):
+        jsonschema.validate(value, scope)
+    # A space separates scopes, and neither a quotation mark nor a backslash is
+    # part of one, RFC 6749 section 3.3.
+    for value in ("", 'blogas"cituotas', "su\\pasviru", "du  tarpai"):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(value, scope)
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_health_schema_requires_what_the_probe_answers(model, app, context):
+    """`health` writes both fields every time, so fewer is not its answer."""
+    jsonschema = pytest.importorskip("jsonschema")
+    schemas = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]
+
+    jsonschema.validate(app.get("/health").json(), schemas["health"])
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({}, schemas["health"])
+
+
+def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
+    """A server URL can carry a path the data service path is not part of."""
+    config = UdtsConfig(servers=[{"url": "https://host.lt/kitas/kelias"}])
+
+    with pytest.warns(UserWarning, match="does not match data service path"):
+        open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    # The agent serves its own endpoints at its root, not under that path.
+    assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "https://host.lt"}]
