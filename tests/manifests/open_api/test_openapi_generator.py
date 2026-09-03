@@ -27,6 +27,8 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
     MANIFEST_WITH_DECLARED_ID,
+    MANIFEST_WITH_DECLARED_REF_ID,
+    MANIFEST_WITH_DECLARED_REVISION,
     MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_REF_LEVELS,
@@ -1854,3 +1856,81 @@ def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manif
     assert identifier.get("format") != "uuid"
     # The value the data holds, which the shape of a UUID would refuse.
     jsonschema.validate("AE", identifier)
+
+
+def test_error_schema_refuses_an_empty_object(open_manifest_path_factory):
+    """`error_response` writes five fields, so fewer is not an error of Spinta."""
+    jsonschema = pytest.importorskip("jsonschema")
+    components = _service_spec(open_manifest_path_factory)["components"]
+    schema = components["responses"]["error404"]["content"]["application/json"]["schema"]
+    resolver = jsonschema.RefResolver.from_schema({"components": components})
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"errors": [{}]}, {**schema, "components": components}, resolver=resolver)
+
+
+def test_traceparent_is_hexadecimal_from_end_to_end(open_manifest_path_factory):
+    """A pattern without an end anchor lets anything follow what it matched."""
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
+
+    jsonschema.validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
+    # Flags are hexadecimal, as every other field of it is.
+    jsonschema.validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-ff", schema)
+    for value in (
+        "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-and-then-some",
+        "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-0",
+    ):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(value, schema)
+
+
+def test_reference_identifier_is_the_one_its_model_answers_with(open_manifest_path_factory):
+    """A reference carries the identifier of what it points at, UUID or not."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_REF_ID)
+    schemas = open_api_spec["components"]["schemas"]
+
+    reference = next(schema for name, schema in schemas.items() if name.endswith("_Ref"))
+
+    assert "pattern" not in reference["properties"]["_id"]
+    jsonschema.validate({"_id": "AE"}, reference)
+
+
+def test_page_token_pattern_accepts_a_token_spinta_builds(open_manifest_path_factory):
+    """`encode_page_values` uses URL-safe base64, whose alphabet holds `-` and `_`."""
+    jsonschema = pytest.importorskip("jsonschema")
+    from spinta.utils.encoding import encode_page_values
+
+    schema = _service_spec(open_manifest_path_factory)["components"]["schemas"]["page"]["properties"]["next"]
+
+    for values in ([">"], ["?"], ["2026-08-31"], ["ĄČĘ"]):
+        jsonschema.validate(encode_page_values(values).decode(), schema)
+
+
+def test_declared_revision_is_not_described_as_a_uuid(open_manifest_path_factory):
+    """A model can build `_revision` out of its own data, `123,14` for one."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_REVISION)
+
+    revision = open_api_spec["components"]["schemas"]["ds_Sritis"]["properties"]["_revision"]
+
+    assert "pattern" not in revision
+    jsonschema.validate("123,14", revision)
+
+
+def test_revision_header_accepts_a_revision_a_model_builds(open_manifest_path_factory):
+    """`ETag` carries the revision, so it is not a UUID either."""
+    jsonschema = pytest.importorskip("jsonschema")
+    components = _service_spec(open_manifest_path_factory)["components"]
+
+    jsonschema.validate("123,14", components["headers"]["ETag"]["schema"])
+    jsonschema.validate("123,14", components["parameters"]["If-None-Match"]["schema"])
+
+
+def test_token_url_of_a_catalog_export_is_a_path_it_holds(open_manifest_path: ManifestPath):
+    """Without a data service base the action form is not written, so not used."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    flow = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]
+    assert flow["tokenUrl"] in open_api_spec["paths"]

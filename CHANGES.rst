@@ -65,6 +65,20 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - A revision is described the way a model builds it. ``_revision``, the
+    ``ETag`` it is answered in and the ``If-None-Match`` it is sent back in
+    were described as UUIDs, while a model can build a revision out of its own
+    data, ``123,14`` of one kept in two columns for example, which the shape of
+    a UUID refuses. A reference carries the identifier of the model it points
+    at, which is not a UUID either where that model declares its own, and the
+    example of an object now carries the same identifier its property does.
+  - The page token is described with the URL safe alphabet, which
+    ``spinta.utils.encoding.encode_page_values`` writes it in; the standard one
+    refuses a token holding ``-`` or ``_``.
+  - Error objects require the fields they always carry, so an empty object is
+    no longer accepted as an error of every kind. A whole manifest or dataset
+    export points the token flow at the endpoint it writes, ``/auth/token``,
+    instead of the action form only a data service export holds.
   - An identifier a model declares itself is described as the key its data
     holds, on both sides. In a response it was described as a UUID, which would
     have had a gateway validating responses refuse every object of such a model,

@@ -64,6 +64,9 @@ GATEWAY_UTILITY_PATHS = ["/:version", "/:health", "/:token"]
 #: client calling the agent, and each needs the form that answers for it.
 AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
 
+#: Where the agent serves the token endpoint, see `spinta.api`.
+AGENT_TOKEN_PATH = "/auth/token"
+
 #: Paths that authorize against no model.
 UTILITY_PATHS = GATEWAY_UTILITY_PATHS + AGENT_UTILITY_PATHS
 
@@ -1190,17 +1193,45 @@ class SchemaGenerator:
         """
         properties = copy.deepcopy(self.schema_registry.standard_object_properties)
         properties["_type"] = {**properties["_type"], "const": type_name, "example": type_name}
-        properties["_revision"]["example"] = _example_revision(model)
+        properties["_revision"] = self._revision_schema(model)
+        properties["_id"] = self._identifier_schema(model)
+        return properties
 
+    def _revision_schema(self, model: Model) -> dict[str, Any]:
+        """`_revision` as the model answers with it.
+
+        A model can declare `_revision` of its own, built out of its data, and
+        then it is not a UUID: `123,14` of a revision kept in two columns, see
+        `tests/datasets/sql/test_reserved_props.py`.
+        """
+        prop = getattr(model, "revision_prop", None)
+        dtype = prop.dtype if prop else None
+        if dtype is None or not getattr(prop, "explicitly_given", False):
+            schema = copy.deepcopy(self.schema_registry.standard_object_properties["_revision"])
+            schema["example"] = _example_revision(model)
+            return schema
+
+        schema = _nullable(copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(prop)))
+        schema["description"] = "Revision of the object, which the model builds out of its own data."
+        return schema
+
+    def _identifier_schema(self, model: Model) -> dict[str, Any]:
+        """`_id` as the model answers with it.
+
+        A UUID where the model leaves the identifier to Spinta, and the key of
+        the data where the model declares `_id` of its own; the shape of a UUID
+        would refuse `AE` of a country and every other such key.
+        """
         dtype = model.id_prop.dtype if model.id_prop else None
         if dtype is None or isinstance(dtype, PrimaryKey):
-            properties["_id"]["example"] = _example_id(model)
-        else:
-            schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
-            schema["description"] = "Identifier of the object, the key its data holds."
-            schema["example"] = _declared_id_example(self.dtype_handler, model)
-            properties["_id"] = schema
-        return properties
+            schema = copy.deepcopy(self.schema_registry.standard_object_properties["_id"])
+            schema["example"] = _example_id(model)
+            return schema
+
+        schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
+        schema["description"] = "Identifier of the object, the key its data holds."
+        schema["example"] = _declared_id_example(self.dtype_handler, model)
+        return schema
 
     def _create_model_schema(
         self,
@@ -1225,10 +1256,11 @@ class SchemaGenerator:
         property_filter: set[str] | None = None,
         schemas: dict | None = None,
     ) -> dict[str, Any]:
+        standard = self._standard_properties(model.name, model)
         example = {
             "_type": model.name,
-            "_id": _example_id(model),
-            "_revision": _example_revision(model),
+            "_id": standard["_id"].get("example"),
+            "_revision": standard["_revision"].get("example"),
         }
         for prop_name, model_property in model.get_given_properties().items():
             if property_filter and prop_name not in property_filter:
@@ -1327,12 +1359,12 @@ class SchemaGenerator:
         if is_global_ref:
             # A reference of this level is serialized as the identifier alone,
             # neither `_type` nor `_revision` is carried, so neither is listed.
-            properties = {"_id": copy.deepcopy(self.schema_registry.standard_object_properties["_id"])}
+            identifier = self._identifier_schema(model)
             return {
                 "type": "object",
                 "description": f"A reference to `{model.name}`, carrying its identifier.",
-                "properties": properties,
-                "example": {"_id": _example_id(model)},
+                "properties": {"_id": identifier},
+                "example": {"_id": identifier["example"]},
             }
 
         properties = {}
@@ -1554,7 +1586,10 @@ class OpenAPIGenerator:
     def _add_security_schemes(self, spec: dict[str, Any]) -> None:
         schemes = copy.deepcopy(SECURITY_SCHEMES)
         flow = schemes[AUTH_SCHEME]["flows"]["clientCredentials"]
-        flow["tokenUrl"] = self.config.resolve_token_url(spec.get("servers", []))
+        if self.service_path is None and not self.config.auth.get("token_url"):
+            flow["tokenUrl"] = AGENT_TOKEN_PATH
+        else:
+            flow["tokenUrl"] = self.config.resolve_token_url(spec.get("servers", []))
         scopes = sorted(_requested_scopes(spec, AUTH_SCHEME))
         flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in scopes}
         spec.setdefault("components", {})["securitySchemes"] = schemes
