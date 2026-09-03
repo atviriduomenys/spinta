@@ -330,7 +330,8 @@ def send_request(
                 result.status_code,
                 textwrap.indent(result.text or "", "    "),
             )
-        elif isinstance(exception, (requests.RequestException, OSError)):
+        elif isinstance(exception, IOError):
+            # requests.RequestException is child of IOError
             cli_push.log.error(
                 "Error when sending and receiving data.%s\nError: %s",
                 get_row_for_error(rows),
