@@ -65,6 +65,21 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - Nothing is asserted of the ``429`` body. A rate limit is applied in front
+    of the service, and what its answer holds, in which media type, is decided
+    there; asserting a JSON object would have validation refuse the very
+    answer that says the limit was reached.
+  - Scopes are described by the ``scope-token`` of RFC 6749 section 3.3, not by
+    a narrower alphabet: ``scope_formatter`` is configured, so it builds what
+    it likes, and a request carrying such a scope has to pass. The ``health``
+    answer requires the two fields the probe always writes, and the example of
+    ``_limit`` stays inside the bound configured for it, where a small
+    ``limits.max_limit`` had the document show a request its own schema
+    refuses.
+  - The endpoints of the agent are given the address of the agent, its server
+    URL without a path. Taking the data service path off left a foreign path in
+    place where a server URL carries one of its own, and the agent serves
+    nothing under it.
   - A revision is described the way a model builds it. ``_revision``, the
     ``ETag`` it is answered in and the ``If-None-Match`` it is sent back in
     were described as UUIDs, while a model can build a revision out of its own

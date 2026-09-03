@@ -80,9 +80,12 @@ PROPERTY_MAPPING = {
 #: so a request carrying anything else is refused before it reaches the service.
 HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]{1,1024}$"
 
-#: Scopes as `scope_formatter` builds them, separated by spaces, see
-#: `spinta.auth`. A long name is hashed, so a scope holds no more than this.
-SCOPE_PATTERN = "^[A-Za-z0-9_:/.@-]+( [A-Za-z0-9_:/.@-]+)*$"
+#: Scopes separated by spaces, each of them a `scope-token` of RFC 6749 section
+#: 3.3: a printable character other than a space, a quotation mark or a
+#: backslash. Narrower than that would refuse a scope a configured
+#: `scope_formatter` builds, and it is free to build what it likes.
+SCOPE_TOKEN = "[\\x21\\x23-\\x5B\\x5D-\\x7E]+"
+SCOPE_PATTERN = f"^{SCOPE_TOKEN}( {SCOPE_TOKEN})*$"
 
 #: An identifier a model declares itself holds the key of the data, of a shape
 #: only that data knows, see `spinta.backends.is_object_id`. What can be said is
@@ -684,7 +687,11 @@ RESPONSE_COMPONENTS = {
     # what the body holds is decided there and is not described here.
     "error429": {
         "description": "Too Many Requests",
-        "content": {"application/json": {"schema": "RateLimited"}},
+        # A rate limit is applied in front of the service, by an API gateway, a
+        # WAF or a reverse proxy, and never by Spinta. What it answers with,
+        # and in which media type, is decided there, so nothing is asserted of
+        # it beyond that there is a body.
+        "content": {"*/*": {"schema": "RateLimited"}},
     },
     # Token endpoint answers with an OAuth 2.0 error, see RFC 6749 section 5.2,
     # not with a Spinta one.
@@ -907,8 +914,9 @@ COMMON_SCHEMAS = {
     # Error objects, built from the classes that raise them.
     **GENERIC_ERROR,
     "RateLimited": {
-        "type": "object",
-        "description": "Answer of a rate limit reached. A limit is applied by an API gateway or by whatever else stands in front of the service, a WAF or a reverse proxy, and never by Spinta, so what the body holds is decided there and is left open here.",
+        # No `type`: the body is whatever the limiter answers with, which can be
+        # an object, a string, or nothing at all.
+        "description": "Answer of a rate limit reached. A limit is applied by an API gateway or by whatever else stands in front of the service, a WAF or a reverse proxy, and never by Spinta, so what the body holds, and in which media type, is decided there. Nothing is asserted of it here, otherwise validating a response would refuse the very answer that says the limit was reached.",
         "example": {"message": "Rate limit exceeded"},
     },
     **{name: schema for errors in NAMED_ERRORS.values() for name, schema in errors.items()},
@@ -1005,6 +1013,7 @@ COMMON_SCHEMAS = {
     "health": {
         "type": "object",
         "description": "Whether the service and everything it needs is operational.",
+        "required": ["healthy", "dependencies"],
         "properties": {
             "healthy": {
                 "type": "boolean",
