@@ -793,12 +793,20 @@ class PathGenerator:
             # An API client reads `example` of a property, not `examples`, and
             # fills the request with the type name when it finds neither.
             properties[key]["example"] = value
-        properties["_limit"]["example"] = properties["_limit"]["examples"][0]
         # Spinta answers any limit above zero, so an upper bound is a limit an
-        # API gateway applies in front of it, taken from the configuration.
+        # API gateway applies in front of it, taken from the configuration. The
+        # example stays inside it, otherwise the document would show a request
+        # its own schema refuses.
         properties["_limit"]["format"] = "int64"
         properties["_limit"]["maximum"] = self.max_limit
-        parameter["example"] = {"_select": ",".join(names[:2]), "_limit": 10, "_sort": names[0]}
+        limit_example = min(properties["_limit"]["examples"][0], self.max_limit)
+        properties["_limit"]["examples"] = [limit_example]
+        properties["_limit"]["example"] = limit_example
+        parameter["example"] = {
+            "_select": ",".join(names[:2]),
+            "_limit": properties["_limit"]["example"],
+            "_sort": names[0],
+        }
         return parameter
 
     def _build_responses(

@@ -189,8 +189,11 @@ class UdtsConfig:
         for server in self.resolve_servers(service_path):
             server = dict(server)
             parts = urlsplit(server.get("url", ""))
-            path = parts.path.removesuffix(f"/{service_path}")
-            server["url"] = urlunsplit(parts._replace(path=path)) or "/"
+            # The whole path goes, not the data service path alone: a server URL
+            # can carry a path of its own, which `_resolve_server_url` keeps
+            # after warning, and taking the data service path off that one would
+            # leave an address the agent serves nothing at.
+            server["url"] = urlunsplit(parts._replace(path="")) or "/"
             servers.append(server)
         return servers
 
