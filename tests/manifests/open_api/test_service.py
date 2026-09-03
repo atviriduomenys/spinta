@@ -334,6 +334,11 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ('servers:\n  - url: "https://["\n', "is not a valid URL"),
         ("info:\n  version: 1\n", "`info.version` must be a string"),
         ("info:\n  license: something\n", "`info.license` must be a mapping"),
+        # A falsy value of a mapping field is not an empty mapping.
+        ("limits: false\n", "`limits` must be a mapping"),
+        ("limits: []\n", "`limits` must be a mapping"),
+        ("limits:\n  max_limit: 0\n", "`limits.max_limit` must be a whole number"),
+        ("limits:\n  max_limit: nulis\n", "`limits.max_limit` must be a whole number"),
         ("externalDocs:\n  description: docs\n", "`externalDocs.url` must be a non empty string"),
         ("externalDocs:\n  url: https://ivpk.github.io/uapi\n  description: 1\n", "must be a string"),
         # Whole server mapping is copied into the document.

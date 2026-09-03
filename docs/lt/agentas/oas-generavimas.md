@@ -45,8 +45,8 @@ spinta udts oas manifest.csv -o at280.json \
   `--path` galima praleisti.
 - `-o` – išvesties failas. `.yml` arba `.yaml` plėtinys duoda YAML, kitu atveju
   rašomas JSON. Be `-o` specifikacija spausdinama į standartinę išvestį.
-- `--udts-cfg` – konfigūracijos failas (žr. žemiau). Neprivalomas, bet be jo
-  `servers` bus tik reliatyvus paslaugos kelias, be aplinkos adreso.
+- `--udts-cfg` – konfigūracijos failas (žr. žemiau). **Privalomas**; vienintelė
+  išimtis – `--list`, kuris dokumento nerašo.
 - `--api-version` – `info.version` reikšmė.
 
 ## Konfigūracijos failas
@@ -171,8 +171,8 @@ Vartuose `:`-formai reikia Dynamic Routing taisyklių:
 | `/(.*)` | `{#api.properties['uapi_data_prefix']}{#group[0]}` |
 
 `/health` atsako visada `200`; ar paslauga sveika, sako `healthy` laukas, nes
-`503` UDTS'e reiškia `ServiceNotAvailable` klaidos objektą. Tikrinantis
-komponentas turi skaityti `healthy`, o ne atsakymo kodą.
+`503` reiškia, kad paslauga apskritai neatsakė. Tikrinantis komponentas turi
+skaityti `healthy`, o ne atsakymo kodą.
 
 ## Užklausų tikrinimas vartuose
 
@@ -183,9 +183,10 @@ netinkamą užklausą dar nepasiekusią paslaugos:
 |---|---|
 | `_limit` | nuo 1 iki `limits.max_limit` (pagal nutylėjimą 100000) |
 | `_select`, `_sort` | vardai, keliai su taškais ir funkcijos, iki 1000 simbolių |
-| `{id}` | vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių |
+| `{id}` | vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių; modeliams su savu `_id` – su `=` prefiksu |
 | `scope` | tarpais skirti scope'ai |
-| `traceparent`, `tracestate`, `Cache-Control`, `Accept-Language` | spausdinami ASCII simboliai, iki 1024 |
+| `traceparent` | W3C trace-context forma, šešioliktainė nuo pradžios iki galo |
+| `tracestate`, `Cache-Control`, `Accept-Language` | spausdinami ASCII simboliai, iki 1024 |
 
 Viršutinė `_limit` riba yra **vartų politika, o ne Spintos elgsena** – Spinta
 atsako į bet kokį didesnį už nulį limitą. Todėl ji nurodoma konfigūracijoje:

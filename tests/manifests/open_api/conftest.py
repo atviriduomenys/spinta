@@ -355,6 +355,33 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 """)
 
 
+# A model referencing one whose identifiers are the keys of its data.
+MANIFEST_WITH_DECLARED_REF_ID = striptable("""
+id | d | r | b | m | property | type            | ref                                  | source | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |                                      |        |       |
+   |   | test                 | memory          |                                      |        |       |
+   |   |   |   | Salis        |                 | kodas                                | salys  |       |
+   |   |   |   |   | _id      | string          |                                      |        |       | open
+   |   |   |   |   | kodas    | string required |                                      | kodas  | 4     | open
+   |   |   |   | Adresas      |                 | id                                   | adresai|       |
+   |   |   |   |   | id       | string required |                                      | id     | 4     | open
+   |   |   |   |   | salis    | ref             | datasets/gov/rc/jadis/at280/1/ds/Salis|       | 4     | open
+""")
+
+
+# A model building `_revision` out of its own data, `123,14` for one, see
+# `tests/datasets/sql/test_reserved_props.py`.
+MANIFEST_WITH_DECLARED_REVISION = striptable("""
+id | d | r | b | m | property  | type            | ref          | source | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |              |        |       |
+   |   | test                  | memory          |              |        |       |
+   |   |   |   | Sritis        |                 | kodas        | sritys |       |
+   |   |   |   |   | _revision | string          |              |        |       | open
+   |   |   |   |   | kodas     | string required |              | kodas  | 4     | open
+   |   |   |   |   | didysis   | string required |              | didysis| 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
