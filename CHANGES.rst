@@ -65,6 +65,10 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - A query parameter is built for every model, not only for one with
+    properties to name in an example. A model without them fell back to the
+    shared parameter, which carries no ``_limit`` bound, so the bound
+    configured for the data service did not reach it.
   - Reading a single object declares the ``301`` it answers when the identifier
     asked for was moved to another one, together with the ``Location`` header
     saying where the object lives now, see ``spinta.commands.read.getone``. A
