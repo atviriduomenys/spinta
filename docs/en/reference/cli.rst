@@ -243,6 +243,7 @@ Example
 
    info:
      title: JADIS data service
+     version: "1"
    servers:
      - url: https://get.data.gov.lt
        description: Production
