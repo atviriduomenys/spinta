@@ -39,6 +39,7 @@ from spinta.formats.html.helpers import (
 )
 from spinta.types.datatype import (
     JSON,
+    URL,
     UUID,
     Array,
     ArrayBackRef,
@@ -414,6 +415,26 @@ def prepare_dtype_for_response(
                 dtype.prop.model,
                 pk=value,
             ),
+        )
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, URL, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: URL,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    link = data.pop("_link", True)
+    if link:
+        return Cell(
+            value,
+            link=value,
         )
     return Cell(value)
 

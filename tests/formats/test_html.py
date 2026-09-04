@@ -1416,3 +1416,47 @@ def test_front_page_warning_rendered(
 
     resp = app.get("/example/html/warning/Country/:format/html")
     assert resp.context["front_page_warning"] == "**Custom** warning"
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_html_url(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/html/url         |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | id      |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | link     | url     |         |         |       |
+
+    """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True,
+    )
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall", "search"])
+
+    pushdata(app, "/example/html/url/Country", {"id": 0, "link": "https://www.example.com"})
+    pushdata(app, "/example/html/url/Country", {"id": 1, "link": "mailto:email@example.com"})
+
+    resp = app.get(
+        "/example/html/url/Country/:format/html?select(id,link)&sort(id)",
+    )
+
+    assert _table_with_header(resp) == [
+        {"id": {"value": 0}, "link": {"value": "https://www.example.com", "link": "https://www.example.com"}},
+        {"id": {"value": 1}, "link": {"value": "mailto:email@example.com", "link": "mailto:email@example.com"}},
+    ]
