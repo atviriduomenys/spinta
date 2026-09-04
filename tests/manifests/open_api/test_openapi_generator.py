@@ -2060,3 +2060,16 @@ def test_listed_identifiers_are_reachable(open_manifest_path_factory):
         jsonschema.validate(schema["example"], schema)
     jsonschema.validate("=AE", identifier)
     jsonschema.validate("AE", answered)
+
+
+def test_single_object_answers_a_redirect(open_manifest_path_factory):
+    """A moved identifier is answered with `301` and where it lives now."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    for method in ("get", "head"):
+        responses = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas/{id}"][method]["responses"]
+        assert "301" in responses, method
+        assert responses["301"]["headers"] == {"Location": {"$ref": "#/components/headers/Location"}}
+
+    # A listing has no identifier to move, so it never redirects.
+    assert "301" not in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]["get"]["responses"]

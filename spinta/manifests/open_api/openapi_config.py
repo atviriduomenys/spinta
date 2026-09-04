@@ -366,6 +366,10 @@ PATHS_CONFIG = {
             "operationId": "headOne",
             "responses": {
                 "200": {"description": "OK"},
+                "301": {
+                    "description": "Moved Permanently. The identifier was moved to another one, which `Location` gives.",
+                    "headers": ["Location"],
+                },
                 "304": {"description": "Not Modified"},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
@@ -388,6 +392,10 @@ PATHS_CONFIG = {
                     "content": {
                         "application/json": {"schema": "object"},
                     },
+                },
+                "301": {
+                    "description": "Moved Permanently. The identifier was moved to another one, which `Location` gives.",
+                    "headers": ["Location"],
                 },
                 "304": {
                     "description": "Not Modified",
@@ -789,6 +797,15 @@ HEADER_COMPONENTS = {
         "description": "The `Cache-Control` header tells caches what they may do with the response. A probe answers `no-store`, because a cached answer would report a state the service no longer is in.",
         "required": False,
         "schema": {"type": "string", "examples": ["no-store"]},
+    },
+    "Location": {
+        "description": "Where the object lives now. Answered with `301` when the identifier asked for was moved to another one, see `spinta.commands.read.getone`.",
+        "required": True,
+        "schema": {
+            "type": "string",
+            "format": "uri-reference",
+            "examples": ["/datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas/abdd1245-bbf9-4085-9366-f11c0f737c1d"],
+        },
     },
 }
 
