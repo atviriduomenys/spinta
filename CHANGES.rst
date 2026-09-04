@@ -65,6 +65,11 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - Reading a single object declares the ``301`` it answers when the identifier
+    asked for was moved to another one, together with the ``Location`` header
+    saying where the object lives now, see ``spinta.commands.read.getone``. A
+    gateway validating responses would have refused a legitimate redirect. A
+    listing has no identifier to move, so it keeps none.
   - Where a manifest lists the values an identifier takes, the path parameter
     lists them as a request carries them, behind the equals sign, instead of
     listing them beside a pattern none of them matches: nothing satisfied both,
