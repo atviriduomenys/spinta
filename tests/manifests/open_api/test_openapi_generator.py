@@ -29,6 +29,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_DECLARED_ID,
     MANIFEST_WITH_DECLARED_REF_ID,
     MANIFEST_WITH_DECLARED_REVISION,
+    MANIFEST_WITH_ENUM_ID,
     MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_OBJECT_REF,
@@ -2040,3 +2041,22 @@ def test_every_request_header_is_bounded(open_manifest_path_factory):
     ]
 
     assert unbounded == []
+
+
+def test_listed_identifiers_are_reachable(open_manifest_path_factory):
+    """A pattern beside listed values leaves nothing that satisfies both."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_ID)
+
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+    answered = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]["_id"]
+
+    # A request carries the value behind the equals sign, an answer without it.
+    assert identifier["enum"] == ["=AE", "=LT"]
+    assert answered["enum"] == ["AE", "LT"]
+    assert "pattern" not in identifier
+
+    for schema in (identifier, answered):
+        jsonschema.validate(schema["example"], schema)
+    jsonschema.validate("=AE", identifier)
+    jsonschema.validate("AE", answered)

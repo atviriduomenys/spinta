@@ -398,6 +398,19 @@ id | d | r | b | m | property           | type            | ref                 
 """)
 
 
+# A model whose identifiers the manifest lists, one by one.
+MANIFEST_WITH_ENUM_ID = striptable("""
+id | d | r | b | m | property | type            | ref   | source | prepare | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |       |       |        |         |       |
+   |   | test                 | memory          |       |        |         |       |
+   |   |   |   | Salis        |                 | kodas | salys  |         |       |
+   |   |   |   |   | _id      | string          |       |        |         |       | open
+   |                          | enum            |       |        | 'AE'    |       |
+   |                          |                 |       |        | 'LT'    |       |
+   |   |   |   |   | kodas    | string required |       | kodas  |         | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
