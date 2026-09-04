@@ -7,7 +7,7 @@ import os
 import pathlib
 import sys
 import typing
-from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
 from ruamel.yaml import YAML
 
@@ -20,7 +20,9 @@ if typing.TYPE_CHECKING:
     from spinta.manifests.components import ManifestPath
 
 Schema = Dict[str, Any]
-Key = Tuple[str]
+# A configuration key path, e.g. `("backends", "default", "dsn")` for
+# `backends.default.dsn`. The root key is an empty tuple `()`.
+Key = Tuple[str, ...]
 
 
 class InnerKeys(list):
@@ -86,7 +88,7 @@ class ConfigSource:
 
     def __init__(self, name=None, config=None):
         self.name = self.getname(name)
-        self.config = config
+        self.config = {} if config is None else config
 
     def __str__(self):
         return self.name
@@ -110,7 +112,7 @@ class ConfigSource:
             config.update(v)
         self.config = config
 
-    def keys(self, env: str = None):
+    def keys(self, env: Optional[str] = None):
         if env:
             for key in self.config:
                 if key[:2] == ("environments", env):
@@ -120,7 +122,7 @@ class ConfigSource:
                 if key[:1] != ("environments",):
                     yield key
 
-    def get(self, key: tuple, env: str = None):
+    def get(self, key: tuple, env: Optional[str] = None):
         if env:
             return self.config.get(("environments", env) + key, NA)
         else:
@@ -219,6 +221,20 @@ class EnvFile(EnvVars):
         super().read(schema)
 
 
+# A mapping of a config key path (see `Key`) to a tuple of:
+# - the config source (`ConfigSource`) that declares that key (its name is
+#   used as the value origin, see `RawConfig.keys` and `RawConfig.getall`), and
+# - a list of child key names declared under that key.
+# Example:
+#   keys: ConfigKeys = {
+#       ():                      (spinta,  ["backends", "manifests", ...]),  # root
+#       ("backends",):           (spinta,  ["default", "keymaps"]),
+#       ("backends", "default"): (envvars, ["type", "dsn", "name"]),
+#       ...
+#   }
+ConfigKeys = Dict[Key, Tuple[ConfigSource, List[str]]]
+
+
 class RawConfig:
     """A raw configuration reader component
 
@@ -239,11 +255,11 @@ class RawConfig:
 
     sources: List[ConfigSource]
 
-    def __init__(self, sources: Optional[ConfigSource] = None):
+    def __init__(self, sources: Optional[List[ConfigSource]] = None):
         self._locked = False
         self.sources = sources or []
-        self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
-        self._explicit_keys: Set[Tuple[str]] = set()
+        self._keys: ConfigKeys = {}
+        self._explicit_keys: Set[Key] = set()
         self._schema = SCHEMA
 
     def read(
@@ -393,7 +409,7 @@ class RawConfig:
             result[key] = val
         return result
 
-    def _update_keys(self) -> Dict[Key, List[str]]:
+    def _update_keys(self) -> ConfigKeys:
         """Update inner keys respecting already set values."""
         keys = {}
         explicit = set()
@@ -405,73 +421,103 @@ class RawConfig:
         self._explicit_keys = explicit
         return keys
 
-    def _update_config_keys(self, keys, explicit, config, ckeys, env=None):
+    def _update_config_keys(
+        self,
+        keys: ConfigKeys,
+        explicit: Set[Key],
+        config: ConfigSource,
+        ckeys: Iterable[Key],
+        env: Optional[str] = None,
+    ) -> None:
         # Update `keys` in place.
         if () not in keys:
             keys[()] = config, []
         for key in ckeys:
-            if key and key[0] not in keys[()][1]:
-                keys[()][1].append(key[0])
-            n = len(key)
-            schema = self._schema
-            for i in range(1, n + 1):
-                schema = _get_key_schema(schema, key[i - 1])
-                if schema is None:
-                    # Skip unknown keys, only keys known to the schema can
-                    # have child keys.
-                    break
-                if schema["type"] != "object":
-                    # The schema declares this key as a scalar, but configuration
-                    # may still use it as a nested object (e.g. a property
-                    # `type` given as `{"name": ..., ...}`). Allow one more level
-                    # of child collection so such dict values can be reconstructed,
-                    # but do not mark the key as explicitly set based on these
-                    # derived children.
-                    if i < n:
-                        k = tuple(key[:i])
-                        if k not in keys:
-                            keys[k] = config, []
-                        if key[i] not in keys[k][1]:
-                            keys[k][1].append(key[i])
-                    break
-                k = tuple(key[:i])
-                v = config.get(k, env)
-                if v is not NA:
-                    if isinstance(v, str):
-                        # This should never happen, all configuration sources
-                        # must either parse comma separated values of
-                        # object-type keys into lists (see
-                        # `_parse_object_key_values`) or raise an error (see
-                        # `_check_keys`).
-                        raise Exception(
-                            f"Invalid configuration value {v!r} for key {'.'.join(k)!r} in {config.name} config: "
-                            f"expected a mapping or a list of key names, but got a scalar value, "
-                            f"use a list instead, e.g. {'.'.join(k)}: ['one']."
-                        )
-                    elif isinstance(v, InnerKeys):
-                        # Child key names derived from the structure of a merge
-                        # source (see `ForkConfig`). Add them to child key names
-                        # already declared by lower priority sources instead of
-                        # replacing them, so a partial forked subtree would not
-                        # shadow the rest of the configuration.
-                        if k in keys:
-                            existing = keys[k][1]
-                            keys[k] = config, existing + [c for c in v if c not in existing]
-                        else:
-                            keys[k] = config, list(v)
-                    else:
-                        # Source has explicit value set. Empty values reset the
-                        # current key list, but nested keys are still added back.
-                        keys[k] = config, list(v)
-                        explicit.add(k)
-                if i < n:
-                    # Collect all parent keys.
-                    if k not in keys:
-                        keys[k] = config, []
-                    if key[i] not in keys[k][1]:
-                        keys[k][1].append(key[i])
+            if key:
+                self._add_child_key(keys, config, (), key[0])
+            self._update_config_key(keys, explicit, config, key, env)
 
-    def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
+    def _update_config_key(
+        self,
+        keys: ConfigKeys,
+        explicit: Set[Key],
+        config: ConfigSource,
+        key: Key,
+        env: Optional[str],
+    ) -> None:
+        n = len(key)
+        schema = self._schema
+        for i in range(1, n + 1):
+            schema = _get_key_schema(schema, key[i - 1])
+            if schema is None:
+                # Skip unknown keys, only keys known to the schema can
+                # have child keys.
+                return
+            if schema["type"] != "object":
+                self._update_scalar_key(keys, config, tuple(key[:i]), key[i:])
+                return
+            k = tuple(key[:i])
+            self._update_object_key(keys, explicit, config, k, env)
+            if i < n:
+                # Collect all parent keys.
+                self._add_child_key(keys, config, k, key[i])
+
+    def _update_scalar_key(self, keys: ConfigKeys, config: ConfigSource, key: Key, tail: Tuple[str, ...]) -> None:
+        # The schema declares this key as a scalar, but configuration
+        # may still use it as a nested object (e.g. a property
+        # `type` given as `{"name": ..., ...}`). Allow one more level
+        # of child collection so such dict values can be reconstructed,
+        # but do not mark the key as explicitly set based on these
+        # derived children.
+        if tail:
+            self._add_child_key(keys, config, key, tail[0])
+
+    def _update_object_key(
+        self,
+        keys: ConfigKeys,
+        explicit: Set[Key],
+        config: ConfigSource,
+        key: Key,
+        env: Optional[str],
+    ) -> None:
+        value = config.get(key, env)
+        if value is NA:
+            return
+        if isinstance(value, str):
+            # This should never happen, all configuration sources
+            # must either parse comma separated values of
+            # object-type keys into lists (see
+            # `_parse_object_key_values`) or raise an error (see
+            # `_check_keys`).
+            raise Exception(
+                f"Invalid configuration value {value!r} for key {'.'.join(key)!r} in {config.name} config: "
+                f"expected a mapping or a list of key names, but got a scalar value, "
+                f"use a list instead, e.g. {'.'.join(key)}: ['one']."
+            )
+        elif isinstance(value, InnerKeys):
+            # Child key names derived from the structure of a merge
+            # source (see `ForkConfig`). Add them to child key names
+            # already declared by lower priority sources instead of
+            # replacing them, so a partial forked subtree would not
+            # shadow the rest of the configuration.
+            if key in keys:
+                existing = keys[key][1]
+                keys[key] = config, existing + [v for v in value if v not in existing]
+            else:
+                keys[key] = config, list(value)
+        else:
+            # Source has explicit value set. Empty values reset the
+            # current key list, but nested keys are still added back.
+            keys[key] = config, list(value)
+            explicit.add(key)
+
+    def _add_child_key(self, keys: ConfigKeys, config: ConfigSource, key: Key, child: str) -> None:
+        if key not in keys:
+            keys[key] = config, []
+        if child not in keys[key][1]:
+            keys[key][1].append(child)
+
+    def _get_config_value(self, key: Key, default: Any = NA, env: Optional[str] = None):
         assert isinstance(key, tuple)
         for config in reversed(self.sources):
             val = NA
