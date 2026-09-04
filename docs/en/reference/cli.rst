@@ -257,14 +257,18 @@ Example
 
    {
      "openapi": "3.1.0",
-     "info": {"title": "JADIS data service", "version": ""},
+     "info": {"title": "JADIS data service", "version": "1"},
      "servers": [
        {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Production"},
        {"url": "https://test-get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Testing"}
      ],
      "paths": {
        "/:version": {},
+       "/:health": {},
        "/:token": {},
+       "/version": {},
+       "/health": {},
+       "/auth/token": {},
        "/at280_israsas/DalyvioAsmensIsrasas": {},
        "/at280_israsas/DalyvioAsmensIsrasas/{id}": {}
      }

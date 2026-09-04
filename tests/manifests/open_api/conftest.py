@@ -382,6 +382,22 @@ id | d | r | b | m | property  | type            | ref          | source | level
 """)
 
 
+# A reference inside an object property, and inside an object inside one.
+MANIFEST_WITH_NESTED_OBJECT_REF = striptable("""
+id | d | r | b | m | property           | type            | ref                                    | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |                |                                        |       |
+   |   | test                          | memory          |                                        |       |
+   |   |   |   | Salis                 |                 | kodas                                  |       |
+   |   |   |   |   | kodas             | string required |                                        | 4     | open
+   |   |   |   | Israsas               |                 | id                                     |       |
+   |   |   |   |   | id                | string required |                                        | 4     | open
+   |   |   |   |   | adresas           | object          |                                        | 4     | open
+   |   |   |   |   | adresas.salis     | ref             | datasets/gov/rc/jadis/at280/1/ds/Salis | 4     | open
+   |   |   |   |   | adresas.vieta     | object          |                                        | 4     | open
+   |   |   |   |   | adresas.vieta.kur | ref             | datasets/gov/rc/jadis/at280/1/ds/Salis | 3     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
