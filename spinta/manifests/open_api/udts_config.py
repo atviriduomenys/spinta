@@ -47,6 +47,10 @@ LIMITS_KEYS = frozenset(["max_limit"])
 #: number is the largest page Spinta builds at once, `default_page_size`.
 DEFAULT_MAX_LIMIT = 100000
 
+#: A configured limit is written into the document as an `int64`, so it has to
+#: be one; a limit beyond that is not a limit anyone applies.
+MAX_LIMIT_CEILING = 2**63 - 1
+
 #: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
 malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
 
@@ -421,10 +425,10 @@ def _check_limits(limits: dict, path: pathlib.Path) -> None:
     max_limit = limits.get("max_limit")
     if max_limit is None:
         return
-    if not isinstance(max_limit, int) or isinstance(max_limit, bool) or max_limit < 1:
+    if not isinstance(max_limit, int) or isinstance(max_limit, bool) or not 1 <= max_limit <= MAX_LIMIT_CEILING:
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"`limits.max_limit` must be a whole number of one or more, got {max_limit!r}.",
+            error=(f"`limits.max_limit` must be a whole number from one to {MAX_LIMIT_CEILING}, got {max_limit!r}."),
         )
 
 
