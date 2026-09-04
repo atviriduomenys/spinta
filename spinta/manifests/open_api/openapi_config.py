@@ -832,7 +832,12 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": "Part of a file to return, see [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#field.range). A file kept in a file system is served with `Accept-Ranges: bytes`; one kept in a database is returned whole, with `200`.",
-        "schema": {"type": "string", "examples": ["bytes=0-1023"]},
+        "schema": {
+            "type": "string",
+            "pattern": HEADER_VALUE_PATTERN,
+            "examples": ["bytes=0-1023"],
+            "example": "bytes=0-1023",
+        },
     },
     "If-None-Match": {
         "name": "If-None-Match",
@@ -858,7 +863,7 @@ PARAMETER_COMPONENTS = {
         "name": "query",
         "in": "query",
         "required": False,
-        "description": "Object filter. This filter and the pattern used to form a querie conforms to [***URI syntax standard***](https://datatracker.ietf.org/doc/html/rfc3986).\n\nOther implementations of this specification can use more complex queries depending on filtering rules. They should comply to [***AST***](https://en.wikipedia.org/wiki/Abstract_syntax_tree) formatting and logic.\n\nThe listed parameters are the ones that take a value of their own. Two more are accepted and are left out of the listing, because neither can be filled in before the request is made:\n\n- `count()`, written as `?count()` or as `?_count`, without a value, answers with the number of objects instead of the objects. A value, `?_count=1` for one, is refused.\n- `_page` continues a listing and takes the token the previous answer gave in `_page.next`. Any other value is refused.\n\nA parameter left empty, `?_select=` for one, is refused as well.",
+        "description": "Object filter. This filter and the pattern used to form a query conform to [***URI syntax standard***](https://datatracker.ietf.org/doc/html/rfc3986).\n\nOther implementations of this specification can use more complex queries depending on filtering rules. They should comply to [***AST***](https://en.wikipedia.org/wiki/Abstract_syntax_tree) formatting and logic.\n\nThe listed parameters are the ones that take a value of their own. Two more are accepted and are left out of the listing, because neither can be filled in before the request is made:\n\n- `count()`, written as `?count()` or as `?_count`, without a value, answers with the number of objects instead of the objects. A value, `?_count=1` for one, is refused.\n- `_page` continues a listing and takes the token the previous answer gave in `_page.next`. Any other value is refused.\n\nA parameter left empty, `?_select=` for one, is refused as well.",
         "schema": {
             "type": "object",
             "properties": {

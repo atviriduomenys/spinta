@@ -2027,3 +2027,16 @@ def test_traceparent_refuses_what_trace_context_reserves(open_manifest_path_fact
     ):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(value, schema)
+
+
+def test_every_request_header_is_bounded(open_manifest_path_factory):
+    """A header a request carries has a bound, as everything else it carries."""
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+
+    unbounded = [
+        name
+        for name, parameter in parameters.items()
+        if parameter.get("in") == "header" and "pattern" not in (parameter.get("schema") or {})
+    ]
+
+    assert unbounded == []

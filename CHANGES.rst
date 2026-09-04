@@ -65,6 +65,10 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - The ``Range`` header is bounded like every other header a request carries,
+    which it alone was not. ``limits.max_limit`` is checked to fit in an
+    ``int64``, because that is what the document writes it as, so a
+    configuration and the contract built from it cannot disagree.
   - A reference inside an object property gets a schema. References were
     looked for one layer deep, so a model holding ``object -> ref`` produced a
     ``$ref`` pointing at nothing and a specification that fails validation
