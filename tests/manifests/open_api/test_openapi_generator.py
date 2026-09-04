@@ -31,6 +31,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_DECLARED_REVISION,
     MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
+    MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
@@ -712,7 +713,7 @@ def test_model_schema_accepts_a_real_reference_value(open_manifest_path_factory)
         "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
         "_revision": None,
         "kodas": "K1",
-        "adresas": {"_id": "12345678-1234-5678-9abc-123456789012"},
+        "adresas": {"_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d"},
     }
 
     assert not list(_validator(open_api_spec, schema).iter_errors(body))
@@ -1958,9 +1959,13 @@ def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_fac
 
     for value in ("uapi:/datasets/gov/rc/:getall", "kita:modelis:getall", "tenant+read", "tenant$read", "a b"):
         jsonschema.validate(value, scope)
+    # An empty scope is accepted and answered with a token, see
+    # `tests/test_auth.py::test_empty_scope`.
+    jsonschema.validate("", scope)
+
     # A space separates scopes, and neither a quotation mark nor a backslash is
     # part of one, RFC 6749 section 3.3.
-    for value in ("", 'blogas"cituotas', "su\\pasviru", "du  tarpai"):
+    for value in ('blogas"cituotas', "su\\pasviru", "du  tarpai"):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(value, scope)
 
@@ -1985,3 +1990,40 @@ def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
 
     # The agent serves its own endpoints at its root, not under that path.
     assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "https://host.lt"}]
+
+
+def test_object_property_reference_gets_a_schema(open_manifest_path_factory):
+    """A reference can sit inside an object, and inside an object inside one."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_OBJECT_REF)
+    schemas = open_api_spec["components"]["schemas"]
+
+    referenced = re.findall(r'"#/components/schemas/([^"]+)"', json.dumps(open_api_spec))
+
+    assert set(referenced) <= set(schemas), f"pointing at nothing: {sorted(set(referenced) - set(schemas))}"
+
+
+def test_object_identifier_is_a_version_four_uuid(open_manifest_path_factory):
+    """Spinta accepts no other, see `spinta.backends.is_object_id`."""
+    jsonschema = pytest.importorskip("jsonschema")
+    identifier = _service_spec(open_manifest_path_factory)["components"]["schemas"][
+        "at280_israsas_DalyvioAsmensIsrasas"
+    ]["properties"]["_id"]
+
+    jsonschema.validate("abdd1245-bbf9-4085-9366-f11c0f737c1d", identifier)
+    # A version 5 one, which Spinta answers `ModelNotFound` to.
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate("12345678-1234-5678-9abc-123456789012", identifier)
+
+
+def test_traceparent_refuses_what_trace_context_reserves(open_manifest_path_factory):
+    """Version `ff` is reserved and neither identifier may be all zeroes."""
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
+
+    for value in (
+        "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01",
+        "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
+        "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",
+    ):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(value, schema)

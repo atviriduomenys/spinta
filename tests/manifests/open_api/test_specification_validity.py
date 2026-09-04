@@ -20,6 +20,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
     MANIFEST_WITH_ENUM_VALUES,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
+    MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
@@ -87,6 +88,7 @@ def _assert_valid(open_api_spec: dict) -> None:
         (MANIFEST_WITH_ARRAY_IN_REFERENCE, {"service_path": SERVICE_PATH}),
         # Values and names real data services hold.
         (MANIFEST_WITH_ENUM_VALUES, {"service_path": SERVICE_PATH}),
+        (MANIFEST_WITH_NESTED_OBJECT_REF, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_UNNAMABLE_NAMES, {"service_path": SERVICE_PATH}),
     ],
 )

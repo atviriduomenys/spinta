@@ -755,6 +755,10 @@ class PathGenerator:
         equals = _reached_by_equals_sign(model)
         if isinstance(dtype, Base32):
             schema["pattern"] = BASE32_ID_PATTERN
+        elif "pattern" in schema:
+            # A type of its own already says what the value looks like, `uuid`
+            # for one, and a path segment is a looser thing to say than that.
+            pass
         elif schema.get("type") == "string":
             # The shape of such a key is known only to the data, so what is
             # stated is that it is one path segment, and that it is bounded.
@@ -1300,7 +1304,17 @@ class SchemaGenerator:
         }
 
     def _create_referenced_model_schemas(self, schemas: dict, model: Model) -> None:
-        for model_property in model.get_given_properties().values():
+        self._create_schemas_of_references_in(schemas, model.get_given_properties().values())
+
+    def _create_schemas_of_references_in(self, schemas: dict, properties) -> None:
+        """Build a schema for every reference these properties reach.
+
+        A reference can sit inside an object property, and that object inside
+        another one or inside an array, so the properties are walked through
+        rather than read one layer deep: a reference nobody built a schema for
+        leaves a `$ref` pointing at nothing.
+        """
+        for model_property in properties:
             # An array holds its reference in the item property, which carries a
             # level of its own, and the schema of a reference is built from it.
             # `convert_to_openapi_schema` reads the item property as well, so
@@ -1310,6 +1324,10 @@ class SchemaGenerator:
                 continue
 
             dtype = model_property.dtype
+
+            if isinstance(dtype, Object):
+                self._create_schemas_of_references_in(schemas, (dtype.properties or {}).values())
+                continue
 
             if not self.dtype_handler.is_reference_type(dtype):
                 continue

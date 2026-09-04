@@ -37,7 +37,7 @@ PROPERTY_EXAMPLE = {
 }
 
 #: A revision is a UUID, as is an identifier, see `spinta.backends`.
-UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
 
 STANDARD_OBJECT_PROPERTIES = {
     "_type": {"type": "string", "description": "Name of the model this object belongs to."},
@@ -58,6 +58,7 @@ STANDARD_OBJECT_PROPERTIES = {
 
 PROPERTY_MAPPING = {
     "string": {"type": "string"},
+    "uuid": {"type": "string", "format": "uuid", "pattern": UUID_PATTERN},
     "integer": {"type": "integer"},
     "number": {"type": "number"},
     "boolean": {"type": "boolean"},
@@ -85,7 +86,7 @@ HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]{1,1024}$"
 #: backslash. Narrower than that would refuse a scope a configured
 #: `scope_formatter` builds, and it is free to build what it likes.
 SCOPE_TOKEN = "[\\x21\\x23-\\x5B\\x5D-\\x7E]+"
-SCOPE_PATTERN = f"^{SCOPE_TOKEN}( {SCOPE_TOKEN})*$"
+SCOPE_PATTERN = f"^({SCOPE_TOKEN}( {SCOPE_TOKEN})*)?$"
 
 #: An identifier a model declares itself holds the key of the data, of a shape
 #: only that data knows, see `spinta.backends.is_object_id`. What can be said is
@@ -802,7 +803,7 @@ PARAMETER_COMPONENTS = {
             "type": "string",
             # Version, trace id, parent id and flags, hexadecimal throughout,
             # W3C trace-context. Anchored at both ends, so nothing follows.
-            "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
+            "pattern": "^(?!ff)[0-9a-f]{2}-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}$",
             "description": "Consists of `version` `trace-id` `parent-id` `trace-flags` separated by `-`. \n\n`trace-id` recommended to be in UUIDv4",
             "examples": ["00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"],
         },
@@ -1188,7 +1189,7 @@ SCOPE_DESCRIPTION = "Access to the data of this data service."
 SECURITY_SCHEMES = {
     "UAPI_auth": {
         "type": "oauth2",
-        "description": "OAuth 2.0 `client_credentials` grant. Scopes are named after the data being accessed. Access tokens are JWTs, handled as RFC8725 requires: signed with RS512, never accepted unsigned, and checked against the issuer and the audience.",
+        "description": "OAuth 2.0 `client_credentials` grant. Scopes are named after the data being accessed. Access tokens are JWTs, handled as RFC8725 requires: signed with one of RS256, RS384, RS512, ES256, ES384 or ES512, never accepted unsigned, and checked against the issuer and the audience.",
         "flows": {
             "clientCredentials": {
                 "tokenUrl": "",

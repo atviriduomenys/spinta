@@ -65,6 +65,18 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - A reference inside an object property gets a schema. References were
+    looked for one layer deep, so a model holding ``object -> ref`` produced a
+    ``$ref`` pointing at nothing and a specification that fails validation
+    outright. They are looked for through every layer now, objects nested in
+    objects and in arrays included.
+  - An identifier is described as the version 4 UUID Spinta accepts, and a
+    property declared as ``uuid`` keeps that shape instead of being described
+    as any string at all. ``traceparent`` refuses what W3C trace context
+    reserves: the version ``ff`` and an identifier of nothing but zeroes. An
+    empty ``scope`` is accepted, because the token endpoint answers it with a
+    token. The security scheme names the algorithms tokens are really signed
+    with, six of them rather than one.
   - Nothing is asserted of the ``429`` body. A rate limit is applied in front
     of the service, and what its answer holds, in which media type, is decided
     there; asserting a JSON object would have validation refuse the very
