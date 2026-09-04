@@ -1,40 +1,189 @@
 from __future__ import annotations
 
 import copy
+import re
+import uuid
 from dataclasses import dataclass, field
-from typing import Any
+from functools import partial
+from typing import Any, Callable, Union
 
 from spinta.cli.manifest import _read_and_return_manifest
-from spinta.components import Model
+from spinta.components import Model, Namespace, Property
+from spinta.config import CONFIG
 from spinta.core.context import configure_context, create_context
-from spinta.core.enums import Level
+from spinta.core.enums import Action, Level
+from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.components import EnumItem
+from spinta.exceptions import DataServiceNotFound
+from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_config import (
+    BASE32_ID_PATTERN,
     BASE_TAGS,
     COMMON_SCHEMAS,
+    DECLARED_ID_PATTERN,
+    EQUALS_ID_PATTERN,
     EXTERNAL_DOCS,
     HEADER_COMPONENTS,
     INFO,
+    OBJECT_PROPERTY_TYPE,
     PARAMETER_COMPONENTS,
+    PATH_TYPE_ACTIONS,
     PATHS_CONFIG,
     PROPERTY_EXAMPLE,
     PROPERTY_MAPPING,
+    PROPERTY_PATH_TYPES,
     PROPERTY_TYPES_IN_PATHS,
     RESPONSE_COMPONENTS,
-    SERVERS,
+    ROOT_SCOPE_TEMPLATE,
+    SCOPE_DESCRIPTION,
+    SCOPE_TEMPLATE,
+    SECURITY_SCHEMES,
     STANDARD_OBJECT_PROPERTIES,
     VERSION,
 )
-from spinta.types.datatype import DataType
+from spinta.manifests.open_api.service import (
+    datasets_under_service,
+    find_services,
+    relative_path,
+    service_schema_name,
+)
+from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
+from spinta.types.datatype import Base32, DataType, Object, PrimaryKey, String
 from spinta.utils.schema import NA
+from spinta.utils.scopes import name_to_scope
 
-UTILITY_PATHS = ["/version", "/health"]
+AUTH_SCHEME = "UAPI_auth"
+
+#: Endpoints of the agent, as an API gateway routes them inside a data service:
+#: each service has a context path of its own, and these are routed separately,
+#: which is what the action form stands for.
+GATEWAY_UTILITY_PATHS = ["/:version", "/:health", "/:token"]
+
+#: The same endpoints at the addresses the agent serves them at. A data service
+#: export carries both, because the file is read both by a gateway and by a
+#: client calling the agent, and each needs the form that answers for it.
+AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
+
+#: Where the agent serves the token endpoint, see `spinta.api`.
+AGENT_TOKEN_PATH = "/auth/token"
+
+#: Paths that authorize against no model.
+UTILITY_PATHS = GATEWAY_UTILITY_PATHS + AGENT_UTILITY_PATHS
 
 GLOBAL_ID_LEVEL_THRESHOLD = 4
 
-EXAMPLE_UUID_REF_ID = "12345678-1234-5678-9abc-123456789012"
-EXAMPLE_UUID_OBJECT_ID = "abdd1245-bbf9-4085-9366-f11c0f737c1d"
-EXAMPLE_UUID_REVISION = "16dabe62-61e9-4549-a6bd-07cecfbc3508"
+#: Used when the generator is called without a loaded Spinta configuration.
+DEFAULT_SCOPE_PREFIX = CONFIG["scope_prefix_udts"]
+DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
+
+#: Scope a node is authorized against, see `spinta.auth`.
+ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
+
+
+def _innermost_property(model_property):
+    """Property holding the value of an array, through every array layer.
+
+    Arrays nest, and a dynamic array declares no item property at all, see
+    `spinta.types.array.link`, in which case there is nothing to describe and
+    `None` is returned.
+    """
+    while True:
+        dtype = model_property.dtype
+        if not hasattr(dtype, "items"):
+            return model_property
+        if dtype.items is None:
+            return None
+        model_property = dtype.items
+
+
+def _reference_shape(model_property, dtype) -> tuple:
+    level = getattr(model_property, "level", None)
+    refprops = getattr(dtype, "refprops", None) or []
+    return getattr(level, "value", level), tuple(prop.name for prop in refprops if hasattr(prop, "name"))
+
+
+def _authorized_nodes(model: Model, path_type: str, model_property: tuple | None) -> list[Model | Property | Namespace]:
+    """Nodes a scope of which authorizes the operation.
+
+    Spinta accepts a scope of the node itself or of any namespace above it, see
+    `spinta.auth.authorized`, so a token carrying a data service or a namespace
+    scope authorizes a model of it. A hidden property takes its own scope only.
+    """
+    if path_type in PROPERTY_PATH_TYPES and model_property:
+        prop = model_property[1]
+        if getattr(prop, "hidden", False):
+            return [prop]
+        nodes = [prop, model]
+    else:
+        nodes = [model]
+
+    namespace = getattr(model, "ns", None)
+    if namespace is not None:
+        nodes += [namespace, *namespace.parents()]
+
+    return nodes
+
+
+def default_scope_name(
+    node: Model | Property,
+    action: Action,
+    prefix: str = DEFAULT_SCOPE_PREFIX,
+    maxlen: int = DEFAULT_SCOPE_MAX_LENGTH,
+) -> str:
+    """Build a scope the way `spinta.auth.get_scope_name` does.
+
+    Used when the generator is called without the configured scope formatter,
+    which is where a deployment can replace this.
+    """
+    if isinstance(node, Namespace):
+        name = node.name
+    elif isinstance(node, Property):
+        name = f"{node.model.model_type()}/@{node.place}"
+    else:
+        name = node.model_type()
+
+    return name_to_scope(
+        SCOPE_TEMPLATE if name else ROOT_SCOPE_TEMPLATE,
+        name,
+        maxlen=maxlen,
+        params={"prefix": prefix, "action": action.value},
+        is_udts=True,
+    )
+
+
+#: Namespace the identifiers of examples are derived in. Fixed, so that one
+#: manifest gives one document, and a regenerated file differs only where the
+#: manifest did.
+EXAMPLE_NAMESPACE = uuid.UUID("abdd1245-bbf9-4085-9366-f11c0f737c1d")
+
+
+def _example_uuid(seed: str) -> str:
+    """An identifier of an example, one per name.
+
+    Every example of a document would otherwise carry one identifier, which
+    reads as if every model answered with the same object, and a reference
+    would point at something other than the example of what it references.
+
+    Version and variant bits are those of a version 4 UUID, because Spinta
+    accepts no other shape as an object identifier, see
+    `spinta.backends.is_object_id`.
+    """
+    digest = bytearray(uuid.uuid5(EXAMPLE_NAMESPACE, seed).bytes)
+    digest[6] = (digest[6] & 0x0F) | 0x40
+    digest[8] = (digest[8] & 0x3F) | 0x80
+    return str(uuid.UUID(bytes=bytes(digest)))
+
+
+#: A page token, as `_page.next` of an answer carries one.
+EXAMPLE_PAGE_TOKEN = "WyIyMDI2LTA4LTMxIl0="
+
+
+def _example_id(model: Model) -> str:
+    return _example_uuid(model.name)
+
+
+def _example_revision(model: Model) -> str:
+    return _example_uuid(f"{model.name} revision")
 
 
 @dataclass
@@ -53,6 +202,10 @@ class ExampleValues:
     values: dict[str, Any] = field(default_factory=lambda: PROPERTY_EXAMPLE)
 
 
+#: Characters an OpenAPI component name is allowed to hold.
+unnamable_re = re.compile(r"[^a-zA-Z0-9._-]")
+
+
 def _get_schema_name(model: Model) -> str:
     """Convert model name to unique OpenAPI schema name.
 
@@ -61,26 +214,151 @@ def _get_schema_name(model: Model) -> str:
     return model.name.replace("/", "_")
 
 
-def _get_main_schema_name(model: Model, use_basename_for_schema_names: bool) -> str:
-    """Get primary schema name for a model, depending on mode."""
-    return model.basename if use_basename_for_schema_names else _get_schema_name(model)
+def _requested_scopes(spec: dict[str, Any], scheme: str) -> set[str]:
+    """Collect scopes that operations request from a given security scheme."""
+    scopes = set()
+    for operations in spec.get("paths", {}).values():
+        for method, operation in operations.items():
+            if method == "parameters" or not isinstance(operation, dict):
+                continue
+            for requirement in operation.get("security", []):
+                scopes.update(requirement.get(scheme, []))
+    return scopes
 
 
-def _get_main_membership_key(model: Model, use_basename_for_schema_names: bool) -> str:
-    """Key used for membership checks in main_dataset_schema_names."""
-    return _get_main_schema_name(model, use_basename_for_schema_names)
+def _model_dataset_name(model: Model) -> str | None:
+    if hasattr(model, "external") and hasattr(model.external, "dataset"):
+        return model.external.dataset.name
+    return None
 
 
-def _resolve_ref_schema_name_for_model(
-    ref_model: Model,
-    main_dataset_schema_names: set[str] | None,
-    use_basename_for_schema_names: bool,
-) -> str:
-    """Resolve schema name for a referenced model, honoring main dataset overrides."""
-    main_key = _get_main_membership_key(ref_model, use_basename_for_schema_names)
-    if main_dataset_schema_names and main_key in main_dataset_schema_names:
-        return main_key
-    return _get_schema_name(ref_model)
+def _derived_schema_names(name: str) -> tuple[str, ...]:
+    """Names of all schemas a model of a given name gets.
+
+    A model named `X` also takes `XCollection` and `X_Ref`, so a model named
+    `XCollection` would silently replace the collection schema of `X`.
+    """
+    return name, f"{name}Collection", f"{name}_Ref"
+
+
+class SchemaNamer:
+    """Resolves component schema names for models.
+
+    Models included in the generated specification are named by the given
+    naming function, all other models, referenced from the included ones, keep
+    their full underscored name, which is unique across the whole manifest.
+    """
+
+    def __init__(
+        self,
+        models: dict[str, Model],
+        all_models: dict[str, Model] | None = None,
+        name_included: Callable[[Model], str] = _get_schema_name,
+        reserved: set[str] | None = None,
+    ):
+        self._included = {model.name for model in models.values()}
+        self._names: dict[str, str] = {}
+        self._ref_shapes: dict[str, dict[Any, str]] = {}
+        self._object_names: dict[tuple[str, str], str] = {}
+        self._taken = set(reserved or ())
+
+        for model in sorted(models.values(), key=lambda model: model.name):
+            self._assign(model, name_included(model))
+
+        # Models referenced from the included ones get a schema of their own.
+        for model in sorted((all_models or {}).values(), key=lambda model: model.name):
+            if model.name not in self._names:
+                self._assign(model, _get_schema_name(model))
+
+    def _assign(self, model: Model, base: str) -> None:
+        # A manifest is not required to name things the way OpenAPI names a
+        # component, so anything else is written as an underscore.
+        base = unnamable_re.sub("_", base)
+        # Path separators become underscores, so different dataset paths can
+        # produce one name, `a_b` and `a/b` for example, and one schema would
+        # then silently replace the other.
+        name = base
+        number = 1
+        while any(derived in self._taken for derived in _derived_schema_names(name)):
+            number += 1
+            name = f"{base}_{number}"
+        self._taken.update(_derived_schema_names(name))
+        self._names[model.name] = name
+
+    def is_included(self, model: Model) -> bool:
+        return model.name in self._included
+
+    def name(self, model: Model) -> str:
+        return self._names.get(model.name) or _get_schema_name(model)
+
+    def ref_name(self, model: Model, shape: Any) -> str:
+        """Name of a partial schema of a model referenced from an included one.
+
+        Such a schema holds what the reference carries, which depends on its
+        level and reference properties, see `_build_ref_model_schema`. One model
+        can be referenced in more than one shape, and each shape is a schema of
+        its own, otherwise the first one would answer for all of them.
+        """
+        shapes = self._ref_shapes.setdefault(model.name, {})
+        if shape not in shapes:
+            # A model of the specification keeps its full schema under its own
+            # name, so its reference schemas are named apart.
+            base = f"{self.name(model)}_Ref" if self.is_included(model) else self.name(model)
+            name = base
+            number = 1
+            while shapes and any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            shapes[shape] = name
+        return shapes[shape]
+
+    def object_name(self, model: Model, prop_name: str) -> str:
+        """Name of the schema of what one object property holds.
+
+        The property is served under a path of its own, see
+        `spinta.commands.read.getone`, so it needs a schema of its own.
+        """
+        key = (model.name, prop_name)
+        if key not in self._object_names:
+            base = unnamable_re.sub("_", f"{self.name(model)}_{prop_name}")
+            name = base
+            number = 1
+            while any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            self._object_names[key] = name
+        return self._object_names[key]
+
+
+def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
+    """Allow `null` in a property schema.
+
+    Spinta returns `null` for every property that has no value, so anything not
+    listed in `required` has to accept it, otherwise response validation fails.
+    """
+    if "$ref" in schema:
+        ref = {key: value for key, value in schema.items() if key != "example"}
+        nullable = {"anyOf": [ref, {"type": "null"}]}
+        if "example" in schema:
+            nullable["example"] = schema["example"]
+        return nullable
+
+    schema = copy.deepcopy(schema)
+    dtype = schema.get("type")
+    if isinstance(dtype, str):
+        schema["type"] = [dtype, "null"]
+    elif isinstance(dtype, list) and "null" not in dtype:
+        schema["type"] = [*dtype, "null"]
+
+    # `type` and `enum` are validated together, so a value has to be listed in
+    # both for `null` to be accepted.
+    enum = schema.get("enum")
+    if isinstance(enum, list) and None not in enum:
+        schema["enum"] = [*enum, None]
+
+    return schema
 
 
 class OpenAPISchemaRegistry:
@@ -95,8 +373,12 @@ class OpenAPISchemaRegistry:
 class DataTypeHandler:
     """Handles data type conversions and schema generation"""
 
-    def __init__(self, schema_registry: OpenAPISchemaRegistry):
+    def __init__(self, schema_registry: OpenAPISchemaRegistry, namer: SchemaNamer):
         self.schema_registry = schema_registry
+        self.namer = namer
+
+    def _ref_schema_name(self, model_property, dtype) -> str:
+        return self.namer.ref_name(dtype.model, _reference_shape(model_property, dtype))
 
     def get_dtype_name(self, dtype) -> str:
         """Extract consistent data type name from dtype object"""
@@ -117,8 +399,20 @@ class DataTypeHandler:
         return hasattr(model_property, "enum") and model_property.enum
 
     def get_enum_value(self, dtype: DataType, enum_item: EnumItem) -> Any:
-        """Converts enum value to property type"""
-        value = enum_item.prepare if enum_item.prepare and enum_item.prepare is not NA else enum_item.source
+        """Give the value an enum item stands for, `NA` if it stands for none.
+
+        `source` holds the value of the source system and `prepare` the value
+        Spinta gives out, so `prepare` is the one an API client sees, `0`,
+        `False` and `None` included. That is why it is compared against `NA`
+        instead of being tested for truth. Only a string property may leave
+        `prepare` out, and there `source` is the value itself.
+
+        A value given as a formula, `noop()` among them, stands for something
+        the data does rather than for a value, so there is nothing to list.
+        """
+        value = enum_item.source if enum_item.prepare is NA else enum_item.prepare
+        if isinstance(value, Expr):
+            return NA
         return dtype.load(value)
 
     def get_enum_values(self, model_property) -> list[str]:
@@ -128,118 +422,159 @@ class DataTypeHandler:
 
         enum = model_property.enum
         if isinstance(enum, dict):
-            return [self.get_enum_value(model_property.dtype, enum_value) for enum_value in enum.values()]
-        else:
-            return [enum_prop.strip('"') for enum_prop in enum]
+            values = [self.get_enum_value(model_property.dtype, enum_value) for enum_value in enum.values()]
+            return [value for value in values if value is not NA]
+
+        return [enum_prop.strip('"') for enum_prop in enum]
+
+    def property_schema(self, model_property, schemas: dict | None = None) -> dict[str, Any]:
+        """Schema of a property as a response carries it.
+
+        Required in a manifest means the data holds a value, not that a
+        response carries the property: a request selects what it wants, see
+        `spinta.backends.helpers.get_select_prop_names`, and a hidden property
+        is left out of an ordinary response altogether. So nothing is listed as
+        required, while a property that always holds a value is not made
+        nullable.
+        """
+        schema = self.convert_to_openapi_schema(model_property, schemas=schemas)
+        if not getattr(model_property.dtype, "required", False):
+            schema = _nullable(schema)
+        return schema
+
+    def object_properties(self, dtype: Object, schemas: dict | None = None) -> dict[str, Any]:
+        """Schemas of what an object property holds, one level at a time.
+
+        A nested object reaches this again through `convert_to_openapi_schema`,
+        so every layer is described.
+        """
+        return {
+            name: self.property_schema(model_property, schemas=schemas)
+            for name, model_property in (dtype.properties or {}).items()
+        }
 
     def convert_to_openapi_schema(
         self,
         model_property,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
         """Convert a model property to OpenAPI schema"""
 
         dtype = model_property.dtype
 
-        if self.is_enum_property(model_property):
-            enum_values = self.get_enum_values(model_property)
+        if enum_values := self.get_enum_values(model_property):
             dtype_name = self.get_dtype_name(dtype)
             return {
                 **copy.deepcopy(self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string"})),
-                **{"enum": enum_values, "example": enum_values[0] if enum_values else "UNKNOWN"},
+                **{"enum": enum_values, "example": enum_values[0]},
             }
 
-        if self.is_reference_type(dtype):
-            ref_schema_name = _resolve_ref_schema_name_for_model(
-                dtype.model,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-            )
-            example = {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
-            if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
-                example = ref_schema["example"]
-            return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
-
+        # An array of an intermediate table holds that table in `model`, which
+        # makes it look like a reference, while it is a list all the same.
         if self.is_array_type(dtype):
-            items_schema = self.convert_to_openapi_schema(
-                dtype.items,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
+            if dtype.items is None:
+                return {"type": "array", "example": []}
+
+            items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
+
+            # An item is a property of its own, and an empty one is serialized
+            # as a null of the list, see `_prepare_array_for_response`.
+            if not getattr(dtype.items.dtype, "required", False):
+                items_schema = _nullable(items_schema)
+
             example_item = items_schema.get("example", "example_item")
             return {"type": "array", "items": items_schema, "example": [example_item]}
 
+        if self.is_reference_type(dtype):
+            ref_schema_name = self._ref_schema_name(model_property, dtype)
+            example = {"_id": _example_id(dtype.model)}
+            if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
+                example = copy.deepcopy(ref_schema["example"])
+            return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
+
+        if isinstance(dtype, Object) and dtype.properties:
+            return {"type": "object", "properties": self.object_properties(dtype, schemas=schemas)}
+
         dtype_name = self.get_dtype_name(dtype)
-        return self.schema_registry.type_mapping.mappings.get(
-            dtype_name, {"type": "string", "example": "Example value"}
+        return copy.deepcopy(
+            self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string", "example": "Example value"})
         )
 
     def get_example_value(
         self,
         model_property,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> Any:
         """Generate example values for properties. When schemas is provided, use ref schema example for reference types."""
         dtype = model_property.dtype
 
-        if self.is_enum_property(model_property):
-            enum_values = self.get_enum_values(model_property)
-            return enum_values[0] if enum_values else "UNKNOWN"
+        if enum_values := self.get_enum_values(model_property):
+            return enum_values[0]
+
+        # An array is read before a reference, see `convert_to_openapi_schema`.
+        if self.is_array_type(dtype):
+            if dtype.items is None:
+                return []
+            return [self.get_example_value(dtype.items, schemas=schemas)]
 
         if self.is_reference_type(dtype):
-            ref_schema_name = _resolve_ref_schema_name_for_model(
-                dtype.model,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-            )
+            ref_schema_name = self._ref_schema_name(model_property, dtype)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
-                return ref_schema["example"]
-            return {"_type": dtype.model.basename, "_id": EXAMPLE_UUID_REF_ID}
-
-        if self.is_array_type(dtype):
-            item_example = self.get_example_value(
-                dtype.items,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
-            return [item_example]
+                return copy.deepcopy(ref_schema["example"])
+            return {"_id": _example_id(dtype.model)}
 
         dtype_name = self.get_dtype_name(dtype)
-        return self.schema_registry.example_values.values.get(dtype_name, "Example value")
+        return copy.deepcopy(self.schema_registry.example_values.values.get(dtype_name, "Example value"))
 
 
 class PathGenerator:
     """Handles OpenAPI path generation and operations"""
 
-    def __init__(self, dtype_handler: DataTypeHandler):
+    def __init__(self, dtype_handler: DataTypeHandler, namer: SchemaNamer, scope_name: ScopeNameFunc):
         self.dtype_handler = dtype_handler
-        self.use_basename_for_schema_names = False
+        self.namer = namer
+        self.scope_name = scope_name
+        self.operation_ids: set[str] = set()
+        #: Parameters built for one model, added to the components of the document.
+        self.model_parameters: dict[str, dict] = {}
+        #: Servers of the agent root, for the endpoints served there.
+        self.agent_servers: list[dict[str, Any]] = []
+        #: Largest `_limit` a request may ask for, see `UdtsConfig.max_limit`.
+        self.max_limit: int = DEFAULT_MAX_LIMIT
 
-    def should_create_property_endpoint(self, model_property) -> bool:
-        """Determine if a property should have its own endpoint"""
+    def property_path_types(self, model_property) -> list[str]:
+        """Paths Spinta serves for a property, in the order they are written.
+
+        A file is served both as its content and, under the `:ref` action, as
+        what is known about it; an object property is served as itself. Every
+        other type raises `UnavailableSubresource`, so it gets no path.
+        """
         dtype_name = self.dtype_handler.get_dtype_name(model_property.dtype)
-        return dtype_name in PROPERTY_TYPES_IN_PATHS
+        if dtype_name in PROPERTY_TYPES_IN_PATHS:
+            return ["property", "propertyRef"]
+        if dtype_name == OBJECT_PROPERTY_TYPE:
+            return ["objectProperty"]
+        return []
 
-    def create_path_mappings(self, model: Model, dataset_name: str) -> list[tuple[str, str, str, tuple | None]]:
+    def create_path_mappings(self, model: Model, path_prefix: str) -> list[tuple[str, str, str, tuple | None]]:
         """Create path mappings for a model"""
-        actual_model_name = model.basename
+        model_path = "/".join(part for part in (path_prefix, model.basename) if part)
 
         path_mappings = [
-            ("/{model_name}", f"/{dataset_name}/{actual_model_name}", "collection", None),
-            ("/{model_name}/{id}", f"/{dataset_name}/{actual_model_name}/{{id}}", "single", None),
+            ("/{model_name}", f"/{model_path}", "collection", None),
+            ("/{model_name}/{id}", f"/{model_path}/{{id}}", "single", None),
         ]
 
+        templates = {
+            "property": ("/{model_name}/{id}/{field}", "{prop}"),
+            "propertyRef": ("/{model_name}/{id}/{field}:ref", "{prop}:ref"),
+            "objectProperty": ("/{model_name}/{id}/{object_field}", "{prop}"),
+        }
         for prop_name, model_property in model.get_given_properties().items():
-            if self.should_create_property_endpoint(model_property):
-                template_path = "/{model_name}/{id}/{field}"
-                actual_path = f"/{dataset_name}/{actual_model_name}/{{id}}/{prop_name}"
-                path_mappings.append((template_path, actual_path, "property", (prop_name, model_property)))
+            for path_type in self.property_path_types(model_property):
+                template_path, segment = templates[path_type]
+                actual_path = f"/{model_path}/{{id}}/{segment.format(prop=prop_name)}"
+                path_mappings.append((template_path, actual_path, path_type, (prop_name, model_property)))
 
         return path_mappings
 
@@ -261,10 +596,15 @@ class PathGenerator:
         operations = {}
 
         if "parameters" in path_config:
-            operations["parameters"] = self._build_parameter_refs(path_config["parameters"])
+            operations["parameters"] = self._build_parameter_refs(path_config["parameters"], model)
+
+        # An endpoint of the agent is not served under the data service path,
+        # so it carries a server of its own, which OpenAPI allows per path.
+        if path_config.get("servers") == "agent" and self.agent_servers:
+            operations["servers"] = copy.deepcopy(self.agent_servers)
 
         for method_name, method_config in path_config.items():
-            if method_name == "parameters":
+            if method_name in ("parameters", "servers"):
                 continue
 
             operations[method_name] = self._build_operation(
@@ -284,25 +624,28 @@ class PathGenerator:
         operation = {}
 
         if model:
-            operation["tags"] = [model.basename]
+            operation["tags"] = [self.namer.name(model)]
         elif "tags" in method_config:
             operation["tags"] = method_config["tags"]
 
         if "security" in method_config:
-            operation["security"] = method_config["security"]
+            operation["security"] = self._build_security(method_config["security"], model, path_type, model_property)
+
+        if "requestBody" in method_config:
+            operation["requestBody"] = copy.deepcopy(method_config["requestBody"])
 
         for spec_field in ["summary", "description"]:
             if spec_field in method_config:
                 operation[spec_field] = method_config[spec_field]
 
         if "operationId" in method_config:
-            model_name = model.basename if model else None
+            model_name = self.namer.name(model) if model else None
             operation["operationId"] = self._build_operation_id(
                 method_config["operationId"], model_name=model_name, model_property=model_property
             )
 
         if "parameters" in method_config:
-            operation["parameters"] = self._build_parameter_refs(method_config["parameters"])
+            operation["parameters"] = self._build_parameter_refs(method_config["parameters"], model)
 
         operation["responses"] = self._build_responses(
             method_config.get("responses", {}), model, path_type, model_property
@@ -310,15 +653,178 @@ class PathGenerator:
 
         return operation
 
+    def _build_security(
+        self,
+        security: list[dict],
+        model: Model | None,
+        path_type: str | None,
+        model_property: tuple | None,
+    ) -> list[dict]:
+        """Fill in the scopes a model operation authorizes against.
+
+        Each accepted action is given as a separate security requirement,
+        because a token carrying any one of them is enough.
+        """
+        if model is None or path_type not in PATH_TYPE_ACTIONS:
+            return copy.deepcopy(security)
+
+        requirements = []
+        for requirement in security:
+            if AUTH_SCHEME not in requirement:
+                requirements.append(copy.deepcopy(requirement))
+                continue
+            requirements.extend(
+                {AUTH_SCHEME: [scope]} for scope in self._model_scopes(model, path_type, model_property)
+            )
+        return requirements
+
+    def _model_scopes(self, model: Model, path_type: str, model_property: tuple | None) -> list[str]:
+        nodes = _authorized_nodes(model, path_type, model_property)
+        return [self.scope_name(node, action) for action in PATH_TYPE_ACTIONS[path_type] for node in nodes]
+
     def _build_operation_id(self, base_id: str, model_name: str = None, model_property: tuple | None = None) -> str:
-        """Build operation ID with optional model and property names"""
+        """Build operation ID with optional model and property names.
+
+        Names are concatenated, which is not injective, model `A` with property
+        `bc` and model `Ab` with property `c` build one id, so a colliding one
+        gets a number suffix.
+        """
         property_name = model_property[0] if model_property else ""
         model_suffix = model_name or ""
-        return f"{base_id}{model_suffix}{property_name}"
 
-    def _build_parameter_refs(self, parameters: list) -> list[dict]:
-        """Build parameter reference objects"""
-        return [{"$ref": f"#/components/parameters/{param}"} for param in parameters]
+        base = f"{base_id}{model_suffix}{property_name}"
+        operation_id = base
+        number = 1
+        while operation_id in self.operation_ids:
+            number += 1
+            operation_id = f"{base}_{number}"
+
+        self.operation_ids.add(operation_id)
+        return operation_id
+
+    def _build_parameter_refs(self, parameters: list, model: Model | None = None) -> list[dict]:
+        """Build parameter reference objects.
+
+        Two of them read differently for every model: the identifier, whose
+        type a model can declare itself, and the query, whose examples are only
+        of use when they name properties the model has. Such a parameter gets a
+        component of its own, so a document holds one per model instead of the
+        same one inlined into every path.
+        """
+        refs = []
+        for param in parameters:
+            if model is not None and param in MODEL_PARAMETERS:
+                param = self._model_parameter(param, model)
+            refs.append({"$ref": f"#/components/parameters/{param}"})
+        return refs
+
+    def _model_parameter(self, param: str, model: Model) -> str:
+        """Name of a parameter as it reads for a given model, building it once."""
+        name = f"{param}_{self.namer.name(model)}"
+        if name not in self.model_parameters:
+            built = MODEL_PARAMETERS[param](self, model)
+            if built is None:
+                return param
+            self.model_parameters[name] = {**built, "name": PARAMETER_COMPONENTS[param]["name"]}
+        return name
+
+    def _id_parameter(self, model: Model) -> dict | None:
+        """Identifier of a model, which is not always a UUID.
+
+        A model can declare `_id` with a type of its own, and then the value is
+        the key the data holds, `AE` of a country for one, see
+        `spinta.types.model` and `spinta.backends.is_object_id`. The pattern of
+        a UUID would reject it, and a gateway validating requests would reject
+        the request with it.
+
+        The example is the identifier of the example of the same model, so a
+        request and the answer beside it speak about one object.
+        """
+        dtype = model.id_prop.dtype if model.id_prop else None
+        if dtype is None:
+            return None
+
+        if isinstance(dtype, PrimaryKey):
+            parameter = copy.deepcopy(PARAMETER_COMPONENTS["id"])
+            parameter["schema"]["examples"] = [_example_id(model)]
+            parameter["schema"]["example"] = _example_id(model)
+            return parameter
+
+        schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
+        schema.pop("example", None)
+        equals = _reached_by_equals_sign(model)
+        if isinstance(dtype, Base32):
+            schema["pattern"] = BASE32_ID_PATTERN
+        elif schema.get("enum"):
+            # The manifest lists the values, which is all there is to say. A
+            # pattern beside them would leave nothing that satisfies both: the
+            # values as listed fail it, and the values behind the sign are not
+            # among them.
+            if equals:
+                schema["enum"] = [f"={value}" for value in schema["enum"]]
+        elif "pattern" in schema:
+            # A type of its own already says what the value looks like, `uuid`
+            # for one, and a path segment is a looser thing to say than that.
+            pass
+        elif schema.get("type") == "string":
+            # The shape of such a key is known only to the data, so what is
+            # stated is that it is one path segment, and that it is bounded.
+            schema["pattern"] = EQUALS_ID_PATTERN if equals else DECLARED_ID_PATTERN
+
+        if schema.get("enum"):
+            example = schema["enum"][0]
+        else:
+            example = _declared_id_example(self.dtype_handler, model)
+            if equals and isinstance(example, str):
+                example = f"={example}"
+        if example is not None:
+            schema["example"] = example
+
+        description = (
+            "Object identifier.\n\nThis model declares `_id` of its own, so the identifier is the "
+            "key the data holds, not a UUID.\n"
+        )
+        if equals:
+            description += (
+                "\nIt is reached by an equals sign in front of the value, `/=AE` for one, see "
+                "`spinta.backends.helpers.is_accessible_by_equals_sign`.\n"
+            )
+        return {"in": "path", "required": True, "description": description, "schema": schema}
+
+    def _query_parameter(self, model: Model) -> dict | None:
+        """Query of a model, with examples naming properties the model has.
+
+        A generic example is worse than none: an API client fills the request
+        with it, and `_select=string` comes back as `FieldNotInResource`.
+        """
+        parameter = copy.deepcopy(PARAMETER_COMPONENTS["query"])
+        properties = parameter["schema"]["properties"]
+
+        # Built for every model, not only for one with properties to name in an
+        # example: the bound of `_limit` is set here, and a model without them
+        # is queried the same way as any other.
+        names = [name for name in model.get_given_properties() if not name.startswith("_")]
+        for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0] if names else "")):
+            if not value:
+                continue
+            properties[key]["examples"] = [value]
+            # An API client reads `example` of a property, not `examples`, and
+            # fills the request with the type name when it finds neither.
+            properties[key]["example"] = value
+        # Spinta answers any limit above zero, so an upper bound is a limit an
+        # API gateway applies in front of it, taken from the configuration. The
+        # example stays inside it, otherwise the document would show a request
+        # its own schema refuses.
+        properties["_limit"]["format"] = "int64"
+        properties["_limit"]["maximum"] = self.max_limit
+        limit_example = min(properties["_limit"]["examples"][0], self.max_limit)
+        properties["_limit"]["examples"] = [limit_example]
+        properties["_limit"]["example"] = limit_example
+        parameter["example"] = {"_limit": properties["_limit"]["example"]}
+        if names:
+            parameter["example"]["_select"] = ",".join(names[:2])
+            parameter["example"]["_sort"] = names[0]
+        return parameter
 
     def _build_responses(
         self,
@@ -358,7 +864,7 @@ class PathGenerator:
                 header: {"$ref": f"#/components/headers/{header}"} for header in response_config["headers"]
             }
 
-        if "content" in response_config and status_code == "200":
+        if "content" in response_config:
             response["content"] = self._build_response_content(
                 response_config["content"], model, path_type, model_property
             )
@@ -376,8 +882,13 @@ class PathGenerator:
         content = {}
 
         for media_type, media_config in content_config.items():
-            schema_ref = self._resolve_schema_ref(media_config.get("schema"), model, path_type, model_property)
-            content[media_type] = {"schema": {"$ref": schema_ref}}
+            schema = media_config.get("schema")
+            if isinstance(schema, dict):
+                content[media_type] = {"schema": copy.deepcopy(schema)}
+            else:
+                content[media_type] = {
+                    "schema": {"$ref": self._resolve_schema_ref(schema, model, path_type, model_property)}
+                }
 
         return content
 
@@ -389,25 +900,104 @@ class PathGenerator:
         model_property: tuple | None = None,
     ) -> str:
         """Resolve the appropriate schema reference"""
-        model_schema_name = _get_main_schema_name(model, self.use_basename_for_schema_names) if model else None
-        if model_schema_name and path_type:
-            return self._get_model_schema_ref(model_schema_name, path_type, model_property)
+        model_schema_name = self.namer.name(model) if model else None
+
+        # An operation of a model answers with the model, an operation of one
+        # property with a schema of that property alone.
+        if model_schema_name and path_type in ("collection", "single"):
+            # A collection is wrapped into a `_data` envelope.
+            suffix = "Collection" if path_type == "collection" else ""
+            return f"#/components/schemas/{model_schema_name}{suffix}"
+
+        if path_type == "objectProperty" and model and model_property:
+            return f"#/components/schemas/{self.namer.object_name(model, model_property[0])}"
 
         if schema_name:
             return f"#/components/schemas/{schema_name}"
 
         return f"#/components/schemas/{model_schema_name or 'object'}"
 
-    def _get_model_schema_ref(self, model_schema_name: str, path_type: str, model_property: tuple | None) -> str:
-        """Get schema reference for model endpoints based on path type"""
-        if path_type == "collection":
-            return f"#/components/schemas/{model_schema_name}Collection"
-        elif path_type == "property" and model_property:
-            property_dtype = model_property[1].dtype
-            base_type = self.dtype_handler.get_dtype_name(property_dtype)
-            return f"#/components/schemas/{base_type}"
-        else:
-            return f"#/components/schemas/{model_schema_name}"
+
+def _error_example(schema_name: str) -> dict[str, str] | None:
+    """An error object of a named error, built from what its schema declares."""
+    schema = COMMON_SCHEMAS.get(schema_name) or {}
+    properties = schema.get("properties") or {}
+    example = {
+        name: properties[name]["example"]
+        for name in ("type", "code", "template", "message")
+        if name in properties and "example" in properties[name]
+    }
+    if "template" in example:
+        example.setdefault("message", example["template"])
+    return example or None
+
+
+def _declared_id_example(dtype_handler, model: Model) -> Any:
+    """A value of an identifier a model declares itself.
+
+    The key of the data is the value of the property the model is keyed by, so
+    the example of that property is the example of the identifier, and the two
+    agree wherever both are shown.
+    """
+    external = getattr(model, "external", None)
+    keys = getattr(external, "pkeys", None) or []
+    example = dtype_handler.get_example_value(keys[0] if keys else model.id_prop)
+
+    # A model can be keyed by an integer while declaring `_id` a string, and
+    # then the identifier is that number written out.
+    if isinstance(model.id_prop.dtype, String) and not isinstance(example, str):
+        return str(example)
+    return example
+
+
+def _reached_by_equals_sign(model: Model) -> bool:
+    """Whether the identifier of a model is given behind an equals sign.
+
+    Mirrors `spinta.backends.helpers.is_accessible_by_equals_sign`, which is not
+    called here because it wants a value, while this asks about the model.
+    """
+    dtype = model.id_prop.dtype if model.id_prop else None
+    if isinstance(dtype, Base32):
+        return True
+    if isinstance(dtype, String):
+        external = getattr(model, "external", None)
+        return len(getattr(external, "pkeys", None) or []) <= 1
+    return False
+
+
+def _model_description(model: Model) -> str:
+    """What a manifest says about a model, or what its name says.
+
+    A description of every component is asked for by the linters an API gateway
+    is checked with, and a manifest usually carries one; where it does not, the
+    name of the model is still more than nothing.
+    """
+    given = " ".join(part for part in (getattr(model, "title", ""), getattr(model, "description", "")) if part)
+    return given.strip() or f"Objects of `{model.name}`."
+
+
+def _referenced_components(spec: Any, kind: str) -> set[str]:
+    """Names of the components of a kind that the document refers to."""
+    prefix = f"#/components/{kind}/"
+    found = set()
+    stack = [spec]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            reference = node.get("$ref")
+            if isinstance(reference, str) and reference.startswith(prefix):
+                found.add(reference[len(prefix) :])
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return found
+
+
+#: Parameters that read differently for every model.
+MODEL_PARAMETERS = {
+    "id": PathGenerator._id_parameter,
+    "query": PathGenerator._query_parameter,
+}
 
 
 class ComponentSchemaBuilder:
@@ -436,7 +1026,10 @@ class ComponentSchemaBuilder:
 
         config_source, creator_func, collector_func = type_map[component_type]
 
-        for ref_key in collector_func(path_config):
+        # Sorted, because the collectors gather into a set, and its order is
+        # not the same between runs, which would reorder the components of a
+        # file every time it is generated.
+        for ref_key in sorted(collector_func(path_config)):
             if ref_key in components:
                 continue
 
@@ -510,31 +1103,60 @@ class ComponentSchemaBuilder:
             for media_type, content_config in config["content"].items():
                 schema_config = content_config.get("schema")
                 if schema_config:
-                    response["content"][media_type] = {"schema": self._build_schema_ref(schema_config)}
+                    media = {"schema": self._build_schema_ref(schema_config)}
+                    if "example" in content_config:
+                        media["example"] = copy.deepcopy(content_config["example"])
+                    response["content"][media_type] = media
 
         return response
 
     def _build_schema_ref(self, schema_config) -> dict[str, Any]:
         if isinstance(schema_config, str):
             return {"$ref": f"#/components/schemas/{schema_config}"}
-        elif isinstance(schema_config, dict) and "oneOf" in schema_config:
-            return {"oneOf": [{"$ref": f"#/components/schemas/{schema}"} for schema in schema_config["oneOf"]]}
+
+        if isinstance(schema_config, dict):
+            if "oneOf" in schema_config:
+                return {"oneOf": [self._build_schema_ref(schema) for schema in schema_config["oneOf"]]}
+
+            if "anyOf" in schema_config:
+                return {"anyOf": [self._build_schema_ref(schema) for schema in schema_config["anyOf"]]}
+
+            # Spinta answers with an envelope, see `spinta.api.error_response`.
+            if "errors" in schema_config:
+                errors = [self._build_schema_ref(schema) for schema in schema_config["errors"]]
+                # Error schemas are not discriminated, every one of them accepts
+                # any error object, and Spinta answers with error codes beyond
+                # the ones named here, so the alternatives are not exclusive.
+                items = errors[0] if len(errors) == 1 else {"anyOf": errors}
+                first = schema_config["errors"][0]
+                example = _error_example(first) if isinstance(first, str) else None
+                errors_schema = {
+                    "type": "array",
+                    "description": "Errors the request failed with, one entry each.",
+                    "items": items,
+                }
+                if example is not None:
+                    errors_schema["example"] = [example]
+                return {
+                    "type": "object",
+                    "description": "Envelope Spinta answers an error with.",
+                    "required": ["errors"],
+                    "properties": {"errors": errors_schema},
+                    **({"example": {"errors": [example]}} if example is not None else {}),
+                }
+
         return schema_config
 
 
 class SchemaGenerator:
     """Handles OpenAPI schema generation for models."""
 
-    def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry):
+    def __init__(self, dtype_handler: DataTypeHandler, schema_registry: OpenAPISchemaRegistry, namer: SchemaNamer):
         self.dtype_handler = dtype_handler
         self.schema_registry = schema_registry
+        self.namer = namer
 
-    def create_all_model_schemas(
-        self,
-        models: dict,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
-    ) -> dict[str, Any]:
+    def create_all_model_schemas(self, models: dict) -> dict[str, Any]:
         """Build all model schemas (main + collection + refs) in one pass.
 
         Returns the complete schemas dict for components/schemas.
@@ -545,153 +1167,218 @@ class SchemaGenerator:
         schemas = {}
 
         for model in models.values():
-            self._create_referenced_model_schemas(
-                schemas,
-                model,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-            )
+            self._create_referenced_model_schemas(schemas, model)
 
         for model in models.values():
-            schema_name = _get_main_schema_name(model, use_basename_for_schema_names)
-            schemas[schema_name] = self._create_model_schema(
-                model, schemas, main_dataset_schema_names, use_basename_for_schema_names
-            )
+            schema_name = self.namer.name(model)
+            schemas[schema_name] = self._create_model_schema(model, schemas)
             schemas[f"{schema_name}Collection"] = self._create_collection_schema(model, schema_name)
 
+        for model in models.values():
+            self._create_object_property_schemas(schemas, model)
+
         return schemas
+
+    def _create_object_property_schemas(self, schemas: dict, model) -> None:
+        """Schemas of the object properties served under a path of their own.
+
+        The answer holds what the property holds, together with the `_type` and
+        the `_revision` of the object it belongs to, see
+        `spinta.commands.read.getone` of an `Object` property.
+        """
+        for prop_name, model_property in model.get_given_properties().items():
+            # A `ref` to a model missing from the manifest is downgraded to an
+            # object holding nothing, see `spinta.types.helpers`, and is served
+            # like any other object property, so it gets a schema all the same.
+            if not isinstance(model_property.dtype, Object):
+                continue
+
+            standard = self._standard_properties(f"{model.name}.{prop_name}", model)
+            properties = {
+                "_type": standard["_type"],
+                "_revision": standard["_revision"],
+                **self.dtype_handler.object_properties(model_property.dtype, schemas=schemas),
+            }
+            schemas[self.namer.object_name(model, prop_name)] = {
+                "type": "object",
+                "description": f"Property `{prop_name}` of `{model.name}`, as it is served on its own.",
+                "properties": properties,
+            }
+
+    def _standard_properties(self, type_name: str, model: Model) -> dict[str, Any]:
+        """The properties every object carries, with the `_type` it carries.
+
+        `_type` of an answer is always the name of what answered, so it is
+        given as a constant: a reader sees which model a schema belongs to, and
+        a validator catches a schema used for the wrong one.
+
+        `_id` is a UUID only where the model leaves it to Spinta. A model
+        declaring `_id` of its own answers with the key its data holds, and the
+        shape of a UUID would refuse every object of it.
+        """
+        properties = copy.deepcopy(self.schema_registry.standard_object_properties)
+        properties["_type"] = {**properties["_type"], "const": type_name, "example": type_name}
+        properties["_revision"] = self._revision_schema(model)
+        properties["_id"] = self._identifier_schema(model)
+        return properties
+
+    def _revision_schema(self, model: Model) -> dict[str, Any]:
+        """`_revision` as the model answers with it.
+
+        A model can declare `_revision` of its own, built out of its data, and
+        then it is not a UUID: `123,14` of a revision kept in two columns, see
+        `tests/datasets/sql/test_reserved_props.py`.
+        """
+        prop = getattr(model, "revision_prop", None)
+        dtype = prop.dtype if prop else None
+        if dtype is None or not getattr(prop, "explicitly_given", False):
+            schema = copy.deepcopy(self.schema_registry.standard_object_properties["_revision"])
+            schema["example"] = _example_revision(model)
+            return schema
+
+        schema = _nullable(copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(prop)))
+        schema["description"] = "Revision of the object, which the model builds out of its own data."
+        return schema
+
+    def _identifier_schema(self, model: Model) -> dict[str, Any]:
+        """`_id` as the model answers with it.
+
+        A UUID where the model leaves the identifier to Spinta, and the key of
+        the data where the model declares `_id` of its own; the shape of a UUID
+        would refuse `AE` of a country and every other such key.
+        """
+        dtype = model.id_prop.dtype if model.id_prop else None
+        if dtype is None or isinstance(dtype, PrimaryKey):
+            schema = copy.deepcopy(self.schema_registry.standard_object_properties["_id"])
+            schema["example"] = _example_id(model)
+            return schema
+
+        schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
+        schema["description"] = "Identifier of the object, the key its data holds."
+        # Where the manifest lists the values, the example is one of them, and
+        # not a made up one its own schema would refuse.
+        schema["example"] = schema["enum"][0] if schema.get("enum") else _declared_id_example(self.dtype_handler, model)
+        return schema
 
     def _create_model_schema(
         self,
         model,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
-        properties = self.schema_registry.standard_object_properties.copy()
-        required_fields = []
+        properties = self._standard_properties(model.name, model)
 
         for prop_name, model_property in model.get_given_properties().items():
-            prop_schema = self.dtype_handler.convert_to_openapi_schema(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
-            properties[prop_name] = prop_schema
+            properties[prop_name] = self.dtype_handler.property_schema(model_property, schemas=schemas)
 
-            if hasattr(model_property.dtype, "required") and model_property.dtype.required:
-                required_fields.append(prop_name)
-
-        schema = {
+        return {
             "type": "object",
+            "description": _model_description(model),
             "properties": properties,
-            "example": self._create_example(
-                model,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            ),
+            "example": self._create_example(model, schemas=schemas),
         }
-
-        if required_fields:
-            schema["required"] = required_fields
-
-        return schema
 
     def _create_example(
         self,
         model,
         property_filter: set[str] | None = None,
         schemas: dict | None = None,
-        main_dataset_schema_names: set[str] | None = None,
-        use_basename_for_schema_names: bool = False,
     ) -> dict[str, Any]:
+        standard = self._standard_properties(model.name, model)
         example = {
-            "_type": model.basename,
-            "_id": EXAMPLE_UUID_OBJECT_ID,
-            "_revision": EXAMPLE_UUID_REVISION,
+            "_type": model.name,
+            "_id": standard["_id"].get("example"),
+            "_revision": standard["_revision"].get("example"),
         }
         for prop_name, model_property in model.get_given_properties().items():
             if property_filter and prop_name not in property_filter:
                 continue
-            example[prop_name] = self.dtype_handler.get_example_value(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
+            example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
         return example
 
     def _create_collection_schema(self, model, schema_name: str) -> dict[str, Any]:
+        """A listing, as `render` writes one: the objects and the next page.
+
+        There is no `_type` beside them, and `_page` is there whenever a page
+        of a listing was answered, see `spinta.formats`.
+        """
         return {
             "type": "object",
+            "description": f"A page of `{model.name}` objects.",
             "properties": {
-                "_type": {"type": "string"},
-                "_data": {"type": "array", "items": {"$ref": f"#/components/schemas/{schema_name}"}},
+                "_data": {
+                    "type": "array",
+                    "description": "Objects of this page.",
+                    "items": {"$ref": f"#/components/schemas/{schema_name}"},
+                },
+                "_page": {"$ref": "#/components/schemas/page"},
+            },
+            "example": {
+                "_data": [self._create_example(model)],
+                "_page": {"next": EXAMPLE_PAGE_TOKEN},
             },
         }
 
-    def _create_referenced_model_schemas(
-        self,
-        schemas: dict,
-        model: Model,
-        main_dataset_schema_names: set[str] | None,
-        use_basename_for_schema_names: bool = False,
-    ) -> None:
-        for model_property in model.get_given_properties().values():
+    def _create_referenced_model_schemas(self, schemas: dict, model: Model) -> None:
+        self._create_schemas_of_references_in(schemas, model.get_given_properties().values())
+
+    def _create_schemas_of_references_in(self, schemas: dict, properties) -> None:
+        """Build a schema for every reference these properties reach.
+
+        A reference can sit inside an object property, and that object inside
+        another one or inside an array, so the properties are walked through
+        rather than read one layer deep: a reference nobody built a schema for
+        leaves a `$ref` pointing at nothing.
+        """
+        for model_property in properties:
+            # An array holds its reference in the item property, which carries a
+            # level of its own, and the schema of a reference is built from it.
+            # `convert_to_openapi_schema` reads the item property as well, so
+            # naming the schema from the array would name one it never builds.
+            model_property = _innermost_property(model_property)
+            if model_property is None:
+                continue
+
             dtype = model_property.dtype
 
-            if self.dtype_handler.is_array_type(dtype):
-                dtype = dtype.items.dtype if hasattr(dtype, "items") else dtype
+            if isinstance(dtype, Object):
+                self._create_schemas_of_references_in(schemas, (dtype.properties or {}).values())
+                continue
 
             if not self.dtype_handler.is_reference_type(dtype):
                 continue
 
             ref_model = dtype.model
-            ref_schema_name = _get_schema_name(ref_model)
-            ref_main_key = _get_main_membership_key(ref_model, use_basename_for_schema_names)
-
+            ref_schema_name = self.namer.ref_name(ref_model, _reference_shape(model_property, dtype))
             if ref_schema_name in schemas:
-                continue
-            if main_dataset_schema_names is not None and ref_main_key in main_dataset_schema_names:
                 continue
 
             ref_level = getattr(model_property, "level", None)
-
             refprops = getattr(dtype, "refprops", None) or []
-            schemas[ref_schema_name] = self._build_ref_model_schema(
-                schemas,
-                ref_model,
-                refprops,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
-                ref_level,
-            )
+
+            # Placed before building, because a model can be reached from itself.
+            schemas[ref_schema_name] = {}
+            schemas[ref_schema_name] = self._build_ref_model_schema(schemas, ref_model, refprops, ref_level)
 
     def _resolve_nested_ref_schema_name(
         self,
         schemas: dict,
         nested_ref_model: Model,
         nested_refprops: list,
-        main_dataset_schema_names: set[str] | None,
-        use_basename_for_schema_names: bool = False,
         ref_level: Level | None = None,
     ) -> str:
-        nested_main_key = (
-            nested_ref_model.basename if use_basename_for_schema_names else _get_schema_name(nested_ref_model)
+        shape = (
+            getattr(ref_level, "value", ref_level),
+            tuple(prop.name for prop in nested_refprops if hasattr(prop, "name")),
         )
-        is_main_dataset_model = main_dataset_schema_names is not None and nested_main_key in main_dataset_schema_names
-        base_name = nested_ref_model.basename if is_main_dataset_model else _get_schema_name(nested_ref_model)
-        schema_name = f"{base_name}_Ref" if is_main_dataset_model else base_name
+        schema_name = self.namer.ref_name(nested_ref_model, shape)
 
         if schema_name not in schemas:
+            # Placed before building, because a model can be reached from itself.
+            schemas[schema_name] = {}
             schemas[schema_name] = self._build_ref_model_schema(
                 schemas,
                 nested_ref_model,
                 nested_refprops,
-                main_dataset_schema_names,
-                use_basename_for_schema_names,
                 ref_level,
             )
 
@@ -702,8 +1389,6 @@ class SchemaGenerator:
         schemas: dict,
         model,
         refprops: list,
-        main_dataset_schema_names: set[str] | None,
-        use_basename_for_schema_names: bool = False,
         ref_level: Level | int | None = None,
     ) -> dict[str, Any]:
         level_value: int | None = None
@@ -713,16 +1398,17 @@ class SchemaGenerator:
         is_global_ref = level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
 
         if is_global_ref:
-            properties = self.schema_registry.standard_object_properties.copy()
-            example = {
-                "_type": model.basename,
-                "_id": EXAMPLE_UUID_OBJECT_ID,
-                "_revision": EXAMPLE_UUID_REVISION,
+            # A reference of this level is serialized as the identifier alone,
+            # neither `_type` nor `_revision` is carried, so neither is listed.
+            identifier = self._identifier_schema(model)
+            return {
+                "type": "object",
+                "description": f"A reference to `{model.name}`, carrying its identifier.",
+                "properties": {"_id": identifier},
+                "example": {"_id": identifier["example"]},
             }
-            return {"type": "object", "properties": properties, "example": example}
 
-        properties = self.schema_registry.standard_object_properties.copy()
-        required_fields = []
+        properties = {}
 
         refprop_names = {prop.name for prop in refprops if hasattr(prop, "name")}
 
@@ -730,84 +1416,83 @@ class SchemaGenerator:
             if refprop_names and prop_name not in refprop_names:
                 continue
 
-            dtype = model_property.dtype
-            inner_dtype = dtype
-            if self.dtype_handler.is_array_type(inner_dtype):
-                inner_dtype = inner_dtype.items.dtype if hasattr(inner_dtype, "items") else inner_dtype
+            # A reference carries what its own level says, also when it is
+            # reached through another reference, so the level of the one being
+            # built does not apply to it. Arrays hold it in their item.
+            inner_property = _innermost_property(model_property)
+            inner_dtype = inner_property.dtype if inner_property is not None else None
 
-            if self.dtype_handler.is_reference_type(inner_dtype):
-                nested_refprops = getattr(inner_dtype, "refprops", None) or []
-                schema_name = self._resolve_nested_ref_schema_name(
+            if inner_dtype is not None and self.dtype_handler.is_reference_type(inner_dtype):
+                # Building it here, because a schema of a model reached only
+                # from a reference is not built anywhere else.
+                self._resolve_nested_ref_schema_name(
                     schemas,
                     inner_dtype.model,
-                    nested_refprops,
-                    main_dataset_schema_names,
-                    use_basename_for_schema_names,
-                    ref_level,
+                    getattr(inner_dtype, "refprops", None) or [],
+                    getattr(inner_property, "level", None),
                 )
-                ref_schema = schemas.get(schema_name)
-                example = ref_schema.get("example") if ref_schema else None
-                if example is None:
-                    example = {
-                        "_type": inner_dtype.model.basename,
-                        "_id": EXAMPLE_UUID_REF_ID,
-                    }
-                prop_schema = {
-                    "$ref": f"#/components/schemas/{schema_name}",
-                    "example": example,
-                }
-            else:
-                prop_schema = self.dtype_handler.convert_to_openapi_schema(
-                    model_property,
-                    schemas=schemas,
-                    main_dataset_schema_names=main_dataset_schema_names,
-                    use_basename_for_schema_names=use_basename_for_schema_names,
-                )
+
+            # Conversion names the same schema and keeps every array layer.
+            prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
+
+            # A response carries what it was asked for, see
+            # `_create_model_schema`, so nothing is listed as required here.
+            if not getattr(model_property.dtype, "required", False):
+                prop_schema = _nullable(prop_schema)
 
             properties[prop_name] = prop_schema
 
-            if hasattr(model_property.dtype, "required") and model_property.dtype.required:
-                required_fields.append(prop_name)
-
-        example = {
-            "_type": model.basename,
-            "_id": EXAMPLE_UUID_OBJECT_ID,
-            "_revision": EXAMPLE_UUID_REVISION,
-        }
+        example = {}
         for prop_name, model_property in model.get_given_properties().items():
             if refprop_names and prop_name not in refprop_names:
                 continue
-            example[prop_name] = self.dtype_handler.get_example_value(
-                model_property,
-                schemas=schemas,
-                main_dataset_schema_names=main_dataset_schema_names,
-                use_basename_for_schema_names=use_basename_for_schema_names,
-            )
+            example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
 
         if level_value is not None and level_value < GLOBAL_ID_LEVEL_THRESHOLD:
             properties.pop("_id", None)
             example.pop("_id", None)
 
-        schema = {"type": "object", "properties": properties, "example": example}
+        for prop_name, value in example.items():
+            if prop_name in properties and isinstance(properties[prop_name], dict):
+                properties[prop_name].setdefault("example", value)
 
-        if required_fields:
-            schema["required"] = required_fields
-
-        return schema
+        return {
+            "type": "object",
+            "description": f"A reference to `{model.name}`, carrying the properties it is referenced by.",
+            "properties": properties,
+            "example": example,
+        }
 
 
 class OpenAPIGenerator:
     """Generate OpenAPI specs using manifest data"""
 
-    def __init__(self, main_dataset_name: str | None = None, api_version: str | None = None):
+    def __init__(
+        self,
+        main_dataset_name: str | None = None,
+        api_version: str | None = None,
+        service_path: str | None = None,
+        config: UdtsConfig | None = None,
+        scope_name: ScopeNameFunc | None = None,
+        scope_prefix: str = DEFAULT_SCOPE_PREFIX,
+        scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
+    ):
+        if main_dataset_name is not None and service_path is not None:
+            # One covers a data service with all of its datasets, the other a
+            # single dataset, so silently taking one of them would export
+            # something the caller did not ask for.
+            raise ValueError("Give either `main_dataset_name` or `service_path`, not both.")
+
         self.main_dataset_name = main_dataset_name
         self.api_version = api_version if api_version is not None else ""
+        self.service_path = service_path
+        self.config = config if config is not None else UdtsConfig()
+        self.scope_name = scope_name or partial(
+            default_scope_name,
+            prefix=scope_prefix,
+            maxlen=scope_max_length,
+        )
 
-        self.schema_registry = OpenAPISchemaRegistry()
-        self.dtype_handler = DataTypeHandler(self.schema_registry)
-
-        self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry)
-        self.path_generator = PathGenerator(self.dtype_handler)
         self.component_builder = ComponentSchemaBuilder()
 
     def generate_spec(self, manifest) -> dict[str, Any]:
@@ -816,49 +1501,90 @@ class OpenAPIGenerator:
             "openapi": VERSION,
             "info": copy.deepcopy(INFO),
             "externalDocs": copy.deepcopy(EXTERNAL_DOCS),
-            "servers": copy.deepcopy(SERVERS),
             "tags": copy.deepcopy(BASE_TAGS),
             "components": {},
         }
         specification["info"]["version"] = self.api_version
 
-        datasets, models = self._extract_manifest_data(manifest)
+        datasets, all_models = self._extract_manifest_data(manifest)
+        models = all_models
 
-        if self.main_dataset_name is not None:
+        # Common schemas are added to the same dict, and the base tags to the
+        # same list, so a model must not take a name of either; OpenAPI wants
+        # unique tag names too. A model name starts with an upper case letter,
+        # see `spinta.types.model.load`, so it can not take a base tag name as
+        # they are written today, but the names are allocated once and this
+        # keeps that true.
+        reserved = set(COMMON_SCHEMAS) | {tag["name"] for tag in BASE_TAGS}
+
+        if self.service_path is not None:
+            datasets, models = self._filter_by_service_path(datasets, models)
+
+            def name_included(model: Model) -> str:
+                return service_schema_name(model, self.service_path)
+        elif self.main_dataset_name is not None:
             datasets, models = self._filter_by_main_dataset(datasets, models)
 
+            def name_included(model: Model) -> str:
+                return model.basename
+        else:
+            name_included = _get_schema_name
+
+        namer = SchemaNamer(models, all_models, name_included, reserved)
+
+        self.schema_registry = OpenAPISchemaRegistry()
+        self.dtype_handler = DataTypeHandler(self.schema_registry, namer)
+        self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
+        self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_name)
+        self.path_generator.max_limit = self.config.max_limit()
+        if self.service_path is not None:
+            self.path_generator.agent_servers = self.config.resolve_agent_servers(self.service_path)
+        self.namer = namer
+
+        self._set_servers(specification)
         self._override_info(specification, datasets)
         self._set_tags(specification, models)
 
-        use_basename_for_schema_names = self.main_dataset_name is not None
-        main_dataset_schema_names = (
-            {m.basename for m in models.values()}
-            if use_basename_for_schema_names
-            else {_get_schema_name(m) for m in models.values()}
-        )
-        self.path_generator.use_basename_for_schema_names = use_basename_for_schema_names
-        model_schemas = self.schema_generator.create_all_model_schemas(
-            models, main_dataset_schema_names, use_basename_for_schema_names
-        )
+        model_schemas = self.schema_generator.create_all_model_schemas(models)
         specification.setdefault("components", {}).setdefault("schemas", {}).update(model_schemas)
 
         self._create_paths(specification, datasets, models)
 
         self._create_component_schemas(specification)
+        self._add_model_parameters(specification)
         self._add_common_schemas(specification)
+        self._add_security_schemes(specification)
+        self._drop_unused_components(specification)
 
         return specification
 
     def _extract_manifest_data(self, manifest) -> tuple[Any, dict]:
-        context = create_context()
-        manifests = [manifest]
-        context = configure_context(context, manifests)
-        rows = _read_and_return_manifest(context, manifests, check_config=False, ensure_backends=False)
+        if isinstance(manifest, ManifestPath):
+            context = create_context()
+            manifests = [manifest]
+            context = configure_context(context, manifests)
+            manifest = _read_and_return_manifest(context, manifests, check_config=False, ensure_backends=False)
 
-        datasets = rows.get_objects()["dataset"].items()
-        models = rows.get_objects()["model"]
+        datasets = manifest.get_objects()["dataset"].items()
+        models = manifest.get_objects()["model"]
 
         return datasets, models
+
+    def _filter_by_service_path(self, datasets: Any, models: dict) -> tuple[list, dict]:
+        """Select all datasets of one UDTS data service."""
+        datasets_list = list(datasets)
+        dataset_names = [name for name, _ in datasets_list]
+        names = set(datasets_under_service(dataset_names, self.service_path))
+
+        if not names:
+            raise DataServiceNotFound(
+                service=self.service_path,
+                available=", ".join(find_services(dataset_names)) or "none",
+            )
+
+        filtered_datasets = [(name, dataset) for name, dataset in datasets_list if name in names]
+        filtered_models = {key: model for key, model in models.items() if _model_dataset_name(model) in names}
+        return filtered_datasets, filtered_models
 
     def _filter_by_main_dataset(self, datasets: Any, models: dict) -> tuple[list, dict]:
         datasets_list = list(datasets)
@@ -869,41 +1595,109 @@ class OpenAPIGenerator:
                 f"Available: {[name for name, _ in datasets_list]}"
             )
         filtered_models = {
-            key: model
-            for key, model in models.items()
-            if (
-                hasattr(model, "external")
-                and hasattr(model.external, "dataset")
-                and model.external.dataset.name == self.main_dataset_name
-            )
+            key: model for key, model in models.items() if _model_dataset_name(model) == self.main_dataset_name
         }
         return filtered_datasets, filtered_models
 
+    def _set_servers(self, spec: dict[str, Any]) -> None:
+        """One entry per environment, each ending with the data service path.
+
+        An API gateway derives the API context path from the path part of the
+        first server URL, and model paths are relative to it.
+        """
+        if self.service_path is None:
+            return
+        spec["servers"] = self.config.resolve_servers(self.service_path)
+        if self.config.external_docs:
+            spec["externalDocs"] = copy.deepcopy(self.config.external_docs)
+
     def _override_info(self, spec: dict[str, Any], datasets: dict):
+        if self.service_path is not None:
+            # A data service holds many datasets, so its description can not be
+            # taken from any single one of them.
+            spec["info"].update(copy.deepcopy(self.config.info))
+            if self.api_version:
+                spec["info"]["version"] = self.api_version
+            return
+
         _, dataset = next(iter(datasets))
         spec["info"]["summary"] = dataset.title
         spec["info"]["description"] = dataset.description
 
+    def _add_security_schemes(self, spec: dict[str, Any]) -> None:
+        schemes = copy.deepcopy(SECURITY_SCHEMES)
+        flow = schemes[AUTH_SCHEME]["flows"]["clientCredentials"]
+        if self.service_path is None and not self.config.auth.get("token_url"):
+            flow["tokenUrl"] = AGENT_TOKEN_PATH
+        else:
+            flow["tokenUrl"] = self.config.resolve_token_url(spec.get("servers", []))
+        scopes = sorted(_requested_scopes(spec, AUTH_SCHEME))
+        flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in scopes}
+        spec.setdefault("components", {})["securitySchemes"] = schemes
+
+        self._set_scope_example(spec)
+
+    def _set_scope_example(self, spec: dict[str, Any]) -> None:
+        """Show a scope of one model of this data service in the token request.
+
+        Namespaces above the model are requested as alternatives too, and the
+        root namespace of the agent is among them, so a scope is taken from a
+        data path, where the narrowest one comes first, and not from the
+        declared ones, where sorting would put the widest first.
+        """
+        token_paths = [spec.get("paths", {}).get(path) for path in (TOKEN_PATH, "/auth/token")]
+        token_paths = [path for path in token_paths if path]
+        if not token_paths:
+            return
+
+        scope = next(
+            (
+                requirement[AUTH_SCHEME][0]
+                for path, operations in spec.get("paths", {}).items()
+                if path not in UTILITY_PATHS
+                for method, operation in operations.items()
+                if method != "parameters" and isinstance(operation, dict)
+                for requirement in operation.get("security", [])
+                if requirement.get(AUTH_SCHEME)
+            ),
+            None,
+        )
+        if scope is None:
+            return
+
+        for token_path in token_paths:
+            content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
+            content["schema"]["properties"]["scope"]["examples"] = [scope]
+            content["schema"]["properties"]["scope"]["example"] = scope
+            content["example"] = {"grant_type": "client_credentials", "scope": scope}
+
     def _set_tags(self, spec: dict[str, Any], models: dict):
-        description = "Operations with"
+        """Tags of the document, in the order a reader looks for a name in."""
         for model in models.values():
-            model_schema_name = model.basename
-            spec["tags"].append({"name": model_schema_name, "description": f"{description} {model_schema_name}"})
+            model_schema_name = self.namer.name(model)
+            spec["tags"].append({"name": model_schema_name, "description": f"Operations with {model_schema_name}"})
+        spec["tags"].sort(key=lambda tag: tag["name"])
 
     def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
         paths = {}
 
-        for path in UTILITY_PATHS:
+        # Only a data service export has a base of its own, so only there is
+        # the action form of an agent endpoint of any use.
+        utility_paths = AGENT_UTILITY_PATHS if self.service_path is None else UTILITY_PATHS
+        for path in utility_paths:
             path_config = PATHS_CONFIG.get(path)
             if not path_config:
                 raise ValueError(f"No config found for path: {path}")
             paths[path] = self.path_generator.create_path(path_config)
 
         for dataset_name, _ in datasets:
+            # Model paths are relative to the data service base, which is given
+            # in `servers`.
+            path_prefix = relative_path(dataset_name, self.service_path) if self.service_path else dataset_name
             for model in self._get_dataset_models(dataset_name, models):
                 for path_key, actual_path, path_type, model_property in self.path_generator.create_path_mappings(
                     model,
-                    dataset_name,
+                    path_prefix,
                 ):
                     path_config = PATHS_CONFIG.get(path_key)
                     if not path_config:
@@ -924,19 +1718,54 @@ class OpenAPIGenerator:
         for path_config in PATHS_CONFIG.values():
             self.component_builder.create_components_for_path(spec, path_config)
 
+    def _add_model_parameters(self, spec: dict[str, Any]) -> None:
+        """Parameters built while the paths were written, one per model."""
+        parameters = spec.setdefault("components", {}).setdefault("parameters", {})
+        parameters.update(copy.deepcopy(self.path_generator.model_parameters))
+
     def _add_common_schemas(self, spec: dict[str, Any]) -> None:
+        """Add the shared schemas the document refers to, and only those.
+
+        A schema nothing points at is noise: a reader has to work out whether
+        it is a leftover, and a linter reports it as orphaned. Adding is
+        repeated, because a schema added here can refer to another one.
+        """
         schemas = spec.setdefault("components", {}).setdefault("schemas", {})
-        for schema_name, schema_config in COMMON_SCHEMAS.items():
-            if schema_name not in schemas:
-                schemas[schema_name] = schema_config
+        while True:
+            wanted = _referenced_components(spec, "schemas") & set(COMMON_SCHEMAS)
+            missing = wanted - set(schemas)
+            if not missing:
+                return
+            for schema_name in sorted(missing):
+                schemas[schema_name] = copy.deepcopy(COMMON_SCHEMAS[schema_name])
+
+    def _drop_unused_components(self, spec: dict[str, Any]) -> None:
+        """Leave out the components nothing refers to.
+
+        Every model carries a parameter of its own now, so the shared ones are
+        left over whenever every model replaced them, and a data service using
+        no files refers to none of the schemas a file needs.
+        """
+        components = spec.get("components", {})
+        # Only the shared components are dropped. Schemas of the models are the
+        # point of the document, and a catalog level export has no paths at all
+        # to refer to them.
+        shared = {
+            "parameters": set(PARAMETER_COMPONENTS) | set(self.path_generator.model_parameters),
+            "schemas": set(COMMON_SCHEMAS),
+            "headers": set(HEADER_COMPONENTS),
+            "responses": set(RESPONSE_COMPONENTS),
+        }
+        for kind, candidates in shared.items():
+            declared = components.get(kind)
+            if not declared:
+                continue
+            while True:
+                unused = (set(declared) & candidates) - _referenced_components(spec, kind)
+                if not unused:
+                    break
+                for name in unused:
+                    del declared[name]
 
     def _get_dataset_models(self, dataset_name: str, models: dict) -> list:
-        return [
-            model
-            for model in models.values()
-            if (
-                hasattr(model, "external")
-                and hasattr(model.external, "dataset")
-                and model.external.dataset.name == dataset_name
-            )
-        ]
+        return [model for model in models.values() if _model_dataset_name(model) == dataset_name]

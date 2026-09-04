@@ -4,6 +4,283 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Generated OpenAPI specifications changed, so that one file can be used both
+  for importing endpoints into an API gateway and for validating requests and
+  responses against it (`#2004`_):
+
+  - ``servers`` are no longer hardcoded to ``get.data.gov.lt``. For a data
+    service they are built from ``--udts-cfg``, one entry per environment, each
+    ending with the data service path, and ``paths`` are relative to that base.
+    Without a configuration file a single relative server URL is generated. Data
+    set level exports get no ``servers`` at all (`#1526`_).
+  - ``traceparent`` and ``tracestate`` headers are no longer ``required``.
+  - Model schemas list no ``required`` properties, because a response carries
+    what the request selected, ``?select(status)`` for one, and a hidden
+    property is left out of an ordinary response altogether. Required in a
+    manifest means the data holds a value, which is why such a property is not
+    made nullable.
+  - Properties that are not ``required`` now accept ``null``, including
+    ``_revision``, since Spinta returns ``null`` for every property that has no
+    value. Reference properties are wrapped into ``anyOf`` and enum properties
+    list ``null`` among their values, because ``type`` and ``enum`` are
+    validated together.
+  - Enum values are taken from ``prepare``, the value Spinta gives out, and
+    only fall back to ``source`` where the manifest leaves ``prepare`` out,
+    which a string property may. ``0``, ``false`` and an empty string are
+    values of their own and are no longer dropped as if they were missing. An
+    enum value given as a formula, ``noop()`` among them, says what the data
+    does rather than what it holds, so it is left out of the listing instead of
+    breaking the export, and a property whose values are all formulas keeps its
+    plain type without a made up ``UNKNOWN`` example (`#2653`_).
+  - The identifier in a path is described per model. A model can declare
+    ``_id`` with a type of its own, and then its identifiers are the keys the
+    data holds, ``AE`` of a country for one, which the pattern of a UUID
+    rejects and a gateway validating requests would reject with it. Models
+    keeping a UUID identifier keep the shared parameter.
+  - Examples carry an identifier of their own, one per model, instead of
+    repeating a single one across the document, which read as if every model
+    answered with the same object. The identifier of a model is the example of
+    its ``{id}`` parameter as well, so a request and the answer beside it speak
+    about one object, and a reference example points at the example of the
+    model it references. They are derived from the model name, so a regenerated
+    file differs only where the manifest did; component order was made stable
+    for the same reason.
+  - ``--udts-cfg`` is required to export a data service, and two of its fields
+    are required in turn: ``info.title`` and ``servers`` with at least one
+    entry. An API gateway takes the context path of the API out of the first
+    server URL and shows the title to whoever looks the service up, so a
+    document without them cannot be deployed, and it is better said while the
+    file is written than after it is imported. ``--list`` needs no
+    configuration, it only reads the manifest.
+  - Everything a request carries is bounded, so that an API gateway validating
+    requests can refuse one before it reaches the service: ``_select`` and
+    ``_sort`` take names, dotted paths and calls up to a thousand characters,
+    an identifier a model declares itself takes one path segment, ``scope``
+    takes scopes separated by spaces, and the request headers take printable
+    characters. ``_limit`` takes a number from one to ``limits.max_limit`` of
+    the configuration, defaulting to ``100000``: Spinta answers any limit above
+    zero, so an upper bound is a policy of the deployment rather than a bound
+    of the service, which is why it is configured. Nothing is bounded on the
+    response side, where the shape of a value is what the manifest says and a
+    guess would have the gateway refuse data the service holds.
+  - A query parameter is built for every model, not only for one with
+    properties to name in an example. A model without them fell back to the
+    shared parameter, which carries no ``_limit`` bound, so the bound
+    configured for the data service did not reach it.
+  - Reading a single object declares the ``301`` it answers when the identifier
+    asked for was moved to another one, together with the ``Location`` header
+    saying where the object lives now, see ``spinta.commands.read.getone``. A
+    gateway validating responses would have refused a legitimate redirect. A
+    listing has no identifier to move, so it keeps none.
+  - Where a manifest lists the values an identifier takes, the path parameter
+    lists them as a request carries them, behind the equals sign, instead of
+    listing them beside a pattern none of them matches: nothing satisfied both,
+    so a gateway validating requests refused every object of such a model. The
+    answer keeps the values as the data holds them.
+  - ``auth.token_url`` is required when the first server URL is relative.
+    Derived from such a server the token endpoint is relative too, while
+    OpenAPI types it as an absolute URL, so the document would fail the
+    validation it is written for.
+  - The ``Range`` header is bounded like every other header a request carries,
+    which it alone was not. ``limits.max_limit`` is checked to fit in an
+    ``int64``, because that is what the document writes it as, so a
+    configuration and the contract built from it cannot disagree.
+  - A reference inside an object property gets a schema. References were
+    looked for one layer deep, so a model holding ``object -> ref`` produced a
+    ``$ref`` pointing at nothing and a specification that fails validation
+    outright. They are looked for through every layer now, objects nested in
+    objects and in arrays included.
+  - An identifier is described as the version 4 UUID Spinta accepts, and a
+    property declared as ``uuid`` keeps that shape instead of being described
+    as any string at all. ``traceparent`` refuses what W3C trace context
+    reserves: the version ``ff`` and an identifier of nothing but zeroes. An
+    empty ``scope`` is accepted, because the token endpoint answers it with a
+    token. The security scheme names the algorithms tokens are really signed
+    with, six of them rather than one.
+  - Nothing is asserted of the ``429`` body. A rate limit is applied in front
+    of the service, and what its answer holds, in which media type, is decided
+    there; asserting a JSON object would have validation refuse the very
+    answer that says the limit was reached.
+  - Scopes are described by the ``scope-token`` of RFC 6749 section 3.3, not by
+    a narrower alphabet: ``scope_formatter`` is configured, so it builds what
+    it likes, and a request carrying such a scope has to pass. The ``health``
+    answer requires the two fields the probe always writes, and the example of
+    ``_limit`` stays inside the bound configured for it, where a small
+    ``limits.max_limit`` had the document show a request its own schema
+    refuses.
+  - The endpoints of the agent are given the address of the agent, its server
+    URL without a path. Taking the data service path off left a foreign path in
+    place where a server URL carries one of its own, and the agent serves
+    nothing under it.
+  - A revision is described the way a model builds it. ``_revision``, the
+    ``ETag`` it is answered in and the ``If-None-Match`` it is sent back in
+    were described as UUIDs, while a model can build a revision out of its own
+    data, ``123,14`` of one kept in two columns for example, which the shape of
+    a UUID refuses. A reference carries the identifier of the model it points
+    at, which is not a UUID either where that model declares its own, and the
+    example of an object now carries the same identifier its property does.
+  - The page token is described with the URL safe alphabet, which
+    ``spinta.utils.encoding.encode_page_values`` writes it in; the standard one
+    refuses a token holding ``-`` or ``_``.
+  - Error objects require the fields they always carry, so an empty object is
+    no longer accepted as an error of every kind. A whole manifest or dataset
+    export points the token flow at the endpoint it writes, ``/auth/token``,
+    instead of the action form only a data service export holds.
+  - An identifier a model declares itself is described as the key its data
+    holds, on both sides. In a response it was described as a UUID, which would
+    have had a gateway validating responses refuse every object of such a model,
+    ``AE`` of a country for one. In a request it is reached by an equals sign,
+    ``/=AE``, where the model is keyed by a single property or keeps a
+    ``base32`` identifier, see
+    ``spinta.backends.helpers.is_accessible_by_equals_sign``; the document said
+    nothing of it, so a request built from the document was answered with
+    ``ModelNotFound``. The example is the value of the property the model is
+    keyed by, so the identifier and the object beside it agree. ``format`` of a
+    UUID is written as ``uuid``, which is the format the registry gives;
+    ``uuidv4`` is not one and no tool recognised it.
+  - Query examples name properties of the model they belong to. A generic
+    example is worse than none, because an API client fills the request with
+    it, and ``?_select=string`` comes back as ``FieldNotInResource``. They are
+    given as ``example`` as well as ``examples``, which is what an API client
+    reads. ``_count`` and ``_page`` are no longer listed as parameters taking a
+    value: ``count()`` is written without one and refuses ``?_count=1``, and
+    ``_page`` takes the token the previous answer gave. Both are described in
+    the query parameter instead, so a request built from the document works as
+    it is.
+  - The document answers what an OpenAPI linter asks of it, checked with
+    ``vacuum`` and the full rule set an API gateway is reviewed with. Every
+    schema carries a description, taken from the manifest where a model has
+    one; components nothing refers to are no longer written out, which also
+    makes the files smaller; every operation declares the ``429`` a rate limit
+    in front of the service answers with, Spinta itself limiting nothing; tags
+    are sorted; the token request body, the error responses and the fields of
+    the shared schemas carry examples; ``info.description`` is no longer an
+    empty string; and ``implementation.version`` of ``/version`` is given a
+    string example, where a number stood in a field typed as a string.
+  - Three things the document said about a response were not what Spinta
+    answers, found while checking the above. ``_type`` is the full model name,
+    not the model name alone. A listing carries ``_data`` and ``_page``, and no
+    ``_type`` beside them, so ``_page`` is described and ``_type`` is gone. A
+    reference of level 4 carries the identifier alone, so its schema holds that
+    alone, instead of also naming ``_type`` and ``_revision``, which a
+    reference never carries.
+  - ``components.securitySchemes`` is now generated, together with the scopes
+    the operations request. Operations already referenced the ``UAPI_auth``
+    scheme, which was never declared, making the document invalid.
+  - Model operations request the scopes Spinta actually checks, built from the
+    model or property and the action, instead of the bare ``uapi:/`` prefix,
+    which is not a scope. Reading a collection accepts ``:getall`` or
+    ``:search``, a single object and a property ``:getone``. Every namespace
+    above the model is listed as an alternative, because Spinta accepts a scope
+    of any of them, and ``HEAD`` operations, which Spinta authorizes as ``GET``,
+    are no longer advertised as unauthenticated. Every authorized operation
+    declares the ``401`` and ``403`` responses an authentication failure
+    produces. Scopes are built by the ``scope_formatter`` of the
+    configuration, the one Spinta authorizes with, so they follow every option
+    it honours, ``scope_prefix_udts`` and ``scope_max_length`` among them.
+  - Responses of ``file`` and ``image`` property endpoints are described as
+    binary content of any media type, which is what Spinta serves there, not as
+    a JSON metadata object, together with the ``Range`` header and the ``206``
+    and ``416`` responses a range request produces. The ``file`` and ``image`` schemas name the file
+    ``_id``, as Spinta does, instead of ``_name``, carry only the fields a
+    response actually holds, and allow the null values left after a file is
+    deleted.
+  - An error object is described in full and accepts nothing else. It holds a
+    ``type``, a ``code``, a ``template``, a ``context`` and a ``message``, and
+    those five alone, see ``spinta.exceptions.error_response``; ``context`` was
+    not described at all, which left every error schema open to anything. The
+    keys of ``context`` depend on the error, so those stay open.
+  - The errors a response names are built from the classes that raise them, so
+    the catalogue cannot drift from what Spinta answers, and it had: ``code``
+    and ``template`` are taken from the class and given as constants. Two
+    errors that were named, ``Forbidden`` and ``ServiceNotAvailable``, exist
+    nowhere in Spinta; four templates had drifted from the code; and the errors
+    that a real ``403`` and a real ``404`` answer with, ``InsufficientScopeError``
+    and ``ModelNotFound`` among them, were missing. Status codes with more
+    errors than a document can list, ``400`` with over a hundred of them, are
+    answered for by a schema accepting any error object, which every response
+    names last, because Spinta answers with more error codes than are listed
+    and an error that is not its own, one ``authlib`` raises, carries the
+    ``code`` and the ``message`` alone.
+  - The ``429`` answer is described as an object of its own, left open,
+    because a rate limit is applied in front of the service and the body is
+    decided there.
+  - Error responses are described as the ``{"errors": [...]}`` envelope Spinta
+    answers with, instead of a bare error object. The token endpoint documents
+    its ``401`` response as an OAuth 2.0 error and its ``400`` response as
+    either that or an ``InvalidScopes`` envelope, which is what an unknown scope
+    produces.
+  - Properties of type ``object``, which is also what a ``ref`` to a model
+    missing from the manifest is downgraded to, are described as objects
+    instead of strings, together with what they hold, one nested layer after
+    another. Such a property is served under a path of its own, as a file
+    property is, so it gets one, answering with the object plus the ``_type``
+    and the ``_revision`` of the object it belongs to. A file property gets a
+    second path, the ``:ref`` action, which answers with what is known about
+    the file, its name and media type, instead of the file itself. Both were
+    missing, while Spinta has served them all along. ``file`` and ``image``
+    properties reference the file and the new image schema, matching the object
+    Spinta returns for them in a model response, so that every ``$ref`` in the
+    document resolves.
+  - Agent level endpoints are generated twice in a data service export, once
+    in each form that answers for a reader of the file. ``/:version``,
+    ``/:health`` and ``/:token`` are relative to the data service base, which
+    is how an API gateway routes them inside a data service; ``/version``,
+    ``/health`` and ``/auth/token`` carry a ``servers`` entry of their own,
+    the same URLs without the data service path, which is where the agent
+    serves them, so a client calling the agent, an imported collection in an
+    API client for one, reaches them too. A whole manifest or dataset export
+    has no data service base and gets the second form only. The ``health``
+    schema describes the probe Spinta answers with (`#1873`_): a ``healthy``
+    flag and a ``dependencies`` list. The ``tokenUrl`` of ``UAPI_auth`` is
+    still built from the first server, so a deployment reached without the
+    gateway gives it in ``auth.token_url``.
+  - A ``ref`` property references a schema of what the reference carries, an
+    ``_id`` or the reference properties depending on its level, also when the
+    target is a model of the same data service, whose full schema requires its
+    own fields. One model referenced in more than one shape gets a schema per
+    shape, and an array of references follows the level of its item. An array
+    whose relation goes through an intermediate table is described as a list of
+    the referenced model, not as a reference to that table. Arrays keep every
+    layer they nest, an item accepts ``null`` unless the manifest says it always
+    holds a value, and a dynamic array, which declares no items, no longer
+    breaks the export.
+  - Model schema names are unique within a data service: they keep the dataset
+    path, for example ``at280_israsas_DalyvioAsmensIsrasas``, and colliding
+    names, which two dataset paths can produce once separators become
+    underscores, get a number suffix. Tags and operation
+    ids follow schema names, so datasets of one service holding models of the
+    same name no longer produce colliding schemas, tags and operation ids. In a
+    whole manifest export tags and operation ids now use the full model name
+    instead of the model name alone; dataset level exports are unchanged.
+    Characters an OpenAPI component name may not hold, which a name in a
+    manifest may, are replaced with an underscore before the name is claimed,
+    so uniqueness still holds.
+
+Improvements:
+
+- Added a new ``spinta udts`` command group for UDTS data service agent
+  operations, with its first command ``spinta udts oas``. It exports an OpenAPI
+  specification of one UDTS data service, covering all datasets under the
+  ``datasets/{form}/{org}/{is}/{service}/{version}`` path given in ``--path``
+  (matched on segment boundary, so ``.../at280/1`` does not match
+  ``.../at280/10``, and an unversioned ``.../at280`` does not reach into the
+  versioned service). Without ``--path`` the only data service of the manifest is
+  used, or, if there are several, the command lists them and fails; ``--list``
+  lists the data services and their datasets. Environments, service level
+  ``info`` and the authorization server come from a ``--udts-cfg`` YAML file,
+  an example of which is shipped as
+  ``spinta/manifests/open_api/udts_cfg.example.yml``. Output is written to
+  ``--output`` as YAML or JSON, chosen by file extension, or to standard output
+  (`#2004`_).
+
+.. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
+.. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
+.. _#2653: https://github.com/atviriduomenys/katalogas/issues/2653
+
 
 1.1.0 (2026-08-19)
 =====================

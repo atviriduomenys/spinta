@@ -1,0 +1,550 @@
+"""Static information for an UDTS data service OpenAPI specification.
+
+Manifest does not hold environment hosts, service level `info` or the
+authorization server address, so these are given in a separate YAML file::
+
+    spinta udts oas manifest.csv -o at280.json \\
+        --path datasets/gov/rc/jadis/at280/1 \\
+        --udts-cfg vartai.yml
+
+An example file is shipped as `udts_cfg.example.yml` next to this module.
+"""
+
+from __future__ import annotations
+
+import math
+import pathlib
+import re
+import warnings
+from dataclasses import dataclass, field
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+from spinta.exceptions import InvalidUdtsConfig
+
+yaml = YAML(typ="safe")
+
+KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs", "limits"])
+
+#: Fields of the OpenAPI objects the configuration is copied into, plus the
+#: fields of `auth`, which is ours. Everything else, apart from `x-` extensions,
+#: is a typo or a field this configuration does not support and is left out.
+#: Server variables are left out as well, because an environment is described by
+#: an URL of its own, not by a template.
+INFO_KEYS = frozenset(["title", "summary", "description", "termsOfService", "contact", "license", "version"])
+CONTACT_KEYS = frozenset(["name", "url", "email"])
+LICENSE_KEYS = frozenset(["name", "identifier", "url"])
+SERVER_KEYS = frozenset(["url", "description"])
+EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
+AUTH_KEYS = frozenset(["token_url"])
+LIMITS_KEYS = frozenset(["max_limit"])
+
+#: Largest `_limit` a request may ask for. Spinta itself holds to no upper
+#: bound, so this is a limit an API gateway applies in front of it, and the
+#: number is the largest page Spinta builds at once, `default_page_size`.
+DEFAULT_MAX_LIMIT = 100000
+
+#: A configured limit is written into the document as an `int64`, so it has to
+#: be one; a limit beyond that is not a limit anyone applies.
+MAX_LIMIT_CEILING = 2**63 - 1
+
+#: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
+malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
+
+#: A shape of an email address, as `spinta.cli.pii` reads one. `format: email`
+#: of the OpenAPI schema asks for RFC 5322, which is not worth repeating here;
+#: this catches the value that is not an address at all.
+email_re = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+
+#: Characters allowed in an RFC 3986 URI reference. Non-ASCII characters have
+#: to be percent-encoded (or encoded in a host with IDNA) before they are put
+#: into an OpenAPI URL field.
+invalid_uri_character_re = re.compile(r"[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]")
+
+#: Path of the token endpoint, as routed by the API gateway inside a data
+#: service. See `UTILITY_PATHS` in `openapi_generator`.
+TOKEN_PATH = "/:token"
+
+
+@dataclass
+class UdtsConfig:
+    """Parsed `--udts-cfg` file."""
+
+    info: dict[str, Any] = field(default_factory=dict)
+    servers: list[dict[str, Any]] = field(default_factory=list)
+    auth: dict[str, Any] = field(default_factory=dict)
+    external_docs: dict[str, Any] = field(default_factory=dict)
+    limits: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_path(cls, path: pathlib.Path | str) -> UdtsConfig:
+        path = pathlib.Path(path)
+        try:
+            data = yaml.load(path.read_text(encoding="utf-8"))
+        except OSError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"can not be read, {error.strerror or error}.")
+        except UnicodeDecodeError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"is not an UTF-8 file, {error}.")
+        except YAMLError as error:
+            raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {error}.")
+
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise InvalidUdtsConfig(path=str(path), error="configuration must be a mapping.")
+
+        for key in sorted(set(data) - KNOWN_KEYS, key=str):
+            warnings.warn(f"{path}: unknown UDTS configuration key {key!r}, ignoring it.", UserWarning)
+
+        for key in ("info", "auth", "externalDocs", "limits"):
+            if key in data and data[key] is not None and not isinstance(data[key], dict):
+                raise InvalidUdtsConfig(path=str(path), error=f"`{key}` must be a mapping.")
+
+        _check_info(data.get("info") or {}, path)
+        _check_external_docs(data.get("externalDocs") or {}, path)
+
+        _check_limits(data.get("limits") or {}, path)
+
+        token_url = (data.get("auth") or {}).get("token_url")
+        if token_url is not None:
+            _check_url(token_url, path, "`auth.token_url`", require_https=True)
+            _check_no_fragment(token_url, path, "`auth.token_url`")
+
+        servers = data.get("servers")
+        if servers is None:
+            servers = []
+        if not isinstance(servers, list):
+            raise InvalidUdtsConfig(path=str(path), error="`servers` must be a list.")
+        for server in servers:
+            _check_server(server, path)
+
+        _check_derived_token_url(token_url, servers, path)
+
+        return cls(
+            info=_clean_info(data.get("info") or {}, path),
+            servers=[_keep_known(server, SERVER_KEYS, path, "`servers` entry") for server in servers],
+            # `auth` is ours, not an OpenAPI object, so it takes no extensions.
+            auth=_keep_known(data.get("auth") or {}, AUTH_KEYS, path, "`auth`", extensions=False),
+            external_docs=_keep_known(data.get("externalDocs") or {}, EXTERNAL_DOCS_KEYS, path, "`externalDocs`"),
+            # `limits` is ours, not an OpenAPI object, so it takes no extensions.
+            limits=_keep_known(data.get("limits") or {}, LIMITS_KEYS, path, "`limits`", extensions=False),
+        )
+
+    def resolve_servers(self, service_path: str) -> list[dict[str, Any]]:
+        """Build `servers` for a given data service.
+
+        API gateway derives the API context path from the path part of the first
+        server URL, so every server URL must end with the data service path and
+        must not end with a slash. A URL given without a path gets the data
+        service path appended, which keeps one configuration file usable for all
+        data services of one agent.
+        """
+        if not self.servers:
+            return [{"url": f"/{service_path}"}]
+
+        servers = []
+        for server in self.servers:
+            server = dict(server)
+            server["url"] = _resolve_server_url(server.get("url", ""), service_path)
+            servers.append(server)
+        return servers
+
+    def check_publishable(self, path: Any) -> None:
+        """Check what a data service cannot be published without.
+
+        An API gateway takes the context path of the API out of the first
+        server URL and shows the title to whoever looks the service up, so a
+        document without them cannot be deployed. Reading a file does not ask
+        for them, because a file is read for other reasons as well; exporting a
+        data service does.
+        """
+        title = self.info.get("title")
+        if not isinstance(title, str) or not title.strip():
+            raise InvalidUdtsConfig(path=str(path), error="`info.title` is required, give the data service a name.")
+
+        if not self.servers:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error="`servers` is required, give at least one environment the data service is served at.",
+            )
+
+        # A token endpoint is `format: uri` in the OpenAPI schema, so it has to
+        # be absolute. Derived from a relative server it would not be, and the
+        # document would not pass the validation it exists to pass.
+        first = urlsplit(self.servers[0].get("url", ""))
+        if not (first.scheme and first.netloc) and not self.auth.get("token_url"):
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error=(
+                    "`auth.token_url` is required when the first server URL is relative: it is derived "
+                    "from that server otherwise, and a token endpoint has to be an absolute URL."
+                ),
+            )
+
+    def max_limit(self) -> int:
+        """Largest `_limit` a request may ask for.
+
+        Spinta answers any limit above zero, so this is not its bound but one an
+        API gateway applies in front of it, which is why it is configured rather
+        than read out of the service.
+        """
+        return self.limits.get("max_limit") or DEFAULT_MAX_LIMIT
+
+    def resolve_agent_servers(self, service_path: str) -> list[dict[str, Any]]:
+        """Build `servers` of the agent root, where its own endpoints live.
+
+        `/version`, `/health` and `/auth/token` are served by the agent itself,
+        not under the data service path, so a request sent straight to the agent
+        needs a server without that path. An API gateway reaches the same
+        endpoints inside the data service instead, through a routing rule, and
+        those paths are written in the action form, `/:version` for one.
+        """
+        servers = []
+        for server in self.resolve_servers(service_path):
+            server = dict(server)
+            parts = urlsplit(server.get("url", ""))
+            # The whole path goes, not the data service path alone: a server URL
+            # can carry a path of its own, which `_resolve_server_url` keeps
+            # after warning, and taking the data service path off that one would
+            # leave an address the agent serves nothing at.
+            server["url"] = urlunsplit(parts._replace(path="")) or "/"
+            servers.append(server)
+        return servers
+
+    def resolve_token_url(self, servers: list[dict[str, Any]]) -> str:
+        """Return the authorization server token endpoint.
+
+        Defaults to the token endpoint of the first server, which is where an
+        API gateway routes it inside a data service.
+        """
+        token_url = self.auth.get("token_url")
+        if token_url:
+            return token_url
+
+        # A server URL may carry a query or a fragment, so the token path is
+        # added to its path, not to the end of the whole URL.
+        base = urlsplit(servers[0].get("url", "") if servers else "")
+        return urlunsplit(base._replace(path=f"{base.path}{TOKEN_PATH}"))
+
+
+def _check_server(server: Any, path: pathlib.Path) -> None:
+    if not isinstance(server, dict):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"every `servers` entry must be a mapping with an `url`, got {server!r}.",
+        )
+
+    url = server.get("url")
+    if not isinstance(url, str) or not url:
+        raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
+
+    if "{" in url or "}" in url:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(
+                f"server URL {url!r} is a template, which is not supported, give each environment an URL of its own."
+            ),
+        )
+
+    _check_url(url, path, "server URL", relative=True)
+    # A server URL is the base of every path, and the token endpoint is derived
+    # from it, so a fragment of its own would end up in both.
+    _check_no_fragment(url, path, f"server URL {url!r}")
+    parts = urlsplit(url)
+    if not parts.scheme and not url.startswith("/"):
+        # Without a scheme `urlsplit` reads the host as a path
+        # (`localhost:8080` is read as scheme `localhost`), which would silently
+        # drop the data service path.
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(
+                f"server URL {url!r} has no scheme and host, "
+                "use `https://host.example.com` or a path starting with `/`."
+            ),
+        )
+    _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
+
+
+def _check_derived_token_url(token_url: str | None, servers: list, path: pathlib.Path) -> None:
+    """Check the token URL derived from the first server.
+
+    A given `auth.token_url` is checked where it is read. Without one it is
+    derived from the first server, which may be relative, while the OpenAPI
+    schema types the `tokenUrl` of a flow as an absolute `uri` — hence the
+    warning rather than an error, the server itself is valid.
+    """
+    if token_url or not servers:
+        return
+
+    parts = urlsplit(servers[0].get("url", ""))
+    if not parts.scheme or not parts.hostname:
+        warnings.warn(
+            f"{path}: no server with a scheme and a host and no `auth.token_url`, so the token endpoint of "
+            "`components.securitySchemes` is left relative, while OpenAPI expects an absolute URL.",
+            UserWarning,
+        )
+        return
+
+    if parts.scheme.lower() != "https":
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"token URL derived from the first server must use HTTPS, got {servers[0]['url']!r}.",
+        )
+
+
+def _keep_known(
+    mapping: dict, known: frozenset[str], path: pathlib.Path, what: str, *, extensions: bool = True
+) -> dict:
+    """Leave out fields OpenAPI does not define, keeping `x-` extensions.
+
+    Such a field is usually a typo, which would both make the document invalid
+    and silently leave the intended field unset.
+
+    Pass `extensions=False` for a mapping that is not copied into an OpenAPI
+    object, where an extension has nowhere to go and keeping it would only hide
+    the fact that nothing reads it.
+    """
+    kept = {}
+    for key, value in mapping.items():
+        is_extension = extensions and isinstance(key, str) and key.startswith("x-")
+        if not isinstance(key, str) or (key not in known and not is_extension):
+            warnings.warn(f"{path}: {what} key {key!r} is not supported, leaving it out.", UserWarning)
+            continue
+
+        # OpenAPI objects hold no null values, so a null of a known field is the
+        # field left out. An extension holds whatever it holds.
+        if value is None and not is_extension:
+            continue
+
+        if is_extension:
+            _check_json_value(value, path, f"{what} key {key!r}")
+
+        kept[key] = value
+    return kept
+
+
+def _check_json_value(value: Any, path: pathlib.Path, what: str, enclosing: frozenset[int] = frozenset()) -> None:
+    """Check that a value survives being written out.
+
+    An extension holds whatever it holds, but the specification is written as
+    JSON, and safe YAML reads values JSON does not know: an unquoted date comes
+    as `datetime.date`, `!!binary` as `bytes`.
+
+    `enclosing` holds the containers this value sits in, because a YAML anchor
+    can point back at one of them and JSON has no way to write that. Only the
+    containers on the way down are held, so the same anchor used twice side by
+    side, which is an ordinary way to spell one value once, still passes.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        # JSON has no value for these, and `json.dump` writes them out as bare
+        # `NaN` and `Infinity`, which a strict parser does not read.
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} holds {value!r}, which JSON has no value for.")
+
+    if isinstance(value, (str, bool, int, float)) or value is None:
+        return
+
+    if isinstance(value, (list, dict)):
+        if id(value) in enclosing:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error=f"{what} holds a value containing itself, which JSON has no way to write.",
+            )
+        enclosing = enclosing | {id(value)}
+
+    if isinstance(value, list):
+        for item in value:
+            _check_json_value(item, path, what, enclosing)
+        return
+
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise InvalidUdtsConfig(path=str(path), error=f"{what} holds a key {key!r}, which is not a string.")
+            _check_json_value(item, path, what, enclosing)
+        return
+
+    raise InvalidUdtsConfig(
+        path=str(path),
+        error=f"{what} holds {value!r} of type {type(value).__name__}, which JSON has no value for, quote it.",
+    )
+
+
+def _clean_info(info: dict, path: pathlib.Path) -> dict:
+    info = _keep_known(info, INFO_KEYS, path, "`info`")
+
+    if "contact" in info:
+        info["contact"] = _keep_known(info["contact"], CONTACT_KEYS, path, "`info.contact`")
+    if "license" in info:
+        info["license"] = _keep_known(info["license"], LICENSE_KEYS, path, "`info.license`")
+
+    return info
+
+
+def _check_string(value: Any, path: pathlib.Path, what: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {value!r}.")
+
+
+def _check_optional_string(value: Any, path: pathlib.Path, what: str) -> None:
+    if value is not None and not isinstance(value, str):
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a string, got {value!r}.")
+
+
+def _check_info(info: dict, path: pathlib.Path) -> None:
+    """`info` is emitted as given, so its values have to be of OpenAPI types."""
+    for key in ("title", "version", "summary", "description"):
+        _check_optional_string(info.get(key), path, f"`info.{key}`")
+
+    # OpenAPI Info Object requires it to be an URL.
+    if info.get("termsOfService") is not None:
+        _check_url(info["termsOfService"], path, "`info.termsOfService`")
+
+    for key in ("contact", "license"):
+        value = info.get(key)
+        if value is not None and not isinstance(value, dict):
+            raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a mapping, got {value!r}.")
+
+    contact = info.get("contact") or {}
+    for key in ("name", "email"):
+        _check_optional_string(contact.get(key), path, f"`info.contact.{key}`")
+
+    email = contact.get("email")
+    if email is not None and not email_re.match(email):
+        raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.email` {email!r} is not an email address.")
+    if contact.get("url") is not None:
+        _check_url(contact["url"], path, "`info.contact.url`")
+
+    license_ = info.get("license")
+    if license_ is not None:
+        # OpenAPI License Object requires a name.
+        _check_string(license_.get("name"), path, "`info.license.name`")
+        _check_optional_string(license_.get("identifier"), path, "`info.license.identifier`")
+        if license_.get("identifier") is not None and license_.get("url") is not None:
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error="`info.license` can have either an `identifier` or an `url`, not both.",
+            )
+        if license_.get("url") is not None:
+            _check_url(license_["url"], path, "`info.license.url`")
+
+
+def _check_limits(limits: dict, path: pathlib.Path) -> None:
+    if not isinstance(limits, dict):
+        raise InvalidUdtsConfig(path=str(path), error="`limits` must be a mapping.")
+
+    max_limit = limits.get("max_limit")
+    if max_limit is None:
+        return
+    if not isinstance(max_limit, int) or isinstance(max_limit, bool) or not 1 <= max_limit <= MAX_LIMIT_CEILING:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(f"`limits.max_limit` must be a whole number from one to {MAX_LIMIT_CEILING}, got {max_limit!r}."),
+        )
+
+
+def _check_external_docs(external_docs: dict, path: pathlib.Path) -> None:
+    if not external_docs:
+        return
+
+    _check_url(external_docs.get("url"), path, "`externalDocs.url`")
+
+    _check_optional_string(external_docs.get("description"), path, "`externalDocs.description`")
+
+
+def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
+    """An endpoint carries no fragment, RFC 6749 section 3.2.
+
+    A fragment is never sent in a request, so an endpoint holding one is not the
+    endpoint a client calls.
+
+    What RFC 3986 forbids here is the component, which a bare `#` starts just as
+    well as one with text after it, and `urlsplit` parses that into an empty
+    fragment indistinguishable from none at all. So the delimiter is what is
+    looked for. An escaped `%23` is a character of the path and stays allowed.
+    """
+    if "#" in url:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {url!r}.")
+
+
+def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False, require_https: bool = False) -> None:
+    """Check a value copied into an URL field of the document.
+
+    Pass `relative` for the fields the OpenAPI schema types as `uri-reference`,
+    which is `servers[].url` alone. Everything else, `info.termsOfService`, the
+    `url` of `info.contact`, of `info.license` and of `externalDocs`, and the
+    `tokenUrl` of an OAuth flow, is typed `uri` there and has to be absolute.
+
+    The prose of the specification does permit a relative reference in any URI
+    field, sections 4.6 and 4.7, so this looks stricter than the specification
+    reads. It is not: a validator asserting `format` follows the schema and
+    rejects a relative value in an `uri` field, and this document exists to be
+    validated. This has been loosened once and brought back, so do not loosen it
+    again without checking the schema of the OpenAPI version being generated.
+    """
+    _check_string(url, path, what)
+
+    # `urlsplit` parses an URL, it does not validate one.
+    if any(character.isspace() for character in url):
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, it holds whitespace.")
+
+    if invalid := invalid_uri_character_re.search(url):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} is not a valid URL, it holds invalid character {invalid.group()!r}.",
+        )
+
+    if malformed_escape_re.search(url):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} is not a valid URL, a percent sign has to start an escape of two hex digits.",
+        )
+
+    try:
+        parts = urlsplit(url)
+        parts.port  # noqa: B018  Port is parsed only when it is read.
+    except ValueError as error:
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
+
+    if not parts.scheme:
+        # A network-path reference (`//host/path`) has a host but inherits the
+        # scheme, so it is relative as well.
+        if relative:
+            return
+
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} has no scheme and host, use `https://host.example.com`.",
+        )
+
+    if not parts.hostname:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} {url!r} has a scheme but no host, use `https://host.example.com`.",
+        )
+
+    if require_https and parts.scheme.lower() != "https":
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must use HTTPS, got {url!r}.")
+
+
+def _resolve_server_url(url: str, service_path: str) -> str:
+    # A trailing slash is removed from the path, not from the whole URL, which
+    # can end with a query string or a fragment. An API gateway takes the API
+    # context path from this path, and falls back to the API title when it is
+    # left empty by a trailing slash.
+    parts = urlsplit(url)
+    path = parts.path.rstrip("/")
+
+    if not path:
+        return urlunsplit(parts._replace(path=f"/{service_path}"))
+
+    if path != f"/{service_path}":
+        warnings.warn(
+            f"Server URL {url!r} path does not match data service path {service_path!r}. "
+            "Leaving it as given, API gateway will derive a different context path.",
+            UserWarning,
+        )
+
+    return urlunsplit(parts._replace(path=path))
