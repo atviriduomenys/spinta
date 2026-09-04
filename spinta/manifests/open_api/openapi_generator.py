@@ -797,13 +797,16 @@ class PathGenerator:
         A generic example is worse than none: an API client fills the request
         with it, and `_select=string` comes back as `FieldNotInResource`.
         """
-        names = [name for name in model.get_given_properties() if not name.startswith("_")]
-        if not names:
-            return None
-
         parameter = copy.deepcopy(PARAMETER_COMPONENTS["query"])
         properties = parameter["schema"]["properties"]
-        for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0])):
+
+        # Built for every model, not only for one with properties to name in an
+        # example: the bound of `_limit` is set here, and a model without them
+        # is queried the same way as any other.
+        names = [name for name in model.get_given_properties() if not name.startswith("_")]
+        for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0] if names else "")):
+            if not value:
+                continue
             properties[key]["examples"] = [value]
             # An API client reads `example` of a property, not `examples`, and
             # fills the request with the type name when it finds neither.
@@ -817,11 +820,10 @@ class PathGenerator:
         limit_example = min(properties["_limit"]["examples"][0], self.max_limit)
         properties["_limit"]["examples"] = [limit_example]
         properties["_limit"]["example"] = limit_example
-        parameter["example"] = {
-            "_select": ",".join(names[:2]),
-            "_limit": properties["_limit"]["example"],
-            "_sort": names[0],
-        }
+        parameter["example"] = {"_limit": properties["_limit"]["example"]}
+        if names:
+            parameter["example"]["_select"] = ",".join(names[:2])
+            parameter["example"]["_sort"] = names[0]
         return parameter
 
     def _build_responses(
