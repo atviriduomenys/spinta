@@ -2073,3 +2073,18 @@ def test_single_object_answers_a_redirect(open_manifest_path_factory):
 
     # A listing has no identifier to move, so it never redirects.
     assert "301" not in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]["get"]["responses"]
+
+
+def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
+    """A shared query parameter would carry no bound at all."""
+    config = UdtsConfig(limits={"max_limit": 25})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+    parameters = open_api_spec["components"]["parameters"]
+
+    queries = [name for name in parameters if name.startswith("query")]
+
+    assert queries, "no query parameter was built"
+    for name in queries:
+        assert parameters[name]["schema"]["properties"]["_limit"]["maximum"] == 25, name
+    # The shared one is left over and dropped, so no path can reach around it.
+    assert "query" not in parameters
