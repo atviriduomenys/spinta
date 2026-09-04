@@ -755,6 +755,13 @@ class PathGenerator:
         equals = _reached_by_equals_sign(model)
         if isinstance(dtype, Base32):
             schema["pattern"] = BASE32_ID_PATTERN
+        elif schema.get("enum"):
+            # The manifest lists the values, which is all there is to say. A
+            # pattern beside them would leave nothing that satisfies both: the
+            # values as listed fail it, and the values behind the sign are not
+            # among them.
+            if equals:
+                schema["enum"] = [f"={value}" for value in schema["enum"]]
         elif "pattern" in schema:
             # A type of its own already says what the value looks like, `uuid`
             # for one, and a path segment is a looser thing to say than that.
@@ -763,9 +770,13 @@ class PathGenerator:
             # The shape of such a key is known only to the data, so what is
             # stated is that it is one path segment, and that it is bounded.
             schema["pattern"] = EQUALS_ID_PATTERN if equals else DECLARED_ID_PATTERN
-        example = _declared_id_example(self.dtype_handler, model)
-        if equals and isinstance(example, str):
-            example = f"={example}"
+
+        if schema.get("enum"):
+            example = schema["enum"][0]
+        else:
+            example = _declared_id_example(self.dtype_handler, model)
+            if equals and isinstance(example, str):
+                example = f"={example}"
         if example is not None:
             schema["example"] = example
 
@@ -1242,7 +1253,9 @@ class SchemaGenerator:
 
         schema = copy.deepcopy(self.dtype_handler.convert_to_openapi_schema(model.id_prop))
         schema["description"] = "Identifier of the object, the key its data holds."
-        schema["example"] = _declared_id_example(self.dtype_handler, model)
+        # Where the manifest lists the values, the example is one of them, and
+        # not a made up one its own schema would refuse.
+        schema["example"] = schema["enum"][0] if schema.get("enum") else _declared_id_example(self.dtype_handler, model)
         return schema
 
     def _create_model_schema(

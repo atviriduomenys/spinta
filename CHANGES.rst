@@ -65,6 +65,15 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - Where a manifest lists the values an identifier takes, the path parameter
+    lists them as a request carries them, behind the equals sign, instead of
+    listing them beside a pattern none of them matches: nothing satisfied both,
+    so a gateway validating requests refused every object of such a model. The
+    answer keeps the values as the data holds them.
+  - ``auth.token_url`` is required when the first server URL is relative.
+    Derived from such a server the token endpoint is relative too, while
+    OpenAPI types it as an absolute URL, so the document would fail the
+    validation it is written for.
   - The ``Range`` header is bounded like every other header a request carries,
     which it alone was not. ``limits.max_limit`` is checked to fit in an
     ``int64``, because that is what the document writes it as, so a
