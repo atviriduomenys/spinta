@@ -247,6 +247,17 @@ def test_title_is_required(context, rc, cli: SpintaCliRunner, tmp_path):
     assert "`info.title` is required" in result.stderr
 
 
+def test_token_url_is_required_with_a_relative_server(context, rc, cli: SpintaCliRunner, tmp_path):
+    """A token endpoint has to be absolute, and a relative server gives none."""
+    path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
+    config = _config(tmp_path, "info:\n  title: JADIS\nservers:\n  - url: /datasets/gov/rc/jadis/at280/1\n")
+
+    result = cli.invoke(rc, ["udts", "oas", path, "--udts-cfg", config], fail=False)
+
+    assert result.exit_code == 1
+    assert "`auth.token_url` is required when the first server URL is relative" in result.stderr
+
+
 def test_at_least_one_server_is_required(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
     config = _config(tmp_path, "info:\n  title: JADIS\nservers: []\n")

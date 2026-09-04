@@ -91,11 +91,14 @@ kaip apie bet kurį nežinomą lauką.
 Kiekviena aplinka aprašoma savo `url`, todėl OpenAPI `servers[].variables`
 šablonai nenaudojami – nurodyti juos galima, bet jie praleidžiami.
 
-`auth.token_url` neprivalomas: nenurodžius, jis išvedamas iš pirmojo `servers`
-įrašo ir `/:token`, t. y. iš to paties adreso, kuriuo token'ą per vartus pasiekia
-gavėjas. Nurodyti verta tik tada, kai autorizacijos serveris yra kitur.
-Nurodytas adresas turi būti pilnas ir su HTTPS – reliatyvų adresą leidžia tik
-`servers` įrašai, o OpenAPI schema token'o adresą apibrėžia kaip absoliutų.
+`auth.token_url` neprivalomas, kol pirmasis `servers` įrašas turi adresą su
+schema ir hostu: tada jis išvedamas iš to įrašo ir `/:token`, t. y. iš to paties
+adreso, kuriuo token'ą per vartus pasiekia gavėjas.
+
+Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
+pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
+nėra iš ko, o OpenAPI token'o adresą apibrėžia kaip absoliutų. Nurodytas adresas
+turi būti pilnas ir su HTTPS.
 
 `servers` – po vieną įrašą kiekvienai aplinkai. Adresą galima nurodyti dviem
 būdais:

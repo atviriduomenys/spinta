@@ -171,6 +171,19 @@ class UdtsConfig:
                 error="`servers` is required, give at least one environment the data service is served at.",
             )
 
+        # A token endpoint is `format: uri` in the OpenAPI schema, so it has to
+        # be absolute. Derived from a relative server it would not be, and the
+        # document would not pass the validation it exists to pass.
+        first = urlsplit(self.servers[0].get("url", ""))
+        if not (first.scheme and first.netloc) and not self.auth.get("token_url"):
+            raise InvalidUdtsConfig(
+                path=str(path),
+                error=(
+                    "`auth.token_url` is required when the first server URL is relative: it is derived "
+                    "from that server otherwise, and a token endpoint has to be an absolute URL."
+                ),
+            )
+
     def max_limit(self) -> int:
         """Largest `_limit` a request may ask for.
 

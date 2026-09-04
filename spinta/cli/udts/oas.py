@@ -115,7 +115,7 @@ def _resolve_service_path(path: str | None, services: dict[str, list[str]], data
     if not is_service_level_path(path):
         cli_message(
             f"Given path {path!r} is not an UDTS data service path "
-            "(`datasets/{form}/{org}/{is}/{service}/{version}`)."
+            "(`datasets/{form}/{org}/{is}/{service}` with an optional `/{version}`)."
         )
 
     if not datasets_under_service(dataset_names, path):
