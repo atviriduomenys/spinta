@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Callable, Union
+from urllib.parse import urlsplit
 
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Model, Namespace, Property
@@ -66,6 +67,9 @@ AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
 
 #: Where the agent serves the token endpoint, see `spinta.api`.
 AGENT_TOKEN_PATH = "/auth/token"
+
+#: Paths that carry client credentials, in both of the forms they are written.
+TOKEN_PATHS = frozenset([TOKEN_PATH, AGENT_TOKEN_PATH])
 
 #: Paths that authorize against no model.
 UTILITY_PATHS = GATEWAY_UTILITY_PATHS + AGENT_UTILITY_PATHS
@@ -1599,6 +1603,20 @@ class OpenAPIGenerator:
         }
         return filtered_datasets, filtered_models
 
+    def _token_endpoint_is_reachable_securely(self, spec: dict[str, Any]) -> bool:
+        """Whether a client can reach the token endpoint of the agent over TLS.
+
+        Credentials are sent to it in plain, base64 of them being plain, which
+        RFC 6749 section 2.3.1 allows only over TLS. A server given without a
+        scheme is reached by whichever one serves the document, so it says
+        nothing against it; a server given as `http` says everything.
+        """
+        servers = spec.get("servers") or []
+        if not servers:
+            return True
+        scheme = urlsplit(servers[0].get("url", "")).scheme
+        return scheme in ("", "https")
+
     def _set_servers(self, spec: dict[str, Any]) -> None:
         """One entry per environment, each ending with the data service path.
 
@@ -1684,6 +1702,8 @@ class OpenAPIGenerator:
         # Only a data service export has a base of its own, so only there is
         # the action form of an agent endpoint of any use.
         utility_paths = AGENT_UTILITY_PATHS if self.service_path is None else UTILITY_PATHS
+        if not self._token_endpoint_is_reachable_securely(spec):
+            utility_paths = [path for path in utility_paths if path not in TOKEN_PATHS]
         for path in utility_paths:
             path_config = PATHS_CONFIG.get(path)
             if not path_config:
