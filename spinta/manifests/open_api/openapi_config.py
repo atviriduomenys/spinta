@@ -256,6 +256,8 @@ PATHS_CONFIG = {
     "/auth/token": {
         # Served by the agent itself, so it takes a server of its own.
         "servers": "agent",
+        # Credentials are sent here, so only an environment reached over TLS.
+        "credentials": True,
         "parameters": ["traceparent", "tracestate"],
         "post": {
             "tags": ["utility"],

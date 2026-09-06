@@ -543,6 +543,8 @@ class PathGenerator:
         self.model_parameters: dict[str, dict] = {}
         #: Servers of the agent root, for the endpoints served there.
         self.agent_servers: list[dict[str, Any]] = []
+        #: Those of them a client may send credentials to, see `_secure_servers`.
+        self.secure_agent_servers: list[dict[str, Any]] = []
         #: Largest `_limit` a request may ask for, see `UdtsConfig.max_limit`.
         self.max_limit: int = DEFAULT_MAX_LIMIT
 
@@ -605,10 +607,11 @@ class PathGenerator:
         # An endpoint of the agent is not served under the data service path,
         # so it carries a server of its own, which OpenAPI allows per path.
         if path_config.get("servers") == "agent" and self.agent_servers:
-            operations["servers"] = copy.deepcopy(self.agent_servers)
+            servers = self.secure_agent_servers if path_config.get("credentials") else self.agent_servers
+            operations["servers"] = copy.deepcopy(servers)
 
         for method_name, method_config in path_config.items():
-            if method_name in ("parameters", "servers"):
+            if method_name in ("parameters", "servers", "credentials"):
                 continue
 
             operations[method_name] = self._build_operation(
@@ -1543,6 +1546,7 @@ class OpenAPIGenerator:
         self.path_generator.max_limit = self.config.max_limit()
         if self.service_path is not None:
             self.path_generator.agent_servers = self.config.resolve_agent_servers(self.service_path)
+            self.path_generator.secure_agent_servers = self._secure_servers(self.path_generator.agent_servers)
         self.namer = namer
 
         self._set_servers(specification)
@@ -1603,19 +1607,16 @@ class OpenAPIGenerator:
         }
         return filtered_datasets, filtered_models
 
-    def _token_endpoint_is_reachable_securely(self, spec: dict[str, Any]) -> bool:
-        """Whether a client can reach the token endpoint of the agent over TLS.
+    def _secure_servers(self, servers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """The servers a client can send credentials to.
 
-        Credentials are sent to it in plain, base64 of them being plain, which
-        RFC 6749 section 2.3.1 allows only over TLS. A server given without a
-        scheme is reached by whichever one serves the document, so it says
-        nothing against it; a server given as `http` says everything.
+        Credentials are sent to the token endpoint in plain, base64 of them
+        being plain, which RFC 6749 section 2.3.1 allows only over TLS. A server
+        given without a scheme is reached by whichever one serves the document,
+        so it says nothing against TLS; a server given as `http` says
+        everything.
         """
-        servers = spec.get("servers") or []
-        if not servers:
-            return True
-        scheme = urlsplit(servers[0].get("url", "")).scheme
-        return scheme in ("", "https")
+        return [server for server in servers if urlsplit(server.get("url", "")).scheme in ("", "https")]
 
     def _set_servers(self, spec: dict[str, Any]) -> None:
         """One entry per environment, each ending with the data service path.
@@ -1702,13 +1703,25 @@ class OpenAPIGenerator:
         # Only a data service export has a base of its own, so only there is
         # the action form of an agent endpoint of any use.
         utility_paths = AGENT_UTILITY_PATHS if self.service_path is None else UTILITY_PATHS
-        if not self._token_endpoint_is_reachable_securely(spec):
+
+        # An environment reached without TLS is no place to send credentials to,
+        # so the token endpoint is offered on the others alone, and on none at
+        # all when there is no other.
+        declared = spec.get("servers") or []
+        secure = self._secure_servers(declared)
+        if declared and not secure:
             utility_paths = [path for path in utility_paths if path not in TOKEN_PATHS]
+
         for path in utility_paths:
             path_config = PATHS_CONFIG.get(path)
             if not path_config:
                 raise ValueError(f"No config found for path: {path}")
             paths[path] = self.path_generator.create_path(path_config)
+            # The action form takes the servers of the document, so the ones a
+            # client may send credentials to are named here. The address form
+            # carries servers of its own, already filtered the same way.
+            if path == TOKEN_PATH and len(secure) < len(declared):
+                paths[path]["servers"] = copy.deepcopy(secure)
 
         for dataset_name, _ in datasets:
             # Model paths are relative to the data service base, which is given
