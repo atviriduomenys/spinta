@@ -2123,3 +2123,26 @@ def test_token_paths_are_kept_where_they_can_be_reached_securely(open_manifest_p
 
         assert "/:token" in open_api_spec["paths"], servers
         assert "/auth/token" in open_api_spec["paths"], servers
+
+
+def test_token_paths_name_only_the_environments_reached_over_tls(open_manifest_path_factory):
+    """One insecure environment beside a secure one must not carry credentials.
+
+    The token endpoint is offered on the environments a client can send them
+    to, rather than being dropped for all of them or inherited by all of them.
+    """
+    jsonschema = pytest.importorskip("jsonschema")  # noqa: F841
+    config = UdtsConfig(
+        info={"title": "JADIS"},
+        servers=[{"url": "https://get.data.gov.lt"}, {"url": "http://test.local:8000"}],
+        auth={"token_url": "https://am.example.lt/auth/token"},
+    )
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert len(open_api_spec["servers"]) == 2
+    assert [server["url"] for server in open_api_spec["paths"]["/:token"]["servers"]] == [
+        f"https://get.data.gov.lt/{SERVICE_PATH}"
+    ]
+    assert [server["url"] for server in open_api_spec["paths"]["/auth/token"]["servers"]] == ["https://get.data.gov.lt"]
+    # Everything else is served on both, the insecure one included.
+    assert "servers" not in open_api_spec["paths"]["/:version"]
