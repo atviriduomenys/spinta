@@ -2088,3 +2088,38 @@ def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
         assert parameters[name]["schema"]["properties"]["_limit"]["maximum"] == 25, name
     # The shared one is left over and dropped, so no path can reach around it.
     assert "query" not in parameters
+
+
+def test_token_paths_are_left_out_of_an_insecure_server(open_manifest_path_factory):
+    """Client credentials are sent in plain, which RFC 6749 allows over TLS only.
+
+    A deployment can be reached over `http`, a local one for instance, as long
+    as the token endpoint is somewhere else. The document then says where that
+    endpoint is, in the flow, and does not advertise one of its own that a
+    client would send credentials to in the clear.
+    """
+    config = UdtsConfig(
+        info={"title": "JADIS"},
+        servers=[{"url": "http://localhost:8000"}],
+        auth={"token_url": "https://am.example.lt/auth/token"},
+    )
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert "/:token" not in open_api_spec["paths"]
+    assert "/auth/token" not in open_api_spec["paths"]
+    flow = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]
+    assert flow["tokenUrl"] == "https://am.example.lt/auth/token"
+
+
+def test_token_paths_are_kept_where_they_can_be_reached_securely(open_manifest_path_factory):
+    """A server given without a scheme says nothing against the one serving it."""
+    for servers in ([{"url": "https://get.data.gov.lt"}], [{"url": "/datasets/gov/rc/jadis/at280/1"}]):
+        config = UdtsConfig(
+            info={"title": "JADIS"},
+            servers=servers,
+            auth={"token_url": "https://am.example.lt/auth/token"},
+        )
+        open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+        assert "/:token" in open_api_spec["paths"], servers
+        assert "/auth/token" in open_api_spec["paths"], servers

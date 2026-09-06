@@ -95,6 +95,12 @@ Kiekviena aplinka aprašoma savo `url`, todėl OpenAPI `servers[].variables`
 schema ir hostu: tada jis išvedamas iš to įrašo ir `/:token`, t. y. iš to paties
 adreso, kuriuo token'ą per vartus pasiekia gavėjas.
 
+Jei paslauga pasiekiama per `http` (pavyzdžiui, vietinis diegimas), token'o
+keliai `/:token` ir `/auth/token` į aprašą **neįtraukiami**: kliento
+identifikatorius ir slaptažodis siunčiami atviru tekstu, o RFC 6749 (2.3.1) tai
+leidžia tik per TLS. Token'o adresas tokiu atveju lieka `auth.token_url` lauke,
+kur ir turi būti.
+
 Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
 pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
 nėra iš ko, o OpenAPI token'o adresą apibrėžia kaip absoliutų. Nurodytas adresas

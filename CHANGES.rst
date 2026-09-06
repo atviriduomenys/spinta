@@ -65,6 +65,14 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
+  - The token endpoints are left out where a client cannot reach them over
+    TLS. A deployment served over ``http`` is allowed as long as the token
+    endpoint is elsewhere, a local one for instance, and the document then said
+    where that endpoint is while still advertising ``/:token`` and
+    ``/auth/token`` of its own, which a client would have sent its credentials
+    to in the clear; RFC 6749 section 2.3.1 allows them over TLS alone. A
+    server given without a scheme keeps them, because the scheme is then
+    whichever one serves the document.
   - A query parameter is built for every model, not only for one with
     properties to name in an example. A model without them fell back to the
     shared parameter, which carries no ``_limit`` bound, so the bound
