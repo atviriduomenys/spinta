@@ -72,7 +72,9 @@ Backwards incompatible:
     ``/auth/token`` of its own, which a client would have sent its credentials
     to in the clear; RFC 6749 section 2.3.1 allows them over TLS alone. A
     server given without a scheme keeps them, because the scheme is then
-    whichever one serves the document.
+    whichever one serves the document. Where environments differ, the token
+    endpoints name the ones reached over TLS instead of inheriting all of them,
+    so a service published on both keeps them on the secure environment.
   - A query parameter is built for every model, not only for one with
     properties to name in an example. A model without them fell back to the
     shared parameter, which carries no ``_limit`` bound, so the bound
