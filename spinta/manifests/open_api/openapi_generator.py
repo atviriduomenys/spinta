@@ -778,6 +778,13 @@ class PathGenerator:
             # The shape of such a key is known only to the data, so what is
             # stated is that it is one path segment, and that it is bounded.
             schema["pattern"] = EQUALS_ID_PATTERN if equals else DECLARED_ID_PATTERN
+        elif schema.get("type") == "integer":
+            # Everything a request carries is bounded, this segment among them.
+            # A whole number identifier is held in a column of the data, so it
+            # is one of 64 bits.
+            schema.setdefault("format", "int64")
+            schema.setdefault("minimum", -(2**63))
+            schema.setdefault("maximum", 2**63 - 1)
 
         if schema.get("enum"):
             example = schema["enum"][0]

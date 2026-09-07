@@ -36,6 +36,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_DECLARED_REVISION,
     MANIFEST_WITH_ENUM_ID,
     MANIFEST_WITH_ENUM_VALUES,
+    MANIFEST_WITH_INTEGER_ID,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
@@ -1069,6 +1070,21 @@ def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
         message = schemas[name]["properties"]["message"].get("example")
         assert message is not None, name
         assert "{" not in message and "}" not in message, (name, message)
+
+
+def test_whole_number_identifier_is_bounded(open_manifest_path_factory):
+    """A path segment of a request is bounded, whatever its type."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_INTEGER_ID)
+
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+
+    assert identifier["type"] == "integer"
+    assert identifier["format"] == "int64"
+    jsonschema.validate(identifier["example"], identifier)
+    jsonschema.validate(2**63 - 1, identifier)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(2**63, identifier)
 
 
 def test_composite_identifier_example_holds_every_key(open_manifest_path_factory):
