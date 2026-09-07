@@ -355,6 +355,18 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 """)
 
 
+# A model keyed by two properties, whose identifier is both of them written out.
+MANIFEST_WITH_COMPOSITE_ID = striptable("""
+id | d | r | b | m | property | type            | ref      | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |          |         |       |
+   |   | test                 | memory          |          |         |       |
+   |   |   |   | Salis        |                 | nr, kodas| salys   |       |
+   |   |   |   |   | _id      | string          |          |         |       | open
+   |   |   |   |   | nr       | integer required|          | nr      | 4     | open
+   |   |   |   |   | kodas    | string required |          | kodas   | 4     | open
+""")
+
+
 # A model whose identifier is its key encoded, see `spinta.types.datatype.Base32`.
 MANIFEST_WITH_BASE32_ID = striptable("""
 id | d | r | b | m | property | type            | ref   | source  | level | access
