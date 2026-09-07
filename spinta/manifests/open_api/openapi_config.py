@@ -641,6 +641,18 @@ def _error_schema(name: str, template: str | None = None) -> dict:
     return schema
 
 
+def _example_error_template() -> str:
+    """Template of the error the generic example stands for.
+
+    `ERROR_MESSAGE` shows that error filled in, so the two describe one object,
+    and the example is then an error Spinta really answers with rather than a
+    part of one.
+    """
+    from spinta.exceptions import ModelNotFound
+
+    return ModelNotFound.template
+
+
 def _errors_of(status_code: int) -> dict[str, dict]:
     """Schemas of the errors Spinta answers with under a status code."""
     import inspect
@@ -675,7 +687,11 @@ GENERIC_ERROR = {
         "properties": {
             "type": {"type": "string", "description": "What the error happened on.", "example": "system"},
             "code": {"type": "string", "description": "Name of the error.", "example": "ModelNotFound"},
-            "template": {"type": "string", "description": "Template the message was built from."},
+            "template": {
+                "type": "string",
+                "description": "Template the message was built from.",
+                "example": _example_error_template(),
+            },
             "message": dict(ERROR_MESSAGE),
             "context": dict(ERROR_CONTEXT),
         },
@@ -920,9 +936,11 @@ PARAMETER_COMPONENTS = {
                 "_select": {
                     "type": "string",
                     # Names, dotted paths and function calls, which is what the
-                    # query language holds here; the characters are bounded so a
-                    # gateway validating requests refuses anything else.
-                    "pattern": "^[A-Za-z0-9_.,@() +-]{1,1000}$",
+                    # query language holds here, plus the `*` of `_select=*`,
+                    # which asks for everything, see `spinta.spyna`. The
+                    # characters are bounded so a gateway validating requests
+                    # refuses anything else.
+                    "pattern": "^[A-Za-z0-9_.,@()* +-]{1,1000}$",
                     "examples": ["name,country.name,country.continent.name"],
                     "description": "Comma separated list of properties to include in the result.",
                 },
