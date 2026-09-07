@@ -1007,6 +1007,53 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
         jsonschema.validate(other_version, schema)
 
 
+def test_base32_identifier_takes_a_length_that_decodes(open_manifest_path_factory):
+    """Padding is dropped, so what is left has to be paddable back."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_BASE32_ID)
+    schema = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+
+    for length in range(1, 25):
+        value = "=" + "A" * length
+        # `base64.b32decode` pads back to a multiple of eight and raises where
+        # that cannot be done, see `spinta.datasets.helpers.decode_id_value`.
+        decodes = length % 8 not in (1, 3, 6)
+        if decodes:
+            jsonschema.validate(value, schema)
+        else:
+            with pytest.raises(jsonschema.ValidationError):
+                jsonschema.validate(value, schema)
+
+
+def test_not_modified_carries_no_body_headers(open_manifest_path_factory):
+    """`304` answers before a body is built, so it has none of its headers."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    answers = [
+        (path, method, operation["responses"]["304"])
+        for path, operations in open_api_spec["paths"].items()
+        for method, operation in operations.items()
+        if method != "parameters" and isinstance(operation, dict) and "304" in operation.get("responses", {})
+    ]
+    assert answers
+    for path, method, response in answers:
+        headers = set(response.get("headers", {}))
+        assert headers == {"ETag", "Cache-Control"}, (path, method)
+
+
+def test_etag_is_not_bounded_by_a_policy(open_manifest_path_factory):
+    """A revision a model declares itself is of no stated length."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    etag = open_api_spec["components"]["headers"]["ETag"]["schema"]
+    jsonschema.validate("x" * 4096, etag)
+    # A request header is bounded, because a gateway may refuse an oversized one.
+    if_none_match = open_api_spec["components"]["parameters"]["If-None-Match"]["schema"]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate("x" * 4096, if_none_match)
+
+
 def test_base32_identifier_example_is_the_key_encoded(open_manifest_path_factory):
     """`base32` says the identifier is the key encoded, not the key itself."""
     jsonschema = pytest.importorskip("jsonschema")
@@ -1592,12 +1639,18 @@ def test_model_schemas_require_nothing(rc, open_manifest_path_factory):
 
     schemas = open_api_spec["components"]["schemas"]
     # A listing is an envelope, not an object of the model, and it always holds
-    # its container, see `test_listing_schema_matches_what_spinta_answers`.
-    model_schemas = [name for name in schemas if name.startswith("at280_") and not name.endswith("Collection")]
+    # its container, see `test_listing_schema_matches_what_spinta_answers`. A
+    # reference is not an object of the model either, and it carries the
+    # identifier whenever it is there at all.
+    model_schemas = [
+        name for name in schemas if name.startswith("at280_") and not name.endswith(("Collection", "_Ref"))
+    ]
 
     assert model_schemas
     for name in model_schemas:
         assert "required" not in schemas[name], name
+
+    assert schemas["at280_adresai_Adresas_Ref"]["required"] == ["_id"]
 
     # A property holding a value is still not nullable.
     assert schemas["at280_adresai_Adresas"]["properties"]["id"]["type"] == "string"

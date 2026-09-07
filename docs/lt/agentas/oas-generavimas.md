@@ -202,8 +202,8 @@ netinkamą užklausą dar nepasiekusią paslaugos:
 |---|---|
 | `_limit` | nuo 1 iki `limits.max_limit` (pagal nutylėjimą 100000) |
 | `_select`, `_sort` | vardai, keliai su taškais ir funkcijos, iki 1000 simbolių |
-| `{id}` | vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių; modeliams su savu `_id` – su `=` prefiksu |
-| `scope` | tarpais skirti scope'ai |
+| `{id}` | UUID v4 arba, kai modelis pats deklaruoja `_id`, jo duomenų raktas: vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių. `=` prefiksas – tik `base32` tipo `_id` ir `string` tipo `_id`, kai modelio raktas nesudėtinis (žr. `is_accessible_by_equals_sign`); kitų tipų `_id` siunčiamas be jo |
+| `scope` | tarpais skirti scope'ai, ne ilgiau, nei visi apraše deklaruoti scope'ai kartu |
 | `traceparent` | W3C trace-context forma, šešioliktainė nuo pradžios iki galo |
 | `tracestate`, `Cache-Control`, `Accept-Language` | spausdinami ASCII simboliai, iki 1024 |
 

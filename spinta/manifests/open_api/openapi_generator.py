@@ -1430,6 +1430,9 @@ class SchemaGenerator:
             return {
                 "type": "object",
                 "description": f"A reference to `{model.name}`, carrying its identifier.",
+                # A reference that is there carries the identifier; one that is
+                # not is `null`, which the property says on its own side.
+                "required": ["_id"],
                 "properties": {"_id": identifier},
                 "example": {"_id": identifier["example"]},
             }
