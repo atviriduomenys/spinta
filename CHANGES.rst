@@ -179,6 +179,17 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - The ``health`` endpoints say what the probe really checks: the service
+    answered, and the disk and the memory of the machine it runs on are within
+    the limits it was given. Backends holding the data are not probed, so
+    promising that everything the service needs is operational would have a
+    gateway read ``healthy: true`` as more than it says.
+  - The identifier of a model keyed by ``base32`` is the key encoded, not the
+    key itself, so the example is encoded the same way the data is read,
+    ``=IV4GC3LQNRSSA43UOJUW4ZY`` rather than ``=Example string``, which the
+    pattern of the parameter refuses. The encoding moved to
+    ``spinta.utils.encoding.encode_base32``, so the document and the service
+    cannot say different things about it.
   - What a response always carries is marked ``required``, so that a gateway
     validating responses can refuse a malformed one instead of passing an empty
     object. A listing envelope always holds ``_data``, written before the first

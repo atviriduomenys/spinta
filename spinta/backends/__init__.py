@@ -10,7 +10,6 @@ from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
 
 import dateutil
 import shapely.geometry.base
-from cbor2 import dumps as cbor_dumps
 from geoalchemy2.elements import WKBElement, WKTElement
 from geoalchemy2.shape import to_shape
 from shapely import wkt
@@ -77,7 +76,7 @@ from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
 from spinta.utils.config import asbool
-from spinta.utils.encoding import encode_page_values
+from spinta.utils.encoding import encode_base32, encode_page_values
 from spinta.utils.schema import NA, NotAvailable
 from spinta.utils.types import is_nan
 
@@ -2001,12 +2000,7 @@ def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, da
 def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
     if is_nan(data):
         return None
-    if isinstance(data, (list, tuple)):
-        data = cbor_dumps(list(data))
-    else:
-        data = str(data).encode("utf-8")
-    encoded = base64.b32encode(data)
-    return encoded.rstrip(b"=").decode("utf-8")
+    return encode_base32(data)
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)

@@ -18,11 +18,13 @@ from spinta.manifests.open_api.openapi_config import (
 from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
+from spinta.utils.encoding import encode_base32
 from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_ARRAY_IN_REFERENCE,
     MANIFEST_WITH_ARRAY_LAYERS,
     MANIFEST_WITH_ARRAY_REFS,
+    MANIFEST_WITH_BASE32_ID,
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
@@ -981,6 +983,26 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
     assert app.get(f"/{model}/{other_version}").status_code == 404
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(other_version, schema)
+
+
+def test_base32_identifier_example_is_the_key_encoded(open_manifest_path_factory):
+    """`base32` says the identifier is the key encoded, not the key itself."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_BASE32_ID)
+
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+    salis = open_api_spec["components"]["schemas"]["ds_Salis"]
+    key = salis["example"]["kodas"]
+
+    # The value a request gives is the encoded key behind an equals sign, and
+    # the schema of the parameter has to accept its own example.
+    assert identifier["example"] == f"={encode_base32(key)}"
+    jsonschema.validate(identifier["example"], identifier)
+
+    # A response carries the same identifier without the sign, which is the
+    # form `cast_backend_to_python` gives it in.
+    assert salis["properties"]["_id"]["example"] == encode_base32(key)
+    assert salis["example"]["_id"] == encode_base32(key)
 
 
 def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_factory):

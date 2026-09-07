@@ -132,7 +132,10 @@ PATHS_CONFIG = {
             "security": [{}],
             "summary": "Check whether the service is operational",
             "description": (
-                "Report whether the service and everything it needs is operational.\n\n"
+                "Report whether the service is operational: it answered, and the disk and the memory "
+                "of the machine it runs on are within the limits it was given. Backends holding the "
+                "data are not probed, so a healthy service can still be answering off a backend that "
+                "is not, see `spinta.api.health`.\n\n"
                 "An unhealthy service is reported in the body, not in the status code: the answer is "
                 "`200` with `healthy` set to `false`, because `503` says the service did not answer at "
                 "all. A probe has to read `healthy` rather than the status code.\n"
@@ -232,7 +235,10 @@ PATHS_CONFIG = {
             "security": [{}],
             "summary": "Check whether the service is operational, from the agent itself",
             "description": (
-                "Report whether the service and everything it needs is operational.\n\n"
+                "Report whether the service is operational: it answered, and the disk and the memory "
+                "of the machine it runs on are within the limits it was given. Backends holding the "
+                "data are not probed, so a healthy service can still be answering off a backend that "
+                "is not, see `spinta.api.health`.\n\n"
                 "An unhealthy service is reported in the body, not in the status code: the answer is "
                 "`200` with `healthy` set to `false`, because `503` says the service did not answer at "
                 "all. A probe has to read `healthy` rather than the status code.\n\n"
@@ -1042,7 +1048,7 @@ COMMON_SCHEMAS = {
     },
     "health": {
         "type": "object",
-        "description": "Whether the service and everything it needs is operational.",
+        "description": "Whether the service is operational, together with what it checked to say so.",
         "required": ["healthy", "dependencies"],
         "properties": {
             "healthy": {

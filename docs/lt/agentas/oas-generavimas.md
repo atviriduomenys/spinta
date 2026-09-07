@@ -183,6 +183,11 @@ Vartuose `:`-formai reikia Dynamic Routing taisyklių:
 `503` reiškia, kad paslauga apskritai neatsakė. Tikrinantis komponentas turi
 skaityti `healthy`, o ne atsakymo kodą.
 
+Tikrinama tai, kas išvardyta `dependencies`: pati paslauga atsakė, o mašinos,
+kurioje ji sukasi, diskas ir atmintis neperžengė jai duotų ribų. Duomenis
+laikančios saugyklos netikrinamos, tad sveika paslauga vis tiek gali dirbti su
+neprieinama saugykla.
+
 ## Užklausų tikrinimas vartuose
 
 Viskas, ką gavėjas **atsiunčia**, apraše apribota, kad vartai galėtų atmesti
