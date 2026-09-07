@@ -8,7 +8,7 @@ import tqdm
 from spinta import commands
 from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import PUSH_NOW, PushRow, State
+from spinta.cli.helpers.push.components import PUSH_NOW, PushRow, PushState
 from spinta.cli.helpers.push.delete import get_deleted_rows
 from spinta.cli.helpers.push.error import get_rows_with_errors, get_rows_with_errors_counts
 from spinta.cli.helpers.push.utils import (
@@ -26,7 +26,7 @@ def _iter_model_rows(
     context: Context,
     models: List[Model],
     counts: Dict[str, int],
-    metadata: sa.MetaData,
+    push_state: PushState,
     limit: int = None,
     *,
     initial_page_data: dict = None,
@@ -44,11 +44,10 @@ def _iter_model_rows(
         if not no_progress_bar:
             count = counts.get(model.name)
             model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, total=count, leave=False)
-
         if pagination_enabled(model):
             page = commands.create_page(model.page, initial_page_data.get(model.model_type(), None))
             rows = _read_rows_by_pages(
-                context, model, page, metadata, limit, stop_on_error, push_counter, model_push_counter, params=params
+                context, model, page, push_state, limit, stop_on_error, push_counter, model_push_counter, params=params
             )
             for row in rows:
                 yield row
@@ -68,7 +67,7 @@ def _iter_model_rows(
 def _get_model_rows(
     context: Context,
     models: List[Model],
-    metadata: sa.MetaData,
+    push_state: PushState,
     limit: int = None,
     *,
     initial_page_data: dict,
@@ -95,7 +94,7 @@ def _get_model_rows(
         context,
         models,
         counts,
-        metadata,
+        push_state,
         limit,
         initial_page_data=initial_page_data,
         stop_on_error=stop_on_error,
@@ -114,7 +113,7 @@ def read_rows(
     client: requests.Session,
     server: str,
     models: List[Model],
-    state: State,
+    push_state: PushState,
     limit: int = None,
     *,
     timeout: tuple[float, float],
@@ -130,7 +129,7 @@ def read_rows(
     yield from _get_model_rows(
         context,
         models,
-        state.metadata,
+        push_state,
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
@@ -142,13 +141,13 @@ def read_rows(
     yield from get_deleted_rows(
         models,
         context,
-        state.metadata,
+        push_state,
         no_progress_bar=no_progress_bar,
     )
 
     for i in range(1, retry_count + 1):
         yield PUSH_NOW
-        counts = get_rows_with_errors_counts(models, context, state.metadata)
+        counts = get_rows_with_errors_counts(models, push_state)
         total_count = sum(counts.values())
 
         if total_count > 0:
@@ -157,7 +156,7 @@ def read_rows(
                 server,
                 models,
                 context,
-                state.metadata,
+                push_state,
                 counts,
                 retry=i,
                 timeout=timeout,
@@ -172,19 +171,19 @@ def _read_rows_by_pages(
     context: Context,
     model: Model,
     page: Page,
-    metadata: sa.MetaData,
-    limit: int = None,
+    push_state: PushState,
+    limit: int | None = None,
     stop_on_error: bool = False,
-    push_counter: tqdm.tqdm = None,
-    model_push_counter: tqdm.tqdm = None,
-    params: QueryParams = None,
+    push_counter: tqdm.tqdm | None = None,
+    model_push_counter: tqdm.tqdm | None = None,
+    params: QueryParams | None = None,
 ) -> Iterator[PushRow]:
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
     config = context.get("config")
 
     size = get_page_size(config, model)
-    model_table = metadata.tables[model.name]
-    state_rows = _get_state_rows_with_page(context, deepcopy(page), model_table, size)
+    model_table = push_state.get_table(name=model.name, model=model)
+    state_rows = _get_state_rows_with_page(deepcopy(page), model_table, size, push_state)
     rows = read_model_data(context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error, params=params)
     total_count = 0
     data_push_count = 0
@@ -201,7 +200,7 @@ def _read_rows_by_pages(
         update_counter = True
 
         if data_push_count >= size or state_push_count >= size:
-            state_rows = _get_state_rows_with_page(context, deepcopy(page), model_table, size)
+            state_rows = _get_state_rows_with_page(deepcopy(page), model_table, size, push_state)
             rows = read_model_data(context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error)
 
             data_push_count = 0
@@ -274,9 +273,12 @@ def _read_rows_by_pages(
 
 
 def _get_state_rows_with_page(
-    context: Context, model_page: Page, table: sa.Table, size: int
+    model_page: Page,
+    table: sa.Table,
+    size: int,
+    push_state: PushState,
 ) -> sa.engine.LegacyCursorResult:
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
     model_page.size = size + 1
     order_by = []
 

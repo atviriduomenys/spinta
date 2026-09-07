@@ -8,7 +8,7 @@ from sqlalchemy.engine.row import Row
 
 from spinta import commands
 from spinta.auth import authorized
-from spinta.cli.helpers.push.components import PushRow
+from spinta.cli.helpers.push.components import PushRow, PushState
 from spinta.components import Context, Model, Page, pagination_enabled
 from spinta.core.enums import Action
 from spinta.types.datatype import Ref
@@ -79,14 +79,12 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
     return extracted_models
 
 
-def load_initial_page_data(
-    context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, override_page: dict
-) -> dict:
+def load_initial_page_data(push_state: PushState, models: List[Model], incremental: bool, override_page: dict) -> dict:
     if not incremental:
         return {}
 
-    conn = context.get("push.state.conn")
-    table = metadata.tables["_page"]
+    conn = push_state.conn
+    table = push_state.get_table(push_state.pagination_table_name)
     result = {}
 
     for model in models:

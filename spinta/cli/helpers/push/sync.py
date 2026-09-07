@@ -11,6 +11,7 @@ from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.push import prepare_data_for_push_state
+from spinta.cli.helpers.push.components import PushState
 from spinta.cli.helpers.push.utils import construct_where_condition_from_page, extract_state_page_id_key
 from spinta.commands.read import PaginationMetaData, get_paginated_values
 from spinta.components import Config, Context, Model, Page, PageBy, Property, get_page_size
@@ -92,8 +93,12 @@ def _fetch_all_model_data(
             break
 
 
-def _get_state_rows_with_id(context: Context, table: sa.Table, size: int) -> sa.engine.LegacyCursorResult:
-    conn = context.get("push.state.conn")
+def _get_state_rows_with_id(
+    table: sa.Table,
+    size: int,
+    push_state: PushState,
+) -> sa.engine.LegacyCursorResult:
+    conn = push_state.conn
 
     model_page = Page()
     model_page.size = size + 1
@@ -149,7 +154,7 @@ def _update_row_from_push_state(
     if target_checksum == state_checksum:
         skip_update = True
         # Check if pushed state did not have errors while pushing already existing data
-        if getattr(state_row, "error") or getattr(state_row, "data"):
+        if getattr(state_row, "error") or getattr(state_row, "data") or not getattr(state_row, "pushed"):
             skip_update = False
 
         # Check if revisions match, they need match in order to do proper updates
@@ -226,13 +231,14 @@ def sync_push_state(
     models: List[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
-    metadata: sa.MetaData,
+    push_state: PushState,
     timeout: tuple[float, float],
     max_retries: int,
     delay_range: tuple[float],
 ):
     config = context.get("config")
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
+
     counters = {}
     main_bar = None
     if not no_progress_bar:
@@ -256,7 +262,7 @@ def sync_push_state(
         if skip_model:
             continue
 
-        model_table = metadata.tables[model.name]
+        model_table = push_state.get_table(name=model.name, model=model)
 
         if not no_progress_bar:
             counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)
@@ -273,7 +279,7 @@ def sync_push_state(
             progress_bar=counters.get(model_name, main_bar),
         )
 
-        state_data = _get_state_rows_with_id(context=context, table=model_table, size=size)
+        state_data = _get_state_rows_with_id(table=model_table, size=size, push_state=push_state)
         target_row = next(target_data, None)
         state_row = next(state_data, None)
         while target_row is not None or state_row is not None:

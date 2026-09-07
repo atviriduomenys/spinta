@@ -1,96 +1,54 @@
 import datetime
 import itertools
 import json
-from typing import Iterable, Iterator, List, Tuple
+from typing import Iterable, Iterator, List
 
 import sqlalchemy as sa
 
 from spinta import spyna
 from spinta.cli.helpers.push import prepare_data_for_push_state
-from spinta.cli.helpers.push.components import PushRow, Saved
+from spinta.cli.helpers.push.components import PushRow, PushState, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context, Model, pagination_enabled
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.sqlite import migrate_table
 
 
 def init_push_state(
     dburi: str,
     models: List[Model],
-) -> Tuple[sa.engine.Engine, sa.MetaData]:
-    engine = sa.create_engine(dburi)
-    metadata = sa.MetaData(engine)
-    inspector = sa.inspect(engine)
+) -> PushState:
+    state = PushState(dburi)
 
-    page_table = sa.Table(
-        "_page",
-        metadata,
-        sa.Column("model", sa.Text, primary_key=True),
-        sa.Column("property", sa.Text),
-        sa.Column("value", sa.Text),
-    )
-    page_table.create(checkfirst=True)
+    # Initialize metadata tables
+    state.create_all_metatables()
 
-    types = {
-        "string": sa.Text,
-        "date": sa.Date,
-        "datetime": sa.DateTime,
-        "time": sa.Time,
-        "integer": sa.Integer,
-        "number": sa.Numeric,
-    }
-
+    # Create all model tables
     for model in models:
-        pagination_cols = []
-        if pagination_enabled(model):
-            for prop in model.page.keys.values():
-                _type = types.get(prop.dtype.name, sa.Text)
-                pagination_cols.append(sa.Column(f"page.{prop.name}", _type, index=True))
-
-        table = sa.Table(
-            model.name,
-            metadata,
-            sa.Column("id", sa.Unicode, primary_key=True),
-            sa.Column("checksum", sa.Unicode),
-            sa.Column("revision", sa.Unicode),
-            sa.Column("pushed", sa.DateTime),
-            sa.Column("error", sa.Boolean),
-            sa.Column("data", sa.Text),
-            *pagination_cols,
-        )
-        migrate_table(
-            engine,
-            metadata,
-            inspector,
-            table,
-            renames={
-                "rev": "checksum",
-            },
-        )
-
-    return engine, metadata
+        state.get_table(name=model.name, model=model)
+    return state
 
 
 def reset_pushed(
     context: Context,
     models: List[Model],
-    metadata: sa.MetaData,
+    push_state: PushState,
 ):
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
+
     for model in models:
-        table = metadata.tables[model.name]
+        table = push_state.get_table(model.name)
 
         # reset pushed so we could see which objects were deleted
         conn.execute(table.update().values(pushed=None))
 
 
-def check_push_state(context: Context, rows: Iterable[PushRow], metadata: sa.MetaData):
-    conn = context.get("push.state.conn")
+def check_push_state(rows: Iterable[PushRow], push_state: PushState):
+    conn = push_state.conn
 
     for model_type, group in itertools.groupby(rows, key=_get_model_type):
         saved_rows = {}
         if model_type:
-            table = metadata.tables[model_type]
+            table = push_state.get_table(model_type)
 
             query = sa.select([table.c.id, table.c.revision, table.c.checksum])
             saved_rows = {
@@ -125,13 +83,13 @@ def check_push_state(context: Context, rows: Iterable[PushRow], metadata: sa.Met
 def save_push_state(
     context: Context,
     rows: Iterable[PushRow],
-    metadata: sa.MetaData,
+    push_state: PushState,
 ) -> Iterator[PushRow]:
-    conn = context.get("push.state.conn")
-    page_table = metadata.tables["_page"]
+    conn = push_state.conn
+    page_table = push_state.get_table(push_state.pagination_table_name)
     model_pagination_check = {}
     for row in rows:
-        table = metadata.tables[row.data["_type"]]
+        table = push_state.get_table(row.data["_type"])
         model_name = row.model.model_type()
         if model_name not in model_pagination_check:
             model_pagination_check[model_name] = pagination_enabled(row.model)

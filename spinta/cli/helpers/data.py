@@ -36,11 +36,11 @@ def _get_row_count(context: components.Context, model: components.Model, page_da
 def count_rows(
     context: Context,
     models: List[Model],
-    limit: int = None,
+    limit: int | None = None,
     *,
-    initial_page_data: dict = None,
+    initial_page_data: dict | None = None,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
     no_progress_bar: bool = False,
 ) -> Dict[str, int]:
     counts = {}
@@ -70,11 +70,11 @@ def count_rows(
 def read_model_data(
     context: components.Context,
     model: components.Model,
-    limit: int = None,
+    limit: int | None = None,
     stop_on_error: bool = False,
-    params: QueryParams = None,
-    page: Page = None,
-    query: Expr = None,
+    params: QueryParams | None = None,
+    page: Page | None = None,
+    query: Expr | None = None,
 ) -> Iterable[Dict[str, Any]]:
     if limit is not None:
         if query is None:
@@ -103,7 +103,7 @@ def read_model_data(
         yield item
 
 
-def filter_allowed_props_for_model(model: Model) -> (list, bool):
+def filter_allowed_props_for_model(model: Model) -> tuple[list, bool]:
     allowed_props = list(model.properties.keys())
     if model.base:
         for name, prop in model.base.parent.properties.items():
@@ -126,7 +126,7 @@ def iter_model_rows(
     context: Context,
     models: List[Model],
     counts: Dict[str, int],
-    limit: int = None,
+    limit: int = None | None,
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
