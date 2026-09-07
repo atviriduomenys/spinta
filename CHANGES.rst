@@ -179,6 +179,14 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - ``traceparent`` accepts the fields a later version of W3C Trace Context
+    may add after the flags, which a parser has to tolerate rather than refuse.
+    Version ``00`` is still those four fields and nothing else, ``ff`` is still
+    invalid, and so is an identifier of nothing but zeroes.
+  - The query parameter names ``page('<token>')`` as the way to continue a
+    listing. The token an answer gives carries ``=`` padding, which the query
+    syntax does not read unquoted, so the ``?_page=<token>`` form the
+    description named before works only for a token that happens to have none.
   - The ``health`` endpoints say what the probe really checks: the service
     answered, and the disk and the memory of the machine it runs on are within
     the limits it was given. Backends holding the data are not probed, so
