@@ -51,7 +51,7 @@ class SqlAlchemyKeyMap(SqliteMigratableDb, KeyMap):
     def copy(self) -> "SqlAlchemyKeyMap":
         copied = copy(self)
         # Reset any context manager variables
-        copied.conn = None
+        copied._conn = None
         return copied
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
