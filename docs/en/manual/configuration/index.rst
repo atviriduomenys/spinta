@@ -57,14 +57,14 @@ result::
 
 Output::
 
-  Origin                        Name                   Value
-  ----------------------------  ---------------------  -------------------------------------------------
-  ~/.config/spinta/config.yaml  backends.default.type  postgresql
-  ~/.config/spinta/config.yaml  backends.default.dsn   postgresql://admin:admin123@localhost:5432/spinta
+  Origin                        Env  Name                   Value
+  ----------------------------  ---  ---------------------  -------------------------------------------------
+  ~/.config/spinta/config.yaml       backends.default.type  postgresql
+  ~/.config/spinta/config.yaml       backends.default.dsn   postgresql://admin:admin123@localhost:5432/spinta
 
 `spinta config` lists all configuration values and tells the source of origin
-of each value. You can also filter listed options by providing a list of
-prefixes, see :ref:`inspecting-config` for details.
+and environment of each value. You can also filter listed options by providing
+a list of prefixes, see :ref:`inspecting-config` for details.
 
 .. toctree::
    :maxdepth: 1
@@ -88,7 +88,7 @@ You can inspect current configuration by using following command::
     spinta config
 
 This command will list current configuration values and will also tell source of
-origin of each configuration value.
+origin and environment of each configuration value.
 
 You can filter listed configuration options by providing list of prefixes, for
 example::
@@ -394,9 +394,9 @@ And use it to configure Spinta::
 
 Output::
 
-  Origin                        Name                   Value
-  ----------------------------  ---------------------  ----------
-  ~/.config/spinta/config.yaml  backends.default.type  postgresql
+  Origin                        Env  Name                   Value
+  ----------------------------  ---  ---------------------  ----------
+  ~/.config/spinta/config.yaml       backends.default.type  postgresql
 
 Configuration files are the recommended way to configure Spinta. Use them for
 the main, long-lived part of the configuration, since they are easier to read,
@@ -443,9 +443,9 @@ be separated with `__`. For example:
 
 Output::
 
-  Origin   Name               Value
-  -------  -----------------  ----------
-  envvars  backends.foo.type  postgresql
+  Origin   Env  Name               Value
+  -------  ---  -----------------  ----------
+  envvars       backends.foo.type  postgresql
 
 Environment variables are a good choice for deployment specific values, such
 as credentials, URLs and other values that differ between development,
@@ -463,9 +463,9 @@ All spinta commands have `-o` command line argument. With `-o` you can set
 configuration values using dotted notation, for example::
 
   > spinta -o backends.foo.type=postgresql config backends
-  Origin   Name               Value
-  -------  -----------------  ----------
-  cliargs  backends.foo.type  postgresql
+  Origin   Env  Name               Value
+  -------  ---  -----------------  ----------
+  cliargs       backends.foo.type  postgresql
 
 `-o` must be used immediately after `spinta` command and before any subcommands.
 

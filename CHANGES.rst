@@ -4,6 +4,33 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Simplified ``RawConfig`` internals: removed ``InnerKeys``, ``ForkConfig``,
+  ``merge`` flag and the ``after`` argument of ``RawConfig.read()`` and
+  ``RawConfig.fork()``. Sources argument order now decides priority, and
+  ``read_config()`` collects ``config`` files first and then reads sources in
+  the order ``spinta -> config files -> envfile -> envvars -> cliargs``.
+  ``RawConfig.fork()`` with a ``dict`` now flattens nested structures into
+  dotted keys and merges with lower priority sources.
+- ``RawConfig`` now builds the whole configuration tree in ``RawConfig._keys``
+  on ``_rebuild()``: values from all sources, ``environments.<env>.*``
+  overlays of the active environment (with the prefix dropped) and schema
+  structure with default values. All read methods (``get``, ``getall``,
+  ``keys``, ``has``, ...) read only this tree and no longer interpret
+  ``environments.*`` or the configuration schema at read time. As a side
+  effect, ``rc.get()`` on an unset option under a dynamic subtree (e.g.
+  ``rc.get("keymaps", "default")`` with no keymaps configured, or
+  ``rc.get("manifests", name, "mode")`` when nothing is set under
+  ``manifests.<name>``) now returns ``NA`` instead of an empty list or the
+  schema default value.
+- ``spinta config`` (``RawConfig.dump()``) output has a new ``Env`` column,
+  showing which environment overlay (``environments.<env>``) provided each
+  value.
+- ``environments.*`` keys are no longer accessible via ``rc.get()``, they are
+  merged into the main tree for the active environment.
+
+
 Bug fixes:
 
 - Fixed configuration values set through `RawConfig.fork()` shadowing
