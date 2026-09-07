@@ -51,10 +51,7 @@ def _make_config(source_type: str, name: str, config: dict) -> ConfigSource:
     elif source_type == "envvars":
         return EnvVars(
             name,
-            {
-                "SPINTA_" + key.replace(".", "__").upper(): _config_value_to_str(value)
-                for key, value in config.items()
-            },
+            {"SPINTA_" + key.replace(".", "__").upper(): _config_value_to_str(value) for key, value in config.items()},
         )
     elif source_type == "cliargs":
         return CliArgs(
