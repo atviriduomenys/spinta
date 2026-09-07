@@ -50,6 +50,7 @@ from spinta.manifests.open_api.service import (
 )
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
 from spinta.types.datatype import Base32, DataType, Object, PrimaryKey, String
+from spinta.utils.encoding import encode_base32
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
 
@@ -948,6 +949,17 @@ def _declared_id_example(dtype_handler, model: Model) -> Any:
     """
     external = getattr(model, "external", None)
     keys = getattr(external, "pkeys", None) or []
+
+    # `base32` says the identifier is the key encoded, not the key itself, so
+    # the example is encoded the same way the data is read, see
+    # `spinta.backends.cast_backend_to_python`. A composite key is encoded
+    # whole, which is why every part of it is taken here.
+    if isinstance(model.id_prop.dtype, Base32):
+        values = [dtype_handler.get_example_value(key) for key in keys] or [
+            dtype_handler.get_example_value(model.id_prop)
+        ]
+        return encode_base32(values if len(values) > 1 else values[0])
+
     example = dtype_handler.get_example_value(keys[0] if keys else model.id_prop)
 
     # A model can be keyed by an integer while declaring `_id` a string, and
