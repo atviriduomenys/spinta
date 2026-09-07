@@ -11,6 +11,7 @@ from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
 from spinta.manifests.open_api.openapi_config import (
+    COMMON_SCHEMAS,
     EQUALS_ID_PATTERN,
     PARAMETER_COMPONENTS,
     RESPONSE_COMPONENTS,
@@ -2192,6 +2193,36 @@ def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
         assert parameters[name]["schema"]["properties"]["_limit"]["maximum"] == 25, name
     # The shared one is left over and dropped, so no path can reach around it.
     assert "query" not in parameters
+
+
+def test_scope_of_a_token_request_is_bounded(open_manifest_path_factory):
+    """A request may not ask for more than every scope of the document."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+    schema = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"][
+        "schema"
+    ]["properties"]["scope"]
+
+    every_scope = " ".join(sorted(declared))
+    assert schema["maxLength"] == len(every_scope)
+    jsonschema.validate(every_scope, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(every_scope + " uapi:/one/more/:getall", schema)
+
+
+def test_subresource_answers_carry_their_envelope(open_manifest_path_factory):
+    """Both fields are written whatever the request asks for."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_OBJECT_REF)
+    schemas = open_api_spec["components"]["schemas"]
+
+    object_schemas = [name for name in schemas if name.endswith("_adresas")]
+    assert object_schemas
+    for name in object_schemas:
+        assert schemas[name]["required"] == ["_type", "_revision"], name
+
+    assert COMMON_SCHEMAS["fileRef"]["required"] == ["_type", "_revision"]
 
 
 def test_token_paths_are_left_out_of_an_insecure_server(open_manifest_path_factory):

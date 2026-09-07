@@ -179,6 +179,17 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - A ``servers`` entry is served over ``http`` or ``https`` and no other
+    scheme, since the data service is an HTTP API and the entry is the base of
+    it. ``scope`` of a token request is bounded by the length of every scope
+    the document declares, which is the most a request can ask for.
+  - Both subresource answers require their envelope, ``_type`` and
+    ``_revision``. Neither answer takes a selection, so both fields are written
+    every time, and an empty object was passing response validation.
+  - The Lithuanian guide describes the deployment where only some environments
+    are reached over ``https``: the token endpoints are kept there and carry a
+    ``servers`` entry of their own, rather than being left out as they are when
+    no environment can carry credentials.
   - ``traceparent`` accepts the fields a later version of W3C Trace Context
     may add after the flags, which a parser has to tolerate rather than refuse.
     Version ``00`` is still those four fields and nothing else, ``ff`` is still

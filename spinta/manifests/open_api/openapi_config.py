@@ -402,7 +402,7 @@ PATHS_CONFIG = {
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get a single object by given {id}.",
-            "description": "Retrieve a single specific object based on it's unique object identifier {id}\n",
+            "description": "Retrieve a single specific object based on its unique object identifier {id}\n",
             "operationId": "getOne",
             "responses": {
                 "200": {
@@ -457,8 +457,8 @@ PATHS_CONFIG = {
         },
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
-            "summary": "For a given specific object by {id}, retrieve a {property} from it's structure (subresource).",
-            "description": "Retrieve a specific property from an object structure.\n\nBy default when retrieving object you recive all data items from it's structure, using this service you retrieve a specific property from it's structure.\n\nIf provided {property} is a file instead of getting the data, file is provided instead as binary bit stream.\n",
+            "summary": "For a given specific object by {id}, retrieve a {property} from its structure (subresource).",
+            "description": "Retrieve a specific property from an object structure.\n\nBy default when retrieving object you receive all data items from its structure, using this service you retrieve a specific property from its structure.\n\nIf provided {property} is a file instead of getting the data, file is provided instead as binary bit stream.\n",
             "operationId": "getProperty",
             "responses": {
                 "200": {
@@ -1089,6 +1089,9 @@ COMMON_SCHEMAS = {
     "fileRef": {
         "type": "object",
         "description": "What is known about a file a property holds. `_id` and `_content_type` are null while the property holds no file.",
+        # The envelope of the object the property belongs to is written whatever
+        # the request selects, see `prepare_data_for_response` of a `File`.
+        "required": ["_type", "_revision"],
         "properties": {
             "_type": {"type": "string", "examples": ["datasets/gov/rc/jadis/at280/1/ds/Israsas.byla"]},
             "_revision": {"type": ["string", "null"]},
