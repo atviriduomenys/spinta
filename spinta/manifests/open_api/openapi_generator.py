@@ -960,6 +960,13 @@ def _declared_id_example(dtype_handler, model: Model) -> Any:
         ]
         return encode_base32(values if len(values) > 1 else values[0])
 
+    # A key of several parts is written out as one string, the parts separated
+    # by commas, see `spinta.datasets.helpers.encode_composite_string_id`. That
+    # function refuses a value holding a comma of its own, which is a matter of
+    # the data rather than of an example, so only the shape is followed here.
+    if isinstance(model.id_prop.dtype, String) and len(keys) > 1:
+        return ",".join(str(dtype_handler.get_example_value(key)) for key in keys)
+
     example = dtype_handler.get_example_value(keys[0] if keys else model.id_prop)
 
     # A model can be keyed by an integer while declaring `_id` a string, and
