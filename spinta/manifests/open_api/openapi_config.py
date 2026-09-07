@@ -479,8 +479,8 @@ PATHS_CONFIG = {
         },
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
-            "summary": "For a given specific object by {id}, retrieve a {property} from its structure (subresource).",
-            "description": "Retrieve a specific property from an object structure.\n\nBy default when retrieving object you receive all data items from its structure, using this service you retrieve a specific property from its structure.\n\nIf provided {property} is a file instead of getting the data, file is provided instead as binary bit stream.\n",
+            "summary": "For a given specific object by {id}, retrieve one property of it (subresource).",
+            "description": "Retrieve a specific property from an object structure.\n\nBy default when retrieving object you receive all data items from its structure, using this service you retrieve a specific property from its structure. The property is named by the path itself, one path per property, so there is no parameter to fill in for it.\n\nWhere that property is a file instead of data, the file is served as a binary stream.\n",
             "operationId": "getProperty",
             "responses": {
                 "200": {
@@ -646,8 +646,36 @@ def _error_schema(name: str, template: str | None = None) -> dict:
     }
     if template is not None:
         schema["properties"]["template"] = {"type": "string", "const": template, "example": template}
-        schema["properties"]["message"]["example"] = template
+        schema["properties"]["message"]["example"] = _example_message(template)
     return schema
+
+
+class _ExampleValue(str):
+    """A stand-in for whatever an error template names.
+
+    Templates read attributes of the values they are given, so the same
+    stand-in answers for those as well.
+    """
+
+    def __getattr__(self, name: str) -> "_ExampleValue":
+        return self
+
+
+class _ExampleContext(dict):
+    def __missing__(self, key: str) -> _ExampleValue:
+        return _ExampleValue("example")
+
+
+def _example_message(template: str) -> str:
+    """The message of an error, as `error_response` sends it: filled in.
+
+    A template is what an error is built from, not what it answers with, so an
+    example holding `{model!r}` shows an object the service never sends.
+    """
+    try:
+        return template.format_map(_ExampleContext())
+    except (IndexError, KeyError, ValueError):
+        return template
 
 
 def _example_error_template() -> str:
@@ -983,7 +1011,9 @@ PARAMETER_COMPONENTS = {
         "description": "Public global object identifier.\n\nAn identifier is an UUID version 4. It is read with `uuid.UUID`, so it may be given hyphenated or not, in braces, or behind an `urn:uuid:` prefix; a response always carries the canonical hyphenated spelling.\n\nOnce object is assigned a global identifier, it should never change.",
         "schema": {
             "type": "string",
-            "format": "uuid",
+            # No `format` here, although a response carries one: a validator
+            # asserting `format: uuid` knows the canonical spelling alone and
+            # would refuse the ones the pattern is here to accept.
             "pattern": UUID_REQUEST_PATTERN,
             "examples": ["abdd1245-bbf9-4085-9366-f11c0f737c1d"],
         },
@@ -1147,7 +1177,7 @@ COMMON_SCHEMAS = {
     },
     "page": {
         "type": "object",
-        "description": "Where the next page of a listing starts. Given back in `_page.next` and sent as `_page` of the next request.",
+        "description": "Where the next page of a listing starts. Given back in `_page.next` and asked for as `page('<token>')` of the next request; the token carries `=` padding, which the query syntax reads only in quotes.",
         "properties": {
             "next": {
                 "type": "string",

@@ -1021,6 +1021,23 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
         jsonschema.validate(spelling, schema)
 
 
+def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
+    """`error_response` sends the message filled in, never the template."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    schemas = open_api_spec["components"]["schemas"]
+
+    # A named error pins its template with `const`; the open-ended `Error` does
+    # not, and its message example stands for whichever error it carries.
+    named = [
+        name for name, schema in schemas.items() if "const" in ((schema.get("properties") or {}).get("template") or {})
+    ]
+    assert named
+    for name in [*named, "Error"]:
+        message = schemas[name]["properties"]["message"].get("example")
+        assert message is not None, name
+        assert "{" not in message and "}" not in message, (name, message)
+
+
 def test_composite_identifier_example_holds_every_key(open_manifest_path_factory):
     """A key of several parts is one identifier, the parts separated by commas."""
     jsonschema = pytest.importorskip("jsonschema")
