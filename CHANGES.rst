@@ -185,6 +185,9 @@ Backwards incompatible:
   - A reference of level 4 requires ``_id``. A reference that is there carries
     the identifier, and one that is not is ``null``, which the property says on
     its own side, so an empty object was neither.
+  - An identifier of a model keyed by several properties holds every one of
+    them, separated by commas, as the data is read. The example named the first
+    key alone, which is not an identifier of such a model at all.
   - An identifier of a model keyed by ``base32`` takes a length that can be
     padded back to a multiple of eight. One, three or six characters over that
     cannot be decoded at all, so such a value is not an identifier of anything.

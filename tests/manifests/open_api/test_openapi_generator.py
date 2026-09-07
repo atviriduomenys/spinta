@@ -30,6 +30,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_COMPOSITE_ID,
     MANIFEST_WITH_DECLARED_ID,
     MANIFEST_WITH_DECLARED_REF_ID,
     MANIFEST_WITH_DECLARED_REVISION,
@@ -1005,6 +1006,24 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
     assert app.get(f"/{model}/{other_version}").status_code == 404
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(other_version, schema)
+
+
+def test_composite_identifier_example_holds_every_key(open_manifest_path_factory):
+    """A key of several parts is one identifier, the parts separated by commas."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_COMPOSITE_ID)
+
+    salis = open_api_spec["components"]["schemas"]["ds_Salis"]
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+
+    expected = f"{salis['example']['nr']},{salis['example']['kodas']}"
+    assert identifier["example"] == expected
+    assert salis["properties"]["_id"]["example"] == expected
+    jsonschema.validate(identifier["example"], identifier)
+
+    # A composite key is not reached by an equals sign, see
+    # `is_accessible_by_equals_sign`, so the example carries none.
+    assert not identifier["example"].startswith("=")
 
 
 def test_base32_identifier_takes_a_length_that_decodes(open_manifest_path_factory):
