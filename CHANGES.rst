@@ -192,6 +192,10 @@ Backwards incompatible:
     validator asserting ``format: uuid`` knows the canonical spelling alone and
     would refuse the ones the pattern is there to accept. A response keeps the
     format, since it carries the canonical spelling.
+  - A property declared ``base32``, an ``_id`` or a ``_revision`` of a model
+    among them, is described by its shape rather than as any string at all:
+    Spinta builds the value itself, so it is the RFC 4648 alphabet with the
+    padding dropped, of a length that can be padded back.
   - A property declared ``uuid``, an ``_id`` of a model among them, takes the
     canonical lower case spelling alone. ``UUID.load`` reads it through
     ``is_str_uuid``, which builds the value again and compares it with what it

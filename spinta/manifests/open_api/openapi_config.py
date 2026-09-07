@@ -79,9 +79,23 @@ STANDARD_OBJECT_PROPERTIES = {
     },
 }
 
+#: A value of a property declared `base32`, as `cast_backend_to_python` builds
+#: one: the RFC 4648 alphabet with the padding dropped, which leaves a length
+#: `base64.b32decode` can pad back and rules out one, three and six characters
+#: over a multiple of eight, see `decode_id_value`.
+_BASE32_LENGTH = "(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4}|[A-Z2-7]{5}|[A-Z2-7]{7})?"
+BASE32_VALUE_PATTERN = f"^(?=[A-Z2-7]){_BASE32_LENGTH}$"
+
+#: The same value as a request gives it, behind the equals sign it is reached
+#: by and bounded, because a path segment of a request is.
+BASE32_ID_PATTERN = f"^=(?=[A-Z2-7]{{1,512}}$){_BASE32_LENGTH}$"
+
 PROPERTY_MAPPING = {
     "string": {"type": "string"},
     "uuid": {"type": "string", "format": "uuid", "pattern": UUID_VALUE_PATTERN},
+    # A `base32` value is built by Spinta, not read from the data, so its shape
+    # is known, see `spinta.backends.cast_backend_to_python`.
+    "base32": {"type": "string", "pattern": BASE32_VALUE_PATTERN},
     "integer": {"type": "integer"},
     "number": {"type": "number"},
     "boolean": {"type": "boolean"},
@@ -137,12 +151,6 @@ DECLARED_ID_PATTERN = "^[^/]{1,512}$"
 EQUALS_ID_PATTERN = "^=[^/]{1,512}$"
 
 #: A `base32` identifier, of the alphabet RFC 4648 gives, behind an equals sign.
-#: An identifier of a model keyed by `base32`, behind the equals sign a request
-#: gives it with. Padding is dropped when the value is built, so what is left is
-#: of a length `base64.b32decode` can pad back, which rules out one, three and
-#: six characters over a multiple of eight, see `decode_id_value`.
-BASE32_ID_PATTERN = "^=(?=[A-Z2-7]{1,512}$)(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4}|[A-Z2-7]{5}|[A-Z2-7]{7})?$"
-
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
 
 #: `304` answers before a body is built, see
