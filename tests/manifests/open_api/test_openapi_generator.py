@@ -1015,10 +1015,21 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
         identifier.replace("-", ""),
         "{" + identifier + "}",
         "urn:uuid:" + identifier,
+        "urn:" + identifier,
+        "uuid:" + identifier,
+        "uuid:{" + identifier + "}",
         identifier.upper(),
     ):
         assert app.get(f"/{model}/{spelling}").status_code == 200, spelling
         jsonschema.validate(spelling, schema)
+
+    # `uuid.UUID` drops those prefixes and the hyphens wherever they sit, so it
+    # reads more than a client writes. The pattern holds to the spellings a
+    # client writes and keeps the version asserted, which following the parser
+    # all the way would cost.
+    assert app.get(f"/{model}/{identifier}urn:").status_code == 200
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(f"{identifier}urn:", schema)
 
 
 def test_error_examples_hold_no_placeholders(open_manifest_path_factory):

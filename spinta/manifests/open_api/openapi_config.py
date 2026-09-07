@@ -42,11 +42,18 @@ _UUID_CANONICAL = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-f
 UUID_PATTERN = f"^{_UUID_CANONICAL}$"
 
 #: The same identifier as a request may spell it. `is_object_id` reads the value
-#: with `uuid.UUID`, which drops an `urn:uuid:` prefix and surrounding braces and
-#: takes the hexadecimal with or without the hyphens, so a document accepting the
-#: canonical spelling alone would have a gateway refuse a request Spinta serves.
+#: with `uuid.UUID`, which drops an `urn:` and an `uuid:` prefix and surrounding
+#: braces and takes the hexadecimal with or without the hyphens, so a document
+#: accepting the canonical spelling alone would have a gateway refuse a request
+#: Spinta serves.
+#:
+#: `uuid.UUID` is looser still: it drops those prefixes wherever they sit and
+#: every hyphen wherever it sits, so `<id>urn:` is read as well. What is written
+#: here are the spellings a client writes, while keeping the version and the
+#: variant of the value asserted; following the parser all the way would mean
+#: giving up on asserting those, which buys a gateway less than it costs.
 _UUID_COMPACT = "[0-9a-fA-F]{12}4[0-9a-fA-F]{3}[89abAB][0-9a-fA-F]{15}"
-UUID_REQUEST_PATTERN = f"^(?:urn:uuid:)?\\{{?(?:{_UUID_CANONICAL}|{_UUID_COMPACT})\\}}?$"
+UUID_REQUEST_PATTERN = f"^(?:urn:)?(?:uuid:)?\\{{?(?:{_UUID_CANONICAL}|{_UUID_COMPACT})\\}}?$"
 
 STANDARD_OBJECT_PROPERTIES = {
     "_type": {"type": "string", "description": "Name of the model this object belongs to."},
@@ -1008,7 +1015,7 @@ PARAMETER_COMPONENTS = {
         # for that model, see `PathGenerator._id_parameter`. This one describes
         # the identifier Spinta gives, which `is_object_id` accepts only as a
         # UUID version 4, in any of the spellings `uuid.UUID` reads.
-        "description": "Public global object identifier.\n\nAn identifier is an UUID version 4. It is read with `uuid.UUID`, so it may be given hyphenated or not, in braces, or behind an `urn:uuid:` prefix; a response always carries the canonical hyphenated spelling.\n\nOnce object is assigned a global identifier, it should never change.",
+        "description": "Public global object identifier.\n\nAn identifier is an UUID version 4. It is read with `uuid.UUID`, so it may be given hyphenated or not, in braces, or behind an `urn:`, `uuid:` or `urn:uuid:` prefix; a response always carries the canonical hyphenated spelling, which is the one to send.\n\nOnce object is assigned a global identifier, it should never change.",
         "schema": {
             "type": "string",
             # No `format` here, although a response carries one: a validator

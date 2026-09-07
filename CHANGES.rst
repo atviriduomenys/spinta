@@ -192,10 +192,14 @@ Backwards incompatible:
     validator asserting ``format: uuid`` knows the canonical spelling alone and
     would refuse the ones the pattern is there to accept. A response keeps the
     format, since it carries the canonical spelling.
-  - The identifier in a path takes every spelling ``is_object_id`` reads, since
+  - The identifier in a path takes the spellings ``is_object_id`` reads, since
     it reads the value with ``uuid.UUID``: hyphenated or not, in braces, behind
-    an ``urn:uuid:`` prefix, in either case. A response still carries the
-    canonical spelling, which is what its schema says.
+    an ``urn:``, ``uuid:`` or ``urn:uuid:`` prefix, in either case. A response
+    still carries the canonical spelling, which is what its schema says and
+    what a client should send. The parser is looser still, dropping those
+    prefixes and the hyphens wherever they sit; following it that far would
+    mean giving up on asserting the version and the variant, which buys a
+    gateway less than it costs.
   - The bound on ``scope`` says that it is a bound an API gateway applies and
     not one the service holds to, the way the ``_limit`` maximum does. The
     authorization server reads the value as a set, so the service answers a
