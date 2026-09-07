@@ -87,7 +87,7 @@ class UdtsConfig:
         except OSError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"can not be read, {error.strerror or error}.")
         except UnicodeDecodeError as error:
-            raise InvalidUdtsConfig(path=str(path), error=f"is not an UTF-8 file, {error}.")
+            raise InvalidUdtsConfig(path=str(path), error=f"is not a UTF-8 file, {error}.")
         except YAMLError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {error}.")
 

@@ -404,7 +404,7 @@ def test_config_reports_a_non_utf8_file(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_bytes(b"info:\n  title: \xff\xfe\n")
 
-    with pytest.raises(InvalidUdtsConfig, match="is not an UTF-8 file"):
+    with pytest.raises(InvalidUdtsConfig, match="is not a UTF-8 file"):
         UdtsConfig.from_path(path)
 
 

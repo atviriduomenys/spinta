@@ -1961,7 +1961,7 @@ def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manife
     app.authmodel(model, ["insert", "getall", "search"])
     app.post(f"/{model}", json={"status": "ok", "count": 1})
 
-    selects = ["status", "status,count", "count()", "_id,_revision", "notes.note", "status, count"]
+    selects = ["status", "status,count", "count()", "_id,_revision", "notes.note", "status, count", "*"]
     sorts = ["status", "-status", "+status", "status,-count", "notes.note"]
     for value in selects:
         assert app.get(f"/{model}?_select={value}").status_code == 200, value
@@ -1993,6 +1993,27 @@ def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manif
     assert identifier.get("format") != "uuid"
     # The value the data holds, which the shape of a UUID would refuse.
     jsonschema.validate("AE", identifier)
+
+
+def test_error_examples_satisfy_their_own_schemas(open_manifest_path_factory):
+    """An example a schema refuses would send a reader down a wrong path."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    components = open_api_spec["components"]
+    schemas = components["schemas"]
+
+    # An error example is built out of one named error, so it has to satisfy
+    # that error rather than only the open-ended `Error` the envelope also
+    # accepts, which every object holding a `code` and a `message` satisfies.
+    checked = 0
+    for response in components["responses"].values():
+        schema = response.get("content", {}).get("application/json", {}).get("schema", {})
+        for error in schema.get("example", {}).get("errors", []):
+            named = schemas.get(error["code"])
+            assert named is not None, error["code"]
+            jsonschema.validate(error, named)
+            checked += 1
+    assert checked
 
 
 def test_error_schema_refuses_an_empty_object(open_manifest_path_factory):

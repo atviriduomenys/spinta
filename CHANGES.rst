@@ -185,6 +185,13 @@ Backwards incompatible:
   - A reference of level 4 requires ``_id``. A reference that is there carries
     the identifier, and one that is not is ``null``, which the property says on
     its own side, so an empty object was neither.
+  - ``_select`` accepts ``*``, which asks for everything and which Spinta
+    answers; the pattern refused it, so a gateway would have refused a request
+    the service serves.
+  - An error example carries every field the error it stands for carries,
+    ``context`` and ``template`` included. It showed an object Spinta never
+    answers with, and a named error schema, which requires all five, refused
+    the very example built from it.
   - An identifier of a model keyed by several properties holds every one of
     them, separated by commas, as the data is read. The example named the first
     key alone, which is not an identifier of such a model at all.
