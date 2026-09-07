@@ -192,6 +192,11 @@ Backwards incompatible:
     validator asserting ``format: uuid`` knows the canonical spelling alone and
     would refuse the ones the pattern is there to accept. A response keeps the
     format, since it carries the canonical spelling.
+  - A property declared ``uuid``, an ``_id`` of a model among them, takes the
+    canonical lower case spelling alone. ``UUID.load`` reads it through
+    ``is_str_uuid``, which builds the value again and compares it with what it
+    was given, so the looser reading below is of identifiers Spinta itself
+    gives and not of these.
   - The identifier in a path takes the spellings ``is_object_id`` reads, since
     it reads the value with ``uuid.UUID``: hyphenated or not, in braces, behind
     an ``urn:``, ``uuid:`` or ``urn:uuid:`` prefix, in either case. A response

@@ -1032,6 +1032,28 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
         jsonschema.validate(f"{identifier}urn:", schema)
 
 
+def test_declared_uuid_identifier_is_the_one_spinta_reads():
+    """A declared `uuid` is read by `is_str_uuid`, which is the strict one."""
+    import re
+    import uuid as uuid_module
+
+    from spinta.manifests.open_api.openapi_config import UUID_VALUE_PATTERN
+    from spinta.utils.types import is_str_uuid
+
+    identifier = str(uuid_module.uuid4())
+    for value in (
+        identifier,
+        identifier.upper(),
+        identifier.replace("-", ""),
+        "urn:uuid:" + identifier,
+        str(uuid_module.uuid5(uuid_module.NAMESPACE_DNS, "example.com")),
+    ):
+        # `UUID.load` builds the value again and compares it with what it was
+        # given, so the pattern of a declared `uuid` follows that and not the
+        # looser reading an identifier Spinta gives goes through.
+        assert bool(re.match(UUID_VALUE_PATTERN, value)) is is_str_uuid(value), value
+
+
 def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
     """`error_response` sends the message filled in, never the template."""
     open_api_spec = _service_spec(open_manifest_path_factory)
