@@ -126,7 +126,7 @@ def iter_model_rows(
     context: Context,
     models: List[Model],
     counts: Dict[str, int],
-    limit: int = None | None,
+    limit: int | None = None,
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
