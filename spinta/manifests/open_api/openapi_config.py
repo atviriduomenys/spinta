@@ -81,6 +81,10 @@ PROPERTY_MAPPING = {
 #: so a request carrying anything else is refused before it reaches the service.
 HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]{1,1024}$"
 
+#: The same characters without a bound, for a value of a response, which no
+#: policy of an API gateway applies to.
+HEADER_CHARACTER_PATTERN = "^[\\x20-\\x7E]+$"
+
 #: `traceparent` of W3C Trace Context: version, trace id, parent id and flags,
 #: hexadecimal throughout. Version `ff` is invalid and so is an identifier of
 #: nothing but zeroes. Version `00` is those four fields and nothing else, while
@@ -110,9 +114,18 @@ DECLARED_ID_PATTERN = "^[^/]{1,512}$"
 EQUALS_ID_PATTERN = "^=[^/]{1,512}$"
 
 #: A `base32` identifier, of the alphabet RFC 4648 gives, behind an equals sign.
-BASE32_ID_PATTERN = "^=[A-Z2-7]{1,512}$"
+#: An identifier of a model keyed by `base32`, behind the equals sign a request
+#: gives it with. Padding is dropped when the value is built, so what is left is
+#: of a length `base64.b32decode` can pad back, which rules out one, three and
+#: six characters over a multiple of eight, see `decode_id_value`.
+BASE32_ID_PATTERN = "^=(?=[A-Z2-7]{1,512}$)(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4}|[A-Z2-7]{5}|[A-Z2-7]{7})?$"
 
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
+
+#: `304` answers before a body is built, see
+#: `spinta.utils.response.validate_cache_control_request`, so it carries the
+#: validators of the cache and none of the headers of an entity body.
+NOT_MODIFIED_HEADERS = ["ETag", "Cache-Control"]
 
 PATHS_CONFIG = {
     "/:version": {
@@ -337,7 +350,7 @@ PATHS_CONFIG = {
             "parameters": ["query"],
             "responses": {
                 "200": {"description": "OK"},
-                "304": {"description": "Not Modified"},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -363,7 +376,7 @@ PATHS_CONFIG = {
                 },
                 "304": {
                     "description": "Not Modified",
-                    "headers": COMMON_RESPONSE_HEADERS,
+                    "headers": NOT_MODIFIED_HEADERS,
                 },
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
@@ -389,7 +402,7 @@ PATHS_CONFIG = {
                     "description": "Moved Permanently. The identifier was moved to another one, which `Location` gives.",
                     "headers": ["Location"],
                 },
-                "304": {"description": "Not Modified"},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -418,7 +431,7 @@ PATHS_CONFIG = {
                 },
                 "304": {
                     "description": "Not Modified",
-                    "headers": COMMON_RESPONSE_HEADERS,
+                    "headers": NOT_MODIFIED_HEADERS,
                 },
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
@@ -444,7 +457,7 @@ PATHS_CONFIG = {
             "responses": {
                 "200": {"description": "OK"},
                 "206": {"description": "Partial Content", "headers": COMMON_RESPONSE_HEADERS},
-                "304": {"description": "Not Modified"},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -478,7 +491,7 @@ PATHS_CONFIG = {
                 },
                 "304": {
                     "description": "Not Modified",
-                    "headers": COMMON_RESPONSE_HEADERS,
+                    "headers": NOT_MODIFIED_HEADERS,
                 },
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
@@ -502,7 +515,7 @@ PATHS_CONFIG = {
             "operationId": "headPropertyRef",
             "responses": {
                 "200": {"description": "OK"},
-                "304": {"description": "Not Modified"},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -523,7 +536,7 @@ PATHS_CONFIG = {
                     "headers": COMMON_RESPONSE_HEADERS,
                     "content": {"application/json": {"schema": "fileRef"}},
                 },
-                "304": {"description": "Not Modified", "headers": COMMON_RESPONSE_HEADERS},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -545,7 +558,7 @@ PATHS_CONFIG = {
             "operationId": "headObjectProperty",
             "responses": {
                 "200": {"description": "OK"},
-                "304": {"description": "Not Modified"},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -567,7 +580,7 @@ PATHS_CONFIG = {
                     # Schema is the object the property holds, per property.
                     "content": {"application/json": {"schema": None}},
                 },
-                "304": {"description": "Not Modified", "headers": COMMON_RESPONSE_HEADERS},
+                "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
                 "400": {"$ref": "error400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
@@ -807,7 +820,10 @@ HEADER_COMPONENTS = {
         "required": False,
         "schema": {
             "type": "string",
-            "pattern": HEADER_VALUE_PATTERN,
+            # A revision a model declares itself is of no stated length, and a
+            # response is not bounded by a policy of the gateway, so only the
+            # characters a header may hold are stated here.
+            "pattern": HEADER_CHARACTER_PATTERN,
             "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
             "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
         },

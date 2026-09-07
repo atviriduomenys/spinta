@@ -179,6 +179,18 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - ``304`` carries the validators of the cache and none of the headers of an
+    entity body: it answers before a body is built, so requiring
+    ``Content-Type`` on it had response validation refuse a conditional read.
+  - A reference of level 4 requires ``_id``. A reference that is there carries
+    the identifier, and one that is not is ``null``, which the property says on
+    its own side, so an empty object was neither.
+  - An identifier of a model keyed by ``base32`` takes a length that can be
+    padded back to a multiple of eight. One, three or six characters over that
+    cannot be decoded at all, so such a value is not an identifier of anything.
+  - ``ETag`` is no longer bounded in length. A revision a model declares itself
+    is of no stated length, and a response carries no bound of a gateway
+    policy, while the request side, ``If-None-Match``, stays bounded.
   - A ``servers`` entry is served over ``http`` or ``https`` and no other
     scheme, since the data service is an HTTP API and the entry is the base of
     it. ``scope`` of a token request is bounded by the length of every scope
