@@ -1151,9 +1151,14 @@ def test_base32_identifier_example_is_the_key_encoded(open_manifest_path_factory
     jsonschema.validate(identifier["example"], identifier)
 
     # A response carries the same identifier without the sign, which is the
-    # form `cast_backend_to_python` gives it in.
+    # form `cast_backend_to_python` gives it in, and of the shape that form has.
     assert salis["properties"]["_id"]["example"] == encode_base32(key)
     assert salis["example"]["_id"] == encode_base32(key)
+    answered = salis["properties"]["_id"]
+    jsonschema.validate(answered["example"], answered)
+    for refused in (answered["example"].lower(), answered["example"] + "======", "=" + answered["example"]):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(refused, answered)
 
 
 def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_factory):
