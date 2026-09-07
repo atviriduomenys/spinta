@@ -949,6 +949,27 @@ def test_file_property_reference_matches_what_spinta_answers(model, app, context
     jsonschema.validate(response.json(), schemas["fileRef"])
 
 
+@pytest.mark.models("backends/postgres/City")
+def test_a_listing_is_continued_the_way_the_query_parameter_says(model, app, open_manifest_path_factory):
+    """The next page is asked for as a call, and the document says so.
+
+    A token carries `=` padding, which the query syntax does not read unquoted,
+    so `?_page=<token>` is not the form to document, `?page('<token>')` is.
+    """
+    app.authmodel(model, ["insert", "getall", "search"])
+    for title in ("Vilnius", "Kaunas"):
+        app.post(f"/{model}", json={"title": title})
+
+    token = app.get(f"/{model}?_limit=1").json()["_page"]["next"]
+    assert token.endswith("=")
+    assert app.get(f"/{model}?page('{token}')").status_code == 200
+
+    query = _service_spec(open_manifest_path_factory)["components"]["parameters"]["query_at280_adresai_Adresas"]
+    assert "page('<token>')" in query["description"]
+    # A call is not a `name=value` parameter, so it stays out of the properties.
+    assert "_page" not in query["schema"]["properties"]
+
+
 @pytest.mark.models("backends/postgres/Subitem")
 def test_query_example_shape_is_answered_by_spinta(model, app):
     """The query an API client builds out of the examples has to work.
@@ -1923,6 +1944,27 @@ def test_traceparent_is_hexadecimal_from_end_to_end(open_manifest_path_factory):
     for value in (
         "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-and-then-some",
         "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-0",
+        "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01",
+        "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
+        "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",
+    ):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(value, schema)
+
+
+def test_traceparent_of_a_later_version_may_carry_more(open_manifest_path_factory):
+    """W3C Trace Context has a parser tolerate the fields a version adds."""
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
+
+    jsonschema.validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
+    jsonschema.validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-what-a-later-version-adds", schema)
+
+    # `ff` is invalid whatever follows it, and an identifier of zeroes stays
+    # invalid in a later version as well.
+    for value in (
+        "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-more",
+        "01-00000000000000000000000000000000-00f067aa0ba902b7-01-more",
     ):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(value, schema)
