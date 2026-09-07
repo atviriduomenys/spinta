@@ -932,7 +932,9 @@ def _error_example(schema_name: str) -> dict[str, str] | None:
     properties = schema.get("properties") or {}
     example = {
         name: properties[name]["example"]
-        for name in ("type", "code", "template", "message")
+        # Every one of them, because a named error schema requires them all,
+        # and an example that its own schema refuses is worse than none.
+        for name in ("type", "code", "template", "context", "message")
         if name in properties and "example" in properties[name]
     }
     if "template" in example:
