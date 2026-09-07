@@ -104,7 +104,10 @@ siūlomi tik per `https` pasiekiamose aplinkose:
   `auth.token_url` lauke, kur ir turi būti;
 - **dalis aplinkų per `https`** – keliai **lieka**, tik jiems pridedamas savas
   `servers` sąrašas, kuriame yra vien `https` aplinkos. Tad `http` aplinkoje
-  jie nerodomi, o `https` – veikia kaip įprastai.
+  jie nerodomi, o `https` – veikia kaip įprastai;
+- **reliatyvus adresas** (`url: /datasets/...`) – schema iš jo nematoma, tad
+  keliai lieka, o transportas yra toks, kokiu pateikiamas pats aprašas. Vartai
+  turi jį pateikti per TLS.
 
 Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
 pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti

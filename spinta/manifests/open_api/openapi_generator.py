@@ -1705,7 +1705,14 @@ class OpenAPIGenerator:
             if not token_path:
                 continue
             content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
-            content["schema"]["properties"]["scope"]["maxLength"] = max_length
+            scope = content["schema"]["properties"]["scope"]
+            scope["maxLength"] = max_length
+            scope["description"] += (
+                f" At most {max_length} characters, which is every scope of this data service asked for "
+                "at once. This is a bound an API gateway applies in front of the service, not one the "
+                "service holds to: it answers a scope repeated as many times as a request cares to "
+                "repeat it, since the authorization server reads the value as a set."
+            )
 
     def _set_scope_example(self, spec: dict[str, Any]) -> None:
         """Show a scope of one model of this data service in the token request.

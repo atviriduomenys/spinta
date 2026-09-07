@@ -185,6 +185,17 @@ Backwards incompatible:
   - A reference of level 4 requires ``_id``. A reference that is there carries
     the identifier, and one that is not is ``null``, which the property says on
     its own side, so an empty object was neither.
+  - The identifier in a path takes every spelling ``is_object_id`` reads, since
+    it reads the value with ``uuid.UUID``: hyphenated or not, in braces, behind
+    an ``urn:uuid:`` prefix, in either case. A response still carries the
+    canonical spelling, which is what its schema says.
+  - The bound on ``scope`` says that it is a bound an API gateway applies and
+    not one the service holds to, the way the ``_limit`` maximum does. The
+    authorization server reads the value as a set, so the service answers a
+    scope repeated any number of times.
+  - The token operations say that credentials go over TLS and nothing else, and
+    that a relative server URL takes the transport of wherever the document is
+    served.
   - ``_select`` accepts ``*``, which asks for everything and which Spinta
     answers; the pattern refused it, so a gateway would have refused a request
     the service serves.

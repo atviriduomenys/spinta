@@ -1007,6 +1007,19 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(other_version, schema)
 
+    # It reads the value with `uuid.UUID`, which drops the hyphens, the braces
+    # and an `urn:uuid:` prefix, so every one of these is served and the
+    # document has to take them all.
+    identifier = created["_id"]
+    for spelling in (
+        identifier.replace("-", ""),
+        "{" + identifier + "}",
+        "urn:uuid:" + identifier,
+        identifier.upper(),
+    ):
+        assert app.get(f"/{model}/{spelling}").status_code == 200, spelling
+        jsonschema.validate(spelling, schema)
+
 
 def test_composite_identifier_example_holds_every_key(open_manifest_path_factory):
     """A key of several parts is one identifier, the parts separated by commas."""
