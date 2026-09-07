@@ -81,6 +81,17 @@ PROPERTY_MAPPING = {
 #: so a request carrying anything else is refused before it reaches the service.
 HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]{1,1024}$"
 
+#: `traceparent` of W3C Trace Context: version, trace id, parent id and flags,
+#: hexadecimal throughout. Version `ff` is invalid and so is an identifier of
+#: nothing but zeroes. Version `00` is those four fields and nothing else, while
+#: a version above it may carry fields of its own after the flags, which a
+#: parser has to tolerate rather than refuse, see the versioning section of the
+#: specification.
+_TRACE_ID_PARENT_ID_FLAGS = "(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}"
+TRACEPARENT_PATTERN = (
+    f"^(?:00-{_TRACE_ID_PARENT_ID_FLAGS}|(?!00|ff)[0-9a-f]{{2}}-{_TRACE_ID_PARENT_ID_FLAGS}(?:-[!-~]{{1,512}})?)$"
+)
+
 #: Scopes separated by spaces, each of them a `scope-token` of RFC 6749 section
 #: 3.3: a printable character other than a space, a quotation mark or a
 #: backslash. Narrower than that would refuse a scope a configured
@@ -826,9 +837,7 @@ PARAMETER_COMPONENTS = {
         "required": False,
         "schema": {
             "type": "string",
-            # Version, trace id, parent id and flags, hexadecimal throughout,
-            # W3C trace-context. Anchored at both ends, so nothing follows.
-            "pattern": "^(?!ff)[0-9a-f]{2}-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}$",
+            "pattern": TRACEPARENT_PATTERN,
             "description": "Consists of `version` `trace-id` `parent-id` `trace-flags` separated by `-`. \n\n`trace-id` recommended to be in UUIDv4",
             "examples": ["00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"],
         },
@@ -888,7 +897,7 @@ PARAMETER_COMPONENTS = {
         "name": "query",
         "in": "query",
         "required": False,
-        "description": "Object filter. This filter and the pattern used to form a query conform to [***URI syntax standard***](https://datatracker.ietf.org/doc/html/rfc3986).\n\nOther implementations of this specification can use more complex queries depending on filtering rules. They should comply to [***AST***](https://en.wikipedia.org/wiki/Abstract_syntax_tree) formatting and logic.\n\nThe listed parameters are the ones that take a value of their own. Two more are accepted and are left out of the listing, because neither can be filled in before the request is made:\n\n- `count()`, written as `?count()` or as `?_count`, without a value, answers with the number of objects instead of the objects. A value, `?_count=1` for one, is refused.\n- `_page` continues a listing and takes the token the previous answer gave in `_page.next`. Any other value is refused.\n\nA parameter left empty, `?_select=` for one, is refused as well.",
+        "description": "Object filter. This filter and the pattern used to form a query conform to [***URI syntax standard***](https://datatracker.ietf.org/doc/html/rfc3986).\n\nOther implementations of this specification can use more complex queries depending on filtering rules. They should comply to [***AST***](https://en.wikipedia.org/wiki/Abstract_syntax_tree) formatting and logic.\n\nThe listed parameters are the ones written as `name=value`, which is the form this schema describes. Two more are accepted and are left out of the listing, because neither is of that form:\n\n- `count()`, written as `?count()` or as `?_count`, without a value, answers with the number of objects instead of the objects. A value, `?_count=1` for one, is refused.\n- `page('<token>')` continues a listing where the previous answer ended, taking the token that answer gave in `_page.next`. It is written as a call with the token quoted, because the token carries `=` padding and the query syntax does not read that unquoted, so the `?_page=<token>` form only works for a token that happens to have none.\n\nA parameter left empty, `?_select=` for one, is refused as well.",
         "schema": {
             "type": "object",
             "properties": {
