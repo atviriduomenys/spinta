@@ -270,6 +270,15 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
                 "use `https://host.example.com` or a path starting with `/`."
             ),
         )
+    if parts.scheme and parts.scheme.lower() not in ("http", "https"):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=(
+                f"server URL {url!r} is served over {parts.scheme!r}, while the data service is an "
+                "HTTP API, use `https` or, for a local deployment, `http`."
+            ),
+        )
+
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
 
 

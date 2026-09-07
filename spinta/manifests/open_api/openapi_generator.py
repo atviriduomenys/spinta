@@ -1221,6 +1221,10 @@ class SchemaGenerator:
             schemas[self.namer.object_name(model, prop_name)] = {
                 "type": "object",
                 "description": f"Property `{prop_name}` of `{model.name}`, as it is served on its own.",
+                # Both are written whatever the request selects, this answer
+                # carries no selection of its own, see
+                # `prepare_data_for_response` of an `Object`.
+                "required": ["_type", "_revision"],
                 "properties": properties,
             }
 
@@ -1669,7 +1673,27 @@ class OpenAPIGenerator:
         flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in scopes}
         spec.setdefault("components", {})["securitySchemes"] = schemes
 
+        self._bound_requested_scopes(spec, scopes)
         self._set_scope_example(spec)
+
+    def _bound_requested_scopes(self, spec: dict[str, Any], scopes: list[str]) -> None:
+        """Bound the `scope` a token request may carry.
+
+        A request cannot ask for more than every scope the document declares,
+        so that is the bound: it refuses an oversized value while refusing no
+        request the service would answer. Without declared scopes there is
+        nothing to measure, and the field keeps its shape alone.
+        """
+        if not scopes:
+            return
+
+        max_length = len(" ".join(scopes))
+        for path in TOKEN_PATHS:
+            token_path = spec.get("paths", {}).get(path)
+            if not token_path:
+                continue
+            content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
+            content["schema"]["properties"]["scope"]["maxLength"] = max_length
 
     def _set_scope_example(self, spec: dict[str, Any]) -> None:
         """Show a scope of one model of this data service in the token request.

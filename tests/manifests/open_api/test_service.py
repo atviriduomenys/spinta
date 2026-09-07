@@ -203,6 +203,9 @@ def test_example_config_file_is_valid():
         ("info:\n  termsOfService: /terms\n", "`info.termsOfService` '/terms' has no scheme and host"),
         ("auth:\n  token_url: /auth/token\n", "`auth.token_url` '/auth/token' has no scheme and host"),
         ("servers:\n  - url: https:example.com\n", "has a scheme but no host"),
+        # A server URL is the base of an HTTP API, so no other scheme serves it.
+        ("servers:\n  - url: ftp://get.data.gov.lt\n", "is served over 'ftp'"),
+        ("servers:\n  - url: ftp://get.data.gov.lt/svc\n", "is served over 'ftp'"),
     ],
 )
 def test_config_rejects_malformed_values(tmp_path, config, error):
