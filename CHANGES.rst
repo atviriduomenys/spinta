@@ -185,6 +185,13 @@ Backwards incompatible:
   - A reference of level 4 requires ``_id``. A reference that is there carries
     the identifier, and one that is not is ``null``, which the property says on
     its own side, so an empty object was neither.
+  - The message of an error example is filled in, the way ``error_response``
+    sends it, instead of being the template with its placeholders. The template
+    stands beside it and is still the template.
+  - The identifier in a path carries no ``format``, only its pattern: a
+    validator asserting ``format: uuid`` knows the canonical spelling alone and
+    would refuse the ones the pattern is there to accept. A response keeps the
+    format, since it carries the canonical spelling.
   - The identifier in a path takes every spelling ``is_object_id`` reads, since
     it reads the value with ``uuid.UUID``: hyphenated or not, in braces, behind
     an ``urn:uuid:`` prefix, in either case. A response still carries the
