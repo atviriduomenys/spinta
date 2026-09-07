@@ -36,8 +36,17 @@ PROPERTY_EXAMPLE = {
     "money": 99.99,
 }
 
-#: A revision is a UUID, as is an identifier, see `spinta.backends`.
-UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+#: A revision is a UUID, as is an identifier, see `spinta.backends`. This is the
+#: canonical spelling, which is what a response carries.
+_UUID_CANONICAL = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
+UUID_PATTERN = f"^{_UUID_CANONICAL}$"
+
+#: The same identifier as a request may spell it. `is_object_id` reads the value
+#: with `uuid.UUID`, which drops an `urn:uuid:` prefix and surrounding braces and
+#: takes the hexadecimal with or without the hyphens, so a document accepting the
+#: canonical spelling alone would have a gateway refuse a request Spinta serves.
+_UUID_COMPACT = "[0-9a-fA-F]{12}4[0-9a-fA-F]{3}[89abAB][0-9a-fA-F]{15}"
+UUID_REQUEST_PATTERN = f"^(?:urn:uuid:)?\\{{?(?:{_UUID_CANONICAL}|{_UUID_COMPACT})\\}}?$"
 
 STANDARD_OBJECT_PROPERTIES = {
     "_type": {"type": "string", "description": "Name of the model this object belongs to."},
@@ -184,7 +193,7 @@ PATHS_CONFIG = {
             "tags": ["utility"],
             "security": [{"UAPI_client": []}],
             "summary": "Get an access token",
-            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n",
+            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\n\nCredentials go over TLS and nothing else, see RFC 6749 section 2.3.1. An environment reached without it is left out of the `servers` of this operation; where a server URL is relative, the transport is that of wherever this document is served, and it has to be TLS.\n",
             "operationId": "apiToken",
             "requestBody": {
                 "required": True,
@@ -293,7 +302,7 @@ PATHS_CONFIG = {
             "tags": ["utility"],
             "security": [{"UAPI_client": []}],
             "summary": "Get an access token, from the agent itself",
-            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:token`.\n",
+            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:token`.\n\n\nCredentials go over TLS and nothing else, see RFC 6749 section 2.3.1. An environment reached without it is left out of the `servers` of this operation; where a server URL is relative, the transport is that of wherever this document is served, and it has to be TLS.\n",
             "operationId": "apiTokenOfAgent",
             "requestBody": {
                 "required": True,
@@ -970,12 +979,12 @@ PARAMETER_COMPONENTS = {
         # A model can declare `_id` of its own, and then the parameter is built
         # for that model, see `PathGenerator._id_parameter`. This one describes
         # the identifier Spinta gives, which `is_object_id` accepts only as a
-        # UUID version 4.
-        "description": "Public global object identifier.\n\nAn identifier is an UUID version 4.\n\nOnce object is assigned a global identifier, it should never change.",
+        # UUID version 4, in any of the spellings `uuid.UUID` reads.
+        "description": "Public global object identifier.\n\nAn identifier is an UUID version 4. It is read with `uuid.UUID`, so it may be given hyphenated or not, in braces, or behind an `urn:uuid:` prefix; a response always carries the canonical hyphenated spelling.\n\nOnce object is assigned a global identifier, it should never change.",
         "schema": {
             "type": "string",
             "format": "uuid",
-            "pattern": UUID_PATTERN,
+            "pattern": UUID_REQUEST_PATTERN,
             "examples": ["abdd1245-bbf9-4085-9366-f11c0f737c1d"],
         },
     },
