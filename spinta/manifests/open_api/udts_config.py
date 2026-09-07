@@ -210,7 +210,12 @@ class UdtsConfig:
             # can carry a path of its own, which `_resolve_server_url` keeps
             # after warning, and taking the data service path off that one would
             # leave an address the agent serves nothing at.
-            server["url"] = urlunsplit(parts._replace(path="")) or "/"
+            #
+            # A relative URL keeps the root as its path: emptied, it would be
+            # resolved against the path the document itself is served at, and a
+            # query of its own would even keep the `or` below from noticing.
+            path = "" if parts.netloc else "/"
+            server["url"] = urlunsplit(parts._replace(path=path)) or "/"
             servers.append(server)
         return servers
 

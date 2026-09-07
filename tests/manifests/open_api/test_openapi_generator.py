@@ -1,5 +1,6 @@
 import json
 import re
+import uuid
 
 import pytest
 
@@ -974,6 +975,13 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
     assert "pattern" in schema
     jsonschema.validate(created["_id"], schema)
 
+    # `is_object_id` takes a UUID of version 4 alone, see `spinta.backends`, so
+    # a path holding any other one is not read as an identifier at all.
+    other_version = str(uuid.uuid5(uuid.NAMESPACE_DNS, "example.com"))
+    assert app.get(f"/{model}/{other_version}").status_code == 404
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(other_version, schema)
+
 
 def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_factory):
     """A model can declare `_id` of its own, and then it holds the data key."""
@@ -1539,7 +1547,9 @@ def test_model_schemas_require_nothing(rc, open_manifest_path_factory):
     open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
 
     schemas = open_api_spec["components"]["schemas"]
-    model_schemas = [name for name in schemas if name.startswith("at280_")]
+    # A listing is an envelope, not an object of the model, and it always holds
+    # its container, see `test_listing_schema_matches_what_spinta_answers`.
+    model_schemas = [name for name in schemas if name.startswith("at280_") and not name.endswith("Collection")]
 
     assert model_schemas
     for name in model_schemas:
@@ -1699,6 +1709,15 @@ def test_listing_schema_matches_what_spinta_answers(model, app, context):
     resolver = jsonschema.RefResolver.from_schema({"components": {"schemas": schemas}})
     jsonschema.validate(response.json(), {**schemas[name], "components": {"schemas": schemas}}, resolver=resolver)
     assert set(response.json()) <= set(schemas[name]["properties"])
+
+    # `_data` is written before the first object and closed after the last one,
+    # see `spinta.formats.json`, so it is there even when nothing matched.
+    empty = app.get(f"/{model}?title='no such city'")
+    assert empty.status_code == 200, empty.json()
+    assert empty.json()["_data"] == []
+    jsonschema.validate(empty.json(), {**schemas[name], "components": {"schemas": schemas}}, resolver=resolver)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({}, {**schemas[name], "components": {"schemas": schemas}}, resolver=resolver)
 
 
 def test_no_component_is_left_unused(open_manifest_path_factory):
@@ -1981,6 +2000,18 @@ def test_health_schema_requires_what_the_probe_answers(model, app, context):
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate({}, schemas["health"])
 
+    # Which dependencies are reported is up to the service, what is said about
+    # one is not: both fields are written for every entry.
+    answer = app.get("/health").json()
+    assert answer["dependencies"]
+    for field in ("name", "healthy"):
+        without = {
+            **answer,
+            "dependencies": [{key: value for key, value in answer["dependencies"][0].items() if key != field}],
+        }
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(without, schemas["health"])
+
 
 def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
     """A server URL can carry a path the data service path is not part of."""
@@ -1991,6 +2022,15 @@ def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
 
     # The agent serves its own endpoints at its root, not under that path.
     assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "https://host.lt"}]
+
+
+def test_agent_servers_of_a_relative_server_hold_the_root(open_manifest_path_factory):
+    """A relative server URL emptied of its path would point at the document."""
+    config = UdtsConfig(servers=[{"url": "/?env=prod"}])
+
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "/?env=prod"}]
 
 
 def test_object_property_reference_gets_a_schema(open_manifest_path_factory):

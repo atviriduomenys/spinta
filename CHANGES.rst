@@ -102,8 +102,11 @@ Backwards incompatible:
     ``$ref`` pointing at nothing and a specification that fails validation
     outright. They are looked for through every layer now, objects nested in
     objects and in arrays included.
-  - An identifier is described as the version 4 UUID Spinta accepts, and a
-    property declared as ``uuid`` keeps that shape instead of being described
+  - An identifier is described as the version 4 UUID Spinta accepts, in a
+    response and in a path alike. A path segment is read as an identifier only
+    when ``is_object_id`` reads a version 4 UUID in it, so a document accepting
+    any UUID let through a request the service answers with ``404``. A property
+    declared as ``uuid`` keeps that shape instead of being described
     as any string at all. ``traceparent`` refuses what W3C trace context
     reserves: the version ``ff`` and an identifier of nothing but zeroes. An
     empty ``scope`` is accepted, because the token endpoint answers it with a
@@ -176,6 +179,12 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - What a response always carries is marked ``required``, so that a gateway
+    validating responses can refuse a malformed one instead of passing an empty
+    object. A listing envelope always holds ``_data``, written before the first
+    object and closed after the last one, so an empty listing carries it too;
+    every entry of the ``health`` probe holds a ``name`` and a ``healthy``
+    flag, even though which dependencies are reported is up to the service.
   - ``components.securitySchemes`` is now generated, together with the scopes
     the operations request. Operations already referenced the ``UAPI_auth``
     scheme, which was never declared, making the document invalid.
@@ -246,7 +255,9 @@ Backwards incompatible:
     schema describes the probe Spinta answers with (`#1873`_): a ``healthy``
     flag and a ``dependencies`` list. The ``tokenUrl`` of ``UAPI_auth`` is
     still built from the first server, so a deployment reached without the
-    gateway gives it in ``auth.token_url``.
+    gateway gives it in ``auth.token_url``. A relative server keeps ``/`` as
+    the agent address, because an emptied path would be resolved against the
+    address the document itself is served at.
   - A ``ref`` property references a schema of what the reference carries, an
     ``_id`` or the reference properties depending on its level, also when the
     target is a model of the same data service, whose full schema requires its

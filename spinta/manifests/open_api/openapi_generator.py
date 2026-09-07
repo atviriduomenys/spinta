@@ -1311,6 +1311,9 @@ class SchemaGenerator:
         return {
             "type": "object",
             "description": f"A page of `{model.name}` objects.",
+            # The container is written before the first object and closed after
+            # the last one, so it is there even when the listing is empty.
+            "required": ["_data"],
             "properties": {
                 "_data": {
                     "type": "array",
