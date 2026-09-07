@@ -192,6 +192,10 @@ Backwards incompatible:
     validator asserting ``format: uuid`` knows the canonical spelling alone and
     would refuse the ones the pattern is there to accept. A response keeps the
     format, since it carries the canonical spelling.
+  - An ``_id`` a model declares as a whole number is bounded like every other
+    thing a request carries: ``int64``, since such an identifier is held in a
+    column of the data. Only a string identifier was bounded before, so the
+    guarantee did not hold for this one.
   - A property declared ``base32``, an ``_id`` or a ``_revision`` of a model
     among them, is described by its shape rather than as any string at all:
     Spinta builds the value itself, so it is the RFC 4648 alphabet with the
