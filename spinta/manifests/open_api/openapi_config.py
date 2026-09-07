@@ -53,6 +53,13 @@ UUID_PATTERN = f"^{_UUID_CANONICAL}$"
 #: variant of the value asserted; following the parser all the way would mean
 #: giving up on asserting those, which buys a gateway less than it costs.
 _UUID_COMPACT = "[0-9a-fA-F]{12}4[0-9a-fA-F]{3}[89abAB][0-9a-fA-F]{15}"
+
+#: A value of a property declared `uuid`, an `_id` of a model among them. It is
+#: read by `UUID.load` through `is_str_uuid`, which builds the value again and
+#: compares it with what was given, so only the canonical lower case spelling of
+#: a version 4 UUID passes; the looser reading above is of `is_object_id`, which
+#: an identifier Spinta itself gives goes through.
+UUID_VALUE_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 UUID_REQUEST_PATTERN = f"^(?:urn:)?(?:uuid:)?\\{{?(?:{_UUID_CANONICAL}|{_UUID_COMPACT})\\}}?$"
 
 STANDARD_OBJECT_PROPERTIES = {
@@ -74,7 +81,7 @@ STANDARD_OBJECT_PROPERTIES = {
 
 PROPERTY_MAPPING = {
     "string": {"type": "string"},
-    "uuid": {"type": "string", "format": "uuid", "pattern": UUID_PATTERN},
+    "uuid": {"type": "string", "format": "uuid", "pattern": UUID_VALUE_PATTERN},
     "integer": {"type": "integer"},
     "number": {"type": "number"},
     "boolean": {"type": "boolean"},
@@ -953,7 +960,7 @@ PARAMETER_COMPONENTS = {
         "name": "If-None-Match",
         "in": "header",
         "required": False,
-        "description": "Using `If-None-Match` client can provide a revision number of an object to server to check if modification to the object has occured, if not, server will return `304 - Not Modified`.",
+        "description": "Using `If-None-Match` client can provide a revision number of an object to server to check if modification to the object has occurred, if not, server will return `304 - Not Modified`.",
         # It carries a revision, whose shape a model can declare itself.
         "schema": {
             "type": "string",
