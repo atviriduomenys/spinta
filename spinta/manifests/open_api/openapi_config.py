@@ -918,10 +918,15 @@ PARAMETER_COMPONENTS = {
         "name": "id",
         "in": "path",
         "required": True,
-        "description": "Public global object identifier.\n\nIdentifiers should be UUID v4.\n\nOnce object is assigned a global identifier, it should never change.",
+        # A model can declare `_id` of its own, and then the parameter is built
+        # for that model, see `PathGenerator._id_parameter`. This one describes
+        # the identifier Spinta gives, which `is_object_id` accepts only as a
+        # UUID version 4.
+        "description": "Public global object identifier.\n\nAn identifier is an UUID version 4.\n\nOnce object is assigned a global identifier, it should never change.",
         "schema": {
             "type": "string",
-            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "format": "uuid",
+            "pattern": UUID_PATTERN,
             "examples": ["abdd1245-bbf9-4085-9366-f11c0f737c1d"],
         },
     },
@@ -1055,6 +1060,9 @@ COMMON_SCHEMAS = {
                 "description": "What the service checked, one entry per dependency. Which ones are reported is up to the service and can change between versions, so read the entries rather than expect a given set.",
                 "items": {
                     "type": "object",
+                    # Which dependencies are reported can change, what is
+                    # reported about one can not, see `spinta.api.health`.
+                    "required": ["name", "healthy"],
                     "properties": {
                         "name": {"type": "string", "examples": ["spinta", "disk", "memory"]},
                         "healthy": {"type": "boolean"},
