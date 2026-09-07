@@ -355,6 +355,17 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 """)
 
 
+# A model whose identifier is its key encoded, see `spinta.types.datatype.Base32`.
+MANIFEST_WITH_BASE32_ID = striptable("""
+id | d | r | b | m | property | type            | ref   | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |       |         |       |
+   |   | test                 | memory          |       |         |       |
+   |   |   |   | Salis        |                 | kodas | salys   |       |
+   |   |   |   |   | _id      | base32          |       |         |       | open
+   |   |   |   |   | kodas    | string required |       | kodas   | 4     | open
+""")
+
+
 # A model referencing one whose identifiers are the keys of its data.
 MANIFEST_WITH_DECLARED_REF_ID = striptable("""
 id | d | r | b | m | property | type            | ref                                  | source | level | access
