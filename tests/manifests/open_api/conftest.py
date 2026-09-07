@@ -355,6 +355,17 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 """)
 
 
+# A model whose identifier is a whole number of its data.
+MANIFEST_WITH_INTEGER_ID = striptable("""
+id | d | r | b | m | property | type             | ref | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |     |         |       |
+   |   | test                 | memory           |     |         |       |
+   |   |   |   | Salis        |                  | nr  | salys   |       |
+   |   |   |   |   | _id      | integer          |     |         |       | open
+   |   |   |   |   | nr       | integer required |     | nr      | 4     | open
+""")
+
+
 # A model keyed by two properties, whose identifier is both of them written out.
 MANIFEST_WITH_COMPOSITE_ID = striptable("""
 id | d | r | b | m | property | type            | ref      | source  | level | access
