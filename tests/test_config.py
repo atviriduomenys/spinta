@@ -360,22 +360,26 @@ def test_custom_config():
 def test_yaml_config(tmp_path):
     (tmp_path / "a.yml").write_text("wait: 1\nbackends: {default: {dsn: test}}")
     (tmp_path / "b.yml").write_text("wait: 2\ndebug: true")
+    envvars = {
+        "SPINTA_CONFIG": f"{tmp_path}/a.yml,{tmp_path}/b.yml",
+        "SPINTA_DEBUG": False,
+    }
+    tmp_rc = RawConfig()
+    tmp_rc.read(
+        [
+            Path("defaults", "spinta.config:CONFIG"),
+            EnvVars("envvars", envvars),
+        ]
+    )
+    configs = tmp_rc.get("config", cast=list, default=[])
     rc = RawConfig()
     rc.read(
         [
             Path("defaults", "spinta.config:CONFIG"),
-            EnvVars(
-                "envvars",
-                {
-                    "SPINTA_CONFIG": f"{tmp_path}/a.yml,{tmp_path}/b.yml",
-                    "SPINTA_DEBUG": False,
-                },
-            ),
+            *[Path("defaults", c) for c in configs],
+            EnvVars("envvars", envvars),
         ]
     )
-    configs = rc.get("config", cast=list, default=[])
-    sources = [Path("defaults", c) for c in configs]
-    rc.read(sources, after="defaults")
     assert rc.get("wait", cast=int) == 2
     assert rc.get("backends", "default", "dsn") == "test"
     assert rc.get("debug") is False
@@ -431,6 +435,8 @@ def test_remove_keys():
 
 
 def test_after():
+    # `after` was removed, sources argument order decides priority:
+    # later sources override earlier ones.
     rc = RawConfig()
     rc.read(
         [
@@ -438,8 +444,8 @@ def test_after():
             PyDict("C2", {"a": 2}),
         ]
     )
-    rc.read([PyDict("C3", {"a": 3})], after="C1")
-    assert rc.get("a", origin=True) == (2, "C2")
+    rc.read([PyDict("C3", {"a": 3})])
+    assert rc.get("a", origin=True) == (3, "C3")
 
 
 def test_fork():
@@ -555,9 +561,9 @@ def test_dump():
     rc = RawConfig()
     rc.add("defaults", {"backends.default.type": "sql"})
     assert rc.dump(file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "---------------------", "-----"),
-        ("defaults", "backends.default.type", "sql"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "---------------------", "-----"),
+        ("defaults", "", "backends.default.type", "sql"),
     ]
 
 
@@ -565,9 +571,9 @@ def test_dump_env():
     rc = RawConfig()
     rc.add("defaults", {"backends.default.type": "sql"})
     assert rc.dump(fmt=KeyFormat.env, file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "------------------------------", "-----"),
-        ("defaults", "SPINTA_BACKENDS__DEFAULT__TYPE", "sql"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "------------------------------", "-----"),
+        ("defaults", "", "SPINTA_BACKENDS__DEFAULT__TYPE", "sql"),
     ]
 
 
@@ -582,10 +588,10 @@ def test_dump_filter():
         },
     )
     assert rc.dump("backends", file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "---------------------", "----------"),
-        ("defaults", "backends.default.type", "postgresql"),
-        ("defaults", "backends.sql.type", "sql"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "---------------------", "----------"),
+        ("defaults", "", "backends.default.type", "postgresql"),
+        ("defaults", "", "backends.sql.type", "sql"),
     ]
 
 
@@ -600,9 +606,9 @@ def test_dump_filter_dots():
         },
     )
     assert rc.dump("backends..type", file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "---------------------", "----------"),
-        ("defaults", "backends.default.type", "postgresql"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "---------------------", "----------"),
+        ("defaults", "", "backends.default.type", "postgresql"),
     ]
 
 
@@ -617,10 +623,10 @@ def test_dump_filter_dots_2():
         },
     )
     assert rc.dump("..type", file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "----------------------", "----------"),
-        ("defaults", "backends.default.type", "postgresql"),
-        ("defaults", "manifests.default.type", "yaml"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "----------------------", "----------"),
+        ("defaults", "", "backends.default.type", "postgresql"),
+        ("defaults", "", "manifests.default.type", "yaml"),
     ]
 
 
@@ -635,11 +641,11 @@ def test_dump_two_filter():
         },
     )
     assert rc.dump("backends", "manifests", file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "----------------------", "-------------"),
-        ("defaults", "backends.default.type", "postgresql"),
-        ("defaults", "backends.default.dsn", "postgresql://"),
-        ("defaults", "manifests.default.type", "yaml"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "----------------------", "-------------"),
+        ("defaults", "", "backends.default.type", "postgresql"),
+        ("defaults", "", "backends.default.dsn", "postgresql://"),
+        ("defaults", "", "manifests.default.type", "yaml"),
     ]
 
 
@@ -654,10 +660,40 @@ def test_dump_filter_startswith():
         },
     )
     assert rc.dump("ba", file=None) == [
-        ("Origin", "Name", "Value"),
-        ("--------", "---------------------", "-------------"),
-        ("defaults", "backends.default.type", "postgresql"),
-        ("defaults", "backends.default.dsn", "postgresql://"),
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "---------------------", "-------------"),
+        ("defaults", "", "backends.default.type", "postgresql"),
+        ("defaults", "", "backends.default.dsn", "postgresql://"),
+    ]
+
+
+def test_dump_env_column():
+    rc = RawConfig()
+    rc.read(
+        [
+            PyDict(
+                "defaults",
+                {
+                    "backends": {
+                        "default": {
+                            "type": "postgresql",
+                        },
+                    },
+                    "env": "dev",
+                    "environments": {
+                        "dev": {
+                            "backends.sql.type": "sql",
+                        },
+                    },
+                },
+            ),
+        ]
+    )
+    assert rc.dump("backends", file=None) == [
+        ("Origin", "Env", "Name", "Value"),
+        ("--------", "---", "---------------------", "----------"),
+        ("defaults", "", "backends.default.type", "postgresql"),
+        ("defaults", "dev", "backends.sql.type", "sql"),
     ]
 
 
@@ -706,18 +742,20 @@ def test_pydict_read_does_not_modify_input():
 def test_path_read_does_not_modify_imported_config():
     # `spinta.config:CONFIG` is a global dict, shared by all `RawConfig`
     # instances in the process, it must not be modified by reading it.
+    # Note: `environments.*` subtree is merged into the main tree (without
+    # the `environments.*` prefix), so it is not available via `get()`.
     from spinta.config import CONFIG
 
     assert "environments" in CONFIG
     rc1 = RawConfig()
     rc1.read([Path("defaults", "spinta.config:CONFIG")])
     assert "environments" in CONFIG
-    dsn = rc1.get("environments", "test", "backends", "default", "dsn")
+    manifest_type = rc1.get("manifests", "default", "type")
 
     rc2 = RawConfig()
     rc2.read([Path("defaults", "spinta.config:CONFIG")])
     assert "environments" in CONFIG
-    assert rc2.get("environments", "test", "backends", "default", "dsn") == dsn
+    assert rc2.get("manifests", "default", "type") == manifest_type
 
 
 def test_fork_partial_subtree_keeps_lower_priority_keys():
@@ -735,7 +773,7 @@ def test_fork_partial_subtree_keeps_lower_priority_keys():
             ),
         ]
     )
-    rc = rc.fork({"keymaps": {"default": {"sync_transaction_size": 4}}})
+    rc = rc.fork({"keymaps.default": {"sync_transaction_size": 4}})
     assert rc.keys("keymaps", "default") == ["type", "dsn", "sync_transaction_size"]
     assert rc.get("keymaps", "default", "dsn") == "sqlite:///keymap.db"
     assert rc.get("keymaps", "default", "sync_transaction_size") == 4
@@ -756,7 +794,7 @@ def test_fork_adds_new_keys_to_lower_priority_ones():
             ),
         ]
     )
-    rc = rc.fork({"backends": {"three": {"dsn": "3"}}})
+    rc = rc.fork({"backends.three": {"dsn": "3"}})
     assert rc.keys("backends") == ["one", "two", "three"]
     assert rc.get("backends", "one", "dsn") == "1"
     assert rc.get("backends", "three", "dsn") == "3"
