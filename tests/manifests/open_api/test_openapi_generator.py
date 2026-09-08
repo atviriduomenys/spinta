@@ -1075,6 +1075,23 @@ def test_file_reference_revision_is_the_one_the_model_builds(open_manifest_path_
     assert "fileRef" not in schemas
 
 
+def test_a_media_type_keeps_what_the_configuration_says_about_it(open_manifest_path_factory):
+    """A schema of alternatives carries no example, so one sits beside it."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    components = open_api_spec["components"]
+
+    content = components["responses"]["tokenError400"]["content"]["application/json"]
+    assert "example" in content
+    # And it is an answer the schema beside it accepts.
+    resolver = jsonschema.RefResolver.from_schema({"components": components})
+    jsonschema.validate(
+        content["example"],
+        {**content["schema"], "components": components},
+        resolver=resolver,
+    )
+
+
 def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
     """`error_response` sends the message filled in, never the template."""
     open_api_spec = _service_spec(open_manifest_path_factory)

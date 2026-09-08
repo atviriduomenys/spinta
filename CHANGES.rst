@@ -169,6 +169,10 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - A media type of a response keeps everything the configuration says about
+    it, not the schema alone. The token endpoint answers a `400` of two shapes,
+    so neither schema carries the example and it sits beside them; it was being
+    dropped on the way into the document.
   - What is known about a file, the ``:ref`` answer of a file property, is
     described per model rather than by one shared schema. It carries the
     ``_revision`` of the model it belongs to, which a model may build out of
