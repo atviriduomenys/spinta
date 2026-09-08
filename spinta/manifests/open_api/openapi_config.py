@@ -315,9 +315,9 @@ PATHS_CONFIG = {
         },
     },
     "/auth/token": {
-        # Served by the agent itself, so it takes a server of its own.
+        # Served by the agent itself, so it takes a server of its own: every
+        # environment of the document, with the path of the data service off.
         "servers": "agent",
-        # Credentials are sent here, so only an environment reached over TLS.
         "parameters": ["traceparent", "tracestate"],
         "post": {
             "tags": ["utility"],
