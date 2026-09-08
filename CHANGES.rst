@@ -169,6 +169,16 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - What is known about a file, the ``:ref`` answer of a file property, is
+    described per model rather than by one shared schema. It carries the
+    ``_revision`` of the model it belongs to, which a model may build out of
+    its own data, a whole number for one, and the shared schema said ``string``
+    or ``null``, so response validation refused a legitimate answer. ``_type``
+    is the name of that property, given as a constant, and both envelope fields
+    are required, as they are for an object property.
+  - The security scheme no longer promises HTTPS at the token endpoint. RFC
+    6749 section 2.3.1 asks for it, and the deployment ensures it; the document
+    describes an ``http`` environment the same way it describes any other.
   - ``_page`` requires its ``next`` token and describes the shape of one:
     ``spinta.formats.json`` writes the container only when it has a token, and
     ``encode_page_values`` keeps the padding, so an empty object and a token of

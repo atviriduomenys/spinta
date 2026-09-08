@@ -788,7 +788,12 @@ GENERIC_ERROR = {
                 "const": "Request contains invalid, unknown or malformed scopes: {scopes}.",
                 "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
             },
-            "message": dict(ERROR_MESSAGE),
+            # The message of this error, not of whichever one `ERROR_MESSAGE`
+            # stands for; `error_response` sends it filled in.
+            "message": {
+                **ERROR_MESSAGE,
+                "example": _example_message("Request contains invalid, unknown or malformed scopes: {scopes}."),
+            },
             "context": dict(ERROR_CONTEXT),
         },
         "additionalProperties": False,
@@ -1354,6 +1359,6 @@ SECURITY_SCHEMES = {
     "UAPI_client": {
         "type": "http",
         "scheme": "basic",
-        "description": "Client identifier and secret, used to get an access token. Basic authentication is what RFC 6749 section 2.3.1 defines for the token endpoint, and it is used there alone, over HTTPS.",
+        "description": "Client identifier and secret, used to get an access token. Basic authentication is what RFC 6749 section 2.3.1 defines for the token endpoint, and it is used there alone. That section asks for TLS, which is ensured where the service is deployed rather than stated by this document.",
     },
 }
