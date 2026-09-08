@@ -147,7 +147,7 @@ def push(
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, state, models)
         push_state = context.get(PUSH_STATE_DB)
 
         # Synchronize keymaps
