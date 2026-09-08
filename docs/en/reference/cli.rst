@@ -214,9 +214,11 @@ Arguments
   API gateway takes the API context path from. A specification without them
   cannot be deployed, so it is not written.
   Only a server URL may be relative, every other URL field of the
-  configuration has to carry a scheme and a host, and ``auth.token_url`` has to
-  use HTTPS. ``limits.max_limit`` sets the largest ``_limit`` a request may ask
-  for, defaulting to ``100000``.
+  configuration has to carry a scheme and a host. A server and
+  ``auth.token_url`` are reached over ``https`` or ``http``; ``http`` is
+  accepted, a testing deployment for instance, and warned about, since client
+  credentials then travel in the clear. ``limits.max_limit`` sets the largest
+  ``_limit`` a request may ask for, defaulting to ``100000``.
 
 - ``--api-version``
   OPTIONAL. Value of ``info.version``. Overrides ``info.version`` given in the

@@ -215,7 +215,7 @@ PATHS_CONFIG = {
             "tags": ["utility"],
             "security": [{"UAPI_client": []}],
             "summary": "Get an access token",
-            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\n\nCredentials go over TLS and nothing else, see RFC 6749 section 2.3.1. An environment reached without it is left out of the `servers` of this operation; where a server URL is relative, the transport is that of wherever this document is served, and it has to be TLS.\n",
+            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\n\nRFC 6749 section 2.3.1 asks for TLS here: the credentials are sent in plain, base64 of them being plain. The transport of an environment is not stated by this document — a server URL may be relative, and a deployment reached over `http` is described the same way — so it is ensured where the service is deployed.\n",
             "operationId": "apiToken",
             "requestBody": {
                 "required": True,
@@ -318,13 +318,12 @@ PATHS_CONFIG = {
         # Served by the agent itself, so it takes a server of its own.
         "servers": "agent",
         # Credentials are sent here, so only an environment reached over TLS.
-        "credentials": True,
         "parameters": ["traceparent", "tracestate"],
         "post": {
             "tags": ["utility"],
             "security": [{"UAPI_client": []}],
             "summary": "Get an access token, from the agent itself",
-            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:token`.\n\n\nCredentials go over TLS and nothing else, see RFC 6749 section 2.3.1. An environment reached without it is left out of the `servers` of this operation; where a server URL is relative, the transport is that of wherever this document is served, and it has to be TLS.\n",
+            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:token`.\n\n\nRFC 6749 section 2.3.1 asks for TLS here: the credentials are sent in plain, base64 of them being plain. The transport of an environment is not stated by this document — a server URL may be relative, and a deployment reached over `http` is described the same way — so it is ensured where the service is deployed.\n",
             "operationId": "apiTokenOfAgent",
             "requestBody": {
                 "required": True,

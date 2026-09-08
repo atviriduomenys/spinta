@@ -110,7 +110,9 @@ class UdtsConfig:
 
         token_url = (data.get("auth") or {}).get("token_url")
         if token_url is not None:
-            _check_url(token_url, path, "`auth.token_url`", require_https=True)
+            _check_url(token_url, path, "`auth.token_url`")
+            _check_http_scheme(token_url, path, "`auth.token_url`")
+            _warn_if_insecure(token_url, path, "`auth.token_url`")
             _check_no_fragment(token_url, path, "`auth.token_url`")
 
         servers = data.get("servers")
@@ -279,7 +281,35 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
             ),
         )
 
+    _warn_if_insecure(url, path, f"server URL {url!r}, which")
     _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
+
+
+def _check_http_scheme(url: str, path: pathlib.Path, what: str) -> None:
+    """An endpoint of an HTTP API is reached over HTTP, one way or the other."""
+    scheme = urlsplit(url).scheme.lower()
+    if scheme and scheme not in ("http", "https"):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} is reached over {scheme!r}, while it is an HTTP endpoint, use `https` or `http`.",
+        )
+
+
+def _warn_if_insecure(url: str, path: pathlib.Path, what: str) -> None:
+    """Say what an `http` address costs, without refusing it.
+
+    Client credentials are sent to the token endpoint in plain, base64 of them
+    being plain, and RFC 6749 section 2.3.1 asks for TLS. A deployment reached
+    over `http` is still a deployment somebody runs, a testing one for
+    instance, and TLS is ensured outside this file, so this is said rather than
+    enforced here.
+    """
+    if urlsplit(url).scheme.lower() == "http":
+        warnings.warn(
+            f"{path}: {what} {url!r} is reached over `http`, so client credentials sent to the token "
+            "endpoint go in the clear; RFC 6749 section 2.3.1 asks for TLS.",
+            UserWarning,
+        )
 
 
 def _check_derived_token_url(token_url: str | None, servers: list, path: pathlib.Path) -> None:
@@ -302,11 +332,7 @@ def _check_derived_token_url(token_url: str | None, servers: list, path: pathlib
         )
         return
 
-    if parts.scheme.lower() != "https":
-        raise InvalidUdtsConfig(
-            path=str(path),
-            error=f"token URL derived from the first server must use HTTPS, got {servers[0]['url']!r}.",
-        )
+    _warn_if_insecure(servers[0].get("url", ""), path, "the token endpoint derived from the first server,")
 
 
 def _keep_known(
@@ -483,7 +509,7 @@ def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {url!r}.")
 
 
-def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False, require_https: bool = False) -> None:
+def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False) -> None:
     """Check a value copied into an URL field of the document.
 
     Pass `relative` for the fields the OpenAPI schema types as `uri-reference`,
@@ -538,9 +564,6 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
             path=str(path),
             error=f"{what} {url!r} has a scheme but no host, use `https://host.example.com`.",
         )
-
-    if require_https and parts.scheme.lower() != "https":
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} must use HTTPS, got {url!r}.")
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
