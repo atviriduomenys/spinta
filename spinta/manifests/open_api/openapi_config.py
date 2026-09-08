@@ -79,6 +79,11 @@ STANDARD_OBJECT_PROPERTIES = {
     },
 }
 
+#: A page token, as `spinta.utils.encoding.encode_page_values` writes one: URL
+#: safe Base64 with the padding kept, so every group of four is whole and only
+#: the last one may carry `=`.
+PAGE_TOKEN_PATTERN = "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{4}|[A-Za-z0-9_-]{3}=|[A-Za-z0-9_-]{2}==)$"
+
 #: A value of a property declared `base32`, as `cast_backend_to_python` builds
 #: one: the RFC 4648 alphabet with the padding dropped, which leaves a length
 #: `base64.b32decode` can pad back and rules out one, three and six characters
@@ -1199,11 +1204,16 @@ COMMON_SCHEMAS = {
     "page": {
         "type": "object",
         "description": "Where the next page of a listing starts. Given back in `_page.next` and asked for as `page('<token>')` of the next request; the token carries `=` padding, which the query syntax reads only in quotes.",
+        # `_page` is written only when there is a token to write, see
+        # `spinta.formats.json`, so an object without one is not an answer.
+        "required": ["next"],
         "properties": {
             "next": {
                 "type": "string",
-                "pattern": "^[A-Za-z0-9_-]+={0,2}$",
-                "description": "Token of the next page. Absent when the listing ended.",
+                # URL safe Base64 as `encode_page_values` writes it, padding
+                # and all, which leaves a length of whole quads.
+                "pattern": PAGE_TOKEN_PATTERN,
+                "description": "Token of the next page.",
                 "examples": ["WyIyMDI2LTA4LTMxIl0="],
                 "example": "WyIyMDI2LTA4LTMxIl0=",
             }

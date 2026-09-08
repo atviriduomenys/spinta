@@ -106,7 +106,8 @@ ne išimant kelius iš aprašo.
 Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
 pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
 nėra iš ko, o OpenAPI token'o adresą apibrėžia kaip absoliutų. Nurodytas adresas
-turi būti pilnas ir su HTTPS.
+turi būti pilnas, su schema ir hostu; `https` arba `http`, o pastaruoju atveju
+parodomas įspėjimas, kad kredencialai eis atviru tekstu.
 
 `servers` – po vieną įrašą kiekvienai aplinkai. Adresą galima nurodyti dviem
 būdais:
