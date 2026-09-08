@@ -909,17 +909,25 @@ class PathGenerator:
         path_type: str = None,
         model_property: tuple | None = None,
     ) -> dict[str, Any]:
-        """Build response content with schema references"""
+        """Build response content with schema references.
+
+        Everything the configuration says about a media type is kept; only the
+        schema is named there and referenced here, so an `example` beside it,
+        which a schema of alternatives cannot carry, reaches the document.
+        """
         content = {}
 
         for media_type, media_config in content_config.items():
+            built = {key: copy.deepcopy(value) for key, value in media_config.items() if key != "schema"}
+
             schema = media_config.get("schema")
             if isinstance(schema, dict):
-                content[media_type] = {"schema": copy.deepcopy(schema)}
+                built["schema"] = copy.deepcopy(schema)
             else:
-                content[media_type] = {
-                    "schema": {"$ref": self._resolve_schema_ref(schema, model, path_type, model_property)}
-                }
+                built["schema"] = {"$ref": self._resolve_schema_ref(schema, model, path_type, model_property)}
+
+            # A schema comes first wherever a reader looks at one.
+            content[media_type] = {"schema": built.pop("schema"), **built}
 
         return content
 
