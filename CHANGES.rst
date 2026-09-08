@@ -217,9 +217,13 @@ Backwards incompatible:
     not one the service holds to, the way the ``_limit`` maximum does. The
     authorization server reads the value as a set, so the service answers a
     scope repeated any number of times.
-  - The token operations say that credentials go over TLS and nothing else, and
-    that a relative server URL takes the transport of wherever the document is
-    served.
+  - The token operations are described for every environment the service is
+    served at, ``http`` among them. Credentials do belong over TLS, RFC 6749
+    section 2.3.1, but a document that leaves the endpoint out describes a
+    service that is not the one running; the transport is ensured where the
+    service is deployed. Reading a configuration that names an ``http`` address
+    warns that credentials would travel in the clear, and a scheme that is
+    neither ``http`` nor ``https`` is still refused.
   - ``_select`` accepts ``*``, which asks for everything and which Spinta
     answers; the pattern refused it, so a gateway would have refused a request
     the service serves.

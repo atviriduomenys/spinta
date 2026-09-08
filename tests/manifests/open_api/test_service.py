@@ -246,8 +246,7 @@ def test_config_reports_malformed_yaml(tmp_path):
         (123, "must be a non empty string"),
         ('""', "must be a non empty string"),
         ("localhost:8080", "has a scheme but no host"),
-        ("http://am.example.lt/auth/token", "must use HTTPS"),
-        ("ftp://am.example.lt/auth/token", "must use HTTPS"),
+        ("ftp://am.example.lt/auth/token", "is reached over 'ftp'"),
     ],
 )
 def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
@@ -276,12 +275,25 @@ def test_config_warns_when_the_token_url_stays_relative(tmp_path):
         UdtsConfig.from_path(path)
 
 
-def test_config_rejects_token_url_derived_from_insecure_server(tmp_path):
+def test_config_warns_about_an_insecure_server(tmp_path):
+    """`http` is a deployment somebody runs, so it is said and not refused."""
     path = tmp_path / "vartai.yml"
     path.write_text("servers:\n  - url: http://get.data.gov.lt\n", encoding="utf-8")
 
-    with pytest.raises(InvalidUdtsConfig, match="token URL derived from the first server must use HTTPS"):
-        UdtsConfig.from_path(path)
+    with pytest.warns(UserWarning, match="go in the clear"):
+        config = UdtsConfig.from_path(path)
+
+    assert config.servers == [{"url": "http://get.data.gov.lt"}]
+
+
+def test_config_warns_about_an_insecure_token_url(tmp_path):
+    path = tmp_path / "vartai.yml"
+    path.write_text("auth:\n  token_url: http://am.example.lt/auth/token\n", encoding="utf-8")
+
+    with pytest.warns(UserWarning, match="go in the clear"):
+        config = UdtsConfig.from_path(path)
+
+    assert config.auth["token_url"] == "http://am.example.lt/auth/token"
 
 
 def test_config_allows_insecure_server_with_separate_secure_token_url(tmp_path):

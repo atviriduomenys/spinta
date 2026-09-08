@@ -96,18 +96,12 @@ schema ir hostu: tada jis išvedamas iš to įrašo ir `/:token`, t. y. iš to p
 adreso, kuriuo token'ą per vartus pasiekia gavėjas.
 
 Kliento identifikatorius ir slaptažodis siunčiami atviru tekstu, o RFC 6749
-(2.3.1) tai leidžia tik per TLS, tad token'o keliai `/:token` ir `/auth/token`
-siūlomi tik per `https` pasiekiamose aplinkose:
-
-- **visos aplinkos per `http`** (pavyzdžiui, vietinis diegimas) – abu token'o
-  keliai į aprašą **neįtraukiami** apskritai. Token'o adresas lieka
-  `auth.token_url` lauke, kur ir turi būti;
-- **dalis aplinkų per `https`** – keliai **lieka**, tik jiems pridedamas savas
-  `servers` sąrašas, kuriame yra vien `https` aplinkos. Tad `http` aplinkoje
-  jie nerodomi, o `https` – veikia kaip įprastai;
-- **reliatyvus adresas** (`url: /datasets/...`) – schema iš jo nematoma, tad
-  keliai lieka, o transportas yra toks, kokiu pateikiamas pats aprašas. Vartai
-  turi jį pateikti per TLS.
+(2.3.1) prašo TLS. Aprašas transporto **nenustato**: token'o keliai `/:token` ir
+`/auth/token` aprašomi visoms aplinkoms, kaip ir visi kiti keliai, nes paslauga
+juos ten ir aptarnauja. Adresas per `http` (pavyzdžiui, testavimo ar vietinis
+diegimas) priimamas, tik skaitant konfigūraciją parodomas įspėjimas, kad
+kredencialai eis atviru tekstu. TLS užtikrinamas ten, kur paslauga diegiama, o
+ne išimant kelius iš aprašo.
 
 Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
 pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
