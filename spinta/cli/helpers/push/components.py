@@ -6,6 +6,7 @@ from spinta.components import Model, pagination_enabled
 from spinta.utils.sqlite import SqliteMigratableDb
 
 PUSH_STATE_DB = "push.state"
+PUSH_STATE_PATH = "push_state_path"
 PAGE_TYPE_MAPPING = {
     "string": sa.Text,
     "date": sa.Date,
@@ -31,13 +32,17 @@ class PushState(SqliteMigratableDb):
             sa.Column("model", sa.Text, primary_key=True),
             sa.Column("property", sa.Text),
             sa.Column("value", sa.Text),
+            extend_existing=True,
         )
 
     def _default_table_template(
         self, name: str, model: Model | None = None, **kwargs
     ) -> Callable[[sa.MetaData], sa.Table]:
-        if model is None:
+        def _raise_missing_model():
             raise Exception("DEFAULT TABLE TEMPLATE FOR STATE DB REQUIRES model property to be given")
+
+        if model is None:
+            return lambda _: _raise_missing_model()
 
         pagination_cols = []
         if pagination_enabled(model):
@@ -54,7 +59,6 @@ class PushState(SqliteMigratableDb):
             sa.Column("pushed", sa.DateTime),
             sa.Column("error", sa.Boolean),
             sa.Column("data", sa.Text),
-            sa.Column("session_id", sa.Text, index=True),
             *pagination_cols,
         )
 

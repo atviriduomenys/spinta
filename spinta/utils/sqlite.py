@@ -5,6 +5,9 @@ from sqlalchemy.dialects.sqlite.base import SQLiteDialect
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 
+from spinta.cli.helpers.message import cli_message
+from spinta.components import Context
+
 if TYPE_CHECKING:
     from alembic.operations import Operations
 
@@ -31,6 +34,7 @@ class SqliteMigratableDb:
                 metadata,
                 sa.Column("migration", sa.Text, primary_key=True),
                 sa.Column("applied_at", sa.DateTime, server_default=sa.func.now()),
+                extend_existing=True,
             )
         }
 
@@ -45,6 +49,10 @@ class SqliteMigratableDb:
         assert self._conn is not None
         self._conn.close()
         self._conn = None
+
+    @property
+    def is_entered(self) -> bool:
+        return self._conn is not None
 
     @property
     def conn(self) -> sa.engine.Connection:
@@ -114,6 +122,43 @@ class SqliteMigratableDb:
 
     def _default_table_template(self, name: str, **kwargs) -> Callable[[sa.MetaData], sa.Table]:
         raise Exception("Not implemented")
+
+
+def outdated_sqlite_db(
+    context: Context, sqlite_db: SqliteMigratableDb, migration: str, additional_check: Callable | None = None, **kwargs
+) -> bool:
+    def _check_missing_migrations() -> bool:
+        if not sqlite_db.contains_migration(migration):
+            return True
+
+        if additional_check and additional_check(context, **kwargs):
+            return True
+        return False
+
+    if not isinstance(sqlite_db, SqliteMigratableDb):
+        return False
+
+    if sqlite_db.is_entered:
+        return _check_missing_migrations()
+
+    with sqlite_db:
+        return _check_missing_migrations()
+
+
+def apply_migration_to_outdated_db(
+    context: Context,
+    sqlite_db: SqliteMigratableDb,
+    migration: str,
+    apply_migration: Callable,
+    database_name: str,
+    **kwargs,
+):
+    if not outdated_sqlite_db(context, sqlite_db, migration, None, **kwargs):
+        return
+
+    cli_message(f'\tApplying "{migration}" migration to sqlite database ("{database_name}")')
+    apply_migration(context, sqlite_db, migration)
+    sqlite_db.mark_migration(migration)
 
 
 def migrate_table(

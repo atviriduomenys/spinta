@@ -1265,3 +1265,11 @@ class Base32TypeOnlyAllowedOnIdOrRevision(BaseError):
 
 class ValuesForIdCantHaveSpecialSymbols(BaseError):
     template = "The value used for _id can not have special symbols. Found {value} value on {property} property. Change _id type to Base32 or remove the special symbol."
+
+
+class PushStateMigrationRequired(UpgradeError):
+    template = """
+    Push state database ({dsn!r}) is missing {migration!r} migration.
+    Run this command to execute migrations:
+    `spinta -o push_state_path={path} upgrade --target push_state_db`.
+    """

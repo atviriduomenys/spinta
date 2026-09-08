@@ -5,27 +5,85 @@ from typing import Iterable, Iterator, List
 
 import sqlalchemy as sa
 
-from spinta import spyna
+from spinta import commands, spyna
 from spinta.cli.helpers.push import prepare_data_for_push_state
-from spinta.cli.helpers.push.components import PushRow, PushState, Saved
+from spinta.cli.helpers.push.components import PUSH_STATE_PATH, PushRow, PushState, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
+from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
+from spinta.cli.helpers.script.helpers import sort_scripts_by_required
+from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Context, Model, pagination_enabled
+from spinta.exceptions import PushStateMigrationRequired
 from spinta.utils.json import fix_data_for_json
 
 
 def init_push_state(
+    context: Context,
     dburi: str,
     models: List[Model],
 ) -> PushState:
     state = PushState(dburi)
+    context.set(PUSH_STATE_PATH, dburi)
+    with state:
+        is_fresh = is_fresh_database(context, state)
+        # Initialize missing metadata tables
+        state.create_all_metatables()
 
-    # Initialize metadata tables
-    state.create_all_metatables()
+        # Create all missing model tables
+        for model in models:
+            state.get_table(name=model.name, model=model)
 
-    # Create all model tables
-    for model in models:
-        state.get_table(name=model.name, model=model)
+        if is_fresh:
+            mark_migrations(push_state=state)
+        else:
+            validate_migrations(context, state)
     return state
+
+
+def is_fresh_database(context: Context, push_state: PushState) -> bool:
+    insp = sa.inspect(push_state.engine)
+    tables = insp.get_table_names()
+
+    if not len(tables):
+        return True
+
+    for metatable_name in push_state.metatable_templates.keys():
+        if metatable_name in tables:
+            return False
+
+    tables = [table for table in tables if not table.startswith("_")]
+    manifest = context.get("store").manifest
+    for table in tables:
+        if commands.has_model(context, manifest, table):
+            return False
+
+    return True
+
+
+def mark_migrations(push_state: PushState):
+    # Mark all migration scripts as already executed
+    migration_scripts = upgrade_script_registry.get_all(
+        targets={ScriptTarget.PUSH_STATE_DB.value}, tags={ScriptTag.DB_MIGRATION.value}
+    )
+    filtered = sort_scripts_by_required(migration_scripts)
+    for script in filtered.values():
+        push_state.mark_migration(script.name)
+
+
+def validate_migrations(context: Context, push_state: PushState):
+    config = context.get("config")
+    if config.upgrade_mode:
+        return
+
+    migration_scripts = upgrade_script_registry.get_all(
+        targets={ScriptTarget.PUSH_STATE_DB.value}, tags={ScriptTag.DB_MIGRATION.value}
+    )
+    filtered = sort_scripts_by_required(migration_scripts)
+    for script in filtered.values():
+        if script.check(context):
+            raise PushStateMigrationRequired(
+                dsn=push_state.dsn, migration=script.name, path=push_state.engine.url.database
+            )
 
 
 def reset_pushed(

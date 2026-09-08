@@ -46,6 +46,7 @@ class SqlAlchemyKeyMap(SqliteMigratableDb, KeyMap):
             sa.Column("model", sa.Text, primary_key=True),
             sa.Column("cid", sa.BIGINT),
             sa.Column("updated", sa.DateTime),
+            extend_existing=True,
         )
 
     def copy(self) -> "SqlAlchemyKeyMap":
@@ -401,14 +402,13 @@ def initialize_meta_tables(keymap: SqlAlchemyKeyMap):
 def is_fresh_database(context: Context, keymap: SqlAlchemyKeyMap) -> bool:
     insp = sa.inspect(keymap.engine)
     tables = insp.get_table_names()
-    if keymap.sync_table_name in tables:
-        return False
-
-    if keymap.migration_table_name in tables:
-        return False
 
     if not len(tables):
         return True
+
+    for metatable_name in keymap.metatable_templates.keys():
+        if metatable_name in tables:
+            return False
 
     tables = [table for table in tables if not table.startswith("_")]
     manifest = context.get("store").manifest

@@ -263,7 +263,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rows = [
@@ -339,7 +339,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rows = [
@@ -389,7 +389,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rev_before = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
@@ -482,7 +482,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         synchronize_time = datetime.datetime.now()
@@ -565,7 +565,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         table = push_state.get_table(model.name)
@@ -646,7 +646,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
         time_before_sync_push = datetime.datetime.now()
         table = push_state.get_table(model.name)
@@ -718,7 +718,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rev_before = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
@@ -863,7 +863,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rev_before = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
@@ -953,7 +953,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rev = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
@@ -1039,7 +1039,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rev = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
@@ -1151,7 +1151,7 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
     conn.execute(table.insert().values(id=_id, rev=rev, pushed=pushed))
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         table = push_state.get_table(model.name)
@@ -1185,7 +1185,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
     models = [model]
 
     with context:
-        context.attach(PUSH_STATE_DB, init_push_state, "sqlite://", models)
+        context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
         rev = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
