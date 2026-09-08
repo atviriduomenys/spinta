@@ -416,6 +416,19 @@ id | d | r | b | m | property  | type            | ref          | source | level
 """)
 
 
+# A model that builds `_revision` out of its data and holds a file, whose `:ref`
+# answer carries that revision.
+MANIFEST_WITH_FILE_AND_DECLARED_REVISION = striptable("""
+id | d | r | b | m | property  | type            | ref   | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |       |         |       |
+   |   | test                  | memory          |       |         |       |
+   |   |   |   | Byla          |                 | kodas | bylos   |       |
+   |   |   |   |   | _revision | integer         |       |         |       | open
+   |   |   |   |   | kodas     | string required |       | kodas   | 4     | open
+   |   |   |   |   | priedas   | file            |       | priedas | 4     | open
+""")
+
+
 # A reference inside an object property, and inside an object inside one.
 MANIFEST_WITH_NESTED_OBJECT_REF = striptable("""
 id | d | r | b | m | property           | type            | ref                                    | level | access

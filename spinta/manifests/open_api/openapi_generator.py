@@ -264,6 +264,7 @@ class SchemaNamer:
         self._names: dict[str, str] = {}
         self._ref_shapes: dict[str, dict[Any, str]] = {}
         self._object_names: dict[tuple[str, str], str] = {}
+        self._file_ref_names: dict[tuple[str, str], str] = {}
         self._taken = set(reserved or ())
 
         for model in sorted(models.values(), key=lambda model: model.name):
@@ -316,6 +317,25 @@ class SchemaNamer:
             self._taken.update(_derived_schema_names(name))
             shapes[shape] = name
         return shapes[shape]
+
+    def file_ref_name(self, model: Model, prop_name: str) -> str:
+        """Name of the schema of what is known about a file a property holds.
+
+        The answer carries the `_revision` of the model the property belongs
+        to, which the model may build out of its own data, so the schema is of
+        that model rather than shared.
+        """
+        key = (model.name, prop_name)
+        if key not in self._file_ref_names:
+            base = unnamable_re.sub("_", f"{self.name(model)}_{prop_name}_ref")
+            name = base
+            number = 1
+            while any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            self._file_ref_names[key] = name
+        return self._file_ref_names[key]
 
     def object_name(self, model: Model, prop_name: str) -> str:
         """Name of the schema of what one object property holds.
@@ -923,6 +943,9 @@ class PathGenerator:
         if path_type == "objectProperty" and model and model_property:
             return f"#/components/schemas/{self.namer.object_name(model, model_property[0])}"
 
+        if path_type == "propertyRef" and model and model_property:
+            return f"#/components/schemas/{self.namer.file_ref_name(model, model_property[0])}"
+
         if schema_name:
             return f"#/components/schemas/{schema_name}"
 
@@ -1207,8 +1230,37 @@ class SchemaGenerator:
 
         for model in models.values():
             self._create_object_property_schemas(schemas, model)
+            self._create_file_ref_schemas(schemas, model)
 
         return schemas
+
+    def _create_file_ref_schemas(self, schemas: dict, model) -> None:
+        """Schemas of what is known about the file a property holds.
+
+        Served under the `:ref` action of the property, see
+        `spinta.commands.read.getone` of a `File`. The answer carries the
+        `_revision` of the model, which a model may build out of its own data
+        and which is then not a string at all, so the schema is of that model.
+        """
+        for prop_name, model_property in model.get_given_properties().items():
+            if self.dtype_handler.get_dtype_name(model_property.dtype) not in PROPERTY_TYPES_IN_PATHS:
+                continue
+
+            standard = self._standard_properties(f"{model.name}.{prop_name}", model)
+            shared = COMMON_SCHEMAS["fileRef"]
+            schemas[self.namer.file_ref_name(model, prop_name)] = {
+                "type": "object",
+                "description": f"What is known about the file `{prop_name}` of `{model.name}` holds.",
+                # The envelope of the object is written whatever the request
+                # selects, see `prepare_data_for_response` of a `File`.
+                "required": ["_type", "_revision"],
+                "properties": {
+                    "_type": standard["_type"],
+                    "_revision": standard["_revision"],
+                    "_id": copy.deepcopy(shared["properties"]["_id"]),
+                    "_content_type": copy.deepcopy(shared["properties"]["_content_type"]),
+                },
+            }
 
     def _create_object_property_schemas(self, schemas: dict, model) -> None:
         """Schemas of the object properties served under a path of their own.
