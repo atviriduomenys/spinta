@@ -36,6 +36,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_DECLARED_REVISION,
     MANIFEST_WITH_ENUM_ID,
     MANIFEST_WITH_ENUM_VALUES,
+    MANIFEST_WITH_FILE_AND_DECLARED_REVISION,
     MANIFEST_WITH_INTEGER_ID,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_OBJECT_REF,
@@ -948,8 +949,13 @@ def test_file_property_reference_matches_what_spinta_answers(model, app, context
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/json")
-    schemas = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]
-    jsonschema.validate(response.json(), schemas["fileRef"])
+    spec = create_openapi_manifest(context.get("store").manifest)
+    # The answer carries the `_revision` of the model, which the model may
+    # build out of its own data, so the schema is of that model.
+    name = f"{model.replace('/', '_')}_pdf_ref"
+    jsonschema.validate(response.json(), spec["components"]["schemas"][name])
+    assert spec["components"]["schemas"][name]["required"] == ["_type", "_revision"]
+    assert spec["components"]["schemas"][name]["properties"]["_type"]["const"] == f"{model}.pdf"
 
 
 @pytest.mark.models("backends/postgres/City")
@@ -1053,6 +1059,20 @@ def test_declared_uuid_identifier_is_the_one_spinta_reads():
         # given, so the pattern of a declared `uuid` follows that and not the
         # looser reading an identifier Spinta gives goes through.
         assert bool(re.match(UUID_VALUE_PATTERN, value)) is is_str_uuid(value), value
+
+
+def test_file_reference_revision_is_the_one_the_model_builds(open_manifest_path_factory):
+    """A model can build `_revision` out of its data, and then it is not a UUID."""
+    jsonschema = pytest.importorskip("jsonschema")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_FILE_AND_DECLARED_REVISION)
+    schemas = open_api_spec["components"]["schemas"]
+
+    revision = schemas["ds_Byla_priedas_ref"]["properties"]["_revision"]
+    # The shared schema said `string` or `null`, which would refuse the whole
+    # number this model answers with, see `_revision_schema`.
+    jsonschema.validate(1, revision)
+    # And nothing references the shared one any more.
+    assert "fileRef" not in schemas
 
 
 def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
