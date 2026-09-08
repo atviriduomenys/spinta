@@ -4,6 +4,44 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Configuration keys that hold a list of subkeys (for example ``backends``) no
+  longer accept a scalar value, such as ``backends: one``, in configuration
+  files and other configuration sources that support complex values. A list of
+  subkey names (for example ``backends: [one]``) or a mapping declaring the
+  whole subtree must be used instead. Comma separated subkey names in
+  environment variables (for example ``SPINTA_BACKENDS=one,two``), ``.env``
+  files and command line arguments (for example ``backends=one,two``) are
+  still supported. To migrate, replace scalar values with lists in YAML
+  configuration files, for example ``backends: one`` becomes
+  ``backends: [one]`` (`#1990`_).
+- Setting a configuration key to an empty value (for example
+  ``SPINTA_BACKENDS=``) now removes all subkeys in that subtree recursively,
+  and a key with a non-empty list of subkey names (for example
+  ``SPINTA_BACKENDS=one``) keeps only the listed subkeys. Removed subkeys are
+  no longer available from any configuration source, including lower priority
+  sources like defaults. If you relied on values removed by an override still
+  being read from lower priority sources, remove those overrides entirely or
+  explicitly list the subkeys to keep (`#1990`_).
+
+Improvements:
+
+- ``spinta config`` output now has an ``Env`` column, showing which
+  environment overlay provided each configuration value (`#1990`_).
+- Custom property types in manifests can now be configured with parameters
+  given as a mapping, for example ``type: {name: sqlalchemy.types.BigInteger}``,
+  in addition to a list of parameter names (`#1990`_).
+- Configuration is now documented: configuration sources with their precedence
+  order (defaults, configuration files, ``.env`` file, environment variables
+  and command line arguments), the ``config_path`` directory with the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file, and the configuration syntax: simple and complex values,
+  merging and reset semantics (`#1990`_).
+
+
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
+
 
 1.1.0 (2026-08-19)
 =====================

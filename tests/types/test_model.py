@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy.types import BigInteger
 
 from spinta import commands
 from spinta.core.enums import Level
@@ -157,3 +158,29 @@ def test_configure_missing_distribution_property_parameter(tmp_path, rc):
             manifest=_GENERIC_COUNTRY_MANIFEST,
             tmp_path=tmp_path,
         )
+
+
+def test_configure_custom_type_with_parameters(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "properties": {
+                        "code": {
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    )
+    context, manifest = load_manifest_and_context(
+        rc,
+        manifest=_GENERIC_COUNTRY_MANIFEST,
+        tmp_path=tmp_path,
+    )
+    model = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    prop = model.properties["code"]
+    assert isinstance(prop.external.custom_type, BigInteger)
