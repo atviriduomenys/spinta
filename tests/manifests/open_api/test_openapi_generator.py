@@ -2402,30 +2402,19 @@ def test_subresource_answers_carry_their_envelope(open_manifest_path_factory):
     assert COMMON_SCHEMAS["fileRef"]["required"] == ["_type", "_revision"]
 
 
-def test_token_paths_are_left_out_of_an_insecure_server(open_manifest_path_factory):
-    """Client credentials are sent in plain, which RFC 6749 allows over TLS only.
+def test_token_paths_are_offered_wherever_the_service_is(open_manifest_path_factory):
+    """The transport is ensured where the service is deployed, not here.
 
-    A deployment can be reached over `http`, a local one for instance, as long
-    as the token endpoint is somewhere else. The document then says where that
-    endpoint is, in the flow, and does not advertise one of its own that a
-    client would send credentials to in the clear.
+    A deployment reached over `http`, a testing one for instance, serves the
+    token endpoint like any other, so leaving it out of the document would
+    describe a service that is not the one running.
     """
-    config = UdtsConfig(
-        info={"title": "JADIS"},
-        servers=[{"url": "http://localhost:8000"}],
-        auth={"token_url": "https://am.example.lt/auth/token"},
-    )
-    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
-
-    assert "/:token" not in open_api_spec["paths"]
-    assert "/auth/token" not in open_api_spec["paths"]
-    flow = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]
-    assert flow["tokenUrl"] == "https://am.example.lt/auth/token"
-
-
-def test_token_paths_are_kept_where_they_can_be_reached_securely(open_manifest_path_factory):
-    """A server given without a scheme says nothing against the one serving it."""
-    for servers in ([{"url": "https://get.data.gov.lt"}], [{"url": "/datasets/gov/rc/jadis/at280/1"}]):
+    for servers in (
+        [{"url": "https://get.data.gov.lt"}],
+        [{"url": "/datasets/gov/rc/jadis/at280/1"}],
+        [{"url": "http://localhost:8000"}],
+        [{"url": "https://get.data.gov.lt"}, {"url": "http://localhost:8000"}],
+    ):
         config = UdtsConfig(
             info={"title": "JADIS"},
             servers=servers,
@@ -2435,15 +2424,17 @@ def test_token_paths_are_kept_where_they_can_be_reached_securely(open_manifest_p
 
         assert "/:token" in open_api_spec["paths"], servers
         assert "/auth/token" in open_api_spec["paths"], servers
+        # Every environment of the document, none of them singled out.
+        assert "servers" not in open_api_spec["paths"]["/:token"], servers
+        assert len(open_api_spec["paths"]["/auth/token"]["servers"]) == len(servers), servers
 
 
-def test_token_paths_name_only_the_environments_reached_over_tls(open_manifest_path_factory):
-    """One insecure environment beside a secure one must not carry credentials.
+def test_an_insecure_environment_is_described_like_any_other(open_manifest_path_factory):
+    """An `http` environment is served, so it is described, like the others.
 
-    The token endpoint is offered on the environments a client can send them
-    to, rather than being dropped for all of them or inherited by all of them.
+    The transport is ensured where the service is deployed, not by leaving the
+    endpoint out of the document; the configuration says so when it is read.
     """
-    jsonschema = pytest.importorskip("jsonschema")  # noqa: F841
     config = UdtsConfig(
         info={"title": "JADIS"},
         servers=[{"url": "https://get.data.gov.lt"}, {"url": "http://test.local:8000"}],
@@ -2452,9 +2443,10 @@ def test_token_paths_name_only_the_environments_reached_over_tls(open_manifest_p
     open_api_spec = _service_spec(open_manifest_path_factory, config=config)
 
     assert len(open_api_spec["servers"]) == 2
-    assert [server["url"] for server in open_api_spec["paths"]["/:token"]["servers"]] == [
-        f"https://get.data.gov.lt/{SERVICE_PATH}"
+    # No operation singles an environment out.
+    for path in ("/:token", "/:version", "/:health"):
+        assert "servers" not in open_api_spec["paths"][path], path
+    assert [server["url"] for server in open_api_spec["paths"]["/auth/token"]["servers"]] == [
+        "https://get.data.gov.lt",
+        "http://test.local:8000",
     ]
-    assert [server["url"] for server in open_api_spec["paths"]["/auth/token"]["servers"]] == ["https://get.data.gov.lt"]
-    # Everything else is served on both, the insecure one included.
-    assert "servers" not in open_api_spec["paths"]["/:version"]
