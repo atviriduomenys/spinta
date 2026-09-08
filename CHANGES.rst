@@ -169,6 +169,10 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - ``_page`` requires its ``next`` token and describes the shape of one:
+    ``spinta.formats.json`` writes the container only when it has a token, and
+    ``encode_page_values`` keeps the padding, so an empty object and a token of
+    a length Base64 never produces were both being accepted.
   - ``304`` carries the validators of the cache and none of the headers of an
     entity body: it answers before a body is built, so requiring
     ``Content-Type`` on it had response validation refuse a conditional read.

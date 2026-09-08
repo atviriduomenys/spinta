@@ -2429,6 +2429,26 @@ def test_token_paths_are_offered_wherever_the_service_is(open_manifest_path_fact
         assert len(open_api_spec["paths"]["/auth/token"]["servers"]) == len(servers), servers
 
 
+@pytest.mark.models("backends/postgres/City")
+def test_page_schema_matches_the_token_spinta_writes(model, app, context, open_manifest_path_factory):
+    """`_page` is written only with a token, and the token is padded Base64."""
+    jsonschema = pytest.importorskip("jsonschema")
+    app.authmodel(model, ["insert", "getall", "search"])
+    for title in ("Vilnius", "Kaunas"):
+        app.post(f"/{model}", json={"title": title})
+
+    answered = app.get(f"/{model}?_limit=1").json()["_page"]
+    schema = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]["page"]
+
+    jsonschema.validate(answered, schema)
+    assert len(answered["next"]) % 4 == 0
+    # `spinta.formats.json` writes the container only when it has a token, and
+    # `encode_page_values` keeps the padding, so neither shape is an answer.
+    for refused in ({}, {"next": "A"}, {"next": "abc=="}, {"next": answered["next"].rstrip("=")}):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(refused, schema)
+
+
 def test_an_insecure_environment_is_described_like_any_other(open_manifest_path_factory):
     """An `http` environment is served, so it is described, like the others.
 
