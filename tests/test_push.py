@@ -1118,7 +1118,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         assert list(push_state.conn.execute(query)) == [(_id1, rev, True), (_id2, None, True)]
 
 
-@pytest.skip("Push init state can no longer self heal")
+@pytest.mark.skip("Push init state can no longer self heal")
 def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
     context, manifest = load_manifest_and_context(
         rc,
