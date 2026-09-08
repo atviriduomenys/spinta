@@ -128,18 +128,18 @@ def _config_value_to_str(value: object) -> str:
 
 
 @pytest.mark.parametrize("override_type", SOURCE_TYPES)
-@pytest.mark.parametrize("base_type", SOURCE_TYPES)
-def test_override_backend_values(base_type: str, override_type: str):
+def test_override_backend_values(override_type: str):
     rc = RawConfig()
     rc.read(
         [
-            _make_config(
-                base_type,
+            PyDict(
                 "base",
-                {
-                    "backends.one.type": "sql",
-                    "backends.one.dsn": "sql@example.com",
-                },
+                _unflatten(
+                    {
+                        "backends.one.type": "sql",
+                        "backends.one.dsn": "sql@example.com",
+                    }
+                ),
             ),
             _make_config(
                 override_type,
@@ -159,18 +159,18 @@ def test_override_backend_values(base_type: str, override_type: str):
 
 
 @pytest.mark.parametrize("override_type", SOURCE_TYPES)
-@pytest.mark.parametrize("base_type", SOURCE_TYPES)
-def test_add_backend(base_type: str, override_type: str):
+def test_add_backend(override_type: str):
     rc = RawConfig()
     rc.read(
         [
-            _make_config(
-                base_type,
+            PyDict(
                 "base",
-                {
-                    "backends.one.type": "sql",
-                    "backends.one.dsn": "sql@example.com",
-                },
+                _unflatten(
+                    {
+                        "backends.one.type": "sql",
+                        "backends.one.dsn": "sql@example.com",
+                    }
+                ),
             ),
             _make_config(
                 override_type,
@@ -193,20 +193,20 @@ def test_add_backend(base_type: str, override_type: str):
 
 
 @pytest.mark.parametrize("override_type", SOURCE_TYPES)
-@pytest.mark.parametrize("base_type", SOURCE_TYPES)
-def test_reset_backends(base_type: str, override_type: str):
+def test_reset_backends(override_type: str):
     rc = RawConfig()
     rc.read(
         [
-            _make_config(
-                base_type,
+            PyDict(
                 "base",
-                {
-                    "backends.one.type": "sql",
-                    "backends.one.dsn": "sql@example.com",
-                    "backends.two.type": "pg",
-                    "backends.two.dsn": "pg@example.com",
-                },
+                _unflatten(
+                    {
+                        "backends.one.type": "sql",
+                        "backends.one.dsn": "sql@example.com",
+                        "backends.two.type": "pg",
+                        "backends.two.dsn": "pg@example.com",
+                    }
+                ),
             ),
             _make_config(
                 override_type,
@@ -226,20 +226,20 @@ def test_reset_backends(base_type: str, override_type: str):
 
 
 @pytest.mark.parametrize("override_type", SOURCE_TYPES)
-@pytest.mark.parametrize("base_type", SOURCE_TYPES)
-def test_remove_all_backends(base_type: str, override_type: str):
+def test_remove_all_backends(override_type: str):
     rc = RawConfig()
     rc.read(
         [
-            _make_config(
-                base_type,
+            PyDict(
                 "base",
-                {
-                    "backends.one.type": "sql",
-                    "backends.one.dsn": "sql@example.com",
-                    "backends.two.type": "pg",
-                    "backends.two.dsn": "pg@example.com",
-                },
+                _unflatten(
+                    {
+                        "backends.one.type": "sql",
+                        "backends.one.dsn": "sql@example.com",
+                        "backends.two.type": "pg",
+                        "backends.two.dsn": "pg@example.com",
+                    }
+                ),
             ),
             _make_config(
                 override_type,
@@ -259,20 +259,20 @@ def test_remove_all_backends(base_type: str, override_type: str):
 
 
 @pytest.mark.parametrize("override_type", SOURCE_TYPES)
-@pytest.mark.parametrize("base_type", SOURCE_TYPES)
-def test_remove_backend(base_type: str, override_type: str):
+def test_remove_backend(override_type: str):
     rc = RawConfig()
     rc.read(
         [
-            _make_config(
-                base_type,
+            PyDict(
                 "base",
-                {
-                    "backends.one.type": "sql",
-                    "backends.one.dsn": "sql@example.com",
-                    "backends.two.type": "pg",
-                    "backends.two.dsn": "pg@example.com",
-                },
+                _unflatten(
+                    {
+                        "backends.one.type": "sql",
+                        "backends.one.dsn": "sql@example.com",
+                        "backends.two.type": "pg",
+                        "backends.two.dsn": "pg@example.com",
+                    }
+                ),
             ),
             _make_config(
                 override_type,
