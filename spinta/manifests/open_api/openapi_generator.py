@@ -100,6 +100,50 @@ def _innermost_property(model_property):
         model_property = dtype.items
 
 
+#: Keywords of a schema whose value is a schema of its own, and the ones whose
+#: value is a list or a map of them. Everything else a schema holds is data, an
+#: `enum` or an `example` among it, and is left alone.
+SUBSCHEMA_KEYS = ("items", "not", "additionalProperties", "propertyNames", "contains", "if", "then", "else")
+SUBSCHEMA_LISTS = ("anyOf", "oneOf", "allOf", "prefixItems")
+SUBSCHEMA_MAPS = ("properties", "patternProperties", "$defs", "dependentSchemas")
+
+
+def _use_examples_array(schema: Any) -> None:
+    """Give a schema its examples as a list, which is what OpenAPI 3.1 reads.
+
+    JSON Schema 2020-12 took the Schema Object over, and there an example is one
+    of a list; the `example` of a schema is deprecated, which Swagger says out
+    loud. A Media Type and a Parameter keep an `example` of their own, which is
+    not deprecated and not a schema, so this walks schemas alone.
+    """
+    if not isinstance(schema, dict):
+        return
+
+    if "example" in schema:
+        example = schema["example"]
+        examples = schema.get("examples")
+        if isinstance(examples, list):
+            if example not in examples:
+                examples.append(example)
+            del schema["example"]
+        else:
+            # Written where the deprecated one stood, so a reader finds it in
+            # the same place rather than at the end of the object.
+            rebuilt = {("examples" if key == "example" else key): value for key, value in schema.items()}
+            rebuilt["examples"] = [example]
+            schema.clear()
+            schema.update(rebuilt)
+
+    for key in SUBSCHEMA_KEYS:
+        _use_examples_array(schema.get(key))
+    for key in SUBSCHEMA_LISTS:
+        for item in schema.get(key) or []:
+            _use_examples_array(item)
+    for key in SUBSCHEMA_MAPS:
+        for item in (schema.get(key) or {}).values():
+            _use_examples_array(item)
+
+
 def _reference_shape(model_property, dtype) -> tuple:
     level = getattr(model_property, "level", None)
     refprops = getattr(dtype, "refprops", None) or []
@@ -1656,6 +1700,7 @@ class OpenAPIGenerator:
         self._add_common_schemas(specification)
         self._add_security_schemes(specification)
         self._drop_unused_components(specification)
+        self._use_examples_arrays(specification)
 
         return specification
 
@@ -1867,6 +1912,28 @@ class OpenAPIGenerator:
                 return
             for schema_name in sorted(missing):
                 schemas[schema_name] = copy.deepcopy(COMMON_SCHEMAS[schema_name])
+
+    def _use_examples_arrays(self, spec: dict[str, Any]) -> None:
+        """Walk every schema of the document, and nothing else, see
+        `_use_examples_array`."""
+        for schema in spec.get("components", {}).get("schemas", {}).values():
+            _use_examples_array(schema)
+
+        def walk(node: Any) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if key == "schema":
+                        _use_examples_array(value)
+                    else:
+                        walk(value)
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item)
+
+        walk(spec.get("paths", {}))
+        for name, section in spec.get("components", {}).items():
+            if name != "schemas":
+                walk(section)
 
     def _drop_unused_components(self, spec: dict[str, Any]) -> None:
         """Leave out the components nothing refers to.
