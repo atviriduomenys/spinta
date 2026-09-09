@@ -1,0 +1,57 @@
+# UDTS duomenų paslaugos OpenAPI (OAS) generavimo konfigūracija.
+#
+#   spinta udts oas manifest.csv -o at280.json \
+#       --path datasets/gov/rc/jadis/at280/1 \
+#       --udts-cfg vartai.yml
+#
+# Čia surašoma tai, ko manifeste nėra: aplinkų adresai, paslaugos lygmens
+# aprašas ir autorizacijos serveris. Failas PRIVALOMAS, ir jame privalomi du
+# dalykai – `info.title` ir bent vienas `servers` įrašas. Visa kita neprivaloma.
+
+# Paslaugos aprašas. Patenka į OAS `info`.
+info:
+  # PRIVALOMA. Vardas, kuriuo paslauga matoma vartuose.
+  title: JADIS duomenų paslauga
+  summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
+  description: |
+    Išsamesnis paslaugos aprašas, matomas vartų dokumentacijoje.
+  version: "1"
+  contact:
+    name: Registrų centras
+    url: https://www.registrucentras.lt/
+    email: info@registrucentras.lt
+  license:
+    name: CC-BY 4.0
+    url: https://creativecommons.org/licenses/by/4.0/
+
+# Aplinkos. Kiekviena aplinka – atskiras įrašas; vartai iš PIRMOJO įrašo kelio
+# dalies išsiveda API context-path.
+#
+# `url` galima nurodyti dviem būdais:
+#   - tik adresas (be kelio) – tuomet prilipdomas `--path` paslaugos kelias.
+#     Taip vienas failas tinka visoms to paties agento paslaugoms;
+#   - pilnas adresas su paslaugos keliu – naudojamas toks, koks yra.
+# PRIVALOMA. Bent vienas įrašas.
+servers:
+  - url: https://get.data.gov.lt
+    description: Gamybinė (išoriniai vartai)
+  - url: https://test-get.data.gov.lt
+    description: Testavimo
+
+# Autorizacijos serveris. `token_url` patenka į
+# `components.securitySchemes.UAPI_auth` kaip `clientCredentials` srauto adresas.
+#
+# Nenurodžius, jis išvedamas iš pirmojo `servers` įrašo ir `/:token` – t. y. iš
+# to paties adreso, kuriuo token'ą per vartus pasiekia gavėjas. Nurodyti reikia
+# tik tada, kai autorizacijos serveris yra kitur.
+#auth:
+#  token_url: https://am.example.lt/auth/token
+
+# Ribos, kurių laikosi vartai, tikrindami užklausas pagal šį aprašą. Spinta pati
+# viršutinės `_limit` ribos neturi, tad tai yra apsauga, dedama prieš ją.
+#limits:
+#  max_limit: 100000
+
+# Nuoroda į išorinę dokumentaciją.
+externalDocs:
+  url: https://ivpk.github.io/uapi

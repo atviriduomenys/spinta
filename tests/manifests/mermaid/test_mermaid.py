@@ -4,6 +4,7 @@ from spinta.exceptions import InvalidName
 from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef, write_mermaid_manifest
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -709,8 +710,12 @@ def test_write_mermaid_manifest_output_as_string(context: Context, rc, cli: Spin
           |   |   |   | id       | string           |           | id          |         | public                   
         """),
     )
-    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
-    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+    # Reading a manifest loads it into the store of the context it is given, and
+    # the one of the fixture is shared by the whole session, so a context of its
+    # own is used and every test after this one keeps the manifest it expects.
+    own_context = create_test_context(rc)
+    manifest = _read_and_return_manifest(own_context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(own_context, manifest, "datasets/gov/example")
 
     assert (
         mermaid
@@ -759,8 +764,12 @@ def test_write_mermaid_manifest_nested_properties(context: Context, rc, cli: Spi
             |   |   |   | name                          | string           |           | pavadinimas    
             """),
     )
-    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
-    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+    # Reading a manifest loads it into the store of the context it is given, and
+    # the one of the fixture is shared by the whole session, so a context of its
+    # own is used and every test after this one keeps the manifest it expects.
+    own_context = create_test_context(rc)
+    manifest = _read_and_return_manifest(own_context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(own_context, manifest, "datasets/gov/example")
 
     assert (
         mermaid
@@ -806,8 +815,12 @@ def test_write_mermaid_manifest_model_without_properties(context: Context, rc, c
           |   |   | City                              |                  |           | salis       
         """),
     )
-    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
-    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+    # Reading a manifest loads it into the store of the context it is given, and
+    # the one of the fixture is shared by the whole session, so a context of its
+    # own is used and every test after this one keeps the manifest it expects.
+    own_context = create_test_context(rc)
+    manifest = _read_and_return_manifest(own_context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(own_context, manifest, "datasets/gov/example")
 
     assert (
         mermaid

@@ -7,10 +7,19 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
+from ruamel.yaml import YAML
+from typer import echo
+
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import NotImplementedFeature
-from spinta.manifests.components import ManifestPath
-from spinta.manifests.open_api.openapi_generator import OpenAPIGenerator
+from spinta.manifests.components import Manifest, ManifestPath
+from spinta.manifests.open_api.openapi_generator import (
+    DEFAULT_SCOPE_MAX_LENGTH,
+    DEFAULT_SCOPE_PREFIX,
+    OpenAPIGenerator,
+    ScopeNameFunc,
+)
+from spinta.manifests.open_api.udts_config import UdtsConfig
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
@@ -351,13 +360,60 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     yield from get_dataset_schemas(data, dataset_prefix)
 
 
-def create_openapi_manifest(manifest: ManifestPath, **kwargs: Any) -> dict:
-    """Create OpenAPI manifest from manifest data"""
+def create_openapi_manifest(
+    manifest: ManifestPath | Manifest,
+    *,
+    main_dataset_name: str | None = None,
+    api_version: str | None = None,
+    service_path: str | None = None,
+    config: UdtsConfig | None = None,
+    scope_name: ScopeNameFunc | None = None,
+    scope_prefix: str = DEFAULT_SCOPE_PREFIX,
+    scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
+) -> dict:
+    """Create OpenAPI specification from manifest data.
 
-    main_dataset_name = kwargs.get("main_dataset_name")
-    api_version = kwargs.get("api_version")
+    Manifest is given either as a `ManifestPath`, which is loaded on the spot,
+    or as an already loaded manifest.
+
+    Given `service_path`, the specification covers one UDTS data service with
+    all of its datasets. Given `main_dataset_name`, it covers a single data
+    set.
+    """
     generator = OpenAPIGenerator(
         main_dataset_name=main_dataset_name,
         api_version=api_version,
+        service_path=service_path,
+        config=config,
+        scope_name=scope_name,
+        scope_prefix=scope_prefix,
+        scope_max_length=scope_max_length,
     )
     return generator.generate_spec(manifest)
+
+
+def write_openapi_manifest(spec: dict, output: str | None = None) -> None:
+    """Write OpenAPI specification to a file or to stdout.
+
+    Output format is chosen by file extension, defaulting to JSON.
+    """
+    if output is None:
+        echo(json.dumps(spec, indent=2, ensure_ascii=False))
+        return
+
+    path = Path(output)
+    # Specification holds non ASCII text, so the encoding can not be left to the
+    # platform default.
+    if path.suffix in (".yml", ".yaml"):
+        yaml = YAML()
+        yaml.default_flow_style = False
+        # One object reached from two places, which a `--udts-cfg` anchor also
+        # produces, would be written as an anchor and an alias, and not every
+        # consumer of the specification reads those.
+        yaml.representer.ignore_aliases = lambda *_: True
+        with path.open("w", encoding="utf-8") as file:
+            yaml.dump(spec, file)
+    else:
+        with path.open("w", encoding="utf-8") as file:
+            json.dump(spec, file, indent=2, ensure_ascii=False)
+            file.write("\n")

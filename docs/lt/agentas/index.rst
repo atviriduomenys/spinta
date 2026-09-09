@@ -10,6 +10,7 @@ Agentas
    diegimas/index
    web-serverio-konfigūravimas
    duomenų-gavimo-testavimas
+   oas-generavimas
    tinklo-konfigūravimas
    pradinio-puslapio-konfigūravimas
    papildoma-informacija
