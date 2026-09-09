@@ -169,6 +169,11 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - A schema gives its examples as a list, which is what OpenAPI 3.1 reads.
+    JSON Schema 2020-12 took the Schema Object over and deprecated the
+    ``example`` of a schema there, which Swagger reports on every one of them.
+    A media type and a parameter keep an ``example`` of their own, which is
+    neither a schema nor deprecated.
   - A media type of a response keeps everything the configuration says about
     it, not the schema alone. The token endpoint answers a `400` of two shapes,
     so neither schema carries the example and it sits beside them; it was being
