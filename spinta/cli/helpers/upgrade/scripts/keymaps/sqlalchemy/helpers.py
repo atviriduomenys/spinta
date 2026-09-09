@@ -23,7 +23,8 @@ def outdated_keymaps(context: Context, migration: str, additional_check: Callabl
 def apply_migration_to_outdated_keymaps(context: Context, migration: str, apply_migration: Callable, **kwargs):
     keymaps = outdated_keymaps(context, migration, None, **kwargs)
     for keymap in keymaps:
-        apply_migration_to_outdated_db(context, keymap, migration, apply_migration, keymap.name, **kwargs)
+        with keymap:
+            apply_migration_to_outdated_db(context, keymap, migration, apply_migration, keymap.name, **kwargs)
 
 
 def requires_migration(context: Context, migration: str, additional_check: Callable | None = None, **kwargs) -> bool:
