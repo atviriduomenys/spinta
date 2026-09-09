@@ -352,7 +352,7 @@ def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, e
 
     assert schema["type"] == "object"
     assert "properties" in schema
-    assert "example" in schema
+    assert "examples" in schema
 
     properties = schema["properties"]
 
@@ -366,7 +366,7 @@ def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, e
         prop_schema = properties[prop_name]
         assert "type" in prop_schema or "$ref" in prop_schema, f"Property {prop_name} missing type/ref in {model_name}"
 
-    example = schema["example"]
+    example = schema["examples"][0]
     # `_type` of a response is the full model name, see `spinta.commands.read`.
     assert example["_type"] == f"{dataset_name}/{model_name}"
     assert "_id" in example
@@ -498,11 +498,11 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
     assert "population" not in county_props
     assert "_id" in county_props
 
-    municipality_example = municipality_schema["example"]
+    municipality_example = municipality_schema["examples"][0]
     assert "_id" in municipality_example
     assert "id" not in municipality_example
 
-    county_example = county_schema["example"]
+    county_example = county_schema["examples"][0]
     assert "_id" in county_example
     assert "id" not in county_example
 
@@ -533,16 +533,16 @@ def test_main_model_ref_properties_have_proper_examples(open_manifest_path_facto
     schemas = open_api_spec["components"]["schemas"]
     territory_schema = schemas["Territory"]
 
-    city_example = territory_schema["properties"]["city"]["example"]
+    city_example = territory_schema["properties"]["city"]["examples"][0]
     assert "_id" in city_example, "city example should contain global '_id' field"
     assert "id" not in city_example
 
-    region_example = territory_schema["properties"]["region"]["example"]
+    region_example = territory_schema["properties"]["region"]["examples"][0]
     assert "_id" in region_example, "region example should contain global '_id' field"
     assert "id" not in region_example
     assert "title" not in region_example
 
-    schema_example = territory_schema["example"]
+    schema_example = territory_schema["examples"][0]
     assert isinstance(schema_example["city"], dict)
     assert "_id" in schema_example["city"]
     assert "id" not in schema_example["city"]
@@ -1092,6 +1092,48 @@ def test_a_media_type_keeps_what_the_configuration_says_about_it(open_manifest_p
     )
 
 
+def test_no_schema_carries_the_deprecated_example(open_manifest_path_factory):
+    """OpenAPI 3.1 deprecated `example` of a schema, and Swagger says so."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    components = open_api_spec["components"]
+
+    def schemas_of(node, path):
+        """Every schema of the document, and nothing that only looks like one."""
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "schema" and isinstance(value, dict):
+                    yield "/".join([*path, key]), value
+                else:
+                    yield from schemas_of(value, [*path, str(key)])
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                yield from schemas_of(item, [*path, str(i)])
+
+    def walk(name, schema):
+        yield name, schema
+        for key in ("items", "not", "additionalProperties"):
+            if isinstance(schema.get(key), dict):
+                yield from walk(f"{name}/{key}", schema[key])
+        for key in ("anyOf", "oneOf", "allOf"):
+            for i, item in enumerate(schema.get(key) or []):
+                yield from walk(f"{name}/{key}/{i}", item)
+        for key in ("properties", "patternProperties"):
+            for prop, item in (schema.get(key) or {}).items():
+                yield from walk(f"{name}/{key}/{prop}", item)
+
+    found = []
+    for name, schema in components["schemas"].items():
+        found += [n for n, s in walk(name, schema) if "example" in s]
+    for where in (open_api_spec["paths"], {k: v for k, v in components.items() if k != "schemas"}):
+        for name, schema in schemas_of(where, []):
+            found += [n for n, s in walk(name, schema) if "example" in s]
+
+    assert not found, found[:5]
+    # A media type and a parameter keep an example of their own, which is not a
+    # schema and not deprecated.
+    assert "example" in components["responses"]["tokenError400"]["content"]["application/json"]
+
+
 def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
     """`error_response` sends the message filled in, never the template."""
     open_api_spec = _service_spec(open_manifest_path_factory)
@@ -1104,7 +1146,7 @@ def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
     ]
     assert named
     for name in [*named, "Error"]:
-        message = schemas[name]["properties"]["message"].get("example")
+        message = schemas[name]["properties"]["message"].get("examples", [None])[0]
         assert message is not None, name
         assert "{" not in message and "}" not in message, (name, message)
 
@@ -1118,7 +1160,7 @@ def test_whole_number_identifier_is_bounded(open_manifest_path_factory):
 
     assert identifier["type"] == "integer"
     assert identifier["format"] == "int64"
-    jsonschema.validate(identifier["example"], identifier)
+    jsonschema.validate(identifier["examples"][0], identifier)
     jsonschema.validate(2**63 - 1, identifier)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(2**63, identifier)
@@ -1132,14 +1174,15 @@ def test_composite_identifier_example_holds_every_key(open_manifest_path_factory
     salis = open_api_spec["components"]["schemas"]["ds_Salis"]
     identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
 
-    expected = f"{salis['example']['nr']},{salis['example']['kodas']}"
-    assert identifier["example"] == expected
-    assert salis["properties"]["_id"]["example"] == expected
-    jsonschema.validate(identifier["example"], identifier)
+    answered = salis["examples"][0]
+    expected = f"{answered['nr']},{answered['kodas']}"
+    assert identifier["examples"][0] == expected
+    assert salis["properties"]["_id"]["examples"][0] == expected
+    jsonschema.validate(identifier["examples"][0], identifier)
 
     # A composite key is not reached by an equals sign, see
     # `is_accessible_by_equals_sign`, so the example carries none.
-    assert not identifier["example"].startswith("=")
+    assert not identifier["examples"][0].startswith("=")
 
 
 def test_base32_identifier_takes_a_length_that_decodes(open_manifest_path_factory):
@@ -1196,20 +1239,20 @@ def test_base32_identifier_example_is_the_key_encoded(open_manifest_path_factory
 
     identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
     salis = open_api_spec["components"]["schemas"]["ds_Salis"]
-    key = salis["example"]["kodas"]
+    key = salis["examples"][0]["kodas"]
 
     # The value a request gives is the encoded key behind an equals sign, and
     # the schema of the parameter has to accept its own example.
-    assert identifier["example"] == f"={encode_base32(key)}"
-    jsonschema.validate(identifier["example"], identifier)
+    assert identifier["examples"][0] == f"={encode_base32(key)}"
+    jsonschema.validate(identifier["examples"][0], identifier)
 
     # A response carries the same identifier without the sign, which is the
     # form `cast_backend_to_python` gives it in, and of the shape that form has.
-    assert salis["properties"]["_id"]["example"] == encode_base32(key)
-    assert salis["example"]["_id"] == encode_base32(key)
+    assert salis["properties"]["_id"]["examples"][0] == encode_base32(key)
+    assert salis["examples"][0]["_id"] == encode_base32(key)
     answered = salis["properties"]["_id"]
-    jsonschema.validate(answered["example"], answered)
-    for refused in (answered["example"].lower(), answered["example"] + "======", "=" + answered["example"]):
+    jsonschema.validate(answered["examples"][0], answered)
+    for refused in (answered["examples"][0].lower(), answered["examples"][0] + "======", "=" + answered["examples"][0]):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(refused, answered)
 
@@ -1228,7 +1271,7 @@ def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_facto
     assert identifier["schema"]["pattern"] == EQUALS_ID_PATTERN
     # The example is the value of the property the model is keyed by, behind
     # the equals sign a request needs.
-    assert identifier["schema"]["example"].startswith("=")
+    assert identifier["schema"]["examples"][0].startswith("=")
     jsonschema.validate("=AE", identifier["schema"])
     jsonschema.validate("=ąčę-2026", identifier["schema"])
     for value in ("AE", "=a/b"):
@@ -1246,15 +1289,15 @@ def test_example_identifiers_are_not_all_one(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
     schemas = open_api_spec["components"]["schemas"]
 
-    israsas = schemas["at280_israsas_DalyvioAsmensIsrasas"]["example"]
-    adresas = schemas["at280_adresai_Adresas"]["example"]
+    israsas = schemas["at280_israsas_DalyvioAsmensIsrasas"]["examples"][0]
+    adresas = schemas["at280_adresai_Adresas"]["examples"][0]
 
     assert israsas["_id"] != adresas["_id"]
     assert israsas["_id"] != israsas["_revision"]
 
     # A request and the answer beside it speak about one object.
     identifier = open_api_spec["components"]["parameters"]["id_at280_israsas_DalyvioAsmensIsrasas"]
-    assert identifier["schema"]["example"] == israsas["_id"]
+    assert identifier["schema"]["examples"][0] == israsas["_id"]
 
     # A reference points at the example of what it references.
     assert israsas["adresas"]["_id"] == adresas["_id"]
@@ -1527,7 +1570,7 @@ def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: Mani
         # Values are null once the file is deleted.
         assert schemas[name]["properties"]["_id"]["type"] == ["string", "null"]
 
-    example = schemas["datasets_demo_system_data_ProcessingUnit"]["example"]["technical_specs"]
+    example = schemas["datasets_demo_system_data_ProcessingUnit"]["examples"][0]["technical_specs"]
     assert set(example) == {"_id", "_content_type"}
 
 
@@ -1745,8 +1788,8 @@ def test_collection_head_takes_the_query_parameter(open_manifest_path_factory):
 
     examples = open_api_spec["components"]["parameters"][query["$ref"].rsplit("/", 1)[1]]
     properties = examples["schema"]["properties"]
-    assert properties["_select"]["example"] == "kodas,adresas"
-    assert properties["_sort"]["example"] == "kodas"
+    assert properties["_select"]["examples"][0] == "kodas,adresas"
+    assert properties["_sort"]["examples"][0] == "kodas"
 
     scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
     assert any(scope.endswith("/:search") for scope in scopes)
@@ -1880,7 +1923,7 @@ def test_array_through_an_intermediate_table_is_a_list(open_manifest_path_factor
         {"$ref": "#/components/schemas/ds_Kalba_Ref"},
         {"type": "null"},
     ]
-    assert isinstance(schema["example"]["kalbos"], list)
+    assert isinstance(schema["examples"][0]["kalbos"], list)
 
 
 def test_optional_array_item_accepts_null(open_manifest_path_factory):
@@ -1900,7 +1943,7 @@ def test_dynamic_array_holds_anything(open_manifest_path_factory):
 
     zymos = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["zymos"]
 
-    assert zymos == {"type": ["array", "null"], "example": []}
+    assert zymos == {"type": ["array", "null"], "examples": [[]]}
 
 
 def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):
@@ -2129,11 +2172,12 @@ def test_error_examples_satisfy_their_own_schemas(open_manifest_path_factory):
     checked = 0
     for response in components["responses"].values():
         schema = response.get("content", {}).get("application/json", {}).get("schema", {})
-        for error in schema.get("example", {}).get("errors", []):
-            named = schemas.get(error["code"])
-            assert named is not None, error["code"]
-            jsonschema.validate(error, named)
-            checked += 1
+        for example in schema.get("examples") or []:
+            for error in example.get("errors", []):
+                named = schemas.get(error["code"])
+                assert named is not None, error["code"]
+                jsonschema.validate(error, named)
+                checked += 1
     assert checked
 
 
@@ -2245,8 +2289,8 @@ def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_fact
     query = open_api_spec["components"]["parameters"]["query_at280_israsas_DalyvioAsmensIsrasas"]
     limit = query["schema"]["properties"]["_limit"]
 
-    assert limit["example"] == 5
-    jsonschema.validate(limit["example"], limit)
+    assert limit["examples"][0] == 5
+    jsonschema.validate(limit["examples"][0], limit)
     jsonschema.validate(query["example"]["_limit"], limit)
 
 
@@ -2376,7 +2420,7 @@ def test_listed_identifiers_are_reachable(open_manifest_path_factory):
     assert "pattern" not in identifier
 
     for schema in (identifier, answered):
-        jsonschema.validate(schema["example"], schema)
+        jsonschema.validate(schema["examples"][0], schema)
     jsonschema.validate("=AE", identifier)
     jsonschema.validate("AE", answered)
 
