@@ -96,7 +96,6 @@ class SqliteMigratableDb:
         if not create_missing:
             raise Exception("table not found")
 
-
         table_template = self.metatable_templates.get(name)
         if table_template is None:
             table_template = self._default_table_template(name, **kwargs)
