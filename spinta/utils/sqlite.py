@@ -34,7 +34,6 @@ class SqliteMigratableDb:
                 metadata,
                 sa.Column("migration", sa.Text, primary_key=True),
                 sa.Column("applied_at", sa.DateTime, server_default=sa.func.now()),
-                extend_existing=True,
             )
         }
 
@@ -91,15 +90,19 @@ class SqliteMigratableDb:
 
     def get_table(self, name: str, create_missing: bool = True, **kwargs) -> sa.Table:
         table = self.metadata.tables.get(name)
-        if table is None:
-            if create_missing:
-                table_template = self.metatable_templates.get(name)
-                if table_template is None:
-                    table_template = self._default_table_template(name, **kwargs)
-                table = table_template(self.metadata)
-                self.create_table(table)
-            else:
-                raise Exception("table not found")
+        if table is not None:
+            return table
+
+        if not create_missing:
+            raise Exception("table not found")
+
+
+        table_template = self.metatable_templates.get(name)
+        if table_template is None:
+            table_template = self._default_table_template(name, **kwargs)
+
+        table = table_template(self.metadata)
+        self.create_table(table)
         return table
 
     def contains_migration(self, name: str):
@@ -118,9 +121,8 @@ class SqliteMigratableDb:
         self.conn.execute(stmt)
 
     def create_all_metatables(self):
-        for table_template in self.metatable_templates.values():
-            table = table_template(self.metadata)
-            self.create_table(table)
+        for name in self.metatable_templates.keys():
+            self.get_table(name)
 
     def _default_table_template(self, name: str, **kwargs) -> Callable[[sa.MetaData], sa.Table]:
         raise Exception("Not implemented")

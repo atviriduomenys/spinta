@@ -32,7 +32,6 @@ class PushState(SqliteMigratableDb):
             sa.Column("model", sa.Text, primary_key=True),
             sa.Column("property", sa.Text),
             sa.Column("value", sa.Text),
-            extend_existing=True,
         )
 
     def _default_table_template(

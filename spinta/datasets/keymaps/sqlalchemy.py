@@ -46,7 +46,6 @@ class SqlAlchemyKeyMap(SqliteMigratableDb, KeyMap):
             sa.Column("model", sa.Text, primary_key=True),
             sa.Column("cid", sa.BIGINT),
             sa.Column("updated", sa.DateTime),
-            extend_existing=True,
         )
 
     def copy(self) -> "SqlAlchemyKeyMap":

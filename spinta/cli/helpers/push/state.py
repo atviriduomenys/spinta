@@ -44,7 +44,7 @@ def init_push_state(
             # Legacy self-healing destructive migrations (fixes issues with changed pagination columns)
             inspector = sa.inspect(state.engine)
             for model in models:
-                expected_table = state._default_table_template(name=model.name, model=model)(state.metadata)
+                expected_table = state.get_table(name=model.name, model=model)
                 migrate_table(
                     state.engine,
                     state.metadata,
