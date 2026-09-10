@@ -15,6 +15,7 @@ from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Context, Model, pagination_enabled
 from spinta.exceptions import PushStateMigrationRequired
 from spinta.utils.json import fix_data_for_json
+from spinta.utils.sqlite import migrate_table
 
 
 def init_push_state(
@@ -23,7 +24,9 @@ def init_push_state(
     models: List[Model],
 ) -> PushState:
     state = PushState(dburi)
-    context.set(PUSH_STATE_PATH, dburi)
+    if not context.has(PUSH_STATE_PATH):
+        context.set(PUSH_STATE_PATH, dburi)
+
     with state:
         is_fresh = is_fresh_database(context, state)
         # Initialize missing metadata tables
@@ -37,6 +40,20 @@ def init_push_state(
             mark_migrations(push_state=state)
         else:
             validate_migrations(context, state)
+
+            # Legacy self-healing destructive migrations (fixes issues with changed pagination columns)
+            inspector = sa.inspect(state.engine)
+            for model in models:
+                expected_table = state._default_table_template(name=model.name, model=model)(state.metadata)
+                migrate_table(
+                    state.engine,
+                    state.metadata,
+                    inspector,
+                    expected_table,
+                    renames={
+                        "rev": "checksum",
+                    },
+                )
     return state
 
 

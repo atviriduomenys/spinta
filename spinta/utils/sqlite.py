@@ -93,7 +93,9 @@ class SqliteMigratableDb:
         table = self.metadata.tables.get(name)
         if table is None:
             if create_missing:
-                table_template = self.metatable_templates.get(name, self._default_table_template(name, **kwargs))
+                table_template = self.metatable_templates.get(name)
+                if table_template is None:
+                    table_template = self._default_table_template(name, **kwargs)
                 table = table_template(self.metadata)
                 self.create_table(table)
             else:
