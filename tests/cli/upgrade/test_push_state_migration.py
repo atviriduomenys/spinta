@@ -33,9 +33,7 @@ def test_upgrade_push_state_without_path_does_not_apply_migrations(
     assert migrations == []
 
 
-def test_upgrade_missing_initial_migration(
-    context, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path
-):
+def test_upgrade_missing_initial_migration(context, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path):
     push_state_path = str(tmp_path / "tmp_push_state.db")
     push_state_dsn = f"sqlite+spinta:///{push_state_path}"
 
@@ -58,7 +56,11 @@ def test_upgrade_missing_initial_migration(
 
 
 def test_upgrade_missing_rev_rename_migration(
-    context, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path,
+    context,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
 ):
     context, manifest = load_manifest_and_context(
         rc,
