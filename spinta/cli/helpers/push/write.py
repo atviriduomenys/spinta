@@ -15,7 +15,7 @@ import spinta.cli.push as cli_push
 from spinta import spyna
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import Error, PushRow, State
+from spinta.cli.helpers.push.components import Error, PushRow, PushState
 from spinta.cli.helpers.push.state import check_push_state, save_push_state
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context, Model
@@ -54,9 +54,11 @@ def prepare_rows_with_errors(
     model: Model,
     table: sa.Table,
     timeout: Tuple[float, float],
+    push_state: PushState,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
+
     for row in rows:
         type = model.model_type()
         _id = row[table.c.id]
@@ -389,19 +391,19 @@ def push(
     rows: Iterable[PushRow],
     timeout: Tuple[float, float],
     *,
-    state: Optional[State] = None,
+    push_state: Optional[PushState] = None,
     stop_time: Optional[int] = None,  # seconds
     stop_row: Optional[int] = None,  # stop aftern given number of rows
     chunk_size: Optional[int] = None,  # split into chunks of given size in bytes
     dry_run: bool = False,  # do not send or write anything
     stop_on_error: bool = False,  # raise error immediately
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
 
-    if state:
-        rows = check_push_state(context, rows, state.metadata)
+    if push_state:
+        rows = check_push_state(rows, push_state)
 
     rows = _prepare_rows_for_push(rows)
 
@@ -411,8 +413,8 @@ def push(
     rows = _push_to_remote_spinta(
         client, server, rows, chunk_size, dry_run=dry_run, error_counter=error_counter, timeout=timeout
     )
-    if state and not dry_run:
-        rows = save_push_state(context, rows, state.metadata)
+    if push_state and not dry_run:
+        rows = save_push_state(context, rows, push_state)
 
     _push_rows(rows, stop_on_error, error_counter)
 

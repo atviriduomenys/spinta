@@ -13,7 +13,7 @@ from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.message import cli_error
-from spinta.cli.helpers.push.components import State
+from spinta.cli.helpers.push.components import PUSH_STATE_DB
 from spinta.cli.helpers.push.read import read_rows
 from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.push.sync import sync_push_state
@@ -147,9 +147,8 @@ def push(
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
-        if state:
-            state = State(*init_push_state(state, models))
-            context.attach("push.state.conn", state.engine.begin)
+        context.attach(PUSH_STATE_DB, init_push_state, context, state, models)
+        push_state = context.get(PUSH_STATE_DB)
 
         # Synchronize keymaps
         with manifest.keymap as km:
@@ -182,20 +181,19 @@ def push(
                 server=creds.server,
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
-                metadata=state.metadata,
+                push_state=push_state,
                 timeout=(connect_timeout, read_timeout),
                 max_retries=max_retries,
                 delay_range=delay_range,
             )
 
-        initial_page_data = load_initial_page_data(context, state.metadata, models, incremental, override_page)
-
+        initial_page_data = load_initial_page_data(push_state, models, incremental, override_page)
         rows = read_rows(
             context,
             client,
             creds.server,
             models,
-            state,
+            push_state,
             limit,
             timeout=(connect_timeout, read_timeout),
             stop_on_error=stop_on_error,
@@ -211,7 +209,7 @@ def push(
             creds.server,
             models,
             rows,
-            state=state,
+            push_state=push_state,
             stop_time=stop_time,
             stop_row=stop_row,
             chunk_size=chunk_size,

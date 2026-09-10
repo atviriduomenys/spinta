@@ -4,7 +4,81 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
-from spinta.utils.sqlite import migrate_table
+from spinta.exceptions import (
+    SqliteConnectionAlreadyOpen,
+    SqliteConnectionNotOpen,
+    SqliteDatabaseNotConfigured,
+    SqliteTableNotFound,
+)
+from spinta.utils.sqlite import SqliteMigratableDb, migrate_table
+
+
+def test_sqlite_migratable_db_connection_context():
+    database = SqliteMigratableDb("sqlite://")
+
+    assert not database.is_entered
+    with pytest.raises(SqliteConnectionNotOpen):
+        database.conn
+
+    with database:
+        assert database.is_entered
+        assert not database.conn.closed
+
+        with pytest.raises(SqliteConnectionAlreadyOpen):
+            with database:
+                pass
+
+    assert not database.is_entered
+    with pytest.raises(SqliteConnectionNotOpen):
+        database.conn
+
+
+def test_sqlite_migratable_db_requires_configuration():
+    database = SqliteMigratableDb()
+
+    with pytest.raises(SqliteDatabaseNotConfigured):
+        database.engine
+
+    with pytest.raises(SqliteDatabaseNotConfigured):
+        database.metadata
+
+
+def test_sqlite_migratable_db_missing_table():
+    database = SqliteMigratableDb("sqlite://")
+
+    with pytest.raises(SqliteTableNotFound):
+        database.get_table("missing", create_missing=False)
+
+
+def test_sqlite_migratable_db_requires_default_table_template():
+    database = SqliteMigratableDb("sqlite://")
+
+    with pytest.raises(NotImplementedError):
+        database.get_table("model")
+
+
+def test_sqlite_migratable_db_tracks_migrations():
+    database = SqliteMigratableDb("sqlite://")
+
+    with database:
+        assert not database.contains_migration("initial")
+
+        database.mark_migration("initial")
+        database.mark_migration("initial")
+
+        migration_table = database.get_table(database.migration_table_name)
+        migrations = database.conn.execute(sa.select([migration_table.c.migration])).fetchall()
+
+    assert migrations == [("initial",)]
+
+
+def test_sqlite_migratable_db_uses_custom_migration_table_name():
+    database = SqliteMigratableDb("sqlite://", migration_table_name="schema_versions")
+
+    with database:
+        database.mark_migration("initial")
+
+    assert sa.inspect(database.engine).get_table_names() == ["schema_versions"]
 
 
 @pytest.mark.parametrize("copy", [True, False])

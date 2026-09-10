@@ -5,7 +5,7 @@ import json
 import uuid
 from collections.abc import Generator
 from copy import copy
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from uuid import UUID
 
 import msgpack
@@ -25,45 +25,34 @@ from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
 from spinta.datasets.keymaps.helpers import prepare_keymap_values
 from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch, KeymapMigrationRequired
 from spinta.utils.json import fix_data_for_json
+from spinta.utils.sqlite import SqliteMigratableDb
 
 
-class SqlAlchemyKeyMap(KeyMap):
+class SqlAlchemyKeyMap(SqliteMigratableDb, KeyMap):
     dsn: str = None
 
-    migration_table_name: str = "_migrations"
     sync_table_name: str = "_synchronize"
     sync_transaction_size: int = None
 
     # On duplicate validation warn only, instead of raise error
     duplicate_warn_only: bool = False
 
-    def __init__(self, dsn: str = None):
-        self.dsn = dsn
-        self.engine = None
-        self.metadata = None
-        self.conn = None
+    def __init__(self, dsn: str | None = None):
+        super().__init__(dsn)
 
-    def __enter__(self):
-        assert self.dsn is not None
-        assert self.conn is None
-        self.conn = self.engine.connect()
-        return self
-
-    def __exit__(self, *exc):
-        self.conn.close()
-        self.conn = None
+        self.metatable_templates[self.sync_table_name] = lambda metadata: sa.Table(
+            self.sync_table_name,
+            metadata,
+            sa.Column("model", sa.Text, primary_key=True),
+            sa.Column("cid", sa.BIGINT),
+            sa.Column("updated", sa.DateTime),
+        )
 
     def copy(self) -> "SqlAlchemyKeyMap":
         copied = copy(self)
         # Reset any context manager variables
-        copied.conn = None
+        copied._conn = None
         return copied
-
-    def get_table(self, name) -> sa.Table:
-        table = self.metadata.tables.get(name)
-        if table is None:
-            table = self._create_table(name)
-        return table
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
         valid_value = _valid_keymap_value(value)
@@ -267,49 +256,15 @@ class SqlAlchemyKeyMap(KeyMap):
                     self, key=name, key_count=affected_key_count, affected_count=affected_row_count
                 )
 
-    def contains_migration(self, name: str):
-        migrations = self.get_table(self.migration_table_name)
-
-        query = sa.select([sa.func.count()]).where(migrations.c.migration == name)
-        count = self.conn.execute(query).scalar()
-        return count != 0
-
-    def mark_migration(self, name: str):
-        if self.contains_migration(name):
-            return
-
-        migrations = self.get_table(self.migration_table_name)
-        stmt = migrations.insert().values(migration=name)
-        self.conn.execute(stmt)
-
-    def _create_table(self, name: str) -> sa.Table:
-        if name == self.sync_table_name:
-            table = sa.Table(
-                name,
-                self.metadata,
-                sa.Column("model", sa.Text, primary_key=True),
-                sa.Column("cid", sa.BIGINT),
-                sa.Column("updated", sa.DateTime),
-            )
-        elif name == self.migration_table_name:
-            table = sa.Table(
-                name,
-                self.metadata,
-                sa.Column("migration", sa.Text, primary_key=True),
-                sa.Column("applied_at", sa.DateTime, server_default=sa.func.now()),
-            )
-        else:
-            table = sa.Table(
-                name,
-                self.metadata,
-                sa.Column("key", sa.Text, primary_key=True),
-                sa.Column("value", sa.Text, index=True),
-                sa.Column("redirect", sa.Text, index=True),
-                sa.Column("modified_at", sa.DateTime, index=True),
-            )
-
-        table.create(checkfirst=True)
-        return table
+    def _default_table_template(self, name: str, **kwargs) -> Callable[[sa.MetaData], sa.Table]:
+        return lambda metadata: sa.Table(
+            name,
+            metadata,
+            sa.Column("key", sa.Text, primary_key=True),
+            sa.Column("value", sa.Text, index=True),
+            sa.Column("redirect", sa.Text, index=True),
+            sa.Column("modified_at", sa.DateTime, index=True),
+        )
 
 
 def _valid_keymap_value(value: object) -> bool:
@@ -379,15 +334,12 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     if dsn.startswith("sqlite:///"):
         dsn = dsn.replace("sqlite:///", "sqlite+spinta:///")
     keymap.sync_transaction_size = sync_transaction_size
-    keymap.dsn = dsn
     keymap.duplicate_warn_only = rc.get("keymaps", keymap.name, "duplicate_warn_only", cast=bool, default=False)
+    keymap.configure_engine(dsn)
 
 
 @commands.prepare.register(Context, SqlAlchemyKeyMap)
 def prepare(context: Context, keymap: SqlAlchemyKeyMap, **kwargs):
-    keymap.engine = sa.create_engine(keymap.dsn)
-    keymap.metadata = sa.MetaData(keymap.engine)
-
     fresh = is_fresh_database(context, keymap)
     if fresh:
         initialize_meta_tables(keymap)
@@ -449,14 +401,13 @@ def initialize_meta_tables(keymap: SqlAlchemyKeyMap):
 def is_fresh_database(context: Context, keymap: SqlAlchemyKeyMap) -> bool:
     insp = sa.inspect(keymap.engine)
     tables = insp.get_table_names()
-    if keymap.sync_table_name in tables:
-        return False
-
-    if keymap.migration_table_name in tables:
-        return False
 
     if not len(tables):
         return True
+
+    for metatable_name in keymap.metatable_templates.keys():
+        if metatable_name in tables:
+            return False
 
     tables = [table for table in tables if not table.startswith("_")]
     manifest = context.get("store").manifest

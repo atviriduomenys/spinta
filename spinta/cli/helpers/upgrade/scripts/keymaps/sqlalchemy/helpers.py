@@ -1,15 +1,14 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from typer import echo
-
 from spinta.components import Context, Store
+from spinta.utils.sqlite import apply_migration_to_outdated_db, outdated_sqlite_db
 
 if TYPE_CHECKING:
     from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 
 
-def outdated_keymaps(context: Context, migration: str, additional_check: Callable = None, **kwargs):
+def outdated_keymaps(context: Context, migration: str, additional_check: Callable | None = None, **kwargs):
     from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 
     store: Store = context.get("store")
@@ -17,26 +16,18 @@ def outdated_keymaps(context: Context, migration: str, additional_check: Callabl
         if not isinstance(keymap, SqlAlchemyKeyMap):
             continue
 
-        with keymap:
-            contains = keymap.contains_migration(migration)
-            if not contains:
-                yield keymap
-                continue
-
-            if additional_check and additional_check(context, **kwargs):
-                yield keymap
-                continue
+        if outdated_sqlite_db(context, keymap, migration, additional_check, **kwargs):
+            yield keymap
 
 
-def apply_migration_to_outdated_keymaps(context: Context, migration: str, apply_migration: callable, **kwargs):
+def apply_migration_to_outdated_keymaps(context: Context, migration: str, apply_migration: Callable, **kwargs):
     keymaps = outdated_keymaps(context, migration, None, **kwargs)
     for keymap in keymaps:
-        echo(f'\tApplying "{migration}" migration to keymap ("{keymap.name}")')
-        apply_migration(context, keymap, migration)
-        keymap.mark_migration(migration)
+        with keymap:
+            apply_migration_to_outdated_db(context, keymap, migration, apply_migration, keymap.name, **kwargs)
 
 
-def requires_migration(context: Context, migration: str, additional_check: Callable = None, **kwargs) -> bool:
+def requires_migration(context: Context, migration: str, additional_check: Callable | None = None, **kwargs) -> bool:
     keymaps = outdated_keymaps(context, migration, additional_check, **kwargs)
     for _ in keymaps:
         return True

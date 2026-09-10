@@ -64,7 +64,7 @@ def migrate_table(keymap: "SqlAlchemyKeyMap", table: sa.Table):
             if temp_table in keymap.metadata.tables:
                 temp_table_exists = True
 
-            new_table = keymap._create_table(temp_table)
+            new_table = keymap.get_table(temp_table, create_missing=True)
             temp_table_exists = True
 
             count_stmt = sa.select(sa.func.count()).select_from(table)

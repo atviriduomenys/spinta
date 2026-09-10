@@ -28,8 +28,8 @@ def upgrade(
         """
         ),
     ),
-    ensure_config_dir: bool = Option(True, "--ensure-config", help=("Ensures that all config files are created.")),
-    force: bool = Option(False, "-f", "--force", help=("Skips all checks when running upgrades.")),
+    ensure_config_dir: bool = Option(True, "--ensure-config", help="Ensures that all config files are created."),
+    force: bool = Option(False, "-f", "--force", help="Skips all checks when running upgrades."),
     destructive: bool = Option(
         False,
         "-d",
@@ -45,12 +45,17 @@ def upgrade(
         False,
         "-c",
         "--check",
-        help=("Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."),
+        help="Only runs script checks, skipping execution part (used to find out what scripts are needed to run).",
     ),
+    targets: list[str] | None = Option(None, "--target", help="Target specific script type"),
+    tags: list[str] | None = Option(None, "--tag", help="Target specific script tag"),
 ):
     rc = ctx.obj.get("rc")
     rc.add("upgrade", {"upgrade_mode": True})
     context = configure_context(ctx.obj)
+
+    targets = set(targets) if targets else None
+    tags = set(tags) if tags else None
 
     if force and check_only:
         echo("Cannot run force mode with check only mode", err=True)
@@ -71,6 +76,8 @@ def upgrade(
             force=force,
             check_only=check_only,
             status_cache=status_cache,
+            targets=targets,
+            tags=tags,
         )
         return
 

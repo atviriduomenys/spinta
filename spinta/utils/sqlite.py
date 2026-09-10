@@ -1,12 +1,175 @@
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Callable, Dict, Optional
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 
+from spinta.cli.helpers.message import cli_message
+from spinta.components import Context
+from spinta.exceptions import (
+    SqliteConnectionAlreadyOpen,
+    SqliteConnectionNotOpen,
+    SqliteDatabaseNotConfigured,
+    SqliteTableNotFound,
+)
+
 if TYPE_CHECKING:
     from alembic.operations import Operations
+
+
+class SqliteMigratableDb:
+    dsn: str | None
+
+    # Private sqlalchemy fields should not be accessed directly.
+    _engine: Engine | None
+    _metadata: sa.MetaData | None
+    _conn: sa.engine.Connection | None
+
+    migration_table_name: str = "_migrations"
+    metatable_templates: dict[str, Callable[[sa.MetaData], sa.Table]]
+
+    def __init__(self, dsn: str | None = None, migration_table_name: str = migration_table_name):
+        self.configure_engine(dsn)
+        self._conn = None
+        self.migration_table_name = migration_table_name
+
+        self.metatable_templates = {
+            self.migration_table_name: lambda metadata: sa.Table(
+                self.migration_table_name,
+                metadata,
+                sa.Column("migration", sa.Text, primary_key=True),
+                sa.Column("applied_at", sa.DateTime, server_default=sa.func.now()),
+            )
+        }
+
+    def __enter__(self):
+        if self._conn is not None:
+            raise SqliteConnectionAlreadyOpen()
+
+        self._conn = self.engine.connect()
+        return self
+
+    def __exit__(self, *exc):
+        if self._conn is None:
+            raise SqliteConnectionNotOpen()
+
+        self._conn.close()
+        self._conn = None
+
+    @property
+    def is_entered(self) -> bool:
+        return self._conn is not None
+
+    @property
+    def conn(self) -> sa.engine.Connection:
+        if self._conn is None:
+            raise SqliteConnectionNotOpen()
+
+        return self._conn
+
+    @property
+    def engine(self) -> sa.engine.Engine:
+        if self._engine is None:
+            raise SqliteDatabaseNotConfigured()
+
+        return self._engine
+
+    @property
+    def metadata(self) -> sa.MetaData:
+        if self._metadata is None:
+            raise SqliteDatabaseNotConfigured()
+
+        return self._metadata
+
+    def configure_engine(self, dsn: str | None):
+        if dsn is None:
+            self.dsn = None
+            self._engine = None
+            self._metadata = None
+            return
+
+        self.dsn = dsn
+        self._engine = sa.create_engine(dsn)
+        self._metadata = sa.MetaData(self._engine)
+
+    def create_table(self, table: sa.Table):
+        table.create(self.engine, checkfirst=True)
+
+    def get_table(self, name: str, create_missing: bool = True, **kwargs) -> sa.Table:
+        table = self.metadata.tables.get(name)
+        if table is not None:
+            return table
+
+        if not create_missing:
+            raise SqliteTableNotFound(table=name)
+
+        table_template = self.metatable_templates.get(name)
+        if table_template is None:
+            table_template = self._default_table_template(name, **kwargs)
+
+        table = table_template(self.metadata)
+        self.create_table(table)
+        return table
+
+    def contains_migration(self, name: str):
+        migrations = self.get_table(self.migration_table_name)
+
+        query = sa.select([sa.func.count()]).where(migrations.c.migration == name)
+        count = self.conn.execute(query).scalar()
+        return count != 0
+
+    def mark_migration(self, name: str):
+        if self.contains_migration(name):
+            return
+
+        migrations = self.get_table(self.migration_table_name)
+        stmt = migrations.insert().values(migration=name)
+        self.conn.execute(stmt)
+
+    def create_all_metatables(self):
+        for name in self.metatable_templates.keys():
+            self.get_table(name)
+
+    def _default_table_template(self, name: str, **kwargs) -> Callable[[sa.MetaData], sa.Table]:
+        raise NotImplementedError("SqliteMigratableDb subclasses must implement `_default_table_template`.")
+
+
+def outdated_sqlite_db(
+    context: Context, sqlite_db: SqliteMigratableDb, migration: str, additional_check: Callable | None = None, **kwargs
+) -> bool:
+    def _check_missing_migrations() -> bool:
+        if not sqlite_db.contains_migration(migration):
+            return True
+
+        if additional_check and additional_check(context, **kwargs):
+            return True
+        return False
+
+    if not isinstance(sqlite_db, SqliteMigratableDb):
+        return False
+
+    if sqlite_db.is_entered:
+        return _check_missing_migrations()
+
+    with sqlite_db:
+        return _check_missing_migrations()
+
+
+def apply_migration_to_outdated_db(
+    context: Context,
+    sqlite_db: SqliteMigratableDb,
+    migration: str,
+    apply_migration: Callable,
+    database_name: str,
+    **kwargs,
+):
+    if not outdated_sqlite_db(context, sqlite_db, migration, None, **kwargs):
+        return
+
+    cli_message(f'\tApplying "{migration}" migration to sqlite database ("{database_name}")')
+    apply_migration(context, sqlite_db, migration)
+    sqlite_db.mark_migration(migration)
 
 
 def migrate_table(

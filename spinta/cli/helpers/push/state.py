@@ -1,96 +1,129 @@
 import datetime
 import itertools
 import json
-from typing import Iterable, Iterator, List, Tuple
+from typing import Iterable, Iterator, List
 
 import sqlalchemy as sa
 
-from spinta import spyna
+from spinta import commands, spyna
 from spinta.cli.helpers.push import prepare_data_for_push_state
-from spinta.cli.helpers.push.components import PushRow, Saved
+from spinta.cli.helpers.push.components import PUSH_STATE_PATH, PushRow, PushState, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
+from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
+from spinta.cli.helpers.script.helpers import sort_scripts_by_required
+from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Context, Model, pagination_enabled
+from spinta.exceptions import PushStateMigrationRequired
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.sqlite import migrate_table
 
 
 def init_push_state(
+    context: Context,
     dburi: str,
     models: List[Model],
-) -> Tuple[sa.engine.Engine, sa.MetaData]:
-    engine = sa.create_engine(dburi)
-    metadata = sa.MetaData(engine)
-    inspector = sa.inspect(engine)
+) -> PushState:
+    state = PushState(dburi)
+    if not context.has(PUSH_STATE_PATH):
+        context.set(PUSH_STATE_PATH, dburi)
 
-    page_table = sa.Table(
-        "_page",
-        metadata,
-        sa.Column("model", sa.Text, primary_key=True),
-        sa.Column("property", sa.Text),
-        sa.Column("value", sa.Text),
+    with state:
+        is_fresh = is_fresh_database(context, state)
+        # Initialize missing metadata tables
+        state.create_all_metatables()
+
+        # Create all missing model tables
+        for model in models:
+            state.get_table(name=model.name, model=model)
+
+        if is_fresh:
+            mark_migrations(push_state=state)
+        else:
+            validate_migrations(context, state)
+
+            # Legacy self-healing destructive migrations (fixes issues with changed pagination columns)
+            inspector = sa.inspect(state.engine)
+            for model in models:
+                expected_table = state.get_table(name=model.name, model=model)
+                migrate_table(
+                    state.engine,
+                    state.metadata,
+                    inspector,
+                    expected_table,
+                    renames={
+                        "rev": "checksum",
+                    },
+                )
+    return state
+
+
+def is_fresh_database(context: Context, push_state: PushState) -> bool:
+    insp = sa.inspect(push_state.engine)
+    tables = insp.get_table_names()
+
+    if not len(tables):
+        return True
+
+    for metatable_name in push_state.metatable_templates.keys():
+        if metatable_name in tables:
+            return False
+
+    tables = [table for table in tables if not table.startswith("_")]
+    manifest = context.get("store").manifest
+    for table in tables:
+        if commands.has_model(context, manifest, table):
+            return False
+
+    return True
+
+
+def mark_migrations(push_state: PushState):
+    # Mark all migration scripts as already executed
+    migration_scripts = upgrade_script_registry.get_all(
+        targets={ScriptTarget.PUSH_STATE_DB.value}, tags={ScriptTag.DB_MIGRATION.value}
     )
-    page_table.create(checkfirst=True)
+    filtered = sort_scripts_by_required(migration_scripts)
+    for script in filtered.values():
+        push_state.mark_migration(script.name)
 
-    types = {
-        "string": sa.Text,
-        "date": sa.Date,
-        "datetime": sa.DateTime,
-        "time": sa.Time,
-        "integer": sa.Integer,
-        "number": sa.Numeric,
-    }
 
-    for model in models:
-        pagination_cols = []
-        if pagination_enabled(model):
-            for prop in model.page.keys.values():
-                _type = types.get(prop.dtype.name, sa.Text)
-                pagination_cols.append(sa.Column(f"page.{prop.name}", _type, index=True))
+def validate_migrations(context: Context, push_state: PushState):
+    config = context.get("config")
+    if config.upgrade_mode:
+        return
 
-        table = sa.Table(
-            model.name,
-            metadata,
-            sa.Column("id", sa.Unicode, primary_key=True),
-            sa.Column("checksum", sa.Unicode),
-            sa.Column("revision", sa.Unicode),
-            sa.Column("pushed", sa.DateTime),
-            sa.Column("error", sa.Boolean),
-            sa.Column("data", sa.Text),
-            *pagination_cols,
-        )
-        migrate_table(
-            engine,
-            metadata,
-            inspector,
-            table,
-            renames={
-                "rev": "checksum",
-            },
-        )
-
-    return engine, metadata
+    migration_scripts = upgrade_script_registry.get_all(
+        targets={ScriptTarget.PUSH_STATE_DB.value}, tags={ScriptTag.DB_MIGRATION.value}
+    )
+    filtered = sort_scripts_by_required(migration_scripts)
+    for script in filtered.values():
+        if script.check(context):
+            raise PushStateMigrationRequired(
+                dsn=push_state.dsn, migration=script.name, path=push_state.engine.url.database
+            )
 
 
 def reset_pushed(
     context: Context,
     models: List[Model],
-    metadata: sa.MetaData,
+    push_state: PushState,
 ):
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
+
     for model in models:
-        table = metadata.tables[model.name]
+        table = push_state.get_table(model.name)
 
         # reset pushed so we could see which objects were deleted
         conn.execute(table.update().values(pushed=None))
 
 
-def check_push_state(context: Context, rows: Iterable[PushRow], metadata: sa.MetaData):
-    conn = context.get("push.state.conn")
+def check_push_state(rows: Iterable[PushRow], push_state: PushState):
+    conn = push_state.conn
 
     for model_type, group in itertools.groupby(rows, key=_get_model_type):
         saved_rows = {}
         if model_type:
-            table = metadata.tables[model_type]
+            table = push_state.get_table(model_type)
 
             query = sa.select([table.c.id, table.c.revision, table.c.checksum])
             saved_rows = {
@@ -125,13 +158,13 @@ def check_push_state(context: Context, rows: Iterable[PushRow], metadata: sa.Met
 def save_push_state(
     context: Context,
     rows: Iterable[PushRow],
-    metadata: sa.MetaData,
+    push_state: PushState,
 ) -> Iterator[PushRow]:
-    conn = context.get("push.state.conn")
-    page_table = metadata.tables["_page"]
+    conn = push_state.conn
+    page_table = push_state.get_table(push_state.pagination_table_name)
     model_pagination_check = {}
     for row in rows:
-        table = metadata.tables[row.data["_type"]]
+        table = push_state.get_table(row.data["_type"])
         model_name = row.model.model_type()
         if model_name not in model_pagination_check:
             model_pagination_check[model_name] = pagination_enabled(row.model)

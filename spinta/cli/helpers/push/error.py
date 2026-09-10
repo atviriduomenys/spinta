@@ -7,6 +7,7 @@ import tqdm
 from spinta import commands
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.push.components import PushState
 from spinta.cli.helpers.push.utils import construct_where_condition_from_page
 from spinta.cli.helpers.push.write import prepare_rows_with_errors
 from spinta.components import Context, Model, get_page_size, pagination_enabled
@@ -18,7 +19,7 @@ def get_rows_with_errors(
     server: str,
     models: List[Model],
     context: Context,
-    metadata: sa.MetaData,
+    push_state: PushState,
     counts: Dict[str, int],
     retry: int,
     timeout: tuple[float, float],
@@ -30,7 +31,7 @@ def get_rows_with_errors(
         server,
         models,
         context,
-        metadata,
+        push_state,
         counts,
         timeout,
         no_progress_bar,
@@ -44,16 +45,13 @@ def get_rows_with_errors(
 
 def get_rows_with_errors_counts(
     models: List[Model],
-    context: Context,
-    metadata: sa.MetaData,
+    push_state: PushState,
 ) -> dict:
     counts = {}
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
     for model in models:
-        table = metadata.tables[model.name]
-
+        table = push_state.get_table(name=model.name, model=model)
         row_count = conn.execute(sa.select(sa.func.count(table.c.id)).where(table.c.error.is_(True)))
-
         counts[model.name] = row_count.scalar()
     return counts
 
@@ -63,41 +61,43 @@ def _iter_rows_with_errors(
     server: str,
     models: List[Model],
     context: Context,
-    metadata: sa.MetaData,
+    push_state: PushState,
     counts: Dict[str, int],
     timeout: tuple[float, float],
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
     config = context.get("config")
 
     for model in models:
         size = get_page_size(config, model)
-        table = metadata.tables[model.name]
+        table = push_state.get_table(name=model.name, model=model)
 
         if pagination_enabled(model):
             rows = _get_error_rows_with_page(
-                context,
                 model,
                 table,
                 size,
+                push_state,
             )
         else:
             rows = conn.execute(sa.select([table.c.id, table.c.checksum, table.c.data]).where(table.c.error.is_(True)))
         if not no_progress_bar:
             rows = tqdm.tqdm(rows, model.name, ascii=True, total=counts.get(model.name), leave=False)
 
-        yield from prepare_rows_with_errors(client, server, context, rows, model, table, timeout, error_counter)
+        yield from prepare_rows_with_errors(
+            client, server, context, rows, model, table, timeout, push_state, error_counter
+        )
 
 
 def _get_error_rows_with_page(
-    context: Context,
     model: Model,
     table: sa.Table,
     size: int,
+    push_state: PushState,
 ):
-    conn = context.get("push.state.conn")
+    conn = push_state.conn
     order_by = []
 
     page = commands.create_page(model.page)

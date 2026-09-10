@@ -1,13 +1,65 @@
-from typing import Any, Dict, NamedTuple, Optional, TypedDict
+from typing import Any, Callable, Dict, NamedTuple, Optional, TypedDict
 
 import sqlalchemy as sa
 
-from spinta.components import Model
+from spinta.components import Model, pagination_enabled
+from spinta.utils.sqlite import SqliteMigratableDb
+
+PUSH_STATE_DB = "push.state"
+PUSH_STATE_PATH = "push_state_path"
+PAGE_TYPE_MAPPING = {
+    "string": sa.Text,
+    "date": sa.Date,
+    "datetime": sa.DateTime,
+    "time": sa.Time,
+    "integer": sa.Integer,
+    "number": sa.Numeric,
+}
 
 
-class State(NamedTuple):
+class PushState(SqliteMigratableDb):
     engine: sa.engine.Engine
     metadata: sa.MetaData
+
+    pagination_table_name: str = "_page"
+
+    def __init__(self, dsn: str):
+        super().__init__(dsn)
+
+        self.metatable_templates[self.pagination_table_name] = lambda metadata: sa.Table(
+            "_page",
+            metadata,
+            sa.Column("model", sa.Text, primary_key=True),
+            sa.Column("property", sa.Text),
+            sa.Column("value", sa.Text),
+        )
+
+    def _default_table_template(
+        self, name: str, model: Model | None = None, **kwargs
+    ) -> Callable[[sa.MetaData], sa.Table]:
+        def _raise_missing_model():
+            raise Exception("DEFAULT TABLE TEMPLATE FOR STATE DB REQUIRES model property to be given")
+
+        if model is None:
+            return lambda _: _raise_missing_model()
+
+        pagination_cols = []
+        if pagination_enabled(model):
+            for prop in model.page.keys.values():
+                _type = PAGE_TYPE_MAPPING.get(prop.dtype.name, sa.Text)
+                pagination_cols.append(sa.Column(f"page.{prop.name}", _type, index=True))
+
+        return lambda metadata: sa.Table(
+            name,
+            metadata,
+            sa.Column("id", sa.Unicode, primary_key=True),
+            sa.Column("checksum", sa.Unicode),
+            sa.Column("revision", sa.Unicode),
+            sa.Column("pushed", sa.DateTime),
+            sa.Column("error", sa.Boolean),
+            sa.Column("data", sa.Text),
+            *pagination_cols,
+        )
 
 
 class PushRow:
