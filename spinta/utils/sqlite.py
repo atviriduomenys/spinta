@@ -7,6 +7,12 @@ from sqlalchemy.engine.reflection import Inspector
 
 from spinta.cli.helpers.message import cli_message
 from spinta.components import Context
+from spinta.exceptions import (
+    SqliteConnectionAlreadyOpen,
+    SqliteConnectionNotOpen,
+    SqliteDatabaseNotConfigured,
+    SqliteTableNotFound,
+)
 
 if TYPE_CHECKING:
     from alembic.operations import Operations
@@ -38,14 +44,16 @@ class SqliteMigratableDb:
         }
 
     def __enter__(self):
-        assert self.dsn is not None
-        assert self._conn is None
-        assert self._engine is not None
-        self._conn = self._engine.connect()
+        if self._conn is not None:
+            raise SqliteConnectionAlreadyOpen()
+
+        self._conn = self.engine.connect()
         return self
 
     def __exit__(self, *exc):
-        assert self._conn is not None
+        if self._conn is None:
+            raise SqliteConnectionNotOpen()
+
         self._conn.close()
         self._conn = None
 
@@ -56,21 +64,21 @@ class SqliteMigratableDb:
     @property
     def conn(self) -> sa.engine.Connection:
         if self._conn is None:
-            raise RuntimeError("Database connection is not open.")
+            raise SqliteConnectionNotOpen()
 
         return self._conn
 
     @property
     def engine(self) -> sa.engine.Engine:
         if self._engine is None:
-            raise RuntimeError("Database engine is not configured")
+            raise SqliteDatabaseNotConfigured()
 
         return self._engine
 
     @property
     def metadata(self) -> sa.MetaData:
         if self._metadata is None:
-            raise RuntimeError("Database metadata is not configured.")
+            raise SqliteDatabaseNotConfigured()
 
         return self._metadata
 
@@ -94,7 +102,7 @@ class SqliteMigratableDb:
             return table
 
         if not create_missing:
-            raise Exception("table not found")
+            raise SqliteTableNotFound(table=name)
 
         table_template = self.metatable_templates.get(name)
         if table_template is None:
@@ -124,7 +132,7 @@ class SqliteMigratableDb:
             self.get_table(name)
 
     def _default_table_template(self, name: str, **kwargs) -> Callable[[sa.MetaData], sa.Table]:
-        raise Exception("Not implemented")
+        raise NotImplementedError("SqliteMigratableDb subclasses must implement `_default_table_template`.")
 
 
 def outdated_sqlite_db(

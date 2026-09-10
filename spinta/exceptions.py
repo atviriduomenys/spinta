@@ -1267,6 +1267,24 @@ class ValuesForIdCantHaveSpecialSymbols(BaseError):
     template = "The value used for _id can not have special symbols. Found {value} value on {property} property. Change _id type to Base32 or remove the special symbol."
 
 
+class SqliteDatabaseNotConfigured(BaseError):
+    template = (
+        "SQLite database is not configured. Call `configure_engine(dsn)` before accessing its engine or metadata."
+    )
+
+
+class SqliteConnectionNotOpen(BaseError):
+    template = "SQLite database connection is not open. Use the database as a context manager before accessing it."
+
+
+class SqliteConnectionAlreadyOpen(BaseError):
+    template = "SQLite database connection is already open. Close it before opening it again."
+
+
+class SqliteTableNotFound(BaseError):
+    template = "SQLite table {table!r} is not registered and automatic creation is disabled."
+
+
 class PushStateMigrationRequired(UpgradeError):
     template = """
     Push state database ({dsn!r}) is missing {migration!r} migration.

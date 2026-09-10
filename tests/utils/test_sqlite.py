@@ -4,6 +4,12 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
+from spinta.exceptions import (
+    SqliteConnectionAlreadyOpen,
+    SqliteConnectionNotOpen,
+    SqliteDatabaseNotConfigured,
+    SqliteTableNotFound,
+)
 from spinta.utils.sqlite import SqliteMigratableDb, migrate_table
 
 
@@ -11,16 +17,44 @@ def test_sqlite_migratable_db_connection_context():
     database = SqliteMigratableDb("sqlite://")
 
     assert not database.is_entered
-    with pytest.raises(RuntimeError, match="Database connection is not open"):
+    with pytest.raises(SqliteConnectionNotOpen):
         database.conn
 
     with database:
         assert database.is_entered
         assert not database.conn.closed
 
+        with pytest.raises(SqliteConnectionAlreadyOpen):
+            with database:
+                pass
+
     assert not database.is_entered
-    with pytest.raises(RuntimeError, match="Database connection is not open"):
+    with pytest.raises(SqliteConnectionNotOpen):
         database.conn
+
+
+def test_sqlite_migratable_db_requires_configuration():
+    database = SqliteMigratableDb()
+
+    with pytest.raises(SqliteDatabaseNotConfigured):
+        database.engine
+
+    with pytest.raises(SqliteDatabaseNotConfigured):
+        database.metadata
+
+
+def test_sqlite_migratable_db_missing_table():
+    database = SqliteMigratableDb("sqlite://")
+
+    with pytest.raises(SqliteTableNotFound):
+        database.get_table("missing", create_missing=False)
+
+
+def test_sqlite_migratable_db_requires_default_table_template():
+    database = SqliteMigratableDb("sqlite://")
+
+    with pytest.raises(NotImplementedError):
+        database.get_table("model")
 
 
 def test_sqlite_migratable_db_tracks_migrations():
