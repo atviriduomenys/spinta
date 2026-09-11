@@ -16,7 +16,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Config, Context, Namespace, Store, UrlParams, Version
 from spinta.core.config import RawConfig
 from spinta.core.enums import Action
-from spinta.formats.html.commands import _LimitIter
+from spinta.formats.html.commands import _is_safe_url, _LimitIter
 from spinta.formats.html.components import Cell, Color, Html
 from spinta.formats.html.helpers import (
     CurrentLocation,
@@ -541,6 +541,30 @@ def test_limit_iter(limit, exhausted, result):
     it = _LimitIter(limit, iter([1, 2, 3]))
     assert list(it) == result
     assert it.exhausted is exhausted
+
+
+@pytest.mark.parametrize(
+    "url, result",
+    [
+        ("https://www.example.com/path", True),
+        ("HTTP://www.example.com", True),
+        ("ftp://files.example.com/file.txt", True),
+        ("ftps://files.example.com/file.txt", True),
+        ("mailto:user@example.com", True),
+        ("/example/Country", True),
+        ("javascript:alert(1)", False),
+        ("data:text/html,<script>alert(1)</script>", False),
+        ("//evil.example.com", False),
+        ("https:///missing-host", False),
+        ("mailto:", False),
+        ("https://example.com/\npath", False),
+        ("http://[::1", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_is_safe_url(url, result):
+    assert _is_safe_url(url) is result
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -1451,6 +1475,7 @@ def test_html_url(
 
     pushdata(app, "/example/html/url/Country", {"id": 0, "link": "https://www.example.com"})
     pushdata(app, "/example/html/url/Country", {"id": 1, "link": "mailto:email@example.com"})
+    pushdata(app, "/example/html/url/Country", {"id": 2, "link": "javascript:alert(1)"})
 
     resp = app.get(
         "/example/html/url/Country/:format/html?select(id,link)&sort(id)",
@@ -1459,4 +1484,5 @@ def test_html_url(
     assert _table_with_header(resp) == [
         {"id": {"value": 0}, "link": {"value": "https://www.example.com", "link": "https://www.example.com"}},
         {"id": {"value": 1}, "link": {"value": "mailto:email@example.com", "link": "mailto:email@example.com"}},
+        {"id": {"value": 2}, "link": {"value": "javascript:alert(1)"}},
     ]
