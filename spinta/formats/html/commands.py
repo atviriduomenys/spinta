@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 from itertools import chain, count
 from typing import Any, Dict, Generic, Iterable, Iterator, List, Optional, TypeVar
+from urllib.parse import urlparse
 
 from shapely.geometry.base import BaseGeometry
 from starlette.requests import Request
@@ -39,6 +40,8 @@ from spinta.formats.html.helpers import (
 )
 from spinta.types.datatype import (
     JSON,
+    URI,
+    URL,
     UUID,
     Array,
     ArrayBackRef,
@@ -416,6 +419,28 @@ def prepare_dtype_for_response(
             ),
         )
     return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, (URL, URI), str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: URL | URI,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    # Validate URL scheme to prevent XSS attacks
+    if _is_safe_url(value):
+        return Cell(
+            value,
+            link=value,
+        )
+    else:
+        # Reject unsafe schemes by returning plain text without link
+        return Cell(value)
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, UUID, object)
@@ -933,6 +958,51 @@ def prepare_dtype_for_response(
     return commands.prepare_dtype_for_response(
         context, fmt, dtype.rel_prop, value, data=data, action=action, select=select
     )
+
+
+SAFE_SCHEMES = {"http", "https", "ftp", "ftps", "mailto"}
+
+
+def _is_safe_url(url: str) -> bool:
+    if not isinstance(url, str):
+        return False
+
+    url = url.strip()
+
+    if not url:
+        return False
+
+    if any(ord(c) < 32 or ord(c) == 127 for c in url):
+        return False
+
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+
+    scheme = parsed.scheme.lower()
+
+    if scheme:
+        if scheme not in SAFE_SCHEMES:
+            return False
+
+        # Network URLs should actually have a host.
+        if scheme in {"http", "https", "ftp", "ftps"}:
+            if not parsed.hostname:
+                return False
+
+        # mailto should contain something after mailto:
+        if scheme == "mailto":
+            if not parsed.path:
+                return False
+
+        return True
+
+    # Don't consider //evil.com a local relative URL.
+    if parsed.netloc:
+        return False
+
+    return True
 
 
 def _value_or_null(value):
