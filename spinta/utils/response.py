@@ -415,10 +415,9 @@ def get_request_with_retries(
         "GET",
         timeout=timeout,
         on_error=on_error,
-        error_counter=error_counter,
     )
     status_code = resp.status_code
-    if status_code == 200:
+    if resp.ok:
         return status_code, resp.data
 
     for i in range(retries):
@@ -433,11 +432,14 @@ def get_request_with_retries(
             "GET",
             timeout=timeout,
             on_error=on_error,
-            error_counter=error_counter,
         )
         status_code = resp.status_code
-        if status_code == 200:
+        if resp.ok:
             return status_code, resp.data
+
+    if not resp.ok:
+        if error_counter:
+            error_counter.increase()
 
     return status_code, resp.data
 

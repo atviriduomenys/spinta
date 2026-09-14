@@ -218,7 +218,7 @@ def _send_and_receive(
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
 ) -> Iterator[PushRow]:
     if dry_run:
         recv = _send_data_dry_run(data)
@@ -233,8 +233,8 @@ def _send_and_receive(
             error_counter=error_counter,
             timeout=timeout,
         )
-        if recv:
-            recv = recv["_data"]
+        if isinstance(recv, dict):
+            recv = recv.get("_data", None)
     yield from _map_sent_and_recv(rows, recv)
 
 
