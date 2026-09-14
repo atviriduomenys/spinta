@@ -4,6 +4,16 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Improvements:
+
+- Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
+
+Bug fixes:
+
+- Fixed push cli request system crashing when receiving non-json response (`#2020`_).
+
+.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
+
 
 1.1.0 (2026-08-19)
 =====================
