@@ -163,6 +163,54 @@ backends:
 
 Daugiau informacijos apie leidimus: [UAPI — Authorization](https://ivpk.github.io/uapi/#section/Authorization/Scope "UAPI scopes")
 
+### Leidimų siejimas su sutartimi (`contract_scopes`)
+
+Kliento faile šalia `scopes` yra ir `contract_scopes` blokas. Jo paskirtis —
+**atsekamumas**: užfiksuoti, pagal kurią duomenų teikimo sutartį klientui suteikti
+leidimai. Naujai sukurto kliento faile blokas tuščias (`contract_scopes: {}`).
+
+```yaml
+client_id: f40e76b7-f3f4-4a4c-b2e9-c03a147d65f9
+client_name: test
+client_secret_hash: pbkdf2$sha256$...
+scopes:
+  - uapi:/datasets/gov/vssa/demo/:getone
+  - uapi:/datasets/gov/vssa/demo/:getall
+  - uapi:/datasets/gov/vssa/demo/:search
+  - uapi:/datasets/gov/vssa/demo/:changes
+backends: {}
+contract_scopes:
+  SUT-2026-0042:                                    # sutarties identifikatorius
+    - uapi:/datasets/gov/vssa/demo/:getone
+    - uapi:/datasets/gov/vssa/demo/:getall
+    - uapi:/datasets/gov/vssa/demo/:search
+    - uapi:/datasets/gov/vssa/demo/:changes
+```
+
+Kaip tai veikia:
+
+- **Prieigą lemia `scopes`.** Žetonas išduodamas tik su ten išvardytais leidimais, o
+  užklausos tikrinamos pagal žetono leidimus. `contract_scopes` prieigos nei suteikia,
+  nei susiaurina.
+- **Rakto reikšmė netikrinama.** Sutarties identifikatorius (pavyzdyje `SUT-2026-0042`)
+  yra žyma administratoriui — kad vėliau būtų aišku, kuriuos leidimus nuimti, kai
+  sutartis nutraukiama ar keičiama. Vieno kliento faile gali būti kelios sutartys.
+- **Pildoma rankiniu būdu.** Spinta sutarčių (ADOC) failų nenuskaito ir netikrina —
+  automatinis `contract_scopes` pildymas iš sutarties dar neįgyvendintas.
+
+:::{note}
+Konfigūracijos parametras `check_contract_scopes` (numatytoji reikšmė `false`) įjungia
+papildomą tikrinimą: užklausoje į neviešus duomenis visi žetono leidimai, priklausantys
+užklausiamo duomenų rinkinio vardų erdvei, turi būti išvardyti bent vienoje
+`contract_scopes` sutartyje. Kitaip užklausa atmetama su klaida
+`Request contains extra scopes that are not defined in contract`.
+
+Šis tikrinimas skirtas būsimam automatiniam pildymui iš sutarties. Kol `contract_scopes`
+pildomas rankiniu būdu, papildomos apsaugos jis nesuteikia — abu sąrašus rašo tas pats
+administratorius. Testavimui palikite numatytąją reikšmę. Su nutolusiu AM (Gravitee)
+šis tikrinimas dar netestuotas.
+:::
+
 ## Prieigos žetono gavimas
 
 Turint sukurtą klientą, prieigos žetoną galima gauti taip:
