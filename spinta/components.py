@@ -1123,6 +1123,8 @@ class Config:
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
+    token_issuer: str | None = None
+    resource_server_url: str | None = None
     downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str
