@@ -2,6 +2,7 @@ import datetime
 import json
 import pathlib
 import shutil
+import time
 import uuid
 from http import HTTPStatus
 
@@ -15,6 +16,7 @@ from spinta import commands
 from spinta.auth import (
     ALLOWED_JWT_ALGORITHMS,
     BearerTokenValidator,
+    ClientCredentialsServerMetadata,
     KeyType,
     Token,
     authorized,
@@ -35,6 +37,7 @@ from spinta.exceptions import (
     InvalidExtraScopes,
     ModelNotFound,
     NoScopesForNamespaces,
+    RequiredConfigParam,
     UserError,
 )
 from spinta.testing.cli import SpintaCliRunner
@@ -70,10 +73,15 @@ def int_to_base64(val):
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode("utf-8")
 
 
-def generate_jwt(private_key, kid, scopes="spinta_getall"):
+def generate_jwt(
+    private_key, kid, scopes="spinta_getall", issuer="https://example.com", audience="https://example.com"
+):
     now = datetime.datetime.now()
     payload = {
+        "iss": issuer,
         "sub": "user1",
+        "aud": audience,
+        "client_id": "user1",
         "exp": int((now + datetime.timedelta(minutes=5)).timestamp()),
         "scope": scopes,
         "iat": int(now.timestamp()),
@@ -113,9 +121,10 @@ def test_app(context, app):
     key = import_key(json.loads((config.config_path / "keys/public.json").read_text()))
     token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token == {
-        "iss": config.server_url,
+        "iss": config.token_issuer,
         "sub": client_id,
-        "aud": client_id,
+        "aud": config.resource_server_url,
+        "client_id": client_id,
         "iat": int(token["iat"]),
         "jti": token["jti"],
         "exp": int(token["exp"]),
@@ -370,6 +379,165 @@ def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: li
     assert resp.status_code == 200
 
 
+def _report_setup(rc, tmp_path, request, *, token_issuer="https://example.com"):
+    confdir = pathlib.Path(__file__).parent
+    pubkey = json.loads((confdir / "config/keys/public.json").read_text())
+    prvkey = import_key(json.loads((confdir / "config/keys/private.json").read_text()))
+    overrides = {
+        "config_path": str(tmp_path),
+        "default_auth_client": None,
+        "token_validation_key": json.dumps(pubkey),
+    }
+    if token_issuer is not None:
+        overrides["token_issuer"] = token_issuer
+    context = create_test_context(rc.fork(overrides)).load()
+    request.addfinalizer(context.wipe_all)
+    return context, prvkey, create_test_client(context)
+
+
+def _encode_token(
+    private_key,
+    *,
+    iss="https://example.com",
+    aud="https://example.com",
+    client="RANDOMID",
+    client_id="RANDOMID",
+    scope="spinta_report_getall",
+    exp_delta=600,
+    iat=True,
+):
+    now = int(time.time())
+    payload = {"sub": client, "scope": scope, "jti": str(uuid.uuid4())}
+    if client_id is not None:
+        payload["client_id"] = client_id
+    if aud is not None:
+        payload["aud"] = aud
+    if iat:
+        payload["iat"] = now
+    if iss is not None:
+        payload["iss"] = iss
+    if exp_delta is not None:
+        payload["exp"] = now + exp_delta
+    return jwt.encode(
+        {"typ": "JWT", "alg": "RS512"},
+        payload,
+        private_key,
+        algorithms=ALLOWED_JWT_ALGORITHMS,
+    )
+
+
+def test_auth_accepts_matching_local_issuer(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = create_access_token(context, prvkey, "RANDOMID", scopes=["spinta_report_getall"])
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_auth_rejects_foreign_issuer(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, iss="https://evil.example.com")
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_issuer(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, iss=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_exp(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, exp_delta=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_expired_token(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = create_access_token(context, prvkey, "RANDOMID", expires_in=-10, scopes=["spinta_report_getall"])
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_token_issuer_accepts_configured_issuer(backends, rc, tmp_path, request):
+    issuer = "https://central.example.com"
+    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer=issuer)
+    token = _encode_token(prvkey, iss=issuer)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_auth_rejects_token_without_iat(backends, rc, tmp_path, request):
+    issuer = "https://central.example.com"
+    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer=issuer)
+    token = _encode_token(prvkey, iss=issuer, iat=False)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_token_issuer_rejects_local_issuer_when_configured(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer="https://central.example.com")
+    token = _encode_token(prvkey, iss="https://example.com")
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_default_app_rejects_foreign_issuer(app, context):
+    prvkey = load_key(context, KeyType.private)
+    token = _encode_token(prvkey, iss="https://evil.example.com")
+    resp = app.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_wrong_aud(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, aud="https://other-resource.example.com")
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_aud(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, aud=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_client_id(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, client_id=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_separates_aud_and_client_id(backends, rc, tmp_path, request):
+    # aud is the resource server, client_id is the client — distinct values.
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = create_access_token(context, prvkey, "RANDOMID", scopes=["spinta_report_getall"])
+    claims = jwt.decode(
+        token,
+        import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/public.json").read_text())),
+        algorithms=ALLOWED_JWT_ALGORITHMS,
+    ).claims
+    assert claims["aud"] == "https://example.com"
+    assert claims["client_id"] == "RANDOMID"
+    assert claims["aud"] != claims["client_id"]
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.parametrize("param", ["token_issuer", "resource_server_url"])
+def test_issue_token_requires_auth_config(rc, tmp_path, param):
+    prvkey = import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/private.json").read_text()))
+    context = create_test_context(rc.fork({"config_path": str(tmp_path), param: None}))
+    config = context.get("config")
+    commands.load(context, config)
+    with pytest.raises(RequiredConfigParam):
+        create_access_token(context, prvkey, "RANDOMID")
+
+
 @pytest.fixture(params=[["spinta_getall"], ["uapi:/:getall"]])
 def basic_auth(backends, rc, tmp_path, request):
     scopes = request.param
@@ -604,7 +772,7 @@ def test_pick_correct_key(app, context):
     config.token_validation_key = None
 
 
-def test_decode_token_selects_key_by_kid(monkeypatch):
+def test_decode_token_selects_key_by_kid(monkeypatch, context):
     """The ``kid`` header must select the matching public key directly.
 
     The matching key is placed *second* on purpose: a ``kid``-agnostic
@@ -618,6 +786,7 @@ def test_decode_token_selects_key_by_kid(monkeypatch):
 
     validator = BearerTokenValidator.__new__(BearerTokenValidator)
     validator._all_public_keys = [import_key(jwk1), import_key(jwk2)]
+    validator._context = context
 
     token = generate_jwt(private_2, "rotation-2")
 
@@ -1367,3 +1536,192 @@ class TestTokenCheckContractScopes:
         context.set("auth.token", token)
 
         assert token.check_contract_scopes(context) is None
+
+
+@pytest.fixture
+def introspect_app(backends, rc, tmp_path, request):
+    confdir = pathlib.Path(__file__).parent / "config"
+    shutil.copytree(str(confdir / "keys"), str(tmp_path / "keys"))
+
+    path = get_clients_path(tmp_path)
+    ensure_client_folders_exist(path)
+    create_client_file(
+        path,
+        name="introspector",
+        client_id=str(uuid.uuid4()),
+        secret="introspector-secret",
+        scopes=["spinta_auth_introspect"],
+        add_secret=True,
+    )
+    create_client_file(
+        path,
+        name="reader",
+        client_id=str(uuid.uuid4()),
+        secret="reader-secret",
+        scopes=["spinta_getall"],
+        add_secret=True,
+    )
+
+    rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+    return create_test_client(context)
+
+
+def _get_access_token(app, name: str, secret: str, scope: str = "spinta_getall") -> str:
+    resp = app.post(
+        "/auth/token",
+        auth=(name, secret),
+        data={"grant_type": "client_credentials", "scope": scope},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
+def _introspect(app, token: str, auth=("introspector", "introspector-secret")):
+    return app.post("/auth/introspect", auth=auth, data={"token": token})
+
+
+def test_introspect_active_token(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    assert payload["active"] is True
+    assert payload["token_type"] == "Bearer"
+    assert payload["scope"] == "spinta_getall"
+    assert payload["exp"] > payload["iat"]
+    assert payload["jti"]
+    assert payload["aud"] == "https://example.com"
+
+
+def test_introspect_unknown_token(introspect_app):
+    resp = _introspect(introspect_app, "not-a-jwt")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_expired_token(introspect_app, context):
+    private_key = load_key(context, KeyType.private)
+    token = create_access_token(context, private_key, "reader", expires_in=-10, scopes={"spinta_getall"})
+
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_requires_scope(introspect_app):
+    """A client without `auth_introspect` may not introspect another client's token."""
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+
+    resp = _introspect(introspect_app, token, auth=("reader", "reader-secret"))
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"] == "insufficient_scope"
+
+
+def test_introspect_own_token_requires_scope(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = _introspect(introspect_app, token, auth=("reader", "reader-secret"))
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"] == "insufficient_scope"
+
+
+def test_introspect_requires_client_auth(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = introspect_app.post("/auth/introspect", data={"token": token})
+    assert resp.status_code == 401, resp.text
+
+
+def test_authorization_server_metadata(introspect_app):
+    resp = introspect_app.get("/.well-known/oauth-authorization-server")
+    assert resp.status_code == 200, resp.text
+
+    metadata = ClientCredentialsServerMetadata(resp.json())
+    metadata.validate()
+
+    issuer = metadata["issuer"]
+    assert not issuer.endswith("/")
+    assert metadata["token_endpoint"] == f"{issuer}/auth/token"
+    assert metadata["introspection_endpoint"] == f"{issuer}/auth/introspect"
+    assert metadata["jwks_uri"] == f"{issuer}/.well-known/jwks.json"
+    assert metadata["grant_types_supported"] == ["client_credentials"]
+    assert metadata["token_endpoint_auth_methods_supported"] == ["client_secret_basic"]
+
+
+def test_metadata_uses_distinct_issuer_and_endpoints(backends, rc, tmp_path, request):
+    confdir = pathlib.Path(__file__).parent
+    shutil.copytree(str(confdir / "config/keys"), str(tmp_path / "keys"))
+    rc = rc.fork(
+        {
+            "config_path": str(tmp_path),
+            "default_auth_client": None,
+            "server_url": "https://gateway.example.com",
+            "token_issuer": "https://auth.example.com",
+            "resource_server_url": "https://rs.example.com",
+        }
+    )
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+    client = create_test_client(context)
+
+    metadata = client.get("/.well-known/oauth-authorization-server").json()
+    assert metadata["issuer"] == "https://auth.example.com"
+    assert metadata["token_endpoint"] == "https://rs.example.com/auth/token"
+    assert metadata["introspection_endpoint"] == "https://rs.example.com/auth/introspect"
+    assert metadata["jwks_uri"] == "https://rs.example.com/.well-known/jwks.json"
+
+
+def test_metadata_issuer_matches_token_issuer(introspect_app):
+    """RFC 8414 requires the advertised issuer to match the `iss` claim."""
+    metadata = introspect_app.get("/.well-known/oauth-authorization-server").json()
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    payload = _introspect(introspect_app, token).json()
+    assert payload["iss"] == metadata["issuer"]
+
+
+def test_introspect_ignores_token_type_hint(introspect_app):
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+    resp = introspect_app.post(
+        "/auth/introspect",
+        auth=("introspector", "introspector-secret"),
+        data={"token": token, "token_type_hint": "access_token"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["active"] is True
+
+
+def test_introspect_rejects_unsupported_token_type_hint(introspect_app):
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+    resp = introspect_app.post(
+        "/auth/introspect",
+        auth=("introspector", "introspector-secret"),
+        data={"token": token, "token_type_hint": "refresh_token"},
+    )
+    assert resp.status_code == 401, resp.text
+    assert resp.json()["error"] == "unsupported_token_type"
+
+
+def test_introspect_rejects_foreign_issuer(introspect_app, context):
+    private_key = load_key(context, KeyType.private)
+    iat = int(time.time())
+    token = jwt.encode(
+        {"typ": "JWT", "alg": "RS512"},
+        {
+            "iss": "https://evil.example.com",
+            "sub": "reader",
+            "aud": "https://example.com",
+            "iat": iat,
+            "exp": iat + 600,
+            "scope": "spinta_getall",
+            "jti": str(uuid.uuid4()),
+        },
+        private_key,
+        algorithms=ALLOWED_JWT_ALGORITHMS,
+    )
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
