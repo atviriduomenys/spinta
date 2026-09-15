@@ -1,7 +1,7 @@
 import posixpath
 
-from starlette.datastructures import Headers
-from starlette.middleware.gzip import GZipMiddleware, GZipResponder, IdentityResponder
+from starlette.datastructures import MutableHeaders
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -115,50 +115,55 @@ class ContextMiddleware:
             await self.app(scope, receive, send)
 
 
-class DebugAwareGZipResponder(GZipResponder):
-    async def send_with_compression(self, message: Message) -> None:
-        if message["type"] == "http.response.debug":
-            await self.send(message)
-            return
-
-        await super().send_with_compression(message)
-
-
-class DebugAwareIdentityResponder(IdentityResponder):
-    async def send_with_compression(self, message: Message) -> None:
-        if message["type"] == "http.response.debug":
-            await self.send(message)
-            return
-
-        await super().send_with_compression(message)
-
-
-class DebugAwareGZipMiddleware(GZipMiddleware):
+class DebugAwareGZipMiddleware:
     """
-    This Middleware wraps GZipMiddleware and IdentityMiddleware to allow
-    debug messages to be sent without compression (compression removes debug messages, which causes errors with TestClient
-    using TemplateResponse).
+    Currently, starlette's GZipMiddleware does not handle debug messages, and it just removes them.
+
+    Since GZipMiddleware does not support injecting custom responders without copying and pasting the entire call logic, we have to
+    create a separate ` app ` and ` send ` wrappers that are able to intercept events.
+
+    To achieve this, we have to store GZipMiddleware object as a variable, instead of extending it as a parent,
+    this allows us to create a custom ` app ` wrapper, which would skip parsing debug messages and just return them as given.
+
+    To pass the original send function, we have to hijack the scope variable and insert the original function there. (This could be considered
+    a hack, but prior to that, the original scope is copied to not create issues later on.)
+
+    During the ` __call__ ` method we also hijack the send function to change etags from strong to weak (this is needed for compression
+    if we cannot ensure that compressed data will have unique revisions, this is also done inside nginx compression module.)
+
     """
+
+    def __init__(self, app: ASGIApp, **gzip_options) -> None:
+        self.app = app
+        self.gzip = GZipMiddleware(
+            self.app_with_debug,
+            **gzip_options,
+        )
+
+    async def app_with_debug(self, scope: Scope, receive: Receive, gzip_send: Send) -> None:
+        original_send: Send = scope["_spinta_gzip_original_send"]
+
+        async def send_with_debug(message: Message) -> None:
+            if message["type"] == "http.response.debug":
+                await original_send(message)
+            else:
+                await gzip_send(message)
+
+        await self.app(scope, receive, send_with_debug)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        # Copied over from GZipMiddleware 1.60.0 version
-        if scope["type"] != "http":  # pragma: no cover
-            await self.app(scope, receive, send)
-            return
+        # Copy rather than modify the caller's scope.
+        request_scope = dict(scope)
+        request_scope["_spinta_gzip_original_send"] = send
 
-        headers = Headers(scope=scope)
-        responder: ASGIApp
-        if "gzip" in headers.get("Accept-Encoding", ""):
-            responder = DebugAwareGZipResponder(
-                self.app,
-                self.minimum_size,
-                compresslevel=self.compresslevel,
-                thread_minimum_size=self.thread_minimum_size,
-                exclude_content_types=self.exclude_content_types,
-            )
-        else:
-            responder = DebugAwareIdentityResponder(
-                self.app, self.minimum_size, exclude_content_types=self.exclude_content_types
-            )
+        async def send_response(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(raw=message["headers"])
+                etag = headers.get("etag")
 
-        await responder(scope, receive, send)
+                if headers.get("content-encoding") == "gzip" and etag and not etag.startswith("W/"):
+                    headers["etag"] = f"W/{etag}"
+
+            await send(message)
+
+        await self.gzip(request_scope, receive, send_response)
