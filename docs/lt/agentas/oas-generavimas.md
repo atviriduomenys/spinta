@@ -117,24 +117,29 @@ būdais:
 - **pilnas adresas su paslaugos keliu** – naudojamas toks, koks yra. Jei jo
   kelias nesutampa su `--path`, parodomas įspėjimas.
 
-## Kas į aprašą nepatenka: `visibility: private`
+## Kas patenka į aprašą: `visibility`
 
 `visibility` yra **metaduomenų** matomumas. Pagal DSA `private` metaduomenys
 nepublikuojami: jie laikomi tik IS tvarkytojui, pakartotiniam `spinta inspect` ir
 šaltinio pokyčių sekimui. OpenAPI aprašas yra publikuojami metaduomenys, todėl į jį
-nepatenka niekas, kas pažymėta `private`:
+patenka tik tai, kieno `visibility` yra `protected`, `package` arba `public`.
+
+**Tuščias `visibility` yra `private`.** DSA specifikacija sako: „Nenurodžius
+metaduomenų matomumo reikšmės numatytoji reikšmė yra `private`“. Todėl tai, kam
+`visibility` nenurodytas, į aprašą nepatenka lygiai taip pat, kaip pažymėta
+`private`:
 
 - **modelis** – nėra nei jo kelių, nei schemų, nei žymės;
 - **savybė** – nėra jos schemoje, pavyzdžiuose ir užklausų pavyzdžiuose, o `file`
   ar `object` savybė negauna ir savo kelio;
 - **enum reikšmė** – nėra reikšmių sąraše;
 - **kalbos savybė** (`pavadinimas@lt`) – `visibility` galioja tai kalbai. Savybė
-  lieka, kol bent viena jos kalba publikuojama, ir dingsta tik tada, kai visos
-  kalbos pažymėtos `private`.
+  lieka, kol bent viena jos kalba publikuojama, ir dingsta, kai nė viena nėra.
 
-**Tuščias `visibility` publikuojamas.** DSA specifikacija tuščiai reikšmei priskiria
-`private`, bet beveik visi realūs DSA šį stulpelį palieka tuščią ir yra publikuojami,
-tad į aprašą nepatenka tik tai, kas `private` pažymėta aiškiai.
+Kiek modelių ir savybių liko už aprašo, `spinta udts oas` parodo įspėjimu su
+pavyzdžiais. Jei nepublikuojamas nė vienas modelis, įspėjama atskirai: aprašas
+tuomet neaprašo nė vieno modelio. Tokiu atveju DSA reikia pažymėti publikuojamus
+modelius ir savybes, pavyzdžiui, `visibility` stulpelyje įrašant `public`.
 
 **Duomenų tai nepaslepia.** Prieigą prie duomenų valdo `access`, ne `visibility`:
 pagal `visibility` Spinta duomenų neslepia. Lauką, kurio `access` yra `open` ar

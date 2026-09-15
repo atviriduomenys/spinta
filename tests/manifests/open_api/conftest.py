@@ -1,3 +1,6 @@
+import csv
+from pathlib import Path
+
 import pytest
 
 from spinta.manifests.components import ManifestPath
@@ -355,26 +358,30 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 """)
 
 
-# Metadata marked `private` is not published: a property, an enum value, a file
-# property served on a path of its own, and a whole model. An empty `visibility`
-# is published.
+# Only metadata marked `protected`, `package` or `public` is published; `private`
+# and an empty `visibility` are not. Covers a property, an enum value, a file
+# property served on a path of its own, text languages and whole models.
 MANIFEST_WITH_PRIVATE_VISIBILITY = striptable("""
-id | d | r | b | m | property    | type            | ref   | source  | prepare | level | access | visibility
-   | datasets/gov/rc/jadis/at280/1/ds |            |       |         |         |       |        |
-   |   | test                     | memory          |       |         |         |       |        |
-   |   |   |   | Salis            |                 | kodas | salys   |         |       | open   | public
-   |   |   |   |   | kodas        | string required |       | kodas   |         | 4     | open   | public
-   |   |   |   |   | pavadinimas  | string          |       | pav     |         | 4     | open   |
-   |   |   |   |   | slaptas      | string          |       | slaptas |         | 4     | open   | private
-   |   |   |   |   | tipas        | string          |       | tipas   |         | 4     | open   | public
-   |                              | enum            |       | a       | 'a'     |       |        | public
-   |                              |                 |       | b       | 'b'     |       |        | private
-   |   |   |   |   | byla         | file            |       | byla    |         | 4     | open   | private
-   |   |   |   |   | aprasas@lt   | string          |       | apr_lt  |         | 4     | open   | private
-   |   |   |   |   | aprasas@en   | string          |       | apr_en  |         | 4     | open   | public
-   |   |   |   |   | pastaba@lt   | string          |       | pastaba |         | 4     | open   | private
-   |   |   |   | Paslaptis        |                 | kodas | paslaptys |       |       | open   | private
-   |   |   |   |   | kodas        | string required |       | kodas   |         | 4     | open   |
+id | d | r | b | m | property    | type            | ref   | source    | prepare | level | access | visibility
+   | datasets/gov/rc/jadis/at280/1/ds |            |       |           |         |       |        |
+   |   | test                     | memory          |       |           |         |       |        |
+   |   |   |   | Salis            |                 | kodas | salys     |         |       | open   | public
+   |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
+   |   |   |   |   | pavadinimas  | string          |       | pav       |         | 4     | open   |
+   |   |   |   |   | slaptas      | string          |       | slaptas   |         | 4     | open   | private
+   |   |   |   |   | tipas        | string          |       | tipas     |         | 4     | open   | package
+   |                              | enum            |       | a         | 'a'     |       |        | public
+   |                              |                 |       | b         | 'b'     |       |        | private
+   |                              |                 |       | c         | 'c'     |       |        |
+   |   |   |   |   | byla         | file            |       | byla      |         | 4     | open   | private
+   |   |   |   |   | aprasas@lt   | string          |       | apr_lt    |         | 4     | open   | private
+   |   |   |   |   | aprasas@en   | string          |       | apr_en    |         | 4     | open   | protected
+   |   |   |   |   | pastaba@lt   | string          |       | pastaba   |         | 4     | open   | private
+   |   |   |   |   | santrauka@lt | string          |       | santrauka |         | 4     | open   |
+   |   |   |   | Paslaptis        |                 | kodas | paslaptys |         |       | open   | private
+   |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
+   |   |   |   | Nepazymetas      |                 | kodas | nepaz     |         |       | open   |
+   |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
 """)
 
 
@@ -500,9 +507,44 @@ def open_manifest_path(tmp_path, rc):
         path,
         MANIFEST,
     )
+    publish_unmarked(path)
     file_handle = open(path, "r")
     yield ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
     file_handle.close()
+
+
+def publish_unmarked(path: str | Path) -> None:
+    """Mark every model, property and enum value given no visibility `public`.
+
+    Only metadata marked `protected`, `package` or `public` is published, an
+    empty `visibility` counting as `private`, see `openapi_generator._published`.
+    Most manifests here are about something else, so they are published whole,
+    the way a DSA meant for a gateway would be marked. A test about visibility
+    passes `publish=False` and marks what it needs itself.
+    """
+    with open(path, newline="", encoding="utf-8") as file:
+        rows = list(csv.reader(file))
+    head = rows[0]
+    column = {name: index for index, name in enumerate(head)}
+
+    def cell(row, name):
+        index = column.get(name)
+        return row[index] if index is not None and index < len(row) else ""
+
+    for row in rows[1:]:
+        if cell(row, "visibility"):
+            continue
+        described = cell(row, "model") or cell(row, "property")
+        # An enum value sits on a row of its own, under the property, with no
+        # dataset, resource, base, model or property of its own.
+        enum_value = not any(cell(row, name) for name in ("dataset", "resource", "base", "model", "property")) and (
+            cell(row, "type") == "enum" or cell(row, "source") or cell(row, "prepare")
+        )
+        if described or enum_value:
+            row[column["visibility"]] = "public"
+
+    with open(path, "w", newline="", encoding="utf-8") as file:
+        csv.writer(file).writerows(rows)
 
 
 @pytest.fixture
@@ -510,7 +552,7 @@ def open_manifest_path_factory(tmp_path, rc):
     """Factory fixture that creates manifest paths with custom MANIFEST data"""
     opened_files = []
 
-    def _create_manifest(manifest_data):
+    def _create_manifest(manifest_data, publish=True):
         path = f"{tmp_path}/manifest_{len(opened_files)}.csv"
         context = create_test_context(rc)
         create_tabular_manifest(
@@ -518,6 +560,8 @@ def open_manifest_path_factory(tmp_path, rc):
             path,
             manifest_data,
         )
+        if publish:
+            publish_unmarked(path)
         file_handle = open(path, "r")
         opened_files.append(file_handle)
         return ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)

@@ -1,3 +1,4 @@
+import contextlib
 import json
 import re
 import uuid
@@ -6,7 +7,7 @@ import pytest
 
 from spinta import commands
 from spinta.auth import get_scope_name
-from spinta.core.enums import Action
+from spinta.core.enums import Action, Visibility
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
@@ -625,10 +626,46 @@ def _service_spec(
     service_path=SERVICE_PATH,
     config=None,
     manifest_data=MANIFEST_WITH_SERVICES,
+    publish=True,
     **kwargs,
 ):
-    open_manifest_path = open_manifest_path_factory(manifest_data)
+    open_manifest_path = open_manifest_path_factory(manifest_data, publish=publish)
     return create_openapi_manifest(open_manifest_path, service_path=service_path, config=config, **kwargs)
+
+
+@contextlib.contextmanager
+def _published_store(manifest):
+    """Mark every model, property and enum value of a loaded manifest `public`.
+
+    The manifest of the running service is written without `visibility`, which
+    counts as `private`, so nothing of it would be published. It is shared by
+    the whole session, so every value is put back afterwards.
+    """
+    touched = []
+
+    def mark(node):
+        touched.append((node, node.visibility))
+        node.visibility = Visibility.public
+
+    for model in manifest.get_objects()["model"].values():
+        mark(model)
+        for prop in model.flatprops.values():
+            mark(prop)
+            for lang in (getattr(prop.dtype, "langs", None) or {}).values():
+                mark(lang)
+            if isinstance(prop.enum, dict):
+                for item in prop.enum.values():
+                    mark(item)
+    try:
+        yield manifest
+    finally:
+        for node, visibility in touched:
+            node.visibility = visibility
+
+
+def _store_spec(context):
+    with _published_store(context.get("store").manifest) as manifest:
+        return create_openapi_manifest(manifest)
 
 
 def test_service_includes_all_its_datasets(open_manifest_path_factory):
@@ -935,7 +972,7 @@ def test_object_property_response_matches_what_spinta_answers(model, app, contex
     response = app.get(f"/{model}/{created['_id']}/subobj")
 
     assert response.status_code == 200
-    schemas = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]
+    schemas = _store_spec(context)["components"]["schemas"]
     jsonschema.validate(response.json(), schemas["backends_postgres_Subitem_subobj"])
 
 
@@ -950,7 +987,7 @@ def test_file_property_reference_matches_what_spinta_answers(model, app, context
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/json")
-    spec = create_openapi_manifest(context.get("store").manifest)
+    spec = _store_spec(context)
     # The answer carries the `_revision` of the model, which the model may
     # build out of its own data, so the schema is of that model.
     name = f"{model.replace('/', '_')}_pdf_ref"
@@ -1152,47 +1189,67 @@ def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
         assert "{" not in message and "}" not in message, (name, message)
 
 
-def test_private_metadata_is_not_published(open_manifest_path_factory):
-    """`visibility: private` metadata is not published, and a document is published."""
-    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY)
+def test_unpublished_metadata_is_left_out(open_manifest_path_factory):
+    """Only `protected`, `package` and `public` metadata is published; empty is `private`."""
+    with pytest.warns(UserWarning, match="left out of the specification"):
+        open_api_spec = _service_spec(
+            open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY, publish=False
+        )
     schemas = open_api_spec["components"]["schemas"]
     text = json.dumps(open_api_spec)
 
     salis = schemas["ds_Salis"]
-    # A property marked private is left out; one given no visibility stays.
+    # A property marked private is left out, and so is one given no visibility.
+    assert "kodas" in salis["properties"]
     assert "slaptas" not in salis["properties"]
+    assert "pavadinimas" not in salis["properties"]
     assert "slaptas" not in salis["examples"][0]
-    assert "pavadinimas" in salis["properties"]
+    assert "pavadinimas" not in salis["examples"][0]
 
-    # So is an enum value marked private.
-    tipas = salis["properties"]["tipas"]
-    assert "a" in json.dumps(tipas)
-    assert "'b'" not in json.dumps(tipas) and '"b"' not in json.dumps(tipas)
+    # An enum value is published only when it is marked so.
+    tipas = json.dumps(salis["properties"]["tipas"])
+    assert "a" in salis["properties"]["tipas"]["enum"]
+    assert "b" not in salis["properties"]["tipas"]["enum"]
+    assert "c" not in salis["properties"]["tipas"]["enum"], tipas
 
     # A file property marked private gets no path and no schema of its own.
     assert not [path for path in open_api_spec["paths"] if path.endswith("/byla") or path.endswith("/byla:ref")]
     assert "ds_Salis_byla_ref" not in schemas
 
-    # A model marked private is not described at all.
-    assert not [path for path in open_api_spec["paths"] if "Paslaptis" in path]
-    assert not [name for name in schemas if "Paslaptis" in name]
-    assert "Paslaptis" not in [tag["name"] for tag in open_api_spec["tags"]]
-    assert "Paslaptis" not in text
-
-    # A text property is published while any of its languages is: `aprasas`
-    # keeps its public English, `pastaba` has nothing but private Lithuanian.
+    # A text property is published while any of its languages is.
     assert "aprasas" in salis["properties"]
     assert "pastaba" not in salis["properties"]
-    assert "pastaba" not in salis["examples"][0]
+    assert "santrauka" not in salis["properties"]
 
-    # Nor does a query example name what is private.
-    query = open_api_spec["components"]["parameters"]["query_ds_Salis"]
-    assert "slaptas" not in json.dumps(query)
+    # A model marked private is not described, nor is one given no visibility.
+    for name in ("Paslaptis", "Nepazymetas"):
+        assert not [path for path in open_api_spec["paths"] if name in path], name
+        assert not [schema for schema in schemas if name in schema], name
+        assert name not in [tag["name"] for tag in open_api_spec["tags"]], name
+        assert name not in text, name
+
+    # Nor does a query example name what is not published.
+    query = json.dumps(open_api_spec["components"]["parameters"]["query_ds_Salis"])
+    assert "slaptas" not in query and "pavadinimas" not in query
 
 
-def test_private_metadata_leaves_a_valid_document(open_manifest_path_factory):
+def test_nothing_published_is_said(open_manifest_path_factory):
+    """A DSA that marks nothing gets a document without models, and is told why."""
+    with pytest.warns(UserWarning) as record:
+        open_api_spec = _service_spec(open_manifest_path_factory, publish=False)
+
+    messages = [str(warning.message) for warning in record]
+    assert any("left out of the specification" in message for message in messages)
+    assert any("No model of this export is published" in message for message in messages)
+    assert not [schema for schema in open_api_spec["components"]["schemas"] if schema.startswith("at280_")]
+
+
+def test_unpublished_metadata_leaves_a_valid_document(open_manifest_path_factory):
     openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
-    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY)
+    with pytest.warns(UserWarning):
+        open_api_spec = _service_spec(
+            open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY, publish=False
+        )
     openapi_spec_validator.validate(open_api_spec)
 
 
@@ -2024,7 +2081,7 @@ def test_listing_schema_matches_what_spinta_answers(model, app, context):
     jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getall", "search"])
     app.post(f"/{model}", json={"title": "Vilnius"})
-    spec = create_openapi_manifest(context.get("store").manifest)
+    spec = _store_spec(context)
     schemas = spec["components"]["schemas"]
 
     response = app.get(f"/{model}?_limit=1")
@@ -2091,7 +2148,7 @@ def test_error_schema_accepts_the_error_spinta_answers(model, app, context):
 
     assert response.status_code == 400
     assert sorted(response.json()["errors"][0]) == ["code", "context", "message", "template", "type"]
-    components = create_openapi_manifest(context.get("store").manifest)["components"]
+    components = _store_spec(context)["components"]
     schema = components["responses"]["error400"]["content"]["application/json"]["schema"]
     resolver = jsonschema.RefResolver.from_schema({"components": components})
     jsonschema.validate(response.json(), {**schema, "components": components}, resolver=resolver)
@@ -2106,7 +2163,7 @@ def test_error_responses_accept_the_errors_spinta_answers(model, app, context):
     fails here instead of in an API gateway.
     """
     jsonschema = pytest.importorskip("jsonschema")
-    components = create_openapi_manifest(context.get("store").manifest)["components"]
+    components = _store_spec(context)["components"]
 
     def check(response_name: str, response) -> None:
         schema = components["responses"][response_name]["content"]["application/json"]["schema"]
@@ -2362,7 +2419,7 @@ def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_fac
 def test_health_schema_requires_what_the_probe_answers(model, app, context):
     """`health` writes both fields every time, so fewer is not its answer."""
     jsonschema = pytest.importorskip("jsonschema")
-    schemas = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]
+    schemas = _store_spec(context)["components"]["schemas"]
 
     jsonschema.validate(app.get("/health").json(), schemas["health"])
     with pytest.raises(jsonschema.ValidationError):
@@ -2564,7 +2621,7 @@ def test_page_schema_matches_the_token_spinta_writes(model, app, context, open_m
         app.post(f"/{model}", json={"title": title})
 
     answered = app.get(f"/{model}?_limit=1").json()["_page"]
-    schema = create_openapi_manifest(context.get("store").manifest)["components"]["schemas"]["page"]
+    schema = _store_spec(context)["components"]["schemas"]["page"]
 
     jsonschema.validate(answered, schema)
     assert len(answered["next"]) % 4 == 0
