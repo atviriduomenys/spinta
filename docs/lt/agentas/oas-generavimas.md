@@ -1,7 +1,7 @@
 # OAS generavimas duomenų paslaugai
 
 Kad duomenų paslaugą būtų galima įdiegti į vartus, iš Spinta manifesto
-sugeneruojamas **vienas OpenAPI (OAS) failas vienai duomenų paslaugai**, apimantis
+sugeneruojamas **vienas OpenAPI 3.0 (OAS) failas vienai duomenų paslaugai**, apimantis
 visus tos paslaugos duomenų rinkinius.
 
 Duomenų paslaugą apibrėžia kelio priekinė dalis:
@@ -68,6 +68,7 @@ nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
 ```yaml
 info:
   title: JADIS duomenų paslauga
+  # OpenAPI 3.0 `info` neturi `summary`, todėl jis tampa pirma aprašymo pastraipa.
   summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
   version: "1"
 

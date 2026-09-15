@@ -4,6 +4,7 @@ import re
 import uuid
 
 import pytest
+from jsonschema import ValidationError
 
 from spinta import commands
 from spinta.auth import get_scope_name
@@ -17,7 +18,7 @@ from spinta.manifests.open_api.openapi_config import (
     PARAMETER_COMPONENTS,
     RESPONSE_COMPONENTS,
 )
-from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS
+from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS, NULL_OBJECT_SCHEMA
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.utils.encoding import encode_base32
@@ -75,8 +76,9 @@ def test_basic_structure(open_manifest_path_factory, manifest_data):
 
 def test_info(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
-    assert open_api_spec["info"]["summary"] == "Test title"
-    assert open_api_spec["info"]["description"] == "Test description"
+    # OpenAPI 3.0 has no `summary`, so it opens the description.
+    assert "summary" not in open_api_spec["info"]
+    assert open_api_spec["info"]["description"] == "Test title\n\nTest description"
 
 
 def test_components_schemas(open_manifest_path: ManifestPath):
@@ -140,7 +142,7 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
     open_api_spec.pop("components")  # Components do not have a default initial value.
     open_api_spec.pop("paths")  # Paths are not part of the generated specification
     assert open_api_spec == {
-        "openapi": "3.1.0",
+        "openapi": "3.0.3",
         "info": {
             "version": "1.0.0",
             "title": "Universal application programming interface",
@@ -153,8 +155,7 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
                 "name": "CC-BY 4.0",
                 "url": "https://creativecommons.org/licenses/by/4.0/",
             },
-            "summary": "Test title",
-            "description": "Test description",
+            "description": "Test title\n\nTest description",
         },
         "externalDocs": {"url": "https://ivpk.github.io/uapi"},
         # Utility is a default tag, others are generated from models, none is
@@ -354,7 +355,7 @@ def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, e
 
     assert schema["type"] == "object"
     assert "properties" in schema
-    assert "examples" in schema
+    assert "example" in schema
 
     properties = schema["properties"]
 
@@ -368,7 +369,7 @@ def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, e
         prop_schema = properties[prop_name]
         assert "type" in prop_schema or "$ref" in prop_schema, f"Property {prop_name} missing type/ref in {model_name}"
 
-    example = schema["examples"][0]
+    example = schema["example"]
     # `_type` of a response is the full model name, see `spinta.commands.read`.
     assert example["_type"] == f"{dataset_name}/{model_name}"
     assert "_id" in example
@@ -406,10 +407,10 @@ def test_organization_schema_details(open_manifest_path: ManifestPath):
     org_schema = schemas[model_schema_name]
     properties = org_schema["properties"]
 
-    assert properties["org_name"]["type"] == ["string", "null"]
-    assert properties["annual_revenue"]["type"] == ["number", "null"]
-    assert properties["coordinates"]["type"] == ["string", "null"]
-    assert properties["established_date"]["type"] == ["string", "null"]
+    assert (properties["org_name"]["type"], properties["org_name"].get("nullable")) == ("string", True)
+    assert (properties["annual_revenue"]["type"], properties["annual_revenue"].get("nullable")) == ("number", True)
+    assert (properties["coordinates"]["type"], properties["coordinates"].get("nullable")) == ("string", True)
+    assert (properties["established_date"]["type"], properties["established_date"].get("nullable")) == ("string", True)
 
 
 def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
@@ -422,25 +423,25 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     pu_schema = schemas[model_schema_name]
     properties = pu_schema["properties"]
 
-    assert properties["unit_name"]["type"] == ["string", "null"]
+    assert (properties["unit_name"]["type"], properties["unit_name"].get("nullable")) == ("string", True)
 
     # Optional enum properties list `null` too, otherwise `enum` would reject a
     # value that `type` allows.
-    assert properties["unit_type"]["type"] == ["string", "null"]
+    assert (properties["unit_type"]["type"], properties["unit_type"].get("nullable")) == ("string", True)
     assert "enum" in properties["unit_type"]
     expected_enum = ["FAC", "TRT", "OUT", "OTH", None]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
 
-    assert properties["unit_version"]["type"] == ["integer", "null"]
+    assert (properties["unit_version"]["type"], properties["unit_version"].get("nullable")) == ("integer", True)
     assert "enum" in properties["unit_version"]
     assert set(properties["unit_version"]["enum"]) == {1, 2, None}
 
-    assert properties["unit_kind"]["type"] == ["string", "null"]
+    assert (properties["unit_kind"]["type"], properties["unit_kind"].get("nullable")) == ("string", True)
     assert "enum" in properties["unit_kind"]
     assert set(properties["unit_kind"]["enum"]) == {"A", "B", None}
 
-    assert properties["efficiency_rate"]["type"] == ["number", "null"]
-    assert properties["capacity"]["type"] == ["integer", "null"]
+    assert (properties["efficiency_rate"]["type"], properties["efficiency_rate"].get("nullable")) == ("number", True)
+    assert (properties["capacity"]["type"], properties["capacity"].get("nullable")) == ("integer", True)
 
 
 def test_version_schema_structure(open_manifest_path: ManifestPath):
@@ -500,11 +501,11 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
     assert "population" not in county_props
     assert "_id" in county_props
 
-    municipality_example = municipality_schema["examples"][0]
+    municipality_example = municipality_schema["example"]
     assert "_id" in municipality_example
     assert "id" not in municipality_example
 
-    county_example = county_schema["examples"][0]
+    county_example = county_schema["example"]
     assert "_id" in county_example
     assert "id" not in county_example
 
@@ -520,11 +521,11 @@ def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path
     # Ref properties are not required, so they are wrapped to accept `null`.
     assert properties["city"]["anyOf"] == [
         {"$ref": "#/components/schemas/datasets_gov_vssa_demo_Municipality"},
-        {"type": "null"},
+        {"type": "object", "nullable": True, "enum": [None]},
     ]
     assert properties["region"]["anyOf"] == [
         {"$ref": "#/components/schemas/datasets_gov_vssa_demo_County"},
-        {"type": "null"},
+        {"type": "object", "nullable": True, "enum": [None]},
     ]
 
 
@@ -535,16 +536,16 @@ def test_main_model_ref_properties_have_proper_examples(open_manifest_path_facto
     schemas = open_api_spec["components"]["schemas"]
     territory_schema = schemas["Territory"]
 
-    city_example = territory_schema["properties"]["city"]["examples"][0]
+    city_example = territory_schema["properties"]["city"]["example"]
     assert "_id" in city_example, "city example should contain global '_id' field"
     assert "id" not in city_example
 
-    region_example = territory_schema["properties"]["region"]["examples"][0]
+    region_example = territory_schema["properties"]["region"]["example"]
     assert "_id" in region_example, "region example should contain global '_id' field"
     assert "id" not in region_example
     assert "title" not in region_example
 
-    schema_example = territory_schema["examples"][0]
+    schema_example = territory_schema["example"]
     assert isinstance(schema_example["city"], dict)
     assert "_id" in schema_example["city"]
     assert "id" not in schema_example["city"]
@@ -740,7 +741,7 @@ def test_service_ref_between_datasets_uses_a_reference_schema(open_manifest_path
     properties = schemas["at280_israsas_DalyvioAsmensIsrasas"]["properties"]
     assert properties["adresas"]["anyOf"] == [
         {"$ref": "#/components/schemas/at280_adresai_Adresas_Ref"},
-        {"type": "null"},
+        {"type": "object", "nullable": True, "enum": [None]},
     ]
 
     # The target keeps its full schema, holding every property of the model,
@@ -821,7 +822,6 @@ def test_service_health_is_not_authorized(open_manifest_path_factory):
 
 def test_service_health_response_matches_what_spinta_answers(open_manifest_path_factory, app):
     """The document has to describe the probe Spinta actually serves."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory)
     schemas = open_api_spec["components"]["schemas"]
 
@@ -829,7 +829,7 @@ def test_service_health_response_matches_what_spinta_answers(open_manifest_path_
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    jsonschema.validate(response.json(), schemas["health"])
+    _validate(response.json(), schemas["health"])
 
 
 def test_service_security_schemes(open_manifest_path_factory):
@@ -876,7 +876,8 @@ def test_service_info_from_config(open_manifest_path_factory):
 
     info = open_api_spec["info"]
     assert info["title"] == "JADIS"
-    assert info["summary"] == "Data service"
+    assert "summary" not in info
+    assert info["description"].startswith("Data service\n\n")
     assert info["version"] == "1"
     # Not taken from any single dataset of the service.
     assert info["description"] != "Išrašo duomenys"
@@ -901,10 +902,10 @@ def test_revision_accepts_null(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
-    assert properties["_revision"]["type"] == ["string", "null"]
+    assert (properties["_revision"]["type"], properties["_revision"].get("nullable")) == ("string", True)
     # Required properties keep their plain type.
     assert properties["id"]["type"] == "string"
-    assert properties["gatve"]["type"] == ["string", "null"]
+    assert (properties["gatve"]["type"], properties["gatve"].get("nullable")) == ("string", True)
 
 
 def _operation_ids(open_api_spec: dict) -> list[str]:
@@ -952,7 +953,7 @@ def test_service_enum_of_formulas_leaves_the_property_alone(open_manifest_path_f
     rusis = open_api_spec["components"]["schemas"]["ds_Testamentas"]["properties"]["rusis"]
 
     assert "enum" not in rusis
-    assert rusis["type"] == ["integer", "null"]
+    assert (rusis["type"], rusis.get("nullable")) == ("integer", True)
 
 
 def test_service_schema_names_hold_only_allowed_characters(open_manifest_path_factory):
@@ -965,7 +966,6 @@ def test_service_schema_names_hold_only_allowed_characters(open_manifest_path_fa
 @pytest.mark.models("backends/postgres/Subitem")
 def test_object_property_response_matches_what_spinta_answers(model, app, context):
     """The schema of an object property has to describe the subresource."""
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getone", "subobj_getone"])
     created = app.post(f"/{model}", json={"subobj": {"foo": "a", "bar": 1}}).json()
 
@@ -973,13 +973,12 @@ def test_object_property_response_matches_what_spinta_answers(model, app, contex
 
     assert response.status_code == 200
     schemas = _store_spec(context)["components"]["schemas"]
-    jsonschema.validate(response.json(), schemas["backends_postgres_Subitem_subobj"])
+    _validate(response.json(), schemas["backends_postgres_Subitem_subobj"])
 
 
 @pytest.mark.models("backends/postgres/Subitem")
 def test_file_property_reference_matches_what_spinta_answers(model, app, context):
     """`:ref` answers with what is known about the file, not with the file."""
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getone", "pdf_getone"])
     created = app.post(f"/{model}", json={}).json()
 
@@ -991,9 +990,9 @@ def test_file_property_reference_matches_what_spinta_answers(model, app, context
     # The answer carries the `_revision` of the model, which the model may
     # build out of its own data, so the schema is of that model.
     name = f"{model.replace('/', '_')}_pdf_ref"
-    jsonschema.validate(response.json(), spec["components"]["schemas"][name])
+    _validate(response.json(), spec["components"]["schemas"][name])
     assert spec["components"]["schemas"][name]["required"] == ["_type", "_revision"]
-    assert spec["components"]["schemas"][name]["properties"]["_type"]["const"] == f"{model}.pdf"
+    assert spec["components"]["schemas"][name]["properties"]["_type"]["enum"] == [f"{model}.pdf"]
 
 
 @pytest.mark.models("backends/postgres/City")
@@ -1036,21 +1035,20 @@ def test_query_example_shape_is_answered_by_spinta(model, app):
 @pytest.mark.models("backends/postgres/Subitem")
 def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open_manifest_path_factory):
     """A model keeping a UUID identifier keeps the pattern of one."""
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getone"])
     created = app.post(f"/{model}", json={}).json()
     parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
 
     schema = parameters["id_at280_israsas_DalyvioAsmensIsrasas"]["schema"]
     assert "pattern" in schema
-    jsonschema.validate(created["_id"], schema)
+    _validate(created["_id"], schema)
 
     # `is_object_id` takes a UUID of version 4 alone, see `spinta.backends`, so
     # a path holding any other one is not read as an identifier at all.
     other_version = str(uuid.uuid5(uuid.NAMESPACE_DNS, "example.com"))
     assert app.get(f"/{model}/{other_version}").status_code == 404
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(other_version, schema)
+    with pytest.raises(ValidationError):
+        _validate(other_version, schema)
 
     # It reads the value with `uuid.UUID`, which drops the hyphens, the braces
     # and an `urn:uuid:` prefix, so every one of these is served and the
@@ -1066,15 +1064,15 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
         identifier.upper(),
     ):
         assert app.get(f"/{model}/{spelling}").status_code == 200, spelling
-        jsonschema.validate(spelling, schema)
+        _validate(spelling, schema)
 
     # `uuid.UUID` drops those prefixes and the hyphens wherever they sit, so it
     # reads more than a client writes. The pattern holds to the spellings a
     # client writes and keeps the version asserted, which following the parser
     # all the way would cost.
     assert app.get(f"/{model}/{identifier}urn:").status_code == 200
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(f"{identifier}urn:", schema)
+    with pytest.raises(ValidationError):
+        _validate(f"{identifier}urn:", schema)
 
 
 def test_declared_uuid_identifier_is_the_one_spinta_reads():
@@ -1101,37 +1099,37 @@ def test_declared_uuid_identifier_is_the_one_spinta_reads():
 
 def test_file_reference_revision_is_the_one_the_model_builds(open_manifest_path_factory):
     """A model can build `_revision` out of its data, and then it is not a UUID."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_FILE_AND_DECLARED_REVISION)
     schemas = open_api_spec["components"]["schemas"]
 
     revision = schemas["ds_Byla_priedas_ref"]["properties"]["_revision"]
     # The shared schema said `string` or `null`, which would refuse the whole
     # number this model answers with, see `_revision_schema`.
-    jsonschema.validate(1, revision)
+    _validate(1, revision)
     # And nothing references the shared one any more.
     assert "fileRef" not in schemas
 
 
 def test_a_media_type_keeps_what_the_configuration_says_about_it(open_manifest_path_factory):
     """A schema of alternatives carries no example, so one sits beside it."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory)
     components = open_api_spec["components"]
 
     content = components["responses"]["tokenError400"]["content"]["application/json"]
     assert "example" in content
     # And it is an answer the schema beside it accepts.
-    resolver = jsonschema.RefResolver.from_schema({"components": components})
-    jsonschema.validate(
+    _validate(
         content["example"],
         {**content["schema"], "components": components},
-        resolver=resolver,
     )
 
 
-def test_no_schema_carries_the_deprecated_example(open_manifest_path_factory):
-    """OpenAPI 3.1 deprecated `example` of a schema, and Swagger says so."""
+def test_no_schema_carries_what_openapi_3_0_does_not_have(open_manifest_path_factory):
+    """A schema of OpenAPI 3.0 is not JSON Schema 2020-12, so none of it is written.
+
+    `examples`, `const` and a list of types are JSON Schema a 3.1 document holds,
+    and an OpenAPI 3.0 reader refuses them or silently ignores them.
+    """
     open_api_spec = _service_spec(open_manifest_path_factory)
     components = open_api_spec["components"]
 
@@ -1159,17 +1157,19 @@ def test_no_schema_carries_the_deprecated_example(open_manifest_path_factory):
             for prop, item in (schema.get(key) or {}).items():
                 yield from walk(f"{name}/{key}/{prop}", item)
 
+    def of_3_1(schema):
+        return "examples" in schema or "const" in schema or isinstance(schema.get("type"), list)
+
     found = []
     for name, schema in components["schemas"].items():
-        found += [n for n, s in walk(name, schema) if "example" in s]
+        found += [n for n, s in walk(name, schema) if of_3_1(s)]
     for where in (open_api_spec["paths"], {k: v for k, v in components.items() if k != "schemas"}):
         for name, schema in schemas_of(where, []):
-            found += [n for n, s in walk(name, schema) if "example" in s]
+            found += [n for n, s in walk(name, schema) if of_3_1(s)]
 
     assert not found, found[:5]
-    # A media type and a parameter keep an example of their own, which is not a
-    # schema and not deprecated.
-    assert "example" in components["responses"]["tokenError400"]["content"]["application/json"]
+    # A schema gives its example the way OpenAPI 3.0 reads it.
+    assert "example" in components["schemas"]["at280_israsas_DalyvioAsmensIsrasas"]
 
 
 def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
@@ -1177,14 +1177,15 @@ def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
     schemas = open_api_spec["components"]["schemas"]
 
-    # A named error pins its template with `const`; the open-ended `Error` does
-    # not, and its message example stands for whichever error it carries.
+    # A named error pins its template with a single `enum` value; the
+    # open-ended `Error` does not, and its message example stands for whichever
+    # error it carries.
     named = [
-        name for name, schema in schemas.items() if "const" in ((schema.get("properties") or {}).get("template") or {})
+        name for name, schema in schemas.items() if "enum" in ((schema.get("properties") or {}).get("template") or {})
     ]
     assert named
     for name in [*named, "Error"]:
-        message = schemas[name]["properties"]["message"].get("examples", [None])[0]
+        message = schemas[name]["properties"]["message"].get("example")
         assert message is not None, name
         assert "{" not in message and "}" not in message, (name, message)
 
@@ -1203,8 +1204,8 @@ def test_unpublished_metadata_is_left_out(open_manifest_path_factory):
     assert "kodas" in salis["properties"]
     assert "slaptas" not in salis["properties"]
     assert "pavadinimas" not in salis["properties"]
-    assert "slaptas" not in salis["examples"][0]
-    assert "pavadinimas" not in salis["examples"][0]
+    assert "slaptas" not in salis["example"]
+    assert "pavadinimas" not in salis["example"]
 
     # An enum value is published only when it is marked so.
     tipas = json.dumps(salis["properties"]["tipas"])
@@ -1255,41 +1256,38 @@ def test_unpublished_metadata_leaves_a_valid_document(open_manifest_path_factory
 
 def test_whole_number_identifier_is_bounded(open_manifest_path_factory):
     """A path segment of a request is bounded, whatever its type."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_INTEGER_ID)
 
     identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
 
     assert identifier["type"] == "integer"
     assert identifier["format"] == "int64"
-    jsonschema.validate(identifier["examples"][0], identifier)
-    jsonschema.validate(2**63 - 1, identifier)
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(2**63, identifier)
+    _validate(identifier["example"], identifier)
+    _validate(2**63 - 1, identifier)
+    with pytest.raises(ValidationError):
+        _validate(2**63, identifier)
 
 
 def test_composite_identifier_example_holds_every_key(open_manifest_path_factory):
     """A key of several parts is one identifier, the parts separated by commas."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_COMPOSITE_ID)
 
     salis = open_api_spec["components"]["schemas"]["ds_Salis"]
     identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
 
-    answered = salis["examples"][0]
+    answered = salis["example"]
     expected = f"{answered['nr']},{answered['kodas']}"
-    assert identifier["examples"][0] == expected
-    assert salis["properties"]["_id"]["examples"][0] == expected
-    jsonschema.validate(identifier["examples"][0], identifier)
+    assert identifier["example"] == expected
+    assert salis["properties"]["_id"]["example"] == expected
+    _validate(identifier["example"], identifier)
 
     # A composite key is not reached by an equals sign, see
     # `is_accessible_by_equals_sign`, so the example carries none.
-    assert not identifier["examples"][0].startswith("=")
+    assert not identifier["example"].startswith("=")
 
 
 def test_base32_identifier_takes_a_length_that_decodes(open_manifest_path_factory):
     """Padding is dropped, so what is left has to be paddable back."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_BASE32_ID)
     schema = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
 
@@ -1299,10 +1297,10 @@ def test_base32_identifier_takes_a_length_that_decodes(open_manifest_path_factor
         # that cannot be done, see `spinta.datasets.helpers.decode_id_value`.
         decodes = length % 8 not in (1, 3, 6)
         if decodes:
-            jsonschema.validate(value, schema)
+            _validate(value, schema)
         else:
-            with pytest.raises(jsonschema.ValidationError):
-                jsonschema.validate(value, schema)
+            with pytest.raises(ValidationError):
+                _validate(value, schema)
 
 
 def test_not_modified_carries_no_body_headers(open_manifest_path_factory):
@@ -1323,45 +1321,42 @@ def test_not_modified_carries_no_body_headers(open_manifest_path_factory):
 
 def test_etag_is_not_bounded_by_a_policy(open_manifest_path_factory):
     """A revision a model declares itself is of no stated length."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     etag = open_api_spec["components"]["headers"]["ETag"]["schema"]
-    jsonschema.validate("x" * 4096, etag)
+    _validate("x" * 4096, etag)
     # A request header is bounded, because a gateway may refuse an oversized one.
     if_none_match = open_api_spec["components"]["parameters"]["If-None-Match"]["schema"]
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate("x" * 4096, if_none_match)
+    with pytest.raises(ValidationError):
+        _validate("x" * 4096, if_none_match)
 
 
 def test_base32_identifier_example_is_the_key_encoded(open_manifest_path_factory):
     """`base32` says the identifier is the key encoded, not the key itself."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_BASE32_ID)
 
     identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
     salis = open_api_spec["components"]["schemas"]["ds_Salis"]
-    key = salis["examples"][0]["kodas"]
+    key = salis["example"]["kodas"]
 
     # The value a request gives is the encoded key behind an equals sign, and
     # the schema of the parameter has to accept its own example.
-    assert identifier["examples"][0] == f"={encode_base32(key)}"
-    jsonschema.validate(identifier["examples"][0], identifier)
+    assert identifier["example"] == f"={encode_base32(key)}"
+    _validate(identifier["example"], identifier)
 
     # A response carries the same identifier without the sign, which is the
     # form `cast_backend_to_python` gives it in, and of the shape that form has.
-    assert salis["properties"]["_id"]["examples"][0] == encode_base32(key)
-    assert salis["examples"][0]["_id"] == encode_base32(key)
+    assert salis["properties"]["_id"]["example"] == encode_base32(key)
+    assert salis["example"]["_id"] == encode_base32(key)
     answered = salis["properties"]["_id"]
-    jsonschema.validate(answered["examples"][0], answered)
-    for refused in (answered["examples"][0].lower(), answered["examples"][0] + "======", "=" + answered["examples"][0]):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(refused, answered)
+    _validate(answered["example"], answered)
+    for refused in (answered["example"].lower(), answered["example"] + "======", "=" + answered["example"]):
+        with pytest.raises(ValidationError):
+            _validate(refused, answered)
 
 
 def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_factory):
     """A model can declare `_id` of its own, and then it holds the data key."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
     parameters = open_api_spec["components"]["parameters"]
 
@@ -1373,15 +1368,15 @@ def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_facto
     assert identifier["schema"]["pattern"] == EQUALS_ID_PATTERN
     # The example is the value of the property the model is keyed by, behind
     # the equals sign a request needs.
-    assert identifier["schema"]["examples"][0].startswith("=")
-    jsonschema.validate("=AE", identifier["schema"])
-    jsonschema.validate("=ąčę-2026", identifier["schema"])
+    assert identifier["schema"]["example"].startswith("=")
+    _validate("=AE", identifier["schema"])
+    _validate("=ąčę-2026", identifier["schema"])
     for value in ("AE", "=a/b"):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(value, identifier["schema"])
+        with pytest.raises(ValidationError):
+            _validate(value, identifier["schema"])
     # The pattern of a UUID would reject the value the data holds either way.
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate("=AE", {"type": "string", "pattern": PARAMETER_COMPONENTS["id"]["schema"]["pattern"]})
+    with pytest.raises(ValidationError):
+        _validate("=AE", {"type": "string", "pattern": PARAMETER_COMPONENTS["id"]["schema"]["pattern"]})
 
     assert open_api_spec["paths"]["/ds/Salis/{id}"]["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
 
@@ -1391,15 +1386,15 @@ def test_example_identifiers_are_not_all_one(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
     schemas = open_api_spec["components"]["schemas"]
 
-    israsas = schemas["at280_israsas_DalyvioAsmensIsrasas"]["examples"][0]
-    adresas = schemas["at280_adresai_Adresas"]["examples"][0]
+    israsas = schemas["at280_israsas_DalyvioAsmensIsrasas"]["example"]
+    adresas = schemas["at280_adresai_Adresas"]["example"]
 
     assert israsas["_id"] != adresas["_id"]
     assert israsas["_id"] != israsas["_revision"]
 
     # A request and the answer beside it speak about one object.
     identifier = open_api_spec["components"]["parameters"]["id_at280_israsas_DalyvioAsmensIsrasas"]
-    assert identifier["schema"]["examples"][0] == israsas["_id"]
+    assert identifier["schema"]["example"] == israsas["_id"]
 
     # A reference points at the example of what it references.
     assert israsas["adresas"]["_id"] == adresas["_id"]
@@ -1468,7 +1463,7 @@ def test_ref_to_missing_dataset_is_an_object(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
 
     properties = open_api_spec["components"]["schemas"]["n249_israsas_Israsas"]["properties"]
-    assert properties["vieta"]["type"] == ["object", "null"]
+    assert (properties["vieta"]["type"], properties["vieta"].get("nullable")) == ("object", True)
 
 
 def test_yaml_output_has_no_anchors(open_manifest_path_factory, tmp_path):
@@ -1538,8 +1533,8 @@ def test_file_and_image_properties_are_objects(open_manifest_path: ManifestPath)
     logo = schemas["datasets_demo_system_data_Organization"]["properties"]["org_logo"]
     specs = schemas["datasets_demo_system_data_ProcessingUnit"]["properties"]["technical_specs"]
 
-    assert logo["anyOf"] == [{"$ref": "#/components/schemas/image"}, {"type": "null"}]
-    assert specs["anyOf"] == [{"$ref": "#/components/schemas/file"}, {"type": "null"}]
+    assert logo["anyOf"] == [{"$ref": "#/components/schemas/image"}, NULL_OBJECT_SCHEMA]
+    assert specs["anyOf"] == [{"$ref": "#/components/schemas/file"}, NULL_OBJECT_SCHEMA]
     assert schemas["image"]["type"] == "object"
     assert schemas["file"]["type"] == "object"
 
@@ -1670,9 +1665,12 @@ def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: Mani
         # A response carries only these two, see `prepare_dtype_for_response`.
         assert set(schemas[name]["properties"]) == {"_id", "_content_type"}
         # Values are null once the file is deleted.
-        assert schemas[name]["properties"]["_id"]["type"] == ["string", "null"]
+        assert (schemas[name]["properties"]["_id"]["type"], schemas[name]["properties"]["_id"].get("nullable")) == (
+            "string",
+            True,
+        )
 
-    example = schemas["datasets_demo_system_data_ProcessingUnit"]["examples"][0]["technical_specs"]
+    example = schemas["datasets_demo_system_data_ProcessingUnit"]["example"]["technical_specs"]
     assert set(example) == {"_id", "_content_type"}
 
 
@@ -1777,15 +1775,15 @@ def test_token_request_example_uses_a_scope_of_the_service(open_manifest_path_fa
     open_api_spec = _service_spec(open_manifest_path_factory, scope_prefix="kita:/")
 
     content = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]
-    example = content["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]["examples"]
+    example = content["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]["example"]
     declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
 
-    assert example[0] in declared
-    assert example[0].startswith("kita:/")
+    assert example in declared
+    assert example.startswith("kita:/")
     # A scope of a model of this data service, not of the agent, which the
     # widest of the declared alternatives, the root namespace, would be.
-    assert example[0].startswith(f"kita:/{SERVICE_PATH}/")
-    assert example[0] != sorted(declared)[0]
+    assert example.startswith(f"kita:/{SERVICE_PATH}/")
+    assert example != sorted(declared)[0]
 
 
 def test_authorized_operations_declare_authentication_errors(open_manifest_path_factory):
@@ -1806,11 +1804,24 @@ def test_authorized_operations_declare_authentication_errors(open_manifest_path_
 
 def _validator(open_api_spec: dict, schema: dict):
     """Build a validator of a schema of the generated specification."""
-    jsonschema = pytest.importorskip("jsonschema")
+    return _schema_validator({**schema, "components": open_api_spec["components"]})
 
-    schemas = open_api_spec["components"]["schemas"]
-    resolved = json.dumps({"$defs": schemas, **schema}).replace("#/components/schemas/", "#/$defs/")
-    return jsonschema.Draft202012Validator(json.loads(resolved))
+
+def _schema_validator(schema: dict):
+    """A validator reading a schema the way OpenAPI 3.0 writes it.
+
+    A schema of OpenAPI 3.0 is not JSON Schema: `nullable` lets a `null` in,
+    which a JSON Schema validator knows nothing of. A reference names a
+    component, so the components are given beside the schema, in its root.
+    """
+    openapi_schema_validator = pytest.importorskip("openapi_schema_validator")
+    return openapi_schema_validator.OAS30Validator(schema)
+
+
+def _validate(instance, schema: dict) -> None:
+    error = next(iter(_schema_validator(schema).iter_errors(instance)), None)
+    if error is not None:
+        raise error
 
 
 def _error_body(code: str) -> dict:
@@ -1890,8 +1901,8 @@ def test_collection_head_takes_the_query_parameter(open_manifest_path_factory):
 
     examples = open_api_spec["components"]["parameters"][query["$ref"].rsplit("/", 1)[1]]
     properties = examples["schema"]["properties"]
-    assert properties["_select"]["examples"][0] == "kodas,adresas"
-    assert properties["_sort"]["examples"][0] == "kodas"
+    assert properties["_select"]["example"] == "kodas,adresas"
+    assert properties["_sort"]["example"] == "kodas"
 
     scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
     assert any(scope.endswith("/:search") for scope in scopes)
@@ -1939,7 +1950,10 @@ def test_model_schemas_require_nothing(rc, open_manifest_path_factory):
 
     # A property holding a value is still not nullable.
     assert schemas["at280_adresai_Adresas"]["properties"]["id"]["type"] == "string"
-    assert schemas["at280_adresai_Adresas"]["properties"]["gatve"]["type"] == ["string", "null"]
+    assert (
+        schemas["at280_adresai_Adresas"]["properties"]["gatve"]["type"],
+        schemas["at280_adresai_Adresas"]["properties"]["gatve"].get("nullable"),
+    ) == ("string", True)
 
 
 def test_model_schema_accepts_a_projected_response(open_manifest_path_factory):
@@ -2018,14 +2032,14 @@ def test_array_through_an_intermediate_table_is_a_list(open_manifest_path_factor
     schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
     kalbos = schema["properties"]["kalbos"]
 
-    assert kalbos["type"] == ["array", "null"]
+    assert (kalbos["type"], kalbos.get("nullable")) == ("array", True)
     # Items are of the model the array item refers to, not of the intermediate,
     # and an empty item comes as a null of the list.
     assert kalbos["items"]["anyOf"] == [
         {"$ref": "#/components/schemas/ds_Kalba_Ref"},
-        {"type": "null"},
+        {"type": "object", "nullable": True, "enum": [None]},
     ]
-    assert isinstance(schema["examples"][0]["kalbos"], list)
+    assert isinstance(schema["example"]["kalbos"], list)
 
 
 def test_optional_array_item_accepts_null(open_manifest_path_factory):
@@ -2045,7 +2059,7 @@ def test_dynamic_array_holds_anything(open_manifest_path_factory):
 
     zymos = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["zymos"]
 
-    assert zymos == {"type": ["array", "null"], "examples": [[]]}
+    assert zymos == {"type": "array", "example": [], "nullable": True}
 
 
 def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):
@@ -2056,8 +2070,8 @@ def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):
     outer = schemas["ds_Israsas"]["properties"]["kalbos"]
     inner = outer["items"]
 
-    assert outer["type"] == ["array", "null"]
-    assert inner["type"] == ["array", "null"]
+    assert (outer["type"], outer.get("nullable")) == ("array", True)
+    assert (inner["type"], inner.get("nullable")) == ("array", True)
     # A schema of the innermost reference is built, so the `$ref` resolves.
     assert inner["items"]["anyOf"][0]["$ref"].rsplit("/", 1)[1] in schemas
 
@@ -2071,14 +2085,13 @@ def test_array_among_reference_properties_stays_a_list(open_manifest_path_factor
     reference = schemas["ds_A"]["properties"]["bref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
     kalbos = schemas[reference]["properties"]["kalbos"]
 
-    assert kalbos["type"] == ["array", "null"]
+    assert (kalbos["type"], kalbos.get("nullable")) == ("array", True)
     assert kalbos["items"]["anyOf"][0]["$ref"].rsplit("/", 1)[1] in schemas
 
 
 @pytest.mark.models("backends/postgres/City")
 def test_listing_schema_matches_what_spinta_answers(model, app, context):
     """A listing carries `_data` and `_page`, which the schema has to say."""
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getall", "search"])
     app.post(f"/{model}", json={"title": "Vilnius"})
     spec = _store_spec(context)
@@ -2088,8 +2101,7 @@ def test_listing_schema_matches_what_spinta_answers(model, app, context):
 
     assert response.status_code == 200, response.json()
     name = f"{model.replace('/', '_')}Collection"
-    resolver = jsonschema.RefResolver.from_schema({"components": {"schemas": schemas}})
-    jsonschema.validate(response.json(), {**schemas[name], "components": {"schemas": schemas}}, resolver=resolver)
+    _validate(response.json(), {**schemas[name], "components": {"schemas": schemas}})
     assert set(response.json()) <= set(schemas[name]["properties"])
 
     # `_data` is written before the first object and closed after the last one,
@@ -2097,9 +2109,9 @@ def test_listing_schema_matches_what_spinta_answers(model, app, context):
     empty = app.get(f"/{model}?title='no such city'")
     assert empty.status_code == 200, empty.json()
     assert empty.json()["_data"] == []
-    jsonschema.validate(empty.json(), {**schemas[name], "components": {"schemas": schemas}}, resolver=resolver)
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate({}, {**schemas[name], "components": {"schemas": schemas}}, resolver=resolver)
+    _validate(empty.json(), {**schemas[name], "components": {"schemas": schemas}})
+    with pytest.raises(ValidationError):
+        _validate({}, {**schemas[name], "components": {"schemas": schemas}})
 
 
 def test_no_component_is_left_unused(open_manifest_path_factory):
@@ -2141,7 +2153,6 @@ def test_error_schema_accepts_the_error_spinta_answers(model, app, context):
     The schema says so and accepts nothing else, so this checks a real one
     against it rather than the five fields being right by memory.
     """
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["getall", "search"])
 
     response = app.get(f"/{model}?_select=no_such_property")
@@ -2150,8 +2161,7 @@ def test_error_schema_accepts_the_error_spinta_answers(model, app, context):
     assert sorted(response.json()["errors"][0]) == ["code", "context", "message", "template", "type"]
     components = _store_spec(context)["components"]
     schema = components["responses"]["error400"]["content"]["application/json"]["schema"]
-    resolver = jsonschema.RefResolver.from_schema({"components": components})
-    jsonschema.validate(response.json(), {**schema, "components": components}, resolver=resolver)
+    _validate(response.json(), {**schema, "components": components})
 
 
 @pytest.mark.models("backends/postgres/Report")
@@ -2162,13 +2172,11 @@ def test_error_responses_accept_the_errors_spinta_answers(model, app, context):
     document naming an error that does not exist, or a template that drifted,
     fails here instead of in an API gateway.
     """
-    jsonschema = pytest.importorskip("jsonschema")
     components = _store_spec(context)["components"]
 
     def check(response_name: str, response) -> None:
         schema = components["responses"][response_name]["content"]["application/json"]["schema"]
-        resolver = jsonschema.RefResolver.from_schema({"components": components})
-        jsonschema.validate(response.json(), {**schema, "components": components}, resolver=resolver)
+        _validate(response.json(), {**schema, "components": components})
 
     app.authorize([])
     # `authlib` answers this one, so it carries a code and a message alone.
@@ -2189,7 +2197,7 @@ def test_named_errors_carry_the_template_of_their_class():
 
     for errors in NAMED_ERRORS.values():
         for name, schema in errors.items():
-            assert schema["properties"]["template"]["const"] == getattr(exceptions, name).template
+            assert schema["properties"]["template"]["enum"] == [getattr(exceptions, name).template]
 
 
 @pytest.mark.models("backends/postgres/Report")
@@ -2223,7 +2231,6 @@ def test_limit_upper_bound_comes_from_the_configuration(open_manifest_path_facto
 @pytest.mark.models("backends/postgres/Report")
 def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manifest_path_factory):
     """A pattern that refuses a query Spinta answers would break a client."""
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getall", "search"])
     app.post(f"/{model}", json={"status": "ok", "count": 1})
 
@@ -2238,19 +2245,18 @@ def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manife
         "query_at280_israsas_DalyvioAsmensIsrasas"
     ]["schema"]["properties"]
     for value in selects:
-        jsonschema.validate(value, properties["_select"])
+        _validate(value, properties["_select"])
     for value in sorts:
-        jsonschema.validate(value, properties["_sort"])
+        _validate(value, properties["_sort"])
 
     # And something no query holds is refused.
     for value in ("status;drop", "<script>", "a" * 1001):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(value, properties["_select"])
+        with pytest.raises(ValidationError):
+            _validate(value, properties["_select"])
 
 
 def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manifest_path_factory):
     """A model keyed by its own data answers with that key, not with a UUID."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
 
     identifier = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]["_id"]
@@ -2258,12 +2264,11 @@ def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manif
     assert "pattern" not in identifier
     assert identifier.get("format") != "uuid"
     # The value the data holds, which the shape of a UUID would refuse.
-    jsonschema.validate("AE", identifier)
+    _validate("AE", identifier)
 
 
 def test_error_examples_satisfy_their_own_schemas(open_manifest_path_factory):
     """An example a schema refuses would send a reader down a wrong path."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory)
     components = open_api_spec["components"]
     schemas = components["schemas"]
@@ -2274,34 +2279,31 @@ def test_error_examples_satisfy_their_own_schemas(open_manifest_path_factory):
     checked = 0
     for response in components["responses"].values():
         schema = response.get("content", {}).get("application/json", {}).get("schema", {})
-        for example in schema.get("examples") or []:
+        for example in [schema["example"]] if "example" in schema else []:
             for error in example.get("errors", []):
                 named = schemas.get(error["code"])
                 assert named is not None, error["code"]
-                jsonschema.validate(error, named)
+                _validate(error, named)
                 checked += 1
     assert checked
 
 
 def test_error_schema_refuses_an_empty_object(open_manifest_path_factory):
     """`error_response` writes five fields, so fewer is not an error of Spinta."""
-    jsonschema = pytest.importorskip("jsonschema")
     components = _service_spec(open_manifest_path_factory)["components"]
     schema = components["responses"]["error404"]["content"]["application/json"]["schema"]
-    resolver = jsonschema.RefResolver.from_schema({"components": components})
 
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate({"errors": [{}]}, {**schema, "components": components}, resolver=resolver)
+    with pytest.raises(ValidationError):
+        _validate({"errors": [{}]}, {**schema, "components": components})
 
 
 def test_traceparent_is_hexadecimal_from_end_to_end(open_manifest_path_factory):
     """A pattern without an end anchor lets anything follow what it matched."""
-    jsonschema = pytest.importorskip("jsonschema")
     schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
 
-    jsonschema.validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
+    _validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
     # Flags are hexadecimal, as every other field of it is.
-    jsonschema.validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-ff", schema)
+    _validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-ff", schema)
     for value in (
         "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-and-then-some",
         "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-0",
@@ -2309,17 +2311,16 @@ def test_traceparent_is_hexadecimal_from_end_to_end(open_manifest_path_factory):
         "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
         "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",
     ):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(value, schema)
+        with pytest.raises(ValidationError):
+            _validate(value, schema)
 
 
 def test_traceparent_of_a_later_version_may_carry_more(open_manifest_path_factory):
     """W3C Trace Context has a parser tolerate the fields a version adds."""
-    jsonschema = pytest.importorskip("jsonschema")
     schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
 
-    jsonschema.validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
-    jsonschema.validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-what-a-later-version-adds", schema)
+    _validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
+    _validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-what-a-later-version-adds", schema)
 
     # `ff` is invalid whatever follows it, and an identifier of zeroes stays
     # invalid in a later version as well.
@@ -2327,51 +2328,47 @@ def test_traceparent_of_a_later_version_may_carry_more(open_manifest_path_factor
         "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-more",
         "01-00000000000000000000000000000000-00f067aa0ba902b7-01-more",
     ):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(value, schema)
+        with pytest.raises(ValidationError):
+            _validate(value, schema)
 
 
 def test_reference_identifier_is_the_one_its_model_answers_with(open_manifest_path_factory):
     """A reference carries the identifier of what it points at, UUID or not."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_REF_ID)
     schemas = open_api_spec["components"]["schemas"]
 
     reference = next(schema for name, schema in schemas.items() if name.endswith("_Ref"))
 
     assert "pattern" not in reference["properties"]["_id"]
-    jsonschema.validate({"_id": "AE"}, reference)
+    _validate({"_id": "AE"}, reference)
 
 
 def test_page_token_pattern_accepts_a_token_spinta_builds(open_manifest_path_factory):
     """`encode_page_values` uses URL-safe base64, whose alphabet holds `-` and `_`."""
-    jsonschema = pytest.importorskip("jsonschema")
     from spinta.utils.encoding import encode_page_values
 
     schema = _service_spec(open_manifest_path_factory)["components"]["schemas"]["page"]["properties"]["next"]
 
     for values in ([">"], ["?"], ["2026-08-31"], ["ĄČĘ"]):
-        jsonschema.validate(encode_page_values(values).decode(), schema)
+        _validate(encode_page_values(values).decode(), schema)
 
 
 def test_declared_revision_is_not_described_as_a_uuid(open_manifest_path_factory):
     """A model can build `_revision` out of its own data, `123,14` for one."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_REVISION)
 
     revision = open_api_spec["components"]["schemas"]["ds_Sritis"]["properties"]["_revision"]
 
     assert "pattern" not in revision
-    jsonschema.validate("123,14", revision)
+    _validate("123,14", revision)
 
 
 def test_revision_header_accepts_a_revision_a_model_builds(open_manifest_path_factory):
     """`ETag` carries the revision, so it is not a UUID either."""
-    jsonschema = pytest.importorskip("jsonschema")
     components = _service_spec(open_manifest_path_factory)["components"]
 
-    jsonschema.validate("123,14", components["headers"]["ETag"]["schema"])
-    jsonschema.validate("123,14", components["parameters"]["If-None-Match"]["schema"])
+    _validate("123,14", components["headers"]["ETag"]["schema"])
+    _validate("123,14", components["parameters"]["If-None-Match"]["schema"])
 
 
 def test_token_url_of_a_catalog_export_is_a_path_it_holds(open_manifest_path: ManifestPath):
@@ -2384,46 +2381,43 @@ def test_token_url_of_a_catalog_export_is_a_path_it_holds(open_manifest_path: Ma
 
 def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_factory):
     """A document must not show a request its own schema refuses."""
-    jsonschema = pytest.importorskip("jsonschema")
     config = UdtsConfig(limits={"max_limit": 5})
     open_api_spec = _service_spec(open_manifest_path_factory, config=config)
 
     query = open_api_spec["components"]["parameters"]["query_at280_israsas_DalyvioAsmensIsrasas"]
     limit = query["schema"]["properties"]["_limit"]
 
-    assert limit["examples"][0] == 5
-    jsonschema.validate(limit["examples"][0], limit)
-    jsonschema.validate(query["example"]["_limit"], limit)
+    assert limit["example"] == 5
+    _validate(limit["example"], limit)
+    _validate(query["example"]["_limit"], limit)
 
 
 def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_factory):
     """`scope_formatter` is configured, so it builds what it likes, RFC 6749."""
-    jsonschema = pytest.importorskip("jsonschema")
     request_body = _service_spec(open_manifest_path_factory)["paths"]["/:token"]["post"]["requestBody"]
     scope = request_body["content"]["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]
 
     for value in ("uapi:/datasets/gov/rc/:getall", "kita:modelis:getall", "tenant+read", "tenant$read", "a b"):
-        jsonschema.validate(value, scope)
+        _validate(value, scope)
     # An empty scope is accepted and answered with a token, see
     # `tests/test_auth.py::test_empty_scope`.
-    jsonschema.validate("", scope)
+    _validate("", scope)
 
     # A space separates scopes, and neither a quotation mark nor a backslash is
     # part of one, RFC 6749 section 3.3.
     for value in ('blogas"cituotas', "su\\pasviru", "du  tarpai"):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(value, scope)
+        with pytest.raises(ValidationError):
+            _validate(value, scope)
 
 
 @pytest.mark.models("backends/postgres/Report")
 def test_health_schema_requires_what_the_probe_answers(model, app, context):
     """`health` writes both fields every time, so fewer is not its answer."""
-    jsonschema = pytest.importorskip("jsonschema")
     schemas = _store_spec(context)["components"]["schemas"]
 
-    jsonschema.validate(app.get("/health").json(), schemas["health"])
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate({}, schemas["health"])
+    _validate(app.get("/health").json(), schemas["health"])
+    with pytest.raises(ValidationError):
+        _validate({}, schemas["health"])
 
     # Which dependencies are reported is up to the service, what is said about
     # one is not: both fields are written for every entry.
@@ -2434,8 +2428,8 @@ def test_health_schema_requires_what_the_probe_answers(model, app, context):
             **answer,
             "dependencies": [{key: value for key, value in answer["dependencies"][0].items() if key != field}],
         }
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(without, schemas["health"])
+        with pytest.raises(ValidationError):
+            _validate(without, schemas["health"])
 
 
 def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
@@ -2470,20 +2464,18 @@ def test_object_property_reference_gets_a_schema(open_manifest_path_factory):
 
 def test_object_identifier_is_a_version_four_uuid(open_manifest_path_factory):
     """Spinta accepts no other, see `spinta.backends.is_object_id`."""
-    jsonschema = pytest.importorskip("jsonschema")
     identifier = _service_spec(open_manifest_path_factory)["components"]["schemas"][
         "at280_israsas_DalyvioAsmensIsrasas"
     ]["properties"]["_id"]
 
-    jsonschema.validate("abdd1245-bbf9-4085-9366-f11c0f737c1d", identifier)
+    _validate("abdd1245-bbf9-4085-9366-f11c0f737c1d", identifier)
     # A version 5 one, which Spinta answers `ModelNotFound` to.
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate("12345678-1234-5678-9abc-123456789012", identifier)
+    with pytest.raises(ValidationError):
+        _validate("12345678-1234-5678-9abc-123456789012", identifier)
 
 
 def test_traceparent_refuses_what_trace_context_reserves(open_manifest_path_factory):
     """Version `ff` is reserved and neither identifier may be all zeroes."""
-    jsonschema = pytest.importorskip("jsonschema")
     schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
 
     for value in (
@@ -2491,8 +2483,8 @@ def test_traceparent_refuses_what_trace_context_reserves(open_manifest_path_fact
         "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
         "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",
     ):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(value, schema)
+        with pytest.raises(ValidationError):
+            _validate(value, schema)
 
 
 def test_every_request_header_is_bounded(open_manifest_path_factory):
@@ -2510,7 +2502,6 @@ def test_every_request_header_is_bounded(open_manifest_path_factory):
 
 def test_listed_identifiers_are_reachable(open_manifest_path_factory):
     """A pattern beside listed values leaves nothing that satisfies both."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_ID)
 
     identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
@@ -2522,9 +2513,9 @@ def test_listed_identifiers_are_reachable(open_manifest_path_factory):
     assert "pattern" not in identifier
 
     for schema in (identifier, answered):
-        jsonschema.validate(schema["examples"][0], schema)
-    jsonschema.validate("=AE", identifier)
-    jsonschema.validate("AE", answered)
+        _validate(schema["example"], schema)
+    _validate("=AE", identifier)
+    _validate("AE", answered)
 
 
 def test_single_object_answers_a_redirect(open_manifest_path_factory):
@@ -2557,7 +2548,6 @@ def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
 
 def test_scope_of_a_token_request_is_bounded(open_manifest_path_factory):
     """A request may not ask for more than every scope of the document."""
-    jsonschema = pytest.importorskip("jsonschema")
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
@@ -2567,9 +2557,9 @@ def test_scope_of_a_token_request_is_bounded(open_manifest_path_factory):
 
     every_scope = " ".join(sorted(declared))
     assert schema["maxLength"] == len(every_scope)
-    jsonschema.validate(every_scope, schema)
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(every_scope + " uapi:/one/more/:getall", schema)
+    _validate(every_scope, schema)
+    with pytest.raises(ValidationError):
+        _validate(every_scope + " uapi:/one/more/:getall", schema)
 
 
 def test_subresource_answers_carry_their_envelope(open_manifest_path_factory):
@@ -2615,7 +2605,6 @@ def test_token_paths_are_offered_wherever_the_service_is(open_manifest_path_fact
 @pytest.mark.models("backends/postgres/City")
 def test_page_schema_matches_the_token_spinta_writes(model, app, context, open_manifest_path_factory):
     """`_page` is written only with a token, and the token is padded Base64."""
-    jsonschema = pytest.importorskip("jsonschema")
     app.authmodel(model, ["insert", "getall", "search"])
     for title in ("Vilnius", "Kaunas"):
         app.post(f"/{model}", json={"title": title})
@@ -2623,13 +2612,13 @@ def test_page_schema_matches_the_token_spinta_writes(model, app, context, open_m
     answered = app.get(f"/{model}?_limit=1").json()["_page"]
     schema = _store_spec(context)["components"]["schemas"]["page"]
 
-    jsonschema.validate(answered, schema)
+    _validate(answered, schema)
     assert len(answered["next"]) % 4 == 0
     # `spinta.formats.json` writes the container only when it has a token, and
     # `encode_page_values` keeps the padding, so neither shape is an answer.
     for refused in ({}, {"next": "A"}, {"next": "abc=="}, {"next": answered["next"].rstrip("=")}):
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(refused, schema)
+        with pytest.raises(ValidationError):
+            _validate(refused, schema)
 
 
 def test_an_insecure_environment_is_described_like_any_other(open_manifest_path_factory):

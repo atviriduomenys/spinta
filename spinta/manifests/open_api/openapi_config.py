@@ -5,14 +5,13 @@ from spinta.core.enums import Action
 PROPERTY_TYPES_IN_PATHS = {"file", "image"}
 OBJECT_PROPERTY_TYPE = "object"
 
-VERSION = "3.1.0"
+VERSION = "3.0.3"
 INFO = {
     "version": "1.0.0",
     "description": "Data service of an UDTS agent. Every model of the service is served as a listing and as single objects, described below.",
     "title": "Universal application programming interface",
     "contact": {"name": "VSSA", "url": "https://vssa.lrv.lt/", "email": "info@vssa.lt"},
     "license": {"name": "CC-BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
-    "summary": "Universal API specification, provided as OpenAPI JSON file for Lithuanian\ngovernment institutions as a template for implementing API's for data\nexchange in a standardized and interoperable manner.\n",
 }
 
 EXTERNAL_DOCS = {"url": "https://ivpk.github.io/uapi"}
@@ -73,7 +72,8 @@ STANDARD_OBJECT_PROPERTIES = {
         "description": "Identifier of the object.",
     },
     "_revision": {
-        "type": ["string", "null"],
+        "type": "string",
+        "nullable": True,
         "pattern": UUID_PATTERN,
         "description": "Revision of the object, which changes with every change of it.",
     },
@@ -88,12 +88,18 @@ PAGE_TOKEN_PATTERN = "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{4}|[A-Za-z0-9_-]{3}
 #: one: the RFC 4648 alphabet with the padding dropped, which leaves a length
 #: `base64.b32decode` can pad back and rules out one, three and six characters
 #: over a multiple of eight, see `decode_id_value`.
-_BASE32_LENGTH = "(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4}|[A-Z2-7]{5}|[A-Z2-7]{7})?"
-BASE32_VALUE_PATTERN = f"^(?=[A-Z2-7]){_BASE32_LENGTH}$"
+#:
+#: No pattern of the document looks around or repeats more than a thousand
+#: times, see `HEADER_VALUE_PATTERN`, so a value is not empty because its last group
+#: is not optional.
+_BASE32_LENGTH = "(?:[A-Z2-7]{8})*(?:[A-Z2-7]{8}|[A-Z2-7]{2}|[A-Z2-7]{4}|[A-Z2-7]{5}|[A-Z2-7]{7})"
+BASE32_VALUE_PATTERN = f"^{_BASE32_LENGTH}$"
 
 #: The same value as a request gives it, behind the equals sign it is reached
-#: by and bounded, because a path segment of a request is.
-BASE32_ID_PATTERN = f"^=(?=[A-Z2-7]{{1,512}}$){_BASE32_LENGTH}$"
+#: by and bounded, because a path segment of a request is. The bound is
+#: `BASE32_ID_MAX_LENGTH`, the equals sign included.
+BASE32_ID_PATTERN = f"^={_BASE32_LENGTH}$"
+BASE32_ID_MAX_LENGTH = 513
 
 PROPERTY_MAPPING = {
     "string": {"type": "string"},
@@ -121,7 +127,15 @@ PROPERTY_MAPPING = {
 #: A header value is printable ASCII, RFC 9110 section 5.5. The grammar of each
 #: header is not repeated here; what is stated is the character set and a bound,
 #: so a request carrying anything else is refused before it reaches the service.
-HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]{1,1024}$"
+#:
+#: The bound is `maxLength` rather than a repetition of the pattern. Patterns of
+#: the document are written in what regular expression dialects share: OpenAPI
+#: 3.0 names ECMA 262, while the linter an API gateway is reviewed with reads
+#: them as RE2 does, which has no lookaround and repeats a group a thousand
+#: times at most. What a pattern can not say then, a `maxLength` or a `not`
+#: beside it says.
+HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]+$"
+HEADER_VALUE_MAX_LENGTH = 1024
 
 #: The same characters without a bound, for a value of a response, which no
 #: policy of an API gateway applies to.
@@ -133,10 +147,15 @@ HEADER_CHARACTER_PATTERN = "^[\\x20-\\x7E]+$"
 #: a version above it may carry fields of its own after the flags, which a
 #: parser has to tolerate rather than refuse, see the versioning section of the
 #: specification.
-_TRACE_ID_PARENT_ID_FLAGS = "(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}"
+#:
+#: An identifier of zeroes is refused by `TRACEPARENT_OF_ZEROES_PATTERN` given
+#: under `not`, since a pattern refusing it would have to look ahead.
+_TRACE_ID_PARENT_ID_FLAGS = "[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}"
+_LATER_TRACE_VERSION = "(?:0[1-9a-f]|[1-9a-e][0-9a-f]|f[0-9a-e])"
 TRACEPARENT_PATTERN = (
-    f"^(?:00-{_TRACE_ID_PARENT_ID_FLAGS}|(?!00|ff)[0-9a-f]{{2}}-{_TRACE_ID_PARENT_ID_FLAGS}(?:-[!-~]{{1,512}})?)$"
+    f"^(?:00-{_TRACE_ID_PARENT_ID_FLAGS}|{_LATER_TRACE_VERSION}-{_TRACE_ID_PARENT_ID_FLAGS}(?:-[!-~]{{1,512}})?)$"
 )
+TRACEPARENT_OF_ZEROES_PATTERN = "^[0-9a-f]{2}-(?:0{32}-[0-9a-f]{16}|[0-9a-f]{32}-0{16})-"
 
 #: Scopes separated by spaces, each of them a `scope-token` of RFC 6749 section
 #: 3.3: a printable character other than a space, a quotation mark or a
@@ -664,14 +683,14 @@ def _error_schema(name: str, template: str | None = None) -> dict:
                 "description": "What the error happened on, `system` when it is nothing in particular.",
                 "example": "system",
             },
-            "code": {"type": "string", "const": name, "example": name},
+            "code": {"type": "string", "enum": [name], "example": name},
             "message": dict(ERROR_MESSAGE),
             "context": dict(ERROR_CONTEXT),
         },
         "additionalProperties": False,
     }
     if template is not None:
-        schema["properties"]["template"] = {"type": "string", "const": template, "example": template}
+        schema["properties"]["template"] = {"type": "string", "enum": [template], "example": template}
         schema["properties"]["message"]["example"] = _example_message(template)
     return schema
 
@@ -767,7 +786,7 @@ GENERIC_ERROR = {
         "description": "Error object of an access token that does not carry a scope the operation needs.",
         "required": ["code", "message"],
         "properties": {
-            "code": {"type": "string", "const": "InsufficientScopeError", "example": "InsufficientScopeError"},
+            "code": {"type": "string", "enum": ["InsufficientScopeError"], "example": "InsufficientScopeError"},
             "message": {
                 "type": "string",
                 "description": "Which scopes would have been enough.",
@@ -782,10 +801,10 @@ GENERIC_ERROR = {
         "required": ["type", "code", "template", "context", "message"],
         "properties": {
             "type": {"type": "string", "example": "system"},
-            "code": {"type": "string", "const": "InvalidScopes", "example": "InvalidScopes"},
+            "code": {"type": "string", "enum": ["InvalidScopes"], "example": "InvalidScopes"},
             "template": {
                 "type": "string",
-                "const": "Request contains invalid, unknown or malformed scopes: {scopes}.",
+                "enum": ["Request contains invalid, unknown or malformed scopes: {scopes}."],
                 "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
             },
             # The message of this error, not of whichever one `ERROR_MESSAGE`
@@ -885,7 +904,7 @@ HEADER_COMPONENTS = {
     "Content-Type": {
         "description": "The `Content-Type` header indicates the media type of the resource or data. For responses, it tells the client what the content type of the returned content actually is.",
         "required": True,
-        "schema": {"type": "string", "examples": ["application/json", "text/csv", "application/xml"]},
+        "schema": {"type": "string", "example": "application/json"},
     },
     "Content-Length": {
         "description": "The `Content-Length` header indicates the size of the response body, in bytes, sent to the recipient.",
@@ -895,7 +914,6 @@ HEADER_COMPONENTS = {
             "format": "int64",
             "minimum": 0,
             "maximum": 9223372036854775807,
-            "examples": [1024, 8021],
             "example": 1024,
         },
     },
@@ -908,14 +926,13 @@ HEADER_COMPONENTS = {
             # response is not bounded by a policy of the gateway, so only the
             # characters a header may hold are stated here.
             "pattern": HEADER_CHARACTER_PATTERN,
-            "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
             "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
         },
     },
     "Cache-Control": {
         "description": "The `Cache-Control` header tells caches what they may do with the response. A probe answers `no-store`, because a cached answer would report a state the service no longer is in.",
         "required": False,
-        "schema": {"type": "string", "examples": ["no-store"]},
+        "schema": {"type": "string", "example": "no-store"},
     },
     "Location": {
         "description": "Where the object lives now. Answered with `301` when the identifier asked for was moved to another one, see `spinta.commands.read.getone`.",
@@ -923,7 +940,7 @@ HEADER_COMPONENTS = {
         "schema": {
             "type": "string",
             "format": "uri-reference",
-            "examples": ["/datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas/abdd1245-bbf9-4085-9366-f11c0f737c1d"],
+            "example": "/datasets/gov/rc/jadis/at280/1/at280_israsas/Israsas/abdd1245-bbf9-4085-9366-f11c0f737c1d",
         },
     },
 }
@@ -938,8 +955,9 @@ PARAMETER_COMPONENTS = {
         "schema": {
             "type": "string",
             "pattern": TRACEPARENT_PATTERN,
+            "not": {"type": "string", "pattern": TRACEPARENT_OF_ZEROES_PATTERN},
             "description": "Consists of `version` `trace-id` `parent-id` `trace-flags` separated by `-`. \n\n`trace-id` recommended to be in UUIDv4",
-            "examples": ["00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"],
+            "example": "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01",
         },
     },
     "tracestate": {
@@ -950,8 +968,9 @@ PARAMETER_COMPONENTS = {
         "schema": {
             "type": "string",
             "pattern": HEADER_VALUE_PATTERN,
+            "maxLength": HEADER_VALUE_MAX_LENGTH,
             "description": "Consists of a `list` of `list-members` separated by commas (`,`)",
-            "examples": ["rojo=00f067aa0ba902b7,congo=t61rcWkgMzE"],
+            "example": "rojo=00f067aa0ba902b7,congo=t61rcWkgMzE",
         },
     },
     "Cache-Control": {
@@ -959,7 +978,12 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": "`Cache-Control` header should be used if service supports caching. It allows the user to provide directives from their side. `no-cache` can be used to request revalidation of data with the origin server before reuse. `no-store` can be used to request to not store the data in caches.\n\nMultiple directives can be used separated by `, `. If they are conflicting, most restrictive directive should be honored.",
-        "schema": {"type": "string", "pattern": HEADER_VALUE_PATTERN, "examples": ["no-cache"]},
+        "schema": {
+            "type": "string",
+            "pattern": HEADER_VALUE_PATTERN,
+            "maxLength": HEADER_VALUE_MAX_LENGTH,
+            "example": "no-cache",
+        },
     },
     "Range": {
         "name": "Range",
@@ -969,7 +993,7 @@ PARAMETER_COMPONENTS = {
         "schema": {
             "type": "string",
             "pattern": HEADER_VALUE_PATTERN,
-            "examples": ["bytes=0-1023"],
+            "maxLength": HEADER_VALUE_MAX_LENGTH,
             "example": "bytes=0-1023",
         },
     },
@@ -982,7 +1006,7 @@ PARAMETER_COMPONENTS = {
         "schema": {
             "type": "string",
             "pattern": HEADER_VALUE_PATTERN,
-            "examples": ["16dabe62-61e9-4549-a6bd-07cecfbc3508"],
+            "maxLength": HEADER_VALUE_MAX_LENGTH,
             "example": "16dabe62-61e9-4549-a6bd-07cecfbc3508",
         },
     },
@@ -991,7 +1015,12 @@ PARAMETER_COMPONENTS = {
         "in": "header",
         "required": False,
         "description": '`Accept-Language` header is used to indicate the language preference of the user. It\'s a list of values with quality factors (e.g., `"de, en"`).',
-        "schema": {"type": "string", "pattern": HEADER_VALUE_PATTERN, "examples": ["lt"]},
+        "schema": {
+            "type": "string",
+            "pattern": HEADER_VALUE_PATTERN,
+            "maxLength": HEADER_VALUE_MAX_LENGTH,
+            "example": "lt",
+        },
     },
     "query": {
         "name": "query",
@@ -1009,7 +1038,7 @@ PARAMETER_COMPONENTS = {
                     # characters are bounded so a gateway validating requests
                     # refuses anything else.
                     "pattern": "^[A-Za-z0-9_.,@()* +-]{1,1000}$",
-                    "examples": ["name,country.name,country.continent.name"],
+                    "example": "name,country.name,country.continent.name",
                     "description": "Comma separated list of properties to include in the result.",
                 },
                 "_limit": {
@@ -1018,14 +1047,14 @@ PARAMETER_COMPONENTS = {
                     # a value beyond 64 bits is answered as well, so neither a
                     # `maximum` nor a `format` is given.
                     "minimum": 1,
-                    "examples": [10],
+                    "example": 10,
                     "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`.",
                 },
                 "_sort": {
                     "type": "string",
                     # The same, with `+` or `-` for the direction and no calls.
                     "pattern": "^[A-Za-z0-9_.,@ +-]{1,1000}$",
-                    "examples": ["-code,country.name"],
+                    "example": "-code,country.name",
                     "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction.",
                 },
             },
@@ -1046,7 +1075,7 @@ PARAMETER_COMPONENTS = {
             # asserting `format: uuid` knows the canonical spelling alone and
             # would refuse the ones the pattern is here to accept.
             "pattern": UUID_REQUEST_PATTERN,
-            "examples": ["abdd1245-bbf9-4085-9366-f11c0f737c1d"],
+            "example": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
         },
     },
     "property": {
@@ -1054,7 +1083,7 @@ PARAMETER_COMPONENTS = {
         "in": "path",
         "required": True,
         "description": "Subresource of an object.\n\nAll lower case, words separated with `_` symbol.",
-        "schema": {"type": "string", "examples": ["cities"]},
+        "schema": {"type": "string", "example": "cities"},
     },
 }
 
@@ -1143,9 +1172,10 @@ COMMON_SCHEMAS = {
         # Spinta names the file `_id`, see `spinta.types.file.components.FileData`,
         # and leaves the values null when the file is deleted.
         "properties": {
-            "_id": {"type": ["string", "null"], "description": "File name"},
+            "_id": {"type": "string", "nullable": True, "description": "File name"},
             "_content_type": {
-                "type": ["string", "null"],
+                "type": "string",
+                "nullable": True,
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the file.",
             },
         },
@@ -1183,7 +1213,7 @@ COMMON_SCHEMAS = {
                     # reported about one can not, see `spinta.api.health`.
                     "required": ["name", "healthy"],
                     "properties": {
-                        "name": {"type": "string", "examples": ["spinta", "disk", "memory"]},
+                        "name": {"type": "string", "example": "spinta"},
                         "healthy": {"type": "boolean"},
                     },
                 },
@@ -1197,11 +1227,12 @@ COMMON_SCHEMAS = {
         # the request selects, see `prepare_data_for_response` of a `File`.
         "required": ["_type", "_revision"],
         "properties": {
-            "_type": {"type": "string", "examples": ["datasets/gov/rc/jadis/at280/1/ds/Israsas.byla"]},
-            "_revision": {"type": ["string", "null"]},
-            "_id": {"type": ["string", "null"], "description": "File name"},
+            "_type": {"type": "string", "example": "datasets/gov/rc/jadis/at280/1/ds/Israsas.byla"},
+            "_revision": {"type": "string", "nullable": True},
+            "_id": {"type": "string", "nullable": True, "description": "File name"},
             "_content_type": {
-                "type": ["string", "null"],
+                "type": "string",
+                "nullable": True,
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the file.",
             },
         },
@@ -1219,7 +1250,6 @@ COMMON_SCHEMAS = {
                 # and all, which leaves a length of whole quads.
                 "pattern": PAGE_TOKEN_PATTERN,
                 "description": "Token of the next page.",
-                "examples": ["WyIyMDI2LTA4LTMxIl0="],
                 "example": "WyIyMDI2LTA4LTMxIl0=",
             }
         },
@@ -1228,18 +1258,18 @@ COMMON_SCHEMAS = {
         "type": "object",
         "description": "Versions of the API, of its implementation and of the specifications it follows.",
         "properties": {
-            "api": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
+            "api": {"type": "object", "properties": {"version": {"type": "string", "example": "0.0.1"}}},
             "implementation": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "examples": ["Spinta"], "example": "Spinta"},
+                    "name": {"type": "string", "example": "Spinta"},
                     # A version is a string, and `0.1` was a number.
-                    "version": {"type": "string", "examples": ["1.2.0"], "example": "1.2.0"},
+                    "version": {"type": "string", "example": "1.2.0"},
                 },
             },
-            "dsa": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.1.0"]}}},
-            "uapi": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.1.0"]}}},
-            "build": {"type": "object", "properties": {"version": {"type": "string", "examples": ["0.0.1"]}}},
+            "dsa": {"type": "object", "properties": {"version": {"type": "string", "example": "0.1.0"}}},
+            "uapi": {"type": "object", "properties": {"version": {"type": "string", "example": "0.1.0"}}},
+            "build": {"type": "object", "properties": {"version": {"type": "string", "example": "0.0.1"}}},
         },
     },
     "tokenError": {
@@ -1285,14 +1315,13 @@ COMMON_SCHEMAS = {
                 "description": "Access token to be used as a `Bearer` token.",
                 "example": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dldC5kYXRhLmdvdi5sdCJ9.-",
             },
-            "token_type": {"type": "string", "const": "Bearer", "examples": ["Bearer"], "example": "Bearer"},
+            "token_type": {"type": "string", "enum": ["Bearer"], "example": "Bearer"},
             "expires_in": {
                 "type": "integer",
                 "format": "int64",
                 "minimum": 0,
                 "maximum": 9223372036854775807,
                 "description": "Token lifetime in seconds.",
-                "examples": [864000],
                 "example": 864000,
             },
             "scope": {
@@ -1306,9 +1335,10 @@ COMMON_SCHEMAS = {
         "type": "object",
         "description": "What is known about an image a property holds.",
         "properties": {
-            "_id": {"type": ["string", "null"], "description": "Image file name"},
+            "_id": {"type": "string", "nullable": True, "description": "Image file name"},
             "_content_type": {
-                "type": ["string", "null"],
+                "type": "string",
+                "nullable": True,
                 "description": "A [Media type](https://en.wikipedia.org/wiki/Media_type) of the image.",
             },
         },

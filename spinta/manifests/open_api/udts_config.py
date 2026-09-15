@@ -29,14 +29,15 @@ yaml = YAML(typ="safe")
 
 KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs", "limits"])
 
-#: Fields of the OpenAPI objects the configuration is copied into, plus the
-#: fields of `auth`, which is ours. Everything else, apart from `x-` extensions,
-#: is a typo or a field this configuration does not support and is left out.
+#: Fields of the OpenAPI 3.0 objects the configuration is copied into, plus the
+#: fields of `auth`, which is ours, and `info.summary`, which OpenAPI 3.0 does not
+#: have and which opens the description instead, see `_fold_summary` of the
+#: generator. Everything else, apart from `x-` extensions, is a typo or a field this configuration does not support and is left out.
 #: Server variables are left out as well, because an environment is described by
 #: an URL of its own, not by a template.
 INFO_KEYS = frozenset(["title", "summary", "description", "termsOfService", "contact", "license", "version"])
 CONTACT_KEYS = frozenset(["name", "url", "email"])
-LICENSE_KEYS = frozenset(["name", "identifier", "url"])
+LICENSE_KEYS = frozenset(["name", "url"])
 SERVER_KEYS = frozenset(["url", "description"])
 EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
 AUTH_KEYS = frozenset(["token_url"])
@@ -461,12 +462,6 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
     if license_ is not None:
         # OpenAPI License Object requires a name.
         _check_string(license_.get("name"), path, "`info.license.name`")
-        _check_optional_string(license_.get("identifier"), path, "`info.license.identifier`")
-        if license_.get("identifier") is not None and license_.get("url") is not None:
-            raise InvalidUdtsConfig(
-                path=str(path),
-                error="`info.license` can have either an `identifier` or an `url`, not both.",
-            )
         if license_.get("url") is not None:
             _check_url(license_["url"], path, "`info.license.url`")
 

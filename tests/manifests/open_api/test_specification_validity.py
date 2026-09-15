@@ -5,6 +5,8 @@ placeholder among them, do not show up in a test looking at one field, but an
 API gateway rejects the whole file over them.
 """
 
+import re
+
 import pytest
 
 from spinta.manifests.components import ManifestPath
@@ -15,6 +17,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_ARRAY_IN_REFERENCE,
     MANIFEST_WITH_ARRAY_LAYERS,
     MANIFEST_WITH_ARRAY_REFS,
+    MANIFEST_WITH_BASE32_ID,
     MANIFEST_WITH_COLLIDING_DATASETS,
     MANIFEST_WITH_COLLIDING_MODELS,
     MANIFEST_WITH_COLLIDING_OPERATION_IDS,
@@ -46,11 +49,33 @@ def _assert_valid(open_api_spec: dict) -> None:
     validator = pytest.importorskip("openapi_spec_validator")
 
     # A `$ref` pointing at nothing raises here instead of being reported.
-    errors = list(validator.OpenAPIV31SpecValidator(open_api_spec).iter_errors())
+    errors = list(validator.OpenAPIV30SpecValidator(open_api_spec).iter_errors())
 
     assert errors == [], "\n".join(
         f"{'/'.join(str(part) for part in error.absolute_path)}: {error.message}" for error in errors
     )
+
+    # The linter an API gateway is reviewed with reads a pattern as RE2 does, and
+    # refuses one that looks around or repeats more than a thousand times.
+    unreadable = [
+        pattern
+        for pattern in _patterns(open_api_spec)
+        if re.search(r"\(\?[=!<]", pattern)
+        or any(int(bound) > 1000 for bound in re.findall(r"\{(?:\d+,)?(\d+)\}", pattern))
+    ]
+    assert unreadable == []
+
+
+def _patterns(node):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "pattern" and isinstance(value, str):
+                yield value
+            else:
+                yield from _patterns(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _patterns(item)
 
 
 @pytest.mark.parametrize(
@@ -90,6 +115,8 @@ def _assert_valid(open_api_spec: dict) -> None:
         (MANIFEST_WITH_ENUM_VALUES, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_NESTED_OBJECT_REF, {"service_path": SERVICE_PATH}),
         (MANIFEST_WITH_UNNAMABLE_NAMES, {"service_path": SERVICE_PATH}),
+        # An identifier whose shape a pattern states.
+        (MANIFEST_WITH_BASE32_ID, {"service_path": SERVICE_PATH}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):
