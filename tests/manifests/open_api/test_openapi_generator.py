@@ -41,6 +41,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
+    MANIFEST_WITH_PRIVATE_VISIBILITY,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
@@ -1149,6 +1150,50 @@ def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
         message = schemas[name]["properties"]["message"].get("examples", [None])[0]
         assert message is not None, name
         assert "{" not in message and "}" not in message, (name, message)
+
+
+def test_private_metadata_is_not_published(open_manifest_path_factory):
+    """`visibility: private` metadata is not published, and a document is published."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY)
+    schemas = open_api_spec["components"]["schemas"]
+    text = json.dumps(open_api_spec)
+
+    salis = schemas["ds_Salis"]
+    # A property marked private is left out; one given no visibility stays.
+    assert "slaptas" not in salis["properties"]
+    assert "slaptas" not in salis["examples"][0]
+    assert "pavadinimas" in salis["properties"]
+
+    # So is an enum value marked private.
+    tipas = salis["properties"]["tipas"]
+    assert "a" in json.dumps(tipas)
+    assert "'b'" not in json.dumps(tipas) and '"b"' not in json.dumps(tipas)
+
+    # A file property marked private gets no path and no schema of its own.
+    assert not [path for path in open_api_spec["paths"] if path.endswith("/byla") or path.endswith("/byla:ref")]
+    assert "ds_Salis_byla_ref" not in schemas
+
+    # A model marked private is not described at all.
+    assert not [path for path in open_api_spec["paths"] if "Paslaptis" in path]
+    assert not [name for name in schemas if "Paslaptis" in name]
+    assert "Paslaptis" not in [tag["name"] for tag in open_api_spec["tags"]]
+    assert "Paslaptis" not in text
+
+    # A text property is published while any of its languages is: `aprasas`
+    # keeps its public English, `pastaba` has nothing but private Lithuanian.
+    assert "aprasas" in salis["properties"]
+    assert "pastaba" not in salis["properties"]
+    assert "pastaba" not in salis["examples"][0]
+
+    # Nor does a query example name what is private.
+    query = open_api_spec["components"]["parameters"]["query_ds_Salis"]
+    assert "slaptas" not in json.dumps(query)
+
+
+def test_private_metadata_leaves_a_valid_document(open_manifest_path_factory):
+    openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY)
+    openapi_spec_validator.validate(open_api_spec)
 
 
 def test_whole_number_identifier_is_bounded(open_manifest_path_factory):

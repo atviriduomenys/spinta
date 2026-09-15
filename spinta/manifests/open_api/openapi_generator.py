@@ -11,7 +11,7 @@ from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Model, Namespace, Property
 from spinta.config import CONFIG
 from spinta.core.context import configure_context, create_context
-from spinta.core.enums import Action, Level
+from spinta.core.enums import Action, Level, Visibility
 from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import DataServiceNotFound
@@ -49,6 +49,7 @@ from spinta.manifests.open_api.service import (
 )
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
 from spinta.types.datatype import Base32, DataType, Object, PrimaryKey, String
+from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_base32
 from spinta.utils.schema import NA
 from spinta.utils.scopes import name_to_scope
@@ -82,6 +83,45 @@ DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 
 #: Scope a node is authorized against, see `spinta.auth`.
 ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
+
+
+def _published(node: Any) -> bool:
+    """Whether the metadata of a model, a property or an enum value is published.
+
+    `visibility` is the visibility of metadata, not of data, see DSA
+    `matomumas`: `private` metadata is not published, it is kept for the owner
+    of the information system, to follow the source and to run `spinta inspect`
+    again. An OpenAPI document is published metadata, so nothing private goes
+    into it. Access to the data is `access`, a separate matter.
+
+    What decides is the `visibility` given, not the one loaded. The DSA makes
+    an empty `visibility` default to `private`, and a manifest written without
+    the column loads it that way, while nearly every DSA leaves it empty and is
+    published all the same. So an element is left out only when the manifest
+    marks it `private`.
+    """
+    if _given_visibility(node) == Visibility.private.name:
+        return False
+
+    # `name@lt` sets the visibility of that language, which a text property
+    # holds in `langs`, and leaves the property itself without one. The document
+    # describes the property as one value whatever the language, so it is
+    # published while any of its languages is.
+    langs = getattr(getattr(node, "dtype", None), "langs", None)
+    if isinstance(getattr(node, "dtype", None), Text) and langs:
+        return any(_given_visibility(lang) != Visibility.private.name for lang in langs.values())
+
+    return True
+
+
+def _given_visibility(node: Any) -> str | None:
+    given = getattr(getattr(node, "given", None), "visibility", None)
+    return given.name if isinstance(given, Visibility) else given
+
+
+def _published_properties(model: Model) -> dict[str, Property]:
+    """Properties of a model the document may describe, see `_published`."""
+    return {name: prop for name, prop in model.get_given_properties().items() if _published(prop)}
 
 
 def _innermost_property(model_property):
@@ -490,7 +530,11 @@ class DataTypeHandler:
 
         enum = model_property.enum
         if isinstance(enum, dict):
-            values = [self.get_enum_value(model_property.dtype, enum_value) for enum_value in enum.values()]
+            values = [
+                self.get_enum_value(model_property.dtype, enum_value)
+                for enum_value in enum.values()
+                if _published(enum_value)
+            ]
             return [value for value in values if value is not NA]
 
         return [enum_prop.strip('"') for enum_prop in enum]
@@ -519,6 +563,7 @@ class DataTypeHandler:
         return {
             name: self.property_schema(model_property, schemas=schemas)
             for name, model_property in (dtype.properties or {}).items()
+            if _published(model_property)
         }
 
     def convert_to_openapi_schema(
@@ -638,7 +683,7 @@ class PathGenerator:
             "propertyRef": ("/{model_name}/{id}/{field}:ref", "{prop}:ref"),
             "objectProperty": ("/{model_name}/{id}/{object_field}", "{prop}"),
         }
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             for path_type in self.property_path_types(model_property):
                 template_path, segment = templates[path_type]
                 actual_path = f"/{model_path}/{{id}}/{segment.format(prop=prop_name)}"
@@ -878,7 +923,7 @@ class PathGenerator:
         # Built for every model, not only for one with properties to name in an
         # example: the bound of `_limit` is set here, and a model without them
         # is queried the same way as any other.
-        names = [name for name in model.get_given_properties() if not name.startswith("_")]
+        names = [name for name in _published_properties(model) if not name.startswith("_")]
         for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0] if names else "")):
             if not value:
                 continue
@@ -1294,7 +1339,7 @@ class SchemaGenerator:
         `_revision` of the model, which a model may build out of its own data
         and which is then not a string at all, so the schema is of that model.
         """
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             if self.dtype_handler.get_dtype_name(model_property.dtype) not in PROPERTY_TYPES_IN_PATHS:
                 continue
 
@@ -1321,7 +1366,7 @@ class SchemaGenerator:
         the `_revision` of the object it belongs to, see
         `spinta.commands.read.getone` of an `Object` property.
         """
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             # A `ref` to a model missing from the manifest is downgraded to an
             # object holding nothing, see `spinta.types.helpers`, and is served
             # like any other object property, so it gets a schema all the same.
@@ -1406,7 +1451,7 @@ class SchemaGenerator:
     ) -> dict[str, Any]:
         properties = self._standard_properties(model.name, model)
 
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             properties[prop_name] = self.dtype_handler.property_schema(model_property, schemas=schemas)
 
         return {
@@ -1428,7 +1473,7 @@ class SchemaGenerator:
             "_id": standard["_id"].get("example"),
             "_revision": standard["_revision"].get("example"),
         }
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             if property_filter and prop_name not in property_filter:
                 continue
             example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
@@ -1461,7 +1506,7 @@ class SchemaGenerator:
         }
 
     def _create_referenced_model_schemas(self, schemas: dict, model: Model) -> None:
-        self._create_schemas_of_references_in(schemas, model.get_given_properties().values())
+        self._create_schemas_of_references_in(schemas, _published_properties(model).values())
 
     def _create_schemas_of_references_in(self, schemas: dict, properties) -> None:
         """Build a schema for every reference these properties reach.
@@ -1483,7 +1528,9 @@ class SchemaGenerator:
             dtype = model_property.dtype
 
             if isinstance(dtype, Object):
-                self._create_schemas_of_references_in(schemas, (dtype.properties or {}).values())
+                self._create_schemas_of_references_in(
+                    schemas, [prop for prop in (dtype.properties or {}).values() if _published(prop)]
+                )
                 continue
 
             if not self.dtype_handler.is_reference_type(dtype):
@@ -1557,7 +1604,7 @@ class SchemaGenerator:
 
         refprop_names = {prop.name for prop in refprops if hasattr(prop, "name")}
 
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             if refprop_names and prop_name not in refprop_names:
                 continue
 
@@ -1588,7 +1635,7 @@ class SchemaGenerator:
             properties[prop_name] = prop_schema
 
         example = {}
-        for prop_name, model_property in model.get_given_properties().items():
+        for prop_name, model_property in _published_properties(model).items():
             if refprop_names and prop_name not in refprop_names:
                 continue
             example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
@@ -1674,6 +1721,10 @@ class OpenAPIGenerator:
                 return model.basename
         else:
             name_included = _get_schema_name
+
+        # A private model is not described at all, see `_published`. It stays in
+        # `all_models`, so a public model referencing it still names it.
+        models = {key: model for key, model in models.items() if _published(model)}
 
         namer = SchemaNamer(models, all_models, name_included, reserved)
 
