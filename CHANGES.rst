@@ -6,12 +6,55 @@ Changes
 
 Backwards incompatible:
 
-- The ``iss`` claim of issued access tokens no longer carries a trailing slash.
-  RFC 8414 requires the issuer identifier to match the metadata URL with the
-  well-known suffix removed, so ``server_url`` is now normalised before being
-  used as ``iss``. Tokens are not validated against ``iss``, so existing tokens
-  keep working, but consumers comparing the claim to a configured
-  ``server_url`` value verbatim will need to strip the slash (`#631`_).
+- Access tokens are now validated against their ``iss`` (issuer), ``aud``
+  (audience), ``client_id``, ``exp`` (expiration) and ``iat`` (issued-at) claims
+  at decode time: a token is rejected unless its ``iss`` equals the
+  authorization server identifier, its ``aud`` contains this resource server,
+  and it carries ``client_id``, ``exp`` (not passed) and ``iat``. A validated
+  token must now carry a ``client_id`` claim identifying the client; tokens
+  without it (minted before this change, or by an issuer that omits it) are
+  rejected with ``401`` instead of failing later during client lookup.
+  Previously the ``iss`` claim was never checked, so a signature-valid token
+  from a different issuer was accepted; and a token missing ``exp`` or ``iat``
+  raised an unguarded ``KeyError`` (HTTP 500) instead of a clean ``401``.
+  (Expiry itself was already
+  enforced by the bearer-token validator.) (`#631`_).
+- Added the ``token_issuer`` configuration parameter — the identifier of the
+  authorization server, used as the ``iss`` claim of tokens Spinta issues and
+  the value it requires when validating them. It is **required whenever Spinta
+  issues or validates an access token** (acting as its own authorization server
+  or validating an external one) and has no default; the requirement is enforced
+  when a token is issued or validated, not at startup, so operations that never
+  touch tokens (e.g. inspecting a manifest) are unaffected. There is deliberately
+  no fallback to ``server_url``, because ``server_url`` is the public URL (often
+  a gateway) and is not a valid issuer identity. Set it to the authorization
+  server's identifier — the external issuer's ``iss`` when validating tokens
+  minted elsewhere (via ``token_validation_key`` or
+  ``token_validation_keys_download_url``), or this server's own authorization
+  identity when it issues its own tokens (`#631`_).
+- Added the ``resource_server_url`` configuration parameter — the identifier of
+  this resource server, used as the ``aud`` (audience) claim of tokens Spinta
+  issues and required to be present in tokens it validates. It is **required
+  whenever Spinta issues or validates an access token** (enforced at that point,
+  not at startup) and has no default (no fallback to ``server_url``, which may be
+  a gateway in front of this resource server). Previously the ``aud`` claim was
+  incorrectly set to the client id, conflating the audience with the client;
+  ``aud`` is now the resource server and the client is carried in a separate
+  ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server_url`` is
+  rejected (`#631`_).
+- ``server_url`` is normalised (trailing slash stripped) when configuration is
+  loaded, so it is used consistently for the RFC 8414 authorization-server
+  metadata endpoint URLs, which require no trailing slash (`#631`_).
+- The authorization-server endpoints (``POST /auth/token``,
+  ``POST /auth/introspect`` and ``GET /.well-known/oauth-authorization-server``)
+  are now disabled when token validation is configured against an external
+  issuer (``token_validation_key`` or ``token_validation_keys_download_url`` is
+  set): Spinta cannot verify tokens it would sign, so it no longer acts as an
+  authorization server and these endpoints return ``NoAuthServer``. Previously
+  they responded whenever a private key was present, even in agent mode — but
+  any token minted there failed validation against the external key. Agent-mode
+  deployments must obtain tokens from the external authorization server instead
+  (`#631`_).
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and
   the backend was unused. The ``mongo`` backend type, its ``pymongo``

@@ -23,6 +23,7 @@ from authlib.oauth2.rfc6749 import OAuth2Payload, grants, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from authlib.oauth2.rfc8414 import AuthorizationServerMetadata
 from cachetools import LRUCache, cached
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
@@ -30,6 +31,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from joserfc import jwt
 from joserfc.errors import BadSignatureError, DecodeError, InvalidTokenError, JoseError
 from joserfc.jwk import RSAKey, import_key
+from joserfc.jwt import JWTClaimsRegistry
 from multipledispatch import dispatch
 from requests import RequestException
 from starlette.datastructures import FormData, Headers, QueryParams
@@ -54,6 +56,7 @@ from spinta.exceptions import (
     ModelNotFound,
     NoScopesForNamespaces,
     NoTokenValidationKey,
+    RequiredConfigParam,
 )
 from spinta.utils import passwords
 from spinta.utils.config import get_clients_path, get_helpers_path, get_id_path, get_keymap_path
@@ -147,7 +150,12 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
             ),
         )
         self._context = context
-        self._private_key = load_key(context, KeyType.private, required=False)
+        self._private_key = None
+
+        config = self.context.get("config")
+        if not (config.token_validation_key or config.token_validation_keys_download_url):
+            self._private_key = load_key(context, KeyType.private, required=False)
+
         self.register_endpoint(IntrospectionEndpoint)
 
     @property
@@ -202,19 +210,23 @@ class ResourceProtector(rfc6749.ResourceProtector):
 
 class IntrospectionEndpoint(rfc7662.IntrospectionEndpoint):
     CLIENT_AUTH_METHODS = ["client_secret_basic"]
+    SUPPORTED_TOKEN_TYPES = ("access_token",)
 
-    def query_token(self, token_string: str, token_type_hint: str) -> Token | None:
-        if token_type_hint and token_type_hint != "access_token":
-            return None
-
+    def query_token(self, token_string: str, token_type_hint: str | None) -> Token | None:
         protector: ResourceProtector = self.server.context.get("auth.resource_protector")
         try:
             return authenticate_token(protector, token_string, "bearer")
-        except (InvalidToken, JoseError, KeyError):
+        except (InvalidToken, JoseError):
             return None
 
+    def check_params(self, request: OAuth2Request, client: Client) -> None:
+        super().check_params(request, client)
+        if not client_has_scope(self.server.context, client, Scopes.AUTH_INTROSPECT):
+            raise InsufficientScopeError()
+
     def check_permission(self, token: Token, client: Client, request: OAuth2Request) -> bool:
-        return client_has_scope(self.server.context, client, Scopes.AUTH_INTROSPECT)
+        # Client scope is enforced in check_params (403 if missing); no per-token limit.
+        return True
 
     def introspect_token(self, token: Token) -> dict:
         return {
@@ -303,6 +315,19 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._default_public_key: RSAKey = load_key(context, KeyType.public)
         self._all_public_keys: list[RSAKey] = load_all_public_keys(context)
 
+    def _decode(self, token_string: str, key) -> dict:
+        claims = jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
+        config = self._context.get("config")
+        _require_auth_config(config)
+        JWTClaimsRegistry(
+            iss={"essential": True, "value": config.token_issuer},
+            aud={"essential": True, "value": config.resource_server_url},
+            client_id={"essential": True},
+            exp={"essential": True},
+            iat={"essential": True},
+        ).validate(claims)
+        return claims
+
     def decode_token(self, token_string: str) -> dict:
         if not token_string:
             raise InvalidToken("Token string is required")
@@ -312,8 +337,9 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
             if kid := (token_header.get("kid") or token_header.get("key")):
                 for key in self._all_public_keys:
                     if key.kid and str(key.kid) == str(kid):
-                        return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
-
+                        return self._decode(token_string, key)
+            if "alg" not in token_header:
+                raise InvalidToken(error="Token header missing 'alg'")
             token_kty = decode_kty_from_alg(token_header["alg"])
             for key in self._all_public_keys:
                 is_not_encryption_key = key.get("use") != "enc"
@@ -322,7 +348,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
                 is_same_algorithm_type = key.key_type and key.key_type == token_kty
                 if is_not_encryption_key and (is_same_algorithm or is_same_algorithm_type):
                     try:
-                        return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
+                        return self._decode(token_string, key)
                     except BadSignatureError:
                         continue
         except (JoseError, DecodeError, InvalidTokenError) as e:
@@ -439,7 +465,7 @@ class Token(rfc6749.TokenMixin):
         self._token = validator.decode_token(token_string)
 
         self.expires_in = self._token["exp"] - self._token["iat"]
-        self.client_id = self.get_aud()
+        self.client_id = self.get_client_id()
 
         self._validator = validator
 
@@ -458,7 +484,7 @@ class Token(rfc6749.TokenMixin):
             return True
 
         # Scope is not valid. Raise an exception
-        client_id = self._token["aud"]
+        client_id = self.get_client_id()
 
         require_all_scopes = isinstance(scope, str)
         scope_list = [scope] if require_all_scopes else scope
@@ -478,12 +504,12 @@ class Token(rfc6749.TokenMixin):
 
     # No longer mandatory, but will keep it, since it is used in other places.
     def get_client_id(self) -> str:
-        return self.get_aud()
+        return self._token.get("client_id", "")
 
     def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self) -> str:  # Client.
+    def get_aud(self) -> str:  # Resource server (audience).
         return self._token.get("aud", "")
 
     def get_jti(self) -> str:
@@ -505,7 +531,7 @@ class Token(rfc6749.TokenMixin):
         return self._token.get("scope", "")
 
     def check_client(self, client) -> bool:
-        return self.get_aud() == client.id
+        return self.get_client_id() == client.id
 
     def get_expires_in(self) -> int:
         return self.expires_in
@@ -778,29 +804,39 @@ def create_client_access_token(context: Context, client: Union[str, Client]):
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
 
-def get_issuer(config: Config) -> str:
-    """Issuer identifier of this authorization server.
+class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
+    def validate_response_types_supported(self):
+        # RFC 8414 marks this REQUIRED, but a client_credentials-only server has
+        # no authorization endpoint and therefore no response types. Allow empty,
+        # keep the JSON-array type check.
+        response_types_supported = self.get("response_types_supported")
+        if response_types_supported and not isinstance(response_types_supported, list):
+            raise ValueError('"response_types_supported" MUST be JSON array')
 
-    RFC 8414 section 2 requires `issuer` to be identical to the URL the metadata
-    document was retrieved from with the well-known suffix removed, so it must
-    not carry a trailing slash.
-    """
-    return config.server_url.rstrip("/")
 
-
-def get_authorization_server_metadata(context: Context) -> dict:
+def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
     config = context.get("config")
-    issuer = get_issuer(config)
-    return {
-        "issuer": issuer,
-        "token_endpoint": f"{issuer}/auth/token",
-        "introspection_endpoint": f"{issuer}/auth/introspect",
-        "jwks_uri": f"{issuer}/.well-known/jwks.json",
-        "grant_types_supported": ["client_credentials"],
-        "response_types_supported": [],
-        "token_endpoint_auth_methods_supported": ["client_secret_basic"],
-        "introspection_endpoint_auth_methods_supported": ["client_secret_basic"],
-    }
+    _require_auth_config(config)
+    base = config.resource_server_url
+    return ClientCredentialsServerMetadata(
+        {
+            "issuer": config.token_issuer,
+            "token_endpoint": f"{base}/auth/token",
+            "introspection_endpoint": f"{base}/auth/introspect",
+            "jwks_uri": f"{base}/.well-known/jwks.json",
+            "grant_types_supported": ["client_credentials"],
+            "response_types_supported": [],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "introspection_endpoint_auth_methods_supported": ["client_secret_basic"],
+        }
+    )
+
+
+def _require_auth_config(config) -> None:
+    if not config.token_issuer:
+        raise RequiredConfigParam(name="token_issuer")
+    if not config.resource_server_url:
+        raise RequiredConfigParam(name="resource_server_url")
 
 
 def create_access_token(
@@ -811,6 +847,7 @@ def create_access_token(
     scopes: Set[str] = None,
 ):
     config = context.get("config")
+    _require_auth_config(config)
 
     if expires_in is None:
         expires_in = int(datetime.timedelta(minutes=10).total_seconds())
@@ -825,9 +862,10 @@ def create_access_token(
     scopes = " ".join(sorted(scopes)) if scopes else ""
     jti = str(uuid.uuid4())
     payload = {
-        "iss": get_issuer(config),
+        "iss": config.token_issuer,
         "sub": client,
-        "aud": client,
+        "aud": config.resource_server_url,
+        "client_id": client,
         "iat": iat,
         "exp": exp,
         "scope": scopes,
@@ -845,12 +883,12 @@ def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
 
 
 def client_has_scope(context: Context, client: Client, scope: Union[Scopes, str]) -> bool:
-    config = context.get("config")
+    scopes = {
+        get_scope_name(context, None, scope, is_udts=False),
+        get_scope_name(context, None, scope, is_udts=True),
+    }
 
-    if isinstance(scope, Scopes):
-        scope = scope.value
-
-    return bool({f"{config.scope_prefix}{scope}", f"{config.scope_prefix_udts}:{scope}"} & client.scopes)
+    return bool(scopes & client.scopes)
 
 
 def check_scope(context: Context, scope: Union[Scopes, str]) -> bool:
@@ -877,13 +915,15 @@ def has_scope(context: Context, scope: Scopes | str, raise_error: bool = True) -
 
 def get_scope_name(
     context: Context,
-    node: Union[Namespace, Model, Property],
-    action: Action,
+    node: Union[Namespace, Model, Property, None],
+    action: Union[Action, Scopes],
     is_udts: bool = False,
 ) -> str:
     config = context.get("config")
 
-    if isinstance(node, Namespace):
+    if node is None:
+        name = ""
+    elif isinstance(node, Namespace):
         name = node.name
     elif isinstance(node, Model):
         name = node.model_type()
