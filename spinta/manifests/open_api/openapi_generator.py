@@ -18,6 +18,7 @@ from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_config import (
+    BASE32_ID_MAX_LENGTH,
     BASE32_ID_PATTERN,
     BASE_TAGS,
     COMMON_SCHEMAS,
@@ -159,6 +160,20 @@ def _warn_about_unpublished(selected: dict[str, Model], published: dict[str, Mod
         warnings.warn("No model of this export is published, so the specification describes none.", UserWarning)
 
 
+def _fold_summary(info: dict[str, Any]) -> None:
+    """Open the description with the summary, which OpenAPI 3.0 has no field for.
+
+    The Info Object of OpenAPI 3.0 has no `summary`, and a field it does not
+    define makes the document invalid, while a summary is what a reader looks
+    for first, so it is kept as the first paragraph of the description.
+    """
+    summary = info.pop("summary", None)
+    if not summary:
+        return
+    description = info.get("description")
+    info["description"] = f"{summary}\n\n{description}" if description else summary
+
+
 def _published_properties(model: Model) -> dict[str, Property]:
     """Properties of a model the document may describe, see `_published`."""
     return {name: prop for name, prop in model.get_given_properties().items() if _published(prop)}
@@ -178,50 +193,6 @@ def _innermost_property(model_property):
         if dtype.items is None:
             return None
         model_property = dtype.items
-
-
-#: Keywords of a schema whose value is a schema of its own, and the ones whose
-#: value is a list or a map of them. Everything else a schema holds is data, an
-#: `enum` or an `example` among it, and is left alone.
-SUBSCHEMA_KEYS = ("items", "not", "additionalProperties", "propertyNames", "contains", "if", "then", "else")
-SUBSCHEMA_LISTS = ("anyOf", "oneOf", "allOf", "prefixItems")
-SUBSCHEMA_MAPS = ("properties", "patternProperties", "$defs", "dependentSchemas")
-
-
-def _use_examples_array(schema: Any) -> None:
-    """Give a schema its examples as a list, which is what OpenAPI 3.1 reads.
-
-    JSON Schema 2020-12 took the Schema Object over, and there an example is one
-    of a list; the `example` of a schema is deprecated, which Swagger says out
-    loud. A Media Type and a Parameter keep an `example` of their own, which is
-    not deprecated and not a schema, so this walks schemas alone.
-    """
-    if not isinstance(schema, dict):
-        return
-
-    if "example" in schema:
-        example = schema["example"]
-        examples = schema.get("examples")
-        if isinstance(examples, list):
-            if example not in examples:
-                examples.append(example)
-            del schema["example"]
-        else:
-            # Written where the deprecated one stood, so a reader finds it in
-            # the same place rather than at the end of the object.
-            rebuilt = {("examples" if key == "example" else key): value for key, value in schema.items()}
-            rebuilt["examples"] = [example]
-            schema.clear()
-            schema.update(rebuilt)
-
-    for key in SUBSCHEMA_KEYS:
-        _use_examples_array(schema.get(key))
-    for key in SUBSCHEMA_LISTS:
-        for item in schema.get(key) or []:
-            _use_examples_array(item)
-    for key in SUBSCHEMA_MAPS:
-        for item in (schema.get(key) or {}).values():
-            _use_examples_array(item)
 
 
 def _reference_shape(model_property, dtype) -> tuple:
@@ -480,28 +451,35 @@ class SchemaNamer:
         return self._object_names[key]
 
 
+#: What a null of a referenced schema is. `nullable` widens only a `type` given
+#: beside it, and a referenced schema, an object each one of them, stays as
+#: strict as it is written, so `null` is an alternative of its own.
+NULL_OBJECT_SCHEMA = {"type": "object", "nullable": True, "enum": [None]}
+
+
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
     """Allow `null` in a property schema.
 
     Spinta returns `null` for every property that has no value, so anything not
     listed in `required` has to accept it, otherwise response validation fails.
+
+    OpenAPI 3.0 says so with `nullable`. A reference is `$ref`, or `allOf`
+    holding one where an example is given beside it, and `nullable` next to
+    either would leave the referenced schema refusing `null`, see
+    `NULL_OBJECT_SCHEMA`.
     """
-    if "$ref" in schema:
-        ref = {key: value for key, value in schema.items() if key != "example"}
-        nullable = {"anyOf": [ref, {"type": "null"}]}
+    if "$ref" in schema or "allOf" in schema:
+        references = schema["allOf"] if "allOf" in schema else [{"$ref": schema["$ref"]}]
+        nullable = {"anyOf": [*copy.deepcopy(references), copy.deepcopy(NULL_OBJECT_SCHEMA)]}
         if "example" in schema:
-            nullable["example"] = schema["example"]
+            nullable["example"] = copy.deepcopy(schema["example"])
         return nullable
 
     schema = copy.deepcopy(schema)
-    dtype = schema.get("type")
-    if isinstance(dtype, str):
-        schema["type"] = [dtype, "null"]
-    elif isinstance(dtype, list) and "null" not in dtype:
-        schema["type"] = [*dtype, "null"]
+    schema["nullable"] = True
 
-    # `type` and `enum` are validated together, so a value has to be listed in
-    # both for `null` to be accepted.
+    # `nullable` does not widen an `enum`, so a value has to be listed there for
+    # `null` to be accepted.
     enum = schema.get("enum")
     if isinstance(enum, list) and None not in enum:
         schema["enum"] = [*enum, None]
@@ -643,7 +621,9 @@ class DataTypeHandler:
             example = {"_id": _example_id(dtype.model)}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
-            return {"$ref": f"#/components/schemas/{ref_schema_name}", "example": example}
+            # A sibling of `$ref` is ignored in OpenAPI 3.0, so the example is
+            # given beside an `allOf` holding the reference.
+            return {"allOf": [{"$ref": f"#/components/schemas/{ref_schema_name}"}], "example": example}
 
         if isinstance(dtype, Object) and dtype.properties:
             return {"type": "object", "properties": self.object_properties(dtype, schemas=schemas)}
@@ -899,7 +879,6 @@ class PathGenerator:
 
         if isinstance(dtype, PrimaryKey):
             parameter = copy.deepcopy(PARAMETER_COMPONENTS["id"])
-            parameter["schema"]["examples"] = [_example_id(model)]
             parameter["schema"]["example"] = _example_id(model)
             return parameter
 
@@ -908,6 +887,7 @@ class PathGenerator:
         equals = _reached_by_equals_sign(model)
         if isinstance(dtype, Base32):
             schema["pattern"] = BASE32_ID_PATTERN
+            schema["maxLength"] = BASE32_ID_MAX_LENGTH
         elif schema.get("enum"):
             # The manifest lists the values, which is all there is to say. A
             # pattern beside them would leave nothing that satisfies both: the
@@ -967,9 +947,8 @@ class PathGenerator:
         for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0] if names else "")):
             if not value:
                 continue
-            properties[key]["examples"] = [value]
-            # An API client reads `example` of a property, not `examples`, and
-            # fills the request with the type name when it finds neither.
+            # An API client fills the request with the type name when a
+            # property has no example.
             properties[key]["example"] = value
         # Spinta answers any limit above zero, so an upper bound is a limit an
         # API gateway applies in front of it, taken from the configuration. The
@@ -977,9 +956,7 @@ class PathGenerator:
         # its own schema refuses.
         properties["_limit"]["format"] = "int64"
         properties["_limit"]["maximum"] = self.max_limit
-        limit_example = min(properties["_limit"]["examples"][0], self.max_limit)
-        properties["_limit"]["examples"] = [limit_example]
-        properties["_limit"]["example"] = limit_example
+        properties["_limit"]["example"] = min(properties["_limit"]["example"], self.max_limit)
         parameter["example"] = {"_limit": properties["_limit"]["example"]}
         if names:
             parameter["example"]["_select"] = ",".join(names[:2])
@@ -1441,7 +1418,7 @@ class SchemaGenerator:
         shape of a UUID would refuse every object of it.
         """
         properties = copy.deepcopy(self.schema_registry.standard_object_properties)
-        properties["_type"] = {**properties["_type"], "const": type_name, "example": type_name}
+        properties["_type"] = {**properties["_type"], "enum": [type_name], "example": type_name}
         properties["_revision"] = self._revision_schema(model)
         properties["_id"] = self._identifier_schema(model)
         return properties
@@ -1793,7 +1770,6 @@ class OpenAPIGenerator:
         self._add_common_schemas(specification)
         self._add_security_schemes(specification)
         self._drop_unused_components(specification)
-        self._use_examples_arrays(specification)
 
         return specification
 
@@ -1857,11 +1833,11 @@ class OpenAPIGenerator:
             spec["info"].update(copy.deepcopy(self.config.info))
             if self.api_version:
                 spec["info"]["version"] = self.api_version
-            return
-
-        _, dataset = next(iter(datasets))
-        spec["info"]["summary"] = dataset.title
-        spec["info"]["description"] = dataset.description
+        else:
+            _, dataset = next(iter(datasets))
+            spec["info"]["summary"] = dataset.title
+            spec["info"]["description"] = dataset.description
+        _fold_summary(spec["info"])
 
     def _add_security_schemes(self, spec: dict[str, Any]) -> None:
         schemes = copy.deepcopy(SECURITY_SCHEMES)
@@ -1933,7 +1909,6 @@ class OpenAPIGenerator:
 
         for token_path in token_paths:
             content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
-            content["schema"]["properties"]["scope"]["examples"] = [scope]
             content["schema"]["properties"]["scope"]["example"] = scope
             content["example"] = {"grant_type": "client_credentials", "scope": scope}
 
@@ -2005,28 +1980,6 @@ class OpenAPIGenerator:
                 return
             for schema_name in sorted(missing):
                 schemas[schema_name] = copy.deepcopy(COMMON_SCHEMAS[schema_name])
-
-    def _use_examples_arrays(self, spec: dict[str, Any]) -> None:
-        """Walk every schema of the document, and nothing else, see
-        `_use_examples_array`."""
-        for schema in spec.get("components", {}).get("schemas", {}).values():
-            _use_examples_array(schema)
-
-        def walk(node: Any) -> None:
-            if isinstance(node, dict):
-                for key, value in node.items():
-                    if key == "schema":
-                        _use_examples_array(value)
-                    else:
-                        walk(value)
-            elif isinstance(node, list):
-                for item in node:
-                    walk(item)
-
-        walk(spec.get("paths", {}))
-        for name, section in spec.get("components", {}).items():
-            if name != "schemas":
-                walk(section)
 
     def _drop_unused_components(self, spec: dict[str, Any]) -> None:
         """Leave out the components nothing refers to.

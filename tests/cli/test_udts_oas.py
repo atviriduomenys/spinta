@@ -174,7 +174,7 @@ def test_output_yaml(context, rc, cli: SpintaCliRunner, tmp_path):
 
     written = output.read_text()
     spec = yaml.load(written)
-    assert spec["openapi"] == "3.1.0"
+    assert spec["openapi"] == "3.0.3"
     assert "/at280_israsas/Israsas" in spec["paths"]
     # Shared objects would be written as YAML anchors and aliases, which not
     # every consumer of the specification handles.
