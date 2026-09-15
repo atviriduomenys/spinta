@@ -156,7 +156,10 @@ def load(
     )
     load_level(context, model, model.level)
     load_status(model, model.status)
-    load_visibility(model, model.visibility)
+    # What the manifest gave, not the attribute: the node loader has already put the
+    # schema default into it when none was given, and `given` would record that
+    # default as given. Enum items and scopes pass the given value the same way.
+    load_visibility(model, data.get("visibility"))
 
     load_model_properties(context, model, Property, data.get("properties"))
 
@@ -399,6 +402,9 @@ def load(
 ) -> Property:
     config = context.get("config")
     prop.type = "property"
+    # Read before `load_node`, which hands back only what its schema did not take,
+    # `visibility` not among it, and puts the schema default into the attribute.
+    given_visibility = data.get("visibility")
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
@@ -425,7 +431,7 @@ def load(
     # prop.given.status = prop.status
     # prop.status = load_enum_type_item(prop, prop.status, Status)
     load_status(prop, prop.status)
-    load_visibility(prop, prop.visibility)
+    load_visibility(prop, given_visibility)
 
     if data["type"] is None:
         raise UnknownPropertyType(prop, type=data["type"])

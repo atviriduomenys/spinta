@@ -169,6 +169,13 @@ Backwards incompatible:
     reference of level 4 carries the identifier alone, so its schema holds that
     alone, instead of also naming ``_type`` and ``_revision``, which a
     reference never carries.
+  - Metadata marked ``visibility: private`` is not published, so it is left
+    out of the specification: a model, a property, an enum value, and a text
+    property when every one of its languages is private. An empty
+    ``visibility`` is published, although the DSA defaults it to ``private``,
+    because nearly every DSA leaves it empty. This hides metadata, not data:
+    access to the data is ``access``, and the service still answers with a field
+    the specification leaves out if its ``access`` allows it.
   - A schema gives its examples as a list, which is what OpenAPI 3.1 reads.
     JSON Schema 2020-12 took the Schema Object over and deprecated the
     ``example`` of a schema there, which Swagger reports on every one of them.
@@ -383,6 +390,15 @@ Backwards incompatible:
     Characters an OpenAPI component name may not hold, which a name in a
     manifest may, are replaced with an underscore before the name is claimed,
     so uniqueness still holds.
+
+Bug fixes:
+
+- The ``visibility`` a model or a property records as given is the one its
+  manifest gave. A manifest written without the column had its default,
+  ``private``, recorded as given, and a property recorded nothing given at all,
+  because the node loader had already taken the value by then. Enum items and
+  scopes recorded it right already. The ``visibility`` loaded is unchanged
+  (`#2004`_).
 
 Improvements:
 

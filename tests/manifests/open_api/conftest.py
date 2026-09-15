@@ -355,6 +355,29 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 """)
 
 
+# Metadata marked `private` is not published: a property, an enum value, a file
+# property served on a path of its own, and a whole model. An empty `visibility`
+# is published.
+MANIFEST_WITH_PRIVATE_VISIBILITY = striptable("""
+id | d | r | b | m | property    | type            | ref   | source  | prepare | level | access | visibility
+   | datasets/gov/rc/jadis/at280/1/ds |            |       |         |         |       |        |
+   |   | test                     | memory          |       |         |         |       |        |
+   |   |   |   | Salis            |                 | kodas | salys   |         |       | open   | public
+   |   |   |   |   | kodas        | string required |       | kodas   |         | 4     | open   | public
+   |   |   |   |   | pavadinimas  | string          |       | pav     |         | 4     | open   |
+   |   |   |   |   | slaptas      | string          |       | slaptas |         | 4     | open   | private
+   |   |   |   |   | tipas        | string          |       | tipas   |         | 4     | open   | public
+   |                              | enum            |       | a       | 'a'     |       |        | public
+   |                              |                 |       | b       | 'b'     |       |        | private
+   |   |   |   |   | byla         | file            |       | byla    |         | 4     | open   | private
+   |   |   |   |   | aprasas@lt   | string          |       | apr_lt  |         | 4     | open   | private
+   |   |   |   |   | aprasas@en   | string          |       | apr_en  |         | 4     | open   | public
+   |   |   |   |   | pastaba@lt   | string          |       | pastaba |         | 4     | open   | private
+   |   |   |   | Paslaptis        |                 | kodas | paslaptys |       |       | open   | private
+   |   |   |   |   | kodas        | string required |       | kodas   |         | 4     | open   |
+""")
+
+
 # A model whose identifier is a whole number of its data.
 MANIFEST_WITH_INTEGER_ID = striptable("""
 id | d | r | b | m | property | type             | ref | source  | level | access
