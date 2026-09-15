@@ -220,6 +220,13 @@ Arguments
   credentials then travel in the clear. ``limits.max_limit`` sets the largest
   ``_limit`` a request may ask for, defaulting to ``100000``.
 
+  Metadata marked ``visibility: private`` is not published, so a model, a
+  property or an enum value marked so is left out of the specification; a text
+  property is left out when every one of its languages is. An empty
+  ``visibility`` is published. Access to the data is ``access``, not
+  ``visibility``: the service still answers with a field the specification does
+  not mention if its ``access`` allows it.
+
 - ``--api-version``
   OPTIONAL. Value of ``info.version``. Overrides ``info.version`` given in the
   configuration file.

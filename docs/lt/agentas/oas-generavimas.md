@@ -117,6 +117,30 @@ būdais:
 - **pilnas adresas su paslaugos keliu** – naudojamas toks, koks yra. Jei jo
   kelias nesutampa su `--path`, parodomas įspėjimas.
 
+## Kas į aprašą nepatenka: `visibility: private`
+
+`visibility` yra **metaduomenų** matomumas. Pagal DSA `private` metaduomenys
+nepublikuojami: jie laikomi tik IS tvarkytojui, pakartotiniam `spinta inspect` ir
+šaltinio pokyčių sekimui. OpenAPI aprašas yra publikuojami metaduomenys, todėl į jį
+nepatenka niekas, kas pažymėta `private`:
+
+- **modelis** – nėra nei jo kelių, nei schemų, nei žymės;
+- **savybė** – nėra jos schemoje, pavyzdžiuose ir užklausų pavyzdžiuose, o `file`
+  ar `object` savybė negauna ir savo kelio;
+- **enum reikšmė** – nėra reikšmių sąraše;
+- **kalbos savybė** (`pavadinimas@lt`) – `visibility` galioja tai kalbai. Savybė
+  lieka, kol bent viena jos kalba publikuojama, ir dingsta tik tada, kai visos
+  kalbos pažymėtos `private`.
+
+**Tuščias `visibility` publikuojamas.** DSA specifikacija tuščiai reikšmei priskiria
+`private`, bet beveik visi realūs DSA šį stulpelį palieka tuščią ir yra publikuojami,
+tad į aprašą nepatenka tik tai, kas `private` pažymėta aiškiai.
+
+**Duomenų tai nepaslepia.** Prieigą prie duomenų valdo `access`, ne `visibility`:
+pagal `visibility` Spinta duomenų neslepia. Lauką, kurio `access` yra `open` ar
+`public`, API grąžins, net jei aprašas jo nemini. Jei duomenys neturi būti pasiekiami, reikia
+nustatyti atitinkamą `access`.
+
 ## Scope'ai specifikacijoje
 
 Kiekviena duomenų operacija specifikacijoje nurodo scope'ą, kurio Spinta iš
