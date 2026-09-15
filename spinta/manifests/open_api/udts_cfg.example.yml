@@ -12,6 +12,8 @@
 info:
   # PRIVALOMA. Vardas, kuriuo paslauga matoma vartuose.
   title: JADIS duomenų paslauga
+  # OpenAPI 3.0 `info` neturi `summary`, todėl jis tampa pirma `description`
+  # pastraipa.
   summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
   description: |
     Išsamesnis paslaugos aprašas, matomas vartų dokumentacijoje.

@@ -10,6 +10,17 @@ Backwards incompatible:
   for importing endpoints into an API gateway and for validating requests and
   responses against it (`#2004`_):
 
+  - The document is OpenAPI ``3.0.3``, not ``3.1.0``, which is the version
+    required of a data service and the one an API gateway imports. A property
+    accepting ``null`` says so with ``nullable``, a schema gives one
+    ``example``, a constant is an ``enum`` of one value, and a reference that
+    may be ``null`` is an ``anyOf`` of the reference and a ``null`` object.
+    ``info`` has no ``summary`` in ``3.0``, so a summary opens
+    ``info.description``, and ``info.license.identifier`` of ``--udts-cfg`` is
+    left out with a warning. Patterns neither look around nor repeat more than
+    a thousand times, which the linter an API gateway is reviewed with refuses
+    in a ``3.0`` document: a header value is bounded by ``maxLength``, and a
+    ``traceparent`` of zeroes is refused by a ``not`` beside its pattern.
   - ``servers`` are no longer hardcoded to ``get.data.gov.lt``. For a data
     service they are built from ``--udts-cfg``, one entry per environment, each
     ending with the data service path, and ``paths`` are relative to that base.
@@ -177,11 +188,6 @@ Backwards incompatible:
     hides metadata, not data: access to the data is ``access``, and the service
     still answers with a field the specification leaves out if its ``access``
     allows it.
-  - A schema gives its examples as a list, which is what OpenAPI 3.1 reads.
-    JSON Schema 2020-12 took the Schema Object over and deprecated the
-    ``example`` of a schema there, which Swagger reports on every one of them.
-    A media type and a parameter keep an ``example`` of their own, which is
-    neither a schema nor deprecated.
   - A media type of a response keeps everything the configuration says about
     it, not the schema alone. The token endpoint answers a `400` of two shapes,
     so neither schema carries the example and it sits beside them; it was being

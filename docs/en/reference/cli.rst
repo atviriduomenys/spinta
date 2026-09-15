@@ -164,7 +164,7 @@ Example
 udts oas
 ========
 
-The ``udts oas`` CLI command exports an OpenAPI specification of one UDTS data
+The ``udts oas`` CLI command exports an OpenAPI 3.0 specification of one UDTS data
 service, covering all datasets of that service.
 
 A UDTS data service is identified by the leading part of a dataset path::
@@ -268,7 +268,7 @@ Example
 .. code-block:: json
 
    {
-     "openapi": "3.1.0",
+     "openapi": "3.0.3",
      "info": {"title": "JADIS data service", "version": "1"},
      "servers": [
        {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Production"},

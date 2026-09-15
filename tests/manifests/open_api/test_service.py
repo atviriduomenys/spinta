@@ -388,11 +388,6 @@ def test_resolve_servers_drops_a_trailing_slash_of_the_path():
         ("servers:\n  - url: 'https://host\\evil/path'\n", "invalid character"),
         ("servers:\n  - url: 'https://host|evil/path'\n", "invalid character"),
         ("servers:\n  - url: 'https://host/ą'\n", "invalid character"),
-        # OpenAPI License Object allows either one.
-        (
-            "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n    url: https://example.com\n",
-            "either an `identifier` or an `url`",
-        ),
     ],
 )
 def test_config_rejects_values_openapi_would_reject(tmp_path, config, error):
@@ -435,6 +430,12 @@ def test_config_reports_a_non_utf8_file(tmp_path):
             {"info": {"contact": {}}},
         ),
         ("auth:\n  tokenurl: https://host/auth/token\n", "`auth` key 'tokenurl' is not supported", {"auth": {}}),
+        # OpenAPI 3.0 License Object has no `identifier`.
+        (
+            "info:\n  license:\n    name: CC-BY 4.0\n    identifier: CC-BY-4.0\n",
+            "`info.license` key 'identifier' is not supported",
+            {"info": {"license": {"name": "CC-BY 4.0"}}},
+        ),
     ],
 )
 def test_config_leaves_out_unknown_nested_keys(tmp_path, config, warning, kept):
