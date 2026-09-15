@@ -55,8 +55,10 @@ def oas(
 
     if udts_cfg is None:
         cli_error(
-            "`--udts-cfg` is required: a data service is published with a name and with the environments "
-            "it is served at, which a manifest does not hold. An example of the file is shipped as "
+            "`--udts-cfg` is required: a data service is published with a name, with the environments "
+            "it is served at and with the contact of the institution its users turn to, which a manifest "
+            "does not hold. The file has to give `info.title`, `info.contact.name`, `info.contact.url`, "
+            "`info.contact.email` and at least one `servers` entry. An example of the file is shipped as "
             "`spinta/manifests/open_api/udts_cfg.example.yml`."
         )
 

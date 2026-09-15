@@ -37,6 +37,13 @@ KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs", "limits"])
 #: an URL of its own, not by a template.
 INFO_KEYS = frozenset(["title", "summary", "description", "termsOfService", "contact", "license", "version"])
 CONTACT_KEYS = frozenset(["name", "url", "email"])
+#: Fields of `info.contact` a data service is not published without, see
+#: `UdtsConfig.check_publishable`, with what each one is to give.
+CONTACT_REQUIRED = {
+    "name": "the name of the institution users of the data service turn to",
+    "url": "the web page of that institution",
+    "email": "the address users of the data service write to",
+}
 LICENSE_KEYS = frozenset(["name", "url"])
 SERVER_KEYS = frozenset(["url", "description"])
 EXTERNAL_DOCS_KEYS = frozenset(["description", "url"])
@@ -160,9 +167,12 @@ class UdtsConfig:
 
         An API gateway takes the context path of the API out of the first
         server URL and shows the title to whoever looks the service up, so a
-        document without them cannot be deployed. Reading a file does not ask
-        for them, because a file is read for other reasons as well; exporting a
-        data service does.
+        document without them cannot be deployed. A data service is published
+        with the institution its users turn to, so every field of
+        `info.contact` is asked for as well, rather than leaving users to the
+        default contact. Reading a
+        file does not ask for them, because a file is read for other reasons as
+        well; exporting a data service does.
         """
         title = self.info.get("title")
         if not isinstance(title, str) or not title.strip():
@@ -186,6 +196,12 @@ class UdtsConfig:
                     "from that server otherwise, and a token endpoint has to be an absolute URL."
                 ),
             )
+
+        contact = self.info.get("contact") or {}
+        for key, what in CONTACT_REQUIRED.items():
+            value = contact.get(key)
+            if not isinstance(value, str) or not value.strip():
+                raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.{key}` is required, give {what}.")
 
     def max_limit(self) -> int:
         """Largest `_limit` a request may ask for.

@@ -209,10 +209,12 @@ Arguments
   part of a manifest: environments, service level ``info`` and the
   authorization server. An example file is shipped as
   ``spinta/manifests/open_api/udts_cfg.example.yml``.
-  Two of its fields are required: ``info.title``, the name the data service is
-  seen under, and ``servers`` with at least one entry, the first of which an
-  API gateway takes the API context path from. A specification without them
-  cannot be deployed, so it is not written.
+  Three of its fields are required: ``info.title``, the name the data service
+  is seen under, ``info.contact`` with every field of it, the ``name``,
+  ``url`` and ``email`` of the institution users of the data service turn to,
+  and ``servers`` with at least one entry, the first of which an API
+  gateway takes the API context path from. A specification without them is not
+  written.
   Only a server URL may be relative, every other URL field of the
   configuration has to carry a scheme and a host. A server and
   ``auth.token_url`` are reached over ``https`` or ``http``; ``http`` is
@@ -255,6 +257,10 @@ Example
    info:
      title: JADIS data service
      version: "1"
+     contact:
+       name: Registrų centras
+       url: https://www.registrucentras.lt/
+       email: info@registrucentras.lt
    servers:
      - url: https://get.data.gov.lt
        description: Production

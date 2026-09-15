@@ -63,7 +63,10 @@ Backwards incompatible:
     entry. An API gateway takes the context path of the API out of the first
     server URL and shows the title to whoever looks the service up, so a
     document without them cannot be deployed, and it is better said while the
-    file is written than after it is imported. ``--list`` needs no
+    file is written than after it is imported. Every field of
+    ``info.contact``, ``name``, ``url`` and ``email``, is required as well, so
+    users of a data service are told which institution to turn to rather than
+    given the default contact. ``--list`` needs no
     configuration, it only reads the manifest.
   - Everything a request carries is bounded, so that an API gateway validating
     requests can refuse one before it reaches the service: ``_select`` and

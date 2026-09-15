@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from ruamel.yaml import YAML
 
 from spinta.manifests.tabular.helpers import striptable
@@ -33,6 +34,10 @@ id | d | r | b | m | property | type            | ref | level | access | title
 UDTS_CFG = """
 info:
   title: JADIS duomenų paslauga
+  contact:
+    name: Registrų centras
+    url: https://www.registrucentras.lt/
+    email: info@example.lt
 servers:
   - url: https://get.data.gov.lt
     description: Production
@@ -229,13 +234,17 @@ def test_scopes_follow_the_configured_formatter(context, rc, cli: SpintaCliRunne
 
 
 def test_configuration_is_required(context, rc, cli: SpintaCliRunner, tmp_path):
-    """A data service is published with a name and with its environments."""
+    """A data service is published with a name, its environments and a contact."""
     path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
 
     result = cli.invoke(rc, ["udts", "oas", path], fail=False)
 
     assert result.exit_code == 1
     assert "`--udts-cfg` is required" in result.stderr
+    # What the file has to give is said up front, not one field at a time.
+    stderr = " ".join(result.stderr.split())
+    for field in ("info.title", "info.contact.name", "info.contact.url", "info.contact.email", "servers"):
+        assert f"`{field}`" in stderr, field
     assert "udts_cfg.example.yml" in result.stderr
 
 
@@ -268,6 +277,24 @@ def test_at_least_one_server_is_required(context, rc, cli: SpintaCliRunner, tmp_
 
     assert result.exit_code == 1
     assert "`servers` is required" in result.stderr
+
+
+@pytest.mark.parametrize("missing", ["name", "url", "email"])
+def test_every_contact_field_is_required(context, rc, cli: SpintaCliRunner, tmp_path, missing):
+    """Users of a data service are told who to turn to, where and how."""
+    path = _manifest(context, tmp_path, MANIFEST_WITH_ONE_SERVICE)
+    contact = {"name": "RC", "url": "https://www.registrucentras.lt/", "email": "info@registrucentras.lt"}
+    del contact[missing]
+    fields = "".join(f"    {key}: {value}\n" for key, value in contact.items())
+    config = _config(
+        tmp_path,
+        f"info:\n  title: JADIS\n  contact:\n{fields}servers:\n  - url: https://get.data.gov.lt\n",
+    )
+
+    result = cli.invoke(rc, ["udts", "oas", path, "--udts-cfg", config], fail=False)
+
+    assert result.exit_code == 1
+    assert f"`info.contact.{missing}` is required" in result.stderr
 
 
 def test_listing_services_needs_no_configuration(context, rc, cli: SpintaCliRunner, tmp_path):
