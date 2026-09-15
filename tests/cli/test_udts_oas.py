@@ -5,6 +5,7 @@ from ruamel.yaml import YAML
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
+from tests.manifests.open_api.conftest import publish_unmarked
 
 yaml = YAML(typ="safe")
 
@@ -45,6 +46,7 @@ auth:
 def _manifest(context, tmp_path, manifest=MANIFEST):
     path = tmp_path / "manifest.csv"
     create_tabular_manifest(context, path, manifest)
+    publish_unmarked(path)
     return path
 
 

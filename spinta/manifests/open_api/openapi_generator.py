@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import re
 import uuid
+import warnings
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Callable, Union
@@ -85,38 +86,77 @@ DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
 
 
+#: Visibility of metadata that may be published, see `_published`.
+PUBLISHED_VISIBILITY = frozenset([Visibility.protected, Visibility.package, Visibility.public])
+
+
 def _published(node: Any) -> bool:
     """Whether the metadata of a model, a property or an enum value is published.
 
     `visibility` is the visibility of metadata, not of data, see DSA
     `matomumas`: `private` metadata is not published, it is kept for the owner
     of the information system, to follow the source and to run `spinta inspect`
-    again. An OpenAPI document is published metadata, so nothing private goes
-    into it. Access to the data is `access`, a separate matter.
+    again. An OpenAPI document is published metadata, so only what is marked
+    `protected`, `package` or `public` goes into it.
 
-    What decides is the `visibility` given, not the one loaded. The DSA makes
-    an empty `visibility` default to `private`, and a manifest written without
-    the column loads it that way, while nearly every DSA leaves it empty and is
-    published all the same. So an element is left out only when the manifest
-    marks it `private`.
+    An element given no `visibility` is not published either: the DSA makes an
+    empty `visibility` default to `private`, and security here follows that
+    strict reading, so an element has to be marked to appear. Access to the data
+    is `access`, a separate matter.
     """
-    if _given_visibility(node) == Visibility.private.name:
-        return False
+    dtype = getattr(node, "dtype", None)
+    langs = getattr(dtype, "langs", None)
+    if isinstance(dtype, Text) and langs:
+        # `name@lt` sets the visibility of that language, which a text property
+        # holds in `langs`, and leaves the property itself without one. The
+        # document describes the property as one value whatever the language,
+        # so it is published while any of its languages is, unless the property
+        # itself is marked private.
+        if _given_visibility(node) == Visibility.private.name:
+            return False
+        return any(_visibility(lang) in PUBLISHED_VISIBILITY for lang in langs.values())
 
-    # `name@lt` sets the visibility of that language, which a text property
-    # holds in `langs`, and leaves the property itself without one. The document
-    # describes the property as one value whatever the language, so it is
-    # published while any of its languages is.
-    langs = getattr(getattr(node, "dtype", None), "langs", None)
-    if isinstance(getattr(node, "dtype", None), Text) and langs:
-        return any(_given_visibility(lang) != Visibility.private.name for lang in langs.values())
+    return _visibility(node) in PUBLISHED_VISIBILITY
 
-    return True
+
+def _visibility(node: Any) -> Visibility | None:
+    visibility = getattr(node, "visibility", None)
+    if isinstance(visibility, str):
+        return Visibility.__members__.get(visibility)
+    return visibility
 
 
 def _given_visibility(node: Any) -> str | None:
     given = getattr(getattr(node, "given", None), "visibility", None)
     return given.name if isinstance(given, Visibility) else given
+
+
+def _warn_about_unpublished(selected: dict[str, Model], published: dict[str, Model]) -> None:
+    """Say what visibility leaves out, since a document can end up without it.
+
+    A DSA leaves `visibility` empty more often than not, and an empty one is not
+    published, see `_published`, so without a word a document would silently lack
+    models and properties its author expected in it.
+    """
+    models = [model.name for key, model in selected.items() if key not in published]
+    properties = [
+        f"{model.name}/{name}"
+        for model in published.values()
+        for name, prop in model.get_given_properties().items()
+        if not _published(prop)
+    ]
+    if not models and not properties:
+        return
+
+    examples = ", ".join((models + properties)[:3])
+    warnings.warn(
+        f"{len(models)} models and {len(properties)} properties are left out of the specification, because "
+        f"their visibility is private or not given, for example {examples}. Only metadata marked "
+        "protected, package or public is published.",
+        UserWarning,
+    )
+    if selected and not published:
+        warnings.warn("No model of this export is published, so the specification describes none.", UserWarning)
 
 
 def _published_properties(model: Model) -> dict[str, Property]:
@@ -1722,9 +1762,11 @@ class OpenAPIGenerator:
         else:
             name_included = _get_schema_name
 
-        # A private model is not described at all, see `_published`. It stays in
-        # `all_models`, so a public model referencing it still names it.
-        models = {key: model for key, model in models.items() if _published(model)}
+        # An unpublished model is not described at all, see `_published`. It stays
+        # in `all_models`, so a published model referencing it still names it.
+        selected = models
+        models = {key: model for key, model in selected.items() if _published(model)}
+        _warn_about_unpublished(selected, models)
 
         namer = SchemaNamer(models, all_models, name_included, reserved)
 
