@@ -55,9 +55,12 @@ Manifeste nėra aplinkų adresų, paslaugos lygmens aprašo ir autorizacijos
 serverio – tai nurodoma atskirame YAML faile. Pavyzdinis failas yra Spinta
 pakete, `spinta/manifests/open_api/udts_cfg.example.yml`.
 
-**Failas privalomas**, ir jame privalomi du dalykai:
+**Failas privalomas**, ir jame privalomi trys dalykai:
 
 - **`info.title`** – vardas, kuriuo paslauga matoma vartuose;
+- **`info.contact`** su visais laukais: `name` – institucijos, į kurią
+  kreipiasi paslaugos naudotojai, pavadinimas, `url` – jos interneto svetainė
+  ir `email` – adresas, kuriuo jai rašoma;
 - **`servers`** – bent vienas įrašas; iš pirmojo vartai išsiveda API
   context-path.
 
@@ -68,6 +71,10 @@ nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
 ```yaml
 info:
   title: JADIS duomenų paslauga
+  contact:
+    name: Registrų centras
+    url: https://www.registrucentras.lt/
+    email: info@registrucentras.lt
   # OpenAPI 3.0 `info` neturi `summary`, todėl jis tampa pirma aprašymo pastraipa.
   summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
   version: "1"
