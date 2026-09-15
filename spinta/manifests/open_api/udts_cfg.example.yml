@@ -5,8 +5,10 @@
 #       --udts-cfg vartai.yml
 #
 # Čia surašoma tai, ko manifeste nėra: aplinkų adresai, paslaugos lygmens
-# aprašas ir autorizacijos serveris. Failas PRIVALOMAS, ir jame privalomi du
-# dalykai – `info.title` ir bent vienas `servers` įrašas. Visa kita neprivaloma.
+# aprašas ir autorizacijos serveris. Failas PRIVALOMAS, ir jame privalomi trys
+# dalykai – `info.title`, visi `info.contact` laukai ir bent vienas `servers`
+# įrašas.
+# Visa kita neprivaloma.
 
 # Paslaugos aprašas. Patenka į OAS `info`.
 info:
@@ -18,6 +20,8 @@ info:
   description: |
     Išsamesnis paslaugos aprašas, matomas vartų dokumentacijoje.
   version: "1"
+  # PRIVALOMA, visi trys laukai. Institucija, į kurią kreipiasi paslaugos
+  # naudotojai: pavadinimas, interneto svetainė ir el. pašto adresas.
   contact:
     name: Registrų centras
     url: https://www.registrucentras.lt/
