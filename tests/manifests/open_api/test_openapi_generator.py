@@ -2721,3 +2721,20 @@ def test_every_agent_endpoint_says_which_context_it_is_for(open_manifest_path_fa
     assert {path: contexts[path] for path in AGENT_UTILITY_PATHS} == dict.fromkeys(AGENT_UTILITY_PATHS, "agent-direct")
     # A path of the data is served in both, so it is marked for neither.
     assert contexts["/at280_israsas/DalyvioAsmensIsrasas"] is None
+
+
+@pytest.mark.models("backends/postgres/City")
+def test_page_alone_is_authorized_the_way_the_document_says(model, app, open_manifest_path_factory):
+    """`_page` continues a listing rather than narrowing it, so it takes `:getall`."""
+    app.authmodel(model, ["insert", "getall"])
+    for title in ("Vilnius", "Kaunas"):
+        app.post(f"/{model}", json={"title": title})
+    token = app.get(f"/{model}?page(size:1)").json()["_page"]["next"]
+
+    assert app.get(f"/{model}?_page={token}").status_code == 200
+
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    description = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]["get"]["description"]
+    assert "`_page` alone" in description
+    page = open_api_spec["components"]["parameters"]["page"]["schema"]
+    assert page["maxLength"] >= len(token)
