@@ -1237,6 +1237,12 @@ def test_unpublished_metadata_is_left_out(open_manifest_path_factory):
         assert name not in [tag["name"] for tag in open_api_spec["tags"]], name
         assert name not in text, name
 
+    # A published reference to an unpublished model points at a schema that
+    # names nothing of it, see `UNPUBLISHED_REFERENCE`.
+    for name in ("paslaptis", "nepazymetas"):
+        assert salis["properties"][name]["anyOf"][0] == {"$ref": "#/components/schemas/UnpublishedReference"}, name
+    assert schemas["UnpublishedReference"]["properties"] == {}
+
     # Nor does a query example name what is not published.
     parameters = open_api_spec["components"]["parameters"]
     query = json.dumps([parameters["select_ds_Salis"], parameters["sort_ds_Salis"]])
