@@ -79,10 +79,14 @@ Backwards incompatible:
     of the service, which is why it is configured. Nothing is bounded on the
     response side, where the shape of a value is what the manifest says and a
     guess would have the gateway refuse data the service holds.
-  - A query parameter is built for every model, not only for one with
-    properties to name in an example. A model without them fell back to the
-    shared parameter, which carries no ``_limit`` bound, so the bound
-    configured for the data service did not reach it.
+  - ``_select``, ``_limit``, ``_sort`` and ``_page`` are query parameters of
+    their own, instead of properties of one ``query`` object parameter, so an
+    API gateway validating requests checks each of them. ``_limit`` is one
+    parameter for the whole document, carrying the bound configured for the
+    data service, ``int32`` while that bound fits, and ``_select`` and
+    ``_sort`` are built per model, with examples naming its properties. A
+    filter on properties, ``count()`` and the call forms are described in the
+    listing operation, since none of them is a parameter of a fixed name.
   - Reading a single object declares the ``301`` it answers when the identifier
     asked for was moved to another one, together with the ``Location`` header
     saying where the object lives now, see ``spinta.commands.read.getone``. A
@@ -164,13 +168,9 @@ Backwards incompatible:
     ``uuidv4`` is not one and no tool recognised it.
   - Query examples name properties of the model they belong to. A generic
     example is worse than none, because an API client fills the request with
-    it, and ``?_select=string`` comes back as ``FieldNotInResource``. They are
-    given as ``example`` as well as ``examples``, which is what an API client
-    reads. ``_count`` and ``_page`` are no longer listed as parameters taking a
-    value: ``count()`` is written without one and refuses ``?_count=1``, and
-    ``_page`` takes the token the previous answer gave. Both are described in
-    the query parameter instead, so a request built from the document works as
-    it is.
+    it, and ``?_select=string`` comes back as ``FieldNotInResource``.
+    ``_count`` is not listed as a parameter taking a value: ``count()`` is
+    written without one and refuses ``?_count=1``.
   - The document answers what an OpenAPI linter asks of it, checked with
     ``vacuum`` and the full rule set an API gateway is reviewed with. Every
     schema carries a description, taken from the manifest where a model has
@@ -290,10 +290,6 @@ Backwards incompatible:
     may add after the flags, which a parser has to tolerate rather than refuse.
     Version ``00`` is still those four fields and nothing else, ``ff`` is still
     invalid, and so is an identifier of nothing but zeroes.
-  - The query parameter names ``page('<token>')`` as the way to continue a
-    listing. The token an answer gives carries ``=`` padding, which the query
-    syntax does not read unquoted, so the ``?_page=<token>`` form the
-    description named before works only for a token that happens to have none.
   - The ``health`` endpoints say what the probe really checks: the service
     answered, and the disk and the memory of the machine it runs on are within
     the limits it was given. Backends holding the data are not probed, so
@@ -417,6 +413,14 @@ Bug fixes:
 
 Improvements:
 
+- A listing is continued with ``?_page=<token>``, a parameter of its own as
+  ``_limit`` is, taking the token of ``_page.next`` as it is, ``=`` padding
+  included, or percent encoded. The same as ``page('<token>')``, which stays.
+  Before, the query syntax failed on the padding, and ``_page`` without it was
+  read as a filter on a property. It is added to the Spyna grammar the way
+  ``_limit`` is, as a stopgap until the simplified syntax gets a parser of its
+  own (`#2004`_, `#2023`_).
+
 - Added a new ``spinta udts`` command group for UDTS data service agent
   operations, with its first command ``spinta udts oas``. It exports an OpenAPI
   specification of one UDTS data service, covering all datasets under the
@@ -435,6 +439,7 @@ Improvements:
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
 .. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
+.. _#2023: https://github.com/atviriduomenys/spinta/issues/2023
 .. _#2653: https://github.com/atviriduomenys/katalogas/issues/2653
 
 

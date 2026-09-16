@@ -401,7 +401,7 @@ PATHS_CONFIG = {
             # `HEAD` is narrowed down by the same query as `GET`, see
             # `spinta.urlparams.get_action`, which is why it takes the `search`
             # scope as well.
-            "parameters": ["query"],
+            "parameters": ["select", "limit", "sort", "page"],
             "responses": {
                 "200": {"description": "OK"},
                 "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
@@ -417,9 +417,9 @@ PATHS_CONFIG = {
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get multiple objects.",
-            "description": "Return list of objects for a given model.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`. The two are listed as alternative security requirements, because OpenAPI can not make a requirement depend on query parameters, so they are not interchangeable: a token needs the scope of the request it makes.\n",
+            "description": "Return list of objects for a given model.\n\nThe listing is narrowed down by the query parameters listed below, and by a filter on the properties of the model, `?code='LT'` or `?name.startswith('V')` for one, which is not a parameter of a fixed name and is not listed. Two more forms are accepted and are not listed, because neither is a `name=value` pair: `count()`, written as `?count()` or as `?_count` without a value, answers with the number of objects instead of the objects; and `limit(...)`, `select(...)`, `sort(...)` and `page(...)`, written as calls. A parameter left empty, `?_select=` for one, is refused.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`. The two are listed as alternative security requirements, because OpenAPI can not make a requirement depend on query parameters, so they are not interchangeable: a token needs the scope of the request it makes.\n",
             "operationId": "getAll",
-            "parameters": ["query"],
+            "parameters": ["select", "limit", "sort", "page"],
             "responses": {
                 "200": {
                     "description": "OK",
@@ -1021,42 +1021,61 @@ PARAMETER_COMPONENTS = {
             "example": "lt",
         },
     },
-    "query": {
-        "name": "query",
+    # What narrows a listing down is given as parameters of its own, each a
+    # `name=value` pair a gateway validating requests checks one by one. The
+    # ones naming properties are built for every model, see
+    # `PathGenerator._select_parameter`, and `_limit` for every document.
+    "select": {
+        "name": "_select",
         "in": "query",
         "required": False,
-        "description": "Object filter. This filter and the pattern used to form a query conform to [***URI syntax standard***](https://datatracker.ietf.org/doc/html/rfc3986).\n\nOther implementations of this specification can use more complex queries depending on filtering rules. They should comply to [***AST***](https://en.wikipedia.org/wiki/Abstract_syntax_tree) formatting and logic.\n\nThe listed parameters are the ones written as `name=value`, which is the form this schema describes. Two more are accepted and are left out of the listing, because neither is of that form:\n\n- `count()`, written as `?count()` or as `?_count`, without a value, answers with the number of objects instead of the objects. A value, `?_count=1` for one, is refused.\n- `page('<token>')` continues a listing where the previous answer ended, taking the token that answer gave in `_page.next`. It is written as a call with the token quoted, because the token carries `=` padding and the query syntax does not read that unquoted, so the `?_page=<token>` form only works for a token that happens to have none.\n\nA parameter left empty, `?_select=` for one, is refused as well.",
+        "description": "Comma separated list of properties to include in the result. Written as `select(...)` as well.",
         "schema": {
-            "type": "object",
-            "properties": {
-                "_select": {
-                    "type": "string",
-                    # Names, dotted paths and function calls, which is what the
-                    # query language holds here, plus the `*` of `_select=*`,
-                    # which asks for everything, see `spinta.spyna`. The
-                    # characters are bounded so a gateway validating requests
-                    # refuses anything else.
-                    "pattern": "^[A-Za-z0-9_.,@()* +-]{1,1000}$",
-                    "example": "name,country.name,country.continent.name",
-                    "description": "Comma separated list of properties to include in the result.",
-                },
-                "_limit": {
-                    "type": "integer",
-                    # A limit below one is refused; there is no upper bound, and
-                    # a value beyond 64 bits is answered as well, so neither a
-                    # `maximum` nor a `format` is given.
-                    "minimum": 1,
-                    "example": 10,
-                    "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`.",
-                },
-                "_sort": {
-                    "type": "string",
-                    # The same, with `+` or `-` for the direction and no calls.
-                    "pattern": "^[A-Za-z0-9_.,@ +-]{1,1000}$",
-                    "example": "-code,country.name",
-                    "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction.",
-                },
-            },
+            "type": "string",
+            # Names, dotted paths and function calls, which is what the query
+            # language holds here, plus the `*` of `_select=*`, which asks for
+            # everything, see `spinta.spyna`. The characters are bounded so a
+            # gateway validating requests refuses anything else.
+            "pattern": "^[A-Za-z0-9_.,@()* +-]{1,1000}$",
+            "example": "name,country.name,country.continent.name",
+        },
+    },
+    "sort": {
+        "name": "_sort",
+        "in": "query",
+        "required": False,
+        "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction. Written as `sort(...)` as well.",
+        "schema": {
+            "type": "string",
+            # The same, with `+` or `-` for the direction and no calls.
+            "pattern": "^[A-Za-z0-9_.,@ +-]{1,1000}$",
+            "example": "-code,country.name",
+        },
+    },
+    "limit": {
+        "name": "_limit",
+        "in": "query",
+        "required": False,
+        "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`. Written as `limit(...)` as well.",
+        "schema": {
+            "type": "integer",
+            # A limit below one is refused. Spinta holds to no upper bound, so
+            # `maximum` is the one an API gateway applies in front of it, set
+            # per document, see `PathGenerator._limit_parameter`.
+            "minimum": 1,
+            "example": 10,
+        },
+    },
+    "page": {
+        "name": "_page",
+        "in": "query",
+        "required": False,
+        "description": "Continues a listing where the previous answer ended, taking the token that answer gave in `_page.next`. The token is given as it is, `=` padding included, or percent encoded. Written as `page('<token>')` as well.",
+        "schema": {
+            "type": "string",
+            # The token `spinta.utils.encoding.encode_page_values` writes.
+            "pattern": PAGE_TOKEN_PATTERN,
+            "example": "WyIyMDI2LTA4LTMxIl0=",
         },
     },
     "id": {

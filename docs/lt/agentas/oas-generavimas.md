@@ -237,10 +237,16 @@ netinkamą užklausą dar nepasiekusią paslaugos:
 |---|---|
 | `_limit` | nuo 1 iki `limits.max_limit` (pagal nutylėjimą 100000) |
 | `_select`, `_sort` | vardai, keliai su taškais ir funkcijos, iki 1000 simbolių |
+| `_page` | puslapio žymė iš ankstesnio atsakymo `_page.next` (URL saugus Base64 su `=` užpildu) |
 | `{id}` | UUID v4, kai identifikatorių duoda pati Spinta. Kai modelis deklaruoja savo `_id`, riba priklauso nuo tipo: `string` ir `base32` – vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių; `integer` – sveikasis skaičius, telpantis į 64 bitus; `uuid` – kanoninė UUID v4 forma mažosiomis. `=` prefiksas – tik `base32` ir `string` tipo `_id`, kai modelio raktas nesudėtinis (žr. `is_accessible_by_equals_sign`); kitų tipų `_id` siunčiamas be jo |
 | `scope` | tarpais skirti scope'ai, ne ilgiau, nei visi apraše deklaruoti scope'ai kartu |
 | `traceparent` | W3C trace-context forma, šešioliktainė nuo pradžios iki galo |
 | `tracestate`, `Cache-Control`, `Accept-Language` | spausdinami ASCII simboliai, iki 1024 |
+
+`_select`, `_limit`, `_sort` ir `_page` apraše yra atskiri užklausos
+parametrai, tad vartai kiekvieną tikrina atskirai. Filtras pagal savybes
+(`?kodas='LT'`), `count()` ir iškvietimo formos (`limit(10)`, `page('…')`)
+fiksuoto pavadinimo neturi, todėl aprašyti sąrašo operacijos aprašyme.
 
 Viršutinė `_limit` riba yra **vartų politika, o ne Spintos elgsena** – Spinta
 atsako į bet kokį didesnį už nulį limitą. Todėl ji nurodoma konfigūracijoje:
