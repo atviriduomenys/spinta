@@ -1378,7 +1378,8 @@ def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_facto
     with pytest.raises(ValidationError):
         _validate("=AE", {"type": "string", "pattern": PARAMETER_COMPONENTS["id"]["schema"]["pattern"]})
 
-    assert open_api_spec["paths"]["/ds/Salis/{id}"]["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
+    for operation in open_api_spec["paths"]["/ds/Salis/{id}"].values():
+        assert operation["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
 
 
 def test_example_identifiers_are_not_all_one(open_manifest_path_factory):
@@ -1970,9 +1971,9 @@ def test_file_download_declares_range_responses(open_manifest_path: ManifestPath
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     operations = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}/org_logo"]
-    assert {"$ref": "#/components/parameters/Range"} in operations["parameters"]
-
     # `Range` is a parameter of the path, so a `HEAD` is ranged as well.
+    assert {"$ref": "#/components/parameters/Range"} in operations["get"]["parameters"]
+    assert {"$ref": "#/components/parameters/Range"} in operations["head"]["parameters"]
     assert "206" in operations["head"]["responses"]
     assert "416" in operations["head"]["responses"]
 
@@ -2642,3 +2643,40 @@ def test_an_insecure_environment_is_described_like_any_other(open_manifest_path_
         "https://get.data.gov.lt",
         "http://test.local:8000",
     ]
+
+
+def test_rate_limit_answer_is_an_open_object(open_manifest_path_factory):
+    """The gateway answers with an object of its own fields, and a linter asks for a `type`."""
+    schemas = _service_spec(open_manifest_path_factory)["components"]["schemas"]
+    rate_limited = schemas["RateLimited"]
+
+    assert rate_limited["type"] == "object"
+    assert "required" not in rate_limited
+    _validate(
+        {"message": "Rate limit exceeded ! You reach the limit of 10 requests per 1 seconds", "http_status_code": 429},
+        rate_limited,
+    )
+    _validate({}, rate_limited)
+
+
+def test_every_operation_names_its_path_parameters(open_manifest_path_factory):
+    """An API gateway reads an operation alone, not the parameters of its path."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    missing = []
+    for path, operations in open_api_spec["paths"].items():
+        # Nothing is left for an operation to inherit.
+        assert "parameters" not in operations, path
+        for method, operation in operations.items():
+            if method == "servers":
+                continue
+            names = [
+                open_api_spec["components"]["parameters"][ref["$ref"].rsplit("/", 1)[1]]["name"]
+                for ref in operation.get("parameters", [])
+            ]
+            missing += [(path, method, name) for name in re.findall(r"{(\w+)}", path) if name not in names]
+            assert len(names) == len(set(names)), (path, method)
+
+    assert missing == []
+    identifier = {"$ref": "#/components/parameters/id_at280_israsas_DalyvioAsmensIsrasas"}
+    assert identifier in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas/{id}"]["get"]["parameters"]

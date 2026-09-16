@@ -831,10 +831,9 @@ RESPONSE_COMPONENTS = {
     # what the body holds is decided there and is not described here.
     "error429": {
         "description": "Too Many Requests",
-        # A rate limit is applied in front of the service, by an API gateway, a
-        # WAF or a reverse proxy, and never by Spinta. What it answers with,
-        # and in which media type, is decided there, so nothing is asserted of
-        # it beyond that there is a body.
+        # A rate limit is applied in front of the service, by an API gateway,
+        # and never by Spinta. The gateway answers with an object, whose fields
+        # are its own, see `RateLimited`.
         "content": {"*/*": {"schema": "RateLimited"}},
     },
     # Token endpoint answers with an OAuth 2.0 error, see RFC 6749 section 5.2,
@@ -1092,10 +1091,13 @@ COMMON_SCHEMAS = {
     # Error objects, built from the classes that raise them.
     **GENERIC_ERROR,
     "RateLimited": {
-        # No `type`: the body is whatever the limiter answers with, which can be
-        # an object, a string, or nothing at all.
-        "description": "Answer of a rate limit reached. A limit is applied by an API gateway or by whatever else stands in front of the service, a WAF or a reverse proxy, and never by Spinta, so what the body holds, and in which media type, is decided there. Nothing is asserted of it here, otherwise validating a response would refuse the very answer that says the limit was reached.",
-        "example": {"message": "Rate limit exceeded"},
+        # An object, as the API gateway answers with one, but an open one: which
+        # fields it holds is decided by the gateway, not by Spinta, so none is
+        # required or refused.
+        "type": "object",
+        "description": "Answer of a rate limit reached. A limit is applied by an API gateway in front of the service, and never by Spinta, so which fields the object holds is decided there. None of them is asserted here, otherwise validating a response would refuse the very answer that says the limit was reached.",
+        "properties": {},
+        "example": {"message": "Rate limit exceeded", "http_status_code": 429},
     },
     **{name: schema for errors in NAMED_ERRORS.values() for name, schema in errors.items()},
     "absent": {
