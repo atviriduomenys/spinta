@@ -199,7 +199,9 @@ Backwards incompatible:
     ``public`` is published. A model, a property, an enum value, and a text
     property none of whose languages is published, are left out of the
     specification when marked ``private`` or given no ``visibility``, which the
-    DSA defaults to ``private``; a warning says how much was left out. This
+    DSA defaults to ``private``; a warning says how much was left out. A
+    published property referencing an unpublished model points at a shared
+    ``UnpublishedReference`` schema, which names nothing of that model. This
     hides metadata, not data: access to the data is ``access``, and the service
     still answers with a field the specification leaves out if its ``access``
     allows it.
@@ -424,7 +426,10 @@ Improvements:
   ``_limit`` is, taking the token of ``_page.next`` as it is, ``=`` padding
   included, or percent encoded. The same as ``page('<token>')``, which stays.
   Before, the query syntax failed on the padding, and ``_page`` without it was
-  read as a filter on a property. It is added to the Spyna grammar the way
+  read as a filter on a property. A token that is not one Spinta wrote is
+  refused with ``InvalidPageKey``, also when it is canonical Base64 holding no
+  JSON, or JSON that is not a list, which answered with a server error before.
+  It is added to the Spyna grammar the way
   ``_limit`` is, as a stopgap until the simplified syntax gets a parser of its
   own (`#2004`_, `#2023`_).
 
