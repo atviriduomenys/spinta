@@ -210,6 +210,11 @@ Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) guli agento
   nukirptas), tad veikia ir kreipiantis tiesiai į agentą – pavyzdžiui,
   įsikėlus specifikaciją į Postmaną.
 
+Kuri forma kuri, pasako kelio žyma `x-spinta-context`: `gateway` – `:`-formai,
+`agent-direct` – agento adresams. Importuojant į vartus pagal ją galima palikti
+tik `gateway` kelius. Duomenų keliai aptarnaujami abiem atvejais, todėl žymos
+neturi.
+
 Vartuose `:`-formai reikia Dynamic Routing taisyklių:
 
 | Match expression | Redirect to |

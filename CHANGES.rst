@@ -120,6 +120,13 @@ Backwards incompatible:
     empty ``scope`` is accepted, because the token endpoint answers it with a
     token. The security scheme names the algorithms tokens are really signed
     with, six of them rather than one.
+  - An endpoint of the agent, given in both of its forms, says which one it is
+    in ``x-spinta-context``: ``gateway`` for ``/:version``, ``/:health`` and
+    ``/:token``, as an API gateway routes them inside a data service, and
+    ``agent-direct`` for ``/version``, ``/health`` and ``/auth/token``, at the
+    address of the agent. A tool importing the document keeps the form it
+    needs without reading descriptions. A path of the data is served in both
+    and carries none.
   - Every operation lists its own parameters, ``{id}`` among them, instead of
     inheriting them from its path. OpenAPI allows the latter, but an API
     gateway importing the document reads the operation alone, and left the
