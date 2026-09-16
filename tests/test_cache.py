@@ -1,13 +1,25 @@
-import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from email.utils import format_datetime
 
 import pytest
+from starlette.requests import Request
 
 from spinta.core.config import RawConfig
 from spinta.middlewares import _is_normalized_path
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
+from spinta.utils.response import validate_cache_control_request
+
+
+def _request(if_none_match: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [(b"if-none-match", if_none_match.encode())],
+        }
+    )
 
 
 def test_cache_control_postgres_get_one(context, app):
@@ -51,10 +63,10 @@ def test_cache_control_postgres_get_one(context, app):
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     # Vary might change depending on GzipMiddleware min size parameter, in this case response was less than 512 bytes, so it did not add compression
-    assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization"
+    assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization, Accept-Encoding"
     assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -94,7 +106,7 @@ def test_cache_control_postgres_get_all(context, app):
     assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization, Accept-Encoding"
     assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -133,7 +145,7 @@ def test_cache_control_postgres_changes(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -173,7 +185,7 @@ def test_cache_control_postgres_changes_specific(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -214,7 +226,7 @@ def test_cache_control_etag(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
     resp = app.get(
@@ -225,7 +237,7 @@ def test_cache_control_etag(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -266,7 +278,7 @@ def test_cache_control_last_modified(context, app):
         f"/{model}",
         headers={
             "If-Modified-Since": format_datetime(
-                datetime.datetime.fromisoformat(entry_modified).replace(year=1900, tzinfo=timezone.utc),
+                datetime.fromisoformat(entry_modified).replace(year=1900, tzinfo=timezone.utc),
                 usegmt=True,
             )
         },
@@ -276,14 +288,14 @@ def test_cache_control_last_modified(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
     resp = app.get(
         f"/{model}",
         headers={
             "If-Modified-Since": format_datetime(
-                datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+                datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
             )
         },
     )
@@ -291,7 +303,7 @@ def test_cache_control_last_modified(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -332,9 +344,9 @@ def test_cache_control_priority(context, app):
     resp = app.get(
         f"/{model}",
         headers={
-            "If-None-Match": changelog_data["_revision"],
+            "If-None-Match": f'"{changelog_data["_revision"]}"',
             "If-Modified-Since": format_datetime(
-                datetime.datetime.fromisoformat(entry_modified).replace(year=1900, tzinfo=timezone.utc),
+                datetime.fromisoformat(entry_modified).replace(year=1900, tzinfo=timezone.utc),
                 usegmt=True,
             ),
         },
@@ -343,14 +355,14 @@ def test_cache_control_priority(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
     resp = app.get(
         f"/{model}",
         headers={
             "If-Modified-Since": format_datetime(
-                datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+                datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
             )
         },
     )
@@ -358,7 +370,7 @@ def test_cache_control_priority(context, app):
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
-        datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+        datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
 
 
@@ -414,3 +426,44 @@ def test_non_normalized_path_rejected(rc: RawConfig):
     assert resp.status_code == 404
     assert resp.headers["Cache-Control"] == "no-store"
     assert resp.json()["errors"][0]["code"] == "InvalidRequestPath"
+
+
+@pytest.mark.parametrize(
+    "if_none_match",
+    [
+        '"revision"',
+        'W/"revision"',
+        '"other", W/"revision"',
+        "*",
+    ],
+)
+def test_validate_cache_control_request_uses_weak_etag_comparison(if_none_match: str):
+    context = {
+        "cache-control": {
+            "ETag": '"revision"',
+            "Last-Modified": "Wed, 16 Sep 2026 00:00:00 GMT",
+        }
+    }
+
+    response = validate_cache_control_request(context, _request(if_none_match))
+
+    assert response.status_code == 304
+
+
+@pytest.mark.parametrize(
+    "if_none_match",
+    [
+        '"different"',
+        'W/"different"',
+        "revision",
+    ],
+)
+def test_validate_cache_control_request_rejects_different_etag(if_none_match: str):
+    context = {
+        "cache-control": {
+            "ETag": '"revision"',
+            "Last-Modified": "Wed, 16 Sep 2026 00:00:00 GMT",
+        }
+    }
+
+    assert validate_cache_control_request(context, _request(if_none_match)) is None

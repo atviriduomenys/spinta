@@ -115,6 +115,17 @@ class ContextMiddleware:
             await self.app(scope, receive, send)
 
 
+def _append_accept_encoding(headers: MutableHeaders) -> None:
+    # Gzip negotiation can affect the selected representation.
+    # Normalize Vary after Starlette has processed the response.
+    vary_values = [value.strip() for value in headers.get("vary", "").split(",") if value.strip()]
+
+    if "accept-encoding" not in {value.lower() for value in vary_values}:
+        vary_values.append("Accept-Encoding")
+
+    headers["vary"] = ", ".join(vary_values)
+
+
 class DebugAwareGZipMiddleware:
     """
     Currently, starlette's GZipMiddleware does not handle debug messages, and it just removes them.
@@ -160,6 +171,8 @@ class DebugAwareGZipMiddleware:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(raw=message["headers"])
                 etag = headers.get("etag")
+
+                _append_accept_encoding(headers)
 
                 if headers.get("content-encoding") == "gzip" and etag and not etag.startswith("W/"):
                     headers["etag"] = f"W/{etag}"

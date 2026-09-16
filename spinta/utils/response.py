@@ -407,7 +407,7 @@ def _etag_matches(if_none_match: str, etag: str) -> bool:
     return any(candidate.strip().removeprefix("W/") == expected for candidate in if_none_match.split(","))
 
 
-def validate_cache_control_request(context: Context, request: Request) -> object:
+def validate_cache_control_request(context: Context, request: Request) -> Response | None:
     cache_control = context.get("cache-control")
     if_none_match = request.headers.get("if-none-match")
     if_modified_since = request.headers.get("if-modified-since")
