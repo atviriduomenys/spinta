@@ -1106,9 +1106,19 @@ PARAMETER_COMPONENTS = {
 }
 
 
+#: Schema of a reference to a model whose metadata is not published, see
+#: `_published`. It names nothing of that model, neither its name nor its
+#: properties, so it says no more than that an object is there.
+UNPUBLISHED_REFERENCE = "UnpublishedReference"
+
 COMMON_SCHEMAS = {
     # Error objects, built from the classes that raise them.
     **GENERIC_ERROR,
+    UNPUBLISHED_REFERENCE: {
+        "type": "object",
+        "description": "A reference to an object of a model whose metadata is not published, so what the reference carries is not described.",
+        "properties": {},
+    },
     "RateLimited": {
         # An object, as the API gateway answers with one, but an open one: which
         # fields it holds is decided by the gateway, not by Spinta, so none is

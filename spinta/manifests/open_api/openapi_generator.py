@@ -41,6 +41,7 @@ from spinta.manifests.open_api.openapi_config import (
     SCOPE_TEMPLATE,
     SECURITY_SCHEMES,
     STANDARD_OBJECT_PROPERTIES,
+    UNPUBLISHED_REFERENCE,
     VERSION,
 )
 from spinta.manifests.open_api.service import (
@@ -512,6 +513,8 @@ class DataTypeHandler:
         self.namer = namer
 
     def _ref_schema_name(self, model_property, dtype) -> str:
+        if not _published(dtype.model):
+            return UNPUBLISHED_REFERENCE
         return self.namer.ref_name(dtype.model, _reference_shape(model_property, dtype))
 
     def get_dtype_name(self, dtype) -> str:
@@ -1585,6 +1588,11 @@ class SchemaGenerator:
                 continue
 
             ref_model = dtype.model
+            # An unpublished model gets no schema of its own, not even one of a
+            # reference, which would name it and its properties. The shared
+            # schema such a reference points at is added with the other ones.
+            if not _published(ref_model):
+                continue
             ref_schema_name = self.namer.ref_name(ref_model, _reference_shape(model_property, dtype))
             if ref_schema_name in schemas:
                 continue
@@ -1603,6 +1611,8 @@ class SchemaGenerator:
         nested_refprops: list,
         ref_level: Level | None = None,
     ) -> str:
+        if not _published(nested_ref_model):
+            return UNPUBLISHED_REFERENCE
         shape = (
             getattr(ref_level, "value", ref_level),
             tuple(prop.name for prop in nested_refprops if hasattr(prop, "name")),
@@ -1770,8 +1780,8 @@ class OpenAPIGenerator:
         else:
             name_included = _get_schema_name
 
-        # An unpublished model is not described at all, see `_published`. It stays
-        # in `all_models`, so a published model referencing it still names it.
+        # An unpublished model is not described at all, see `_published`. A
+        # published property referencing one points at `UNPUBLISHED_REFERENCE`.
         selected = models
         models = {key: model for key, model in selected.items() if _published(model)}
         _warn_about_unpublished(selected, models)
