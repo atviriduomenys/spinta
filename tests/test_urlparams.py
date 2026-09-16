@@ -55,11 +55,24 @@ def test_page_is_still_a_name_to_select(context):
     assert _parse(context, "select(_id,_page)").select is not None
 
 
-def test_invalid_page_token_given_as_a_parameter(context):
+@pytest.mark.parametrize(
+    "token",
+    [
+        # Not canonical Base64, the padding left out.
+        "bm90LWpzb24",
+        # Canonical Base64 of `not-json`.
+        "bm90LWpzb24=",
+        # Canonical Base64 of `{}`, JSON that is not a list of values.
+        "e30=",
+    ],
+)
+def test_invalid_page_token_is_refused(context, token):
+    """A token that is not one Spinta wrote is a client error, not a server one."""
     from spinta.exceptions import InvalidPageKey
 
-    with pytest.raises(InvalidPageKey):
-        _parse(context, "_page=bm90LWpzb24")
+    for query in (f"_page={token}", f"page('{token}')"):
+        with pytest.raises(InvalidPageKey):
+            _parse(context, query)
 
 
 @pytest.mark.parametrize(

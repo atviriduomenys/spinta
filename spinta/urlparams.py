@@ -245,9 +245,19 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 else:
                     if key_given:
                         raise InvalidPageParameterCount()
-                    if not is_url_safe_base64(bytes(arg, "ascii")):
+                    # A token comes from a client, so anything that is not one
+                    # Spinta wrote is refused rather than failing on the way:
+                    # canonical Base64 can still hold no JSON, or JSON that is
+                    # not a list of values.
+                    try:
+                        if not is_url_safe_base64(bytes(arg, "ascii")):
+                            raise InvalidPageKey(key=arg)
+                        values = decode_page_values(arg)
+                    except ValueError:
                         raise InvalidPageKey(key=arg)
-                    params.page.values = decode_page_values(arg)
+                    if not isinstance(values, list):
+                        raise InvalidPageKey(key=arg)
+                    params.page.values = values
                     key_given = True
         elif name == "expand":
             if params.expand is None:
