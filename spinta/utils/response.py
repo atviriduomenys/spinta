@@ -391,9 +391,20 @@ def cache_control_response_headers(context: Context, model: Model, target_id: st
         # auth scopes), so shared caches must include them in the cache key.
         "Vary": "Accept, Accept-Language, Authorization",
         "Last-Modified": last_modified,
-        "ETag": revision,
+        "ETag": f'"{revision}"',
     }
     return cache_control
+
+
+def _etag_matches(if_none_match: str, etag: str) -> bool:
+    # https://www.rfc-editor.org/rfc/rfc9110.html#name-if-none-match
+    # We need to use weak etag matches, meaning weak and strong etags should be treated as equal.
+
+    if if_none_match.strip() == "*":
+        return True
+
+    expected = etag.removeprefix("W/")
+    return any(candidate.strip().removeprefix("W/") == expected for candidate in if_none_match.split(","))
 
 
 def validate_cache_control_request(context: Context, request: Request) -> object:
@@ -404,7 +415,7 @@ def validate_cache_control_request(context: Context, request: Request) -> object
         return None
 
     if if_none_match:
-        if if_none_match == cache_control["ETag"]:
+        if _etag_matches(if_none_match, cache_control["ETag"]):
             return Response(status_code=304, headers=cache_control)
     elif if_modified_since:
         last_modified_dt = parsedate_to_datetime(cache_control["Last-Modified"])
