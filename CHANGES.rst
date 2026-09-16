@@ -116,10 +116,15 @@ Backwards incompatible:
     empty ``scope`` is accepted, because the token endpoint answers it with a
     token. The security scheme names the algorithms tokens are really signed
     with, six of them rather than one.
-  - Nothing is asserted of the ``429`` body. A rate limit is applied in front
-    of the service, and what its answer holds, in which media type, is decided
-    there; asserting a JSON object would have validation refuse the very
-    answer that says the limit was reached.
+  - Every operation lists its own parameters, ``{id}`` among them, instead of
+    inheriting them from its path. OpenAPI allows the latter, but an API
+    gateway importing the document reads the operation alone, and left the
+    identifier of a ``/{id}`` operation undescribed.
+  - The ``429`` body is an open object, ``type: object`` with no field
+    required. A rate limit is applied by the API gateway in front of the
+    service, which answers with an object whose fields are its own, so none of
+    them is asserted; a schema without a ``type`` was reported by the gateway
+    linter as ``oas-missing-type``.
   - Scopes are described by the ``scope-token`` of RFC 6749 section 3.3, not by
     a narrower alphabet: ``scope_formatter`` is configured, so it builds what
     it likes, and a request carrying such a scope has to pass. The ``health``

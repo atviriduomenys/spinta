@@ -728,8 +728,11 @@ class PathGenerator:
         """Generic path creation for both utility and model endpoints"""
         operations = {}
 
-        if "parameters" in path_config:
-            operations["parameters"] = self._build_parameter_refs(path_config["parameters"], model)
+        # Parameters of a path are given to each of its operations rather than
+        # to the path itself. OpenAPI lets an operation inherit them, but an API
+        # gateway importing the document reads the operation alone, and would
+        # leave `{id}` of every such operation undescribed and unvalidated.
+        path_parameters = path_config.get("parameters", [])
 
         # An endpoint of the agent is not served under the data service path,
         # so it carries a server of its own, which OpenAPI allows per path.
@@ -741,7 +744,11 @@ class PathGenerator:
                 continue
 
             operations[method_name] = self._build_operation(
-                method_config, model=model, path_type=path_type, model_property=model_property
+                method_config,
+                model=model,
+                path_type=path_type,
+                model_property=model_property,
+                path_parameters=path_parameters,
             )
 
         return operations
@@ -752,6 +759,7 @@ class PathGenerator:
         model: Model | None = None,
         path_type: str = None,
         model_property: tuple | None = None,
+        path_parameters: list | None = None,
     ) -> dict[str, Any]:
         """Build a single operation (get, head, etc.)"""
         operation = {}
@@ -777,8 +785,9 @@ class PathGenerator:
                 method_config["operationId"], model_name=model_name, model_property=model_property
             )
 
-        if "parameters" in method_config:
-            operation["parameters"] = self._build_parameter_refs(method_config["parameters"], model)
+        parameters = [*(path_parameters or []), *method_config.get("parameters", [])]
+        if parameters:
+            operation["parameters"] = self._build_parameter_refs(list(dict.fromkeys(parameters)), model)
 
         operation["responses"] = self._build_responses(
             method_config.get("responses", {}), model, path_type, model_property
