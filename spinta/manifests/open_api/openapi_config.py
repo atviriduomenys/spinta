@@ -417,7 +417,7 @@ PATHS_CONFIG = {
         "get": {
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Get multiple objects.",
-            "description": "Return list of objects for a given model.\n\nThe listing is narrowed down by the query parameters listed below, and by a filter on the properties of the model, `?code='LT'` or `?name.startswith('V')` for one, which is not a parameter of a fixed name and is not listed. Two more forms are accepted and are not listed, because neither is a `name=value` pair: `count()`, written as `?count()` or as `?_count` without a value, answers with the number of objects instead of the objects; and `limit(...)`, `select(...)`, `sort(...)` and `page(...)`, written as calls. A parameter left empty, `?_select=` for one, is refused.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`. The two are listed as alternative security requirements, because OpenAPI can not make a requirement depend on query parameters, so they are not interchangeable: a token needs the scope of the request it makes.\n",
+            "description": "Return list of objects for a given model.\n\nThe listing is narrowed down by the query parameters listed below, and by a filter on the properties of the model, `?code='LT'` or `?name.startswith('V')` for one, which is not a parameter of a fixed name and is not listed. Two more forms are accepted and are not listed, because neither is a `name=value` pair: `count()`, written as `?count()` or as `?_count` without a value, answers with the number of objects instead of the objects; and `limit(...)`, `select(...)`, `sort(...)` and `page(...)`, written as calls. A parameter left empty, `?_select=` for one, is refused.\n\nA request narrowed down with query parameters is authorized with the `:search` scope, an unnarrowed one with `:getall`. `_page` alone does not narrow a listing down, it continues one, so a request carrying no other query parameter is authorized with `:getall`. The two are listed as alternative security requirements, because OpenAPI can not make a requirement depend on query parameters, so they are not interchangeable: a token needs the scope of the request it makes.\n",
             "operationId": "getAll",
             "parameters": ["select", "limit", "sort", "page"],
             "responses": {
@@ -1073,8 +1073,12 @@ PARAMETER_COMPONENTS = {
         "description": "Continues a listing where the previous answer ended, taking the token that answer gave in `_page.next`. The token is given as it is, `=` padding included, or percent encoded. Written as `page('<token>')` as well.",
         "schema": {
             "type": "string",
-            # The token `spinta.utils.encoding.encode_page_values` writes.
+            # The token `spinta.utils.encoding.encode_page_values` writes. It
+            # holds the sort key values of the last object, so its length is
+            # the data's; the bound is the request line common HTTP servers
+            # accept, beyond which a token could not reach the service anyway.
             "pattern": PAGE_TOKEN_PATTERN,
+            "maxLength": 8192,
             "example": "WyIyMDI2LTA4LTMxIl0=",
         },
     },
