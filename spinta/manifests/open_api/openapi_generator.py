@@ -857,6 +857,8 @@ class PathGenerator:
         for param in parameters:
             if model is not None and param in MODEL_PARAMETERS:
                 param = self._model_parameter(param, model)
+            elif param in DOCUMENT_PARAMETERS and param not in self.model_parameters:
+                self.model_parameters[param] = DOCUMENT_PARAMETERS[param](self)
             refs.append({"$ref": f"#/components/parameters/{param}"})
         return refs
 
@@ -940,36 +942,42 @@ class PathGenerator:
             )
         return {"in": "path", "required": True, "description": description, "schema": schema}
 
-    def _query_parameter(self, model: Model) -> dict | None:
-        """Query of a model, with examples naming properties the model has.
+    def _property_names(self, model: Model) -> list[str]:
+        """Properties a query example of a model can name.
 
         A generic example is worse than none: an API client fills the request
         with it, and `_select=string` comes back as `FieldNotInResource`.
         """
-        parameter = copy.deepcopy(PARAMETER_COMPONENTS["query"])
-        properties = parameter["schema"]["properties"]
+        return [name for name in _published_properties(model) if not name.startswith("_")]
 
-        # Built for every model, not only for one with properties to name in an
-        # example: the bound of `_limit` is set here, and a model without them
-        # is queried the same way as any other.
-        names = [name for name in _published_properties(model) if not name.startswith("_")]
-        for key, value in (("_select", ",".join(names[:2])), ("_sort", names[0] if names else "")):
-            if not value:
-                continue
-            # An API client fills the request with the type name when a
-            # property has no example.
-            properties[key]["example"] = value
-        # Spinta answers any limit above zero, so an upper bound is a limit an
-        # API gateway applies in front of it, taken from the configuration. The
-        # example stays inside it, otherwise the document would show a request
-        # its own schema refuses.
-        properties["_limit"]["format"] = "int64"
-        properties["_limit"]["maximum"] = self.max_limit
-        properties["_limit"]["example"] = min(properties["_limit"]["example"], self.max_limit)
-        parameter["example"] = {"_limit": properties["_limit"]["example"]}
-        if names:
-            parameter["example"]["_select"] = ",".join(names[:2])
-            parameter["example"]["_sort"] = names[0]
+    def _select_parameter(self, model: Model) -> dict | None:
+        names = self._property_names(model)
+        if not names:
+            return None
+        parameter = copy.deepcopy(PARAMETER_COMPONENTS["select"])
+        parameter["schema"]["example"] = ",".join(names[:2])
+        return parameter
+
+    def _sort_parameter(self, model: Model) -> dict | None:
+        names = self._property_names(model)
+        if not names:
+            return None
+        parameter = copy.deepcopy(PARAMETER_COMPONENTS["sort"])
+        parameter["schema"]["example"] = names[0]
+        return parameter
+
+    def _limit_parameter(self) -> dict:
+        """`_limit` bounded by the configuration, one for the whole document.
+
+        Spinta answers any limit above zero, so an upper bound is a limit an
+        API gateway applies in front of it. The example stays inside it,
+        otherwise the document would show a request its own schema refuses.
+        """
+        parameter = copy.deepcopy(PARAMETER_COMPONENTS["limit"])
+        schema = parameter["schema"]
+        schema["format"] = "int32" if self.max_limit <= 2**31 - 1 else "int64"
+        schema["maximum"] = self.max_limit
+        schema["example"] = min(schema["example"], self.max_limit)
         return parameter
 
     def _build_responses(
@@ -1173,7 +1181,13 @@ def _referenced_components(spec: Any, kind: str) -> set[str]:
 #: Parameters that read differently for every model.
 MODEL_PARAMETERS = {
     "id": PathGenerator._id_parameter,
-    "query": PathGenerator._query_parameter,
+    "select": PathGenerator._select_parameter,
+    "sort": PathGenerator._sort_parameter,
+}
+
+#: Parameters that read differently for every document, built once.
+DOCUMENT_PARAMETERS = {
+    "limit": PathGenerator._limit_parameter,
 }
 
 
