@@ -223,6 +223,7 @@ def test_cache_control_etag(context, app):
     )
     assert resp.status_code == 200
     assert resp.headers["content-encoding"] == "gzip"
+    assert resp.headers["Vary"] == ("Accept, Accept-Language, Authorization, Accept-Encoding")
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
@@ -235,6 +236,7 @@ def test_cache_control_etag(context, app):
     )
     assert resp.status_code == 304
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    assert resp.headers["Vary"] == ("Accept, Accept-Language, Authorization, Accept-Encoding")
     assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
