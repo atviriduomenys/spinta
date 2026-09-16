@@ -360,7 +360,8 @@ id | d | r | b | m | property | type            | ref   | source  | level | acce
 
 # Only metadata marked `protected`, `package` or `public` is published; `private`
 # and an empty `visibility` are not. Covers a property, an enum value, a file
-# property served on a path of its own, text languages and whole models.
+# property served on a path of its own, text languages and whole models, one of
+# them referenced from a published property.
 MANIFEST_WITH_PRIVATE_VISIBILITY = striptable("""
 id | d | r | b | m | property    | type            | ref   | source    | prepare | level | access | visibility
    | datasets/gov/rc/jadis/at280/1/ds |            |       |           |         |       |        |
@@ -378,6 +379,8 @@ id | d | r | b | m | property    | type            | ref   | source    | prepare
    |   |   |   |   | aprasas@en   | string          |       | apr_en    |         | 4     | open   | protected
    |   |   |   |   | pastaba@lt   | string          |       | pastaba   |         | 4     | open   | private
    |   |   |   |   | santrauka@lt | string          |       | santrauka |         | 4     | open   |
+   |   |   |   |   | paslaptis    | ref             | Paslaptis   | paslaptis |    | 3     | open   | public
+   |   |   |   |   | nepazymetas  | ref             | Nepazymetas | nepaz     |    | 4     | open   | public
    |   |   |   | Paslaptis        |                 | kodas | paslaptys |         |       | open   | private
    |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
    |   |   |   | Nepazymetas      |                 | kodas | nepaz     |         |       | open   |
