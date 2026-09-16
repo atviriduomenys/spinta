@@ -996,24 +996,32 @@ def test_file_property_reference_matches_what_spinta_answers(model, app, context
 
 
 @pytest.mark.models("backends/postgres/City")
-def test_a_listing_is_continued_the_way_the_query_parameter_says(model, app, open_manifest_path_factory):
-    """The next page is asked for as a call, and the document says so.
+def test_a_listing_is_continued_the_way_the_page_parameter_says(model, app, open_manifest_path_factory):
+    """The next page is asked for with `_page`, a parameter a gateway checks.
 
-    A token carries `=` padding, which the query syntax does not read unquoted,
-    so `?_page=<token>` is not the form to document, `?page('<token>')` is.
+    A token carries `=` padding, which is given as it is or percent encoded.
     """
+    from urllib.parse import quote
+
     app.authmodel(model, ["insert", "getall", "search"])
-    for title in ("Vilnius", "Kaunas"):
+    for title in ("Vilnius", "Kaunas", "Klaipėda"):
         app.post(f"/{model}", json={"title": title})
 
-    token = app.get(f"/{model}?_limit=1").json()["_page"]["next"]
+    first = app.get(f"/{model}?_limit=1").json()
+    token = first["_page"]["next"]
     assert token.endswith("=")
-    assert app.get(f"/{model}?page('{token}')").status_code == 200
 
-    query = _service_spec(open_manifest_path_factory)["components"]["parameters"]["query_at280_adresai_Adresas"]
-    assert "page('<token>')" in query["description"]
-    # A call is not a `name=value` parameter, so it stays out of the properties.
-    assert "_page" not in query["schema"]["properties"]
+    page = _service_spec(open_manifest_path_factory)["components"]["parameters"]["page"]
+    assert (page["name"], page["in"]) == ("_page", "query")
+    _validate(token, page["schema"])
+
+    seen = [first["_data"][0]["_id"]]
+    for query in (f"_limit=1&_page={token}", f"_limit=1&_page={quote(token, safe='')}", f"_limit=1&page('{token}')"):
+        response = app.get(f"/{model}?{query}")
+        assert response.status_code == 200, (query, response.json())
+        assert [row["_id"] for row in response.json()["_data"]] != seen, query
+    second = app.get(f"/{model}?_limit=1&_page={token}").json()["_data"]
+    assert second[0]["_id"] not in seen
 
 
 @pytest.mark.models("backends/postgres/Subitem")
@@ -1230,7 +1238,8 @@ def test_unpublished_metadata_is_left_out(open_manifest_path_factory):
         assert name not in text, name
 
     # Nor does a query example name what is not published.
-    query = json.dumps(open_api_spec["components"]["parameters"]["query_ds_Salis"])
+    parameters = open_api_spec["components"]["parameters"]
+    query = json.dumps([parameters["select_ds_Salis"], parameters["sort_ds_Salis"]])
     assert "slaptas" not in query and "pavadinimas" not in query
 
 
@@ -1890,20 +1899,32 @@ def test_yaml_output_has_no_anchors_from_the_configuration(open_manifest_path_fa
     assert "*id" not in written
 
 
-def test_collection_head_takes_the_query_parameter(open_manifest_path_factory):
+def test_collection_head_takes_the_query_parameters(open_manifest_path_factory):
     """`HEAD` is narrowed down by the same query as `GET`, and takes `:search`."""
     open_api_spec = _service_spec(open_manifest_path_factory)
+    parameters = open_api_spec["components"]["parameters"]
 
     operations = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]
-    # Examples name properties of the model, so the query is a parameter of it.
-    query = {"$ref": "#/components/parameters/query_at280_israsas_DalyvioAsmensIsrasas"}
-    assert query in operations["head"]["parameters"]
-    assert query in operations["get"]["parameters"]
+    # Examples name properties of the model, so those are parameters of it.
+    expected = [
+        {"$ref": "#/components/parameters/select_at280_israsas_DalyvioAsmensIsrasas"},
+        {"$ref": "#/components/parameters/limit"},
+        {"$ref": "#/components/parameters/sort_at280_israsas_DalyvioAsmensIsrasas"},
+        {"$ref": "#/components/parameters/page"},
+    ]
+    for method in ("head", "get"):
+        for ref in expected:
+            assert ref in operations[method]["parameters"], (method, ref)
 
-    examples = open_api_spec["components"]["parameters"][query["$ref"].rsplit("/", 1)[1]]
-    properties = examples["schema"]["properties"]
-    assert properties["_select"]["example"] == "kodas,adresas"
-    assert properties["_sort"]["example"] == "kodas"
+    assert parameters["select_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["example"] == "kodas,adresas"
+    assert parameters["sort_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["example"] == "kodas"
+    # Each is a `name=value` pair of its own, not a property of one object.
+    assert [parameters[ref["$ref"].rsplit("/", 1)[1]]["name"] for ref in expected] == [
+        "_select",
+        "_limit",
+        "_sort",
+        "_page",
+    ]
 
     scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
     assert any(scope.endswith("/:search") for scope in scopes)
@@ -2214,9 +2235,10 @@ def test_limit_lower_bound_is_the_one_spinta_holds_to(model, app, open_manifest_
     assert app.get(f"/{model}?_limit=99999999999999999999").status_code == 200
 
     parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
-    limit = parameters["query_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["properties"]["_limit"]
+    limit = parameters["limit"]["schema"]
     assert limit["minimum"] == 1
     assert limit["maximum"] == DEFAULT_MAX_LIMIT
+    assert limit["format"] == "int32"
 
 
 def test_limit_upper_bound_comes_from_the_configuration(open_manifest_path_factory):
@@ -2225,7 +2247,7 @@ def test_limit_upper_bound_comes_from_the_configuration(open_manifest_path_facto
     open_api_spec = _service_spec(open_manifest_path_factory, config=config)
 
     parameters = open_api_spec["components"]["parameters"]
-    limit = parameters["query_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["properties"]["_limit"]
+    limit = parameters["limit"]["schema"]
     assert limit["maximum"] == 500
 
 
@@ -2242,18 +2264,18 @@ def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manife
     for value in sorts:
         assert app.get(f"/{model}?_sort={value}").status_code == 200, value
 
-    properties = _service_spec(open_manifest_path_factory)["components"]["parameters"][
-        "query_at280_israsas_DalyvioAsmensIsrasas"
-    ]["schema"]["properties"]
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+    select = parameters["select_at280_israsas_DalyvioAsmensIsrasas"]["schema"]
+    sort = parameters["sort_at280_israsas_DalyvioAsmensIsrasas"]["schema"]
     for value in selects:
-        _validate(value, properties["_select"])
+        _validate(value, select)
     for value in sorts:
-        _validate(value, properties["_sort"])
+        _validate(value, sort)
 
     # And something no query holds is refused.
     for value in ("status;drop", "<script>", "a" * 1001):
         with pytest.raises(ValidationError):
-            _validate(value, properties["_select"])
+            _validate(value, select)
 
 
 def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manifest_path_factory):
@@ -2385,12 +2407,10 @@ def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_fact
     config = UdtsConfig(limits={"max_limit": 5})
     open_api_spec = _service_spec(open_manifest_path_factory, config=config)
 
-    query = open_api_spec["components"]["parameters"]["query_at280_israsas_DalyvioAsmensIsrasas"]
-    limit = query["schema"]["properties"]["_limit"]
+    limit = open_api_spec["components"]["parameters"]["limit"]["schema"]
 
     assert limit["example"] == 5
     _validate(limit["example"], limit)
-    _validate(query["example"]["_limit"], limit)
 
 
 def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_factory):
@@ -2533,18 +2553,20 @@ def test_single_object_answers_a_redirect(open_manifest_path_factory):
 
 
 def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
-    """A shared query parameter would carry no bound at all."""
+    """A `_limit` without the configured bound would let any limit through."""
     config = UdtsConfig(limits={"max_limit": 25})
     open_api_spec = _service_spec(open_manifest_path_factory, config=config)
     parameters = open_api_spec["components"]["parameters"]
 
-    queries = [name for name in parameters if name.startswith("query")]
+    limits = [name for name, parameter in parameters.items() if parameter["name"] == "_limit"]
+    assert limits == ["limit"]
+    assert parameters["limit"]["schema"]["maximum"] == 25
 
-    assert queries, "no query parameter was built"
-    for name in queries:
-        assert parameters[name]["schema"]["properties"]["_limit"]["maximum"] == 25, name
-    # The shared one is left over and dropped, so no path can reach around it.
-    assert "query" not in parameters
+    listings = [ops["get"] for path, ops in open_api_spec["paths"].items() if "get" in ops and "/:" not in path]
+    reached = [op for op in listings if {"$ref": "#/components/parameters/limit"} in op.get("parameters", [])]
+    assert reached
+    # No parameter takes a query as one object any more.
+    assert not [name for name, parameter in parameters.items() if parameter["name"] == "query"]
 
 
 def test_scope_of_a_token_request_is_bounded(open_manifest_path_factory):
