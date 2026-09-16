@@ -2163,7 +2163,7 @@ def test_every_operation_answers_a_rate_limit(open_manifest_path_factory):
 
     for path, operations in open_api_spec["paths"].items():
         for method, operation in operations.items():
-            if method in ("parameters", "servers"):
+            if method in ("parameters", "servers") or method.startswith("x-"):
                 continue
             assert "429" in operation["responses"], f"{method} {path}"
 
@@ -2690,7 +2690,7 @@ def test_every_operation_names_its_path_parameters(open_manifest_path_factory):
         # Nothing is left for an operation to inherit.
         assert "parameters" not in operations, path
         for method, operation in operations.items():
-            if method == "servers":
+            if method == "servers" or method.startswith("x-"):
                 continue
             names = [
                 open_api_spec["components"]["parameters"][ref["$ref"].rsplit("/", 1)[1]]["name"]
@@ -2702,3 +2702,16 @@ def test_every_operation_names_its_path_parameters(open_manifest_path_factory):
     assert missing == []
     identifier = {"$ref": "#/components/parameters/id_at280_israsas_DalyvioAsmensIsrasas"}
     assert identifier in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas/{id}"]["get"]["parameters"]
+
+
+def test_every_agent_endpoint_says_which_context_it_is_for(open_manifest_path_factory):
+    """A gateway importing the document keeps its own form of an endpoint and leaves the other out."""
+    paths = _service_spec(open_manifest_path_factory)["paths"]
+
+    contexts = {path: item.get("x-spinta-context") for path, item in paths.items()}
+    assert {path: contexts[path] for path in ("/:version", "/:health", "/:token")} == dict.fromkeys(
+        ("/:version", "/:health", "/:token"), "gateway"
+    )
+    assert {path: contexts[path] for path in AGENT_UTILITY_PATHS} == dict.fromkeys(AGENT_UTILITY_PATHS, "agent-direct")
+    # A path of the data is served in both, so it is marked for neither.
+    assert contexts["/at280_israsas/DalyvioAsmensIsrasas"] is None

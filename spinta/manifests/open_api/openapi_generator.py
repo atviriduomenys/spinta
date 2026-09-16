@@ -68,6 +68,14 @@ GATEWAY_UTILITY_PATHS = ["/:version", "/:health", "/:token"]
 #: client calling the agent, and each needs the form that answers for it.
 AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
 
+#: Extension naming which of the two forms above a path is, so a tool importing
+#: the document picks the form it needs without reading the descriptions: an API
+#: gateway takes `gateway` and leaves `agent-direct` out. A path of the data
+#: itself is served in both and carries none.
+CONTEXT_EXTENSION = "x-spinta-context"
+GATEWAY_CONTEXT = "gateway"
+AGENT_CONTEXT = "agent-direct"
+
 #: Where the agent serves the token endpoint, see `spinta.api`.
 AGENT_TOKEN_PATH = "/auth/token"
 
@@ -1953,7 +1961,10 @@ class OpenAPIGenerator:
             path_config = PATHS_CONFIG.get(path)
             if not path_config:
                 raise ValueError(f"No config found for path: {path}")
-            paths[path] = self.path_generator.create_path(path_config)
+            paths[path] = {
+                CONTEXT_EXTENSION: GATEWAY_CONTEXT if path in GATEWAY_UTILITY_PATHS else AGENT_CONTEXT,
+                **self.path_generator.create_path(path_config),
+            }
 
         for dataset_name, _ in datasets:
             # Model paths are relative to the data service base, which is given
