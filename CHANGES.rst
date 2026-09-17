@@ -185,8 +185,9 @@ Backwards incompatible:
   - The document answers what an OpenAPI linter asks of it, checked with
     ``vacuum`` and the full rule set an API gateway is reviewed with. Every
     schema carries a description, taken from the manifest where a model has
-    one; components nothing refers to are no longer written out, which also
-    makes the files smaller; every operation declares the ``429`` a rate limit
+    one; components nothing refers to are no longer written out, also when
+    one is left unused only by dropping another, which also makes the files
+    smaller; every operation declares the ``429`` a rate limit
     in front of the service answers with, Spinta itself limiting nothing; tags
     are sorted; the token request body, the error responses and the fields of
     the shared schemas carry examples; ``info.description`` is no longer an

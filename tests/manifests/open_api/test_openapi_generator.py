@@ -2,6 +2,7 @@ import contextlib
 import json
 import re
 import uuid
+import warnings
 
 import pytest
 from jsonschema import ValidationError
@@ -2142,14 +2143,25 @@ def test_listing_schema_matches_what_spinta_answers(model, app, context):
         _validate({}, {**schemas[name], "components": {"schemas": schemas}})
 
 
-def test_no_component_is_left_unused(open_manifest_path_factory):
-    """A component nothing points at reads as a leftover, and a linter says so."""
-    open_api_spec = _service_spec(open_manifest_path_factory)
+@pytest.mark.parametrize("publish", [True, False])
+def test_no_component_is_left_unused(open_manifest_path_factory, publish):
+    """A component nothing points at reads as a leftover, and a linter says so.
+
+    Without a published model the responses a model operation takes are dropped
+    too, and the schemas and headers only they referred to go with them.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        open_api_spec = _service_spec(open_manifest_path_factory, publish=publish)
     components = open_api_spec["components"]
 
     for kind in ("parameters", "headers", "responses"):
         referenced = set(re.findall(rf'"#/components/{kind}/([^"]+)"', json.dumps(open_api_spec)))
         assert set(components.get(kind, {})) == referenced, kind
+    # Schemas of models are kept whatever refers to them, the shared ones only
+    # while something does.
+    referenced = set(re.findall(r'"#/components/schemas/([^"]+)"', json.dumps(open_api_spec)))
+    assert set(components["schemas"]) & set(COMMON_SCHEMAS) <= referenced
 
 
 def test_every_schema_carries_a_description(open_manifest_path_factory):
