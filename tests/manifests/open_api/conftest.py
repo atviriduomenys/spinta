@@ -436,6 +436,22 @@ id | d | r | b | m | property | type            | ref                           
 """)
 
 
+# Values whose examples have a shape to keep: a `uuid` property that is not an
+# identifier, and a reference to a model keyed by a whole number.
+MANIFEST_WITH_SHAPED_EXAMPLES = striptable("""
+id | d | r | b | m | property | type             | ref                                  | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |                                      |         |       |
+   |   | test                 | memory           |                                      |         |       |
+   |   |   |   | Salis        |                  | nr                                   | salys   |       |
+   |   |   |   |   | _id      | integer          |                                      |         |       | open
+   |   |   |   |   | nr       | integer required |                                      | nr      | 4     | open
+   |   |   |   | Adresas      |                  | id                                   | adresai |       |
+   |   |   |   |   | id       | string required  |                                      | id      | 4     | open
+   |   |   |   |   | kodas    | uuid             |                                      | kodas   | 4     | open
+   |   |   |   |   | salis    | ref              | datasets/gov/rc/jadis/at280/1/ds/Salis | salis | 4     | open
+""")
+
+
 # A model building `_revision` out of its own data, `123,14` for one, see
 # `tests/datasets/sql/test_reserved_props.py`.
 MANIFEST_WITH_DECLARED_REVISION = striptable("""
