@@ -75,6 +75,14 @@ def test_invalid_page_token_is_refused(context, token):
             _parse(context, query)
 
 
+@pytest.mark.parametrize("query", ["page(123)", "page(1.5)", "page(null)", "page(true)"])
+def test_page_given_something_other_than_a_token_is_refused(context, query):
+    from spinta.exceptions import InvalidPageKey
+
+    with pytest.raises(InvalidPageKey):
+        _parse(context, query)
+
+
 @pytest.mark.parametrize(
     "url_query",
     [
