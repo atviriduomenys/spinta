@@ -59,20 +59,18 @@ from spinta.utils.scopes import name_to_scope
 
 AUTH_SCHEME = "UAPI_auth"
 
-#: Endpoints of the agent, as an API gateway routes them inside a data service:
-#: each service has a context path of its own, and these are routed separately,
-#: which is what the action form stands for.
+#: Endpoints of the agent, as an API gateway routes them inside a data service,
+#: each service having a context path of its own.
 GATEWAY_UTILITY_PATHS = ["/:version", "/:health", "/:token"]
 
 #: The same endpoints at the addresses the agent serves them at. A data service
-#: export carries both, because the file is read both by a gateway and by a
-#: client calling the agent, and each needs the form that answers for it.
+#: export carries both forms, because the file is read by a gateway and by a
+#: client calling the agent.
 AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
 
-#: Extension naming which of the two forms above a path is, so a tool importing
-#: the document picks the form it needs without reading the descriptions: an API
-#: gateway takes `gateway` and leaves `agent-direct` out. A path of the data
-#: itself is served in both and carries none.
+#: Names which of the two forms above a path is, so a tool importing the document
+#: picks the one it needs: a gateway takes `gateway` and leaves `agent-direct`.
+#: A path of the data is served in both and carries neither.
 CONTEXT_EXTENSION = "x-spinta-context"
 GATEWAY_CONTEXT = "gateway"
 AGENT_CONTEXT = "agent-direct"
@@ -117,11 +115,8 @@ def _published(node: Any) -> bool:
     dtype = getattr(node, "dtype", None)
     langs = getattr(dtype, "langs", None)
     if isinstance(dtype, Text) and langs:
-        # `name@lt` sets the visibility of that language, which a text property
-        # holds in `langs`, and leaves the property itself without one. The
-        # document describes the property as one value whatever the language,
-        # so it is published while any of its languages is, unless the property
-        # itself is marked private.
+        # `name@lt` sets the visibility of that language, not of the property,
+        # which the document describes as one value whatever the language.
         if _given_visibility(node) == Visibility.private.name:
             return False
         return any(_visibility(lang) in PUBLISHED_VISIBILITY for lang in langs.values())
@@ -1078,7 +1073,6 @@ class PathGenerator:
         # An operation of a model answers with the model, an operation of one
         # property with a schema of that property alone.
         if model_schema_name and path_type in ("collection", "single"):
-            # A collection is wrapped into a `_data` envelope.
             suffix = "Collection" if path_type == "collection" else ""
             return f"#/components/schemas/{model_schema_name}{suffix}"
 
@@ -1120,10 +1114,8 @@ def _declared_id_example(dtype_handler, model: Model) -> Any:
     external = getattr(model, "external", None)
     keys = getattr(external, "pkeys", None) or []
 
-    # `base32` says the identifier is the key encoded, not the key itself, so
-    # the example is encoded the same way the data is read, see
-    # `spinta.backends.cast_backend_to_python`. A composite key is encoded
-    # whole, which is why every part of it is taken here.
+    # The identifier is the key encoded, see
+    # `spinta.backends.cast_backend_to_python`, a composite key whole.
     if isinstance(model.id_prop.dtype, Base32):
         values = [dtype_handler.get_example_value(key) for key in keys] or [
             dtype_handler.get_example_value(model.id_prop)
@@ -1131,9 +1123,7 @@ def _declared_id_example(dtype_handler, model: Model) -> Any:
         return encode_base32(values if len(values) > 1 else values[0])
 
     # A key of several parts is written out as one string, the parts separated
-    # by commas, see `spinta.datasets.helpers.encode_composite_string_id`. That
-    # function refuses a value holding a comma of its own, which is a matter of
-    # the data rather than of an example, so only the shape is followed here.
+    # by commas, see `spinta.datasets.helpers.encode_composite_string_id`.
     if isinstance(model.id_prop.dtype, String) and len(keys) > 1:
         return ",".join(str(dtype_handler.get_example_value(key)) for key in keys)
 
@@ -1730,9 +1720,8 @@ class OpenAPIGenerator:
         scope_max_length: int = DEFAULT_SCOPE_MAX_LENGTH,
     ):
         if main_dataset_name is not None and service_path is not None:
-            # One covers a data service with all of its datasets, the other a
-            # single dataset, so silently taking one of them would export
-            # something the caller did not ask for.
+            # One covers a data service, the other a single dataset, so taking
+            # one silently would export something the caller did not ask for.
             raise ValueError("Give either `main_dataset_name` or `service_path`, not both.")
 
         self.main_dataset_name = main_dataset_name
@@ -1761,12 +1750,8 @@ class OpenAPIGenerator:
         datasets, all_models = self._extract_manifest_data(manifest)
         models = all_models
 
-        # Common schemas are added to the same dict, and the base tags to the
-        # same list, so a model must not take a name of either; OpenAPI wants
-        # unique tag names too. A model name starts with an upper case letter,
-        # see `spinta.types.model.load`, so it can not take a base tag name as
-        # they are written today, but the names are allocated once and this
-        # keeps that true.
+        # Common schemas and base tags are added to the same dict and list, so a
+        # model must not take a name of either.
         reserved = set(COMMON_SCHEMAS) | {tag["name"] for tag in BASE_TAGS}
 
         if self.service_path is not None:

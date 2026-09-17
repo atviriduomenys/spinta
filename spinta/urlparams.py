@@ -247,9 +247,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
                         raise InvalidPageParameterCount()
                     # A token comes from a client, so anything that is not one
                     # Spinta wrote is refused rather than failing on the way:
-                    # canonical Base64 can still hold no JSON, or JSON that is
-                    # not a list of values.
-                    # `page(123)` gives a number, which is no token either.
+                    # `page(123)` gives a number, and canonical Base64 can hold
+                    # no JSON, or JSON that is not a list of values.
                     if not isinstance(arg, str):
                         raise InvalidPageKey(key=arg)
                     try:
