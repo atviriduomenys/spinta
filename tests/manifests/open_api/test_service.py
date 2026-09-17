@@ -1,3 +1,4 @@
+import json
 import pathlib
 import re
 
@@ -599,3 +600,47 @@ def test_config_accepts_a_quoted_extension(tmp_path):
     path.write_text('info:\n  x-data: "2026-08-27"\n', encoding="utf-8")
 
     assert UdtsConfig.from_path(path).info == {"x-data": "2026-08-27"}
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "biblio@lnb.lt",
+        "rrt@rrt.lt",
+        "vardas.pavarde@registrucentras.lt",
+        "info+udts@sub.example-org.lt",
+        "o'brien@example.com",
+    ],
+)
+def test_config_accepts_an_email_address(tmp_path, email):
+    path = tmp_path / "vartai.yml"
+    path.write_text(f'info:\n  contact:\n    email: "{email}"\n', encoding="utf-8")
+
+    assert UdtsConfig.from_path(path).info["contact"]["email"] == email
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "not-an-email",
+        "a..b@lnb.lt",
+        ".biblio@lnb.lt",
+        "biblio.@lnb.lt",
+        "biblio@lnb",
+        "biblio@-lnb.lt",
+        "biblio@lnb-.lt",
+        "biblio@lnb..lt",
+        "biblio@@lnb.lt",
+        "biblio lnb@lnb.lt",
+        "biblio@lnb.lt\n",
+        f"{'a' * 65}@lnb.lt",
+        f"a@{'b' * 63}.{'c' * 63}.{'d' * 63}.{'e' * 60}.lt",
+    ],
+)
+def test_config_rejects_what_is_not_an_email_address(tmp_path, email):
+    """Not a full RFC 5322 check, but a value that is plainly not an address is refused."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(f"info:\n  contact:\n    email: {json.dumps(email)}\n", encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match="is not an email address"):
+        UdtsConfig.from_path(path)

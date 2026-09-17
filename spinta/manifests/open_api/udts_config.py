@@ -62,10 +62,19 @@ MAX_LIMIT_CEILING = 2**63 - 1
 #: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
 malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
 
-#: A shape of an email address, as `spinta.cli.pii` reads one. `format: email`
-#: of the OpenAPI schema asks for RFC 5322, which is not worth repeating here;
-#: this catches the value that is not an address at all.
-email_re = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+#: An email address in its common form: the dot-atom of RFC 5322 before `@`,
+#: words of its characters joined by single dots, and a host name of two labels
+#: or more after it, RFC 1035, each label not starting or ending with `-`.
+#: Quoted local parts and address literals, `"a b"@lnb.lt` or `a@[10.0.0.1]`,
+#: are left out on purpose: an institution's contact holds neither, and a tool
+#: reading `format: email` is not bound to accept them. See `_check_email`.
+_EMAIL_ATOM = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
+_EMAIL_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+email_re = re.compile(rf"{_EMAIL_ATOM}(?:\.{_EMAIL_ATOM})*@{_EMAIL_LABEL}(?:\.{_EMAIL_LABEL})+")
+
+#: Longest local part and whole address, RFC 5321 section 4.5.3.1.
+EMAIL_LOCAL_MAX_LENGTH = 64
+EMAIL_MAX_LENGTH = 254
 
 #: Characters allowed in an RFC 3986 URI reference. Non-ASCII characters have
 #: to be percent-encoded (or encoded in a host with IDNA) before they are put
@@ -469,8 +478,8 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
         _check_optional_string(contact.get(key), path, f"`info.contact.{key}`")
 
     email = contact.get("email")
-    if email is not None and not email_re.match(email):
-        raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.email` {email!r} is not an email address.")
+    if email is not None:
+        _check_email(email, path)
     if contact.get("url") is not None:
         _check_url(contact["url"], path, "`info.contact.url`")
 
@@ -480,6 +489,12 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
         _check_string(license_.get("name"), path, "`info.license.name`")
         if license_.get("url") is not None:
             _check_url(license_["url"], path, "`info.license.url`")
+
+
+def _check_email(email: str, path: pathlib.Path) -> None:
+    local, _, _ = email.rpartition("@")
+    if not email_re.fullmatch(email) or len(local) > EMAIL_LOCAL_MAX_LENGTH or len(email) > EMAIL_MAX_LENGTH:
+        raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.email` {email!r} is not an email address.")
 
 
 def _check_limits(limits: dict, path: pathlib.Path) -> None:
