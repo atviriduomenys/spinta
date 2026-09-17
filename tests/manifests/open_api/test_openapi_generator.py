@@ -778,10 +778,8 @@ def test_service_utility_paths(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     paths = open_api_spec["paths"]
-    # An API gateway reaches an agent endpoint under the data service path, in
-    # the action form it routes there; a client calling the agent reaches the
-    # same endpoint at the address the agent serves it at. Both are given, and
-    # the second carries a server of its own.
+    # A gateway reaches an agent endpoint in the action form, under the data
+    # service path; a client calling the agent reaches it at its own address.
     assert paths["/:version"]["get"]["operationId"] == "apiVersion"
     assert paths["/:health"]["get"]["operationId"] == "apiHealth"
     assert paths["/:token"]["post"]["operationId"] == "apiToken"
@@ -1075,10 +1073,8 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
         assert app.get(f"/{model}/{spelling}").status_code == 200, spelling
         _validate(spelling, schema)
 
-    # `uuid.UUID` drops those prefixes and the hyphens wherever they sit, so it
-    # reads more than a client writes. The pattern holds to the spellings a
-    # client writes and keeps the version asserted, which following the parser
-    # all the way would cost.
+    # `uuid.UUID` reads more than a client writes, and the pattern holds to the
+    # spellings a client writes, keeping the version asserted.
     assert app.get(f"/{model}/{identifier}urn:").status_code == 200
     with pytest.raises(ValidationError):
         _validate(f"{identifier}urn:", schema)
@@ -1963,10 +1959,8 @@ def test_model_schemas_require_nothing(rc, open_manifest_path_factory):
     open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
 
     schemas = open_api_spec["components"]["schemas"]
-    # A listing is an envelope, not an object of the model, and it always holds
-    # its container, see `test_listing_schema_matches_what_spinta_answers`. A
-    # reference is not an object of the model either, and it carries the
-    # identifier whenever it is there at all.
+    # A listing is an envelope and a reference carries an identifier, so neither
+    # is an object of the model, see `test_listing_schema_matches_what_spinta_answers`.
     model_schemas = [
         name for name in schemas if name.startswith("at280_") and not name.endswith(("Collection", "_Ref"))
     ]
