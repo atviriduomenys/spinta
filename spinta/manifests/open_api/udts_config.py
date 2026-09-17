@@ -29,12 +29,11 @@ yaml = YAML(typ="safe")
 
 KNOWN_KEYS = frozenset(["info", "servers", "auth", "externalDocs", "limits"])
 
-#: Fields of the OpenAPI 3.0 objects the configuration is copied into, plus the
-#: fields of `auth`, which is ours, and `info.summary`, which OpenAPI 3.0 does not
-#: have and which opens the description instead, see `_fold_summary` of the
-#: generator. Everything else, apart from `x-` extensions, is a typo or a field this configuration does not support and is left out.
-#: Server variables are left out as well, because an environment is described by
-#: an URL of its own, not by a template.
+#: Fields of the OpenAPI 3.0 objects the configuration is copied into, plus
+#: `auth`, which is ours, and `info.summary`, which OpenAPI 3.0 has no field for
+#: and which opens the description instead, see `_fold_summary` of the generator.
+#: Anything else, apart from `x-` extensions, is left out: a typo, or a field
+#: this configuration does not support, server variables among them.
 INFO_KEYS = frozenset(["title", "summary", "description", "termsOfService", "contact", "license", "version"])
 CONTACT_KEYS = frozenset(["name", "url", "email"])
 #: Fields of `info.contact` a data service is not published without, see
@@ -62,12 +61,11 @@ MAX_LIMIT_CEILING = 2**63 - 1
 #: A percent sign not starting an escape of two hexadecimal digits, RFC 3986.
 malformed_escape_re = re.compile("%(?![0-9A-Fa-f]{2})")
 
-#: An email address in its common form: the dot-atom of RFC 5322 before `@`,
-#: words of its characters joined by single dots, and a host name of two labels
-#: or more after it, RFC 1035, each label not starting or ending with `-`.
-#: Quoted local parts and address literals, `"a b"@lnb.lt` or `a@[10.0.0.1]`,
-#: are left out on purpose: an institution's contact holds neither, and a tool
-#: reading `format: email` is not bound to accept them. See `_check_email`.
+#: An email address in its common form: the dot-atom of RFC 5322 before `@`, a
+#: host name of two labels or more after it. Quoted local parts and address
+#: literals, `"a b"@lnb.lt` or `a@[10.0.0.1]`, are left out on purpose: no
+#: institution's contact holds one, and a tool reading `format: email` is not
+#: bound to accept them. Lengths are checked in `_check_email`.
 _EMAIL_ATOM = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
 _EMAIL_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 email_re = re.compile(rf"{_EMAIL_ATOM}(?:\.{_EMAIL_ATOM})*@{_EMAIL_LABEL}(?:\.{_EMAIL_LABEL})+")
@@ -235,13 +233,9 @@ class UdtsConfig:
             server = dict(server)
             parts = urlsplit(server.get("url", ""))
             # The whole path goes, not the data service path alone: a server URL
-            # can carry a path of its own, which `_resolve_server_url` keeps
-            # after warning, and taking the data service path off that one would
-            # leave an address the agent serves nothing at.
-            #
-            # A relative URL keeps the root as its path: emptied, it would be
-            # resolved against the path the document itself is served at, and a
-            # query of its own would even keep the `or` below from noticing.
+            # may carry a path of its own, and the agent serves nothing under it.
+            # A relative URL keeps the root, which emptied would be resolved
+            # against the path the document itself is served at.
             path = "" if parts.netloc else "/"
             server["url"] = urlunsplit(parts._replace(path=path)) or "/"
             servers.append(server)
@@ -593,10 +587,9 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
 
 
 def _resolve_server_url(url: str, service_path: str) -> str:
-    # A trailing slash is removed from the path, not from the whole URL, which
-    # can end with a query string or a fragment. An API gateway takes the API
-    # context path from this path, and falls back to the API title when it is
-    # left empty by a trailing slash.
+    # The slash is removed from the path, not from the whole URL, which can end
+    # with a query or a fragment. An API gateway takes the API context path from
+    # this path, and falls back to the API title when it is left empty.
     parts = urlsplit(url)
     path = parts.path.rstrip("/")
 

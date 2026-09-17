@@ -42,17 +42,10 @@ PROPERTY_EXAMPLE = {
 _UUID_CANONICAL = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
 UUID_PATTERN = f"^{_UUID_CANONICAL}$"
 
-#: The same identifier as a request may spell it. `is_object_id` reads the value
-#: with `uuid.UUID`, which drops an `urn:` and an `uuid:` prefix and surrounding
-#: braces and takes the hexadecimal with or without the hyphens, so a document
-#: accepting the canonical spelling alone would have a gateway refuse a request
-#: Spinta serves.
-#:
-#: `uuid.UUID` is looser still: it drops those prefixes wherever they sit and
-#: every hyphen wherever it sits, so `<id>urn:` is read as well. What is written
-#: here are the spellings a client writes, while keeping the version and the
-#: variant of the value asserted; following the parser all the way would mean
-#: giving up on asserting those, which buys a gateway less than it costs.
+#: The spellings a request may use, which `is_object_id` reads with `uuid.UUID`:
+#: with or without the hyphens, in braces, behind an `urn:` or `uuid:` prefix.
+#: The parser is looser still, but following it all the way would mean giving up
+#: on asserting the version and the variant.
 _UUID_COMPACT = "[0-9a-fA-F]{12}4[0-9a-fA-F]{3}[89abAB][0-9a-fA-F]{15}"
 
 #: A value of a property declared `uuid`, an `_id` of a model among them. It is
@@ -88,12 +81,9 @@ PAGE_TOKEN_PATTERN = "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{4}|[A-Za-z0-9_-]{3}
 
 #: A value of a property declared `base32`, as `cast_backend_to_python` builds
 #: one: the RFC 4648 alphabet with the padding dropped, which leaves a length
-#: `base64.b32decode` can pad back and rules out one, three and six characters
-#: over a multiple of eight, see `decode_id_value`.
-#:
-#: No pattern of the document looks around or repeats more than a thousand
-#: times, see `HEADER_VALUE_PATTERN`, so a value is not empty because its last group
-#: is not optional.
+#: `base64.b32decode` can pad back, see `decode_id_value`. The last group is not
+#: optional, which is how an empty value is refused without looking ahead, see
+#: `HEADER_VALUE_PATTERN`.
 _BASE32_LENGTH = "(?:[A-Z2-7]{8})*(?:[A-Z2-7]{8}|[A-Z2-7]{2}|[A-Z2-7]{4}|[A-Z2-7]{5}|[A-Z2-7]{7})"
 BASE32_VALUE_PATTERN = f"^{_BASE32_LENGTH}$"
 
@@ -126,16 +116,13 @@ PROPERTY_MAPPING = {
     "object": {"type": "object"},
 }
 
-#: A header value is printable ASCII, RFC 9110 section 5.5. The grammar of each
-#: header is not repeated here; what is stated is the character set and a bound,
-#: so a request carrying anything else is refused before it reaches the service.
+#: A header value is printable ASCII, RFC 9110 section 5.5, bounded so that a
+#: gateway refuses anything longer before it reaches the service.
 #:
-#: The bound is `maxLength` rather than a repetition of the pattern. Patterns of
-#: the document are written in what regular expression dialects share: OpenAPI
-#: 3.0 names ECMA 262, while the linter an API gateway is reviewed with reads
-#: them as RE2 does, which has no lookaround and repeats a group a thousand
-#: times at most. What a pattern can not say then, a `maxLength` or a `not`
-#: beside it says.
+#: The bound is `maxLength`, because every pattern here is written in what ECMA
+#: 262 and RE2 share, the linter an API gateway is reviewed with reading them as
+#: RE2: no lookaround, no group repeated more than a thousand times. What a
+#: pattern can not say, a `maxLength` or a `not` beside it says.
 HEADER_VALUE_PATTERN = "^[\\x20-\\x7E]+$"
 HEADER_VALUE_MAX_LENGTH = 1024
 
@@ -144,14 +131,11 @@ HEADER_VALUE_MAX_LENGTH = 1024
 HEADER_CHARACTER_PATTERN = "^[\\x20-\\x7E]+$"
 
 #: `traceparent` of W3C Trace Context: version, trace id, parent id and flags,
-#: hexadecimal throughout. Version `ff` is invalid and so is an identifier of
-#: nothing but zeroes. Version `00` is those four fields and nothing else, while
-#: a version above it may carry fields of its own after the flags, which a
-#: parser has to tolerate rather than refuse, see the versioning section of the
-#: specification.
-#:
-#: An identifier of zeroes is refused by `TRACEPARENT_OF_ZEROES_PATTERN` given
-#: under `not`, since a pattern refusing it would have to look ahead.
+#: hexadecimal throughout. Version `ff` is invalid; a version above `00` may
+#: carry fields of its own after the flags, which a parser has to tolerate. An
+#: identifier of zeroes is invalid as well, refused by
+#: `TRACEPARENT_OF_ZEROES_PATTERN` under `not`, since a pattern would have to
+#: look ahead for it, see `HEADER_VALUE_PATTERN`.
 _TRACE_ID_PARENT_ID_FLAGS = "[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}"
 _LATER_TRACE_VERSION = "(?:0[1-9a-f]|[1-9a-e][0-9a-f]|f[0-9a-e])"
 TRACEPARENT_PATTERN = (
@@ -176,7 +160,6 @@ DECLARED_ID_PATTERN = "^[^/]{1,512}$"
 #: identifier, and a `string` one of a model keyed by a single property.
 EQUALS_ID_PATTERN = "^=[^/]{1,512}$"
 
-#: A `base32` identifier, of the alphabet RFC 4648 gives, behind an equals sign.
 COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
 
 #: `304` answers before a body is built, see
@@ -258,8 +241,6 @@ PATHS_CONFIG = {
                                     "description": "The only grant this endpoint serves.",
                                     "example": "client_credentials",
                                 },
-                                # Example is filled in with a scope of this
-                                # data service, see `_add_security_schemes`.
                                 "scope": {
                                     "type": "string",
                                     "pattern": SCOPE_PATTERN,
@@ -285,7 +266,6 @@ PATHS_CONFIG = {
         },
     },
     "/version": {
-        # Served by the agent itself, so it takes a server of its own.
         "servers": "agent",
         "parameters": ["traceparent", "tracestate"],
         "get": {
@@ -308,7 +288,6 @@ PATHS_CONFIG = {
         },
     },
     "/health": {
-        # Served by the agent itself, so it takes a server of its own.
         "servers": "agent",
         "parameters": ["traceparent", "tracestate"],
         "get": {
@@ -341,8 +320,6 @@ PATHS_CONFIG = {
         },
     },
     "/auth/token": {
-        # Served by the agent itself, so it takes a server of its own: every
-        # environment of the document, with the path of the data service off.
         "servers": "agent",
         "parameters": ["traceparent", "tracestate"],
         "post": {
@@ -366,8 +343,6 @@ PATHS_CONFIG = {
                                     "description": "The only grant this endpoint serves.",
                                     "example": "client_credentials",
                                 },
-                                # Example is filled in with a scope of this
-                                # data service, see `_add_security_schemes`.
                                 "scope": {
                                     "type": "string",
                                     "pattern": SCOPE_PATTERN,
@@ -395,7 +370,6 @@ PATHS_CONFIG = {
     "/{model_name}": {
         "parameters": ["traceparent", "tracestate", "Cache-Control", "If-None-Match", "Accept-Language"],
         "head": {
-            # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
@@ -447,7 +421,6 @@ PATHS_CONFIG = {
     "/{model_name}/{id}": {
         "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
         "head": {
-            # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
@@ -500,10 +473,8 @@ PATHS_CONFIG = {
         },
     },
     "/{model_name}/{id}/{field}": {
-        # Property name is part of the generated path, so it is not a parameter.
         "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language", "Range"],
         "head": {
-            # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
@@ -561,10 +532,8 @@ PATHS_CONFIG = {
         },
     },
     "/{model_name}/{id}/{field}:ref": {
-        # Property name is part of the generated path, so it is not a parameter.
         "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
         "head": {
-            # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
@@ -604,10 +573,8 @@ PATHS_CONFIG = {
         },
     },
     "/{model_name}/{id}/{object_field}": {
-        # Property name is part of the generated path, so it is not a parameter.
         "parameters": ["id", "traceparent", "tracestate", "If-None-Match", "Accept-Language"],
         "head": {
-            # Spinta authorizes `HEAD` against the same actions as `GET`.
             "security": [{"UAPI_auth": []}],  # Scopes are filled in per model and action.
             "summary": "Return only headers for the API.",
             "description": "`HEAD` method requests the headers that would be returned if the HEAD request's URL was instead requested with the `GET` method.\n",
@@ -1390,12 +1357,10 @@ SCOPE_TEMPLATE = "{prefix}{name}/:{action}"
 ROOT_SCOPE_TEMPLATE = "{prefix}:{action}"
 
 #: Action each read operation authorizes against, see `spinta.urlparams.get_action`.
-#: A collection is read with `getall`, or with `search` when the request narrows
-#: it down with query parameters. Both are emitted as alternative security
-#: requirements, because OpenAPI can not make a requirement depend on query
-#: parameters. Requiring both instead would deny a token Spinta accepts, while
-#: this way a request Spinta denies is denied by Spinta, so do not "fix" it into
-#: one requirement holding both scopes.
+#: A collection takes `getall`, or `search` when the request narrows it down, and
+#: the two are emitted as alternatives, because OpenAPI can not make a
+#: requirement depend on query parameters. One requirement holding both scopes
+#: would deny a token Spinta accepts, so it is not a fix.
 PATH_TYPE_ACTIONS = {
     "collection": (Action.GETALL, Action.SEARCH),
     "single": (Action.GETONE,),
