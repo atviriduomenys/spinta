@@ -61,7 +61,9 @@ def _assert_valid(open_api_spec: dict) -> None:
         pattern
         for pattern in _patterns(open_api_spec)
         if re.search(r"\(\?[=!<]", pattern)
-        or any(int(bound) > 1000 for bound in re.findall(r"\{(?:\d+,)?(\d+)\}", pattern))
+        or any(
+            int(bound) > 1000 for bounds in re.findall(r"\{(\d+)(?:,(\d*))?\}", pattern) for bound in bounds if bound
+        )
     ]
     assert unreadable == []
 

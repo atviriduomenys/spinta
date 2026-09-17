@@ -2042,16 +2042,21 @@ class OpenAPIGenerator:
             "headers": set(HEADER_COMPONENTS),
             "responses": set(RESPONSE_COMPONENTS),
         }
-        for kind, candidates in shared.items():
-            declared = components.get(kind)
-            if not declared:
-                continue
-            while True:
+        # Components refer to one another across kinds, a response to a header
+        # and to a schema among them, so dropping one can leave another of any
+        # kind unused. Every kind is looked at again until nothing is dropped.
+        while True:
+            dropped = False
+            for kind, candidates in shared.items():
+                declared = components.get(kind)
+                if not declared:
+                    continue
                 unused = (set(declared) & candidates) - _referenced_components(spec, kind)
-                if not unused:
-                    break
                 for name in unused:
                     del declared[name]
+                dropped = dropped or bool(unused)
+            if not dropped:
+                return
 
     def _get_dataset_models(self, dataset_name: str, models: dict) -> list:
         return [model for model in models.values() if _model_dataset_name(model) == dataset_name]
