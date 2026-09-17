@@ -21,6 +21,8 @@ BASE_TAGS = [{"name": "utility", "description": "Utility operations performed on
 PROPERTY_EXAMPLE = {
     "string": "Example string",
     "integer": 42,
+    # Version 4 in the canonical lower case spelling, which `UUID.load` asks for.
+    "uuid": "5f0cc4b1-3c35-4f2a-9a3b-6d1f0b8e2c47",
     "number": 123.45,
     "boolean": True,
     "datetime": "2025-09-23T11:44:11.753Z",

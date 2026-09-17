@@ -177,6 +177,10 @@ Backwards incompatible:
     keyed by, so the identifier and the object beside it agree. ``format`` of a
     UUID is written as ``uuid``, which is the format the registry gives;
     ``uuidv4`` is not one and no tool recognised it.
+  - Every example satisfies the schema it stands beside. A ``uuid`` property
+    was given ``Example value``, which its pattern refuses, and the object of
+    a listing example read a reference as a UUID where the referenced model is
+    keyed otherwise, a whole number for one.
   - Query examples name properties of the model they belong to. A generic
     example is worse than none, because an API client fills the request with
     it, and ``?_select=string`` comes back as ``FieldNotInResource``.
@@ -433,7 +437,8 @@ Improvements:
   Before, the query syntax failed on the padding, and ``_page`` without it was
   read as a filter on a property. A token that is not one Spinta wrote is
   refused with ``InvalidPageKey``, also when it is canonical Base64 holding no
-  JSON, or JSON that is not a list, which answered with a server error before.
+  JSON, JSON that is not a list, or not a string at all, ``page(123)`` for one,
+  which answered with a server error before.
   It is added to the Spyna grammar the way
   ``_limit`` is, as a stopgap until the simplified syntax gets a parser of its
   own (`#2004`_, `#2023`_).

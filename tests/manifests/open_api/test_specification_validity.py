@@ -28,6 +28,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SERVICES,
+    MANIFEST_WITH_SHAPED_EXAMPLES,
     MANIFEST_WITH_SOAP_PREPARE,
     MANIFEST_WITH_UNNAMABLE_NAMES,
 )
@@ -119,12 +120,45 @@ def _patterns(node):
         (MANIFEST_WITH_UNNAMABLE_NAMES, {"service_path": SERVICE_PATH}),
         # An identifier whose shape a pattern states.
         (MANIFEST_WITH_BASE32_ID, {"service_path": SERVICE_PATH}),
+        # Examples of a `uuid` value and of a reference to a whole number key.
+        (MANIFEST_WITH_SHAPED_EXAMPLES, {"service_path": SERVICE_PATH}),
     ],
 )
 def test_generated_specification_is_valid(open_manifest_path_factory, manifest_data, kwargs):
     open_manifest_path = open_manifest_path_factory(manifest_data)
 
-    _assert_valid(create_openapi_manifest(open_manifest_path, **kwargs))
+    open_api_spec = create_openapi_manifest(open_manifest_path, **kwargs)
+    _assert_valid(open_api_spec)
+    _assert_examples_satisfy_their_schemas(open_api_spec)
+
+
+def _assert_examples_satisfy_their_schemas(open_api_spec: dict) -> None:
+    """An example a schema refuses sends a reader, and an API client, down a wrong path.
+
+    Every schema of the document carrying an example is checked, the ones nested
+    in properties, items and alternatives among them.
+    """
+    openapi_schema_validator = pytest.importorskip("openapi_schema_validator")
+    components = open_api_spec.get("components", {})
+
+    refused = []
+
+    def walk(node, where):
+        if isinstance(node, dict):
+            if "example" in node and any(key in node for key in ("type", "$ref", "allOf", "anyOf", "oneOf")):
+                schema = {key: value for key, value in node.items() if key != "example"}
+                validator = openapi_schema_validator.OAS30Validator({**schema, "components": components})
+                error = next(iter(validator.iter_errors(node["example"])), None)
+                if error is not None:
+                    refused.append(f"{where}: {error.message}")
+            for key, value in node.items():
+                walk(value, f"{where}/{key}")
+        elif isinstance(node, list):
+            for index, item in enumerate(node):
+                walk(item, f"{where}/{index}")
+
+    walk(components.get("schemas", {}), "#/components/schemas")
+    assert refused == []
 
 
 def test_specification_of_the_example_configuration_is_valid(open_manifest_path: ManifestPath, tmp_path):
