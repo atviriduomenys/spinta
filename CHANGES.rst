@@ -66,7 +66,11 @@ Backwards incompatible:
     file is written than after it is imported. Every field of
     ``info.contact``, ``name``, ``url`` and ``email``, is required as well, so
     users of a data service are told which institution to turn to rather than
-    given the default contact. ``--list`` needs no
+    given the default contact. ``email`` is checked to be an address in its
+    common form: words joined by single dots before ``@``, a host name of two
+    labels or more after it, and the lengths RFC 5321 allows, so
+    ``a..b@lnb.lt`` or ``biblio@lnb`` is refused. Quoted local parts and
+    address literals are not accepted. ``--list`` needs no
     configuration, it only reads the manifest.
   - Everything a request carries is bounded, so that an API gateway validating
     requests can refuse one before it reaches the service: ``_select`` and
