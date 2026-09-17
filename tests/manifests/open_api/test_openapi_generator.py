@@ -1,11 +1,55 @@
-import pytest
+import contextlib
+import json
+import re
+import uuid
+import warnings
 
+import pytest
+from jsonschema import ValidationError
+
+from spinta import commands
+from spinta.auth import get_scope_name
+from spinta.core.enums import Action, Visibility
+from spinta.exceptions import DataServiceNotFound
 from spinta.manifests.components import ManifestPath
-from spinta.manifests.open_api.helpers import create_openapi_manifest
+from spinta.manifests.open_api.helpers import create_openapi_manifest, write_openapi_manifest
+from spinta.manifests.open_api.openapi_config import (
+    COMMON_SCHEMAS,
+    EQUALS_ID_PATTERN,
+    PARAMETER_COMPONENTS,
+    RESPONSE_COMPONENTS,
+)
+from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS, NULL_OBJECT_SCHEMA
+from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
+from spinta.testing.manifest import load_manifest_get_context
+from spinta.utils.encoding import encode_base32
 from tests.manifests.open_api.conftest import (
     MANIFEST,
+    MANIFEST_WITH_ARRAY_IN_REFERENCE,
+    MANIFEST_WITH_ARRAY_LAYERS,
+    MANIFEST_WITH_ARRAY_REFS,
+    MANIFEST_WITH_BASE32_ID,
+    MANIFEST_WITH_COLLIDING_DATASETS,
+    MANIFEST_WITH_COLLIDING_EXTERNAL_REFS,
+    MANIFEST_WITH_COLLIDING_MODELS,
+    MANIFEST_WITH_COLLIDING_OPERATION_IDS,
+    MANIFEST_WITH_COMPOSITE_ID,
+    MANIFEST_WITH_DECLARED_ID,
+    MANIFEST_WITH_DECLARED_REF_ID,
+    MANIFEST_WITH_DECLARED_REVISION,
+    MANIFEST_WITH_ENUM_ID,
+    MANIFEST_WITH_ENUM_VALUES,
+    MANIFEST_WITH_FILE_AND_DECLARED_REVISION,
+    MANIFEST_WITH_INTEGER_ID,
+    MANIFEST_WITH_INTERMEDIATE_TABLE,
+    MANIFEST_WITH_NESTED_OBJECT_REF,
+    MANIFEST_WITH_NESTED_REF_LEVELS,
+    MANIFEST_WITH_PRIVATE_VISIBILITY,
+    MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
+    MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_UNNAMABLE_NAMES,
 )
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
@@ -16,7 +60,7 @@ def test_basic_structure(open_manifest_path_factory, manifest_data):
     open_manifest_path = open_manifest_path_factory(manifest_data)
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
-    expected_keys = {"openapi", "info", "servers", "tags", "externalDocs", "paths", "components"}
+    expected_keys = {"openapi", "info", "tags", "externalDocs", "paths", "components"}
     actual_keys = set(open_api_spec.keys())
 
     missing_keys = expected_keys - actual_keys
@@ -33,8 +77,9 @@ def test_basic_structure(open_manifest_path_factory, manifest_data):
 
 def test_info(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
-    assert open_api_spec["info"]["summary"] == "Test title"
-    assert open_api_spec["info"]["description"] == "Test description"
+    # OpenAPI 3.0 has no `summary`, so it opens the description.
+    assert "summary" not in open_api_spec["info"]
+    assert open_api_spec["info"]["description"] == "Test title\n\nTest description"
 
 
 def test_components_schemas(open_manifest_path: ManifestPath):
@@ -62,8 +107,11 @@ def test_components_paths(open_manifest_path: ManifestPath):
 
     assert expected_paths.issubset(actual_paths), f"Missing paths: {expected_paths - actual_paths}"
 
-    assert "/version" in actual_paths
-    assert "/health" in actual_paths
+    # A whole manifest export has no data service base, so agent endpoints are
+    # given at the addresses the agent serves them at, and the action form,
+    # which only an API gateway routes, is left out.
+    assert {"/version", "/health", "/auth/token"} <= actual_paths
+    assert "/:version" not in actual_paths
 
 
 def test_model_path_contents(open_manifest_path: ManifestPath):
@@ -95,7 +143,7 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
     open_api_spec.pop("components")  # Components do not have a default initial value.
     open_api_spec.pop("paths")  # Paths are not part of the generated specification
     assert open_api_spec == {
-        "openapi": "3.1.0",
+        "openapi": "3.0.3",
         "info": {
             "version": "1.0.0",
             "title": "Universal application programming interface",
@@ -108,28 +156,23 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
                 "name": "CC-BY 4.0",
                 "url": "https://creativecommons.org/licenses/by/4.0/",
             },
-            "summary": "Test title",
-            "description": "Test description",
+            "description": "Test title\n\nTest description",
         },
         "externalDocs": {"url": "https://ivpk.github.io/uapi"},
-        "servers": [
+        # Utility is a default tag, others are generated from models, none is
+        # duplicated, and they are sorted, which is how a reader looks a name up.
+        "tags": [
             {
-                "description": "Data access server",
-                "url": "get.data.gov.lt",
-            }
-        ],
-        "tags": [  # Utility is a default tag, others are generated from models. Should not be duplicated.
+                "name": "datasets_demo_system_data_Organization",
+                "description": "Operations with datasets_demo_system_data_Organization",
+            },
+            {
+                "name": "datasets_demo_system_data_ProcessingUnit",
+                "description": "Operations with datasets_demo_system_data_ProcessingUnit",
+            },
             {
                 "name": "utility",
                 "description": "Utility operations performed on the API itself",
-            },
-            {
-                "name": "Organization",
-                "description": "Operations with Organization",
-            },
-            {
-                "name": "ProcessingUnit",
-                "description": "Operations with ProcessingUnit",
             },
         ],
     }
@@ -141,7 +184,7 @@ def _validate_operation_id_contains(operation_id: str, path: str, *required_term
         assert term in operation_id, f"OperationId '{operation_id}' should contain '{term}' for {path}"
 
 
-def _validate_operation_structure(operation: dict, model_name: str, path: str, operation_type="GET"):
+def _validate_operation_structure(operation: dict, tag_name: str, path: str, operation_type="GET"):
     """Validate basic operation structure and return the operation data."""
 
     assert operation_type.lower() in operation, f"Missing {operation_type} operation in {path}"
@@ -149,7 +192,7 @@ def _validate_operation_structure(operation: dict, model_name: str, path: str, o
     op_data = operation[operation_type.lower()]
     assert "operationId" in op_data, f"Missing operationId in {operation_type} {path}"
     assert "responses" in op_data, f"Missing responses in {operation_type} {path}"
-    assert op_data["tags"] == [model_name], f"Unexpected operation tags {operation['tags']}"
+    assert op_data["tags"] == [tag_name], f"Unexpected operation tags {op_data['tags']}"
 
     return op_data
 
@@ -172,7 +215,7 @@ def _validate_get_response_schema(responses: dict, path: str, expected_ref: str)
     assert schema["$ref"] == expected_ref, f"Schema ref should be '{expected_ref}', got '{schema['$ref']}' for {path}"
 
 
-def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *additional_terms):
+def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, tag_name: str, *additional_terms):
     assert path in paths, f"Missing path: {path}"
 
     operations = paths[path]
@@ -182,7 +225,7 @@ def _test_api_path(paths: dict, path: str, expected_ref: str, model_name: str, *
         if method == "parameters":
             continue
 
-        op_data = _validate_operation_structure(operations, model_name, path, method)
+        op_data = _validate_operation_structure(operations, tag_name, path, method)
         _validate_operation_id_contains(op_data["operationId"], path, model_name, *additional_terms)
 
         if method.lower() == "get":
@@ -193,23 +236,24 @@ def _test_collection_path_content(paths: dict, dataset_name: str, model_name: st
     api_path = f"/{dataset_name}/{model_name}"
     model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}Collection"
-    _test_api_path(paths, api_path, expected_ref, model_name)
+    _test_api_path(paths, api_path, expected_ref, model_name, model_schema_name)
 
 
 def _test_single_item_path_content(paths: dict, dataset_name: str, model_name: str):
     api_path = f"/{dataset_name}/{model_name}/{{id}}"
     model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
     expected_ref = f"#/components/schemas/{model_schema_name}"
-    _test_api_path(paths, api_path, expected_ref, model_name)
+    _test_api_path(paths, api_path, expected_ref, model_name, model_schema_name)
 
 
 def _test_property_path_content(paths: dict, dataset_name: str, model_name: str, property_name: str):
     path = f"/{dataset_name}/{model_name}/{{id}}/{property_name}"
+    model_schema_name = f"{dataset_name.replace('/', '_')}_{model_name}"
 
     assert path in paths, f"Missing property path: {path}"
 
     operations = paths[path]
-    op_data = _validate_operation_structure(operations, model_name, path)
+    op_data = _validate_operation_structure(operations, model_schema_name, path)
 
     _validate_operation_id_contains(op_data["operationId"], path, model_name, property_name)
 
@@ -219,28 +263,21 @@ def _test_property_path_content(paths: dict, dataset_name: str, model_name: str,
     response_200 = responses["200"]
     assert "content" in response_200, f"Missing content in 200 response for {path}"
 
-    content = response_200["content"]
-    assert "application/json" in content, f"Missing application/json in {path}"
-
-    json_content = content["application/json"]
-    assert "schema" in json_content, f"Missing schema in {path}"
-
-    schema = json_content["schema"]
-    assert "$ref" in schema, f"Missing $ref in {path} schema"
-
-    ref = schema["$ref"]
-    assert ref.startswith("#/components/schemas/"), (
-        f"Property path schema ref should start with '#/components/schemas/', got '{ref}'"
-    )
+    # Property endpoints are generated for file and image properties, which
+    # serve the file content with the media type it was stored with.
+    assert response_200["content"] == {"*/*": {"schema": {"type": "string", "format": "binary"}}}
 
 
 def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     paths = open_api_spec["paths"]
-    allowed_methods = [method.lower() for method in SUPPORTED_HTTP_METHODS]
+    allowed_methods = {method.lower() for method in SUPPORTED_HTTP_METHODS}
 
     for path, operations in paths.items():
+        if path in ("/:token", "/auth/token"):
+            continue
+
         actual_methods = set(operations.keys())
 
         http_methods = {
@@ -334,7 +371,8 @@ def _test_base_model_schema(schemas: dict, dataset_name: str, model_name: str, e
         assert "type" in prop_schema or "$ref" in prop_schema, f"Property {prop_name} missing type/ref in {model_name}"
 
     example = schema["example"]
-    assert example["_type"] == model_name
+    # `_type` of a response is the full model name, see `spinta.commands.read`.
+    assert example["_type"] == f"{dataset_name}/{model_name}"
     assert "_id" in example
     assert "_revision" in example
 
@@ -350,9 +388,9 @@ def _test_collection_schema(schemas: dict, dataset_name: str, model_name: str):
     assert schema["type"] == "object"
     assert "properties" in schema
 
+    # A listing answers with the objects and the next page, and no `_type`.
     properties = schema["properties"]
-    assert "_type" in properties
-    assert "_data" in properties
+    assert set(properties) == {"_data", "_page"}
 
     data_property = properties["_data"]
     assert data_property["type"] == "array"
@@ -370,10 +408,10 @@ def test_organization_schema_details(open_manifest_path: ManifestPath):
     org_schema = schemas[model_schema_name]
     properties = org_schema["properties"]
 
-    assert properties["org_name"]["type"] == "string"
-    assert properties["annual_revenue"]["type"] == "number"
-    assert properties["coordinates"]["type"] == "string"
-    assert properties["established_date"]["type"] == "string"
+    assert (properties["org_name"]["type"], properties["org_name"].get("nullable")) == ("string", True)
+    assert (properties["annual_revenue"]["type"], properties["annual_revenue"].get("nullable")) == ("number", True)
+    assert (properties["coordinates"]["type"], properties["coordinates"].get("nullable")) == ("string", True)
+    assert (properties["established_date"]["type"], properties["established_date"].get("nullable")) == ("string", True)
 
 
 def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
@@ -386,23 +424,25 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     pu_schema = schemas[model_schema_name]
     properties = pu_schema["properties"]
 
-    assert properties["unit_name"]["type"] == "string"
+    assert (properties["unit_name"]["type"], properties["unit_name"].get("nullable")) == ("string", True)
 
-    assert properties["unit_type"]["type"] == "string"
+    # Optional enum properties list `null` too, otherwise `enum` would reject a
+    # value that `type` allows.
+    assert (properties["unit_type"]["type"], properties["unit_type"].get("nullable")) == ("string", True)
     assert "enum" in properties["unit_type"]
-    expected_enum = ["FAC", "TRT", "OUT", "OTH"]
+    expected_enum = ["FAC", "TRT", "OUT", "OTH", None]
     assert set(properties["unit_type"]["enum"]) == set(expected_enum)
 
-    assert properties["unit_version"]["type"] == "integer"
+    assert (properties["unit_version"]["type"], properties["unit_version"].get("nullable")) == ("integer", True)
     assert "enum" in properties["unit_version"]
-    assert set(properties["unit_version"]["enum"]) == {1, 2}
+    assert set(properties["unit_version"]["enum"]) == {1, 2, None}
 
-    assert properties["unit_kind"]["type"] == "string"
+    assert (properties["unit_kind"]["type"], properties["unit_kind"].get("nullable")) == ("string", True)
     assert "enum" in properties["unit_kind"]
-    assert set(properties["unit_kind"]["enum"]) == {"A", "B"}
+    assert set(properties["unit_kind"]["enum"]) == {"A", "B", None}
 
-    assert properties["efficiency_rate"]["type"] == "number"
-    assert properties["capacity"]["type"] == "integer"
+    assert (properties["efficiency_rate"]["type"], properties["efficiency_rate"].get("nullable")) == ("number", True)
+    assert (properties["capacity"]["type"], properties["capacity"].get("nullable")) == ("integer", True)
 
 
 def test_version_schema_structure(open_manifest_path: ManifestPath):
@@ -448,13 +488,11 @@ def test_cross_dataset_ref_schemas_have_only_ref_properties(open_manifest_path_f
 
     schemas = open_api_spec["components"]["schemas"]
 
+    # A reference of level 4 carries the identifier alone, so that is all its
+    # schema holds; neither `_type` nor `_revision` is sent with it.
     municipality_schema = schemas["datasets_gov_vssa_demo_Municipality"]
     assert municipality_schema["type"] == "object"
-    municipality_props = municipality_schema["properties"]
-    assert "id" not in municipality_props
-    assert "_type" in municipality_props
-    assert "_id" in municipality_props
-    assert "_revision" in municipality_props
+    assert set(municipality_schema["properties"]) == {"_id"}
 
     county_schema = schemas["datasets_gov_vssa_demo_County"]
     assert county_schema["type"] == "object"
@@ -481,8 +519,15 @@ def test_cross_dataset_ref_properties_use_correct_schema_refs(open_manifest_path
     territory_schema = schemas["Territory"]
     properties = territory_schema["properties"]
 
-    assert properties["city"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_Municipality"
-    assert properties["region"]["$ref"] == "#/components/schemas/datasets_gov_vssa_demo_County"
+    # Ref properties are not required, so they are wrapped to accept `null`.
+    assert properties["city"]["anyOf"] == [
+        {"$ref": "#/components/schemas/datasets_gov_vssa_demo_Municipality"},
+        {"type": "object", "nullable": True, "enum": [None]},
+    ]
+    assert properties["region"]["anyOf"] == [
+        {"$ref": "#/components/schemas/datasets_gov_vssa_demo_County"},
+        {"type": "object", "nullable": True, "enum": [None]},
+    ]
 
 
 def test_main_model_ref_properties_have_proper_examples(open_manifest_path_factory):
@@ -573,3 +618,2129 @@ def test_api_version(open_manifest_path_factory):
     open_manifest_path = open_manifest_path_factory(MANIFEST)
     open_api_spec = create_openapi_manifest(open_manifest_path, api_version="2.1.8")
     assert open_api_spec["info"]["version"] == "2.1.8"
+
+
+SERVICE_PATH = "datasets/gov/rc/jadis/at280/1"
+
+
+def _service_spec(
+    open_manifest_path_factory,
+    service_path=SERVICE_PATH,
+    config=None,
+    manifest_data=MANIFEST_WITH_SERVICES,
+    publish=True,
+    **kwargs,
+):
+    open_manifest_path = open_manifest_path_factory(manifest_data, publish=publish)
+    return create_openapi_manifest(open_manifest_path, service_path=service_path, config=config, **kwargs)
+
+
+@contextlib.contextmanager
+def _published_store(manifest):
+    """Mark every model, property and enum value of a loaded manifest `public`.
+
+    The manifest of the running service is written without `visibility`, which
+    counts as `private`, so nothing of it would be published. It is shared by
+    the whole session, so every value is put back afterwards.
+    """
+    touched = []
+
+    def mark(node):
+        touched.append((node, node.visibility))
+        node.visibility = Visibility.public
+
+    for model in manifest.get_objects()["model"].values():
+        mark(model)
+        for prop in model.flatprops.values():
+            mark(prop)
+            for lang in (getattr(prop.dtype, "langs", None) or {}).values():
+                mark(lang)
+            if isinstance(prop.enum, dict):
+                for item in prop.enum.values():
+                    mark(item)
+    try:
+        yield manifest
+    finally:
+        for node, visibility in touched:
+            node.visibility = visibility
+
+
+def _store_spec(context):
+    with _published_store(context.get("store").manifest) as manifest:
+        return create_openapi_manifest(manifest)
+
+
+def test_service_includes_all_its_datasets(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert set(open_api_spec["paths"]) == {
+        "/:version",
+        "/:health",
+        "/:token",
+        "/version",
+        "/health",
+        "/auth/token",
+        "/at280_israsas/DalyvioAsmensIsrasas",
+        "/at280_israsas/DalyvioAsmensIsrasas/{id}",
+        "/at280_israsas/Adresas",
+        "/at280_israsas/Adresas/{id}",
+        "/at280_adresai/Adresas",
+        "/at280_adresai/Adresas/{id}",
+    }
+
+
+def test_service_filter_matches_on_segment_boundary(open_manifest_path_factory):
+    """`.../at280/1` must not match `.../at280/10`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert not [path for path in open_api_spec["paths"] if "at280_kitas" in path]
+
+    other = _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/jadis/at280/10")
+    assert set(other["paths"]) == {
+        "/:version",
+        "/:health",
+        "/:token",
+        "/version",
+        "/health",
+        "/auth/token",
+        "/at280_kitas/Adresas",
+        "/at280_kitas/Adresas/{id}",
+    }
+
+
+def test_service_of_another_information_system_is_not_included(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert not [path for path in open_api_spec["paths"] if "n249" in path]
+
+
+def test_service_unknown_path_raises(open_manifest_path_factory):
+    with pytest.raises(DataServiceNotFound) as error:
+        _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/jadis/at280/2")
+
+    assert "datasets/gov/rc/jadis/at280/1" in str(error.value)
+
+
+def test_service_schema_names_are_unique_for_same_model_name(open_manifest_path_factory):
+    """Datasets of one service can hold models of the same name."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schemas = open_api_spec["components"]["schemas"]
+    assert "at280_israsas_Adresas" in schemas
+    assert "at280_adresai_Adresas" in schemas
+    assert "Adresas" not in schemas
+
+    tags = {tag["name"] for tag in open_api_spec["tags"]}
+    assert {"at280_israsas_Adresas", "at280_adresai_Adresas"}.issubset(tags)
+
+
+def test_service_ref_between_datasets_uses_a_reference_schema(open_manifest_path_factory):
+    """A reference carries what its level says, not the whole target model."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schemas = open_api_spec["components"]["schemas"]
+    properties = schemas["at280_israsas_DalyvioAsmensIsrasas"]["properties"]
+    assert properties["adresas"]["anyOf"] == [
+        {"$ref": "#/components/schemas/at280_adresai_Adresas_Ref"},
+        {"type": "object", "nullable": True, "enum": [None]},
+    ]
+
+    # The target keeps its full schema, holding every property of the model,
+    # while the reference schema holds what a level 4 reference carries.
+    assert "gatve" in schemas["at280_adresai_Adresas"]["properties"]
+    assert set(schemas["at280_adresai_Adresas_Ref"]["properties"]) == {"_id"}
+
+
+def test_model_schema_accepts_a_real_reference_value(open_manifest_path_factory):
+    """A level 4 reference is serialized as `{"_id": ...}`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["schemas"]["at280_israsas_DalyvioAsmensIsrasas"]
+    body = {
+        "_type": "datasets/gov/rc/jadis/at280/1/at280_israsas/DalyvioAsmensIsrasas",
+        "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
+        "_revision": None,
+        "kodas": "K1",
+        "adresas": {"_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d"},
+    }
+
+    assert not list(_validator(open_api_spec, schema).iter_errors(body))
+
+
+def test_service_ref_to_missing_dataset_does_not_break_generation(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/ntr/n249/1")
+
+    properties = open_api_spec["components"]["schemas"]["n249_israsas_Israsas"]["properties"]
+    assert "vieta" in properties
+
+
+def test_service_utility_paths(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    paths = open_api_spec["paths"]
+    # A gateway reaches an agent endpoint in the action form, under the data
+    # service path; a client calling the agent reaches it at its own address.
+    assert paths["/:version"]["get"]["operationId"] == "apiVersion"
+    assert paths["/:health"]["get"]["operationId"] == "apiHealth"
+    assert paths["/:token"]["post"]["operationId"] == "apiToken"
+    assert "servers" not in paths["/:version"]
+
+    assert paths["/version"]["get"]["operationId"] == "apiVersionOfAgent"
+    assert paths["/health"]["get"]["operationId"] == "apiHealthOfAgent"
+    assert paths["/auth/token"]["post"]["operationId"] == "apiTokenOfAgent"
+
+
+def test_agent_endpoints_are_the_routes_spinta_serves():
+    """The address form has to be an address Spinta answers at."""
+    import inspect
+    import re
+
+    from spinta.api import init
+
+    routes = set(re.findall(r'Route\("([^"]+)"', inspect.getsource(init)))
+
+    assert set(AGENT_UTILITY_PATHS) <= routes, f"not served: {sorted(set(AGENT_UTILITY_PATHS) - routes)}"
+
+
+def test_service_agent_endpoints_drop_the_data_service_path(open_manifest_path_factory):
+    """They are served by the agent, not under the data service path."""
+    config = UdtsConfig(servers=[{"url": "https://get.data.gov.lt"}])
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert open_api_spec["servers"] == [{"url": f"https://get.data.gov.lt/{SERVICE_PATH}"}]
+    for path in ("/version", "/health", "/auth/token"):
+        assert open_api_spec["paths"][path]["servers"] == [{"url": "https://get.data.gov.lt"}]
+
+
+def test_service_health_is_not_authorized(open_manifest_path_factory):
+    """A probe calls it without credentials, see `spinta.api.health`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert open_api_spec["paths"]["/:health"]["get"]["security"] == [{}]
+
+
+def test_service_health_response_matches_what_spinta_answers(open_manifest_path_factory, app):
+    """The document has to describe the probe Spinta actually serves."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    schemas = open_api_spec["components"]["schemas"]
+
+    response = app.get("/health")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    _validate(response.json(), schemas["health"])
+
+
+def test_service_security_schemes(open_manifest_path_factory):
+    config = UdtsConfig(auth={"token_url": "https://rc-agentas.lt/auth/token"})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    schemes = open_api_spec["components"]["securitySchemes"]
+    assert schemes["UAPI_auth"]["flows"]["clientCredentials"]["tokenUrl"] == "https://rc-agentas.lt/auth/token"
+    assert schemes["UAPI_client"]["scheme"] == "basic"
+
+
+def test_service_security_schemes_default_token_url(open_manifest_path_factory):
+    config = UdtsConfig(servers=[{"url": "https://get.data.gov.lt"}])
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    scheme = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]
+    assert scheme["flows"]["clientCredentials"]["tokenUrl"] == f"https://get.data.gov.lt/{SERVICE_PATH}/:token"
+
+
+def test_service_servers_from_config(open_manifest_path_factory):
+    config = UdtsConfig(
+        servers=[
+            {"url": "https://get.data.gov.lt", "description": "Production"},
+            {"url": f"https://test-get.data.gov.lt/{SERVICE_PATH}", "description": "Testing"},
+        ]
+    )
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert open_api_spec["servers"] == [
+        {"url": f"https://get.data.gov.lt/{SERVICE_PATH}", "description": "Production"},
+        {"url": f"https://test-get.data.gov.lt/{SERVICE_PATH}", "description": "Testing"},
+    ]
+
+
+def test_service_servers_without_config_are_relative(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert open_api_spec["servers"] == [{"url": f"/{SERVICE_PATH}"}]
+
+
+def test_service_info_from_config(open_manifest_path_factory):
+    config = UdtsConfig(info={"title": "JADIS", "summary": "Data service", "version": "1"})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    info = open_api_spec["info"]
+    assert info["title"] == "JADIS"
+    assert "summary" not in info
+    assert info["description"].startswith("Data service\n\n")
+    assert info["version"] == "1"
+    # Not taken from any single dataset of the service.
+    assert info["description"] != "Išrašo duomenys"
+
+
+def test_service_api_version_overrides_config(open_manifest_path_factory):
+    config = UdtsConfig(info={"version": "1"})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config, api_version="2.1.8")
+
+    assert open_api_spec["info"]["version"] == "2.1.8"
+
+
+def test_trace_headers_are_not_required(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    parameters = open_api_spec["components"]["parameters"]
+    assert parameters["traceparent"]["required"] is False
+    assert parameters["tracestate"]["required"] is False
+
+
+def test_revision_accepts_null(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
+    assert (properties["_revision"]["type"], properties["_revision"].get("nullable")) == ("string", True)
+    # Required properties keep their plain type.
+    assert properties["id"]["type"] == "string"
+    assert (properties["gatve"]["type"], properties["gatve"].get("nullable")) == ("string", True)
+
+
+def _operation_ids(open_api_spec: dict) -> list[str]:
+    return [
+        operation["operationId"]
+        for operations in open_api_spec["paths"].values()
+        for method, operation in operations.items()
+        if method != "parameters" and "operationId" in operation
+    ]
+
+
+def test_service_operation_ids_are_unique(open_manifest_path_factory):
+    """Same model name in two datasets must not produce the same operation id."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    operation_ids = _operation_ids(open_api_spec)
+    assert len(operation_ids) == len(set(operation_ids))
+    assert "getAllat280_israsas_Adresas" in operation_ids
+    assert "getAllat280_adresai_Adresas" in operation_ids
+
+
+def test_service_required_enum_property_is_not_nullable(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    properties = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]["properties"]
+    assert properties["id"]["type"] == "string"
+    assert "enum" not in properties["id"]
+
+
+def test_service_enum_lists_the_values_a_client_sees(open_manifest_path_factory):
+    """`prepare` gives the value, `source` only fills in where it is missing."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_VALUES)
+
+    properties = open_api_spec["components"]["schemas"]["ds_Testamentas"]["properties"]
+
+    # `0` and an empty string are values, not missing ones.
+    assert properties["sudaryta"]["enum"] == [1, 0, None]
+    assert properties["zyma"]["enum"] == ["", "V", None]
+
+
+def test_service_enum_of_formulas_leaves_the_property_alone(open_manifest_path_factory):
+    """A formula says what the data does, so there is no value to list."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_VALUES)
+
+    rusis = open_api_spec["components"]["schemas"]["ds_Testamentas"]["properties"]["rusis"]
+
+    assert "enum" not in rusis
+    assert (rusis["type"], rusis.get("nullable")) == ("integer", True)
+
+
+def test_service_schema_names_hold_only_allowed_characters(open_manifest_path_factory):
+    """A component name an institution gives has to pass `^[a-zA-Z0-9._-]+$`."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_UNNAMABLE_NAMES)
+
+    assert "_duom_rink__Esybe" in open_api_spec["components"]["schemas"]
+
+
+@pytest.mark.models("backends/postgres/Subitem")
+def test_object_property_response_matches_what_spinta_answers(model, app, context):
+    """The schema of an object property has to describe the subresource."""
+    app.authmodel(model, ["insert", "getone", "subobj_getone"])
+    created = app.post(f"/{model}", json={"subobj": {"foo": "a", "bar": 1}}).json()
+
+    response = app.get(f"/{model}/{created['_id']}/subobj")
+
+    assert response.status_code == 200
+    schemas = _store_spec(context)["components"]["schemas"]
+    _validate(response.json(), schemas["backends_postgres_Subitem_subobj"])
+
+
+@pytest.mark.models("backends/postgres/Subitem")
+def test_file_property_reference_matches_what_spinta_answers(model, app, context):
+    """`:ref` answers with what is known about the file, not with the file."""
+    app.authmodel(model, ["insert", "getone", "pdf_getone"])
+    created = app.post(f"/{model}", json={}).json()
+
+    response = app.get(f"/{model}/{created['_id']}/pdf:ref")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    spec = _store_spec(context)
+    # The answer carries the `_revision` of the model, which the model may
+    # build out of its own data, so the schema is of that model.
+    name = f"{model.replace('/', '_')}_pdf_ref"
+    _validate(response.json(), spec["components"]["schemas"][name])
+    assert spec["components"]["schemas"][name]["required"] == ["_type", "_revision"]
+    assert spec["components"]["schemas"][name]["properties"]["_type"]["enum"] == [f"{model}.pdf"]
+
+
+@pytest.mark.models("backends/postgres/City")
+def test_a_listing_is_continued_the_way_the_page_parameter_says(model, app, open_manifest_path_factory):
+    """The next page is asked for with `_page`, a parameter a gateway checks.
+
+    A token carries `=` padding, which is given as it is or percent encoded.
+    """
+    from urllib.parse import quote
+
+    app.authmodel(model, ["insert", "getall", "search"])
+    for title in ("Vilnius", "Kaunas", "Klaipėda"):
+        app.post(f"/{model}", json={"title": title})
+
+    first = app.get(f"/{model}?_limit=1").json()
+    token = first["_page"]["next"]
+    assert token.endswith("=")
+
+    page = _service_spec(open_manifest_path_factory)["components"]["parameters"]["page"]
+    assert (page["name"], page["in"]) == ("_page", "query")
+    _validate(token, page["schema"])
+
+    seen = [first["_data"][0]["_id"]]
+    for query in (f"_limit=1&_page={token}", f"_limit=1&_page={quote(token, safe='')}", f"_limit=1&page('{token}')"):
+        response = app.get(f"/{model}?{query}")
+        assert response.status_code == 200, (query, response.json())
+        assert [row["_id"] for row in response.json()["_data"]] != seen, query
+    second = app.get(f"/{model}?_limit=1&_page={token}").json()["_data"]
+    assert second[0]["_id"] not in seen
+
+
+@pytest.mark.models("backends/postgres/Subitem")
+def test_query_example_shape_is_answered_by_spinta(model, app):
+    """The query an API client builds out of the examples has to work.
+
+    Which properties the examples name is checked where the document is built,
+    see `test_collection_head_takes_the_query_parameter`; what is checked here
+    is that a query of that shape, of real property names, is answered.
+    """
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"scalar": "a"})
+
+    response = app.get(f"/{model}?_select=scalar&_limit=10&_sort=scalar")
+
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.models("backends/postgres/Subitem")
+def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open_manifest_path_factory):
+    """A model keeping a UUID identifier keeps the pattern of one."""
+    app.authmodel(model, ["insert", "getone"])
+    created = app.post(f"/{model}", json={}).json()
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+
+    schema = parameters["id_at280_israsas_DalyvioAsmensIsrasas"]["schema"]
+    assert "pattern" in schema
+    _validate(created["_id"], schema)
+
+    # `is_object_id` takes a UUID of version 4 alone, see `spinta.backends`, so
+    # a path holding any other one is not read as an identifier at all.
+    other_version = str(uuid.uuid5(uuid.NAMESPACE_DNS, "example.com"))
+    assert app.get(f"/{model}/{other_version}").status_code == 404
+    with pytest.raises(ValidationError):
+        _validate(other_version, schema)
+
+    # It reads the value with `uuid.UUID`, which drops the hyphens, the braces
+    # and an `urn:uuid:` prefix, so every one of these is served and the
+    # document has to take them all.
+    identifier = created["_id"]
+    for spelling in (
+        identifier.replace("-", ""),
+        "{" + identifier + "}",
+        "urn:uuid:" + identifier,
+        "urn:" + identifier,
+        "uuid:" + identifier,
+        "uuid:{" + identifier + "}",
+        identifier.upper(),
+    ):
+        assert app.get(f"/{model}/{spelling}").status_code == 200, spelling
+        _validate(spelling, schema)
+
+    # `uuid.UUID` reads more than a client writes, and the pattern holds to the
+    # spellings a client writes, keeping the version asserted.
+    assert app.get(f"/{model}/{identifier}urn:").status_code == 200
+    with pytest.raises(ValidationError):
+        _validate(f"{identifier}urn:", schema)
+
+
+def test_declared_uuid_identifier_is_the_one_spinta_reads():
+    """A declared `uuid` is read by `is_str_uuid`, which is the strict one."""
+    import re
+    import uuid as uuid_module
+
+    from spinta.manifests.open_api.openapi_config import UUID_VALUE_PATTERN
+    from spinta.utils.types import is_str_uuid
+
+    identifier = str(uuid_module.uuid4())
+    for value in (
+        identifier,
+        identifier.upper(),
+        identifier.replace("-", ""),
+        "urn:uuid:" + identifier,
+        str(uuid_module.uuid5(uuid_module.NAMESPACE_DNS, "example.com")),
+    ):
+        # `UUID.load` builds the value again and compares it with what it was
+        # given, so the pattern of a declared `uuid` follows that and not the
+        # looser reading an identifier Spinta gives goes through.
+        assert bool(re.match(UUID_VALUE_PATTERN, value)) is is_str_uuid(value), value
+
+
+def test_file_reference_revision_is_the_one_the_model_builds(open_manifest_path_factory):
+    """A model can build `_revision` out of its data, and then it is not a UUID."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_FILE_AND_DECLARED_REVISION)
+    schemas = open_api_spec["components"]["schemas"]
+
+    revision = schemas["ds_Byla_priedas_ref"]["properties"]["_revision"]
+    # The shared schema said `string` or `null`, which would refuse the whole
+    # number this model answers with, see `_revision_schema`.
+    _validate(1, revision)
+    # And nothing references the shared one any more.
+    assert "fileRef" not in schemas
+
+
+def test_a_media_type_keeps_what_the_configuration_says_about_it(open_manifest_path_factory):
+    """A schema of alternatives carries no example, so one sits beside it."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    components = open_api_spec["components"]
+
+    content = components["responses"]["tokenError400"]["content"]["application/json"]
+    assert "example" in content
+    # And it is an answer the schema beside it accepts.
+    _validate(
+        content["example"],
+        {**content["schema"], "components": components},
+    )
+
+
+def test_no_schema_carries_what_openapi_3_0_does_not_have(open_manifest_path_factory):
+    """A schema of OpenAPI 3.0 is not JSON Schema 2020-12, so none of it is written.
+
+    `examples`, `const` and a list of types are JSON Schema a 3.1 document holds,
+    and an OpenAPI 3.0 reader refuses them or silently ignores them.
+    """
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    components = open_api_spec["components"]
+
+    def schemas_of(node, path):
+        """Every schema of the document, and nothing that only looks like one."""
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "schema" and isinstance(value, dict):
+                    yield "/".join([*path, key]), value
+                else:
+                    yield from schemas_of(value, [*path, str(key)])
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                yield from schemas_of(item, [*path, str(i)])
+
+    def walk(name, schema):
+        yield name, schema
+        for key in ("items", "not", "additionalProperties"):
+            if isinstance(schema.get(key), dict):
+                yield from walk(f"{name}/{key}", schema[key])
+        for key in ("anyOf", "oneOf", "allOf"):
+            for i, item in enumerate(schema.get(key) or []):
+                yield from walk(f"{name}/{key}/{i}", item)
+        for key in ("properties", "patternProperties"):
+            for prop, item in (schema.get(key) or {}).items():
+                yield from walk(f"{name}/{key}/{prop}", item)
+
+    def of_3_1(schema):
+        return "examples" in schema or "const" in schema or isinstance(schema.get("type"), list)
+
+    found = []
+    for name, schema in components["schemas"].items():
+        found += [n for n, s in walk(name, schema) if of_3_1(s)]
+    for where in (open_api_spec["paths"], {k: v for k, v in components.items() if k != "schemas"}):
+        for name, schema in schemas_of(where, []):
+            found += [n for n, s in walk(name, schema) if of_3_1(s)]
+
+    assert not found, found[:5]
+    # A schema gives its example the way OpenAPI 3.0 reads it.
+    assert "example" in components["schemas"]["at280_israsas_DalyvioAsmensIsrasas"]
+
+
+def test_error_examples_hold_no_placeholders(open_manifest_path_factory):
+    """`error_response` sends the message filled in, never the template."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    schemas = open_api_spec["components"]["schemas"]
+
+    # A named error pins its template with a single `enum` value; the
+    # open-ended `Error` does not, and its message example stands for whichever
+    # error it carries.
+    named = [
+        name for name, schema in schemas.items() if "enum" in ((schema.get("properties") or {}).get("template") or {})
+    ]
+    assert named
+    for name in [*named, "Error"]:
+        message = schemas[name]["properties"]["message"].get("example")
+        assert message is not None, name
+        assert "{" not in message and "}" not in message, (name, message)
+
+
+def test_unpublished_metadata_is_left_out(open_manifest_path_factory):
+    """Only `protected`, `package` and `public` metadata is published; empty is `private`."""
+    with pytest.warns(UserWarning, match="left out of the specification"):
+        open_api_spec = _service_spec(
+            open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY, publish=False
+        )
+    schemas = open_api_spec["components"]["schemas"]
+    text = json.dumps(open_api_spec)
+
+    salis = schemas["ds_Salis"]
+    # A property marked private is left out, and so is one given no visibility.
+    assert "kodas" in salis["properties"]
+    assert "slaptas" not in salis["properties"]
+    assert "pavadinimas" not in salis["properties"]
+    assert "slaptas" not in salis["example"]
+    assert "pavadinimas" not in salis["example"]
+
+    # An enum value is published only when it is marked so.
+    tipas = json.dumps(salis["properties"]["tipas"])
+    assert "a" in salis["properties"]["tipas"]["enum"]
+    assert "b" not in salis["properties"]["tipas"]["enum"]
+    assert "c" not in salis["properties"]["tipas"]["enum"], tipas
+
+    # A file property marked private gets no path and no schema of its own.
+    assert not [path for path in open_api_spec["paths"] if path.endswith("/byla") or path.endswith("/byla:ref")]
+    assert "ds_Salis_byla_ref" not in schemas
+
+    # A text property is published while any of its languages is.
+    assert "aprasas" in salis["properties"]
+    assert "pastaba" not in salis["properties"]
+    assert "santrauka" not in salis["properties"]
+
+    # A model marked private is not described, nor is one given no visibility.
+    for name in ("Paslaptis", "Nepazymetas"):
+        assert not [path for path in open_api_spec["paths"] if name in path], name
+        assert not [schema for schema in schemas if name in schema], name
+        assert name not in [tag["name"] for tag in open_api_spec["tags"]], name
+        assert name not in text, name
+
+    # A published reference to an unpublished model points at a schema that
+    # names nothing of it, see `UNPUBLISHED_REFERENCE`.
+    for name in ("paslaptis", "nepazymetas"):
+        assert salis["properties"][name]["anyOf"][0] == {"$ref": "#/components/schemas/UnpublishedReference"}, name
+    assert schemas["UnpublishedReference"]["properties"] == {}
+
+    # Nor does a query example name what is not published.
+    parameters = open_api_spec["components"]["parameters"]
+    query = json.dumps([parameters["select_ds_Salis"], parameters["sort_ds_Salis"]])
+    assert "slaptas" not in query and "pavadinimas" not in query
+
+
+def test_nothing_published_is_said(open_manifest_path_factory):
+    """A DSA that marks nothing gets a document without models, and is told why."""
+    with pytest.warns(UserWarning) as record:
+        open_api_spec = _service_spec(open_manifest_path_factory, publish=False)
+
+    messages = [str(warning.message) for warning in record]
+    assert any("left out of the specification" in message for message in messages)
+    assert any("No model of this export is published" in message for message in messages)
+    assert not [schema for schema in open_api_spec["components"]["schemas"] if schema.startswith("at280_")]
+
+
+def test_unpublished_metadata_leaves_a_valid_document(open_manifest_path_factory):
+    openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
+    with pytest.warns(UserWarning):
+        open_api_spec = _service_spec(
+            open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY, publish=False
+        )
+    openapi_spec_validator.validate(open_api_spec)
+
+
+def test_whole_number_identifier_is_bounded(open_manifest_path_factory):
+    """A path segment of a request is bounded, whatever its type."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_INTEGER_ID)
+
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+
+    assert identifier["type"] == "integer"
+    assert identifier["format"] == "int64"
+    _validate(identifier["example"], identifier)
+    _validate(2**63 - 1, identifier)
+    with pytest.raises(ValidationError):
+        _validate(2**63, identifier)
+
+
+def test_composite_identifier_example_holds_every_key(open_manifest_path_factory):
+    """A key of several parts is one identifier, the parts separated by commas."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_COMPOSITE_ID)
+
+    salis = open_api_spec["components"]["schemas"]["ds_Salis"]
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+
+    answered = salis["example"]
+    expected = f"{answered['nr']},{answered['kodas']}"
+    assert identifier["example"] == expected
+    assert salis["properties"]["_id"]["example"] == expected
+    _validate(identifier["example"], identifier)
+
+    # A composite key is not reached by an equals sign, see
+    # `is_accessible_by_equals_sign`, so the example carries none.
+    assert not identifier["example"].startswith("=")
+
+
+def test_base32_identifier_takes_a_length_that_decodes(open_manifest_path_factory):
+    """Padding is dropped, so what is left has to be paddable back."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_BASE32_ID)
+    schema = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+
+    for length in range(1, 25):
+        value = "=" + "A" * length
+        # `base64.b32decode` pads back to a multiple of eight and raises where
+        # that cannot be done, see `spinta.datasets.helpers.decode_id_value`.
+        decodes = length % 8 not in (1, 3, 6)
+        if decodes:
+            _validate(value, schema)
+        else:
+            with pytest.raises(ValidationError):
+                _validate(value, schema)
+
+
+def test_not_modified_carries_no_body_headers(open_manifest_path_factory):
+    """`304` answers before a body is built, so it has none of its headers."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    answers = [
+        (path, method, operation["responses"]["304"])
+        for path, operations in open_api_spec["paths"].items()
+        for method, operation in operations.items()
+        if method != "parameters" and isinstance(operation, dict) and "304" in operation.get("responses", {})
+    ]
+    assert answers
+    for path, method, response in answers:
+        headers = set(response.get("headers", {}))
+        assert headers == {"ETag", "Cache-Control"}, (path, method)
+
+
+def test_etag_is_not_bounded_by_a_policy(open_manifest_path_factory):
+    """A revision a model declares itself is of no stated length."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    etag = open_api_spec["components"]["headers"]["ETag"]["schema"]
+    _validate("x" * 4096, etag)
+    # A request header is bounded, because a gateway may refuse an oversized one.
+    if_none_match = open_api_spec["components"]["parameters"]["If-None-Match"]["schema"]
+    with pytest.raises(ValidationError):
+        _validate("x" * 4096, if_none_match)
+
+
+def test_base32_identifier_example_is_the_key_encoded(open_manifest_path_factory):
+    """`base32` says the identifier is the key encoded, not the key itself."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_BASE32_ID)
+
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+    salis = open_api_spec["components"]["schemas"]["ds_Salis"]
+    key = salis["example"]["kodas"]
+
+    # The value a request gives is the encoded key behind an equals sign, and
+    # the schema of the parameter has to accept its own example.
+    assert identifier["example"] == f"={encode_base32(key)}"
+    _validate(identifier["example"], identifier)
+
+    # A response carries the same identifier without the sign, which is the
+    # form `cast_backend_to_python` gives it in, and of the shape that form has.
+    assert salis["properties"]["_id"]["example"] == encode_base32(key)
+    assert salis["example"]["_id"] == encode_base32(key)
+    answered = salis["properties"]["_id"]
+    _validate(answered["example"], answered)
+    for refused in (answered["example"].lower(), answered["example"] + "======", "=" + answered["example"]):
+        with pytest.raises(ValidationError):
+            _validate(refused, answered)
+
+
+def test_declared_identifier_is_not_described_as_a_uuid(open_manifest_path_factory):
+    """A model can declare `_id` of its own, and then it holds the data key."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
+    parameters = open_api_spec["components"]["parameters"]
+
+    identifier = parameters["id_ds_Salis"]
+    # A string identifier of a model keyed by a single property is reached by an
+    # equals sign, see `is_accessible_by_equals_sign`, and is otherwise of no
+    # stated shape, because only the data knows what its keys look like.
+    assert identifier["schema"]["type"] == "string"
+    assert identifier["schema"]["pattern"] == EQUALS_ID_PATTERN
+    # The example is the value of the property the model is keyed by, behind
+    # the equals sign a request needs.
+    assert identifier["schema"]["example"].startswith("=")
+    _validate("=AE", identifier["schema"])
+    _validate("=ąčę-2026", identifier["schema"])
+    for value in ("AE", "=a/b"):
+        with pytest.raises(ValidationError):
+            _validate(value, identifier["schema"])
+    # The pattern of a UUID would reject the value the data holds either way.
+    with pytest.raises(ValidationError):
+        _validate("=AE", {"type": "string", "pattern": PARAMETER_COMPONENTS["id"]["schema"]["pattern"]})
+
+    for operation in open_api_spec["paths"]["/ds/Salis/{id}"].values():
+        assert operation["parameters"][0] == {"$ref": "#/components/parameters/id_ds_Salis"}
+
+
+def test_example_identifiers_are_not_all_one(open_manifest_path_factory):
+    """One identifier everywhere reads as if every model answered the same object."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    schemas = open_api_spec["components"]["schemas"]
+
+    israsas = schemas["at280_israsas_DalyvioAsmensIsrasas"]["example"]
+    adresas = schemas["at280_adresai_Adresas"]["example"]
+
+    assert israsas["_id"] != adresas["_id"]
+    assert israsas["_id"] != israsas["_revision"]
+
+    # A request and the answer beside it speak about one object.
+    identifier = open_api_spec["components"]["parameters"]["id_at280_israsas_DalyvioAsmensIsrasas"]
+    assert identifier["schema"]["example"] == israsas["_id"]
+
+    # A reference points at the example of what it references.
+    assert israsas["adresas"]["_id"] == adresas["_id"]
+
+
+def test_generating_twice_gives_the_same_document(open_manifest_path_factory):
+    """A regenerated file has to differ only where the manifest did."""
+    first = _service_spec(open_manifest_path_factory)
+    second = _service_spec(open_manifest_path_factory)
+
+    assert json.dumps(first) == json.dumps(second)
+
+
+def test_service_requested_scopes_are_declared(open_manifest_path_factory):
+    """Every scope an operation requests has to be declared in the flow."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+    requested = {
+        scope
+        for operations in open_api_spec["paths"].values()
+        for method, operation in operations.items()
+        if method != "parameters" and isinstance(operation, dict)
+        for requirement in operation.get("security", [])
+        for scope in requirement.get("UAPI_auth", [])
+    }
+
+    assert requested
+    assert requested <= set(declared)
+
+
+OTHER_SERVICE_PATH = "datasets/gov/rc/ntr/n249/1"
+
+
+def _schema_refs(open_api_spec: dict) -> set[str]:
+    refs = set()
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "$ref" and isinstance(value, str):
+                    refs.add(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(open_api_spec)
+    return refs
+
+
+def test_every_schema_ref_resolves(open_manifest_path_factory):
+    """A dangling `$ref` makes the whole document invalid."""
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
+
+    declared = set(open_api_spec["components"]["schemas"])
+    used = {ref for ref in _schema_refs(open_api_spec) if ref.startswith("#/components/schemas/")}
+
+    assert used
+    assert {ref for ref in used if ref.rsplit("/", 1)[1] not in declared} == set()
+
+
+def test_ref_to_missing_dataset_is_an_object(open_manifest_path_factory):
+    """Such a `ref` is downgraded to an object, so it must not be typed a string."""
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
+
+    properties = open_api_spec["components"]["schemas"]["n249_israsas_Israsas"]["properties"]
+    assert (properties["vieta"]["type"], properties["vieta"].get("nullable")) == ("object", True)
+
+
+def test_yaml_output_has_no_anchors(open_manifest_path_factory, tmp_path):
+    """Shared objects would be written as anchors and aliases.
+
+    Two properties referencing one model outside the exported service is the
+    case where the same example object used to be reused.
+    """
+    open_api_spec = _service_spec(open_manifest_path_factory, service_path=OTHER_SERVICE_PATH)
+
+    output = tmp_path / "spec.yaml"
+    write_openapi_manifest(open_api_spec, str(output))
+    written = output.read_text(encoding="utf-8")
+
+    assert "adresas2" in written
+    assert "&id" not in written
+    assert "*id" not in written
+
+
+def test_token_response_requires_rfc_6749_fields(open_manifest_path_factory):
+    """Without `required` the response validation would accept an empty body."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["schemas"]["token"]
+    assert schema["required"] == ["access_token", "token_type"]
+
+
+def test_schema_names_of_colliding_dataset_paths_are_disambiguated(open_manifest_path_factory):
+    """`a_b` and `a/b` map to one name, so one schema would replace the other."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_DATASETS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    assert {"a_b_C", "a_b_C_2"} <= set(schemas)
+
+    # Each path references the schema of its own model.
+    referenced = {
+        path: operations["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        for path, operations in open_api_spec["paths"].items()
+        if path in ("/a/b/C/{id}", "/a_b/C/{id}")
+    }
+    assert len(set(referenced.values())) == 2
+    for path, ref in referenced.items():
+        properties = schemas[ref.rsplit("/", 1)[1]]["properties"]
+        assert ("x" in properties) == (path == "/a_b/C/{id}")
+
+
+def test_collection_schema_is_not_taken_by_another_model(open_manifest_path_factory):
+    """A model named `DataCollection` must not replace the collection of `Data`."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_MODELS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    collection_ref = open_api_spec["paths"]["/ds/Data"]["get"]["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]["$ref"]
+
+    assert "_data" in schemas[collection_ref.rsplit("/", 1)[1]]["properties"]
+    assert "y" in schemas["ds_DataCollection_2"]["properties"]
+
+
+def test_file_and_image_properties_are_objects(open_manifest_path: ManifestPath):
+    """Spinta returns an object for them, the content is served by their endpoint."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schemas = open_api_spec["components"]["schemas"]
+    logo = schemas["datasets_demo_system_data_Organization"]["properties"]["org_logo"]
+    specs = schemas["datasets_demo_system_data_ProcessingUnit"]["properties"]["technical_specs"]
+
+    assert logo["anyOf"] == [{"$ref": "#/components/schemas/image"}, NULL_OBJECT_SCHEMA]
+    assert specs["anyOf"] == [{"$ref": "#/components/schemas/file"}, NULL_OBJECT_SCHEMA]
+    assert schemas["image"]["type"] == "object"
+    assert schemas["file"]["type"] == "object"
+
+
+def test_model_operations_accept_namespace_scopes(rc, open_manifest_path: ManifestPath):
+    """Spinta accepts a scope of the model or of any namespace above it."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+
+    requested = [
+        requirement["UAPI_auth"][0]
+        for requirement in open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
+    ]
+
+    assert requested == [
+        get_scope_name(context, node, Action.GETONE, is_udts=True) for node in [model, model.ns, *model.ns.parents()]
+    ]
+    # The namespace of the dataset and the root namespace among them.
+    assert "uapi:/datasets/demo/system_data/:getone" in requested
+    assert "uapi:/:getone" in requested
+
+
+def test_hidden_property_takes_its_own_scope_only(rc, open_manifest_path_factory):
+    """`spinta.auth.authorized` does not widen a hidden property."""
+    from spinta.manifests.open_api.openapi_generator import _authorized_nodes
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+    prop = model.properties["org_logo"]
+
+    prop.hidden = True
+    try:
+        assert _authorized_nodes(model, "property", ("org_logo", prop)) == [prop]
+    finally:
+        prop.hidden = False
+
+    assert _authorized_nodes(model, "property", ("org_logo", prop))[:2] == [prop, model]
+
+
+def test_model_operations_request_real_scopes(rc, open_manifest_path: ManifestPath):
+    """Scopes have to be the ones Spinta itself checks, they are not `uapi:/`.
+
+    Their length depends on `scope_max_length`, so they are compared against
+    `spinta.auth`, which builds the scopes Spinta authorizes against.
+    """
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+
+    def scope(node, action):
+        return get_scope_name(context, node, action, is_udts=True)
+
+    paths = open_api_spec["paths"]
+    # A collection is read with `getall`, or with `search` when the request
+    # narrows it down, and a token carrying either one is enough.
+    collection = paths["/datasets/demo/system_data/Organization"]["get"]["security"]
+    assert collection[0] == {"UAPI_auth": [scope(model, Action.GETALL)]}
+    assert {"UAPI_auth": [scope(model, Action.SEARCH)]} in collection
+
+    assert paths["/datasets/demo/system_data/Organization/{id}"]["get"]["security"][0] == {
+        "UAPI_auth": [scope(model, Action.GETONE)],
+    }
+    assert paths["/datasets/demo/system_data/Organization/{id}/org_logo"]["get"]["security"][0] == {
+        "UAPI_auth": [scope(model.properties["org_logo"], Action.GETONE)],
+    }
+
+
+def test_scope_max_length_is_honoured(open_manifest_path: ManifestPath):
+    open_api_spec = create_openapi_manifest(open_manifest_path, scope_max_length=200)
+
+    security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
+    assert security[0] == {"UAPI_auth": ["uapi:/datasets/demo/system_data/Organization/:getone"]}
+
+
+def test_referenced_models_outside_the_service_get_own_schemas(open_manifest_path_factory):
+    """External `a_b/C` and `a/b/C` map to one name, so one would replace the other."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_EXTERNAL_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    properties = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]
+    first = properties["first"]["anyOf"][0]["$ref"]
+    second = properties["second"]["anyOf"][0]["$ref"]
+
+    assert first != second
+    assert {first.rsplit("/", 1)[1], second.rsplit("/", 1)[1]} <= set(open_api_spec["components"]["schemas"])
+
+
+def test_model_head_operations_request_scopes(rc, open_manifest_path: ManifestPath):
+    """Spinta authorizes `HEAD` against the same actions as `GET`."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    context = load_manifest_get_context(rc, MANIFEST, ensure_backends=False)
+    manifest = context.get("store").manifest
+    model = commands.get_model(context, manifest, "datasets/demo/system_data/Organization")
+
+    paths = open_api_spec["paths"]
+    collection = paths["/datasets/demo/system_data/Organization"]["head"]["security"]
+    assert collection[0] == {"UAPI_auth": [get_scope_name(context, model, Action.GETALL, is_udts=True)]}
+    assert {"UAPI_auth": [get_scope_name(context, model, Action.SEARCH, is_udts=True)]} in collection
+
+    assert paths["/datasets/demo/system_data/Organization/{id}"]["head"]["security"][0] == {
+        "UAPI_auth": [get_scope_name(context, model, Action.GETONE, is_udts=True)],
+    }
+
+
+def test_scope_prefix_is_configurable(open_manifest_path: ManifestPath):
+    """Deployments can override `scope_prefix_udts`."""
+    open_api_spec = create_openapi_manifest(open_manifest_path, scope_prefix="kita:/", scope_max_length=200)
+
+    security = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}"]["get"]["security"]
+    assert security[0] == {"UAPI_auth": ["kita:/datasets/demo/system_data/Organization/:getone"]}
+    # Namespaces above the model are alternatives of their own.
+    assert {"UAPI_auth": ["kita:/datasets/demo/system_data/:getone"]} in security
+
+
+def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: ManifestPath):
+    """Spinta names the file `_id`, see `spinta.types.file.components.FileData`."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schemas = open_api_spec["components"]["schemas"]
+    for name in ("file", "image"):
+        # A response carries only these two, see `prepare_dtype_for_response`.
+        assert set(schemas[name]["properties"]) == {"_id", "_content_type"}
+        # Values are null once the file is deleted.
+        assert (schemas[name]["properties"]["_id"]["type"], schemas[name]["properties"]["_id"].get("nullable")) == (
+            "string",
+            True,
+        )
+
+    example = schemas["datasets_demo_system_data_ProcessingUnit"]["example"]["technical_specs"]
+    assert set(example) == {"_id", "_content_type"}
+
+
+def test_token_endpoint_errors(open_manifest_path_factory):
+    """The token endpoint answers with an RFC 6749 error, or with a Spinta one.
+
+    An unknown scope raises `InvalidScopes`, see `tests/test_auth.py`, while
+    authlib answers a failed client authentication with an OAuth error.
+    """
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    responses = open_api_spec["paths"]["/:token"]["post"]["responses"]
+    assert responses["400"] == {"$ref": "#/components/responses/tokenError400"}
+    assert responses["401"] == {"$ref": "#/components/responses/tokenError401"}
+
+    components = open_api_spec["components"]["responses"]
+    alternatives = components["tokenError400"]["content"]["application/json"]["schema"]["anyOf"]
+    assert alternatives[0] == {"$ref": "#/components/schemas/tokenError"}
+    assert _envelope_shape(alternatives[1]) == _errors_envelope(
+        {
+            "anyOf": [
+                {"$ref": "#/components/schemas/InvalidScopes"},
+                {"$ref": "#/components/schemas/Error"},
+            ],
+        },
+    )
+    assert components["tokenError401"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/tokenError",
+    }
+
+    schema = open_api_spec["components"]["schemas"]["tokenError"]
+    assert schema["required"] == ["error"]
+    assert "invalid_client" in schema["properties"]["error"]["enum"]
+
+
+def _errors_envelope(items: dict) -> dict:
+    """The shape of the envelope, without the descriptions and examples of it."""
+    return {"type": "object", "required": ["errors"], "properties": {"errors": {"type": "array", "items": items}}}
+
+
+def _envelope_shape(schema: dict) -> dict:
+    errors = schema["properties"]["errors"]
+    return {
+        "type": schema["type"],
+        "required": schema["required"],
+        "properties": {"errors": {"type": errors["type"], "items": errors["items"]}},
+    }
+
+
+def test_error_responses_use_the_spinta_envelope(open_manifest_path_factory):
+    """Spinta answers with `{"errors": [...]}`, see `spinta.api.error_response`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    responses = open_api_spec["components"]["responses"]
+    envelope = _envelope_shape(responses["error401"]["content"]["application/json"]["schema"])
+    assert envelope == _errors_envelope(
+        {
+            "anyOf": [
+                {"$ref": "#/components/schemas/AuthorizedClientsOnly"},
+                {"$ref": "#/components/schemas/BasicAuthRequired"},
+                {"$ref": "#/components/schemas/InvalidToken"},
+                # Spinta answers with more error codes than a document lists.
+                {"$ref": "#/components/schemas/Error"},
+            ],
+        },
+    )
+
+    # A status code with too many errors to name is answered for by `Error`.
+    assert _envelope_shape(responses["error400"]["content"]["application/json"]["schema"]) == _errors_envelope(
+        {"$ref": "#/components/schemas/Error"},
+    )
+
+
+def test_path_parameters_have_a_placeholder(open_manifest_path: ManifestPath):
+    """A path parameter must name a template expression of its path."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    components = open_api_spec["components"]["parameters"]
+    for path, operations in open_api_spec["paths"].items():
+        parameters = list(operations.get("parameters", []))
+        for method, operation in operations.items():
+            if method != "parameters" and isinstance(operation, dict):
+                parameters.extend(operation.get("parameters", []))
+
+        for parameter in parameters:
+            parameter = components[parameter["$ref"].rsplit("/", 1)[1]]
+            if parameter["in"] == "path":
+                assert f"{{{parameter['name']}}}" in path, f"{parameter['name']!r} has no placeholder in {path}"
+
+
+def test_operation_ids_of_colliding_names_are_disambiguated(open_manifest_path_factory):
+    """Model `A` with property `bc` and model `Ab` with property `c` build one id."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_OPERATION_IDS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    operation_ids = _operation_ids(open_api_spec)
+    assert len(operation_ids) == len(set(operation_ids))
+
+
+def test_token_request_example_uses_a_scope_of_the_service(open_manifest_path_factory):
+    """A hardcoded example would disagree with a configured scope prefix."""
+    open_api_spec = _service_spec(open_manifest_path_factory, scope_prefix="kita:/")
+
+    content = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]
+    example = content["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]["example"]
+    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+
+    assert example in declared
+    assert example.startswith("kita:/")
+    # A scope of a model of this data service, not of the agent, which the
+    # widest of the declared alternatives, the root namespace, would be.
+    assert example.startswith(f"kita:/{SERVICE_PATH}/")
+    assert example != sorted(declared)[0]
+
+
+def test_authorized_operations_declare_authentication_errors(open_manifest_path_factory):
+    """Response validation has to accept an ordinary authentication failure."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    for path, operations in open_api_spec["paths"].items():
+        for method, operation in operations.items():
+            if method == "parameters" or not isinstance(operation, dict):
+                continue
+            if not any("UAPI_auth" in requirement for requirement in operation.get("security", [])):
+                continue
+
+            responses = operation["responses"]
+            assert "401" in responses, f"{method} {path}"
+            assert "403" in responses, f"{method} {path}"
+
+
+def _validator(open_api_spec: dict, schema: dict):
+    """Build a validator of a schema of the generated specification."""
+    return _schema_validator({**schema, "components": open_api_spec["components"]})
+
+
+def _schema_validator(schema: dict):
+    """A validator reading a schema the way OpenAPI 3.0 writes it.
+
+    A schema of OpenAPI 3.0 is not JSON Schema: `nullable` lets a `null` in,
+    which a JSON Schema validator knows nothing of. A reference names a
+    component, so the components are given beside the schema, in its root.
+    """
+    openapi_schema_validator = pytest.importorskip("openapi_schema_validator")
+    return openapi_schema_validator.OAS30Validator(schema)
+
+
+def _validate(instance, schema: dict) -> None:
+    error = next(iter(_schema_validator(schema).iter_errors(instance)), None)
+    if error is not None:
+        raise error
+
+
+def _error_body(code: str) -> dict:
+    """Error as `spinta.api.error_response` builds it."""
+    return {"errors": [{"type": "system", "code": code, "template": "t", "context": {}, "message": "m"}]}
+
+
+@pytest.mark.parametrize(
+    "response, body",
+    [
+        ("error400", _error_body("UniqueConstraint")),
+        # Spinta answers with error codes beyond the ones the response names.
+        ("error400", _error_body("SomeOtherError")),
+        ("error401", _error_body("InvalidToken")),
+        ("error404", _error_body("ItemDoesNotExist")),
+        ("tokenError400", {"error": "invalid_client", "error_description": "Invalid client name"}),
+        ("tokenError400", _error_body("InvalidScopes")),
+    ],
+)
+def test_error_responses_accept_real_bodies(open_manifest_path_factory, response, body):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["responses"][response]["content"]["application/json"]["schema"]
+    assert not list(_validator(open_api_spec, schema).iter_errors(body))
+
+
+def test_model_schema_accepts_a_real_object(open_manifest_path: ManifestPath):
+    """Values Spinta leaves empty come as null, and a file comes as an object."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    schema = open_api_spec["components"]["schemas"]["datasets_demo_system_data_ProcessingUnit"]
+    body = {
+        "_type": "datasets/demo/system_data/ProcessingUnit",
+        "_id": "abdd1245-bbf9-4085-9366-f11c0f737c1d",
+        "_revision": None,
+        "unit_name": None,
+        "unit_type": None,
+        "technical_specs": {"_id": "specs.pdf", "_content_type": "application/pdf"},
+    }
+
+    assert not list(_validator(open_api_spec, schema).iter_errors(body))
+
+
+def test_service_path_and_main_dataset_name_are_alternatives(open_manifest_path: ManifestPath):
+    with pytest.raises(ValueError, match="not both"):
+        create_openapi_manifest(
+            open_manifest_path,
+            main_dataset_name="datasets/demo/system_data",
+            service_path=SERVICE_PATH,
+        )
+
+
+def test_yaml_output_has_no_anchors_from_the_configuration(open_manifest_path_factory, tmp_path):
+    """A `--udts-cfg` anchor leaves one object reached from two places."""
+    shared = {"raktas": "reiksme"}
+    config = UdtsConfig(info={"x-bendra": shared, "x-kita": shared}, servers=[{"url": "https://get.data.gov.lt"}])
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    output = tmp_path / "spec.yaml"
+    write_openapi_manifest(open_api_spec, str(output))
+    written = output.read_text(encoding="utf-8")
+
+    assert "x-bendra" in written
+    assert "&id" not in written
+    assert "*id" not in written
+
+
+def test_collection_head_takes_the_query_parameters(open_manifest_path_factory):
+    """`HEAD` is narrowed down by the same query as `GET`, and takes `:search`."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    parameters = open_api_spec["components"]["parameters"]
+
+    operations = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]
+    # Examples name properties of the model, so those are parameters of it.
+    expected = [
+        {"$ref": "#/components/parameters/select_at280_israsas_DalyvioAsmensIsrasas"},
+        {"$ref": "#/components/parameters/limit"},
+        {"$ref": "#/components/parameters/sort_at280_israsas_DalyvioAsmensIsrasas"},
+        {"$ref": "#/components/parameters/page"},
+    ]
+    for method in ("head", "get"):
+        for ref in expected:
+            assert ref in operations[method]["parameters"], (method, ref)
+
+    assert parameters["select_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["example"] == "kodas,adresas"
+    assert parameters["sort_at280_israsas_DalyvioAsmensIsrasas"]["schema"]["example"] == "kodas"
+    # Each is a `name=value` pair of its own, not a property of one object.
+    assert [parameters[ref["$ref"].rsplit("/", 1)[1]]["name"] for ref in expected] == [
+        "_select",
+        "_limit",
+        "_sort",
+        "_page",
+    ]
+
+    scopes = [requirement["UAPI_auth"][0] for requirement in operations["head"]["security"]]
+    assert any(scope.endswith("/:search") for scope in scopes)
+
+
+def test_one_referenced_model_gets_a_schema_per_shape(open_manifest_path_factory):
+    """A reference carries an `_id` or the natural key, depending on its level."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_REF_SHAPES)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    global_ref = schemas["pirmas_A"]["properties"]["vieta"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    local_ref = schemas["antras_B"]["properties"]["vieta"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+
+    assert global_ref != local_ref
+    assert "_id" in schemas[global_ref]["properties"]
+    assert "kodas" in schemas[local_ref]["properties"]
+    assert "_id" not in schemas[local_ref]["properties"]
+
+
+def test_model_schemas_require_nothing(rc, open_manifest_path_factory):
+    """A response carries what the request selected, so nothing is always there.
+
+    A required property of a manifest holds a value in the data; it reaches a
+    response only when the request asks for it, and a hidden one is left out of
+    an ordinary response altogether.
+    """
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SERVICES)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    # A listing is an envelope and a reference carries an identifier, so neither
+    # is an object of the model, see `test_listing_schema_matches_what_spinta_answers`.
+    model_schemas = [
+        name for name in schemas if name.startswith("at280_") and not name.endswith(("Collection", "_Ref"))
+    ]
+
+    assert model_schemas
+    for name in model_schemas:
+        assert "required" not in schemas[name], name
+
+    assert schemas["at280_adresai_Adresas_Ref"]["required"] == ["_id"]
+
+    # A property holding a value is still not nullable.
+    assert schemas["at280_adresai_Adresas"]["properties"]["id"]["type"] == "string"
+    assert (
+        schemas["at280_adresai_Adresas"]["properties"]["gatve"]["type"],
+        schemas["at280_adresai_Adresas"]["properties"]["gatve"].get("nullable"),
+    ) == ("string", True)
+
+
+def test_model_schema_accepts_a_projected_response(open_manifest_path_factory):
+    """`?select(gatve)` answers with that property alone."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    schema = open_api_spec["components"]["schemas"]["at280_adresai_Adresas"]
+
+    assert not list(_validator(open_api_spec, schema).iter_errors({"gatve": "Vilniaus"}))
+
+
+def test_file_download_declares_range_responses(open_manifest_path: ManifestPath):
+    """A file is served by `FileResponse`, which answers a range request."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    operations = open_api_spec["paths"]["/datasets/demo/system_data/Organization/{id}/org_logo"]
+    # `Range` is a parameter of the path, so a `HEAD` is ranged as well.
+    assert {"$ref": "#/components/parameters/Range"} in operations["get"]["parameters"]
+    assert {"$ref": "#/components/parameters/Range"} in operations["head"]["parameters"]
+    assert "206" in operations["head"]["responses"]
+    assert "416" in operations["head"]["responses"]
+
+    responses = operations["get"]["responses"]
+    assert "416" in responses
+    # A partial response carries the part of the file that was asked for.
+    assert responses["206"]["content"] == {"*/*": {"schema": {"type": "string", "format": "binary"}}}
+    # A response of a status that carries no body keeps none.
+    assert "content" not in responses["304"]
+
+
+def test_error_responses_name_their_status(open_manifest_path_factory):
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    assert open_api_spec["components"]["responses"]["error401"]["description"] == "Unauthorized"
+    # Read operations do not answer 409, so the response is not emitted.
+    assert RESPONSE_COMPONENTS["error409"]["description"] == "Conflict"
+
+
+def test_array_reference_uses_the_schema_of_its_item(open_manifest_path_factory):
+    """The item property carries the level the reference schema is built from."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_REFS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    items = schemas["ds_Israsas"]["properties"]["kalbos"]["items"]
+    # An optional item accepts a null of the list as well.
+    referenced = items["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+
+    assert referenced in schemas
+    # Level 3 of the item carries the natural key, not a global `_id`.
+    assert "kodas" in schemas[referenced]["properties"]
+    assert "_id" not in schemas[referenced]["properties"]
+
+
+def test_nested_reference_keeps_its_own_level(open_manifest_path_factory):
+    """A level 4 reference inside a natural key carries an `_id`, not a key."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_NESTED_REF_LEVELS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    outer = schemas["ds_A"]["properties"]["bref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    # Level 3 of `bref` carries the natural key of the target, which is `cref`.
+    assert "cref" in schemas[outer]["properties"]
+
+    inner = schemas[outer]["properties"]["cref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    # Level 4 of `cref` carries a global identifier, not the key of its target.
+    assert "_id" in schemas[inner]["properties"]
+    assert "kodas" not in schemas[inner]["properties"]
+
+
+def test_array_through_an_intermediate_table_is_a_list(open_manifest_path_factory):
+    """Such an array holds the intermediate table in `model`, as a reference does."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_INTERMEDIATE_TABLE)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
+    kalbos = schema["properties"]["kalbos"]
+
+    assert (kalbos["type"], kalbos.get("nullable")) == ("array", True)
+    # Items are of the model the array item refers to, not of the intermediate,
+    # and an empty item comes as a null of the list.
+    assert kalbos["items"]["anyOf"] == [
+        {"$ref": "#/components/schemas/ds_Kalba_Ref"},
+        {"type": "object", "nullable": True, "enum": [None]},
+    ]
+    assert isinstance(schema["example"]["kalbos"], list)
+
+
+def test_optional_array_item_accepts_null(open_manifest_path_factory):
+    """An empty item is serialized as a null of the list."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_INTERMEDIATE_TABLE)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
+
+    assert not list(_validator(open_api_spec, schema).iter_errors({"kalbos": [None]}))
+
+
+def test_dynamic_array_holds_anything(open_manifest_path_factory):
+    """Such an array declares no item property, see `spinta.types.array.link`."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_LAYERS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    zymos = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["zymos"]
+
+    assert zymos == {"type": "array", "example": [], "nullable": True}
+
+
+def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_LAYERS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    outer = schemas["ds_Israsas"]["properties"]["kalbos"]
+    inner = outer["items"]
+
+    assert (outer["type"], outer.get("nullable")) == ("array", True)
+    assert (inner["type"], inner.get("nullable")) == ("array", True)
+    # A schema of the innermost reference is built, so the `$ref` resolves.
+    assert inner["items"]["anyOf"][0]["$ref"].rsplit("/", 1)[1] in schemas
+
+
+def test_array_among_reference_properties_stays_a_list(open_manifest_path_factory):
+    """A reference schema keeps the array layers of the property it holds."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_ARRAY_IN_REFERENCE)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schemas = open_api_spec["components"]["schemas"]
+    reference = schemas["ds_A"]["properties"]["bref"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    kalbos = schemas[reference]["properties"]["kalbos"]
+
+    assert (kalbos["type"], kalbos.get("nullable")) == ("array", True)
+    assert kalbos["items"]["anyOf"][0]["$ref"].rsplit("/", 1)[1] in schemas
+
+
+@pytest.mark.models("backends/postgres/City")
+def test_listing_schema_matches_what_spinta_answers(model, app, context):
+    """A listing carries `_data` and `_page`, which the schema has to say."""
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"title": "Vilnius"})
+    spec = _store_spec(context)
+    schemas = spec["components"]["schemas"]
+
+    response = app.get(f"/{model}?_limit=1")
+
+    assert response.status_code == 200, response.json()
+    name = f"{model.replace('/', '_')}Collection"
+    _validate(response.json(), {**schemas[name], "components": {"schemas": schemas}})
+    assert set(response.json()) <= set(schemas[name]["properties"])
+
+    # `_data` is written before the first object and closed after the last one,
+    # see `spinta.formats.json`, so it is there even when nothing matched.
+    empty = app.get(f"/{model}?title='no such city'")
+    assert empty.status_code == 200, empty.json()
+    assert empty.json()["_data"] == []
+    _validate(empty.json(), {**schemas[name], "components": {"schemas": schemas}})
+    with pytest.raises(ValidationError):
+        _validate({}, {**schemas[name], "components": {"schemas": schemas}})
+
+
+@pytest.mark.parametrize("publish", [True, False])
+def test_no_component_is_left_unused(open_manifest_path_factory, publish):
+    """A component nothing points at reads as a leftover, and a linter says so.
+
+    Without a published model the responses a model operation takes are dropped
+    too, and the schemas and headers only they referred to go with them.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        open_api_spec = _service_spec(open_manifest_path_factory, publish=publish)
+    components = open_api_spec["components"]
+
+    for kind in ("parameters", "headers", "responses"):
+        referenced = set(re.findall(rf'"#/components/{kind}/([^"]+)"', json.dumps(open_api_spec)))
+        assert set(components.get(kind, {})) == referenced, kind
+    # Schemas of models are kept whatever refers to them, the shared ones only
+    # while something does.
+    referenced = set(re.findall(r'"#/components/schemas/([^"]+)"', json.dumps(open_api_spec)))
+    assert set(components["schemas"]) & set(COMMON_SCHEMAS) <= referenced
+
+
+def test_every_schema_carries_a_description(open_manifest_path_factory):
+    """Asked for by the linters an API gateway is checked with."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    undescribed = [
+        name for name, schema in open_api_spec["components"]["schemas"].items() if not schema.get("description")
+    ]
+
+    assert undescribed == []
+
+
+def test_every_operation_answers_a_rate_limit(open_manifest_path_factory):
+    """Rate limiting is applied in front of the service, not by Spinta."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    for path, operations in open_api_spec["paths"].items():
+        for method, operation in operations.items():
+            if method in ("parameters", "servers") or method.startswith("x-"):
+                continue
+            assert "429" in operation["responses"], f"{method} {path}"
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_error_schema_accepts_the_error_spinta_answers(model, app, context):
+    """An error object holds five fields, see `spinta.exceptions.error_response`.
+
+    The schema says so and accepts nothing else, so this checks a real one
+    against it rather than the five fields being right by memory.
+    """
+    app.authmodel(model, ["getall", "search"])
+
+    response = app.get(f"/{model}?_select=no_such_property")
+
+    assert response.status_code == 400
+    assert sorted(response.json()["errors"][0]) == ["code", "context", "message", "template", "type"]
+    components = _store_spec(context)["components"]
+    schema = components["responses"]["error400"]["content"]["application/json"]["schema"]
+    _validate(response.json(), {**schema, "components": components})
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_error_responses_accept_the_errors_spinta_answers(model, app, context):
+    """Every error named in the document has to be one Spinta really answers.
+
+    The named ones pin `code` and `template` to what the class carries, so a
+    document naming an error that does not exist, or a template that drifted,
+    fails here instead of in an API gateway.
+    """
+    components = _store_spec(context)["components"]
+
+    def check(response_name: str, response) -> None:
+        schema = components["responses"][response_name]["content"]["application/json"]["schema"]
+        _validate(response.json(), {**schema, "components": components})
+
+    app.authorize([])
+    # `authlib` answers this one, so it carries a code and a message alone.
+    forbidden = app.get(f"/{model}")
+    assert forbidden.json()["errors"][0]["code"] == "InsufficientScopeError"
+    check("error403", forbidden)
+
+    app.authmodel(model, ["getone", "getall", "search"])
+    check("error404", app.get(f"/{model}/4d741843-4e94-4890-81e9-7ca01b1f96e8"))
+    check("error404", app.get("/nera/tokio/Modelio"))
+    check("error400", app.get(f"/{model}?_select=no_such_property"))
+
+
+def test_named_errors_carry_the_template_of_their_class():
+    """Copied beside the class, a template drifts; taken from it, it cannot."""
+    from spinta import exceptions
+    from spinta.manifests.open_api.openapi_config import NAMED_ERRORS
+
+    for errors in NAMED_ERRORS.values():
+        for name, schema in errors.items():
+            assert schema["properties"]["template"]["enum"] == [getattr(exceptions, name).template]
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_limit_lower_bound_is_the_one_spinta_holds_to(model, app, open_manifest_path_factory):
+    """A limit below one is refused by Spinta, so the document says so too."""
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"status": "ok"})
+
+    assert app.get(f"/{model}?_limit=0").status_code == 400
+    assert app.get(f"/{model}?_limit=-1").status_code == 400
+    # Spinta holds to no upper bound of its own, not even the width of an
+    # integer, so the one in the document is a limit applied in front of it.
+    assert app.get(f"/{model}?_limit=99999999999999999999").status_code == 200
+
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+    limit = parameters["limit"]["schema"]
+    assert limit["minimum"] == 1
+    assert limit["maximum"] == DEFAULT_MAX_LIMIT
+    assert limit["format"] == "int32"
+
+
+def test_limit_upper_bound_comes_from_the_configuration(open_manifest_path_factory):
+    """The bound is a policy of the deployment, so a deployment sets it."""
+    config = UdtsConfig(limits={"max_limit": 500})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    parameters = open_api_spec["components"]["parameters"]
+    limit = parameters["limit"]["schema"]
+    assert limit["maximum"] == 500
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_query_patterns_accept_every_form_spinta_answers(model, app, open_manifest_path_factory):
+    """A pattern that refuses a query Spinta answers would break a client."""
+    app.authmodel(model, ["insert", "getall", "search"])
+    app.post(f"/{model}", json={"status": "ok", "count": 1})
+
+    selects = ["status", "status,count", "count()", "_id,_revision", "notes.note", "status, count", "*"]
+    sorts = ["status", "-status", "+status", "status,-count", "notes.note"]
+    for value in selects:
+        assert app.get(f"/{model}?_select={value}").status_code == 200, value
+    for value in sorts:
+        assert app.get(f"/{model}?_sort={value}").status_code == 200, value
+
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+    select = parameters["select_at280_israsas_DalyvioAsmensIsrasas"]["schema"]
+    sort = parameters["sort_at280_israsas_DalyvioAsmensIsrasas"]["schema"]
+    for value in selects:
+        _validate(value, select)
+    for value in sorts:
+        _validate(value, sort)
+
+    # And something no query holds is refused.
+    for value in ("status;drop", "<script>", "a" * 1001):
+        with pytest.raises(ValidationError):
+            _validate(value, select)
+
+
+def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manifest_path_factory):
+    """A model keyed by its own data answers with that key, not with a UUID."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
+
+    identifier = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]["_id"]
+
+    assert "pattern" not in identifier
+    assert identifier.get("format") != "uuid"
+    # The value the data holds, which the shape of a UUID would refuse.
+    _validate("AE", identifier)
+
+
+def test_error_examples_satisfy_their_own_schemas(open_manifest_path_factory):
+    """An example a schema refuses would send a reader down a wrong path."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    components = open_api_spec["components"]
+    schemas = components["schemas"]
+
+    # An error example is built out of one named error, so it has to satisfy
+    # that error rather than only the open-ended `Error` the envelope also
+    # accepts, which every object holding a `code` and a `message` satisfies.
+    checked = 0
+    for response in components["responses"].values():
+        schema = response.get("content", {}).get("application/json", {}).get("schema", {})
+        for example in [schema["example"]] if "example" in schema else []:
+            for error in example.get("errors", []):
+                named = schemas.get(error["code"])
+                assert named is not None, error["code"]
+                _validate(error, named)
+                checked += 1
+    assert checked
+
+
+def test_error_schema_refuses_an_empty_object(open_manifest_path_factory):
+    """`error_response` writes five fields, so fewer is not an error of Spinta."""
+    components = _service_spec(open_manifest_path_factory)["components"]
+    schema = components["responses"]["error404"]["content"]["application/json"]["schema"]
+
+    with pytest.raises(ValidationError):
+        _validate({"errors": [{}]}, {**schema, "components": components})
+
+
+def test_traceparent_is_hexadecimal_from_end_to_end(open_manifest_path_factory):
+    """A pattern without an end anchor lets anything follow what it matched."""
+    schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
+
+    _validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
+    # Flags are hexadecimal, as every other field of it is.
+    _validate("00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-ff", schema)
+    for value in (
+        "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-and-then-some",
+        "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-0",
+        "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01",
+        "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
+        "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",
+    ):
+        with pytest.raises(ValidationError):
+            _validate(value, schema)
+
+
+def test_traceparent_of_a_later_version_may_carry_more(open_manifest_path_factory):
+    """W3C Trace Context has a parser tolerate the fields a version adds."""
+    schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
+
+    _validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", schema)
+    _validate("01-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-what-a-later-version-adds", schema)
+
+    # `ff` is invalid whatever follows it, and an identifier of zeroes stays
+    # invalid in a later version as well.
+    for value in (
+        "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01-more",
+        "01-00000000000000000000000000000000-00f067aa0ba902b7-01-more",
+    ):
+        with pytest.raises(ValidationError):
+            _validate(value, schema)
+
+
+def test_reference_identifier_is_the_one_its_model_answers_with(open_manifest_path_factory):
+    """A reference carries the identifier of what it points at, UUID or not."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_REF_ID)
+    schemas = open_api_spec["components"]["schemas"]
+
+    reference = next(schema for name, schema in schemas.items() if name.endswith("_Ref"))
+
+    assert "pattern" not in reference["properties"]["_id"]
+    _validate({"_id": "AE"}, reference)
+
+
+def test_page_token_pattern_accepts_a_token_spinta_builds(open_manifest_path_factory):
+    """`encode_page_values` uses URL-safe base64, whose alphabet holds `-` and `_`."""
+    from spinta.utils.encoding import encode_page_values
+
+    schema = _service_spec(open_manifest_path_factory)["components"]["schemas"]["page"]["properties"]["next"]
+
+    for values in ([">"], ["?"], ["2026-08-31"], ["ĄČĘ"]):
+        _validate(encode_page_values(values).decode(), schema)
+
+
+def test_declared_revision_is_not_described_as_a_uuid(open_manifest_path_factory):
+    """A model can build `_revision` out of its own data, `123,14` for one."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_REVISION)
+
+    revision = open_api_spec["components"]["schemas"]["ds_Sritis"]["properties"]["_revision"]
+
+    assert "pattern" not in revision
+    _validate("123,14", revision)
+
+
+def test_revision_header_accepts_a_revision_a_model_builds(open_manifest_path_factory):
+    """`ETag` carries the revision, so it is not a UUID either."""
+    components = _service_spec(open_manifest_path_factory)["components"]
+
+    _validate("123,14", components["headers"]["ETag"]["schema"])
+    _validate("123,14", components["parameters"]["If-None-Match"]["schema"])
+
+
+def test_token_url_of_a_catalog_export_is_a_path_it_holds(open_manifest_path: ManifestPath):
+    """Without a data service base the action form is not written, so not used."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+
+    flow = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]
+    assert flow["tokenUrl"] in open_api_spec["paths"]
+
+
+def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_factory):
+    """A document must not show a request its own schema refuses."""
+    config = UdtsConfig(limits={"max_limit": 5})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    limit = open_api_spec["components"]["parameters"]["limit"]["schema"]
+
+    assert limit["example"] == 5
+    _validate(limit["example"], limit)
+
+
+def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_factory):
+    """`scope_formatter` is configured, so it builds what it likes, RFC 6749."""
+    request_body = _service_spec(open_manifest_path_factory)["paths"]["/:token"]["post"]["requestBody"]
+    scope = request_body["content"]["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]
+
+    for value in ("uapi:/datasets/gov/rc/:getall", "kita:modelis:getall", "tenant+read", "tenant$read", "a b"):
+        _validate(value, scope)
+    # An empty scope is accepted and answered with a token, see
+    # `tests/test_auth.py::test_empty_scope`.
+    _validate("", scope)
+
+    # A space separates scopes, and neither a quotation mark nor a backslash is
+    # part of one, RFC 6749 section 3.3.
+    for value in ('blogas"cituotas', "su\\pasviru", "du  tarpai"):
+        with pytest.raises(ValidationError):
+            _validate(value, scope)
+
+
+@pytest.mark.models("backends/postgres/Report")
+def test_health_schema_requires_what_the_probe_answers(model, app, context):
+    """`health` writes both fields every time, so fewer is not its answer."""
+    schemas = _store_spec(context)["components"]["schemas"]
+
+    _validate(app.get("/health").json(), schemas["health"])
+    with pytest.raises(ValidationError):
+        _validate({}, schemas["health"])
+
+    # Which dependencies are reported is up to the service, what is said about
+    # one is not: both fields are written for every entry.
+    answer = app.get("/health").json()
+    assert answer["dependencies"]
+    for field in ("name", "healthy"):
+        without = {
+            **answer,
+            "dependencies": [{key: value for key, value in answer["dependencies"][0].items() if key != field}],
+        }
+        with pytest.raises(ValidationError):
+            _validate(without, schemas["health"])
+
+
+def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
+    """A server URL can carry a path the data service path is not part of."""
+    config = UdtsConfig(servers=[{"url": "https://host.lt/kitas/kelias"}])
+
+    with pytest.warns(UserWarning, match="does not match data service path"):
+        open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    # The agent serves its own endpoints at its root, not under that path.
+    assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "https://host.lt"}]
+
+
+def test_agent_servers_of_a_relative_server_hold_the_root(open_manifest_path_factory):
+    """A relative server URL emptied of its path would point at the document."""
+    config = UdtsConfig(servers=[{"url": "/?env=prod"}])
+
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "/?env=prod"}]
+
+
+def test_object_property_reference_gets_a_schema(open_manifest_path_factory):
+    """A reference can sit inside an object, and inside an object inside one."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_OBJECT_REF)
+    schemas = open_api_spec["components"]["schemas"]
+
+    referenced = re.findall(r'"#/components/schemas/([^"]+)"', json.dumps(open_api_spec))
+
+    assert set(referenced) <= set(schemas), f"pointing at nothing: {sorted(set(referenced) - set(schemas))}"
+
+
+def test_object_identifier_is_a_version_four_uuid(open_manifest_path_factory):
+    """Spinta accepts no other, see `spinta.backends.is_object_id`."""
+    identifier = _service_spec(open_manifest_path_factory)["components"]["schemas"][
+        "at280_israsas_DalyvioAsmensIsrasas"
+    ]["properties"]["_id"]
+
+    _validate("abdd1245-bbf9-4085-9366-f11c0f737c1d", identifier)
+    # A version 5 one, which Spinta answers `ModelNotFound` to.
+    with pytest.raises(ValidationError):
+        _validate("12345678-1234-5678-9abc-123456789012", identifier)
+
+
+def test_traceparent_refuses_what_trace_context_reserves(open_manifest_path_factory):
+    """Version `ff` is reserved and neither identifier may be all zeroes."""
+    schema = _service_spec(open_manifest_path_factory)["components"]["parameters"]["traceparent"]["schema"]
+
+    for value in (
+        "ff-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01",
+        "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
+        "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",
+    ):
+        with pytest.raises(ValidationError):
+            _validate(value, schema)
+
+
+def test_every_request_header_is_bounded(open_manifest_path_factory):
+    """A header a request carries has a bound, as everything else it carries."""
+    parameters = _service_spec(open_manifest_path_factory)["components"]["parameters"]
+
+    unbounded = [
+        name
+        for name, parameter in parameters.items()
+        if parameter.get("in") == "header" and "pattern" not in (parameter.get("schema") or {})
+    ]
+
+    assert unbounded == []
+
+
+def test_listed_identifiers_are_reachable(open_manifest_path_factory):
+    """A pattern beside listed values leaves nothing that satisfies both."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_ENUM_ID)
+
+    identifier = open_api_spec["components"]["parameters"]["id_ds_Salis"]["schema"]
+    answered = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]["_id"]
+
+    # A request carries the value behind the equals sign, an answer without it.
+    assert identifier["enum"] == ["=AE", "=LT"]
+    assert answered["enum"] == ["AE", "LT"]
+    assert "pattern" not in identifier
+
+    for schema in (identifier, answered):
+        _validate(schema["example"], schema)
+    _validate("=AE", identifier)
+    _validate("AE", answered)
+
+
+def test_single_object_answers_a_redirect(open_manifest_path_factory):
+    """A moved identifier is answered with `301` and where it lives now."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    for method in ("get", "head"):
+        responses = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas/{id}"][method]["responses"]
+        assert "301" in responses, method
+        assert responses["301"]["headers"] == {"Location": {"$ref": "#/components/headers/Location"}}
+
+    # A listing has no identifier to move, so it never redirects.
+    assert "301" not in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]["get"]["responses"]
+
+
+def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
+    """A `_limit` without the configured bound would let any limit through."""
+    config = UdtsConfig(limits={"max_limit": 25})
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+    parameters = open_api_spec["components"]["parameters"]
+
+    limits = [name for name, parameter in parameters.items() if parameter["name"] == "_limit"]
+    assert limits == ["limit"]
+    assert parameters["limit"]["schema"]["maximum"] == 25
+
+    listings = [ops["get"] for path, ops in open_api_spec["paths"].items() if "get" in ops and "/:" not in path]
+    reached = [op for op in listings if {"$ref": "#/components/parameters/limit"} in op.get("parameters", [])]
+    assert reached
+    # No parameter takes a query as one object any more.
+    assert not [name for name, parameter in parameters.items() if parameter["name"] == "query"]
+
+
+def test_scope_of_a_token_request_is_bounded(open_manifest_path_factory):
+    """A request may not ask for more than every scope of the document."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
+    schema = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"][
+        "schema"
+    ]["properties"]["scope"]
+
+    every_scope = " ".join(sorted(declared))
+    assert schema["maxLength"] == len(every_scope)
+    _validate(every_scope, schema)
+    with pytest.raises(ValidationError):
+        _validate(every_scope + " uapi:/one/more/:getall", schema)
+
+
+def test_subresource_answers_carry_their_envelope(open_manifest_path_factory):
+    """Both fields are written whatever the request asks for."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_OBJECT_REF)
+    schemas = open_api_spec["components"]["schemas"]
+
+    object_schemas = [name for name in schemas if name.endswith("_adresas")]
+    assert object_schemas
+    for name in object_schemas:
+        assert schemas[name]["required"] == ["_type", "_revision"], name
+
+    assert COMMON_SCHEMAS["fileRef"]["required"] == ["_type", "_revision"]
+
+
+def test_token_paths_are_offered_wherever_the_service_is(open_manifest_path_factory):
+    """The transport is ensured where the service is deployed, not here.
+
+    A deployment reached over `http`, a testing one for instance, serves the
+    token endpoint like any other, so leaving it out of the document would
+    describe a service that is not the one running.
+    """
+    for servers in (
+        [{"url": "https://get.data.gov.lt"}],
+        [{"url": "/datasets/gov/rc/jadis/at280/1"}],
+        [{"url": "http://localhost:8000"}],
+        [{"url": "https://get.data.gov.lt"}, {"url": "http://localhost:8000"}],
+    ):
+        config = UdtsConfig(
+            info={"title": "JADIS"},
+            servers=servers,
+            auth={"token_url": "https://am.example.lt/auth/token"},
+        )
+        open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+        assert "/:token" in open_api_spec["paths"], servers
+        assert "/auth/token" in open_api_spec["paths"], servers
+        # Every environment of the document, none of them singled out.
+        assert "servers" not in open_api_spec["paths"]["/:token"], servers
+        assert len(open_api_spec["paths"]["/auth/token"]["servers"]) == len(servers), servers
+
+
+@pytest.mark.models("backends/postgres/City")
+def test_page_schema_matches_the_token_spinta_writes(model, app, context, open_manifest_path_factory):
+    """`_page` is written only with a token, and the token is padded Base64."""
+    app.authmodel(model, ["insert", "getall", "search"])
+    for title in ("Vilnius", "Kaunas"):
+        app.post(f"/{model}", json={"title": title})
+
+    answered = app.get(f"/{model}?_limit=1").json()["_page"]
+    schema = _store_spec(context)["components"]["schemas"]["page"]
+
+    _validate(answered, schema)
+    assert len(answered["next"]) % 4 == 0
+    # `spinta.formats.json` writes the container only when it has a token, and
+    # `encode_page_values` keeps the padding, so neither shape is an answer.
+    for refused in ({}, {"next": "A"}, {"next": "abc=="}, {"next": answered["next"].rstrip("=")}):
+        with pytest.raises(ValidationError):
+            _validate(refused, schema)
+
+
+def test_an_insecure_environment_is_described_like_any_other(open_manifest_path_factory):
+    """An `http` environment is served, so it is described, like the others.
+
+    The transport is ensured where the service is deployed, not by leaving the
+    endpoint out of the document; the configuration says so when it is read.
+    """
+    config = UdtsConfig(
+        info={"title": "JADIS"},
+        servers=[{"url": "https://get.data.gov.lt"}, {"url": "http://test.local:8000"}],
+        auth={"token_url": "https://am.example.lt/auth/token"},
+    )
+    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
+
+    assert len(open_api_spec["servers"]) == 2
+    # No operation singles an environment out.
+    for path in ("/:token", "/:version", "/:health"):
+        assert "servers" not in open_api_spec["paths"][path], path
+    assert [server["url"] for server in open_api_spec["paths"]["/auth/token"]["servers"]] == [
+        "https://get.data.gov.lt",
+        "http://test.local:8000",
+    ]
+
+
+def test_rate_limit_answer_is_an_open_object(open_manifest_path_factory):
+    """The gateway answers with an object of its own fields, and a linter asks for a `type`."""
+    schemas = _service_spec(open_manifest_path_factory)["components"]["schemas"]
+    rate_limited = schemas["RateLimited"]
+
+    assert rate_limited["type"] == "object"
+    assert "required" not in rate_limited
+    _validate(
+        {"message": "Rate limit exceeded ! You reach the limit of 10 requests per 1 seconds", "http_status_code": 429},
+        rate_limited,
+    )
+    _validate({}, rate_limited)
+
+
+def test_every_operation_names_its_path_parameters(open_manifest_path_factory):
+    """An API gateway reads an operation alone, not the parameters of its path."""
+    open_api_spec = _service_spec(open_manifest_path_factory)
+
+    missing = []
+    for path, operations in open_api_spec["paths"].items():
+        # Nothing is left for an operation to inherit.
+        assert "parameters" not in operations, path
+        for method, operation in operations.items():
+            if method == "servers" or method.startswith("x-"):
+                continue
+            names = [
+                open_api_spec["components"]["parameters"][ref["$ref"].rsplit("/", 1)[1]]["name"]
+                for ref in operation.get("parameters", [])
+            ]
+            missing += [(path, method, name) for name in re.findall(r"{(\w+)}", path) if name not in names]
+            assert len(names) == len(set(names)), (path, method)
+
+    assert missing == []
+    identifier = {"$ref": "#/components/parameters/id_at280_israsas_DalyvioAsmensIsrasas"}
+    assert identifier in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas/{id}"]["get"]["parameters"]
+
+
+def test_every_agent_endpoint_says_which_context_it_is_for(open_manifest_path_factory):
+    """A gateway importing the document keeps its own form of an endpoint and leaves the other out."""
+    paths = _service_spec(open_manifest_path_factory)["paths"]
+
+    contexts = {path: item.get("x-spinta-context") for path, item in paths.items()}
+    assert {path: contexts[path] for path in ("/:version", "/:health", "/:token")} == dict.fromkeys(
+        ("/:version", "/:health", "/:token"), "gateway"
+    )
+    assert {path: contexts[path] for path in AGENT_UTILITY_PATHS} == dict.fromkeys(AGENT_UTILITY_PATHS, "agent-direct")
+    # A path of the data is served in both, so it is marked for neither.
+    assert contexts["/at280_israsas/DalyvioAsmensIsrasas"] is None
+
+
+@pytest.mark.models("backends/postgres/City")
+def test_page_alone_is_authorized_the_way_the_document_says(model, app, open_manifest_path_factory):
+    """`_page` continues a listing rather than narrowing it, so it takes `:getall`."""
+    app.authmodel(model, ["insert", "getall"])
+    for title in ("Vilnius", "Kaunas"):
+        app.post(f"/{model}", json={"title": title})
+    token = app.get(f"/{model}?page(size:1)").json()["_page"]["next"]
+
+    assert app.get(f"/{model}?_page={token}").status_code == 200
+
+    open_api_spec = _service_spec(open_manifest_path_factory)
+    description = open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas"]["get"]["description"]
+    assert "`_page` alone" in description
+    page = open_api_spec["components"]["parameters"]["page"]["schema"]
+    assert page["maxLength"] >= len(token)

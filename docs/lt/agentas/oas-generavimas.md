@@ -1,0 +1,269 @@
+# OAS generavimas duomenų paslaugai
+
+Kad duomenų paslaugą būtų galima įdiegti į vartus, iš Spinta manifesto
+sugeneruojamas **vienas OpenAPI 3.0 (OAS) failas vienai duomenų paslaugai**, apimantis
+visus tos paslaugos duomenų rinkinius.
+
+Duomenų paslaugą apibrėžia kelio priekinė dalis:
+
+```
+https://{domain}/datasets/{form}/{org}/{is}/{service}/{version}/{dataset}/{model}
+                 └──────────── duomenų paslauga ────────────┘ └── turinys ──┘
+
+/datasets/gov/rc/jadis/at280/1  /  at280_israsas/DalyvioAsmensIsrasas
+```
+
+Viename manifeste gali būti kelios paslaugos (net kelios informacinės sistemos),
+todėl generuojant nurodoma, kurios paslaugos OAS reikia.
+
+## Kokios paslaugos yra manifeste
+
+```sh
+spinta udts oas manifest.csv --list
+```
+
+```
+datasets/gov/rc/jadis/at280/1
+  datasets/gov/rc/jadis/at280/1/at280_adresai
+  datasets/gov/rc/jadis/at280/1/at280_israsas
+datasets/gov/rc/ntr/n249/1
+  datasets/gov/rc/ntr/n249/1/n249_israsas
+```
+
+## Generavimas
+
+```sh
+spinta udts oas manifest.csv -o at280.json \
+    --path datasets/gov/rc/jadis/at280/1 \
+    --udts-cfg vartai.yml
+```
+
+- `--path` – duomenų paslaugos kelias. Atrenkami visi tos paslaugos rinkiniai:
+  kurių pavadinimas lygus keliui arba prasideda juo, po kurio eina `/`. Todėl
+  `.../at280/1` nepagauna `.../at280/10`, o `.../at280` be versijos nepagauna
+  versijuotos `.../at280/1` paslaugos. Jei manifeste yra tik viena paslauga,
+  `--path` galima praleisti.
+- `-o` – išvesties failas. `.yml` arba `.yaml` plėtinys duoda YAML, kitu atveju
+  rašomas JSON. Be `-o` specifikacija spausdinama į standartinę išvestį.
+- `--udts-cfg` – konfigūracijos failas (žr. žemiau). **Privalomas**; vienintelė
+  išimtis – `--list`, kuris dokumento nerašo.
+- `--api-version` – `info.version` reikšmė.
+
+## Konfigūracijos failas
+
+Manifeste nėra aplinkų adresų, paslaugos lygmens aprašo ir autorizacijos
+serverio – tai nurodoma atskirame YAML faile. Pavyzdinis failas yra Spinta
+pakete, `spinta/manifests/open_api/udts_cfg.example.yml`.
+
+**Failas privalomas**, ir jame privalomi trys dalykai:
+
+- **`info.title`** – vardas, kuriuo paslauga matoma vartuose;
+- **`info.contact`** su visais laukais: `name` – institucijos, į kurią
+  kreipiasi paslaugos naudotojai, pavadinimas, `url` – jos interneto svetainė
+  ir `email` – adresas, kuriuo jai rašoma;
+- **`servers`** – bent vienas įrašas; iš pirmojo vartai išsiveda API
+  context-path.
+
+Be jų aprašo į vartus įkelti nepavyktų, todėl `spinta udts oas` to nė
+nebando ir nutraukia darbą su aiškia klaida. `--list` konfigūracijos
+nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
+
+```yaml
+info:
+  title: JADIS duomenų paslauga
+  contact:
+    name: Registrų centras
+    url: https://www.registrucentras.lt/
+    email: info@registrucentras.lt
+  # OpenAPI 3.0 `info` neturi `summary`, todėl jis tampa pirma aprašymo pastraipa.
+  summary: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
+  version: "1"
+
+servers:
+  - url: https://get.data.gov.lt
+    description: Gamybinė (išoriniai vartai)
+  - url: https://test-get.data.gov.lt
+    description: Testavimo
+```
+
+Laukai, kurių OpenAPI neapibrėžia, į specifikaciją nepatenka – apie tokį lauką
+parodomas įspėjimas. Taip pastebimos rašybos klaidos (`titel` vietoj `title`),
+kurios kitaip tyliai paliktų lauką neužpildytą.
+
+`x-` plėtiniai išsaugomi ten, kur juos apibrėžia pati OpenAPI, t. y. `info`,
+`info.contact`, `info.license`, `servers` įrašuose ir `externalDocs`. Failo
+viršuje ir `auth` viduje jie neturi kur patekti – `auth` yra ne OpenAPI
+objektas, o mūsų pačių laukas, – tad apie juos parodomas toks pat įspėjimas
+kaip apie bet kurį nežinomą lauką.
+
+Kiekviena aplinka aprašoma savo `url`, todėl OpenAPI `servers[].variables`
+šablonai nenaudojami – nurodyti juos galima, bet jie praleidžiami.
+
+`auth.token_url` neprivalomas, kol pirmasis `servers` įrašas turi adresą su
+schema ir hostu: tada jis išvedamas iš to įrašo ir `/:token`, t. y. iš to paties
+adreso, kuriuo token'ą per vartus pasiekia gavėjas.
+
+Kliento identifikatorius ir slaptažodis siunčiami atviru tekstu, o RFC 6749
+(2.3.1) prašo TLS. Aprašas transporto **nenustato**: token'o keliai `/:token` ir
+`/auth/token` aprašomi visoms aplinkoms, kaip ir visi kiti keliai, nes paslauga
+juos ten ir aptarnauja. Adresas per `http` (pavyzdžiui, testavimo ar vietinis
+diegimas) priimamas, tik skaitant konfigūraciją parodomas įspėjimas, kad
+kredencialai eis atviru tekstu. TLS užtikrinamas ten, kur paslauga diegiama, o
+ne išimant kelius iš aprašo.
+
+Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
+pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
+nėra iš ko, o OpenAPI token'o adresą apibrėžia kaip absoliutų. Nurodytas adresas
+turi būti pilnas, su schema ir hostu; `https` arba `http`, o pastaruoju atveju
+parodomas įspėjimas, kad kredencialai eis atviru tekstu.
+
+`servers` – po vieną įrašą kiekvienai aplinkai. Adresą galima nurodyti dviem
+būdais:
+
+- **tik adresas, be kelio** – tuomet prie jo prilipdomas `--path` paslaugos
+  kelias. Taip vienas failas tinka visoms to paties agento paslaugoms;
+- **pilnas adresas su paslaugos keliu** – naudojamas toks, koks yra. Jei jo
+  kelias nesutampa su `--path`, parodomas įspėjimas.
+
+## Kas patenka į aprašą: `visibility`
+
+`visibility` yra **metaduomenų** matomumas. Pagal DSA `private` metaduomenys
+nepublikuojami: jie laikomi tik IS tvarkytojui, pakartotiniam `spinta inspect` ir
+šaltinio pokyčių sekimui. OpenAPI aprašas yra publikuojami metaduomenys, todėl į jį
+patenka tik tai, kieno `visibility` yra `protected`, `package` arba `public`.
+
+**Tuščias `visibility` yra `private`.** DSA specifikacija sako: „Nenurodžius
+metaduomenų matomumo reikšmės numatytoji reikšmė yra `private`“. Todėl tai, kam
+`visibility` nenurodytas, į aprašą nepatenka lygiai taip pat, kaip pažymėta
+`private`:
+
+- **modelis** – nėra nei jo kelių, nei schemų, nei žymės;
+- **savybė** – nėra jos schemoje, pavyzdžiuose ir užklausų pavyzdžiuose, o `file`
+  ar `object` savybė negauna ir savo kelio;
+- **enum reikšmė** – nėra reikšmių sąraše;
+- **kalbos savybė** (`pavadinimas@lt`) – `visibility` galioja tai kalbai. Savybė
+  lieka, kol bent viena jos kalba publikuojama, ir dingsta, kai nė viena nėra.
+
+Kiek modelių ir savybių liko už aprašo, `spinta udts oas` parodo įspėjimu su
+pavyzdžiais. Jei nepublikuojamas nė vienas modelis, įspėjama atskirai: aprašas
+tuomet neaprašo nė vieno modelio. Tokiu atveju DSA reikia pažymėti publikuojamus
+modelius ir savybes, pavyzdžiui, `visibility` stulpelyje įrašant `public`.
+
+**Duomenų tai nepaslepia.** Prieigą prie duomenų valdo `access`, ne `visibility`:
+pagal `visibility` Spinta duomenų neslepia. Lauką, kurio `access` yra `open` ar
+`public`, API grąžins, net jei aprašas jo nemini. Jei duomenys neturi būti pasiekiami, reikia
+nustatyti atitinkamą `access`.
+
+## Scope'ai specifikacijoje
+
+Kiekviena duomenų operacija specifikacijoje nurodo scope'ą, kurio Spinta iš
+tikrųjų reikalauja – jis sudaromas iš modelio (ar savybės) ir veiksmo tuo pačiu
+formatteriu, kurį naudoja pati autorizacija, tad seka ir `scope_prefix_udts` bei
+`scope_max_length` nustatymus.
+
+Vienas atvejis nusipelno paaiškinimo. Kolekcijos skaitymas autorizuojamas
+skirtingai, priklausomai nuo užklausos:
+
+```
+GET /at280_israsas/Adresas              → …/:getall
+GET /at280_israsas/Adresas?limit(10)    → …/:search
+```
+
+Tai ta pati operacija, o OpenAPI neturi būdo susieti reikalaujamo scope'o su
+užklausos parametrais. Todėl specifikacijoje abu scope'ai surašomi kaip **dvi
+alternatyvos**, o operacijos aprašyme pasakyta, kuris kuriai užklausos formai
+priklauso. Alternatyvos nėra sukeičiamos: tokenui reikia to scope'o, kurį
+atitinka jo daroma užklausa.
+
+Praktinė pasekmė: jei vartai kada nors bus sukonfigūruoti scope'us tikrinti
+pagal šį failą, jie gali praleisti užklausą, kurią Spinta atmes su 403.
+Alternatyva – reikalauti abiejų scope'ų – elgtųsi blogiau: vartai atmestų
+užklausą, kurią Spinta būtų aptarnavusi, o klaida ateitų iš vartų, tad nė
+nesimatytų, kad API ją priima. Sprendžia ir tikrina Spinta; specifikacija čia
+aprašo sutartį.
+
+## Ką su failu daryti vartuose
+
+Tas pats failas naudojamas dviem paskirtim:
+
+1. **Endpoint'ų importas.** Vartai API `context-path` išsiveda iš **pirmojo**
+   `servers[].url` kelio dalies, todėl ji turi būti lygi paslaugos keliui.
+   Importuojant pažymima „Create policies on path", kad būtų sukurti visi
+   specifikacijoje aprašyti keliai.
+2. **Validacija.** Tas pats failas pridedamas kaip Content Provider Inline
+   Resource ir naudojamas `OpenAPI Specification Validation` politikos –
+   ir Request, ir Response fazėse.
+
+Kadangi `paths` yra reliatyvūs paslaugos bazei, rankomis jų karpyti nereikia.
+Jei paslaugos kelias vartuose vis dėlto skiriasi, jį galima nurodyti politikos
+`basePath` lauke.
+
+Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) guli agento
+šaknyje, o ne po paslaugos keliu. Specifikacijoje kiekvienas jų aprašomas
+**dukart**, nes failą skaito du skirtingi vartotojai:
+
+- **`/:version`, `/:health`, `/:token`** – forma, kuria vartai juos
+  maršrutizuoja paslaugos viduje. Šie keliai eina nuo dokumento `servers`, t. y.
+  nuo paslaugos bazės;
+- **`/version`, `/health`, `/auth/token`** – adresai, kuriais juos aptarnauja
+  pati Spinta. Šie keliai turi savo `servers` įrašą (paslaugos kelias
+  nukirptas), tad veikia ir kreipiantis tiesiai į agentą – pavyzdžiui,
+  įsikėlus specifikaciją į Postmaną.
+
+Kuri forma kuri, pasako kelio žyma `x-spinta-context`: `gateway` – `:`-formai,
+`agent-direct` – agento adresams. Importuojant į vartus pagal ją galima palikti
+tik `gateway` kelius. Duomenų keliai aptarnaujami abiem atvejais, todėl žymos
+neturi.
+
+Vartuose `:`-formai reikia Dynamic Routing taisyklių:
+
+| Match expression | Redirect to |
+|---|---|
+| `/:version` | `{#api.properties['uapi_version']}` |
+| `/:health` | `{#api.properties['uapi_health']}` |
+| `/:token` | `{#api.properties['uapi_token']}` |
+| `/(.*)` | `{#api.properties['uapi_data_prefix']}{#group[0]}` |
+
+`/health` atsako visada `200`; ar paslauga sveika, sako `healthy` laukas, nes
+`503` reiškia, kad paslauga apskritai neatsakė. Tikrinantis komponentas turi
+skaityti `healthy`, o ne atsakymo kodą.
+
+Tikrinama tai, kas išvardyta `dependencies`: pati paslauga atsakė, o mašinos,
+kurioje ji sukasi, diskas ir atmintis neperžengė jai duotų ribų. Duomenis
+laikančios saugyklos netikrinamos, tad sveika paslauga vis tiek gali dirbti su
+neprieinama saugykla.
+
+## Užklausų tikrinimas vartuose
+
+Viskas, ką gavėjas **atsiunčia**, apraše apribota, kad vartai galėtų atmesti
+netinkamą užklausą dar nepasiekusią paslaugos:
+
+| Kur | Riba |
+|---|---|
+| `_limit` | nuo 1 iki `limits.max_limit` (pagal nutylėjimą 100000) |
+| `_select`, `_sort` | vardai, keliai su taškais ir funkcijos, iki 1000 simbolių |
+| `_page` | puslapio žymė iš ankstesnio atsakymo `_page.next` (URL saugus Base64 su `=` užpildu) |
+| `{id}` | UUID v4, kai identifikatorių duoda pati Spinta. Kai modelis deklaruoja savo `_id`, riba priklauso nuo tipo: `string` ir `base32` – vienas kelio segmentas be pasvirojo brūkšnio, iki 512 simbolių; `integer` – sveikasis skaičius, telpantis į 64 bitus; `uuid` – kanoninė UUID v4 forma mažosiomis. `=` prefiksas – tik `base32` ir `string` tipo `_id`, kai modelio raktas nesudėtinis (žr. `is_accessible_by_equals_sign`); kitų tipų `_id` siunčiamas be jo |
+| `scope` | tarpais skirti scope'ai, ne ilgiau, nei visi apraše deklaruoti scope'ai kartu |
+| `traceparent` | W3C trace-context forma, šešioliktainė nuo pradžios iki galo |
+| `tracestate`, `Cache-Control`, `Accept-Language` | spausdinami ASCII simboliai, iki 1024 |
+
+`_select`, `_limit`, `_sort` ir `_page` apraše yra atskiri užklausos
+parametrai, tad vartai kiekvieną tikrina atskirai. Filtras pagal savybes
+(`?kodas='LT'`), `count()` ir iškvietimo formos (`limit(10)`, `page('…')`)
+fiksuoto pavadinimo neturi, todėl aprašyti sąrašo operacijos aprašyme.
+
+Viršutinė `_limit` riba yra **vartų politika, o ne Spintos elgsena** – Spinta
+atsako į bet kokį didesnį už nulį limitą. Todėl ji nurodoma konfigūracijoje:
+
+```yaml
+limits:
+  max_limit: 10000
+```
+
+Atsakymų laukams ribų nededama: jų formos aprašo manifestas, ir bet koks
+spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
+
+`components.securitySchemes.UAPI_auth` token'o adresas išvedamas iš pirmojo
+`servers` įrašo, t. y. `:`-forma. Kreipiantis tiesiai į agentą, tinkamą adresą
+reikia nurodyti `auth.token_url` lauke.

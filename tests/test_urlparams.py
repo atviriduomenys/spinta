@@ -37,6 +37,53 @@ def test_limit(context):
 
 
 @pytest.mark.parametrize(
+    "query",
+    [
+        "_page=WyIzZjc5NjE4Ny1iYzQ4LTQzNmEtODA5Ny0zZTI4N2FlYTUzYjYiXQ==",
+        # As a client sends it, the padding percent encoded.
+        "_page=WyIzZjc5NjE4Ny1iYzQ4LTQzNmEtODA5Ny0zZTI4N2FlYTUzYjYiXQ%3D%3D",
+        "page('WyIzZjc5NjE4Ny1iYzQ4LTQzNmEtODA5Ny0zZTI4N2FlYTUzYjYiXQ==')",
+    ],
+)
+def test_page_token_is_given_as_a_parameter_or_as_a_call(context, query):
+    """`_page=<token>` is a parameter of its own, as `_limit` is, and the same as `page(<token>)`."""
+    assert _parse(context, query).page.values == ["3f796187-bc48-436a-8097-3e287aea53b6"]
+
+
+def test_page_is_still_a_name_to_select(context):
+    """Only `_page=` is the parameter, `_page` alone names the page values of an object."""
+    assert _parse(context, "select(_id,_page)").select is not None
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        # Not canonical Base64, the padding left out.
+        "bm90LWpzb24",
+        # Canonical Base64 of `not-json`.
+        "bm90LWpzb24=",
+        # Canonical Base64 of `{}`, JSON that is not a list of values.
+        "e30=",
+    ],
+)
+def test_invalid_page_token_is_refused(context, token):
+    """A token that is not one Spinta wrote is a client error, not a server one."""
+    from spinta.exceptions import InvalidPageKey
+
+    for query in (f"_page={token}", f"page('{token}')"):
+        with pytest.raises(InvalidPageKey):
+            _parse(context, query)
+
+
+@pytest.mark.parametrize("query", ["page(123)", "page(1.5)", "page(null)", "page(true)"])
+def test_page_given_something_other_than_a_token_is_refused(context, query):
+    from spinta.exceptions import InvalidPageKey
+
+    with pytest.raises(InvalidPageKey):
+        _parse(context, query)
+
+
+@pytest.mark.parametrize(
     "url_query",
     [
         "format(csv,title(%27%3c%3fxml+version%3d%221.0%22+encoding%3d%22UTF-8%22+standalone%3d%22yes%22%3f%3e%27))",

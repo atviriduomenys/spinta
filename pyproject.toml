@@ -137,6 +137,8 @@ snoop = "*"
 python-dotenv = "*"
 docutils = "*"
 requests-mock = "^1.11.0"
+# Checks that a generated OpenAPI specification is a valid document.
+openapi-spec-validator = "*"
 ruff = "^0.12.10"
 
 # Starlette test client (starlette >=1.0 requires httpx2)

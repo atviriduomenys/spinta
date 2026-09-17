@@ -1,3 +1,6 @@
+import csv
+from pathlib import Path
+
 import pytest
 
 from spinta.manifests.components import ManifestPath
@@ -96,6 +99,414 @@ id | d | r | b | m | property         | type     | ref                          
     """)
 
 
+#: One agent serving several information systems, as in the Registrų centras
+#: case: two datasets under one data service, models of the same name in both,
+#: an adjacent service version, a second information system and a `ref` to a
+#: dataset that is not in the manifest.
+MANIFEST_WITH_SERVICES = striptable("""
+id | d | r | b | m | property   | type            | ref                                                 | level | access | title           | description
+   | datasets/gov/rc/jadis/at280/1/at280_israsas |  |                                                   |       |        | AT280 išrašas   | Išrašo duomenys
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | DalyvioAsmensIsrasas |           | kodas                                               |       |        |                 |
+   |   |   |   |   | kodas      | string required |                                                     | 4     | open   |                 |
+   |   |   |   |   | adresas    | ref             | datasets/gov/rc/jadis/at280/1/at280_adresai/Adresas | 4     | open   |                 |
+   |   |   |   | Adresas        |                 | kodas                                               |       |        |                 |
+   |   |   |   |   | kodas      | string required |                                                     | 4     | open   |                 |
+   |                            |                 |                                                     |       |        |                 |
+   | datasets/gov/rc/jadis/at280/1/at280_adresai |  |                                                   |       |        | AT280 adresai   | Adresų duomenys
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | Adresas        |                 | id                                                  |       |        |                 |
+   |   |   |   |   | id         | string required |                                                     | 4     | open   |                 |
+   |   |   |   |   | gatve      | string          |                                                     | 4     | open   |                 |
+   |                            |                 |                                                     |       |        |                 |
+   | datasets/gov/rc/jadis/at280/10/at280_kitas |   |                                                   |       |        | AT280 v10       |
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | Adresas        |                 | id                                                  |       |        |                 |
+   |   |   |   |   | id         | string required |                                                     | 4     | open   |                 |
+   |                            |                 |                                                     |       |        |                 |
+   | datasets/gov/rc/ntr/n249/1/n249_israsas |     |                                                     |       |        | N249 išrašas    |
+   |   | test                   | memory          |                                                     |       |        |                 |
+   |   |   |   | Israsas        |                 | nr                                                  |       |        |                 |
+   |   |   |   |   | nr         | string required |                                                     | 4     | open   |                 |
+   |   |   |   |   | vieta      | ref             | datasets/gov/rc/ar/nesantis/Vieta                   | 4     | open   |                 |
+   |   |   |   |   | adresas    | ref             | datasets/gov/rc/jadis/at280/1/at280_adresai/Adresas | 4     | open   |                 |
+   |   |   |   |   | adresas2   | ref             | datasets/gov/rc/jadis/at280/1/at280_adresai/Adresas | 4     | open   |                 |
+   |   |   |   |   | zemelapis  | image           |                                                     | 4     | open   |                 |
+""")
+
+
+#: Two dataset paths of one service that map to one schema name when path
+#: separators are replaced with underscores.
+MANIFEST_WITH_COLLIDING_DATASETS = striptable("""
+id | d | r | b | m | property | type            | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/a_b |        |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | C            |                 | x   |       |
+   |   |   |   |   | x        | string required |     | 4     | open
+   |                          |                 |     |       |
+   | datasets/gov/rc/jadis/at280/1/a/b |        |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | C            |                 | y   |       |
+   |   |   |   |   | y        | string required |     | 4     | open
+""")
+
+
+#: A model named `XCollection` next to a model named `X`, whose collection
+#: schema takes that same name.
+MANIFEST_WITH_COLLIDING_MODELS = striptable("""
+id | d | r | b | m | property | type            | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |        |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | Data         |                 | x   |       |
+   |   |   |   |   | x        | string required |     | 4     | open
+   |   |   |   | DataCollection |               | y   |       |
+   |   |   |   |   | y        | string required |     | 4     | open
+""")
+
+
+#: Two datasets outside the exported service, whose paths map to one schema
+#: name, referenced from a model of the service.
+MANIFEST_WITH_COLLIDING_EXTERNAL_REFS = striptable("""
+id | d | r | b | m | property | type            | ref                           | level | access
+   | datasets/gov/rc/x/ext/1/a_b |            |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | C            |                 | p                             |       |
+   |   |   |   |   | p        | string required |                               | 4     | open
+   |                          |                 |                               |       |
+   | datasets/gov/rc/x/ext/1/a/b |            |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | C            |                 | q                             |       |
+   |   |   |   |   | q        | string required |                               | 4     | open
+   |                          |                 |                               |       |
+   | datasets/gov/rc/jadis/at280/1/ds |        |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | Israsas      |                 | nr                            |       |
+   |   |   |   |   | nr       | string required |                               | 4     | open
+   |   |   |   |   | first    | ref             | datasets/gov/rc/x/ext/1/a_b/C | 4     | open
+   |   |   |   |   | second   | ref             | datasets/gov/rc/x/ext/1/a/b/C | 4     | open
+""")
+
+
+#: Models whose names, concatenated with their file property names, build one
+#: operation id: `A` + `bc` and `Ab` + `c`.
+MANIFEST_WITH_COLLIDING_OPERATION_IDS = striptable("""
+id | d | r | b | m | property | type            | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |     |       |
+   |   | test                 | memory          |     |       |
+   |   |   |   | A            |                 | x   |       |
+   |   |   |   |   | x        | string required |     | 4     | open
+   |   |   |   |   | bc       | file            |     | 4     | open
+   |   |   |   | Ab           |                 | y   |       |
+   |   |   |   |   | y        | string required |     | 4     | open
+   |   |   |   |   | c        | file            |     | 4     | open
+""")
+
+
+#: One model referenced from two datasets of the service at different levels,
+#: which the reference carries differently: an `_id` or the natural key.
+MANIFEST_WITH_REF_SHAPES = striptable("""
+id | d | r | b | m | property | type            | ref                               | level | access
+   | datasets/gov/rc/x/ext/1/ext |           |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | Vieta        |                 | kodas                             |       |
+   |   |   |   |   | kodas    | string required |                                   | 4     | open
+   |                          |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/pirmas |   |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | A            |                 | id                                |       |
+   |   |   |   |   | id       | string required |                                   | 4     | open
+   |   |   |   |   | vieta    | ref             | datasets/gov/rc/x/ext/1/ext/Vieta | 4     | open
+   |                          |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/antras |   |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | B            |                 | id                                |       |
+   |   |   |   |   | id       | string required |                                   | 4     | open
+   |   |   |   |   | vieta    | ref             | datasets/gov/rc/x/ext/1/ext/Vieta | 3     | open
+""")
+
+
+#: An array of references, where the item property carries the level, and the
+#: array property carries one of its own.
+MANIFEST_WITH_ARRAY_REFS = striptable("""
+id | d | r | b | m | property   | type            | ref                               | level | access
+   | datasets/gov/rc/x/ext/1/ext |             |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Kalba          |                 | kodas                             |       |
+   |   |   |   |   | kodas      | string required |                                   | 4     | open
+   |                            |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/ds |         |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Israsas        |                 | id                                |       |
+   |   |   |   |   | id         | string required |                                   | 4     | open
+   |   |   |   |   | kalbos     | array           |                                   | 4     | open
+   |   |   |   |   | kalbos[]   | ref             | datasets/gov/rc/x/ext/1/ext/Kalba | 3     | open
+""")
+
+
+#: A level 3 reference, whose natural key holds a level 4 reference of its own.
+MANIFEST_WITH_NESTED_REF_LEVELS = striptable("""
+id | d | r | b | m | property | type            | ref                           | level | access
+   | datasets/gov/rc/x/ext/1/ext |           |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | C            |                 | kodas                         |       |
+   |   |   |   |   | kodas    | string required |                               | 4     | open
+   |   |   |   | B            |                 | cref                          |       |
+   |   |   |   |   | cref     | ref             | datasets/gov/rc/x/ext/1/ext/C | 4     | open
+   |   |   |   |   | pav      | string          |                               | 4     | open
+   |                          |                 |                               |       |
+   | datasets/gov/rc/jadis/at280/1/ds |       |                               |       |
+   |   | test                 | memory          |                               |       |
+   |   |   |   | A            |                 | id                            |       |
+   |   |   |   |   | id       | string required |                               | 4     | open
+   |   |   |   |   | bref     | ref             | datasets/gov/rc/x/ext/1/ext/B | 3     | open
+""")
+
+
+#: An array whose relation goes through an intermediate table, which the array
+#: holds in `model`, the same attribute a reference holds its target in.
+MANIFEST_WITH_INTERMEDIATE_TABLE = striptable("""
+id | d | r | b | m | property | type            | ref                                          | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |       |                                              |       |
+   |   | test                 | memory          |                                              |       |
+   |   |   |   | Kalba        |                 | kodas                                        |       |
+   |   |   |   |   | kodas    | string required |                                              | 4     | open
+   |   |   |   | Israsas      |                 | id                                           |       |
+   |   |   |   |   | id       | string required |                                              | 4     | open
+   |   |   |   |   | kalbos   | array           | datasets/gov/rc/jadis/at280/1/ds/IsrasoKalba | 4     | open
+   |   |   |   |   | kalbos[] | ref             | datasets/gov/rc/jadis/at280/1/ds/Kalba       | 4     | open
+   |   |   |   | IsrasoKalba  |                 | israsas, kalba                               |       |
+   |   |   |   |   | israsas  | ref             | datasets/gov/rc/jadis/at280/1/ds/Israsas     | 4     | open
+   |   |   |   |   | kalba    | ref             | datasets/gov/rc/jadis/at280/1/ds/Kalba       | 4     | open
+""")
+
+
+#: A dynamic array, which declares no item property, and an array of arrays.
+MANIFEST_WITH_ARRAY_LAYERS = striptable("""
+id | d | r | b | m | property   | type            | ref                               | level | access
+   | datasets/gov/rc/x/ext/1/ext |             |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Kalba          |                 | kodas                             |       |
+   |   |   |   |   | kodas      | string required |                                   | 4     | open
+   |                            |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/ds |         |                                   |       |
+   |   | test                   | memory          |                                   |       |
+   |   |   |   | Israsas        |                 | id                                |       |
+   |   |   |   |   | id         | string required |                                   | 4     | open
+   |   |   |   |   | zymos      | array           |                                   | 4     | open
+   |   |   |   |   | kalbos     | array           |                                   | 4     | open
+   |   |   |   |   | kalbos[]   | array           |                                   | 4     | open
+   |   |   |   |   | kalbos[][] | ref             | datasets/gov/rc/x/ext/1/ext/Kalba | 4     | open
+""")
+
+#: An array standing among the reference properties of a reference.
+MANIFEST_WITH_ARRAY_IN_REFERENCE = striptable("""
+id | d | r | b | m | property | type            | ref                                   | level | access
+   | datasets/gov/rc/x/ext/1/ext |           |                                       |       |
+   |   | test                 | memory          |                                       |       |
+   |   |   |   | Kalba        |                 | kodas                                 |       |
+   |   |   |   |   | kodas    | string required |                                       | 4     | open
+   |   |   |   | B            |                 | kalbos                                |       |
+   |   |   |   |   | kalbos   | array           |                                       | 4     | open
+   |   |   |   |   | kalbos[] | ref             | datasets/gov/rc/x/ext/1/ext/Kalba     | 4     | open
+   |                          |                 |                                       |       |
+   | datasets/gov/rc/jadis/at280/1/ds |       |                                       |       |
+   |   | test                 | memory          |                                       |       |
+   |   |   |   | A            |                 | id                                    |       |
+   |   |   |   |   | id       | string required |                                       | 4     | open
+   |   |   |   |   | bref     | ref             | datasets/gov/rc/x/ext/1/ext/B[kalbos] | 3     | open
+""")
+
+
+# Enum values real data services hold: `0`, which is a value and not a missing
+# one, and a formula, which is not a value at all.
+MANIFEST_WITH_ENUM_VALUES = striptable("""
+id | d | r | b | m | property   | type            | source | prepare | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |        |         |       |
+   |   | test                   | memory          |        |         |       |
+   |   |   |   | Testamentas    |                 |        |         |       |
+   |   |   |   |   | id         | string required |        |         | 4     | open
+   |   |   |   |   | sudaryta   | integer         |        |         | 4     | open
+   |                            | enum            |        | 1       |       |
+   |                            |                 |        | 0       |       |
+   |   |   |   |   | rusis      | integer         |        |         | 4     | open
+   |                            | enum            |        | noop()  |       |
+   |   |   |   |   | zyma       | string          |        |         | 4     | open
+   |                            | enum            |        | ''      |       |
+   |                            |                 | V      |         |       |
+""")
+
+# Names that hold characters an OpenAPI component name may not, as the data
+# service template in the metadata repository does.
+MANIFEST_WITH_UNNAMABLE_NAMES = striptable("""
+id | d | r | b | m | property | type            | level | access
+   | datasets/gov/rc/jadis/at280/1/(duom_rink) |   |     |
+   |   | test                 | memory          |       |
+   |   |   |   | Esybe        |                 |       |
+   |   |   |   |   | kodas    | string required | 4     | open
+""")
+
+
+# A model declaring `_id` of its own, whose identifiers are the keys the data
+# holds, `AE` of a country for one, and not UUIDs.
+MANIFEST_WITH_DECLARED_ID = striptable("""
+id | d | r | b | m | property | type            | ref   | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |       |         |       |
+   |   | test                 | memory          |       |         |       |
+   |   |   |   | Salis        |                 | kodas | salys   |       |
+   |   |   |   |   | _id      | string          |       |         |       | open
+   |   |   |   |   | kodas    | string required |       | kodas   | 4     | open
+""")
+
+
+# Only metadata marked `protected`, `package` or `public` is published; `private`
+# and an empty `visibility` are not. Covers a property, an enum value, a file
+# property served on a path of its own, text languages and whole models, one of
+# them referenced from a published property.
+MANIFEST_WITH_PRIVATE_VISIBILITY = striptable("""
+id | d | r | b | m | property    | type            | ref   | source    | prepare | level | access | visibility
+   | datasets/gov/rc/jadis/at280/1/ds |            |       |           |         |       |        |
+   |   | test                     | memory          |       |           |         |       |        |
+   |   |   |   | Salis            |                 | kodas | salys     |         |       | open   | public
+   |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
+   |   |   |   |   | pavadinimas  | string          |       | pav       |         | 4     | open   |
+   |   |   |   |   | slaptas      | string          |       | slaptas   |         | 4     | open   | private
+   |   |   |   |   | tipas        | string          |       | tipas     |         | 4     | open   | package
+   |                              | enum            |       | a         | 'a'     |       |        | public
+   |                              |                 |       | b         | 'b'     |       |        | private
+   |                              |                 |       | c         | 'c'     |       |        |
+   |   |   |   |   | byla         | file            |       | byla      |         | 4     | open   | private
+   |   |   |   |   | aprasas@lt   | string          |       | apr_lt    |         | 4     | open   | private
+   |   |   |   |   | aprasas@en   | string          |       | apr_en    |         | 4     | open   | protected
+   |   |   |   |   | pastaba@lt   | string          |       | pastaba   |         | 4     | open   | private
+   |   |   |   |   | santrauka@lt | string          |       | santrauka |         | 4     | open   |
+   |   |   |   |   | paslaptis    | ref             | Paslaptis   | paslaptis |    | 3     | open   | public
+   |   |   |   |   | nepazymetas  | ref             | Nepazymetas | nepaz     |    | 4     | open   | public
+   |   |   |   | Paslaptis        |                 | kodas | paslaptys |         |       | open   | private
+   |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
+   |   |   |   | Nepazymetas      |                 | kodas | nepaz     |         |       | open   |
+   |   |   |   |   | kodas        | string required |       | kodas     |         | 4     | open   | public
+""")
+
+
+# A model whose identifier is a whole number of its data.
+MANIFEST_WITH_INTEGER_ID = striptable("""
+id | d | r | b | m | property | type             | ref | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |     |         |       |
+   |   | test                 | memory           |     |         |       |
+   |   |   |   | Salis        |                  | nr  | salys   |       |
+   |   |   |   |   | _id      | integer          |     |         |       | open
+   |   |   |   |   | nr       | integer required |     | nr      | 4     | open
+""")
+
+
+# A model keyed by two properties, whose identifier is both of them written out.
+MANIFEST_WITH_COMPOSITE_ID = striptable("""
+id | d | r | b | m | property | type            | ref      | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |          |         |       |
+   |   | test                 | memory          |          |         |       |
+   |   |   |   | Salis        |                 | nr, kodas| salys   |       |
+   |   |   |   |   | _id      | string          |          |         |       | open
+   |   |   |   |   | nr       | integer required|          | nr      | 4     | open
+   |   |   |   |   | kodas    | string required |          | kodas   | 4     | open
+""")
+
+
+# A model whose identifier is its key encoded, see `spinta.types.datatype.Base32`.
+MANIFEST_WITH_BASE32_ID = striptable("""
+id | d | r | b | m | property | type            | ref   | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |       |         |       |
+   |   | test                 | memory          |       |         |       |
+   |   |   |   | Salis        |                 | kodas | salys   |       |
+   |   |   |   |   | _id      | base32          |       |         |       | open
+   |   |   |   |   | kodas    | string required |       | kodas   | 4     | open
+""")
+
+
+# A model referencing one whose identifiers are the keys of its data.
+MANIFEST_WITH_DECLARED_REF_ID = striptable("""
+id | d | r | b | m | property | type            | ref                                  | source | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |                                      |        |       |
+   |   | test                 | memory          |                                      |        |       |
+   |   |   |   | Salis        |                 | kodas                                | salys  |       |
+   |   |   |   |   | _id      | string          |                                      |        |       | open
+   |   |   |   |   | kodas    | string required |                                      | kodas  | 4     | open
+   |   |   |   | Adresas      |                 | id                                   | adresai|       |
+   |   |   |   |   | id       | string required |                                      | id     | 4     | open
+   |   |   |   |   | salis    | ref             | datasets/gov/rc/jadis/at280/1/ds/Salis|       | 4     | open
+""")
+
+
+# Values whose examples have a shape to keep: a `uuid` property that is not an
+# identifier, and a reference to a model keyed by a whole number.
+MANIFEST_WITH_SHAPED_EXAMPLES = striptable("""
+id | d | r | b | m | property | type             | ref                                  | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |                                      |         |       |
+   |   | test                 | memory           |                                      |         |       |
+   |   |   |   | Salis        |                  | nr                                   | salys   |       |
+   |   |   |   |   | _id      | integer          |                                      |         |       | open
+   |   |   |   |   | nr       | integer required |                                      | nr      | 4     | open
+   |   |   |   | Adresas      |                  | id                                   | adresai |       |
+   |   |   |   |   | id       | string required  |                                      | id      | 4     | open
+   |   |   |   |   | kodas    | uuid             |                                      | kodas   | 4     | open
+   |   |   |   |   | salis    | ref              | datasets/gov/rc/jadis/at280/1/ds/Salis | salis | 4     | open
+""")
+
+
+# A model building `_revision` out of its own data, `123,14` for one, see
+# `tests/datasets/sql/test_reserved_props.py`.
+MANIFEST_WITH_DECLARED_REVISION = striptable("""
+id | d | r | b | m | property  | type            | ref          | source | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |          |              |        |       |
+   |   | test                  | memory          |              |        |       |
+   |   |   |   | Sritis        |                 | kodas        | sritys |       |
+   |   |   |   |   | _revision | string          |              |        |       | open
+   |   |   |   |   | kodas     | string required |              | kodas  | 4     | open
+   |   |   |   |   | didysis   | string required |              | didysis| 4     | open
+""")
+
+
+# A model that builds `_revision` out of its data and holds a file, whose `:ref`
+# answer carries that revision.
+MANIFEST_WITH_FILE_AND_DECLARED_REVISION = striptable("""
+id | d | r | b | m | property  | type            | ref   | source  | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |         |       |         |       |
+   |   | test                  | memory          |       |         |       |
+   |   |   |   | Byla          |                 | kodas | bylos   |       |
+   |   |   |   |   | _revision | integer         |       |         |       | open
+   |   |   |   |   | kodas     | string required |       | kodas   | 4     | open
+   |   |   |   |   | priedas   | file            |       | priedas | 4     | open
+""")
+
+
+# A reference inside an object property, and inside an object inside one.
+MANIFEST_WITH_NESTED_OBJECT_REF = striptable("""
+id | d | r | b | m | property           | type            | ref                                    | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |                |                                        |       |
+   |   | test                          | memory          |                                        |       |
+   |   |   |   | Salis                 |                 | kodas                                  |       |
+   |   |   |   |   | kodas             | string required |                                        | 4     | open
+   |   |   |   | Israsas               |                 | id                                     |       |
+   |   |   |   |   | id                | string required |                                        | 4     | open
+   |   |   |   |   | adresas           | object          |                                        | 4     | open
+   |   |   |   |   | adresas.salis     | ref             | datasets/gov/rc/jadis/at280/1/ds/Salis | 4     | open
+   |   |   |   |   | adresas.vieta     | object          |                                        | 4     | open
+   |   |   |   |   | adresas.vieta.kur | ref             | datasets/gov/rc/jadis/at280/1/ds/Salis | 3     | open
+""")
+
+
+# A model whose identifiers the manifest lists, one by one.
+MANIFEST_WITH_ENUM_ID = striptable("""
+id | d | r | b | m | property | type            | ref   | source | prepare | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |       |       |        |         |       |
+   |   | test                 | memory          |       |        |         |       |
+   |   |   |   | Salis        |                 | kodas | salys  |         |       |
+   |   |   |   |   | _id      | string          |       |        |         |       | open
+   |                          | enum            |       |        | 'AE'    |       |
+   |                          |                 |       |        | 'LT'    |       |
+   |   |   |   |   | kodas    | string required |       | kodas  |         | 4     | open
+""")
+
+
 @pytest.fixture
 def manifest():
     return MANIFEST
@@ -115,9 +526,44 @@ def open_manifest_path(tmp_path, rc):
         path,
         MANIFEST,
     )
+    publish_unmarked(path)
     file_handle = open(path, "r")
     yield ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
     file_handle.close()
+
+
+def publish_unmarked(path: str | Path) -> None:
+    """Mark every model, property and enum value given no visibility `public`.
+
+    Only metadata marked `protected`, `package` or `public` is published, an
+    empty `visibility` counting as `private`, see `openapi_generator._published`.
+    Most manifests here are about something else, so they are published whole,
+    the way a DSA meant for a gateway would be marked. A test about visibility
+    passes `publish=False` and marks what it needs itself.
+    """
+    with open(path, newline="", encoding="utf-8") as file:
+        rows = list(csv.reader(file))
+    head = rows[0]
+    column = {name: index for index, name in enumerate(head)}
+
+    def cell(row, name):
+        index = column.get(name)
+        return row[index] if index is not None and index < len(row) else ""
+
+    for row in rows[1:]:
+        if cell(row, "visibility"):
+            continue
+        described = cell(row, "model") or cell(row, "property")
+        # An enum value sits on a row of its own, under the property, with no
+        # dataset, resource, base, model or property of its own.
+        enum_value = not any(cell(row, name) for name in ("dataset", "resource", "base", "model", "property")) and (
+            cell(row, "type") == "enum" or cell(row, "source") or cell(row, "prepare")
+        )
+        if described or enum_value:
+            row[column["visibility"]] = "public"
+
+    with open(path, "w", newline="", encoding="utf-8") as file:
+        csv.writer(file).writerows(rows)
 
 
 @pytest.fixture
@@ -125,7 +571,7 @@ def open_manifest_path_factory(tmp_path, rc):
     """Factory fixture that creates manifest paths with custom MANIFEST data"""
     opened_files = []
 
-    def _create_manifest(manifest_data):
+    def _create_manifest(manifest_data, publish=True):
         path = f"{tmp_path}/manifest_{len(opened_files)}.csv"
         context = create_test_context(rc)
         create_tabular_manifest(
@@ -133,6 +579,8 @@ def open_manifest_path_factory(tmp_path, rc):
             path,
             manifest_data,
         )
+        if publish:
+            publish_unmarked(path)
         file_handle = open(path, "r")
         opened_files.append(file_handle)
         return ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
@@ -141,3 +589,8 @@ def open_manifest_path_factory(tmp_path, rc):
 
     for file_handle in opened_files:
         file_handle.close()
+
+
+@pytest.fixture
+def manifest_with_services():
+    return MANIFEST_WITH_SERVICES
