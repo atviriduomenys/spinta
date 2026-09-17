@@ -1374,7 +1374,7 @@ class SchemaGenerator:
         for model in models.values():
             schema_name = self.namer.name(model)
             schemas[schema_name] = self._create_model_schema(model, schemas)
-            schemas[f"{schema_name}Collection"] = self._create_collection_schema(model, schema_name)
+            schemas[f"{schema_name}Collection"] = self._create_collection_schema(model, schema_name, schemas)
 
         for model in models.values():
             self._create_object_property_schemas(schemas, model)
@@ -1530,11 +1530,13 @@ class SchemaGenerator:
             example[prop_name] = self.dtype_handler.get_example_value(model_property, schemas=schemas)
         return example
 
-    def _create_collection_schema(self, model, schema_name: str) -> dict[str, Any]:
+    def _create_collection_schema(self, model, schema_name: str, schemas: dict) -> dict[str, Any]:
         """A listing, as `render` writes one: the objects and the next page.
 
         There is no `_type` beside them, and `_page` is there whenever a page
-        of a listing was answered, see `spinta.formats`.
+        of a listing was answered, see `spinta.formats`. The object of the
+        example is the one of the model schema, references reading as the
+        schemas they point at say, so neither example is refused by its schema.
         """
         return {
             "type": "object",
@@ -1551,7 +1553,7 @@ class SchemaGenerator:
                 "_page": {"$ref": "#/components/schemas/page"},
             },
             "example": {
-                "_data": [self._create_example(model)],
+                "_data": [self._create_example(model, schemas=schemas)],
                 "_page": {"next": EXAMPLE_PAGE_TOKEN},
             },
         }
