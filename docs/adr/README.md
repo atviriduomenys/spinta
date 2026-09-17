@@ -21,3 +21,4 @@ Naujam ADR nukopijuokite struktūrą iš esamo: *Kontekstas*, *Sprendimas*,
 | Nr. | Pavadinimas | Būsena | Data |
 |---|---|---|---|
 | [0001](0001-oas-429-atviras-objektas.md) | OAS `429` atsakymas – atviras objektas, limitus taiko vartai | Priimtas | 2026-09-17 |
+| [0002](0002-oas-sveikuju-skaiciu-ribos-nenurodomos.md) | OAS sveikųjų skaičių savybėms `format` ir ribos nenurodomi | Priimtas | 2026-09-17 |
