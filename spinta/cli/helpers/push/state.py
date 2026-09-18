@@ -141,7 +141,7 @@ def save_push_state(
         else:
             _id = spyna.parse(row.data["_where"])["args"][1]
 
-        if row.op == PushOperation.DELETE and not row.error:
+        if row.op is PushOperation.DELETE and not row.error:
             conn.execute(table.delete().where(table.c.id == _id))
             yield row
             continue
