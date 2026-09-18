@@ -1,10 +1,8 @@
-from typing import Dict, Iterable, List
-
 import sqlalchemy as sa
 import tqdm
 
 from spinta import commands
-from spinta.cli.helpers.push.components import PushRow
+from spinta.cli.helpers.push.components import PUSH_SESSION_ID, PushRows
 from spinta.cli.helpers.push.utils import construct_where_condition_from_page, extract_state_page_keys
 from spinta.cli.helpers.push.write import prepare_rows_for_deletion
 from spinta.commands.read import PaginationMetaData, get_paginated_values
@@ -12,11 +10,11 @@ from spinta.components import Context, Model, get_page_size, pagination_enabled
 
 
 def get_deleted_rows(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
     no_progress_bar: bool = False,
-):
+) -> PushRows:
     counts = _get_deleted_row_counts(models, context, metadata)
     total_count = sum(counts.values())
     if total_count > 0:
@@ -34,32 +32,39 @@ def get_deleted_rows(
 
 
 def _get_deleted_row_counts(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
 ) -> dict:
     counts = {}
     conn = context.get("push.state.conn")
+    session_id = context.get(PUSH_SESSION_ID)
     for model in models:
         table = metadata.tables[model.name]
 
         row_count = conn.execute(
-            sa.select(sa.func.count(table.c.id)).where(sa.and_(table.c.pushed.is_(None), table.c.error.is_(False)))
+            sa.select(sa.func.count(table.c.id)).where(
+                sa.or_(
+                    sa.and_(table.c.pushed.is_(None), table.c.error.is_(False)),
+                    table.c.session_id != session_id,
+                )
+            )
         )
         counts[model.name] = row_count.scalar()
     return counts
 
 
 def _iter_deleted_rows(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
-    counts: Dict[str, int],
+    counts: dict[str, int],
     no_progress_bar: bool = False,
-) -> Iterable[PushRow]:
+) -> PushRows:
     models = reversed(models)
     config = context.get("config")
     conn = context.get("push.state.conn")
+    session_id = context.get(PUSH_SESSION_ID)
     for model in models:
         size = get_page_size(config, model)
         table = metadata.tables[model.name]
@@ -73,7 +78,13 @@ def _iter_deleted_rows(
                 size,
             )
         else:
-            rows = conn.execute(sa.select([table.c.id]).where(table.c.pushed.is_(None) & table.c.error.is_(False)))
+            rows = conn.execute(
+                sa.select([table.c.id]).where(
+                    sa.or_(
+                        sa.and_(table.c.pushed.is_(None), table.c.error.is_(False)), table.c.session_id != session_id
+                    )
+                )
+            )
         if not no_progress_bar:
             rows = tqdm.tqdm(rows, model.name, ascii=True, total=total, leave=False)
 
@@ -88,6 +99,7 @@ def _get_deleted_rows_with_page(
     size: int,
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get("push.state.conn")
+    session_id = context.get(PUSH_SESSION_ID)
 
     order_by = []
     page = commands.create_page(model.page)
@@ -96,7 +108,10 @@ def _get_deleted_rows_with_page(
     for page_by in page.by.values():
         order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
 
-    required_where_cond = sa.and_(table.c.pushed.is_(None), table.c.error.is_(False))
+    required_where_cond = sa.or_(
+        sa.and_(table.c.pushed.is_(None), table.c.error.is_(False)),
+        table.c.session_id != session_id,
+    )
 
     page_meta = PaginationMetaData(page_size=size)
 
