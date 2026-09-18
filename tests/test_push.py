@@ -15,7 +15,7 @@ from spinta import commands
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push.components import PushRow, State
 from spinta.cli.helpers.push.state import init_push_state, reset_pushed
-from spinta.cli.helpers.push.write import _map_sent_and_recv, get_row_for_error, push, send_request
+from spinta.cli.helpers.push.write import _map_sent_and_recv, get_row_for_error, push_rows, send_request
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
@@ -304,7 +304,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
-    push(
+    push_rows(
         context,
         client,
         server,
@@ -358,7 +358,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     server = "https://example.com/"
     responses.add(POST, server, status=500, body="ERROR!")
 
-    push(
+    push_rows(
         context,
         client,
         server,
@@ -447,7 +447,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
-    push(
+    push_rows(
         context,
         client,
         server,
@@ -534,7 +534,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
         ],
     )
 
-    push(context, client, server, models, rows, timeout=(5, 300), state=state, syncronize=False)
+    push_rows(context, client, server, models, rows, timeout=(5, 300), state=state, syncronize=False)
 
     query = sa.select([table.c.id, table.c.synchronize])
     res = list(conn.execute(query))
@@ -603,7 +603,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
         ],
     )
 
-    push(context, client, server, models, rows, state=state, timeout=(5, 300), syncronize=False)
+    push_rows(context, client, server, models, rows, state=state, timeout=(5, 300), syncronize=False)
 
     query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
     res = list(conn.execute(query))
@@ -677,7 +677,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
-    push(context, client, server, models, rows, state=state, timeout=(5, 300), syncronize=True)
+    push_rows(context, client, server, models, rows, state=state, timeout=(5, 300), syncronize=True)
 
     query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
     res = list(conn.execute(query))
@@ -733,7 +733,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     server = "https://example.com/"
     responses.add(POST, server, status=500, body="ERROR!")
 
-    push(
+    push_rows(
         context,
         client,
         server,
@@ -906,7 +906,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         ),
     ]
 
-    push(
+    push_rows(
         context,
         client,
         server,
@@ -992,7 +992,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
-    push(
+    push_rows(
         context,
         client,
         server,
@@ -1067,7 +1067,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     responses.add(POST, server, status=409, body="Conflicting value")
 
     error_counter = ErrorCounter(1)
-    push(
+    push_rows(
         context, client, server, models, rows, timeout=(5, 300), state=state, chunk_size=1, error_counter=error_counter
     )
 
@@ -1075,7 +1075,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     assert list(conn.execute(query)) == [(_id1, rev, True)]
 
     error_counter = ErrorCounter(2)
-    push(
+    push_rows(
         context, client, server, models, rows, timeout=(5, 300), state=state, chunk_size=1, error_counter=error_counter
     )
 
@@ -1195,7 +1195,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
-    push(
+    push_rows(
         context,
         client,
         server,

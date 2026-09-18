@@ -4,7 +4,7 @@ import textwrap
 import time
 import uuid
 from copy import copy
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Iterable
 
 import pprintpp
 import requests
@@ -13,20 +13,19 @@ from requests import HTTPError
 
 import spinta.cli.push as cli_push
 from spinta import spyna
-from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import Error, PushRow, State
-from spinta.cli.helpers.push.state import check_push_state, save_push_state
+from spinta.cli.helpers.push.components import Error, PushOperation, PushRow, PushRows, State
+from spinta.cli.helpers.push.state import consume_unchanged_rows, save_push_state
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.json import fix_data_for_json
 
 
-def _prepare_rows_for_push(rows: Iterable[PushRow]) -> Iterator[PushRow]:
+def _prepare_rows_for_push(rows: PushRows) -> PushRows:
     for row in rows:
-        row.data["_op"] = row.op
-        if row.op == "patch":
+        row.data["_op"] = row.op.value
+        if row.op is PushOperation.PATCH:
             where = {
                 "name": "eq",
                 "args": [
@@ -35,11 +34,11 @@ def _prepare_rows_for_push(rows: Iterable[PushRow]) -> Iterator[PushRow]:
                 ],
             }
             row.data["_where"] = spyna.unparse(where)
-        elif row.op == "insert":
+        elif row.op is PushOperation.INSERT:
             # if _revision is passed insert action gives ManagedProperty error
             if "_revision" in row.data:
                 row.data.pop("_revision")
-        elif row.op == "delete" or not row.send:
+        elif row.op is PushOperation.DELETE or not row.send:
             pass
         else:
             raise NotImplementedError(row.op)
@@ -50,12 +49,13 @@ def prepare_rows_with_errors(
     client: requests.Session,
     server: str,
     context: Context,
-    rows,
+    rows: Iterable[dict],
     model: Model,
     table: sa.Table,
-    timeout: Tuple[float, float],
-    error_counter: ErrorCounter = None,
-) -> Iterable[ModelRow]:
+    timeout: tuple[float, float],
+    *,
+    error_counter: ErrorCounter | None = None,
+) -> PushRows:
     conn = context.get("push.state.conn")
     for row in rows:
         type = model.model_type()
@@ -88,7 +88,7 @@ def prepare_rows_with_errors(
                 # Need to push again
             else:
                 data["_revision"] = resp["_revision"]
-                yield PushRow(model, data, checksum=checksum, saved=True, op="patch", error=True)
+                yield PushRow(model, data, checksum=checksum, saved=True, op=PushOperation.PATCH, error=True)
 
         elif status_code == 404:
             # Was deleted on both - local and target servers
@@ -97,10 +97,14 @@ def prepare_rows_with_errors(
                 yield PushRow(model, {"_type": type}, send=False)
             # Need to push again
             else:
-                yield PushRow(model, data, checksum=checksum, saved=True, op="insert", error=True)
+                yield PushRow(model, data, checksum=checksum, saved=True, op=PushOperation.INSERT, error=True)
 
 
-def prepare_rows_for_deletion(model: Model, _id: str, error: bool = False):
+def prepare_rows_for_deletion(
+    model: Model,
+    _id: str,
+    error: bool = False,
+):
     where = {
         "name": "eq",
         "args": [
@@ -108,12 +112,18 @@ def prepare_rows_for_deletion(model: Model, _id: str, error: bool = False):
             _id,
         ],
     }
-    return PushRow(model, {"_type": model.name, "_where": spyna.unparse(where)}, saved=True, op="delete", error=error)
+    return PushRow(
+        model,
+        {"_type": model.name, "_where": spyna.unparse(where)},
+        saved=True,
+        op=PushOperation.DELETE,
+        error=error,
+    )
 
 
 def get_row_for_error(
-    rows: List[PushRow],
-    errors: Optional[List[Error]] = None,
+    rows: list[PushRow],
+    errors: list[Error] | None = None,
 ) -> str:
     message = []
     size = len(rows)
@@ -140,19 +150,19 @@ def get_row_for_error(
 def _push_to_remote_spinta(
     client: requests.Session,
     server: str,
-    rows: Iterable[PushRow],
+    rows: PushRows,
+    timeout: tuple[float, float],
     chunk_size: int,
-    timeout: Tuple[float, float],
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
-) -> Iterator[PushRow]:
+    error_counter: ErrorCounter | None = None,
+) -> PushRows:
     prefix = '{"_data":['
     suffix = "]}"
     slen = len(suffix)
     chunk = prefix
-    ready: List[PushRow] = []
+    ready: list[PushRow] = []
 
     for row in rows:
         if error_counter:
@@ -172,10 +182,10 @@ def _push_to_remote_spinta(
                 server,
                 ready,
                 chunk + suffix,
+                timeout,
                 dry_run=dry_run,
                 stop_on_error=stop_on_error,
                 error_counter=error_counter,
-                timeout=timeout,
             )
             chunk = prefix
             ready = []
@@ -191,10 +201,10 @@ def _push_to_remote_spinta(
                     server,
                     ready,
                     chunk + suffix,
+                    timeout,
                     dry_run=dry_run,
                     stop_on_error=stop_on_error,
                     error_counter=error_counter,
-                    timeout=timeout,
                 )
         else:
             yield from _send_and_receive(
@@ -202,24 +212,24 @@ def _push_to_remote_spinta(
                 server,
                 ready,
                 chunk + suffix,
+                timeout,
                 dry_run=dry_run,
                 stop_on_error=stop_on_error,
                 error_counter=error_counter,
-                timeout=timeout,
             )
 
 
 def _send_and_receive(
     client: requests.Session,
     server: str,
-    rows: List[PushRow],
+    rows: list[PushRow],
     data: str,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
-) -> Iterator[PushRow]:
+    error_counter: ErrorCounter | None = None,
+) -> PushRows:
     if dry_run:
         recv = _send_data_dry_run(data)
     else:
@@ -240,7 +250,7 @@ def _send_and_receive(
 
 def _send_data_dry_run(
     data: str,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Pretend data has been sent to a target location."""
     recv = json.loads(data)["_data"]
     for row in recv:
@@ -257,9 +267,9 @@ def _send_data_dry_run(
 
 
 def _map_sent_and_recv(
-    sent: List[PushRow],
-    recv: Optional[List[Dict[str, Any]]],
-) -> Iterator[PushRow]:
+    sent: list[PushRow],
+    recv: list[dict[str, Any]] | None,
+) -> PushRows:
     if recv is None:
         # We don't have a response, because there was an error while
         # communicating with the target server.
@@ -282,9 +292,10 @@ def _map_sent_and_recv(
 
 
 def _push_rows(
-    rows: Iterator[PushRow],
+    rows: PushRows,
+    *,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
 ) -> None:
     while True:
         try:
@@ -306,14 +317,14 @@ def send_request(
     client: requests.Session,
     server: str,
     method: str,
-    rows: List[PushRow],
+    rows: list[PushRow],
     data: str,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
     stop_on_error: bool = False,
-    ignore_errors: Optional[List[int]] = None,
-    error_counter: ErrorCounter = None,
-) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
+    ignore_errors: list[int] | None = None,
+    error_counter: ErrorCounter | None = None,
+) -> tuple[int | None, dict[str, Any] | None]:
     data = data.encode("utf-8")
     if not ignore_errors:
         ignore_errors = []
@@ -381,46 +392,57 @@ def send_request(
     return resp.status_code, resp.json()
 
 
-def push(
+def push_rows(
     context: Context,
     client: requests.Session,
     server: str,  # https://example.com/
-    models: List[Model],
-    rows: Iterable[PushRow],
-    timeout: Tuple[float, float],
+    rows: PushRows,
+    state: State,
+    chunk_size: int,  # split into chunks of given size in bytes
+    timeout: tuple[float, float],
     *,
-    state: Optional[State] = None,
-    stop_time: Optional[int] = None,  # seconds
-    stop_row: Optional[int] = None,  # stop aftern given number of rows
-    chunk_size: Optional[int] = None,  # split into chunks of given size in bytes
+    stop_time: int | None = None,  # seconds
+    stop_row: int | None = None,  # stop after given number of rows
     dry_run: bool = False,  # do not send or write anything
     stop_on_error: bool = False,  # raise error immediately
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
 
-    if state:
-        rows = check_push_state(context, rows, state.metadata)
+    # Consume PushOperation.UNCHANGED rows and update their `session_id`
+    rows = consume_unchanged_rows(context, rows, state.metadata, dry_run=dry_run)
 
+    # Apply data transformations for specific operations
     rows = _prepare_rows_for_push(rows)
 
     if stop_row:
         rows = itertools.islice(rows, stop_row)
 
     rows = _push_to_remote_spinta(
-        client, server, rows, chunk_size, dry_run=dry_run, error_counter=error_counter, timeout=timeout
+        client,
+        server,
+        rows,
+        timeout,
+        chunk_size,
+        dry_run=dry_run,
+        stop_on_error=stop_on_error,
+        error_counter=error_counter,
     )
-    if state and not dry_run:
+    if not dry_run:
         rows = save_push_state(context, rows, state.metadata)
 
-    _push_rows(rows, stop_on_error, error_counter)
+    _push_rows(
+        rows,
+        stop_on_error=stop_on_error,
+        error_counter=error_counter,
+    )
 
 
 def _add_stop_time(
-    rows: Iterable[PushRow],
+    rows: PushRows,
     stop: int,  # seconds
-) -> Iterator[PushRow]:
+) -> PushRows:
     start = time.time()
     for row in rows:
         yield row
