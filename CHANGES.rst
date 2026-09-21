@@ -9,7 +9,7 @@ Backwards incompatible:
 - Generated OpenAPI specifications changed, so that one file can be imported
   into an API gateway and used to validate requests and responses against it
   (`#2004`_). What the specification holds is described in
-  ``docs/dev/specifikacijos/udts-oas.md``. Changes a user of the files will
+  ``docs/dev/specifications/udts-oas.md``. Changes a user of the files will
   notice:
 
   - The specification is OpenAPI ``3.0.3`` instead of ``3.1.0``.

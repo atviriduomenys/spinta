@@ -1,13 +1,13 @@
-# Spintos architektūra
+# Spinta architecture
 
-Šis skyrius dar neparašytas. Čia aprašoma bendra Spintos sandara, kuria remiasi
-funkcionalumo specifikacijos (`../specifikacijos/`):
+Not written yet. This section describes the overall structure of Spinta that
+feature specifications (`../specifications/`) build on:
 
-- manifestų įkėlimas ir mazgų (`Model`, `Property`, `Dataset`, `Namespace`)
-  susiejimas;
-- komandų (`spinta.commands`) ir `multipledispatch` išskirstymas;
-- saugyklos (`backends`) ir išoriniai duomenų šaltiniai (`datasets`);
-- HTTP API: užklausų parametrai, formatai, autorizacija;
-- CLI (`spinta.cli`) sandara.
+- loading manifests and linking nodes (`Model`, `Property`, `Dataset`,
+  `Namespace`);
+- commands (`spinta.commands`) and `multipledispatch` dispatch;
+- storage backends (`backends`) and external data sources (`datasets`);
+- the HTTP API: query parameters, formats, authorization;
+- the CLI (`spinta.cli`).
 
-Kiekviena tema – atskiras failas šiame kataloge.
+One file per topic in this directory.
