@@ -4,6 +4,16 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Fixed token validation when ``token_validation_keys_download_url`` was
+  configured (needed when tokens are issued by an external authorization
+  server): the ``downloaded_public_keys_file`` configuration value is a
+  string, but it was stored as-is and later used as a ``pathlib.Path``
+  (``load_downloaded_public_keys`` calls ``.exists()`` on it), so every
+  request failed with ``AttributeError: 'str' object has no attribute
+  'exists'``. The value is now wrapped with ``pathlib.Path``.
+
 
 1.1.0 (2026-08-19)
 =====================
