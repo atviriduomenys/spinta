@@ -1,310 +1,313 @@
-# UDTS duomenų paslaugos OpenAPI aprašas
+# UDTS data service OpenAPI specification
 
-Kaip Spinta iš manifesto sugeneruoja vienos UDTS duomenų paslaugos OpenAPI
-aprašą. Naudotojo instrukcija (komanda, konfigūracija, darbas vartuose) –
+How Spinta generates the OpenAPI specification of one UDTS data service from a
+manifest. User guide (command, configuration, work in the gateway):
 [`docs/lt/agentas/oas-generavimas.md`](../../lt/agentas/oas-generavimas.md).
 
-## Paskirtis
+## Purpose
 
-Aprašą API vartai naudoja dviem tikslais:
+The API gateway uses the specification for two things:
 
-1. **endpoint'ams importuoti** – vartai iš aprašo sukuria API, o API context-path
-   išveda iš pirmojo `servers` įrašo kelio;
-2. **užklausoms ir atsakymams tikrinti** – *OpenAPI Specification Validation*
-   politika Request ir Response fazėse.
+1. **importing endpoints**: the gateway builds an API from it and takes the API
+   context path from the path of the first `servers` entry;
+2. **validating requests and responses**: the *OpenAPI Specification
+   Validation* policy in the Request and Response phases.
 
-Todėl aprašas turi atitikti tai, ką Spinta iš tikrųjų priima ir grąžina:
-užklausų pusėje – kiek įmanoma griežtai, atsakymų pusėje – niekada ne griežčiau,
-nei Spinta gali atsakyti.
+So the specification has to match what Spinta actually accepts and answers: as
+strict as possible on the request side, never stricter than Spinta can answer
+on the response side.
 
-## Kodas ir testai
+## Code and tests
 
-| Kur | Kas |
+| Where | What |
 |---|---|
-| `spinta/cli/udts/oas.py` | CLI komanda `spinta udts oas` |
-| `spinta/manifests/open_api/service.py` | duomenų paslaugos kelio logika |
-| `spinta/manifests/open_api/udts_config.py` | `--udts-cfg` skaitymas ir tikrinimas (`UdtsConfig`) |
-| `spinta/manifests/open_api/udts_cfg.example.yml` | pavyzdinė konfigūracija |
-| `spinta/manifests/open_api/openapi_generator.py` | generatorius (`OpenAPIGenerator`) |
-| `spinta/manifests/open_api/openapi_config.py` | kelių, parametrų, atsakymų, schemų šablonai |
+| `spinta/cli/udts/oas.py` | CLI command `spinta udts oas` |
+| `spinta/manifests/open_api/service.py` | data service path logic |
+| `spinta/manifests/open_api/udts_config.py` | reading and checking `--udts-cfg` (`UdtsConfig`) |
+| `spinta/manifests/open_api/udts_cfg.example.yml` | example configuration |
+| `spinta/manifests/open_api/openapi_generator.py` | the generator (`OpenAPIGenerator`) |
+| `spinta/manifests/open_api/openapi_config.py` | templates of paths, parameters, responses, schemas |
 | `spinta/manifests/open_api/helpers.py` | `create_openapi_manifest`, `write_openapi_manifest` |
-| `spinta/spyna.py` | `_page=<token>` užklausos sintaksė |
-| `tests/manifests/open_api/` | generatoriaus, konfigūracijos ir aprašo validumo testai |
-| `tests/cli/test_udts_oas.py` | CLI testai |
+| `spinta/spyna.py` | `_page=<token>` query syntax |
+| `tests/manifests/open_api/` | generator, configuration and validity tests |
+| `tests/cli/test_udts_oas.py` | CLI tests |
 
-Susiję ADR: [ADR-0001](../../adr/0001-oas-429-atviras-objektas.md) (`429`),
-[ADR-0002](../../adr/0002-oas-sveikuju-skaiciu-ribos-nenurodomos.md)
-(sveikųjų skaičių ribos), [ADR-0003](../../adr/0003-oas-versija-3-0.md)
-(OpenAPI 3.0), [ADR-0004](../../adr/0004-oas-tuscias-identifikatorius-neaprasomas.md)
-(tuščias identifikatorius).
+Related ADRs: [ADR-0001](../../adr/0001-oas-429-open-object.md) (`429`),
+[ADR-0002](../../adr/0002-oas-integer-bounds-not-stated.md) (integer bounds),
+[ADR-0003](../../adr/0003-oas-version-3-0.md) (OpenAPI 3.0),
+[ADR-0004](../../adr/0004-oas-empty-identifier-not-described.md) (empty
+identifier).
 
-## Įėjimai
+## Inputs
 
-### Režimai
+### Modes
 
-`create_openapi_manifest` veikia dviem režimais:
+`create_openapi_manifest` works in two modes:
 
-| Režimas | Kaip iškviečiamas | `servers` | Agento endpoint'ai | Schemų vardai |
+| Mode | Called with | `servers` | Agent endpoints | Schema names |
 |---|---|---|---|---|
-| **Duomenų paslauga** | `service_path=…` (`spinta udts oas`) | iš `--udts-cfg` | abi formos | kelias paslaugos viduje |
-| **Katalogas** | be `service_path` (visas manifestas arba `main_dataset_name`) | nėra | tik agento adresai | pilnas vardas arba `basename` |
+| **Data service** | `service_path=…` (`spinta udts oas`) | from `--udts-cfg` | both forms | path within the service |
+| **Catalog** | no `service_path` (whole manifest or `main_dataset_name`) | none | agent addresses only | full name or `basename` |
 
-Toliau aprašomas duomenų paslaugos režimas; katalogo režimo skirtumai – lentelėje.
+The rest describes the data service mode; catalog differences are in the table.
 
-### Duomenų paslaugos kelias
+### Data service path
 
-Duomenų paslaugą apibrėžia rinkinio kelio pradžia:
+A data service is the leading part of a dataset path:
 
 ```
 datasets/{form}/{org}/{is}/{service}/{version}/{dataset}/{model}
-└────────────── duomenų paslauga ─────────────┘
+└──────────────── data service ───────────────┘
 ```
 
-- `{version}` neprivaloma; jei yra, tai teigiamas sveikasis skaičius.
-- `--path` atrenka rinkinius, kurių paslaugos kelias **lygus** nurodytam, todėl
-  `.../at280/1` neapima `.../at280/10`, o neversijuotas `.../at280` neapima
-  `.../at280/1`. Kitokios formos kelias priimamas su įspėjimu ir atrenka pagal
-  prefiksą su segmento riba.
-- Be `--path`: jei manifeste viena paslauga – imama ji, jei kelios – klaida su
-  sąrašu. `--list` išvardija paslaugas ir jų rinkinius.
+- `{version}` is optional; when present it is a positive integer.
+- `--path` selects datasets whose data service path **equals** it, so
+  `.../at280/1` does not include `.../at280/10`, and an unversioned
+  `.../at280` does not include `.../at280/1`. A path of another shape is
+  accepted with a warning and selects by prefix on a segment boundary.
+- Without `--path`: a manifest with one data service uses it, with several it
+  fails listing them. `--list` lists data services and their datasets.
 
-### Konfigūracija (`--udts-cfg`)
+### Configuration (`--udts-cfg`)
 
-YAML failas, privalomas generuojant paslaugos aprašą.
+A YAML file, required to export a data service.
 
-| Raktas | Privaloma | Tikrinimas |
+| Key | Required | Check |
 |---|---|---|
-| `info.title` | taip | ne tuščia eilutė |
-| `info.contact.name` | taip | ne tuščia eilutė |
-| `info.contact.url` | taip | absoliutus URL |
-| `info.contact.email` | taip | žr. žemiau |
-| `servers` (≥ 1) | taip | `url` – `http`/`https` arba reliatyvus; be šablonų (`{…}`) |
-| `auth.token_url` | kai pirmasis serveris reliatyvus | absoliutus `http`/`https` URL |
-| `info.summary`, `info.description`, `info.version`, `info.termsOfService`, `info.license` (`name`, `url`) | ne | OpenAPI tipai |
-| `externalDocs` (`url`, `description`) | ne | |
-| `limits.max_limit` | ne | sveikasis skaičius 1…2⁶³−1, numatytoji 100000 |
+| `info.title` | yes | non-empty string |
+| `info.contact.name` | yes | non-empty string |
+| `info.contact.url` | yes | absolute URL |
+| `info.contact.email` | yes | see below |
+| `servers` (≥ 1) | yes | `url` is `http`/`https` or relative; no templates (`{…}`) |
+| `auth.token_url` | when the first server is relative | absolute `http`/`https` URL |
+| `info.summary`, `info.description`, `info.version`, `info.termsOfService`, `info.license` (`name`, `url`) | no | OpenAPI types |
+| `externalDocs` (`url`, `description`) | no | |
+| `limits.max_limit` | no | integer 1…2⁶³−1, default 100000 |
 
-- Nežinomas raktas praleidžiamas su įspėjimu; `x-` plėtiniai paliekami ten, kur
-  juos leidžia OpenAPI (`info`, `info.contact`, `info.license`, `servers` įrašai,
-  `externalDocs`).
-- `http` adresas priimamas su įspėjimu (kredencialai eitų atviru tekstu).
-- **El. paštas** tikrinamas įprastos formos: prieš `@` – RFC 5322 dot-atom
-  žodžiai, sujungti po vieną tašką; po `@` – bent dviejų dalių domenas, dalys
-  neprasideda ir nesibaigia `-`; ilgis iki 64 simbolių prieš `@` ir iki 254 viso.
-  Adresai su kabutėmis ir IP domenu nepriimami.
+- An unknown key is left out with a warning; `x-` extensions are kept where
+  OpenAPI allows them (`info`, `info.contact`, `info.license`, `servers`
+  entries, `externalDocs`).
+- An `http` address is accepted with a warning (credentials would travel in
+  the clear).
+- **Email** is checked in its common form: RFC 5322 dot-atom words joined by
+  single dots before `@`; a domain of two labels or more after it, no label
+  starting or ending with `-`; up to 64 characters before `@` and 254 in all.
+  Quoted local parts and address literals are not accepted.
 
-### Kas patenka į aprašą: `visibility`
+### What is published: `visibility`
 
-Į aprašą patenka tik metaduomenys, kurių `visibility` yra `protected`, `package`
-arba `public`. `private` ir **tuščias** `visibility` (DSA numatytoji reikšmė
-`private`) nepublikuojami:
+Only metadata whose `visibility` is `protected`, `package` or `public` goes into
+the specification. `private` and an **empty** `visibility` (DSA defaults it to
+`private`) are not published:
 
-| Elementas | Nepublikuojamas reiškia |
+| Element | Not published means |
 |---|---|
-| modelis | nėra jo kelių, schemų, žymės |
-| savybė | nėra schemoje, pavyzdžiuose, užklausų pavyzdžiuose; `file`/`object` savybė negauna savo kelio |
-| enum reikšmė | nėra `enum` sąraše |
-| kalbos savybė (`name@lt`) | savybė lieka, kol publikuojama bent viena kalba |
-| nuoroda į nepublikuojamą modelį | rodo į bendrą `UnpublishedReference` schemą (atviras objektas, nieko neatskleidžia) |
+| model | no paths, schemas or tag |
+| property | not in the schema, examples or query examples; a `file`/`object` property gets no path |
+| enum value | not in the `enum` list |
+| language property (`name@lt`) | the property stays while at least one language is published |
+| reference to an unpublished model | points at the shared `UnpublishedReference` schema (an open object revealing nothing) |
 
-Kiek modelių ir savybių liko už aprašo, pasakoma `UserWarning`; jei
-nepublikuojamas nė vienas modelis – atskiru įspėjimu. `visibility` slepia tik
-metaduomenis: duomenų prieigą valdo `access`.
+A `UserWarning` says how many models and properties were left out, and a
+separate one when no model is published. `visibility` hides metadata only; data
+access is governed by `access`.
 
-## Dokumento struktūra
+## Document structure
 
 ```
 openapi: 3.0.3
 info            ← --udts-cfg info (+ --api-version)
 externalDocs    ← --udts-cfg externalDocs
-servers         ← --udts-cfg servers, kiekvienas su paslaugos keliu
-tags            ← utility + po vieną modeliui, surikiuota
-paths           ← agento endpoint'ai + modelių keliai
+servers         ← --udts-cfg servers, each with the data service path
+tags            ← utility + one per model, sorted
+paths           ← agent endpoints + model paths
 components
-  schemas       ← modeliai, sąrašai, nuorodos, bendros schemos
-  parameters    ← antraštės, per modelį: id, _select, _sort; per dokumentą: _limit; _page
+  schemas       ← models, listings, references, shared schemas
+  parameters    ← headers; per model: id, _select, _sort; per document: _limit; _page
   headers, responses, securitySchemes
 ```
 
 ### `info`
 
-Imama iš konfigūracijos. OpenAPI 3.0 neturi `info.summary`, todėl `summary`
-tampa pirmąja `description` pastraipa. Katalogo režime `summary` ir `description`
-imami iš rinkinio `title` ir `description`.
+Taken from the configuration. OpenAPI 3.0 has no `info.summary`, so `summary`
+becomes the first paragraph of `description`. In catalog mode `summary` and
+`description` come from the dataset `title` and `description`.
 
 ### `servers`
 
-Kiekvienas konfigūracijos įrašas:
+Each configuration entry:
 
-- `url` be kelio → prie jo prilipdomas paslaugos kelias
+- `url` without a path → the data service path is appended
   (`https://get.data.gov.lt` → `https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1`);
-- `url` su paslaugos keliu → toks, koks yra;
-- `url` su kitu keliu → toks, koks yra, su įspėjimu.
+- `url` with the data service path → kept as is;
+- `url` with another path → kept as is, with a warning.
 
-Be konfigūracijos (tik per Python API) – vienas reliatyvus `/{paslaugos kelias}`.
+Without a configuration (Python API only): one relative `/{data service path}`.
 
-### Keliai
+### Paths
 
-**Agento endpoint'ai** aprašomi dviem formomis, pažymėtomis kelio plėtiniu
+**Agent endpoints** are given in two forms, marked by the path extension
 `x-spinta-context`:
 
-| Kelias | `x-spinta-context` | `servers` | Paskirtis |
+| Path | `x-spinta-context` | `servers` | Purpose |
 |---|---|---|---|
-| `/:version`, `/:health`, `/:token` | `gateway` | dokumento (paslaugos bazė) | taip juos maršrutizuoja vartai paslaugos viduje |
-| `/version`, `/health`, `/auth/token` | `agent-direct` | savo: serverio adresas be kelio | taip juos aptarnauja pats agentas |
+| `/:version`, `/:health`, `/:token` | `gateway` | the document's (data service base) | how the gateway routes them inside a data service |
+| `/version`, `/health`, `/auth/token` | `agent-direct` | its own: server address without a path | how the agent itself serves them |
 
-Katalogo režime aprašoma tik `agent-direct` forma.
-Duomenų keliai `x-spinta-context` neturi – jie aptarnaujami abiem atvejais.
+Catalog mode gives the `agent-direct` form only. Data paths carry no
+`x-spinta-context`, since both contexts serve them.
 
-**Modelio keliai** (reliatyvūs paslaugos bazei, `{dataset}/{Model}`):
+**Model paths** (relative to the data service base, `{dataset}/{Model}`):
 
-| Kelias | Operacijos | Kada |
+| Path | Operations | When |
 |---|---|---|
-| `/{dataset}/{Model}` | `get`, `head` | visada |
-| `/{dataset}/{Model}/{id}` | `get`, `head` | visada |
-| `/{dataset}/{Model}/{id}/{property}` | `get`, `head` | `file`, `image` savybei; atsako dvejetainiu turiniu, palaiko `Range` (`206`, `416`) |
-| `/{dataset}/{Model}/{id}/{property}:ref` | `get`, `head` | `file`, `image` savybei; atsako failo metaduomenimis |
-| `/{dataset}/{Model}/{id}/{property}` | `get`, `head` | `object` savybei; atsako objektu su `_type`, `_revision` |
+| `/{dataset}/{Model}` | `get`, `head` | always |
+| `/{dataset}/{Model}/{id}` | `get`, `head` | always |
+| `/{dataset}/{Model}/{id}/{property}` | `get`, `head` | `file`, `image` property; answers with binary content, supports `Range` (`206`, `416`) |
+| `/{dataset}/{Model}/{id}/{property}:ref` | `get`, `head` | `file`, `image` property; answers with file metadata |
+| `/{dataset}/{Model}/{id}/{property}` | `get`, `head` | `object` property; answers with the object plus `_type`, `_revision` |
 
-**Parametrai** nurodomi kiekvienai operacijai atskirai (kelio lygmeniu parametrų
-nėra), nes vartai skaito tik operaciją.
+**Parameters** are listed on every operation (none on the path), because the
+gateway reads the operation alone.
 
-### Užklausų parametrai
+### Query parameters
 
-| Parametras | Komponentas | Schema |
+| Parameter | Component | Schema |
 |---|---|---|
-| `{id}` (UUID) | `id` | `UUID_REQUEST_PATTERN`: kanoninė, be brūkšnelių, `{…}`, `urn:`/`uuid:` prefiksai; v4 |
-| `{id}` (modelis deklaruoja `_id`) | `id_{Schema}` | pagal tipą: `string` – vienas segmentas iki 512; `base32` – `=` + Base32; `integer` – `int64` ribos; `enum` – reikšmės |
-| `_select` | `select_{Schema}` | vardai, keliai, funkcijos, `*`; iki 1000 simbolių; pavyzdys iš modelio savybių |
-| `_sort` | `sort_{Schema}` | vardai su `+`/`-`; iki 1000 simbolių |
-| `_limit` | `limit` | `integer`, `minimum: 1`, `maximum: limits.max_limit`, `int32` jei telpa, kitaip `int64` |
-| `_page` | `page` | URL saugus Base64 su `=` užpildu, iki 8192 simbolių |
-| `traceparent` | | W3C Trace Context; ne `ff` versija, ne nuliniai identifikatoriai (`not`) |
-| `tracestate`, `Cache-Control`, `If-None-Match`, `Accept-Language`, `Range` | | spausdinami ASCII, `maxLength: 1024` |
+| `{id}` (UUID) | `id` | `UUID_REQUEST_PATTERN`: canonical, without hyphens, `{…}`, `urn:`/`uuid:` prefixes; v4 |
+| `{id}` (model declares `_id`) | `id_{Schema}` | by type: `string` one segment up to 512; `base32` `=` + Base32; `integer` `int64` bounds; `enum` the values |
+| `_select` | `select_{Schema}` | names, paths, functions, `*`; up to 1000 characters; example from model properties |
+| `_sort` | `sort_{Schema}` | names with `+`/`-`; up to 1000 characters |
+| `_limit` | `limit` | `integer`, `minimum: 1`, `maximum: limits.max_limit`, `int32` if it fits, else `int64` |
+| `_page` | `page` | URL safe Base64 with `=` padding, up to 8192 characters |
+| `traceparent` | | W3C Trace Context; not version `ff`, no all-zero identifiers (`not`) |
+| `tracestate`, `Cache-Control`, `If-None-Match`, `Accept-Language`, `Range` | | printable ASCII, `maxLength: 1024` |
 
-`{id}` `=` prefiksas naudojamas, kai `is_accessible_by_equals_sign` – `base32`
-arba nesudėtinio rakto `string` identifikatorius.
+The `=` prefix of `{id}` is used when `is_accessible_by_equals_sign` holds: a
+`base32` identifier, or a `string` one of a model with a single-part key.
 
-Filtras pagal savybes, `count()` / `_count` ir iškvietimo formos (`limit(…)`,
-`select(…)`, `sort(…)`, `page(…)`) fiksuoto pavadinimo neturi, todėl aprašyti
-sąrašo operacijos `description`.
+A filter on properties, `count()` / `_count` and the call forms (`limit(…)`,
+`select(…)`, `sort(…)`, `page(…)`) have no fixed name, so they are described in
+the listing operation's `description`.
 
-`_page=<token>` Spintoje palaikomas per `spinta/spyna.py` gramatiką (terminalas
-`_page=`), lygiai kaip `_limit=`. Tai laikinas sprendimas iki
-[#2023](https://github.com/atviriduomenys/spinta/issues/2023). Netinkama žymė
-(ne Base64, ne JSON sąrašas, ne eilutė) atmetama su `InvalidPageKey`.
+Spinta supports `_page=<token>` through the `spinta/spyna.py` grammar (terminal
+`_page=`), the same way as `_limit=`. This is a stopgap until
+[#2023](https://github.com/atviriduomenys/spinta/issues/2023). An invalid token
+(not Base64, not a JSON list, not a string) is refused with `InvalidPageKey`.
 
-### Schemos
+### Schemas
 
-**Vardai** (`SchemaNamer`): paslaugos režime – modelio kelias paslaugos viduje su
-`_` vietoj `/` (`at280_israsas_DalyvioAsmensIsrasas`); OpenAPI komponento vardui
-netinkami simboliai keičiami `_`; sutapimai gauna skaitinę galūnę. Iš modelio
-vardo `X` išvedami:
+**Names** (`SchemaNamer`): in data service mode, the model path within the
+service with `_` for `/` (`at280_israsas_DalyvioAsmensIsrasas`); characters an
+OpenAPI component name cannot hold become `_`; collisions get a numeric suffix.
+From a model name `X`:
 
-| Schema | Kas |
+| Schema | What |
 |---|---|
-| `X` | modelio objektas |
-| `XCollection` | sąrašas: `_data` (privalomas), `_page` |
-| `X_Ref` (+ `_2`, …) | nuoroda į `X`, po vieną kiekvienai nuorodos formai (lygis, `refprops`) |
-| `X_{prop}` | `object` savybės atsakymas |
-| `X_{prop}_ref` | `file` savybės `:ref` atsakymas |
+| `X` | model object |
+| `XCollection` | listing: `_data` (required), `_page` |
+| `X_Ref` (+ `_2`, …) | reference to `X`, one per reference shape (level, `refprops`) |
+| `X_{prop}` | answer of an `object` property |
+| `X_{prop}_ref` | `:ref` answer of a `file` property |
 
-Tomis pačiomis schemų vardais pavadinamos žymės (`tags`) ir sudaromi `operationId`.
+Tags and `operationId`s use the same names.
 
-**Modelio schema:**
+**Model schema:**
 
-- `_type` – `enum` su pilnu modelio vardu; `_id` – UUID v4 (kanoninė forma) arba
-  deklaruoto `_id` tipas; `_revision` – UUID arba modelio sudaromos reikšmės
-  tipas.
-- `required` nėra: atsakymas turi tai, ko paprašyta (`_select`).
-- Neprivaloma (`required` manifeste nepažymėta) savybė yra `nullable`; `enum`
-  papildomas `null`; nuoroda – `anyOf: [{$ref}, NULL_OBJECT_SCHEMA]`.
-- `integer` savybėms `format` ir ribų nėra (ADR-0002).
-- `uuid` savybė – mažosiomis raidėmis v4 (`UUID.load`); `base32` – RFC 4648
-  abėcėlė be užpildo.
+- `_type` is an `enum` of the full model name; `_id` a UUID v4 (canonical
+  form) or the declared `_id` type; `_revision` a UUID or the type of the value
+  the model builds.
+- No `required`: a response holds what was asked for (`_select`).
+- A property not marked `required` in the manifest is `nullable`; an `enum`
+  gets `null` added; a reference becomes `anyOf: [{$ref}, NULL_OBJECT_SCHEMA]`.
+- `integer` properties have no `format` or bounds (ADR-0002).
+- A `uuid` property is lower case v4 (`UUID.load`); `base32` the RFC 4648
+  alphabet without padding.
 
-**Nuorodos schema** (`X_Ref`):
+**Reference schema** (`X_Ref`):
 
-- lygis ≥ 4 → `{_id}`, `_id` privalomas;
-- lygis < 4 → `refprops` savybės be `_id`;
-- nuoroda nuorodoje turi savo lygį; masyvas – elemento lygį;
-- masyvas per tarpinę lentelę aprašomas kaip nuorodų sąrašas į galutinį modelį.
+- level ≥ 4 → `{_id}`, `_id` required;
+- level < 4 → the `refprops` properties without `_id`;
+- a reference within a reference keeps its own level; an array uses its item's;
+- an array through an intermediate table is a list of references to the final
+  model.
 
-**Pavyzdžiai:** schema pavyzdį turi kaip vieną `example` (OpenAPI 3.0), ir jis
-atitinka tą schemą. Identifikatoriai deterministiškai išvedami iš modelio vardo
-(`_example_uuid`), todėl pergeneruotas failas skiriasi tik ten, kur pasikeitė
-manifestas; nuorodos pavyzdys yra nurodomo modelio pavyzdžio identifikatorius.
+**Examples:** a schema carries one `example` (OpenAPI 3.0), and it satisfies
+that schema. Identifiers are derived deterministically from the model name
+(`_example_uuid`), so a regenerated file differs only where the manifest did; a
+reference example is the identifier of the referenced model's example.
 
-**Bendros schemos** (`COMMON_SCHEMAS`) įtraukiamos tik tada, kai į jas rodoma:
-klaidų objektai, `page`, `file`, `image`, `health`, `RateLimited`,
-`UnpublishedReference` ir kt.
+**Shared schemas** (`COMMON_SCHEMAS`) are included only when referenced: error
+objects, `page`, `file`, `image`, `health`, `RateLimited`,
+`UnpublishedReference` and others.
 
-### Atsakymai
+### Responses
 
-| Kodas | Kada | Kūnas |
+| Code | When | Body |
 |---|---|---|
-| `200` | visos operacijos | modelis, sąrašas, savybė, `version`, `health`, token |
-| `206`, `416` | `file`/`image` turinys | dvejetainis |
-| `301` | vienas objektas | nėra; antraštė `Location` |
-| `304` | `get`, `head` | nėra; tik talpyklos antraštės |
-| `400`, `401`, `403`, `404`, `500`, `503` | pagal operaciją | `{"errors": [...]}` |
-| `429` | visos operacijos | `RateLimited` – atviras objektas (ADR-0001) |
+| `200` | all operations | model, listing, property, `version`, `health`, token |
+| `206`, `416` | `file`/`image` content | binary |
+| `301` | single object | none; `Location` header |
+| `304` | `get`, `head` | none; cache headers only |
+| `400`, `401`, `403`, `404`, `500`, `503` | per operation | `{"errors": [...]}` |
+| `429` | all operations | `RateLimited`, an open object (ADR-0001) |
 
-**Klaidos:** klaidos objektas turi penkis laukus (`type`, `code`, `template`,
-`context`, `message`) ir tik juos. Kiekvienam kodui išvardijamos pavadintos
-klaidos, sudarytos iš `spinta.exceptions` klasių (`code` ir `template` – `enum`
-su klasės reikšme); paskutinė alternatyva – bendras `Error`, nes Spinta turi
-daugiau klaidų, nei galima išvardyti, o `authlib` klaidos turi tik `code` ir
-`message`. Token endpoint'o `400`/`401` – OAuth 2.0 klaida (RFC 6749 5.2).
+**Errors:** an error object has five fields (`type`, `code`, `template`,
+`context`, `message`) and nothing else. Each status code lists named errors
+built from `spinta.exceptions` classes (`code` and `template` are an `enum` of
+the class value); the last alternative is the generic `Error`, because Spinta
+has more errors than can be listed and `authlib` errors carry only `code` and
+`message`. The token endpoint's `400`/`401` is an OAuth 2.0 error (RFC 6749
+5.2).
 
-### Saugumas
+### Security
 
-| Schema | Tipas | Kur |
+| Scheme | Type | Where |
 |---|---|---|
-| `UAPI_auth` | `oauth2` `clientCredentials` | duomenų operacijos |
-| `UAPI_client` | `http` `basic` | token endpoint'ai |
+| `UAPI_auth` | `oauth2` `clientCredentials` | data operations |
+| `UAPI_client` | `http` `basic` | token endpoints |
 
-- `tokenUrl` – `auth.token_url` arba pirmasis serveris + `/:token`.
-- `scopes` – tik tie, kurių prašo operacijos.
-- Operacijos scope'ai sudaromi tuo pačiu `scope_formatter`, kuriuo autorizuoja
-  Spinta, iš modelio (savybės) ir veiksmo; kiekviena vardų erdvė virš modelio
-  pateikiama kaip alternatyva.
-- Sąrašas: `:getall` arba `:search` (alternatyvos); vienas objektas ir savybė:
-  `:getone`. `HEAD` autorizuojamas kaip `GET`. `_page` be kitų parametrų
-  autorizuojamas su `:getall`.
-- Kiekviena autorizuojama operacija deklaruoja `401` ir `403`.
+- `tokenUrl` is `auth.token_url`, or the first server + `/:token`.
+- `scopes` lists only those operations request.
+- Operation scopes are built with the same `scope_formatter` Spinta authorizes
+  with, from the model (property) and the action; every namespace above the
+  model is given as an alternative.
+- Listing: `:getall` or `:search` (alternatives); single object and property:
+  `:getone`. `HEAD` is authorized as `GET`. `_page` without other parameters is
+  authorized with `:getall`.
+- Every authorized operation declares `401` and `403`.
 
-## Reguliariosios išraiškos
+## Regular expressions
 
-Visi `pattern` rašomi taip, kad juos skaitytų ir ECMA 262, ir RE2 (vartų
-linteris): **be lookaround** ir **be kartojimų virš 1000**. Ribos, kurių šablonas
-negali pasakyti, nurodomos `maxLength` arba `not` šalia jo.
+Every `pattern` is written so that both ECMA 262 and RE2 (the gateway linter)
+read it: **no lookaround** and **no repetition over 1000**. What a pattern
+cannot say is given by `maxLength` or `not` beside it.
 
-## Ribos
+## Bounds
 
-- **Užklausos pusėje** viskas ribota, kad vartai atmestų netinkamą užklausą:
-  `_limit`, `_select`, `_sort`, `_page`, `{id}`, `scope`, antraštės.
-- **Atsakymų pusėje** ribojama tik tai, ką Spinta pati sudaro (UUID, `base32`,
-  puslapio žymė); duomenų reikšmėms ribos nespėjamos.
+- **Request side:** everything is bounded, so the gateway rejects a bad request:
+  `_limit`, `_select`, `_sort`, `_page`, `{id}`, `scope`, headers.
+- **Response side:** only what Spinta builds itself is bounded (UUID, `base32`,
+  page token); no bounds are guessed for data values.
 
-## Galutinis sutvarkymas
+## Cleanup
 
-- Nenaudojami bendri komponentai (parametrai, schemos, antraštės, atsakymai)
-  pašalinami, kartojant visas rūšis, kol nebėra ką šalinti.
-- Modelių schemos paliekamos visada.
+- Unused shared components (parameters, schemas, headers, responses) are
+  removed, repeating over all kinds until nothing more is removed.
+- Model schemas are always kept.
 
-## Išvestis
+## Output
 
-`write_openapi_manifest`: `.yml`/`.yaml` → YAML (be inkarų ir nuorodų), kitaip
-JSON (`indent=2`, UTF-8); be `--output` – į stdout.
+`write_openapi_manifest`: `.yml`/`.yaml` → YAML (no anchors or aliases),
+otherwise JSON (`indent=2`, UTF-8); without `--output`, to stdout.
 
-## Validumas
+## Validity
 
-Testai tikrina, kad kiekvienas sugeneruotas aprašas:
+Tests check that every generated specification:
 
-- praeina `openapi_spec_validator` OpenAPI 3.0 validaciją;
-- neturi RE2 neskaitomų šablonų;
-- kiekvienas `example` atitinka savo schemą (`OAS30Validator`);
-- neturi nenaudojamų bendrų komponentų;
-- kiekviena operacija aprašo visus savo kelio parametrus;
-- pavadintos klaidos atitinka `spinta.exceptions` klases.
+- passes `openapi_spec_validator` OpenAPI 3.0 validation;
+- has no pattern RE2 cannot read;
+- has every `example` satisfy its schema (`OAS30Validator`);
+- has no unused shared components;
+- lists, on every operation, all parameters of its path;
+- names errors that match `spinta.exceptions` classes.
