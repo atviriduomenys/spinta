@@ -13,7 +13,7 @@ from responses import POST, RequestsMock
 
 from spinta import commands
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import PushRow, State
+from spinta.cli.helpers.push.components import PUSH_SESSION_ID, PushOperation, PushRow, State
 from spinta.cli.helpers.push.state import init_push_state, reset_pushed
 from spinta.cli.helpers.push.write import _map_sent_and_recv, get_row_for_error, push_rows, send_request
 from spinta.core.config import RawConfig
@@ -24,6 +24,8 @@ from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
+
+CHUNK_SIZE = 1000
 
 
 @pytest.fixture(scope="module")
@@ -274,7 +276,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
                 "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 "name": "Vilnius",
             },
-            op="insert",
+            op=PushOperation.INSERT,
         ),
     ]
 
@@ -303,24 +305,25 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
             )
         ],
     )
-
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
     table = state.metadata.tables[model.name]
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.session_id])
     assert list(conn.execute(query)) == [
         (
             "4d741843-4e94-4890-81d9-5af7c5b5989a",
             "f91adeea-3bb8-41b0-8049-ce47c7530bdc",
             False,
+            "76e2ac7f-384b-4e24-bbc0-8494f7822cbc",
         )
     ]
 
@@ -350,7 +353,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
                 "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 "name": "Vilnius",
             },
-            op="insert",
+            op=PushOperation.INSERT,
         )
     ]
 
@@ -358,20 +361,21 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     server = "https://example.com/"
     responses.add(POST, server, status=500, body="ERROR!")
 
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
     table = state.metadata.tables[model.name]
-    query = sa.select([table.c.id, table.c.error])
+    query = sa.select([table.c.id, table.c.error, table.c.session_id])
     assert list(conn.execute(query)) == [
-        ("4d741843-4e94-4890-81d9-5af7c5b5989a", True),
+        ("4d741843-4e94-4890-81d9-5af7c5b5989a", True, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc"),
     ]
 
 
@@ -415,7 +419,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
                 "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 "name": "Vilnius",
             },
-            op="patch",
+            op=PushOperation.PATCH,
             saved=True,
         ),
     ]
@@ -447,242 +451,21 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.session_id])
     assert list(conn.execute(query)) == [
-        (
-            "4d741843-4e94-4890-81d9-5af7c5b5989a",
-            rev_after,
-            False,
-        )
+        ("4d741843-4e94-4890-81d9-5af7c5b5989a", rev_after, False, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     ]
-
-
-@pytest.mark.skip(reason="not implemented yet")
-def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock):
-    context, manifest = load_manifest_and_context(
-        rc,
-        """
-    m | property | type   | access
-    City         |        |
-      | name     | string | open
-    """,
-    )
-
-    model = commands.get_model(context, manifest, "City")
-    models = [model]
-
-    state = State(*init_push_state("sqlite://", models))
-    conn = state.engine.connect()
-    context.set("push.state.conn", conn)
-
-    syncronize_time = datetime.datetime.now()
-
-    table = state.metadata.tables[model.name]
-    conn.execute(
-        table.insert().values(
-            id="4d741843-4e94-4890-81d9-5af7c5b5989a",
-            checksum="CHANGED",
-            pushed=datetime.datetime.now(),
-            error=False,
-            synchronize=syncronize_time,
-        )
-    )
-
-    rows = [
-        PushRow(
-            model,
-            {
-                "_type": model.name,
-                "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
-                "name": "Vilnius",
-            },
-        ),
-    ]
-
-    client = requests.Session()
-    server = "https://example.com/"
-    responses.add(
-        POST,
-        server,
-        json={
-            "_data": [
-                {
-                    "_type": model.name,
-                    "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
-                    "name": "Vilnius",
-                }
-            ],
-        },
-        match=[
-            _matcher(
-                {
-                    "_op": "patch",
-                    "_type": model.name,
-                    "_where": "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
-                }
-            )
-        ],
-    )
-
-    push_rows(context, client, server, models, rows, timeout=(5, 300), state=state, syncronize=False)
-
-    query = sa.select([table.c.id, table.c.synchronize])
-    res = list(conn.execute(query))
-
-    assert res[0][1] == syncronize_time
-
-
-@pytest.mark.skip(reason="not implemented yet")
-def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMock):
-    context, manifest = load_manifest_and_context(
-        rc,
-        """
-    m | property | type   | access
-    City         |        |
-      | name     | string | open
-    """,
-    )
-
-    model = commands.get_model(context, manifest, "City")
-    models = [model]
-
-    state = State(*init_push_state("sqlite://", models))
-    conn = state.engine.connect()
-    context.set("push.state.conn", conn)
-
-    table = state.metadata.tables[model.name]
-    conn.execute(
-        table.insert().values(
-            id="4d741843-4e94-4890-81d9-5af7c5b5989a", checksum="CHANGED", pushed=datetime.datetime.now(), error=False
-        )
-    )
-
-    rows = [
-        PushRow(
-            model,
-            {
-                "_type": model.name,
-                "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
-                "name": "Vilnius",
-            },
-        ),
-    ]
-
-    client = requests.Session()
-    server = "https://example.com/"
-    responses.add(
-        POST,
-        server,
-        json={
-            "_data": [
-                {
-                    "_type": model.name,
-                    "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
-                    "name": "Vilnius",
-                }
-            ],
-        },
-        match=[
-            _matcher(
-                {
-                    "_op": "patch",
-                    "_type": model.name,
-                    "_where": "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
-                }
-            )
-        ],
-    )
-
-    push_rows(context, client, server, models, rows, state=state, timeout=(5, 300), syncronize=False)
-
-    query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
-    res = list(conn.execute(query))
-
-    assert res[0][1] != "CHANGED"
-    assert res[0][2] is not None
-
-
-@pytest.mark.skip(reason="not implemented yet")
-def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
-    context, manifest = load_manifest_and_context(
-        rc,
-        """
-    m | property | type   | access
-    City         |        |
-      | name     | string | open
-    """,
-    )
-
-    model = commands.get_model(context, manifest, "City")
-    models = [model]
-
-    state = State(*init_push_state("sqlite://", models))
-    conn = state.engine.connect()
-    context.set("push.state.conn", conn)
-    time_before_sync_push = datetime.datetime.now()
-    table = state.metadata.tables[model.name]
-    conn.execute(
-        table.insert().values(
-            id="4d741843-4e94-4890-81d9-5af7c5b5989a",
-            checksum="CHANGED",
-            pushed=datetime.datetime.now(),
-            error=False,
-            synchronize=time_before_sync_push,
-        )
-    )
-
-    rows = [
-        PushRow(
-            model,
-            {
-                "_type": model.name,
-                "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
-                "name": "Vilnius",
-            },
-        ),
-    ]
-
-    client = requests.Session()
-    server = "https://example.com/"
-    responses.add(
-        POST,
-        server,
-        json={
-            "_data": [
-                {
-                    "_type": model.name,
-                    "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
-                    "name": "Vilnius",
-                }
-            ],
-        },
-        match=[
-            _matcher(
-                {
-                    "_op": "patch",
-                    "_type": model.name,
-                    "_where": "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
-                }
-            )
-        ],
-    )
-
-    push_rows(context, client, server, models, rows, state=state, timeout=(5, 300), syncronize=True)
-
-    query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
-    res = list(conn.execute(query))
-
-    assert res[0][1] != "CHANGED"
 
 
 def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
@@ -724,7 +507,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
                 "_id": "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 "name": "Vilnius",
             },
-            op="patch",
+            op=PushOperation.PATCH,
             saved=True,
         ),
     ]
@@ -733,22 +516,24 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     server = "https://example.com/"
     responses.add(POST, server, status=500, body="ERROR!")
 
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.session_id])
     assert list(conn.execute(query)) == [
         (
             "4d741843-4e94-4890-81d9-5af7c5b5989a",
             rev_before,
             True,
+            "76e2ac7f-384b-4e24-bbc0-8494f7822cbc",
         )
     ]
 
@@ -901,19 +686,20 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
                 "_type": "City",
                 "_where": "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
             },
-            op="delete",
+            op=PushOperation.DELETE,
             saved=True,
         ),
     ]
 
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
     query = sa.select([table.c.id, table.c.revision, table.c.error])
@@ -959,7 +745,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
                 "_id": _id,
                 "name": "Vilnius",
             },
-            op="insert",
+            op=PushOperation.INSERT,
             error=True,
             saved=True,
         ),
@@ -992,18 +778,19 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
-    assert list(conn.execute(query)) == [(_id, rev, False)]
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.session_id])
+    assert list(conn.execute(query)) == [(_id, rev, False, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")]
 
 
 def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
@@ -1048,7 +835,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
                 "_revision": conflicting_rev,
                 "name": "Vilnius",
             },
-            op="patch",
+            op=PushOperation.PATCH,
             saved=True,
         ),
         PushRow(
@@ -1058,7 +845,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
                 "_id": _id2,
                 "name": "Vilnius",
             },
-            op="insert",
+            op=PushOperation.INSERT,
         ),
     ]
 
@@ -1067,20 +854,41 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     responses.add(POST, server, status=409, body="Conflicting value")
 
     error_counter = ErrorCounter(1)
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context, client, server, models, rows, timeout=(5, 300), state=state, chunk_size=1, error_counter=error_counter
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
+        state=state,
+        chunk_size=1,
+        timeout=(5, 300),
+        error_counter=error_counter,
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
-    assert list(conn.execute(query)) == [(_id1, rev, True)]
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.session_id])
+    assert list(conn.execute(query)) == [(_id1, rev, True, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")]
 
     error_counter = ErrorCounter(2)
+
+    different_session_context = context.fork("different_session")
+    different_session_context.set(PUSH_SESSION_ID, "861624d9-a70a-40f9-ab7a-b2e8d5e3dc86")
     push_rows(
-        context, client, server, models, rows, timeout=(5, 300), state=state, chunk_size=1, error_counter=error_counter
+        context=different_session_context,
+        client=client,
+        server=server,
+        rows=rows,
+        state=state,
+        chunk_size=1,
+        timeout=(5, 300),
+        error_counter=error_counter,
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
-    assert list(conn.execute(query)) == [(_id1, rev, True), (_id2, None, True)]
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.session_id])
+    assert list(conn.execute(query)) == [
+        (_id1, rev, True, "861624d9-a70a-40f9-ab7a-b2e8d5e3dc86"),
+        (_id2, None, True, "861624d9-a70a-40f9-ab7a-b2e8d5e3dc86"),
+    ]
 
 
 def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
@@ -1165,7 +973,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
                 "_id": _id,
                 "name": "Vilnius",
             },
-            op="insert",
+            op=PushOperation.INSERT,
         ),
     ]
     client = requests.Session()
@@ -1195,18 +1003,19 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         ],
     )
 
+    context.set(PUSH_SESSION_ID, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")
     push_rows(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        timeout=(5, 300),
+        context=context,
+        client=client,
+        server=server,
+        rows=rows,
         state=state,
+        chunk_size=CHUNK_SIZE,
+        timeout=(5, 300),
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c["page._id"]])
-    assert list(conn.execute(query)) == [(_id, rev, False, _id)]
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c["page._id"], table.c.session_id])
+    assert list(conn.execute(query)) == [(_id, rev, False, _id, "76e2ac7f-384b-4e24-bbc0-8494f7822cbc")]
 
     query = sa.select([page_table.c.model, page_table.c.property, page_table.c.value])
     assert list(conn.execute(query)) == [(model.name, "_id", '{"_id": "' + _id + '"}')]

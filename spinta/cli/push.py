@@ -138,7 +138,7 @@ def push(
     delay_range = config.sync_retry_delay_range
 
     with context:
-        context.set(PUSH_SESSION_ID, uuid.uuid4())
+        context.set(PUSH_SESSION_ID, str(uuid.uuid4()))
 
         auth_client = auth or config.default_auth_client
         auth_client = get_client_id_from_name(get_clients_path(config), auth_client)

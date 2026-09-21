@@ -53,6 +53,7 @@ def init_push_state(
             sa.Column("pushed", sa.DateTime),
             sa.Column("error", sa.Boolean),
             sa.Column("data", sa.Text),
+            sa.Column("session_id", sa.Unicode, index=True),
             *pagination_cols,
         )
         migrate_table(

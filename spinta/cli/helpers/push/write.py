@@ -24,7 +24,7 @@ from spinta.utils.json import fix_data_for_json
 
 def _prepare_rows_for_push(rows: PushRows) -> PushRows:
     for row in rows:
-        row.data["_op"] = row.op.value
+        row.data["_op"] = row.op.value if isinstance(row.op, PushOperation) else row.op
         if row.op is PushOperation.PATCH:
             where = {
                 "name": "eq",
@@ -193,30 +193,17 @@ def _push_to_remote_spinta(
             chunk += ("," if ready else "") + data
             ready.append(row)
 
-    if ready:
-        if error_counter:
-            if not error_counter.has_reached_max():
-                yield from _send_and_receive(
-                    client,
-                    server,
-                    ready,
-                    chunk + suffix,
-                    timeout,
-                    dry_run=dry_run,
-                    stop_on_error=stop_on_error,
-                    error_counter=error_counter,
-                )
-        else:
-            yield from _send_and_receive(
-                client,
-                server,
-                ready,
-                chunk + suffix,
-                timeout,
-                dry_run=dry_run,
-                stop_on_error=stop_on_error,
-                error_counter=error_counter,
-            )
+    if ready and (error_counter is None or not error_counter.has_reached_max()):
+        yield from _send_and_receive(
+            client,
+            server,
+            ready,
+            chunk + suffix,
+            timeout,
+            dry_run=dry_run,
+            stop_on_error=stop_on_error,
+            error_counter=error_counter,
+        )
 
 
 def _send_and_receive(
