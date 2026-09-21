@@ -1,39 +1,38 @@
-# Spintos programuotojų dokumentacija
+# Spinta developer documentation
 
-Dokumentacija tiems, kas Spintą kuria ir prižiūri: kaip ji sutvarkyta ir kaip
-veikia jos funkcionalumas. Naudotojams skirta dokumentacija yra `docs/en` ir
-`docs/lt`, o pokyčių santrauka – `CHANGES.rst`.
+Documentation for those who build and maintain Spinta: how it is structured and
+how its features work. User documentation is in `docs/en` and `docs/lt`, and a
+summary of changes in `CHANGES.rst`.
 
-## Kas kur rašoma
+## What goes where
 
-| Kur | Kam | Kas |
+| Where | For | What |
 |---|---|---|
-| `CHANGES.rst` | naudotojui | trumpai, kas pasikeitė ir ką tai reiškia naudojant Spintą |
-| `docs/en`, `docs/lt` | naudotojui | kaip Spintą naudoti: komandos, konfigūracija, pavyzdžiai |
-| `docs/dev/architektura/` | programuotojui | bendra Spintos sandara: komponentai, jų ryšiai, duomenų srautai |
-| `docs/dev/specifikacijos/` | programuotojui | vieno funkcionalumo techninė specifikacija: ką jis daro, iš ko ir kaip |
-| `docs/adr/` | programuotojui | kodėl priimtas sprendimas ir kokios buvo alternatyvos |
+| `CHANGES.rst` | users | briefly, what changed and what it means for using Spinta |
+| `docs/en`, `docs/lt` | users | how to use Spinta: commands, configuration, examples |
+| `docs/dev/architecture/` | developers | overall structure: components, how they relate, data flows |
+| `docs/dev/specifications/` | developers | technical specification of one feature: what it does, from what and how |
+| `docs/adr/` | developers | why a decision was made and which alternatives were weighed |
 
-## Taisyklės
+## Rules
 
-- **Specifikacija aprašo galutinę būseną, be istorijos.** Kaip buvo anksčiau ir
-  kodėl pakeista, rašoma ne čia, o ADR arba commitų istorijoje. Pasikeitus
-  elgsenai, specifikacija atnaujinama taip, kad vėl aprašytų tai, kas yra.
-- **Vienas funkcionalumas – vienas failas** kataloge `specifikacijos/`, vardas
-  pagal funkcionalumą (`udts-oas.md`).
-- **Specifikacija nurodo kodą ir testus**, kuriuose funkcionalumas įgyvendintas,
-  ir ADR, kurie jį lemia.
-- **Nekartoti naudotojo dokumentacijos.** Jei kažkas jau aprašyta `docs/lt` ar
-  `docs/en`, pateikiama nuoroda.
+- **A specification describes the final state, without history.** How it used
+  to be and why it changed belongs in an ADR or the commit history. When
+  behaviour changes, the specification is updated to describe what is.
+- **One feature, one file** in `specifications/`, named after the feature
+  (`udts-oas.md`).
+- **A specification points at the code and tests** implementing the feature,
+  and at the ADRs that shape it.
+- **Do not repeat user documentation.** Link to `docs/en` or `docs/lt` instead.
 
-## Turinys
+## Contents
 
-### Architektūra
+### Architecture
 
-Dar neaprašyta, žr. [`architektura/README.md`](architektura/README.md).
+Not written yet, see [`architecture/README.md`](architecture/README.md).
 
-### Specifikacijos
+### Specifications
 
-| Specifikacija | Funkcionalumas |
+| Specification | Feature |
 |---|---|
-| [UDTS duomenų paslaugos OpenAPI aprašas](specifikacijos/udts-oas.md) | `spinta udts oas`, `create_openapi_manifest` |
+| [UDTS data service OpenAPI specification](specifications/udts-oas.md) | `spinta udts oas`, `create_openapi_manifest` |
