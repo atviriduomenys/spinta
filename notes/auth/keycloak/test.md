@@ -19,7 +19,7 @@ external KeyCloak authorization server started with
 
 ## Running
 
-If you development environement does not have all the required tools from
+If your development environement does not have all the required tools from
 `flake.nix` use development shell:
 
 ```
