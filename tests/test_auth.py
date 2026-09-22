@@ -1,4 +1,3 @@
-import datetime
 import json
 import pathlib
 import shutil
@@ -71,28 +70,6 @@ def int_to_base64(val):
 
     b = val.to_bytes((val.bit_length() + 7) // 8, "big")
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode("utf-8")
-
-
-def generate_jwt(
-    private_key, kid, scopes="spinta_getall", issuer="https://example.com", audience="https://example.com"
-):
-    now = datetime.datetime.now()
-    payload = {
-        "iss": issuer,
-        "sub": "user1",
-        "aud": audience,
-        "client_id": "user1",
-        "exp": int((now + datetime.timedelta(minutes=5)).timestamp()),
-        "scope": scopes,
-        "iat": int(now.timestamp()),
-    }
-    token = jwt.encode(
-        {"kid": kid, "alg": "RS512"},
-        payload,
-        RSAKey.import_key(private_key),
-        algorithms=ALLOWED_JWT_ALGORITHMS,
-    )
-    return token
 
 
 def test_app(context, app):
@@ -398,6 +375,7 @@ def _report_setup(rc, tmp_path, request, *, token_issuer="https://example.com"):
 def _encode_token(
     private_key,
     *,
+    kid=None,
     iss="https://example.com",
     aud="https://example.com",
     client="RANDOMID",
@@ -408,6 +386,9 @@ def _encode_token(
 ):
     now = int(time.time())
     payload = {"sub": client, "scope": scope, "jti": str(uuid.uuid4())}
+    header = {"typ": "JWT", "alg": "RS512"}
+    if kid is not None:
+        header["kid"] = kid
     if client_id is not None:
         payload["client_id"] = client_id
     if aud is not None:
@@ -419,7 +400,7 @@ def _encode_token(
     if exp_delta is not None:
         payload["exp"] = now + exp_delta
     return jwt.encode(
-        {"typ": "JWT", "alg": "RS512"},
+        header,
         payload,
         private_key,
         algorithms=ALLOWED_JWT_ALGORITHMS,
@@ -765,7 +746,7 @@ def test_pick_correct_key(app, context):
 
     config.token_validation_key = {"keys": [jwk1, jwk2]}
 
-    token = generate_jwt(private_2, "rotation-2")
+    token = _encode_token(RSAKey.import_key(private_2), kid="rotation-2", scope="spinta_getall")
 
     resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
@@ -788,7 +769,7 @@ def test_decode_token_selects_key_by_kid(monkeypatch, context):
     validator._all_public_keys = [import_key(jwk1), import_key(jwk2)]
     validator._context = context
 
-    token = generate_jwt(private_2, "rotation-2")
+    token = _encode_token(RSAKey.import_key(private_2), kid="rotation-2", scope="spinta_getall")
 
     real_decode = jwt.decode
     tried_keys = []
@@ -801,7 +782,7 @@ def test_decode_token_selects_key_by_kid(monkeypatch, context):
 
     claims = validator.decode_token(token)
 
-    assert claims["sub"] == "user1"
+    assert claims["sub"] == "RANDOMID"
     assert len(tried_keys) == 1
     assert tried_keys[0].kid == "rotation-2"
 
@@ -1707,20 +1688,12 @@ def test_introspect_rejects_unsupported_token_type_hint(introspect_app):
 
 def test_introspect_rejects_foreign_issuer(introspect_app, context):
     private_key = load_key(context, KeyType.private)
-    iat = int(time.time())
-    token = jwt.encode(
-        {"typ": "JWT", "alg": "RS512"},
-        {
-            "iss": "https://evil.example.com",
-            "sub": "reader",
-            "aud": "https://example.com",
-            "iat": iat,
-            "exp": iat + 600,
-            "scope": "spinta_getall",
-            "jti": str(uuid.uuid4()),
-        },
+    token = _encode_token(
         private_key,
-        algorithms=ALLOWED_JWT_ALGORITHMS,
+        iss="https://evil.example.com",
+        client="reader",
+        client_id=None,
+        scope="spinta_getall",
     )
     resp = _introspect(introspect_app, token)
     assert resp.status_code == 200, resp.text

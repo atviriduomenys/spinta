@@ -24,7 +24,7 @@ Backwards incompatible:
   (audience), ``client_id``, ``exp`` (expiration) and ``iat`` (issued-at) claims
   at decode time: a token is rejected unless its ``iss`` equals the
   authorization server identifier, its ``aud`` contains this resource server,
-  and it carries ``client_id``, ``exp`` (not passed) and ``iat``. A validated
+  and it carries ``client_id``, ``exp`` (not expired) and ``iat``. A validated
   token must now carry a ``client_id`` claim identifying the client; tokens
   without it (minted before this change, or by an issuer that omits it) are
   rejected with ``401`` instead of failing later during client lookup.

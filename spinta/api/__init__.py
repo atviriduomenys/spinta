@@ -85,24 +85,21 @@ async def version(request: Request):
 
 async def auth_token(request: Request):
     context = request.state.context
-    auth_server = context.get("auth.server")
-    if auth_server.enabled():
-        resp: JSONResponse = auth_server.create_token_response(
-            StarletteOAuth2Data(
-                method=request.method,
-                uri=str(request.url.replace(query="")),
-                headers=request.headers,
-                form=await request.form(),
-                query=request.query_params,
-            )
+    auth_server = _get_auth_server(context)
+    resp: JSONResponse = auth_server.create_token_response(
+        StarletteOAuth2Data(
+            method=request.method,
+            uri=str(request.url.replace(query="")),
+            headers=request.headers,
+            form=await request.form(),
+            query=request.query_params,
         )
+    )
 
-        payload = json.loads(resp.body.decode("utf-8"))
-        _auth_accesslog(context, request, payload, "json")
+    payload = json.loads(resp.body.decode("utf-8"))
+    _auth_accesslog(context, request, payload, "json")
 
-        return resp
-    else:
-        raise NoAuthServer()
+    return resp
 
 
 async def get_verification_keys(request: Request) -> JSONResponse:
@@ -120,10 +117,7 @@ async def get_verification_keys(request: Request) -> JSONResponse:
 
 
 async def auth_introspect(request: Request) -> JSONResponse:
-    context = request.state.context
-    auth_server = context.get("auth.server")
-    if not auth_server.enabled():
-        raise NoAuthServer()
+    auth_server = _get_auth_server(request.state.context)
 
     return auth_server.create_endpoint_response(
         "introspection",
@@ -139,9 +133,7 @@ async def auth_introspect(request: Request) -> JSONResponse:
 
 async def authorization_server_metadata(request: Request) -> JSONResponse:
     context = request.state.context
-    auth_server = context.get("auth.server")
-    if not auth_server.enabled():
-        raise NoAuthServer()
+    _get_auth_server(context)
 
     return JSONResponse(content=get_authorization_server_metadata(context))
 
@@ -161,6 +153,13 @@ def _auth_accesslog(context: Context, request: Request, payload: dict, output_fo
     context.attach("accesslog", create_accesslog, context, loaders=(context.get("store"), request, token, params))
     accesslog = context.get("accesslog")
     accesslog.auth()
+
+
+def _get_auth_server(context: Context):
+    auth_server = context.get("auth.server")
+    if not auth_server.enabled():
+        raise NoAuthServer()
+    return auth_server
 
 
 def _auth_client_context(request: Request) -> Context:

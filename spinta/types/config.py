@@ -71,7 +71,7 @@ def load(context: Context, config: Config) -> Config:
         rc.get("data_path") or DEFAULT_DATA_PATH,
     )
     config.credentials_file = pathlib.Path(rc.get("credentials_file") or DEFAULT_CONFIG_PATH / "credentials.cfg")
-    config.server_url = rc.get("server_url").rstrip("/")
+    config.server_url = (rc.get("server_url") or "").rstrip("/")
     config.scope_prefix = rc.get("scope_prefix")
     config.scope_formatter = rc.get("scope_formatter", cast=importstr)
     config.scope_prefix_udts = rc.get("scope_prefix_udts")
