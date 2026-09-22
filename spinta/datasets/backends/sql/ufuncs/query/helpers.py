@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
+import dateutil.parser
+import sqlalchemy as sa
+
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.exceptions import GivenValueCountMissmatch, PropertyNotPartOfRefProps
 from spinta.types.datatype import ExternalRef, Ref
@@ -69,3 +74,20 @@ def select_external_ref_foreign_key_properties(
                     sel.prop = prop
                 prep[prop.name] = sel
     return prep
+
+
+def prepare_temporal_value(column: Any, value: Any) -> Any:
+    # Some databases (e.g. sqlite) compare date/time columns with strings as text, so parse ISO strings
+    if not isinstance(value, str):
+        return value
+    column_type = getattr(column, "type", None)
+    try:
+        if isinstance(column_type, sa.DateTime):
+            return dateutil.parser.isoparse(value)
+        if isinstance(column_type, sa.Date):
+            return dateutil.parser.isoparser().parse_isodate(value)
+        if isinstance(column_type, sa.Time):
+            return dateutil.parser.isoparser().parse_isotime(value)
+    except ValueError:
+        return value
+    return value
