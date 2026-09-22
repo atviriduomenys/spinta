@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 from unittest.mock import ANY
 
@@ -1118,3 +1119,126 @@ class TestRevisionProp:
 
             getone = app.get(f"/example/Region/{data[0]['_id']}").json()
             assert getone["_revision"] == "QJRTCMRTMIYTI"
+
+
+@pytest.fixture(scope="module")
+def datetime_db():
+    with create_sqlite_db(
+        {
+            "person": [sa.Column("name", sa.Text), sa.Column("created", sa.DateTime)],
+            "document": [
+                sa.Column("id", sa.Integer),
+                sa.Column("person_name", sa.Text),
+                sa.Column("person_created", sa.DateTime),
+            ],
+        }
+    ) as db:
+        db.write("person", [{"name": "Jonas", "created": datetime.datetime(2020, 1, 1, 10)}])
+        db.write(
+            "document",
+            [{"id": 1, "person_name": "Jonas", "person_created": datetime.datetime(2020, 1, 1, 10)}],
+        )
+        yield db
+
+
+class TestPrimaryKeyLookups:
+    @pytest.mark.parametrize("id_type", [None, "string", "base32"])
+    def test_getone_with_datetime_in_primary_key(
+        self, context, rc: RawConfig, tmp_path: Path, datetime_db, id_type: str | None
+    ):
+        id_row = f"\n          |   |   |   | _id      | {id_type} |               |         | open" if id_type else ""
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable(
+                """
+        d | r | b | m | property | type     | ref           | source  | access
+        example                  |          |               |         |
+          | data                 |          | sqlite        |         |
+          |   |   | Person       |          | name, created | person  |
+          |   |   |   | name     | string   |               | name    | open
+          |   |   |   | created  | datetime |               | created | open"""
+                + id_row
+            ),
+        )
+        app = create_client(rc, tmp_path, datetime_db, mode="external")
+        app.authmodel("example/Person", ["getall", "getone", "search"])
+
+        resp = app.get("/example/Person")
+        assert resp.status_code == 200, resp.json()
+        _id = resp.json()["_data"][0]["_id"]
+        prefix = "=" if id_type else ""
+
+        resp = app.get(f"/example/Person/{prefix}{_id}")
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()["name"] == "Jonas"
+        assert resp.json()["created"] == "2020-01-01T10:00:00"
+
+    def test_filter_by_datetime(self, context, rc: RawConfig, tmp_path: Path, datetime_db):
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        d | r | b | m | property | type     | ref           | source  | access
+        example                  |          |               |         |
+          | data                 |          | sqlite        |         |
+          |   |   | Person       |          | name, created | person  |
+          |   |   |   | name     | string   |               | name    | open
+          |   |   |   | created  | datetime |               | created | open
+        """),
+        )
+        app = create_client(rc, tmp_path, datetime_db, mode="external")
+        app.authmodel("example/Person", ["getall", "search"])
+
+        resp = app.get('/example/Person?created="2020-01-01T10:00:00"')
+        assert [row["name"] for row in resp.json()["_data"]] == ["Jonas"]
+
+    def test_ref_with_datetime_in_primary_key(self, context, rc: RawConfig, tmp_path: Path, datetime_db):
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        d | r | b | m | property       | type     | ref                    | source         | prepare                      | access
+        example                        |          |                        |                |                              |
+          | data                       |          | sqlite                 |                |                              |
+          |   |   | Person             |          | name, created          | person         |                              |
+          |   |   |   | name           | string   |                        | name           |                              | open
+          |   |   |   | created        | datetime |                        | created        |                              | open
+          |   |   | Document           |          | id                     | document       |                              |
+          |   |   |   | id             | integer  |                        | id             |                              | open
+          |   |   |   | person_name    | string   |                        | person_name    |                              | open
+          |   |   |   | person_created | datetime |                        | person_created |                              | open
+          |   |   |   | person         | ref      | Person[name, created]  |                | person_name, person_created  | open
+        """),
+        )
+        app = create_client(rc, tmp_path, datetime_db, mode="external")
+        app.authmodel("example/Person", ["getall", "search"])
+        app.authmodel("example/Document", ["getall", "search"])
+
+        # Document is read first, so the ref id is looked up in the source, not in the keymap
+        resp = app.get("/example/Document")
+        assert resp.status_code == 200, resp.json()
+        person_id = app.get("/example/Person").json()["_data"][0]["_id"]
+        assert resp.json()["_data"][0]["person"] == {"_id": person_id}
+
+    def test_getone_when_primary_key_source_differs_from_name(
+        self, context, rc: RawConfig, tmp_path: Path, datetime_db
+    ):
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        d | r | b | m | property  | type     | ref       | source  | access
+        example                   |          |           |         |
+          | data                  |          | sqlite    |         |
+          |   |   | Person        |          | full_name | person  |
+          |   |   |   | full_name | string   |           | name    | open
+        """),
+        )
+        app = create_client(rc, tmp_path, datetime_db, mode="external")
+        app.authmodel("example/Person", ["getall", "getone"])
+
+        _id = app.get("/example/Person").json()["_data"][0]["_id"]
+        resp = app.get(f"/example/Person/{_id}")
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()["full_name"] == "Jonas"

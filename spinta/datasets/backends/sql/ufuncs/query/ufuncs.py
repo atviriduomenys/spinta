@@ -11,6 +11,7 @@ from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Expr, GetAttr, Negative, Unresolved, ufunc
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.backends.sql.ufuncs.query.helpers import (
+    prepare_temporal_value,
     select_external_ref_foreign_key_properties,
     select_ref_foreign_key_properties,
 )
@@ -46,6 +47,9 @@ def eq(env: SqlQueryBuilder, op: str, field: str, value: Any):
 
 
 def _sa_compare(op: str, column: sa.Column, value: Any):
+    if op not in ("contains", "startswith"):
+        value = prepare_temporal_value(column, value)
+
     if op == "eq":
         return column == value
 
@@ -168,7 +172,7 @@ def compare(env: SqlQueryBuilder, op: str, func: Function, value: Any):
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
 def eq(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
-    return column.in_(value)
+    return column.in_([prepare_temporal_value(column, v) for v in value])
 
 
 @ufunc.resolver(SqlQueryBuilder, Text, list)
@@ -181,7 +185,7 @@ def eq(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
 def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list):
     table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, dtype.prop)
-    return column.in_(value)
+    return column.in_([prepare_temporal_value(column, v) for v in value])
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType, list)

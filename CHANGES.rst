@@ -13,6 +13,28 @@ Bug fixes:
   (``load_downloaded_public_keys`` calls ``.exists()`` on it), so every
   request failed with ``AttributeError: 'str' object has no attribute
   'exists'``. The value is now wrapped with ``pathlib.Path``.
+- Models whose primary key (``ref``) contains ``date``, ``datetime`` or
+  ``time`` properties now work in more cases (`#1924`_):
+
+  - the ``redis`` keymap no longer fails with ``TypeError: Object of type
+    date is not JSON serializable``; ``date``/``datetime``/``time``,
+    ``Decimal`` and ``UUID`` values are stored the same way as in the
+    ``sqlalchemy`` keymap;
+  - a ``base32`` ``_id`` no longer fails when the primary key contains a
+    ``datetime`` without a time zone or a ``time``;
+  - for SQL data sources, getting an object by ``_id``, resolving a ``ref``
+    and filtering by ``date``/``datetime``/``time`` now also work on
+    databases that compare dates as text (e.g. SQLite).
+
+- The ``redis`` keymap now treats a value made only of empty values as
+  empty (as the ``sqlalchemy`` keymap does) and, when a synchronized value
+  changes, the old value no longer points to the object (previously this
+  could be reported as a duplicate by keymap validation) (`#1924`_).
+- For SQL data sources, getting an object by ``_id`` no longer fails when a
+  primary key property's name differs from its source column name
+  (`#1924`_).
+
+.. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 
 
 1.1.0 (2026-08-19)
