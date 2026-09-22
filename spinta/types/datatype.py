@@ -210,6 +210,12 @@ class BackRef(DataType):
     }
 
 
+# Data types that reference another model, so an undeclared intermediate
+# property nested under them can be taken from that model. `ref` was decided in
+# #397, `backref` carries exactly the same information (#2033).
+NESTING_TYPES = (Ref, BackRef)
+
+
 class Generic(DataType):
     schema = {
         "model": {"type": "string"},

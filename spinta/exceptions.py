@@ -734,8 +734,13 @@ class GivenValueCountMissmatch(BaseError):
     """
 
 
-class PartialTypeNotFound(BaseError):
-    template = "Partial type can only be used for ref type."
+class PartialTypeNotFound(UserError):
+    template = """
+    Nested properties are defined in '{model_name}' model, under '{parent_property_name}' property of type '{parent_property_type}'.
+    Nested properties: '{property_names}'.
+    Type of '{missing_property_name}' can only be taken from another model, when its parent property is of type 'ref' or 'backref'.
+    Either declare '{missing_property_name}' with an explicit type, or change the type of '{parent_property_name}'.
+    """
 
 
 class NoReferencesFound(UserError):
@@ -1238,10 +1243,12 @@ class SourceOrPrepareNotAllowed(UserError):
     """
 
 
-class PartialIncorrectProperty(BaseError):
-    template = (
-        "The composite property {property} is not correct. Check if all parts of the composite property are present."
-    )
+class PartialIncorrectProperty(UserError):
+    template = """
+    Property '{property_name}' is not defined in '{referenced_model}' model, which is referenced by '{parent_property_name}'.
+    It is used in '{model}' model as '{property}'.
+    Either declare '{property_name}' in '{referenced_model}', or correct '{property}'.
+    """
 
 
 class ReservedPropertySourceShouldBeRemoved(BaseError):

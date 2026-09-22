@@ -1,7 +1,7 @@
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
-from spinta.types.datatype import Array, Denorm, Object, Ref
+from spinta.types.datatype import NESTING_TYPES, Array, Denorm, Object
 from spinta.types.helpers import set_dtype_backend
 
 
@@ -23,11 +23,13 @@ def _get_denorm_prop(
     name_parts = name.split(".", 1)
     name = name_parts[0]
     properties = (
-        prop.parent.dtype.model.properties if isinstance(prop.parent.dtype, Ref) else prop.parent.model.properties
+        prop.parent.dtype.model.properties
+        if isinstance(prop.parent.dtype, NESTING_TYPES)
+        else prop.parent.model.properties
     )
     model = (
         commands.get_model(context, manifest, prop.parent.dtype.model.name)
-        if isinstance(prop.parent.dtype, Ref)
+        if isinstance(prop.parent.dtype, NESTING_TYPES)
         else model
     )
     if len(name_parts) > 1:
@@ -37,10 +39,10 @@ def _get_denorm_prop(
 
         model = (
             commands.get_model(context, manifest, ref_prop.dtype.model.name)
-            if isinstance(ref_prop.dtype, Ref)
+            if isinstance(ref_prop.dtype, NESTING_TYPES)
             else model
         )
-        if name not in properties or not isinstance(ref_prop.dtype, (Ref, Object)):
+        if name not in properties or not isinstance(ref_prop.dtype, (*NESTING_TYPES, Object)):
             if prop.model == model:
                 raise NoRefPropertyForDenormProperty(
                     prop,

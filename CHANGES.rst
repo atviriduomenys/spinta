@@ -4,6 +4,38 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- An intermediate property of a nested path no longer has to be declared when
+  the path goes through a ``backref``. ``ref`` has allowed this since `#397`_:
+  in ``persons[].country.code`` the ``persons[].country`` row can be left out,
+  because ``country`` is described in the model the ``backref`` points to.
+  After a ``backref`` the same notation raised ``PartialTypeNotFound``, even
+  though it is widely used in real data set descriptions. The same
+  now applies to a denormalized property without a type directly under a
+  ``backref``. As with ``ref``, the derived property is not written out by
+  ``spinta copy`` and ``spinta show``, so a checked file stays as it was
+  written (`#2033`_).
+
+  This was a regression: until `#1608`_ the properties nested under a
+  ``backref`` were not linked at all, so these files were accepted without
+  being checked. Every release since ``0.2.dev24`` rejects them.
+
+- ``spinta check`` no longer fails with ``ModelNotFound`` when a derived nested
+  property points to a model that is not in the manifest, for example when a
+  single data set description is checked on its own. The reference is
+  downgraded to ``object``, as it already was when the models happened to be
+  declared in the other order (`#2033`_).
+
+- ``PartialTypeNotFound`` and ``PartialIncorrectProperty`` now name the model,
+  the full property path and what to change, instead of mentioning the internal
+  ``partial`` type. Both are reported as user errors (`#1295`_, `#2033`_).
+
+.. _#397: https://github.com/atviriduomenys/spinta/issues/397
+.. _#1295: https://github.com/atviriduomenys/spinta/issues/1295
+.. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
+.. _#2033: https://github.com/atviriduomenys/spinta/issues/2033
+
 
 1.1.0 (2026-08-19)
 =====================
