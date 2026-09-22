@@ -13,7 +13,9 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
+from spinta.datasets.keymaps.helpers import valid_keymap_value
 from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch
+from spinta.utils.json import fix_data_for_json
 
 
 class RedisKeyMap(KeyMap):
@@ -55,10 +57,10 @@ class RedisKeyMap(KeyMap):
         return "keymap:sync"
 
     def encode(self, name: str, value: Any, primary_key: Optional[str] = None) -> Optional[str]:
-        if value is None:
+        if not valid_keymap_value(value):
             return None
 
-        serialized = json.dumps(value, sort_keys=True)
+        serialized = _serialize_value(value)
         value_table_name = self._get_value_table_name(name)
         key_table_name = self._get_key_table_name(name)
 
@@ -80,9 +82,9 @@ class RedisKeyMap(KeyMap):
         return json.loads(serialized) if serialized is not None else None
 
     def contains(self, name: str, value: Any) -> bool:
-        if value is None:
+        if not valid_keymap_value(value):
             return False
-        serialized = json.dumps(value, sort_keys=True)
+        serialized = _serialize_value(value)
         return self.redis.hexists(self._get_value_table_name(name), serialized)
 
     def has_synced_before(self) -> bool:
@@ -111,11 +113,16 @@ class RedisKeyMap(KeyMap):
 
         metadata_table_name = self._get_metadata_table_name(name)
 
-        if value:
+        if valid_keymap_value(value):
             value_table_name = self._get_value_table_name(name)
             key_table_name = self._get_key_table_name(name)
 
-            serialized_value = json.dumps(value, sort_keys=True)
+            serialized_value = _serialize_value(value)
+
+            # Drop the old value mapping, so it no longer resolves to this key
+            old_value = self.redis.hget(key_table_name, key)
+            if old_value and old_value != serialized_value and self.redis.hget(value_table_name, old_value) == key:
+                self.redis.hdel(value_table_name, old_value)
 
             self.redis.hset(value_table_name, serialized_value, key)
             self.redis.hset(key_table_name, key, serialized_value)
@@ -149,6 +156,10 @@ class RedisKeyMap(KeyMap):
                 )
             else:
                 raise KeymapDuplicateMapping(key=name, key_count=affected_key_count, affected_count=affected_row_count)
+
+
+def _serialize_value(value: Any) -> str:
+    return json.dumps(fix_data_for_json(value), sort_keys=True)
 
 
 @commands.configure.register(Context, RedisKeyMap)

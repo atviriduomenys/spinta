@@ -13,7 +13,7 @@ def fix_data_for_json(data):
     if isinstance(data, list):
         return [fix_data_for_json(v) for v in data]
     if isinstance(data, tuple):
-        return (fix_data_for_json(v) for v in data)
+        return tuple(fix_data_for_json(v) for v in data)
     if isinstance(data, (datetime.datetime, datetime.date, datetime.time)):
         return data.isoformat()
     if isinstance(data, bytes):

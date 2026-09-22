@@ -17,3 +17,15 @@ def _extract_items_from_source(source: Any) -> Generator[Any, None, None]:
             yield from _extract_items_from_source(item)
     else:
         yield source
+
+
+def valid_keymap_value(value: object) -> bool:
+    if value is None:
+        return False
+
+    if isinstance(value, (list, tuple)):
+        filtered = [v for v in value if v is not None]
+        if len(filtered) == 0:
+            return False
+
+    return True

@@ -22,7 +22,7 @@ from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Config, Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
-from spinta.datasets.keymaps.helpers import prepare_keymap_values
+from spinta.datasets.keymaps.helpers import prepare_keymap_values, valid_keymap_value
 from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch, KeymapMigrationRequired
 from spinta.utils.json import fix_data_for_json
 
@@ -66,7 +66,7 @@ class SqlAlchemyKeyMap(KeyMap):
         return table
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
-        valid_value = _valid_keymap_value(value)
+        valid_value = valid_keymap_value(value)
         if not valid_value:
             return None
 
@@ -114,7 +114,7 @@ class SqlAlchemyKeyMap(KeyMap):
         return json.loads(value)
 
     def contains(self, name: str, value: Any) -> bool:
-        valid_value = _valid_keymap_value(value)
+        valid_value = valid_keymap_value(value)
         if not valid_value:
             return False
 
@@ -163,7 +163,7 @@ class SqlAlchemyKeyMap(KeyMap):
             self.conn.execute(query)
             return
 
-        valid_value = _valid_keymap_value(value_)
+        valid_value = valid_keymap_value(value_)
         if not valid_value:
             return
 
@@ -200,7 +200,7 @@ class SqlAlchemyKeyMap(KeyMap):
         if redirect is not None:
             return
 
-        valid_value = _valid_keymap_value(value_)
+        valid_value = valid_keymap_value(value_)
         if not valid_value:
             return
 
@@ -310,18 +310,6 @@ class SqlAlchemyKeyMap(KeyMap):
 
         table.create(checkfirst=True)
         return table
-
-
-def _valid_keymap_value(value: object) -> bool:
-    if value is None:
-        return False
-
-    if isinstance(value, (list, tuple)):
-        filtered = [v for v in value if v is not None]
-        if len(filtered) == 0:
-            return False
-
-    return True
 
 
 def prepare_value(value):

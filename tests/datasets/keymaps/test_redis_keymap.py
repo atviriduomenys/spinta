@@ -161,3 +161,38 @@ def test_validate_data_duplicates_warn_only(redis_in_memory_keymap, monkeypatch)
         msg, err = mock_echo.call_args[0][0], mock_echo.call_args[1].get("err", False)
         assert "WARNING: Keymap's" in msg
         assert err is True
+
+
+def test_encode_date_values(redis_in_memory_keymap):
+    name = "person"
+    value = ["Jonas", datetime.date(1990, 1, 2), datetime.datetime(2020, 1, 1, 10)]
+
+    key = redis_in_memory_keymap.encode(name, value)
+    assert redis_in_memory_keymap.contains(name, value)
+    assert redis_in_memory_keymap.encode(name, value) == key
+    assert redis_in_memory_keymap.decode(name, key) == ["Jonas", "1990-01-02", "2020-01-01T10:00:00"]
+
+
+def test_encode_date_values_matches_synchronized_value(redis_in_memory_keymap):
+    from spinta.datasets.keymaps.components import KeymapSyncData
+
+    data = KeymapSyncData(name="person", identifier="k1", value=["Jonas", "1990-01-02"], data={})
+    redis_in_memory_keymap.synchronize(data)
+
+    assert redis_in_memory_keymap.encode("person", ("Jonas", datetime.date(1990, 1, 2))) == "k1"
+
+
+def test_encode_all_none_values(redis_in_memory_keymap):
+    assert redis_in_memory_keymap.encode("person", [None, None]) is None
+    assert not redis_in_memory_keymap.contains("person", [None, None])
+
+
+def test_synchronize_changed_value_removes_old_mapping(redis_in_memory_keymap):
+    from spinta.datasets.keymaps.components import KeymapSyncData
+
+    redis_in_memory_keymap.synchronize(KeymapSyncData(name="model", identifier="k1", value="old", data={}))
+    redis_in_memory_keymap.synchronize(KeymapSyncData(name="model", identifier="k1", value="new", data={}))
+
+    value_table = redis_in_memory_keymap._get_value_table_name("model")
+    assert redis_in_memory_keymap.redis.hgetall(value_table) == {'"new"': "k1"}
+    redis_in_memory_keymap.validate_data("model")

@@ -1997,12 +1997,19 @@ def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, da
     return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
 
 
+def _prepare_base32_value(value: Any) -> Any:
+    # cbor2 can't encode naive datetimes and times; aware datetimes are left as is to keep existing ids
+    if isinstance(value, datetime.time) or (isinstance(value, datetime.datetime) and value.tzinfo is None):
+        return str(value)
+    return value
+
+
 @commands.cast_backend_to_python.register(Context, Base32, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
     if is_nan(data):
         return None
     if isinstance(data, (list, tuple)):
-        data = cbor_dumps(list(data))
+        data = cbor_dumps([_prepare_base32_value(v) for v in data])
     else:
         data = str(data).encode("utf-8")
     encoded = base64.b32encode(data)
