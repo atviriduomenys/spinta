@@ -277,6 +277,8 @@ CONFIG = {
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",
+    # Script configuration parameters
+    "citus_reference_script_size": "10g",
     "environments": {
         "dev": {
             "keymaps.default": {

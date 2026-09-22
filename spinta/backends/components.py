@@ -65,3 +65,4 @@ SelectTree = Optional[Dict[str, "SelectTree"]]
 class DistributionStrategy:
     distribution_type: DistributionType
     property: str | None = None
+    default: bool = False
