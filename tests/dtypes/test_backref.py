@@ -4,8 +4,10 @@ import xml.etree.ElementTree as ET
 import pytest
 from pytest import FixtureRequest
 
+from spinta import commands
 from spinta.components import Context
 from spinta.core.config import Path, RawConfig
+from spinta.core.enums import Mode
 from spinta.exceptions import (
     MultipleBackRefReferencesFound,
     NoReferencesFound,
@@ -18,6 +20,7 @@ from spinta.testing.data import are_lists_of_dicts_equal
 from spinta.testing.manifest import bootstrap_manifest, compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
+from spinta.types.datatype import BackRef
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -1396,4 +1399,77 @@ id | d | r | b | m | property                 | type     | ref     | source     
 
     _, loaded_manifest = load_manifest_and_context(rc, tmp_path / "manifest.csv")
     a, b = compare_manifest(loaded_manifest, result.stdout)
+    assert a == b
+
+
+# Manifest of `test_backref_and_ref_nested_show` without the `cities[].council`
+# row: its type is taken from `City.council` in the referenced model (`#2033`).
+BACKREF_NESTED_WITHOUT_INTERMEDIATE = """
+id | d | r | b | m | property                 | type     | ref     | source                                     | access
+   | datasets/backref/example                 |          |         |                                            |
+   |   | data                                 | dask/xml |         | data.xml                                   |
+   |                                          |          |         |                                            |
+   |   |   |   | Country                      |          | code    | /salys/salis                               | open
+   |   |   |   |   | code                     | string   |         | @kodas                                     |
+   |   |   |   |   | name                     | string   |         | pavadinimas                                |
+   |   |   |   |   | cities[]                 | backref  | City    | miestai/miestas                            |
+   |   |   |   |   | cities[].council.address | string   |         | text()                                     |
+   |                                          |          |         |                                            |
+   |   |   |   | City                         |          | name    | /salys/salis/miestai/miestas               | open
+   |   |   |   |   | name                     | string   |         | pavadinimas                                |
+   |   |   |   |   | council                  | backref  | Council | gatves/gatve                               |
+   |   |   |   |   | council.address          | string   |         | text()                                     |
+   |                                          |          |         |                                            |
+   |   |   |   | Council                      |          | address | /salys/salis/miestai/miestas/taryba/taryba | open
+   |   |   |   |   | address                  | string   |         | text()                                     |
+"""
+
+
+def test_backref_nested_show_without_intermediate_property(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    manifest = striptable(BACKREF_NESTED_WITHOUT_INTERMEDIATE)
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
+
+    context, loaded_manifest = load_manifest_and_context(rc, tmp_path / "manifest.csv", mode=Mode.external)
+    a, b = compare_manifest(loaded_manifest, result.stdout)
+    assert a == b
+
+    # `cities[].council` was taken from `City.council`, including its source.
+    council = commands.get_model(context, loaded_manifest, "datasets/backref/example/Country").flatprops[
+        "cities.council"
+    ]
+    assert isinstance(council.dtype, BackRef)
+    assert council.dtype.model.name == "datasets/backref/example/Council"
+    assert council.dtype.inherited is True
+    assert council.given.explicit is False
+    # A copied refprop would point at `City`, it has to be resolved anew.
+    assert council.dtype.refprop is None
+    assert council.dtype.explicit is False
+    assert council.external.name == "gatves/gatve"
+
+    # The taken property is not written out, so the manifest stays as authored.
+    assert "cities[].council " not in result.stdout
+    assert "cities[].council.address" in result.stdout
+
+
+def test_backref_nested_copy_without_intermediate_property(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    manifest = striptable(BACKREF_NESTED_WITHOUT_INTERMEDIATE)
+
+    context = Context("test")
+
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
+
+    cli.invoke(rc, ["copy", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"])
+
+    copied = (tmp_path / "result.csv").read_text()
+    assert "cities[].council," not in copied
+    assert "cities[].council.address" in copied
+
+    # The copy must load again, just like a copy of a `ref` denormalization.
+    _, loaded_manifest = load_manifest_and_context(rc, tmp_path / "result.csv")
+    a, b = compare_manifest(loaded_manifest, manifest)
     assert a == b

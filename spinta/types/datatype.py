@@ -210,6 +210,11 @@ class BackRef(DataType):
     }
 
 
+# Types whose target model can supply an undeclared intermediate property:
+# `ref` since #397, `backref` since #2033.
+NESTING_TYPES = Ref | BackRef
+
+
 class Generic(DataType):
     schema = {
         "model": {"type": "string"},

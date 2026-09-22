@@ -16,6 +16,7 @@ from spinta.exceptions import (
     NoModelDefined,
     NotImplementedFeature,
     ParentNodeNotFound,
+    PartialIncorrectProperty,
     PartialTypeNotFound,
     ReferencedPropertyNotFound,
     SameModelIntermediateTableMapping,
@@ -24,7 +25,7 @@ from spinta.exceptions import (
 )
 from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
-from spinta.types.datatype import ArrayBackRef, BackRef
+from spinta.types.datatype import ArrayBackRef, BackRef, Ref
 
 
 def check(tmp_path, rc, table, manifest_type: str = "csv"):
@@ -684,6 +685,154 @@ def test_with_denormalized_data(manifest_type, tmp_path, rc):
     """,
         manifest_type,
     )
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_with_denormalized_data_backref(manifest_type, tmp_path, rc):
+    # An undeclared intermediate property is taken from the referenced model
+    # after `backref` exactly like after `ref` (`#397`, `#2033`):
+    # `countries[].continent` is not declared, it comes from `Country`.
+    check(
+        tmp_path,
+        rc,
+        """
+    d | r | b | m | property                   | type    | ref       | access
+    example                                    |         |           |
+                                               |         |           |
+      |   |   | Continent                      |         |           |
+      |   |   |   | name                       | string  |           | open
+                                               |         |           |
+      |   |   | Country                        |         |           |
+      |   |   |   | name                       | string  |           | open
+      |   |   |   | continent                  | ref     | Continent | open
+      |   |   |   | language                   | ref     | Language  | open
+                                               |         |           |
+      |   |   | Language                       |         |           |
+      |   |   |   | name                       | string  |           | open
+      |   |   |   | countries[]                | backref | Country   | open
+      |   |   |   | countries[].continent.name |         |           | open
+    """,
+        manifest_type,
+    )
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_with_denormalized_data_backref_multi_level(manifest_type, tmp_path, rc):
+    # Undeclared intermediate properties are taken through several levels after
+    # a `backref`: both `cities[].country` and `cities[].country.continent`.
+    check(
+        tmp_path,
+        rc,
+        """
+    d | r | b | m | property                        | type    | ref       | access
+    example                                         |         |           |
+                                                    |         |           |
+      |   |   | Continent                           |         |           |
+      |   |   |   | name                            | string  |           | open
+                                                    |         |           |
+      |   |   | Country                             |         |           |
+      |   |   |   | name                            | string  |           | open
+      |   |   |   | continent                       | ref     | Continent | open
+                                                    |         |           |
+      |   |   | City                                |         |           |
+      |   |   |   | name                            | string  |           | open
+      |   |   |   | country                         | ref     | Country   | open
+                                                    |         |           |
+      |   |   | Region                              |         |           |
+      |   |   |   | name                            | string  |           | open
+      |   |   |   | cities[]                        | backref | City      | open
+      |   |   |   | cities[].country.continent.name |         |           | open
+    """,
+        manifest_type,
+    )
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_with_denormalized_data_backref_leaf(manifest_type, tmp_path, rc):
+    # A denormalized leaf without a type, directly under a `backref`, is taken
+    # from the referenced model, same as under a `ref` (`#2033`).
+    check(
+        tmp_path,
+        rc,
+        """
+    d | r | b | m | property         | type    | ref      | access
+    example                          |         |          |
+                                     |         |          |
+      |   |   | Country              |         |          |
+      |   |   |   | name             | string  |          | open
+      |   |   |   | language         | ref     | Language | open
+                                     |         |          |
+      |   |   | Language             |         |          |
+      |   |   |   | name             | string  |          | open
+      |   |   |   | countries[]      | backref | Country  | open
+      |   |   |   | countries[].name |         |          | open
+    """,
+        manifest_type,
+    )
+
+
+def test_with_denormalized_data_backref_inherited_flags(rc: RawConfig) -> None:
+    # A property taken after a `backref` must be marked exactly like one taken
+    # after a `ref`, so that `copy` and `show` do not write it out (`#2033`).
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+        d | r | b | m | property                   | type    | ref       | access
+        example                                    |         |           |
+          |   |   | Continent                      |         |           |
+          |   |   |   | name                       | string  |           | open
+          |   |   | Country                        |         |           |
+          |   |   |   | name                       | string  |           | open
+          |   |   |   | continent                  | ref     | Continent | open
+          |   |   | City                           |         |           |
+          |   |   |   | name                       | string  |           | open
+          |   |   |   | country                    | ref     | Country   | open
+          |   |   |   | country.continent.name     |         |           | open
+          |   |   | Language                       |         |           |
+          |   |   |   | name                       | string  |           | open
+          |   |   |   | countries[]                | backref | Country   | open
+          |   |   |   | countries[].continent.name |         |           | open
+    """,
+    )
+    after_ref = commands.get_model(context, manifest, "example/City").flatprops["country.continent"]
+    after_backref = commands.get_model(context, manifest, "example/Language").flatprops["countries.continent"]
+
+    for prop in (after_ref, after_backref):
+        assert isinstance(prop.dtype, Ref)
+        assert prop.dtype.model.name == "example/Continent"
+        assert prop.dtype.inherited is True
+        assert prop.given.explicit is False
+        assert prop.given.name == ""
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_with_denormalized_data_backref_undefined_error(manifest_type, tmp_path, rc):
+    # A path part that the referenced model does not have is still an error,
+    # and the message must name the property and the referenced model.
+    with pytest.raises(PartialIncorrectProperty) as e:
+        check(
+            tmp_path,
+            rc,
+            """
+        d | r | b | m | property             | type    | ref      | access
+        example                              |         |          |
+                                             |         |          |
+          |   |   | Country                  |         |          |
+          |   |   |   | name                 | string  |          | open
+          |   |   |   | language             | ref     | Language | open
+                                             |         |          |
+          |   |   | Language                 |         |          |
+          |   |   |   | name                 | string  |          | open
+          |   |   |   | countries[]          | backref | Country  | open
+          |   |   |   | countries[].bogus.id | string  |          | open
+        """,
+            manifest_type,
+        )
+    assert e.value.context["property_name"] == "bogus"
+    assert e.value.context["parent_property_name"] == "countries[]"
+    assert e.value.context["referenced_model"] == "example/Country"
+    assert e.value.context["model"] == "example/Language"
+    assert e.value.context["property"] == "countries.bogus"
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -1356,7 +1505,10 @@ def test_prop_multi_nested_denorm(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests("internal_sql", "csv")
 def test_prop_multi_nested_error_partial(manifest_type, tmp_path, rc):
-    with pytest.raises(PartialTypeNotFound):
+    # A type can only be taken from another model through `ref` or `backref`,
+    # an `array` parent is still an error - but the message has to name the
+    # model and the full property path (`#1295`, `#2033`).
+    with pytest.raises(PartialTypeNotFound) as e:
         check(
             tmp_path,
             rc,
@@ -1374,6 +1526,12 @@ def test_prop_multi_nested_error_partial(manifest_type, tmp_path, rc):
         """,
             manifest_type,
         )
+    assert e.value.context["model_name"] == "example/Country"
+    assert e.value.context["parent_property_name"] == "langs"
+    assert e.value.context["parent_property_type"] == "array"
+    assert e.value.context["property_names"] == "langs[][].dialect"
+    assert e.value.context["missing_property_name"] == "langs[][]"
+    assert "'ref' or 'backref'" in e.value.message
 
 
 @pytest.mark.manifests("internal_sql", "csv")
