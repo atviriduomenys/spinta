@@ -15,7 +15,7 @@ def requires_migration(context: Context, migration: str, additional_check: Calla
         )
         return False
 
-    return outdated_sqlite_db(context, push_state, migration, additional_check, **kwargs)
+    return outdated_sqlite_db(context, push_state.migrations, migration, additional_check, **kwargs)
 
 
 def apply_migration_to_push_state(context: Context, migration: str, apply_migration: Callable, **kwargs):

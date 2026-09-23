@@ -13,4 +13,4 @@ def push_state_initial_migration(context: Context, **kwargs):
 
 
 def apply_migration(context: Context, push_state: PushState, migration: str):
-    push_state.create_all_metatables()
+    push_state.db.create_all_metatables()
