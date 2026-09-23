@@ -16,7 +16,7 @@ def outdated_keymaps(context: Context, migration: str, additional_check: Callabl
         if not isinstance(keymap, SqlAlchemyKeyMap):
             continue
 
-        if outdated_sqlite_db(context, keymap, migration, additional_check, **kwargs):
+        if outdated_sqlite_db(context, keymap.migrations, migration, additional_check, **kwargs):
             yield keymap
 
 

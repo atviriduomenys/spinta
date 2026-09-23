@@ -164,6 +164,11 @@ class SqliteMigrations:
         self.db.conn.execute(stmt)
 
 
+class SqliteMigratableDatabase(Protocol):
+    db: SqliteDatabase
+    migrations: SqliteMigrations
+
+
 def outdated_sqlite_db(
     context: Context,
     sqlite_migrations: SqliteMigrations,
@@ -191,18 +196,18 @@ def outdated_sqlite_db(
 
 def apply_migration_to_outdated_db(
     context: Context,
-    sqlite_migrations: SqliteMigrations,
+    migratable_db: SqliteMigratableDatabase,
     migration: str,
     apply_migration: Callable,
     database_name: str,
     **kwargs,
 ):
-    if not outdated_sqlite_db(context, sqlite_migrations, migration, None, **kwargs):
+    if not outdated_sqlite_db(context, migratable_db.migrations, migration, None, **kwargs):
         return
 
     cli_message(f'\tApplying "{migration}" migration to sqlite database ("{database_name}")')
-    apply_migration(context, sqlite_migrations, migration)
-    sqlite_migrations.mark_migration(migration)
+    apply_migration(context, migratable_db, migration)
+    migratable_db.migrations.mark_migration(migration)
 
 
 def migrate_table(
