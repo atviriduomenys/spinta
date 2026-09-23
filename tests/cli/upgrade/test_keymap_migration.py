@@ -83,7 +83,7 @@ def test_upgrade_missing_initial_migration(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(migration_table.delete())
 
     # Check keymap state before sync for Country
@@ -168,7 +168,7 @@ def test_upgrade_missing_redirect_migration_entry(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
@@ -259,7 +259,7 @@ def test_upgrade_missing_modified_migration_entry(
     modified_at = datetime.datetime.fromisoformat(modified_at)
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_MODIFIED.value)
         )
@@ -347,7 +347,7 @@ def test_upgrade_redirect_migration_from_old_version(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
@@ -440,7 +440,7 @@ def test_upgrade_redirect_migration_from_old_version_with_data(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
@@ -561,7 +561,7 @@ def test_upgrade_redirect_migration_from_old_version_with_multi_column_data(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
@@ -700,7 +700,7 @@ def test_upgrade_modified_from_old_version(
     assert result.exit_code == 0
 
     with keymap:
-        migration_table = keymap.db.get_table(keymap.migration_table_name)
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
         keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_MODIFIED.value)
         )

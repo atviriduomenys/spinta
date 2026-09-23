@@ -320,7 +320,7 @@ def reset_keymap(context):
     keymap = context.get("store").keymaps["default"]
     excluded = []
     if isinstance(keymap, SqlAlchemyKeyMap):
-        excluded.append(keymap.migration_table_name)
+        excluded.append(keymap.migrations.migration_table_name)
     _reset_keymap(excluded)
     yield
     _reset_keymap(excluded)

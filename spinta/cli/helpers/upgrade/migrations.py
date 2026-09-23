@@ -44,16 +44,27 @@ def ensure_migrated(
     error_factory: Callable[[str], UpgradeError],
     table_namer: Callable[[Any], str] = lambda t: t,
 ):
-    config = context.get("config")
+    def _mark_migrations():
+        for script in get_target_migrations(target).keys():
+            book.mark_migration(script)
 
+    upgrade_mode = False
+    if context.has("config"):
+        config = context.get("config")
+        upgrade_mode = config.upgrade_mode
+
+    is_fresh = is_fresh_database(context, book.db, table_namer=table_namer)
     # Initialize missing metadata tables
     book.db.create_all_metatables()
 
-    if is_fresh_database(context, book.db, table_namer=table_namer):
-        for script in get_target_migrations(target).keys():
-            book.mark_migration(script)
+    if is_fresh:
+        if book.db.is_entered:
+            _mark_migrations()
+        else:
+            with book.db:
+                _mark_migrations()
     else:
-        if config.upgrade_mode:
+        if upgrade_mode:
             return
         for script in get_target_migrations(target).values():
             if script.check(context):
