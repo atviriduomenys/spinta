@@ -10,11 +10,11 @@ from spinta.exceptions import (
     SqliteDatabaseNotConfigured,
     SqliteTableNotFound,
 )
-from spinta.utils.sqlite import SqliteMigratableDb, migrate_table
+from spinta.utils.sqlite import SqliteDatabase, SqliteMigrations, migrate_table
 
 
-def test_sqlite_migratable_db_connection_context():
-    database = SqliteMigratableDb("sqlite://")
+def test_sqlite_database_connection_context():
+    database = SqliteDatabase("sqlite://")
 
     assert not database.is_entered
     with pytest.raises(SqliteConnectionNotOpen):
@@ -33,8 +33,8 @@ def test_sqlite_migratable_db_connection_context():
         database.conn
 
 
-def test_sqlite_migratable_db_requires_configuration():
-    database = SqliteMigratableDb()
+def test_sqlite_database_requires_configuration():
+    database = SqliteDatabase()
 
     with pytest.raises(SqliteDatabaseNotConfigured):
         database.engine
@@ -43,40 +43,42 @@ def test_sqlite_migratable_db_requires_configuration():
         database.metadata
 
 
-def test_sqlite_migratable_db_missing_table():
-    database = SqliteMigratableDb("sqlite://")
+def test_sqlite_database_missing_table():
+    database = SqliteDatabase("sqlite://")
 
     with pytest.raises(SqliteTableNotFound):
         database.get_table("missing", create_missing=False)
 
 
-def test_sqlite_migratable_db_requires_default_table_template():
-    database = SqliteMigratableDb("sqlite://")
+def test_sqlite_database_requires_default_table_template():
+    database = SqliteDatabase("sqlite://")
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(SqliteTableNotFound):
         database.get_table("model")
 
 
-def test_sqlite_migratable_db_tracks_migrations():
-    database = SqliteMigratableDb("sqlite://")
+def test_sqlite_database_tracks_migrations():
+    database = SqliteDatabase("sqlite://")
+    book = SqliteMigrations(database)
 
     with database:
-        assert not database.contains_migration("initial")
+        assert not book.contains_migration("initial")
 
-        database.mark_migration("initial")
-        database.mark_migration("initial")
+        book.mark_migration("initial")
+        book.mark_migration("initial")
 
-        migration_table = database.get_table(database.migration_table_name)
+        migration_table = database.get_table(book.migration_table_name)
         migrations = database.conn.execute(sa.select([migration_table.c.migration])).fetchall()
 
     assert migrations == [("initial",)]
 
 
-def test_sqlite_migratable_db_uses_custom_migration_table_name():
-    database = SqliteMigratableDb("sqlite://", migration_table_name="schema_versions")
+def test_sqlite_database_uses_custom_migration_table_name():
+    database = SqliteDatabase("sqlite://")
+    book = SqliteMigrations(database, migration_table_name="schema_versions")
 
     with database:
-        database.mark_migration("initial")
+        book.mark_migration("initial")
 
     assert sa.inspect(database.engine).get_table_names() == ["schema_versions"]
 

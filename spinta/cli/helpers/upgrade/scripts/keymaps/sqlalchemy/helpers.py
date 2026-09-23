@@ -36,5 +36,5 @@ def requires_migration(context: Context, migration: str, additional_check: Calla
 
 
 def reset_keymap_increment(context: Context, keymap: "SqlAlchemyKeyMap", key: str):
-    table = keymap.get_table(keymap.sync_table_name)
-    keymap.conn.execute(table.update().values(cid=0, updated=None).where(table.c.model == key))
+    table = keymap.db.get_table(keymap.sync_table_name)
+    keymap.db.conn.execute(table.update().values(cid=0, updated=None).where(table.c.model == key))

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Callable, Dict, Optional
+from copy import copy
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Protocol
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
@@ -18,30 +19,32 @@ if TYPE_CHECKING:
     from alembic.operations import Operations
 
 
-class SqliteMigratableDb:
+class TableTemplate(Protocol):
+    def __call__(self, metadata: sa.MetaData) -> sa.Table:
+        pass
+
+
+class DefaultTableFactory(Protocol):
+    def __call__(self, name: str, **kwargs) -> TableTemplate:
+        pass
+
+
+class SqliteDatabase:
     dsn: str | None
 
     # Private sqlalchemy fields should not be accessed directly.
     _engine: Engine | None
     _metadata: sa.MetaData | None
     _conn: sa.engine.Connection | None
+    _default_table_factory: DefaultTableFactory | None
 
-    migration_table_name: str = "_migrations"
-    metatable_templates: dict[str, Callable[[sa.MetaData], sa.Table]]
+    metatable_templates: dict[str, TableTemplate]
 
-    def __init__(self, dsn: str | None = None, migration_table_name: str = migration_table_name):
+    def __init__(self, dsn: str | None = None, default_table_factory: DefaultTableFactory | None = None):
         self.configure_engine(dsn)
         self._conn = None
-        self.migration_table_name = migration_table_name
-
-        self.metatable_templates = {
-            self.migration_table_name: lambda metadata: sa.Table(
-                self.migration_table_name,
-                metadata,
-                sa.Column("migration", sa.Text, primary_key=True),
-                sa.Column("applied_at", sa.DateTime, server_default=sa.func.now()),
-            )
-        }
+        self.metatable_templates = {}
+        self._default_table_factory = default_table_factory
 
     def __enter__(self):
         if self._conn is not None:
@@ -56,6 +59,11 @@ class SqliteMigratableDb:
 
         self._conn.close()
         self._conn = None
+
+    def copy(self) -> "SqliteDatabase":
+        copied = copy(self)
+        copied._conn = None
+        return copied
 
     @property
     def is_entered(self) -> bool:
@@ -106,70 +114,95 @@ class SqliteMigratableDb:
 
         table_template = self.metatable_templates.get(name)
         if table_template is None:
-            table_template = self._default_table_template(name, **kwargs)
+            if self._default_table_factory is None:
+                raise SqliteTableNotFound(table=name)
+            table_template = self._default_table_factory(name, **kwargs)
 
         table = table_template(self.metadata)
         self.create_table(table)
         return table
 
+    def create_all_metatables(self):
+        for name in self.metatable_templates.keys():
+            self.get_table(name)
+
+
+class SqliteMigrations:
+    migration_table_name: str = "_migrations"
+
+    def __init__(self, db: SqliteDatabase, migration_table_name: str = migration_table_name):
+        self.db = db
+        self.migration_table_name = migration_table_name
+
+        self.db.metatable_templates = {
+            self.migration_table_name: lambda metadata: sa.Table(
+                self.migration_table_name,
+                metadata,
+                sa.Column("migration", sa.Text, primary_key=True),
+                sa.Column("applied_at", sa.DateTime, server_default=sa.func.now()),
+            )
+        }
+
+    def copy(self, db: SqliteDatabase | None = None) -> "SqliteMigrations":
+        copied = copy(self)
+        copied.db = db if db else copied.db
+        return copied
+
     def contains_migration(self, name: str):
-        migrations = self.get_table(self.migration_table_name)
+        migrations = self.db.get_table(self.migration_table_name)
 
         query = sa.select([sa.func.count()]).where(migrations.c.migration == name)
-        count = self.conn.execute(query).scalar()
+        count = self.db.conn.execute(query).scalar()
         return count != 0
 
     def mark_migration(self, name: str):
         if self.contains_migration(name):
             return
 
-        migrations = self.get_table(self.migration_table_name)
+        migrations = self.db.get_table(self.migration_table_name)
         stmt = migrations.insert().values(migration=name)
-        self.conn.execute(stmt)
-
-    def create_all_metatables(self):
-        for name in self.metatable_templates.keys():
-            self.get_table(name)
-
-    def _default_table_template(self, name: str, **kwargs) -> Callable[[sa.MetaData], sa.Table]:
-        raise NotImplementedError("SqliteMigratableDb subclasses must implement `_default_table_template`.")
+        self.db.conn.execute(stmt)
 
 
 def outdated_sqlite_db(
-    context: Context, sqlite_db: SqliteMigratableDb, migration: str, additional_check: Callable | None = None, **kwargs
+    context: Context,
+    sqlite_migrations: SqliteMigrations,
+    migration: str,
+    additional_check: Callable | None = None,
+    **kwargs,
 ) -> bool:
     def _check_missing_migrations() -> bool:
-        if not sqlite_db.contains_migration(migration):
+        if not sqlite_migrations.contains_migration(migration):
             return True
 
         if additional_check and additional_check(context, **kwargs):
             return True
         return False
 
-    if not isinstance(sqlite_db, SqliteMigratableDb):
+    if not isinstance(sqlite_migrations, SqliteMigrations):
         return False
 
-    if sqlite_db.is_entered:
+    if sqlite_migrations.db.is_entered:
         return _check_missing_migrations()
 
-    with sqlite_db:
+    with sqlite_migrations.db:
         return _check_missing_migrations()
 
 
 def apply_migration_to_outdated_db(
     context: Context,
-    sqlite_db: SqliteMigratableDb,
+    sqlite_migrations: SqliteMigrations,
     migration: str,
     apply_migration: Callable,
     database_name: str,
     **kwargs,
 ):
-    if not outdated_sqlite_db(context, sqlite_db, migration, None, **kwargs):
+    if not outdated_sqlite_db(context, sqlite_migrations, migration, None, **kwargs):
         return
 
     cli_message(f'\tApplying "{migration}" migration to sqlite database ("{database_name}")')
-    apply_migration(context, sqlite_db, migration)
-    sqlite_db.mark_migration(migration)
+    apply_migration(context, sqlite_migrations, migration)
+    sqlite_migrations.mark_migration(migration)
 
 
 def migrate_table(

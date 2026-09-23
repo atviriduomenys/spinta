@@ -178,11 +178,11 @@ def _read_rows_by_pages(
     model_push_counter: tqdm.tqdm | None = None,
     params: QueryParams | None = None,
 ) -> Iterator[PushRow]:
-    conn = push_state.conn
+    conn = push_state.db.conn
     config = context.get("config")
 
     size = get_page_size(config, model)
-    model_table = push_state.get_table(name=model.name, model=model)
+    model_table = push_state.db.get_table(name=model.name, model=model)
     state_rows = _get_state_rows_with_page(deepcopy(page), model_table, size, push_state)
     rows = read_model_data(context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error, params=params)
     total_count = 0
@@ -278,7 +278,7 @@ def _get_state_rows_with_page(
     size: int,
     push_state: PushState,
 ) -> sa.engine.LegacyCursorResult:
-    conn = push_state.conn
+    conn = push_state.db.conn
     model_page.size = size + 1
     order_by = []
 

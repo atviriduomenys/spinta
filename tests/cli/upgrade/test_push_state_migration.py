@@ -21,15 +21,15 @@ def test_upgrade_push_state_without_path_does_not_apply_migrations(
 
     push_state: PushState = init_push_state(context, push_state_dsn, [])
     with push_state:
-        migration_table = push_state.get_table(push_state.migration_table_name)
-        push_state.conn.execute(migration_table.delete())
+        migration_table = push_state.db.get_table(push_state.migration_table_name)
+        push_state.db.conn.execute(migration_table.delete())
 
     result = cli.invoke(rc, ["upgrade", "--target", ScriptTarget.PUSH_STATE_DB.value])
 
     assert result.exit_code == 0
     with push_state:
-        migration_table = push_state.get_table(push_state.migration_table_name)
-        migrations = push_state.conn.execute(sa.select([migration_table.c.migration])).fetchall()
+        migration_table = push_state.db.get_table(push_state.migration_table_name)
+        migrations = push_state.db.conn.execute(sa.select([migration_table.c.migration])).fetchall()
     assert migrations == []
 
 
@@ -39,8 +39,8 @@ def test_upgrade_missing_initial_migration(context, rc: RawConfig, cli: SpintaCl
 
     push_state: PushState = init_push_state(context, push_state_dsn, [])
     with push_state:
-        migration_table = push_state.get_table(push_state.migration_table_name)
-        push_state.conn.execute(migration_table.delete())
+        migration_table = push_state.db.get_table(push_state.migration_table_name)
+        push_state.db.conn.execute(migration_table.delete())
 
     with pytest.raises(PushStateMigrationRequired):
         init_push_state(context, push_state_dsn, [])
@@ -79,10 +79,10 @@ def test_upgrade_missing_rev_rename_migration(
 
     push_state: PushState = init_push_state(context, push_state_dsn, [])
     with push_state:
-        migration_table = push_state.get_table(push_state.migration_table_name)
-        push_state.conn.execute(migration_table.delete(migration_table.c.migration == Script.PUSH_REV_RENAME.value))
-        push_state.get_table(model.name, model=model)
-        push_state.conn.execute(sa.text('ALTER TABLE "example/Continent" RENAME COLUMN checksum TO rev'))
+        migration_table = push_state.db.get_table(push_state.migration_table_name)
+        push_state.db.conn.execute(migration_table.delete(migration_table.c.migration == Script.PUSH_REV_RENAME.value))
+        push_state.db.get_table(model.name, model=model)
+        push_state.db.conn.execute(sa.text('ALTER TABLE "example/Continent" RENAME COLUMN checksum TO rev'))
 
     with pytest.raises(PushStateMigrationRequired):
         init_push_state(context, push_state_dsn, [])
@@ -96,7 +96,7 @@ def test_upgrade_missing_rev_rename_migration(
 
     assert isinstance(init_push_state(context, push_state_dsn, []), PushState)
 
-    push_state.metadata.reflect()
-    columns = [column.name for column in push_state.get_table(model.name, model=model).columns]
+    push_state.db.metadata.reflect()
+    columns = [column.name for column in push_state.db.get_table(model.name, model=model).columns]
     assert "rev" not in columns
     assert "checksum" in columns

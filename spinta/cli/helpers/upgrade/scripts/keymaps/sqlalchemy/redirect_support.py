@@ -25,9 +25,9 @@ def sql_keymap_redirect_migration(context: Context, **kwargs):
 
 
 def apply_migration(context: Context, keymap: "SqlAlchemyKeyMap", migration: str):
-    insp = sa.inspect(keymap.engine)
+    insp = sa.inspect(keymap.db.engine)
     table_names = insp.get_table_names()
-    keymap.metadata.reflect()
+    keymap.db.metadata.reflect()
     for table in table_names:
         if table.startswith("_"):
             continue
@@ -35,7 +35,7 @@ def apply_migration(context: Context, keymap: "SqlAlchemyKeyMap", migration: str
         columns = insp.get_columns(table)
         column_names = [col["name"] for col in columns]
         if set(column_names) == {"key", "hash", "value"}:
-            km_table = keymap.get_table(table)
+            km_table = keymap.db.get_table(table)
             migrate_table(keymap, km_table)
             reset_keymap_increment(context, keymap, table)
 
@@ -46,8 +46,10 @@ def migrate_table(keymap: "SqlAlchemyKeyMap", table: sa.Table):
 
     from spinta.datasets.keymaps.sqlalchemy import prepare_value
 
-    connection = keymap.conn
-    ctx = MigrationContext.configure(connection, opts={"target_metadata": keymap.metadata, "transactional_ddl:": True})
+    connection = keymap.db.conn
+    ctx = MigrationContext.configure(
+        connection, opts={"target_metadata": keymap.db.metadata, "transactional_ddl": True}
+    )
     op = Operations(ctx)
 
     table_name = table.name
@@ -61,10 +63,10 @@ def migrate_table(keymap: "SqlAlchemyKeyMap", table: sa.Table):
     progress = tqdm(desc=f'MIGRATING "{table}" KEYMAP DATA', ascii=True)
     try:
         with connection.begin():
-            if temp_table in keymap.metadata.tables:
+            if temp_table in keymap.db.metadata.tables:
                 temp_table_exists = True
 
-            new_table = keymap.get_table(temp_table, create_missing=True)
+            new_table = keymap.db.get_table(temp_table, create_missing=True)
             temp_table_exists = True
 
             count_stmt = sa.select(sa.func.count()).select_from(table)

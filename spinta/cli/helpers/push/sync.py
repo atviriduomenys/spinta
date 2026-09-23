@@ -98,7 +98,7 @@ def _get_state_rows_with_id(
     size: int,
     push_state: PushState,
 ) -> sa.engine.LegacyCursorResult:
-    conn = push_state.conn
+    conn = push_state.db.conn
 
     model_page = Page()
     model_page.size = size + 1
@@ -237,7 +237,7 @@ def sync_push_state(
     delay_range: tuple[float],
 ):
     config = context.get("config")
-    conn = push_state.conn
+    conn = push_state.db.conn
 
     counters = {}
     main_bar = None
@@ -262,7 +262,7 @@ def sync_push_state(
         if skip_model:
             continue
 
-        model_table = push_state.get_table(name=model.name, model=model)
+        model_table = push_state.db.get_table(name=model.name, model=model)
 
         if not no_progress_bar:
             counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)

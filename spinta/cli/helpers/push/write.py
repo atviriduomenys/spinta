@@ -57,7 +57,7 @@ def prepare_rows_with_errors(
     push_state: PushState,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
-    conn = push_state.conn
+    conn = push_state.db.conn
 
     for row in rows:
         type = model.model_type()

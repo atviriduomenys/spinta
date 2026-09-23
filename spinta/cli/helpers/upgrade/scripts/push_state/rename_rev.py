@@ -19,17 +19,17 @@ def apply_migration(context: Context, push_state: PushState, migration: str):
         from alembic.migration import MigrationContext
         from alembic.operations import Operations
 
-        connection = push_state.conn
+        connection = push_state.db.conn
         ctx = MigrationContext.configure(
-            connection, opts={"target_metadata": push_state.metadata, "transactional_ddl:": True}
+            connection, opts={"target_metadata": push_state.db.metadata, "transactional_ddl": True}
         )
         op = Operations(ctx)
         table_name = push_state_table.name
         op.alter_column(table_name=table_name, column_name="rev", new_column_name="checksum")
 
-    insp = sa.inspect(push_state.engine)
+    insp = sa.inspect(push_state.db.engine)
     table_names = insp.get_table_names()
-    push_state.metadata.reflect()
+    push_state.db.metadata.reflect()
     for table in table_names:
         if table.startswith("_"):
             continue
@@ -37,4 +37,4 @@ def apply_migration(context: Context, push_state: PushState, migration: str):
         columns = insp.get_columns(table)
         column_names = [col["name"] for col in columns]
         if "rev" in column_names and "checksum" not in column_names:
-            migrate(push_state_table=push_state.get_table(table))
+            migrate(push_state_table=push_state.db.get_table(table))

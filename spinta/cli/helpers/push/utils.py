@@ -83,8 +83,8 @@ def load_initial_page_data(push_state: PushState, models: List[Model], increment
     if not incremental:
         return {}
 
-    conn = push_state.conn
-    table = push_state.get_table(push_state.pagination_table_name)
+    conn = push_state.db.conn
+    table = push_state.db.get_table(push_state.pagination_table_name)
     result = {}
 
     for model in models:

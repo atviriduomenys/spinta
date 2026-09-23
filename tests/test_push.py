@@ -314,9 +314,9 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
             push_state=push_state,
         )
 
-        table = push_state.get_table(name=model.name)
+        table = push_state.db.get_table(name=model.name)
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [
+        assert list(push_state.db.conn.execute(query)) == [
             (
                 "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 "f91adeea-3bb8-41b0-8049-ce47c7530bdc",
@@ -368,9 +368,9 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
             push_state=push_state,
         )
 
-        table = push_state.get_table(model.name)
+        table = push_state.db.get_table(model.name)
         query = sa.select([table.c.id, table.c.error])
-        assert list(push_state.conn.execute(query)) == [
+        assert list(push_state.db.conn.execute(query)) == [
             ("4d741843-4e94-4890-81d9-5af7c5b5989a", True),
         ]
 
@@ -395,8 +395,8 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         rev_before = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
         rev_after = "45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd"
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id="4d741843-4e94-4890-81d9-5af7c5b5989a",
                 revision=rev_before,
@@ -458,7 +458,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [
+        assert list(push_state.db.conn.execute(query)) == [
             (
                 "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 rev_after,
@@ -487,8 +487,8 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
 
         synchronize_time = datetime.datetime.now()
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id="4d741843-4e94-4890-81d9-5af7c5b5989a",
                 checksum="CHANGED",
@@ -545,7 +545,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
         )
 
         query = sa.select([table.c.id, table.c.synchronize])
-        res = list(push_state.conn.execute(query))
+        res = list(push_state.db.conn.execute(query))
 
         assert res[0][1] == synchronize_time
 
@@ -568,8 +568,8 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
         context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id="4d741843-4e94-4890-81d9-5af7c5b5989a",
                 checksum="CHANGED",
@@ -625,7 +625,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
         )
 
         query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
-        res = list(push_state.conn.execute(query))
+        res = list(push_state.db.conn.execute(query))
 
         assert res[0][1] != "CHANGED"
         assert res[0][2] is not None
@@ -649,8 +649,8 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
         context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
         time_before_sync_push = datetime.datetime.now()
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id="4d741843-4e94-4890-81d9-5af7c5b5989a",
                 checksum="CHANGED",
@@ -699,7 +699,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
         push(context, client, server, models, rows, push_state=push_state, timeout=(5, 300))
 
         query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
-        res = list(push_state.conn.execute(query))
+        res = list(push_state.db.conn.execute(query))
 
         assert res[0][1] != "CHANGED"
 
@@ -723,8 +723,8 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
 
         rev_before = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id="4d741843-4e94-4890-81d9-5af7c5b5989a",
                 revision=rev_before,
@@ -763,7 +763,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [
+        assert list(push_state.db.conn.execute(query)) == [
             (
                 "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 rev_before,
@@ -869,8 +869,8 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         rev_before = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
         rev_after = "45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd"
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id="4d741843-4e94-4890-81d9-5af7c5b5989a",
                 revision=rev_before,
@@ -902,7 +902,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [
+        assert list(push_state.db.conn.execute(query)) == [
             (
                 "4d741843-4e94-4890-81d9-5af7c5b5989a",
                 rev_before,
@@ -936,7 +936,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == []
+        assert list(push_state.db.conn.execute(query)) == []
 
 
 def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
@@ -959,8 +959,8 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
         rev = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
         _id = "4d741843-4e94-4890-81d9-5af7c5b5989a"
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id=_id,
                 revision=None,
@@ -1022,7 +1022,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [(_id, rev, False)]
+        assert list(push_state.db.conn.execute(query)) == [(_id, rev, False)]
 
 
 def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
@@ -1047,8 +1047,8 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         _id1 = "4d741843-4e94-4890-81d9-5af7c5b5989a"
         _id2 = "21ef6792-0315-4e86-9c39-b1b8f04b1f53"
 
-        table = push_state.get_table(model.name)
-        push_state.conn.execute(
+        table = push_state.db.get_table(model.name)
+        push_state.db.conn.execute(
             table.insert().values(
                 id=_id1,
                 revision=rev,
@@ -1099,7 +1099,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [(_id1, rev, True)]
+        assert list(push_state.db.conn.execute(query)) == [(_id1, rev, True)]
 
         error_counter = ErrorCounter(2)
         push(
@@ -1115,7 +1115,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error])
-        assert list(push_state.conn.execute(query)) == [(_id1, rev, True), (_id2, None, True)]
+        assert list(push_state.db.conn.execute(query)) == [(_id1, rev, True), (_id2, None, True)]
 
 
 @pytest.mark.skip("Push init state can no longer self heal")
@@ -1154,7 +1154,7 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
         context.attach(PUSH_STATE_DB, init_push_state, context, "sqlite://", models)
         push_state = context.get(PUSH_STATE_DB)
 
-        table = push_state.get_table(model.name)
+        table = push_state.db.get_table(model.name)
 
         query = sa.select(
             [
@@ -1191,8 +1191,8 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         rev = "f91adeea-3bb8-41b0-8049-ce47c7530bdc"
         _id = "4d741843-4e94-4890-81d9-5af7c5b5989a"
 
-        table = push_state.get_table(model.name)
-        page_table = push_state.get_table(push_state.pagination_table_name)
+        table = push_state.db.get_table(model.name)
+        page_table = push_state.db.get_table(push_state.pagination_table_name)
 
         rows = [
             PushRow(
@@ -1244,7 +1244,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         )
 
         query = sa.select([table.c.id, table.c.revision, table.c.error, table.c["page._id"]])
-        assert list(push_state.conn.execute(query)) == [(_id, rev, False, _id)]
+        assert list(push_state.db.conn.execute(query)) == [(_id, rev, False, _id)]
 
         query = sa.select([page_table.c.model, page_table.c.property, page_table.c.value])
-        assert list(push_state.conn.execute(query)) == [(model.name, "_id", '{"_id": "' + _id + '"}')]
+        assert list(push_state.db.conn.execute(query)) == [(model.name, "_id", '{"_id": "' + _id + '"}')]

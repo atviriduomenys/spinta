@@ -68,8 +68,8 @@ def geodb():
 def check_keymap_state(context: Context, table_name: str) -> list[KeymapData]:
     keymap = context.get("store").keymaps["default"]
     values = []
-    with keymap.engine.connect() as conn:
-        table = keymap.get_table(table_name)
+    with keymap.db.engine.connect() as conn:
+        table = keymap.db.get_table(table_name)
         query = sa.select([table])
         for row in conn.execute(query):
             values.append(

@@ -48,9 +48,9 @@ def get_rows_with_errors_counts(
     push_state: PushState,
 ) -> dict:
     counts = {}
-    conn = push_state.conn
+    conn = push_state.db.conn
     for model in models:
-        table = push_state.get_table(name=model.name, model=model)
+        table = push_state.db.get_table(name=model.name, model=model)
         row_count = conn.execute(sa.select(sa.func.count(table.c.id)).where(table.c.error.is_(True)))
         counts[model.name] = row_count.scalar()
     return counts
@@ -67,12 +67,12 @@ def _iter_rows_with_errors(
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
-    conn = push_state.conn
+    conn = push_state.db.conn
     config = context.get("config")
 
     for model in models:
         size = get_page_size(config, model)
-        table = push_state.get_table(name=model.name, model=model)
+        table = push_state.db.get_table(name=model.name, model=model)
 
         if pagination_enabled(model):
             rows = _get_error_rows_with_page(
@@ -97,7 +97,7 @@ def _get_error_rows_with_page(
     size: int,
     push_state: PushState,
 ):
-    conn = push_state.conn
+    conn = push_state.db.conn
     order_by = []
 
     page = commands.create_page(model.page)

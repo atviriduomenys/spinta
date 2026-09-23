@@ -29,7 +29,7 @@ def apply_migration_to_push_state(context: Context, migration: str, apply_migrat
 
     with push_state:
         apply_migration_to_outdated_db(
-            context, push_state, migration, apply_migration, push_state.dsn or "push_state_db", **kwargs
+            context, push_state, migration, apply_migration, push_state.db.dsn or "push_state_db", **kwargs
         )
 
 

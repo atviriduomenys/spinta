@@ -38,9 +38,9 @@ def _get_deleted_row_counts(
     push_state: PushState,
 ) -> dict:
     counts = {}
-    conn = push_state.conn
+    conn = push_state.db.conn
     for model in models:
-        table = push_state.get_table(name=model.name, model=model)
+        table = push_state.db.get_table(name=model.name, model=model)
 
         row_count = conn.execute(
             sa.select(sa.func.count(table.c.id)).where(sa.and_(table.c.pushed.is_(None), table.c.error.is_(False)))
@@ -58,10 +58,10 @@ def _iter_deleted_rows(
 ) -> Iterable[PushRow]:
     models = reversed(models)
     config = context.get("config")
-    conn = push_state.conn
+    conn = push_state.db.conn
     for model in models:
         size = get_page_size(config, model)
-        table = push_state.get_table(name=model.name, model=model)
+        table = push_state.db.get_table(name=model.name, model=model)
         total = counts.get(model.name)
 
         if pagination_enabled(model):
@@ -81,7 +81,7 @@ def _get_deleted_rows_with_page(
     size: int,
     push_state: PushState,
 ) -> sa.engine.LegacyCursorResult:
-    conn = push_state.conn
+    conn = push_state.db.conn
 
     order_by = []
     page = commands.create_page(model.page)
