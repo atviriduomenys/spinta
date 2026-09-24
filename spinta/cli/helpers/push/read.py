@@ -191,13 +191,12 @@ def _generate_paginated_push_rows(
                         row.op = PushOperation.PATCH
                         row.saved = True
                         row.data["_revision"] = state_row[model_table.c.revision]
-                        yield row
-
                     update_model_page_with_new(page, model_table, data_row=data_row)
                     data_row = next(rows, None)
                     state_row = next(state_rows, None)
                     data_push_count += 1
                     state_push_count += 1
+                    yield row
                     continue
 
                 delete_cond = _compare_for_delete_row(state_row, data_row, model_table, page)
