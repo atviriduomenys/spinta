@@ -6,7 +6,6 @@ from spinta.components import Model, pagination_enabled
 from spinta.utils.sqlite import SqliteDatabase, SqliteMigrations, TableTemplate
 
 PUSH_STATE_DB = "push.state"
-PUSH_STATE_PATH = "push_state_path"
 PAGE_TYPE_MAPPING = {
     "string": sa.Text,
     "date": sa.Date,

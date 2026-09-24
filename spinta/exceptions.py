@@ -1289,5 +1289,5 @@ class PushStateMigrationRequired(UpgradeError):
     template = """
     Push state database ({dsn!r}) is missing {migration!r} migration.
     Run this command to execute migrations:
-    `spinta -o push_state_path={path} upgrade --target push_state_db`.
+    `spinta upgrade --target push_state_db={path}`.
     """

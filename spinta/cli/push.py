@@ -17,7 +17,7 @@ from spinta.cli.helpers.push.components import PUSH_STATE_DB
 from spinta.cli.helpers.push.read import read_rows
 from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.push.sync import sync_push_state
-from spinta.cli.helpers.push.utils import extract_dependant_nodes, load_initial_page_data
+from spinta.cli.helpers.push.utils import default_push_state_dir, extract_dependant_nodes, load_initial_page_data
 from spinta.cli.helpers.push.write import push as push_
 from spinta.cli.helpers.store import attach_backends, attach_keymaps, prepare_manifest
 from spinta.client import get_access_token, get_client_credentials
@@ -110,8 +110,9 @@ def push(
     creds = get_client_credentials(credsfile, output)
 
     if not state:
-        ensure_data_dir(config.data_path / "push")
-        state = config.data_path / "push" / f"{creds.remote}.db"
+        push_state_dir = default_push_state_dir(config)
+        ensure_data_dir(push_state_dir)
+        state = push_state_dir / f"{creds.remote}.db"
 
     state = f"sqlite+spinta:///{state}"
 

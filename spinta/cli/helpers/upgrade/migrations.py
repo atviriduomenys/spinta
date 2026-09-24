@@ -67,5 +67,5 @@ def ensure_migrated(
         if upgrade_mode:
             return
         for script in get_target_migrations(target).values():
-            if script.check(context):
+            if script.check(context, target_mapping={target.value: {book.db.dsn}}):
                 raise error_factory(script.name)

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import pathlib
 from typing import Any, List, Union
 
 import msgpack
@@ -9,12 +10,16 @@ from sqlalchemy.engine.row import Row
 from spinta import commands
 from spinta.auth import authorized
 from spinta.cli.helpers.push.components import PushRow, PushState
-from spinta.components import Context, Model, Page, pagination_enabled
+from spinta.components import Config, Context, Model, Page, pagination_enabled
 from spinta.core.enums import Action
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten, sepgetter
+
+
+def default_push_state_dir(config: Config) -> pathlib.Path:
+    return config.data_path / "push"
 
 
 def get_model(row: PushRow) -> Model:

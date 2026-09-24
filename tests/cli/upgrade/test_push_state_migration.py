@@ -2,7 +2,7 @@ import pytest
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.cli.helpers.push.components import PUSH_STATE_PATH, PushState
+from spinta.cli.helpers.push.components import PushState
 from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.script.components import ScriptStatus, ScriptTarget
 from spinta.cli.helpers.script.helpers import script_check_status_message
@@ -46,8 +46,8 @@ def test_upgrade_missing_initial_migration(context, rc: RawConfig, cli: SpintaCl
         init_push_state(context, push_state_dsn, [])
 
     result = cli.invoke(
-        rc.fork({PUSH_STATE_PATH: push_state_path}),
-        ["upgrade", "--target", ScriptTarget.PUSH_STATE_DB.value],
+        rc,
+        ["upgrade", "--target", f"{ScriptTarget.PUSH_STATE_DB.value}={push_state_path}"],
     )
     assert result.exit_code == 0
     assert result_contains(result, script_check_status_message(Script.PUSH_STATE_INITIAL.value, ScriptStatus.REQUIRED))
@@ -88,8 +88,8 @@ def test_upgrade_missing_rev_rename_migration(
         init_push_state(context, push_state_dsn, [])
 
     result = cli.invoke(
-        rc.fork({PUSH_STATE_PATH: push_state_path}),
-        ["upgrade", "--target", ScriptTarget.PUSH_STATE_DB.value],
+        rc,
+        ["upgrade", "--target", f"{ScriptTarget.PUSH_STATE_DB.value}={push_state_path}"],
     )
     assert result.exit_code == 0
     assert result_contains(result, script_check_status_message(Script.PUSH_REV_RENAME.value, ScriptStatus.REQUIRED))

@@ -1,5 +1,6 @@
 import logging
 import sys
+from collections import defaultdict
 from typing import List, Optional
 
 from typer import Argument, Option, echo
@@ -55,6 +56,19 @@ def upgrade(
     context = configure_context(ctx.obj)
 
     targets = set(targets) if targets else None
+    target_mapping = defaultdict(set)
+    if targets:
+        updated_targets = set()
+        for target in targets:
+            if "=" not in target:
+                updated_targets.add(target)
+                continue
+
+            target_type, target_param = target.split("=", 1)
+            target_mapping[target_type].add(target_param)
+            updated_targets.add(target_type)
+        targets = updated_targets
+
     tags = set(tags) if tags else None
 
     if force and check_only:
@@ -78,6 +92,7 @@ def upgrade(
             status_cache=status_cache,
             targets=targets,
             tags=tags,
+            target_mapping=target_mapping,
         )
         return
 
@@ -97,4 +112,5 @@ def upgrade(
             script_name=script,
             check_only=check_only,
             status_cache=status_cache,
+            target_mapping=target_mapping,
         )

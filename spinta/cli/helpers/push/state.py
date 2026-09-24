@@ -7,7 +7,7 @@ import sqlalchemy as sa
 
 from spinta import spyna
 from spinta.cli.helpers.push import prepare_data_for_push_state
-from spinta.cli.helpers.push.components import PUSH_STATE_PATH, PushRow, PushState, Saved
+from spinta.cli.helpers.push.components import PushRow, PushState, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.cli.helpers.script.components import ScriptTarget
 from spinta.cli.helpers.upgrade.migrations import ensure_migrated
@@ -23,8 +23,6 @@ def init_push_state(
     models: List[Model],
 ) -> PushState:
     state = PushState(dburi)
-    if not context.has(PUSH_STATE_PATH):
-        context.set(PUSH_STATE_PATH, dburi)
 
     with state:
         ensure_migrated(
