@@ -27,10 +27,6 @@ def init_push_state(
         context.set(PUSH_STATE_PATH, dburi)
 
     with state:
-        # Create all missing model tables
-        for model in models:
-            state.db.get_table(name=model.name, model=model)
-
         ensure_migrated(
             context=context,
             book=state.migrations,
@@ -39,6 +35,10 @@ def init_push_state(
                 dsn=state.db.dsn, migration=script_name, path=state.db.engine.url.database
             ),
         )
+
+        # Create all missing model tables
+        for model in models:
+            state.db.get_table(name=model.name, model=model)
 
         # Legacy self-healing destructive migrations (fixes issues with changed pagination columns)
         inspector = sa.inspect(state.db.engine)
