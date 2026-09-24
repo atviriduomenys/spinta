@@ -13,6 +13,21 @@ from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.manifest import load_manifest_and_context
 
 
+def _create_push_state_without_migrations(context, path) -> PushState:
+    push_state = init_push_state(context, f"sqlite+spinta:///{path}", [])
+    with push_state:
+        migration_table = push_state.db.get_table(push_state.migrations.migration_table_name)
+        push_state.db.conn.execute(migration_table.delete())
+    return push_state
+
+
+def _get_migrations(push_state: PushState) -> list[str]:
+    with push_state:
+        migration_table = push_state.db.get_table(push_state.migrations.migration_table_name)
+        migrations = push_state.db.conn.execute(sa.select([migration_table.c.migration])).fetchall()
+    return [migration for (migration,) in migrations]
+
+
 def test_upgrade_push_state_without_path_does_not_apply_migrations(
     context, rc: RawConfig, cli: SpintaCliRunner, tmp_path
 ):
@@ -31,6 +46,68 @@ def test_upgrade_push_state_without_path_does_not_apply_migrations(
         migration_table = push_state.db.get_table(push_state.migrations.migration_table_name)
         migrations = push_state.db.conn.execute(sa.select([migration_table.c.migration])).fetchall()
     assert migrations == []
+
+
+def test_upgrade_initial_migration_for_multiple_targeted_push_states(
+    context,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path,
+):
+    push_states = [
+        _create_push_state_without_migrations(context, tmp_path / f"push_state_{index}.db") for index in range(3)
+    ]
+
+    result = cli.invoke(
+        rc,
+        [
+            "upgrade",
+            Script.PUSH_STATE_INITIAL.value,
+            "--target",
+            f"{ScriptTarget.PUSH_STATE_DB.value}={tmp_path / 'push_state_0.db'}",
+            "--target",
+            f"{ScriptTarget.PUSH_STATE_DB.value}={tmp_path / 'push_state_1.db'}",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert [_get_migrations(push_state) for push_state in push_states] == [
+        [Script.PUSH_STATE_INITIAL.value],
+        [Script.PUSH_STATE_INITIAL.value],
+        [],
+    ]
+
+
+def test_upgrade_initial_migration_discovers_all_default_push_states(
+    context,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path,
+):
+    data_path = tmp_path / "data"
+    push_state_dir = data_path / "push"
+    push_state_dir.mkdir(parents=True)
+    localrc = rc.fork({"data_path": data_path})
+    push_states = [
+        _create_push_state_without_migrations(context, push_state_dir / f"push_state_{index}.db") for index in range(3)
+    ]
+
+    result = cli.invoke(
+        localrc,
+        [
+            "upgrade",
+            Script.PUSH_STATE_INITIAL.value,
+            "--target",
+            ScriptTarget.PUSH_STATE_DB.value,
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert [_get_migrations(push_state) for push_state in push_states] == [
+        [Script.PUSH_STATE_INITIAL.value],
+        [Script.PUSH_STATE_INITIAL.value],
+        [Script.PUSH_STATE_INITIAL.value],
+    ]
 
 
 def test_upgrade_missing_initial_migration(context, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path):
