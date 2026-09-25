@@ -86,12 +86,13 @@ def get_state_row(
     context: Context,
     model: Model,
     id_: str | None,
+    metadata: sa.MetaData,
 ) -> dict | None:
     if id_ is None:
         return None
 
     conn = context.get("push.state.conn")
-    table = conn.metadata.tables[model.name]
+    table = metadata.tables[model.name]
     query = table.select().where(table.c.id == id_)
     return conn.execute(query).one_or_none()
 

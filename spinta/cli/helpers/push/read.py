@@ -64,6 +64,7 @@ def _generate_push_rows(
                 context,
                 model,
                 params,
+                metadata,
                 push_counter=push_counter,
                 model_push_counter=model_push_counter,
                 limit=limit,
@@ -78,6 +79,7 @@ def _generate_non_paginated_push_rows(
     context: Context,
     model: Model,
     params: QueryParams,
+    metadata: sa.MetaData,
     *,
     push_counter: tqdm.tqdm | None = None,
     model_push_counter: tqdm.tqdm | None = None,
@@ -93,8 +95,7 @@ def _generate_non_paginated_push_rows(
     with stored ones.
     """
 
-    conn = context.get("push.state.conn")
-    table = conn.metadata.tables[model.name]
+    table = metadata.tables[model.name]
 
     stream = read_model_data(context, model, limit, stop_on_error, params=params)
     for item in stream:
@@ -104,7 +105,7 @@ def _generate_non_paginated_push_rows(
             model_push_counter.update(1)
 
         item_id = item.get("_id", None)
-        state_row = get_state_row(context, model, item_id)
+        state_row = get_state_row(context, model, item_id, metadata)
 
         row = PushRow(model=model, data=item, checksum=get_data_checksum(item, model), op=PushOperation.UNCHANGED)
         if state_row is None:
