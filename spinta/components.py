@@ -1157,6 +1157,10 @@ class Config:
     # HTTP Strict Transport Security (HSTS) header
     http_strict_transport_security: str = ""
 
+    # `/health` probe thresholds, in MB
+    health_min_free_disk_space: int
+    health_min_free_memory: int
+
     log_level: str
     file_log_level: str
     file_log_path: pathlib.Path

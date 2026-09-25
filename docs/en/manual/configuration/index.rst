@@ -32,6 +32,7 @@ directory where additional configuration files are looked for.
    manifest
    soap-custom-adapters
    front-page
+   health
 
 .. _config-file:
 

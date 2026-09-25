@@ -4,7 +4,9 @@ services:
   db:
     build: ./.docker/citus-postgis
     ports:
-      - "54321:5432"
+      # Overridable so a machine where 54321 is already taken (another spinta
+      # checkout, some other postgres) can still bring this stack up.
+      - "${SPINTA_DB_PORT:-54321}:5432"
     environment:
       - POSTGRES_DB=spinta
       - POSTGRES_USER=admin
