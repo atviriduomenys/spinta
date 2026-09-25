@@ -19,6 +19,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
+from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
 
@@ -114,6 +115,7 @@ def load(context: Context, config: Config) -> Config:
         # by CliArgs; join them back into the original text.
         front_page_warning = ", ".join(str(v) for v in front_page_warning)
     config.front_page_warning = str(front_page_warning) if front_page_warning else ""
+    config.minimum_encoding_size = rc.get("minimum_encoding_size", default=512, cast=tobytes)
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
     config.ensure_backends = rc.get("ensure_backends", default=True)
