@@ -310,9 +310,9 @@ def migration_db(postgresql_migration: URL) -> sa.engine.Engine:
 @pytest.fixture(scope="function")
 def reset_keymap(context):
     def _reset_keymap(excluded_tables: list[str] = None):
-        keymap.metadata.reflect()
-        with keymap.engine.connect() as conn:
-            for key, table in keymap.metadata.tables.items():
+        keymap.db.metadata.reflect()
+        with keymap.db.engine.connect() as conn:
+            for key, table in keymap.db.metadata.tables.items():
                 if excluded_tables and key in excluded_tables:
                     continue
                 conn.execute(table.delete())
@@ -320,7 +320,7 @@ def reset_keymap(context):
     keymap = context.get("store").keymaps["default"]
     excluded = []
     if isinstance(keymap, SqlAlchemyKeyMap):
-        excluded.append(keymap.migration_table_name)
+        excluded.append(keymap.migrations.migration_table_name)
     _reset_keymap(excluded)
     yield
     _reset_keymap(excluded)

@@ -122,6 +122,7 @@ class ScriptStatus(enum.Enum):
 @enum.unique
 class ScriptTarget(enum.Enum):
     SQLALCHEMY_KEYMAP = "sqlalchemy_keymap"
+    PUSH_STATE_DB = "push_state_db"
     FS = "file_system"
     AUTH = "auth"
     BACKEND = "backend"
