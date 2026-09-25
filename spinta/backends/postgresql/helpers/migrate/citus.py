@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import sqlalchemy as sa
 from multipledispatch import dispatch
+from sqlalchemy import ForeignKey
 from tqdm import tqdm
 
 from spinta.backends import Backend
@@ -189,7 +190,7 @@ def invalidate_default_distribution(
             return plan
 
 
-def valid_schema_distribution_foreign_key(plan: ShardingPlan, schema: str, foreign_key: dict) -> bool:
+def valid_schema_distribution_foreign_key_inspect(plan: ShardingPlan, schema: str, foreign_key: dict) -> bool:
     if foreign_key["referred_schema"] == schema:
         return True
 
@@ -198,6 +199,18 @@ def valid_schema_distribution_foreign_key(plan: ShardingPlan, schema: str, forei
             reference.pg_schema_name == foreign_key["referred_schema"]
             and reference.pg_table_name == foreign_key["referred_table"]
         ):
+            return True
+
+    return False
+
+
+def valid_schema_distribution_foreign_key_orm(plan: ShardingPlan, schema: str | None, foreign_key: ForeignKey) -> bool:
+    referred_table = foreign_key.column.table
+    if referred_table.schema == schema:
+        return True
+
+    for reference in plan.references:
+        if reference.pg_schema_name == referred_table.schema and reference.pg_table_name == referred_table.name:
             return True
 
     return False
@@ -222,6 +235,16 @@ def invalidate_default_schema_distributions(
     inspector = sa.inspect(backend.engine)
 
     plan_copy = deepcopy(plan)
+
+    for table in backend.tables.values():
+        if not table.foreign_keys:
+            continue
+
+        for key in table.foreign_keys:
+            if not valid_schema_distribution_foreign_key_orm(plan, table.schema, key):
+                invalid_schemas.add(key.column.table.schema)
+                invalid_schemas.add(table.schema)
+
     for schema in plan.schemas:
         tables = inspector.get_table_names(schema=schema)
 
@@ -231,7 +254,7 @@ def invalidate_default_schema_distributions(
                 continue
 
             for key in foreign_keys:
-                if not valid_schema_distribution_foreign_key(plan, schema, key):
+                if not valid_schema_distribution_foreign_key_inspect(plan, schema, key):
                     invalid_schemas.add(key["referred_schema"])
                     invalid_schemas.add(schema)
 
