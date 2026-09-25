@@ -13,7 +13,10 @@ Bug fixes:
   (``load_downloaded_public_keys`` calls ``.exists()`` on it), so every
   request failed with ``AttributeError: 'str' object has no attribute
   'exists'``. The value is now wrapped with ``pathlib.Path``.
+- Fixed incorrect citus distribution script generation when using `spinta migrate`
+  on fresh database, when manifest contains models with cross schema references (`#2008`_).
 
+.. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
 
 1.1.0 (2026-08-19)
 =====================
