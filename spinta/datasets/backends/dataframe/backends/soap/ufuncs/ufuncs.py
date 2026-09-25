@@ -246,7 +246,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
 @ufunc.resolver(SoapQueryBuilder, str)
 def creds(env: SoapQueryBuilder, credential_key: str) -> Any:
     client_config_file = query_client(
-        get_clients_path(env.context.get("config")), env.context.get("auth.token").get_aud()
+        get_clients_path(env.context.get("config")), env.context.get("auth.token").get_client_id()
     )
     backend_name = env.model.external.resource.name
 
