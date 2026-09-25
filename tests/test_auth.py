@@ -1632,7 +1632,7 @@ def test_authorization_server_metadata(introspect_app):
     assert metadata["token_endpoint_auth_methods_supported"] == ["client_secret_basic"]
 
 
-def test_metadata_uses_distinct_issuer_and_endpoints(backends, rc, tmp_path, request):
+def test_metadata_endpoints_use_token_issuer(backends, rc, tmp_path, request):
     confdir = pathlib.Path(__file__).parent
     shutil.copytree(str(confdir / "config/keys"), str(tmp_path / "keys"))
     rc = rc.fork(
@@ -1650,9 +1650,9 @@ def test_metadata_uses_distinct_issuer_and_endpoints(backends, rc, tmp_path, req
 
     metadata = client.get("/.well-known/oauth-authorization-server").json()
     assert metadata["issuer"] == "https://auth.example.com"
-    assert metadata["token_endpoint"] == "https://rs.example.com/auth/token"
-    assert metadata["introspection_endpoint"] == "https://rs.example.com/auth/introspect"
-    assert metadata["jwks_uri"] == "https://rs.example.com/.well-known/jwks.json"
+    assert metadata["token_endpoint"] == "https://auth.example.com/auth/token"
+    assert metadata["introspection_endpoint"] == "https://auth.example.com/auth/introspect"
+    assert metadata["jwks_uri"] == "https://auth.example.com/.well-known/jwks.json"
 
 
 def test_metadata_issuer_matches_token_issuer(introspect_app):

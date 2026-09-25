@@ -817,10 +817,10 @@ class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
 def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
     config = context.get("config")
     _require_auth_config(config)
-    base = config.token_issuer
+    base = config.token_issuer.rstrip("/")
     return ClientCredentialsServerMetadata(
         {
-            "issuer": base,
+            "issuer": config.token_issuer,
             "token_endpoint": f"{base}/auth/token",
             "introspection_endpoint": f"{base}/auth/introspect",
             "jwks_uri": f"{base}/.well-known/jwks.json",

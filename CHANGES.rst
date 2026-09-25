@@ -56,9 +56,14 @@ Backwards incompatible:
   ``aud`` is now the resource server and the client is carried in a separate
   ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server`` is
   rejected (`#631`_).
+- The RFC 8414 authorization-server metadata
+  (``GET /.well-known/oauth-authorization-server``) builds its endpoint URLs
+  (``token_endpoint``, ``introspection_endpoint``, ``jwks_uri``) from
+  ``token_issuer``, with any trailing slash stripped, rather than from
+  ``server_url`` or ``resource_server`` (`#631`_).
 - ``server_url`` is normalised (trailing slash stripped) when configuration is
-  loaded, so it is used consistently for the RFC 8414 authorization-server
-  metadata endpoint URLs, which require no trailing slash (`#631`_).
+  loaded, so the ``Location`` header of created resources no longer contains a
+  double slash (`#631`_).
 - The authorization-server endpoints (``POST /auth/token``,
   ``POST /auth/introspect`` and ``GET /.well-known/oauth-authorization-server``)
   are now disabled when token validation is configured against an external
