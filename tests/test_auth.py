@@ -100,7 +100,7 @@ def test_app(context, app):
     assert token == {
         "iss": config.token_issuer,
         "sub": client_id,
-        "aud": config.resource_server_url,
+        "aud": config.resource_server,
         "client_id": client_id,
         "iat": int(token["iat"]),
         "jti": token["jti"],
@@ -509,7 +509,7 @@ def test_auth_separates_aud_and_client_id(backends, rc, tmp_path, request):
     assert resp.status_code == 200, resp.text
 
 
-@pytest.mark.parametrize("param", ["token_issuer", "resource_server_url"])
+@pytest.mark.parametrize("param", ["token_issuer", "resource_server"])
 def test_issue_token_requires_auth_config(rc, tmp_path, param):
     prvkey = import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/private.json").read_text()))
     context = create_test_context(rc.fork({"config_path": str(tmp_path), param: None}))
@@ -1641,7 +1641,7 @@ def test_metadata_uses_distinct_issuer_and_endpoints(backends, rc, tmp_path, req
             "default_auth_client": None,
             "server_url": "https://gateway.example.com",
             "token_issuer": "https://auth.example.com",
-            "resource_server_url": "https://rs.example.com",
+            "resource_server": "https://rs.example.com",
         }
     )
     context = create_test_context(rc).load()

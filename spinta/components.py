@@ -1124,7 +1124,7 @@ class Config:
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
     token_issuer: str | None = None
-    resource_server_url: str | None = None
+    resource_server: str | None = None
     downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str

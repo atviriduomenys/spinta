@@ -321,7 +321,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         _require_auth_config(config)
         JWTClaimsRegistry(
             iss={"essential": True, "value": config.token_issuer},
-            aud={"essential": True, "value": config.resource_server_url},
+            aud={"essential": True, "value": config.resource_server},
             client_id={"essential": True},
             exp={"essential": True},
             iat={"essential": True},
@@ -817,10 +817,10 @@ class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
 def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
     config = context.get("config")
     _require_auth_config(config)
-    base = config.resource_server_url
+    base = config.token_issuer
     return ClientCredentialsServerMetadata(
         {
-            "issuer": config.token_issuer,
+            "issuer": base,
             "token_endpoint": f"{base}/auth/token",
             "introspection_endpoint": f"{base}/auth/introspect",
             "jwks_uri": f"{base}/.well-known/jwks.json",
@@ -835,8 +835,8 @@ def get_authorization_server_metadata(context: Context) -> ClientCredentialsServ
 def _require_auth_config(config) -> None:
     if not config.token_issuer:
         raise RequiredConfigParam(name="token_issuer")
-    if not config.resource_server_url:
-        raise RequiredConfigParam(name="resource_server_url")
+    if not config.resource_server:
+        raise RequiredConfigParam(name="resource_server")
 
 
 def create_access_token(
@@ -864,7 +864,7 @@ def create_access_token(
     payload = {
         "iss": config.token_issuer,
         "sub": client,
-        "aud": config.resource_server_url,
+        "aud": config.resource_server,
         "client_id": client,
         "iat": iat,
         "exp": exp,

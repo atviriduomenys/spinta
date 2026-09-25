@@ -67,15 +67,15 @@ Set it to the authorization server's identifier:
   identity (the `iss` you want stamped on issued tokens).
 
 
-Resource server identifier (``resource_server_url``)
-----------------------------------------------------
-`resource_server_url` is the identifier of this resource server — the value
+Resource server identifier (``resource_server``)
+------------------------------------------------
+`resource_server` is the identifier of this resource server — the value
 carried in the token's `aud` (audience) claim. Spinta stamps it as the `aud`
 of tokens it issues, and requires the `aud` of tokens it validates to contain
 it; a token whose `aud` does not match is rejected. This is how Spinta ensures
 a token was actually issued for *this* resource server and not some other one.
 
-`resource_server_url` is **required whenever Spinta issues or validates access
+`resource_server` is **required whenever Spinta issues or validates access
 tokens**, alongside `token_issuer`, and is enforced at the moment a token is
 issued or validated rather than at startup. It has no default and, as with
 `token_issuer`, there is no fallback to `server_url`: `server_url` is the public

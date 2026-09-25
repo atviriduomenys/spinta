@@ -93,7 +93,7 @@ def load(context: Context, config: Config) -> Config:
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
     config.token_issuer = rc.get("token_issuer")
-    config.resource_server_url = rc.get("resource_server_url")
+    config.resource_server = rc.get("resource_server")
     config.downloaded_public_keys_file = pathlib.Path(
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )

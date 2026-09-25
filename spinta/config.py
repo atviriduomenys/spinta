@@ -237,7 +237,7 @@ CONFIG = {
     "token_validation_key": None,
     # Expected `iss` (issuer) claim of accepted bearer tokens.
     "token_issuer": None,
-    "resource_server_url": None,
+    "resource_server": None,
     # Limit access to specified namespace root.
     "root": None,
     "env": "prod",

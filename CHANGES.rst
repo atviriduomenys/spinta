@@ -46,7 +46,7 @@ Backwards incompatible:
   minted elsewhere (via ``token_validation_key`` or
   ``token_validation_keys_download_url``), or this server's own authorization
   identity when it issues its own tokens (`#631`_).
-- Added the ``resource_server_url`` configuration parameter — the identifier of
+- Added the ``resource_server`` configuration parameter — the identifier of
   this resource server, used as the ``aud`` (audience) claim of tokens Spinta
   issues and required to be present in tokens it validates. It is **required
   whenever Spinta issues or validates an access token** (enforced at that point,
@@ -54,7 +54,7 @@ Backwards incompatible:
   a gateway in front of this resource server). Previously the ``aud`` claim was
   incorrectly set to the client id, conflating the audience with the client;
   ``aud`` is now the resource server and the client is carried in a separate
-  ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server_url`` is
+  ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server`` is
   rejected (`#631`_).
 - ``server_url`` is normalised (trailing slash stripped) when configuration is
   loaded, so it is used consistently for the RFC 8414 authorization-server
