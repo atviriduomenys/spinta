@@ -1,16 +1,17 @@
 from copy import deepcopy
-from typing import Any, Dict, Iterator, List
+from typing import Any
 
 import requests
 import sqlalchemy as sa
 import tqdm
 
 from spinta import commands
-from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
+from spinta.cli.helpers.data import count_rows, read_model_data
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import PUSH_NOW, PushRow, State
+from spinta.cli.helpers.push.components import PUSH_NOW, PushOperation, PushRow, PushRows, State
 from spinta.cli.helpers.push.delete import get_deleted_rows
 from spinta.cli.helpers.push.error import get_rows_with_errors, get_rows_with_errors_counts
+from spinta.cli.helpers.push.state import get_state_row
 from spinta.cli.helpers.push.utils import (
     construct_where_condition_from_page,
     extract_state_page_keys,
@@ -22,18 +23,18 @@ from spinta.components import Context, Model, Page, get_page_size, pagination_en
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
-def _iter_model_rows(
+def _generate_push_rows(
     context: Context,
-    models: List[Model],
-    counts: Dict[str, int],
+    models: list[Model],
+    counts: dict[str, int],
     metadata: sa.MetaData,
-    limit: int = None,
     *,
-    initial_page_data: dict = None,
+    limit: int | None = None,
+    initial_page_data: dict | None = None,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
-    push_counter: tqdm.tqdm = None,
-) -> Iterator[ModelRow]:
+    push_counter: tqdm.tqdm | None = None,
+) -> PushRows:
     if initial_page_data is None:
         initial_page_data = {}
 
@@ -47,40 +48,217 @@ def _iter_model_rows(
 
         if pagination_enabled(model):
             page = commands.create_page(model.page, initial_page_data.get(model.model_type(), None))
-            rows = _read_rows_by_pages(
-                context, model, page, metadata, limit, stop_on_error, push_counter, model_push_counter, params=params
+            yield from _generate_paginated_push_rows(
+                context,
+                model,
+                page,
+                metadata,
+                params,
+                limit=limit,
+                stop_on_error=stop_on_error,
+                push_counter=push_counter,
+                model_push_counter=model_push_counter,
             )
-            for row in rows:
-                yield row
         else:
-            stream = read_model_data(context, model, limit, stop_on_error, params=params)
-            for item in stream:
-                if push_counter is not None:
-                    push_counter.update(1)
-                if model_push_counter is not None:
-                    model_push_counter.update(1)
-                yield PushRow(model, item)
+            yield from _generate_non_paginated_push_rows(
+                context,
+                model,
+                params,
+                metadata,
+                push_counter=push_counter,
+                model_push_counter=model_push_counter,
+                limit=limit,
+                stop_on_error=stop_on_error,
+            )
 
         if model_push_counter is not None:
             model_push_counter.close()
 
 
+def _generate_non_paginated_push_rows(
+    context: Context,
+    model: Model,
+    params: QueryParams,
+    metadata: sa.MetaData,
+    *,
+    push_counter: tqdm.tqdm | None = None,
+    model_push_counter: tqdm.tqdm | None = None,
+    limit: int | None = None,
+    stop_on_error: bool = False,
+) -> PushRows:
+    """
+    This algorithm is unable to return the ` delete ` action, since it is unable to deterministically sort values
+    to use merge join.
+
+    To be able to know which rows need to be deleted, we need to return PushRow with empty ` op ` which will be used
+    to know which push state rows need to update ` session_id `. We can delete rows by comparaing current ` session_id `
+    with stored ones.
+    """
+
+    table = metadata.tables[model.name]
+
+    stream = read_model_data(context, model, limit, stop_on_error, params=params)
+    for item in stream:
+        if push_counter is not None:
+            push_counter.update(1)
+        if model_push_counter is not None:
+            model_push_counter.update(1)
+
+        item_id = item.get("_id", None)
+        state_row = get_state_row(context, model, item_id, metadata)
+
+        row = PushRow(model=model, data=item, checksum=get_data_checksum(item, model), op=PushOperation.UNCHANGED)
+        if state_row is None:
+            row.op = PushOperation.INSERT
+            yield row
+            continue
+
+        if state_row[table.c.checksum] != row.checksum:
+            row.op = PushOperation.PATCH
+            row.saved = True
+            row.data["_revision"] = state_row[table.c.revision]
+            yield row
+            continue
+
+        # Yield row without op; this way we only know that session_id needs to be updated.
+        yield row
+
+
+def _generate_paginated_push_rows(
+    context: Context,
+    model: Model,
+    page: Page,
+    metadata: sa.MetaData,
+    params: QueryParams,
+    *,
+    limit: int | None = None,
+    stop_on_error: bool = False,
+    push_counter: tqdm.tqdm | None = None,
+    model_push_counter: tqdm.tqdm | None = None,
+) -> PushRows:
+    """
+    This algorithm is the more advanced version of the non-paginated one, since it is able to sort values by deterministic keys, which
+    in turn allows us to use merge join to compare data rows with push state rows.
+
+    This algorithm reuses delete logic from non-paginated algorithm by updating ` session_id ` of all existing data in the source.
+
+    The main advantage of this vs. non-paginated is that it does not need to call a select state row with a specific ` _ id ` for each
+    data row.
+    """
+
+    def _generate_rows() -> PushRows:
+        config = context.get("config")
+
+        size = get_page_size(config, model)
+        model_table = metadata.tables[model.name]
+        state_rows = _get_state_rows_with_page(context, deepcopy(page), model_table, size)
+        rows = read_model_data(
+            context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error, params=params
+        )
+        total_count = 0
+        data_push_count = 0
+        state_push_count = 0
+        data_row = next(rows, None)
+        state_row = next(state_rows, None)
+
+        while True:
+            if limit:
+                if total_count >= limit:
+                    break
+                total_count += 1
+
+            if data_push_count >= size or state_push_count >= size:
+                state_rows = _get_state_rows_with_page(context, deepcopy(page), model_table, size)
+                rows = read_model_data(context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error)
+
+                data_push_count = 0
+                state_push_count = 0
+                data_row = next(rows, None)
+                state_row = next(state_rows, None)
+
+            if data_row is None and state_row is None:
+                break
+
+            if data_row is not None and state_row is not None:
+                row = PushRow(
+                    model=model, data=data_row, checksum=get_data_checksum(data_row, model), op=PushOperation.UNCHANGED
+                )
+
+                equals = _compare_data_with_state_rows(data_row, state_row, model_table)
+                if equals:
+                    if state_row[model_table.c.checksum] != row.checksum or not _compare_data_with_state_row_keys(
+                        data_row, state_row, model_table, page
+                    ):
+                        row.op = PushOperation.PATCH
+                        row.saved = True
+                        row.data["_revision"] = state_row[model_table.c.revision]
+                    update_model_page_with_new(page, model_table, data_row=data_row)
+                    data_row = next(rows, None)
+                    state_row = next(state_rows, None)
+                    data_push_count += 1
+                    state_push_count += 1
+                    yield row
+                    continue
+
+                delete_cond = _compare_for_delete_row(state_row, data_row, model_table, page)
+                update_model_page_with_new(page, model_table, data_row=data_row)
+                if not delete_cond:
+                    data_row = next(rows, None)
+                    data_push_count += 1
+                    row.op = PushOperation.INSERT
+                    yield row
+                    continue
+
+                state_row = next(state_rows, None)
+                state_push_count += 1
+                # By not returning the row, it will be treated for deletion, since session_id will be outdated
+                continue
+
+            # Only data from source given
+            if data_row is not None:
+                row = PushRow(
+                    model,
+                    data_row,
+                    op=PushOperation.INSERT,
+                    checksum=get_data_checksum(data_row, model),
+                )
+                data_push_count += 1
+                update_model_page_with_new(page, model_table, data_row=data_row)
+                data_row = next(rows, None)
+                yield row
+                continue
+
+            # Only state from target given
+            state_push_count += 1
+            update_model_page_with_new(page, model_table, state_row=state_row)
+            state_row = next(state_rows, None)
+            # By not returning the row, it will be treated for deletion, since session_id will be outdated
+
+    for result_row in _generate_rows():
+        if push_counter is not None:
+            push_counter.update(1)
+        if model_push_counter is not None:
+            model_push_counter.update(1)
+
+        yield result_row
+
+
 def _get_model_rows(
     context: Context,
-    models: List[Model],
+    models: list[Model],
     metadata: sa.MetaData,
-    limit: int = None,
     *,
+    limit: int | None = None,
     initial_page_data: dict,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None,
-) -> Iterator[PushRow]:
+    error_counter: ErrorCounter | None = None,
+) -> PushRows:
     counts = (
         count_rows(
             context,
             models,
-            limit,
+            limit=limit,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
             initial_page_data=initial_page_data,
@@ -91,12 +269,12 @@ def _get_model_rows(
     push_counter = None
     if not no_progress_bar:
         push_counter = tqdm.tqdm(desc="PUSH", ascii=True, total=sum(counts.values()))
-    rows = _iter_model_rows(
+    rows = _generate_push_rows(
         context,
         models,
         counts,
         metadata,
-        limit,
+        limit=limit,
         initial_page_data=initial_page_data,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
@@ -113,17 +291,17 @@ def read_rows(
     context: Context,
     client: requests.Session,
     server: str,
-    models: List[Model],
+    models: list[Model],
     state: State,
-    limit: int = None,
-    *,
     timeout: tuple[float, float],
+    *,
+    limit: int | None = None,
     stop_on_error: bool = False,
     retry_count: int = 5,
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None,
-    initial_page_data: dict = None,
-) -> Iterator[PushRow]:
+    error_counter: ErrorCounter | None = None,
+    initial_page_data: dict | None = None,
+) -> PushRows:
     if initial_page_data is None:
         initial_page_data = {}
 
@@ -131,7 +309,7 @@ def read_rows(
         context,
         models,
         state.metadata,
-        limit,
+        limit=limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
         error_counter=error_counter,
@@ -168,113 +346,11 @@ def read_rows(
             break
 
 
-def _read_rows_by_pages(
-    context: Context,
-    model: Model,
-    page: Page,
-    metadata: sa.MetaData,
-    limit: int = None,
-    stop_on_error: bool = False,
-    push_counter: tqdm.tqdm = None,
-    model_push_counter: tqdm.tqdm = None,
-    params: QueryParams = None,
-) -> Iterator[PushRow]:
-    conn = context.get("push.state.conn")
-    config = context.get("config")
-
-    size = get_page_size(config, model)
-    model_table = metadata.tables[model.name]
-    state_rows = _get_state_rows_with_page(context, deepcopy(page), model_table, size)
-    rows = read_model_data(context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error, params=params)
-    total_count = 0
-    data_push_count = 0
-    state_push_count = 0
-    data_row = next(rows, None)
-    state_row = next(state_rows, None)
-
-    while True:
-        if limit:
-            if total_count >= limit:
-                break
-            total_count += 1
-
-        update_counter = True
-
-        if data_push_count >= size or state_push_count >= size:
-            state_rows = _get_state_rows_with_page(context, deepcopy(page), model_table, size)
-            rows = read_model_data(context, model, page=deepcopy(page), limit=limit, stop_on_error=stop_on_error)
-
-            data_push_count = 0
-            state_push_count = 0
-            data_row = next(rows, None)
-            state_row = next(state_rows, None)
-
-        if data_row is None and state_row is None:
-            break
-
-        if data_row is not None and state_row is not None:
-            row = PushRow(model, data_row)
-            row.op = "insert"
-            row.checksum = get_data_checksum(row.data, model)
-
-            equals = _compare_data_with_state_rows(data_row, state_row, model_table)
-            if equals:
-                row.op = "patch"
-                row.saved = True
-                row.data["_revision"] = state_row[model_table.c.revision]
-                if state_row[model_table.c.checksum] != row.checksum or not _compare_data_with_state_row_keys(
-                    data_row, state_row, model_table, page
-                ):
-                    yield row
-
-                data_push_count += 1
-                state_push_count += 1
-                update_model_page_with_new(page, model_table, data_row=data_row)
-                data_row = next(rows, None)
-                state_row = next(state_rows, None)
-
-            else:
-                delete_cond = _compare_for_delete_row(state_row, data_row, model_table, page)
-                if delete_cond:
-                    conn.execute(sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None))
-
-                    state_push_count += 1
-                    update_model_page_with_new(page, model_table, state_row=state_row)
-                    state_row = next(state_rows, None)
-                    update_counter = False
-                else:
-                    yield row
-
-                    data_push_count += 1
-                    update_model_page_with_new(page, model_table, data_row=data_row)
-                    data_row = next(rows, None)
-        else:
-            if data_row is not None:
-                row = PushRow(model, data_row)
-                row.op = "insert"
-                row.checksum = get_data_checksum(row.data, model)
-                yield row
-
-                data_push_count += 1
-                update_model_page_with_new(page, model_table, data_row=data_row)
-                data_row = next(rows, None)
-            elif state_row is not None:
-                conn.execute(sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None))
-
-                state_push_count += 1
-                update_model_page_with_new(page, model_table, state_row=state_row)
-                state_row = next(state_rows, None)
-                update_counter = False
-
-        if update_counter:
-            if push_counter is not None:
-                push_counter.update(1)
-            if model_push_counter is not None:
-                model_push_counter.update(1)
-
-
 def _get_state_rows_with_page(
-    context: Context, model_page: Page, table: sa.Table, size: int
+    context: Context,
+    model_page: Page,
+    table: sa.Table,
+    size: int,
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get("push.state.conn")
     model_page.size = size + 1

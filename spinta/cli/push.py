@@ -1,6 +1,6 @@
 import logging
 import pathlib
-from typing import List, Optional
+import uuid
 
 import requests
 from typer import Argument, Exit, Option, echo
@@ -13,12 +13,12 @@ from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.message import cli_error
-from spinta.cli.helpers.push.components import State
+from spinta.cli.helpers.push.components import PUSH_SESSION_ID, State
 from spinta.cli.helpers.push.read import read_rows
 from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.push.sync import sync_push_state
 from spinta.cli.helpers.push.utils import extract_dependant_nodes, load_initial_page_data
-from spinta.cli.helpers.push.write import push as push_
+from spinta.cli.helpers.push.write import push_rows
 from spinta.cli.helpers.store import attach_backends, attach_keymaps, prepare_manifest
 from spinta.client import get_access_token, get_client_credentials
 from spinta.components import Config
@@ -33,22 +33,22 @@ log = logging.getLogger(__name__)
 
 def push(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Source manifest files to copy from")),
-    output: Optional[str] = Option(
-        None, "-o", "--output", help=("Output data to a given location, by default outputs to stdout")
+    manifests: list[str] | None = Argument(None, help="Source manifest files to copy from"),
+    output: str | None = Option(
+        None, "-o", "--output", help="Output data to a given location, by default outputs to stdout"
     ),
     credentials: str = Option(
-        None, "--credentials", help=("Credentials file, defaults to {config_path}/credentials.cfg")
+        None, "--credentials", help="Credentials file, defaults to {config_path}/credentials.cfg"
     ),
-    dataset: str = Option(None, "-d", "--dataset", help=("Push only specified dataset")),
-    auth: str = Option(None, "-a", "--auth", help=("Authorize as a client, defaults to {default_auth_client}")),
-    limit: int = Option(None, help=("Limit number of rows read from each model")),
-    chunk_size: str = Option("1m", help=("Push data in chunks (1b, 1k, 2m, ...), default: 1m")),
-    stop_time: str = Option(
+    dataset: str = Option(None, "-d", "--dataset", help="Push only specified dataset"),
+    auth: str = Option(None, "-a", "--auth", help="Authorize as a client, defaults to {default_auth_client}"),
+    limit: int = Option(None, help="Limit number of rows read from each model"),
+    chunk_size: str = Option("1m", help="Push data in chunks (1b, 1k, 2m, ...), default: 1m"),
+    stop_time: str | None = Option(
         None,
-        help=("Stop pushing after given time (1s, 1m, 2h, ...), by default does not stops until all data is pushed"),
+        help="Stop pushing after given time (1s, 1m, 2h, ...), by default does not stops until all data is pushed",
     ),
-    stop_row: int = Option(None, help=("Stop after pushing n rows, by default does not stop until all data is pushed")),
+    stop_row: int = Option(None, help="Stop after pushing n rows, by default does not stop until all data is pushed"),
     state: pathlib.Path = Option(
         None,
         help=(
@@ -56,44 +56,46 @@ def push(
             "{data_path}/push/{remote}.db SQLite database file"
         ),
     ),
-    mode: Mode = Option("external", help=("Mode of backend operation, default: external")),
+    mode: Mode = Option("external", help="Mode of backend operation, default: external"),
     dry_run: bool = Option(
-        False, "--dry-run", help=("Read data to be pushed, but do not push or write data to the destination.")
+        False, "--dry-run", help="Read data to be pushed, but do not push or write data to the destination."
     ),
-    stop_on_error: bool = Option(False, "--stop-on-error", help=("Exit immediately on first error.")),
-    no_progress_bar: bool = Option(
-        False, "--no-progress-bar", help=("Skip counting total rows to improve performance.")
-    ),
-    retry_count: int = Option(5, "--retries", help=("Repeat push until this count if there are errors.")),
+    stop_on_error: bool = Option(False, "--stop-on-error", help="Exit immediately on first error."),
+    no_progress_bar: bool = Option(False, "--no-progress-bar", help="Skip counting total rows to improve performance."),
+    retry_count: int = Option(5, "--retries", help="Repeat push until this count if there are errors."),
     max_error_count: int = Option(
-        50, "--max-errors", help=("If errors exceed given number, push command will be stopped.")
+        50, "--max-errors", help="If errors exceed given number, push command will be stopped."
     ),
     incremental: bool = Option(
-        False, "-i", "--incremental", help=("Do an incremental push, only pushing objects from last page.")
+        False, "-i", "--incremental", help="Do an incremental push, only pushing objects from last page."
     ),
-    page: Optional[List[str]] = Option(None, "--page", help=("Page value from which rows will be pushed.")),
-    page_model: str = Option(None, "--model", help=("Model of the page value.")),
+    page: list[str] | None = Option(None, "--page", help="Page value from which rows will be pushed."),
+    page_model: str = Option(None, "--model", help="Model of the page value."),
     synchronize: bool = Option(
         False,
         "--sync",
-        help=("Synchronize push state and keymap, in {data_path}/push/{remote}.db and {data_path}/keymap.db"),
+        help="Synchronize push state and keymap, in {data_path}/push/{remote}.db and {data_path}/keymap.db",
     ),
     read_timeout: float = Option(
         300,
         "--read-timeout",
-        help=("Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."),
+        help="Timeout for reading a response, default: 5 minutes (300s). The value is in seconds.",
     ),
-    connect_timeout: float = Option(5, "--connect-timeout", help=("Timeout for connecting, default: 5 seconds.")),
+    connect_timeout: float = Option(5, "--connect-timeout", help="Timeout for connecting, default: 5 seconds."),
 ):
     """Push data to external data store"""
     synchronize_keymap = synchronize
     synchronize_state = synchronize
 
-    if chunk_size:
-        chunk_size = tobytes(chunk_size)
+    if chunk_size is None:
+        cli_error("Chunk size is required and cannot be null.")
 
-    if stop_time:
+    chunk_size = tobytes(chunk_size)
+
+    if stop_time is not None:
         stop_time = toseconds(stop_time)
+
+    timeout = (connect_timeout, read_timeout)
 
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -136,6 +138,8 @@ def push(
     delay_range = config.sync_retry_delay_range
 
     with context:
+        context.set(PUSH_SESSION_ID, str(uuid.uuid4()))
+
         auth_client = auth or config.default_auth_client
         auth_client = get_client_id_from_name(get_clients_path(config), auth_client)
         require_auth(context, auth_client)
@@ -147,9 +151,8 @@ def push(
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
-        if state:
-            state = State(*init_push_state(state, models))
-            context.attach("push.state.conn", state.engine.begin)
+        state = State(*init_push_state(state, models))
+        context.attach("push.state.conn", state.engine.begin)
 
         # Synchronize keymaps
         with manifest.keymap as km:
@@ -168,7 +171,7 @@ def push(
                 no_progress_bar=no_progress_bar,
                 reset_cid=synchronize_keymap,
                 dry_run=dry_run,
-                timeout=(connect_timeout, read_timeout),
+                timeout=timeout,
                 max_retries=max_retries,
                 delay_range=delay_range,
             )
@@ -183,7 +186,7 @@ def push(
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
                 metadata=state.metadata,
-                timeout=(connect_timeout, read_timeout),
+                timeout=timeout,
                 max_retries=max_retries,
                 delay_range=delay_range,
             )
@@ -196,8 +199,8 @@ def push(
             creds.server,
             models,
             state,
-            limit,
-            timeout=(connect_timeout, read_timeout),
+            timeout,
+            limit=limit,
             stop_on_error=stop_on_error,
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
@@ -205,20 +208,19 @@ def push(
             initial_page_data=initial_page_data,
         )
 
-        push_(
+        push_rows(
             context,
             client,
             creds.server,
-            models,
             rows,
-            state=state,
+            state,
+            chunk_size,
+            timeout,
             stop_time=stop_time,
             stop_row=stop_row,
-            chunk_size=chunk_size,
             dry_run=dry_run,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
-            timeout=(connect_timeout, read_timeout),
         )
 
         if error_counter.has_errors():
