@@ -551,7 +551,8 @@ def test_limit_iter(limit, exhausted, result):
         ("ftp://files.example.com/file.txt", True),
         ("ftps://files.example.com/file.txt", True),
         ("mailto:user@example.com", True),
-        ("/example/Country", True),
+        ("www.example.com", False),
+        ("/example/Country", False),
         ("javascript:alert(1)", False),
         ("data:text/html,<script>alert(1)</script>", False),
         ("//evil.example.com", False),
@@ -1473,16 +1474,58 @@ def test_html_url(
     app = create_test_client(context)
     app.authmodel("example/html", ["insert", "getall", "search"])
 
-    pushdata(app, "/example/html/url/Country", {"id": 0, "link": "https://www.example.com"})
-    pushdata(app, "/example/html/url/Country", {"id": 1, "link": "mailto:email@example.com"})
-    pushdata(app, "/example/html/url/Country", {"id": 2, "link": "javascript:alert(1)"})
+    countries = [
+        pushdata(app, "/example/html/url/Country", {"id": 0, "link": "https://www.example.com"}),
+        pushdata(app, "/example/html/url/Country", {"id": 1, "link": "mailto:email@example.com"}),
+        pushdata(app, "/example/html/url/Country", {"id": 2, "link": "javascript:alert(1)"}),
+        pushdata(app, "/example/html/url/Country", {"id": 3, "link": " https://www.example.com/path "}),
+    ]
 
     resp = app.get(
-        "/example/html/url/Country/:format/html?select(id,link)&sort(id)",
+        "/example/html/url/Country/:format/html?select(_id,id,link)&sort(id)",
     )
 
     assert _table_with_header(resp) == [
-        {"id": {"value": 0}, "link": {"value": "https://www.example.com", "link": "https://www.example.com"}},
-        {"id": {"value": 1}, "link": {"value": "mailto:email@example.com", "link": "mailto:email@example.com"}},
-        {"id": {"value": 2}, "link": {"value": "javascript:alert(1)"}},
+        {
+            "_id": {
+                "value": short_id(countries[0]["_id"]),
+                "link": f"/example/html/url/Country/{countries[0]['_id']}",
+            },
+            "id": {"value": 0},
+            "link": {"value": "https://www.example.com", "link": "https://www.example.com"},
+        },
+        {
+            "_id": {
+                "value": short_id(countries[1]["_id"]),
+                "link": f"/example/html/url/Country/{countries[1]['_id']}",
+            },
+            "id": {"value": 1},
+            "link": {"value": "mailto:email@example.com", "link": "mailto:email@example.com"},
+        },
+        {
+            "_id": {
+                "value": short_id(countries[2]["_id"]),
+                "link": f"/example/html/url/Country/{countries[2]['_id']}",
+            },
+            "id": {"value": 2},
+            "link": {"value": "javascript:alert(1)"},
+        },
+        {
+            "_id": {
+                "value": short_id(countries[3]["_id"]),
+                "link": f"/example/html/url/Country/{countries[3]['_id']}",
+            },
+            "id": {"value": 3},
+            "link": {
+                "value": " https://www.example.com/path ",
+                "link": "https://www.example.com/path",
+            },
+        },
     ]
+
+    assert (
+        '<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">https://www.example.com</a>'
+        in resp.text
+    )
+    internal_link = f"/example/html/url/Country/{countries[0]['_id']}"
+    assert f'<a href="{internal_link}">{short_id(countries[0]["_id"])}</a>' in resp.text

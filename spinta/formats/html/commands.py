@@ -436,7 +436,8 @@ def prepare_dtype_for_response(
     if _is_safe_url(value):
         return Cell(
             value,
-            link=value,
+            link=value.strip(),
+            external=True,
         )
     else:
         # Reject unsafe schemes by returning plain text without link
@@ -960,7 +961,8 @@ def prepare_dtype_for_response(
     )
 
 
-SAFE_SCHEMES = {"http", "https", "ftp", "ftps", "mailto"}
+NETWORK_SCHEMES = frozenset({"http", "https", "ftp", "ftps"})
+SAFE_SCHEMES = NETWORK_SCHEMES | {"mailto"}
 
 
 def _is_safe_url(url: str) -> bool:
@@ -982,25 +984,18 @@ def _is_safe_url(url: str) -> bool:
 
     scheme = parsed.scheme.lower()
 
-    if scheme:
-        if scheme not in SAFE_SCHEMES:
+    if scheme not in SAFE_SCHEMES:
+        return False
+
+    # Network URLs should actually have a host.
+    if scheme in NETWORK_SCHEMES:
+        if not parsed.hostname:
             return False
 
-        # Network URLs should actually have a host.
-        if scheme in {"http", "https", "ftp", "ftps"}:
-            if not parsed.hostname:
-                return False
-
-        # mailto should contain something after mailto:
-        if scheme == "mailto":
-            if not parsed.path:
-                return False
-
-        return True
-
-    # Don't consider //evil.com a local relative URL.
-    if parsed.netloc:
-        return False
+    # mailto should contain something after mailto:
+    if scheme == "mailto":
+        if not parsed.path:
+            return False
 
     return True
 
