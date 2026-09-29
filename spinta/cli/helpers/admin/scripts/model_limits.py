@@ -2,23 +2,21 @@ import json
 import pathlib
 from typing import Optional
 
+import ruamel.yaml
+import sqlalchemy as sa
 import tqdm
 from click import echo
+from multipledispatch import dispatch
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, parse_input_path
 from spinta.components import Context, Model, Property
-from multipledispatch import dispatch
-
-from spinta.types.datatype import DataType, Ref, ExternalRef, Boolean, Date, DateTime, Integer, Number
+from spinta.types.datatype import Boolean, DataType, Date, DateTime, ExternalRef, Integer, Number, Ref
 from spinta.types.geometry.components import Geometry
 from spinta.utils.config import get_limit_path
 from spinta.utils.nestedstruct import flat_dicts_to_nested
-
-import sqlalchemy as sa
-import ruamel.yaml
 
 
 @dispatch(Context, Model)

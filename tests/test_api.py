@@ -11,32 +11,19 @@ from _pytest.fixtures import FixtureRequest
 from spinta import commands
 from spinta.auth import create_client_file, get_clients_path, get_keymap_path, query_client
 from spinta.backends.memory.components import Memory
-from spinta.auth import query_client, get_clients_path, get_keymap_path
-from spinta.backends.memory.components import Memory
 from spinta.cli.helpers.store import _ensure_config_dir
 from spinta.components import Config, Context
 from spinta.core.config import RawConfig, configure_rc
-from spinta.components import Context
-from spinta.core.config import RawConfig
-from spinta.core.config import configure_rc
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
-from spinta.testing.client import TestClient, TestClientResponse, create_test_client, get_html_tree, get_yaml_data
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import TestClient, get_yaml_data
-from spinta.testing.client import TestClientResponse
-from spinta.testing.client import create_test_client
-from spinta.testing.client import get_html_tree
+from spinta.testing.client import TestClient, TestClientResponse, create_test_client, get_html_tree, get_yaml_data
 from spinta.testing.context import create_test_context
-from spinta.testing.data import pushdata, send
-from spinta.testing.manifest import prepare_manifest
-from spinta.testing.utils import error, get_error_codes
-from spinta.testing.data import pushdata, listdata
-from spinta.testing.data import send
-from spinta.testing.manifest import prepare_manifest, bootstrap_manifest
+from spinta.testing.data import listdata, pushdata, send
+from spinta.testing.manifest import bootstrap_manifest, prepare_manifest
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.utils import get_error_codes, get_error_context, error
+from spinta.testing.utils import error, get_error_codes
 from spinta.utils.config import get_limit_path
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.types import is_str_uuid

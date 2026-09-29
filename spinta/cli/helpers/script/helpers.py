@@ -4,7 +4,7 @@ import pathlib
 import sys
 from collections import defaultdict, deque
 
-from spinta.cli.helpers.message import cli_message
+from spinta.cli.helpers.message import cli_error, cli_message
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.upgrade.components import UpgradeScript
 from spinta.components import Context, Store
@@ -73,7 +73,7 @@ def ensure_store_is_loaded(context: Context, verbose: bool = False) -> Store:
 
 def parse_input_path(
     context: Context,
-    input_path: pathlib.Path = None,
+    input_path: pathlib.Path | None = None,
     required: bool = True,
     **kwargs,
 ) -> list[str] | None:
@@ -87,12 +87,13 @@ def parse_input_path(
         if not required:
             return None
 
-        echo("Script requires model list file path (can also add it through `--input <file_path>` argument).", err=True)
+        cli_message(
+            "Script requires model list file path (can also add it through `--input <file_path>` argument).", err=True
+        )
         input_path = input("Enter model list file path: ")
 
     if not input_path.exists():
-        echo(f'File "{input_path}" does not exist.', err=True)
-        sys.exit(1)
+        cli_error(f'File "{input_path}" does not exist.')
 
     with input_path.open("r") as f:
         return f.read().splitlines()

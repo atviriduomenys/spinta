@@ -3,7 +3,6 @@ import urllib.parse
 from collections import OrderedDict
 from typing import Any, List, Union
 
-from spinta.dimensions.scope.helpers import get_active_custom_scope
 from starlette.requests import Request
 
 from spinta import commands, exceptions, spyna
@@ -21,6 +20,7 @@ from spinta.components import (
 )
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
+from spinta.dimensions.scope.helpers import get_active_custom_scope
 from spinta.exceptions import InvalidPageKey, InvalidPageParameterCount, ModelNotFound
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.querybuilder.components import QueryBuilder

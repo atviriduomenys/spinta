@@ -19,8 +19,8 @@ from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, parse_input_path
-from spinta.commands.write import dataitem_from_payload, prepare_data, prepare_patch, prepare_data_for_write
-from spinta.components import Context, Model, DataItem
+from spinta.commands.write import dataitem_from_payload, prepare_data, prepare_data_for_write, prepare_patch
+from spinta.components import Context, DataItem, Model
 from spinta.core.enums import Action
 
 
