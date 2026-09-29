@@ -51,6 +51,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types, page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
+from spinta.utils.config import get_limit_config_data
 from spinta.utils.enums import get_enum_by_value
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
@@ -232,6 +233,9 @@ def load(
 
     if not model.distribution_strategy:
         model.distribution_strategy = config.default_distribution_strategy
+
+    limits = get_limit_config_data(config)
+    model.limit = limits.get(model.model_type(), None)
 
     return model
 

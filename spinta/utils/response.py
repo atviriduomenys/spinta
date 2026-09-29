@@ -23,8 +23,13 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.message import cli_message
 from spinta.components import Context, Model, Node, Store, UrlParams
 from spinta.core.enums import Action
-from spinta.exceptions import BaseError, NoBackendConfigured, error_response
-from spinta.formats.components import Format
+from spinta.exceptions import (
+    BaseError,
+    ExceededMaximumLimit,
+    LimitOrPageIsRequired,
+    NoBackendConfigured,
+    error_response,
+)
 from spinta.renderer import render
 
 
@@ -243,13 +248,33 @@ async def create_http_response(
 
 
 def _enforce_limit(context: Context, params: UrlParams):
-    fmt: Format = params.fmt
-    # XXX: I think this is not the best way to enforce limit, maybe simply
-    #      an error should be raised?
-    # XXX: Max resource count should be configurable.
-    if not fmt.streamable and (params.limit is None or params.limit > 100):
-        params.limit = params.limit_enforced_to + 1
-        params.limit_enforced = True
+    if params.limit_enforced_to is None:
+        return
+
+    model = params.model
+    if hasattr(model, "limit") and params.limit_enforced_to is not None and params.fmt.streamable:
+        if params.limit is None and params.page is None:
+            raise LimitOrPageIsRequired(
+                model,
+                model_name=model.name,
+                maximum_limit=params.limit_enforced_to,
+            )
+
+    if params.limit:
+        # No need to enforce limit if the limit is lower
+        if params.limit <= params.limit_enforced_to:
+            return
+
+        if params.limit > params.limit_enforced_to:
+            raise ExceededMaximumLimit(
+                model,
+                model_name=model.name,
+                maximum_limit=params.limit_enforced_to,
+                given_limit=params.limit,
+            )
+
+    params.limit = params.limit_enforced_to
+    params.limit_enforced = True
 
 
 def peek_and_stream(stream):

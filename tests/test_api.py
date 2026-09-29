@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple, cast
 from unittest.mock import ANY
 
 import pytest
+from _pytest.fixtures import FixtureRequest
 
 from spinta import commands
 from spinta.auth import create_client_file, get_clients_path, get_keymap_path, query_client
@@ -15,11 +16,15 @@ from spinta.components import Config, Context
 from spinta.core.config import RawConfig, configure_rc
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import TestClient, TestClientResponse, create_test_client, get_html_tree, get_yaml_data
 from spinta.testing.context import create_test_context
-from spinta.testing.data import pushdata, send
-from spinta.testing.manifest import prepare_manifest
+from spinta.testing.data import listdata, pushdata, send
+from spinta.testing.manifest import bootstrap_manifest, prepare_manifest
+from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error, get_error_codes
+from spinta.utils.config import get_limit_path
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.types import is_str_uuid
 
@@ -2111,3 +2116,194 @@ def test_auth_clients_update_other_client_fails_using_client_backends_update_sel
     assert response.status_code == 403
     err = error(response, "context", "code")
     assert err["code"] == "InsufficientPermission"
+
+
+def test_get_format_limit(app):
+    config = app.context.get("config")
+    html_limit = config.exporters["html"].limit
+
+    app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
+    pks = []
+    for i in range(html_limit + 10):
+        resp = app.post(
+            "/datasets/json/Rinkimai",
+            json={
+                "id": "0" * (i + 1),
+                "pavadinimas": f"Rinkimai {i}",
+            },
+        )
+        pks.append(resp.json()["_id"])
+
+    resp = app.get("/datasets/json/Rinkimai", headers={"accept": "text/html"})
+    assert resp.status_code == 200, resp.json()
+
+    resp.context.pop("request")
+    assert _cleaned_context(resp, data=False) == {
+        "location": [
+            ("🏠", "/"),
+            ("datasets", "/datasets"),
+            ("json", "/datasets/json"),
+            ("Rinkimai", None),
+            ("Changes", "/datasets/json/Rinkimai/:changes/-10"),
+        ],
+        "header": ["_id", "id", "pavadinimas"],
+        "empty": False,
+        "data": [
+            [
+                {"link": f"/datasets/json/Rinkimai/{pk}", "value": pk[:8]},
+                {"value": "0" * (i + 1)},
+                {"value": f"Rinkimai {i}"},
+            ]
+            for i, pk in enumerate(pks[:html_limit])
+        ],
+        "formats": [
+            ("CSV", "/datasets/json/Rinkimai/:format/csv"),
+            ("JSON", "/datasets/json/Rinkimai/:format/json"),
+            ("JSONL", "/datasets/json/Rinkimai/:format/jsonl"),
+            ("ASCII", "/datasets/json/Rinkimai/:format/ascii"),
+            ("RDF", "/datasets/json/Rinkimai/:format/rdf"),
+        ],
+    }
+
+
+def test_get_maximum_limit_error(app):
+    config = app.context.get("config")
+    html_limit = config.exporters["html"].limit
+
+    app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
+
+    resp = app.get(f"/datasets/json/Rinkimai?limit({html_limit + 1})", headers={"accept": "text/html"})
+    assert resp.status_code == 400, resp.json()
+    assert error(resp, "code", ["maximum_limit", "given_limit"]) == {
+        "code": "ExceededMaximumLimit",
+        "context": {
+            "maximum_limit": html_limit,
+            "given_limit": html_limit + 1,
+        },
+    }
+
+
+def test_get_default_limit(rc):
+    limit = 5
+    rc = rc.fork({"default_limit_objects": 5})
+    context = create_test_context(rc)
+    app = create_test_client(context)
+
+    config = app.context.get("config")
+
+    config.default_limit_objects = limit
+
+    app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
+    pks = []
+    for i in range(10):
+        resp = app.post(
+            "/datasets/json/Rinkimai",
+            json={
+                "id": str(i),
+                "pavadinimas": f"Rinkimai {i}",
+            },
+        )
+        pks.append(resp.json()["_id"])
+
+    resp = app.get("/datasets/json/Rinkimai")
+    assert resp.status_code == 400
+    assert error(resp, "code", ["maximum_limit"]) == {
+        "code": "LimitOrPageIsRequired",
+        "context": {
+            "maximum_limit": limit,
+        },
+    }
+
+    resp = app.get("/datasets/json/Rinkimai?page()")
+    assert resp.status_code == 200
+    assert listdata(resp) == [
+        ("0", "Rinkimai 0"),
+        ("1", "Rinkimai 1"),
+        ("2", "Rinkimai 2"),
+        ("3", "Rinkimai 3"),
+        ("4", "Rinkimai 4"),
+    ]
+
+    resp = app.get(f"/datasets/json/Rinkimai?limit({limit})")
+    assert resp.status_code == 200
+    assert listdata(resp) == [
+        ("0", "Rinkimai 0"),
+        ("1", "Rinkimai 1"),
+        ("2", "Rinkimai 2"),
+        ("3", "Rinkimai 3"),
+        ("4", "Rinkimai 4"),
+    ]
+
+
+def test_limit_by_model(
+    context: Context,
+    tmp_path: pathlib.Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    cli: SpintaCliRunner,
+):
+    config = context.get("config")
+    limit_path = get_limit_path(config)
+    limit = 20
+    with limit_path.open("w") as file:
+        file.write(f"datasets/limit/data/Country: {limit}")
+
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
+        d | r | b | m | property      | type    | ref     | prepare | access | level
+        datasets/limit/data           |         |         |         |        |
+          |   |   | Country           |         | id      |         |        |
+          |   |   |   | id            | integer |         |         | open   |
+          |   |   |   | name          | string  |         |         | open   |
+          |   |   | City              |         | id      |         |        |
+          |   |   |   | id            | integer |         |         | open   |
+          |   |   |   | name          | string  |         |         | open   |
+          |   |   |   | country       | ref     | Country |         | open   |
+        """
+        ),
+    )
+
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
+        ]
+    )
+
+    for i in range(100):
+        resp = app.post("/datasets/limit/data/Country", json={"id": i, "name": f"Country {i}"})
+        id_ = resp.json()["_id"]
+        app.post("/datasets/limit/data/City", json={"id": i, "name": f"City {i}", "country": {"_id": id_}})
+
+    resp = app.get("/datasets/limit/data/Country")
+    assert resp.status_code == 400
+    assert error(resp, "code", ["maximum_limit"]) == {
+        "code": "LimitOrPageIsRequired",
+        "context": {
+            "maximum_limit": limit,
+        },
+    }
+
+    resp = app.get("/datasets/limit/data/Country?page()")
+    assert resp.status_code == 200
+    assert listdata(resp, sort="id") == [(i, f"Country {i}") for i in range(limit)]
+
+    resp = app.get("/datasets/limit/data/City")
+    assert resp.status_code == 200
+    assert len(listdata(resp)) == 100
