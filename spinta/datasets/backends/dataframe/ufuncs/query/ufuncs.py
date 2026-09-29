@@ -1,20 +1,51 @@
-from functools import reduce
-from typing import Dict, Any, Tuple, List
+from __future__ import annotations
 
-from spinta.auth import authorized
+from functools import reduce
+from typing import Any, Dict, Iterator, List, Tuple
+
+from dask.dataframe import Series
+
+from spinta.backends.helpers import is_custom_id_prop, is_custom_revision_prop
 from spinta.components import Property
 from spinta.core.enums import Action
-from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
+from spinta.core.ufuncs import Bind, Expr, GetAttr, Unresolved, ufunc
 from spinta.datasets.backends.dataframe.ufuncs.query.components import (
+    RESERVED_COUNT_PROP,
+    Count,
     DaskDataFrameQueryBuilder,
+)
+from spinta.datasets.backends.dataframe.ufuncs.query.components import (
     DaskSelected as Selected,
 )
-from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.datasets.backends.dataframe.ufuncs.query.helpers import (
+    select_external_ref_foreign_key_properties,
+    select_ref_foreign_key_properties,
+)
+from spinta.datasets.components import Param
+from spinta.datasets.enums import ExternalIdPattern
+from spinta.datasets.helpers import authorized_or_system_request
+from spinta.datasets.utils import iterparams
+from spinta.exceptions import (
+    InvalidArgumentInExpression,
+    PropertyNotFound,
+    SourceCannotBeList,
+    SourceOrPrepareNotAllowed,
+)
+from spinta.types.datatype import Boolean, DataType, ExternalRef, Integer, Number, PrimaryKey, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.querybuilder.helpers import process_literal_value
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def testlist(env: DaskDataFrameQueryBuilder, expr: Expr) -> tuple:
+    args, kwargs = expr.resolve(env)
+    result = []
+    for arg in args:
+        result.append(process_literal_value(arg))
+    return tuple(result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
@@ -67,25 +98,33 @@ def offset(env: DaskDataFrameQueryBuilder, n: int):
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
-def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr):
+def _resolve_property(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Property:
+    obj = str(attr.obj)
+    name = str(attr.name)
+    if obj in env.model.properties:
+        prop = env.model.properties.get(obj)
+        dtype = getattr(prop, "dtype", None)
+        langs = getattr(dtype, "langs", None)
+        if isinstance(dtype, Text) and langs:
+            if name in langs:
+                return env.call("_resolve_property", langs[name])
     return env.call("_resolve_property", attr.obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
-def _resolve_property(env: DaskDataFrameQueryBuilder, bind: Bind):
+def _resolve_property(env: DaskDataFrameQueryBuilder, bind: Bind) -> Property | None:
     return env.call("_resolve_property", bind.name)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, str)
-def _resolve_property(env: DaskDataFrameQueryBuilder, prop: str):
+def _resolve_property(env: DaskDataFrameQueryBuilder, prop: str) -> Property | None:
     if prop in env.model.flatprops:
         return env.model.flatprops.get(prop)
-
-    raise PropertyNotFound(env.model, property=prop)
+    return None
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
-def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property):
+def _resolve_property(env: DaskDataFrameQueryBuilder, prop: Property) -> Property:
     return prop
 
 
@@ -107,8 +146,8 @@ def _resolve_unresolved(env: DaskDataFrameQueryBuilder, field: Bind) -> str:
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder)
-def count(env: DaskDataFrameQueryBuilder):
-    return len(env.dataframe.index)
+def count(env: DaskDataFrameQueryBuilder) -> Count:
+    return Count()
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
@@ -125,8 +164,10 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
         for key, arg in args:
             env.selected[key] = env.call("select", arg)
     else:
-        for prop in take(["_id", all], env.model.properties).values():
-            if authorized(env.context, prop, Action.GETALL):
+        for prop in take(["_id", "_revision", all], env.model.properties).values():
+            if prop.name == "_revision" and not is_custom_revision_prop(prop):
+                continue
+            if authorized_or_system_request(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call("select", prop)
 
 
@@ -156,11 +197,16 @@ def _get_property_for_select(
         #      then how prepare context should be defined? Probably resolvers
         #      should be called with a different env class?
         #      tag:resolving_private_properties_in_prepare_context
-        nested or authorized(env.context, prop, Action.SEARCH)
+        nested or authorized_or_system_request(env.context, prop, Action.SEARCH)
     ):
         return prop
     else:
         raise PropertyNotFound(env.model, property=name)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property, set)
+def select(env: DaskDataFrameQueryBuilder, prop: Property, keys: set) -> Selected:
+    return env.call("select", prop.dtype, keys)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Property)
@@ -168,7 +214,7 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.external.name and prop.external.prepare is not NA:
+        if prop.external and prop.external.prepare is not NA:
             # If property doesn't have external name - it describes query parameter
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
@@ -182,13 +228,16 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
             #      properties.
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call("select", prop.dtype, result)
-        elif prop.external.prepare is not NA:
-            # property without external name and with `prepare` is already evaluated
-            # so just use evaluated value
-            result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call("select", prop.dtype)
+        elif is_custom_id_prop(prop):
+            pkeys = prop.model.external.pkeys or list(take(prop.model.properties).values())
+            if len(pkeys) == 1:
+                prep = env.call("select", pkeys[0])
+            else:
+                prep = [env.call("select", pk) for pk in pkeys]
+            result = Selected(prop=prop, prep=prep)
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call("select", prop.dtype)
@@ -201,6 +250,17 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         assert isinstance(result, Selected), prop
         env.resolved[prop.place] = result
     return env.resolved[prop.place]
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Text, set)
+def select(env: DaskDataFrameQueryBuilder, dtype: Text, languages: set) -> Selected:
+    prep = {}
+    for lang in languages:
+        if lang in dtype.langs:
+            prep[lang] = env.call("select", dtype.langs[lang])
+        else:
+            raise PropertyNotFound(dtype.prop.model, property=dtype.prop, lang=lang)
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType)
@@ -254,45 +314,115 @@ def select(
     dtype: PrimaryKey,
 ) -> Selected:
     model = dtype.prop.model
-    pkeys = model.external.pkeys
-
+    pkeys = (model.base and model.base.pk) or model.external.pkeys
     if not pkeys:
         # If primary key is not specified use all properties to uniquely
         # identify row.
         pkeys = take(model.properties).values()
 
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call("select", prop)
-    else:
-        result = [env.call("select", prop) for prop in pkeys]
+    result = {
+        ExternalIdPattern.ID_KEY.value: {prop.name: env.call("select", prop) for prop in pkeys},
+        ExternalIdPattern.COMBINATIONS_KEY.value: {},
+    }
+    for required_pk_combination in model.required_keymap_properties:
+        combination_result = {}
+        for prop_name in required_pk_combination:
+            prop = env.call("_resolve_property", prop_name)
+            combination_result[prop.name] = env.call("select", prop)
+        result[ExternalIdPattern.COMBINATIONS_KEY.value][required_pk_combination] = combination_result
     return Selected(prop=dtype.prop, prep=result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Selected)
-def select(env: DaskDataFrameQueryBuilder, selected: Selected):
+def select(env: DaskDataFrameQueryBuilder, selected: Selected) -> Selected:
     return selected
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: GetAttr) -> Selected | None:
+    resolved_prep = env.call("select", prep)
+
+    result = {}
+    if not dtype.inherited:
+        refprop = dtype.refprops[0]
+        result[ExternalIdPattern.ID_KEY.value] = Selected(prop=dtype.prop, prep={refprop.name: resolved_prep})
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        result[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=result)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
 def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
-    fpr = ForeignProperty(None, dtype, dtype.model.properties["_id"].dtype)
+    fpr = ForeignProperty(None, dtype, dtype.model.id_prop.dtype)
     return Selected(
         prop=dtype.prop,
         prep=env.call("select", fpr, fpr.right.prop),
     )
 
 
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref)
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype)
+        )
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, (list, tuple))
+def select(env: DaskDataFrameQueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep[ExternalIdPattern.ID_KEY.value] = Selected(
+            prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype, properties=data)
+        )
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ExternalRef)
+def select(env: DaskDataFrameQueryBuilder, dtype: ExternalRef) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype))
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ExternalRef, (list, tuple))
+def select(env: DaskDataFrameQueryBuilder, dtype: ExternalRef, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype, properties=data))
+
+    for prop in dtype.properties.values():
+        sel = env.call("select", prop)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
+
+
 @ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
 def select(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Selected:
-    """For things like select(foo.bar.baz)."""
-
-    fpr: ForeignProperty = env.call("_resolve_getattr", attr)
-    raise NotImplementedFeature(fpr.left.prop.model, feature="Ability to use foreign properties")
-    return Selected(
-        prop=fpr.right.prop,
-        prep=env.call("select", fpr, fpr.right.prop),
-    )
+    resolved = env.resolve_property(attr)
+    return env.call("select", resolved)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty)
@@ -334,7 +464,7 @@ def select(
 ) -> Selected:
     # TODO need join for this to work
     return Selected(
-        item=dtype.prop.name,
+        item=dtype.prop.external.name,
         prop=dtype.prop,
     )
 
@@ -363,7 +493,7 @@ def select(
 def select(env: DaskDataFrameQueryBuilder, fpr: ForeignProperty, item: Bind):
     model = fpr.right.prop.model
     prop = env.call("_resolve_property", item)
-    if authorized(env.context, prop, Action.SEARCH):
+    if authorized_or_system_request(env.context, prop, Action.SEARCH):
         return env.call("select", fpr, prop)
     else:
         raise PropertyNotFound(model, property=item.name)
@@ -413,6 +543,15 @@ def select(
     return {k: env.call("select", v) for k, v in prep.items()}
 
 
+@ufunc.resolver(DaskDataFrameQueryBuilder, Count)
+def select(
+    env: DaskDataFrameQueryBuilder,
+    value: Count,
+) -> Selected:
+    env.count = True
+    return Selected(item=RESERVED_COUNT_PROP)
+
+
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
 def base64(env: DaskDataFrameQueryBuilder, expr: Expr) -> Expr:
     return expr  # Expression will be resolved in ResultBuilder
@@ -431,12 +570,63 @@ COMPARE = [
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)
-def compare(env, op, field, value):
+def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any):
     prop = env.call("_resolve_property", field)
-    return env.call(op, prop.dtype, value)
+    if prop:
+        return env.call(op, prop.dtype, value)
+    return None
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object, name="eq")
-def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
+def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object) -> Series:
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Integer, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: Integer, obj: object) -> Series:
+    name = dtype.prop.external.name
+    return env.dataframe[name] == obj
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Number, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: Number, obj: object) -> Series:
+    name = dtype.prop.external.name
+    return env.dataframe[name] == obj
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Boolean, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: Boolean, obj: object) -> Series:
+    name = dtype.prop.external.name
+    return env.dataframe[name] == obj
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Param, name="eval")
+def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
+    resolved_values = (
+        param_values.get(param.name)
+        for param_values in iterparams(env.context, env.model, env.model.manifest, [param], env.url_query_params)
+        if param_values.get(param.name)
+    )
+
+    return resolved_values
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind) -> Any:
+    return GetAttr(obj, attr)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, Bind, name="getattr")
+def getattr_(env: DaskDataFrameQueryBuilder, source: Bind, obj: Bind, attr: Bind) -> Any:
+    raise SourceOrPrepareNotAllowed(source=str(source))
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
+def cast(env: DaskDataFrameQueryBuilder, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    if args or kwargs:
+        arguments = args + list(kwargs.values())
+        raise InvalidArgumentInExpression(arguments=arguments, expr="cast")
+
+    return Expr("cast")

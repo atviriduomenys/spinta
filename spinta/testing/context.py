@@ -1,36 +1,104 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Dict
-from typing import Optional
-from typing import Union
-
 import contextlib
+import weakref
+from typing import Any, Dict, Optional, Union
 
 from pytest import FixtureRequest
 
 from spinta import commands
+from spinta.auth import AdminToken
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Node
-from spinta.components import Context
-from spinta.auth import AdminToken
-from spinta.utils.imports import importstr
-from spinta.core.context import create_context
+from spinta.components import Context, Node
 from spinta.core.config import RawConfig
+from spinta.core.context import create_context
+from spinta.utils.imports import importstr
+
+# Every short-lived test context is tracked here so that the engines (and their
+# connection pools) it created can be disposed after each test, see
+# `close_test_context_engines`.
+_test_contexts: "weakref.WeakSet[TestContext]" = weakref.WeakSet()
 
 
 def create_test_context(
-    rc: RawConfig, request: FixtureRequest = None, *, name: str = "pytest", wipe_data: bool = True
+    rc: RawConfig, request: FixtureRequest = None, *, name: str = "pytest", wipe_data: bool = True, track: bool = True
 ) -> TestContext:
     rc = rc.fork()
     Context_ = rc.get("components", "core", "context", cast=importstr)
     Context_ = type("ContextForTests", (ContextForTests, Context_), {})
     context = Context_(name)
     context = create_context(name, rc, context)
+    if track:
+        _test_contexts.add(context)
     if request and wipe_data:
         request.addfinalizer(context.wipe_all)
     return context
+
+
+def close_context_engines(context: TestContext) -> None:
+    """Dispose SQLAlchemy engines created by a single test context.
+
+    Backends can be owned by the store, declared by the manifest, or attached to
+    individual dataset resources, and each can own its own engine. This mirrors
+    the runtime backend collection in :func:`spinta.types.store.wait` so that
+    engines from every source (plus keymaps) are disposed, not just the ones in
+    ``store.backends``.
+    """
+    if not context.has("store", value=True):
+        return
+    store = context.get("store")
+
+    seen: set[int] = set()
+    engines = []
+
+    def collect(backend) -> None:
+        engine = getattr(backend, "engine", None)
+        if engine is not None and id(engine) not in seen:
+            seen.add(id(engine))
+            engines.append(engine)
+
+    for backend in (getattr(store, "backends", None) or {}).values():
+        collect(backend)
+
+    manifest = getattr(store, "manifest", None)
+    if manifest is not None:
+        # Some manifests (e.g. InternalSQLManifest) own their engine directly,
+        # separately from `manifest.backends`.
+        collect(manifest)
+        for backend in (getattr(manifest, "backends", None) or {}).values():
+            collect(backend)
+        try:
+            datasets = commands.get_datasets(context, manifest)
+        except Exception:
+            datasets = {}
+        for dataset in datasets.values():
+            for resource in dataset.resources.values():
+                if resource.backend is not None:
+                    collect(resource.backend)
+
+    for keymap in (getattr(store, "keymaps", None) or {}).values():
+        collect(keymap)
+
+    for engine in engines:
+        engine.dispose()
+
+
+def close_test_context_engines() -> None:
+    """Dispose engines of all tracked test contexts.
+
+    Each test context creates its own backend (and keymap) engines together with
+    their connection pools, which are otherwise only released when the context is
+    garbage collected. On CPython 3.14 the cyclic garbage collector reclaims them
+    late enough that idle pooled connections pile up across the suite and exhaust
+    the PostgreSQL ``max_connections`` limit (``FATAL: sorry, too many clients
+    already``). Disposing them after every test keeps the open connection count
+    bounded regardless of garbage collection timing. Disposing an engine does not
+    invalidate it -- it simply drops idle connections and reconnects on next use --
+    so this is safe even for a context that is reused by a later test.
+    """
+    for context in list(_test_contexts):
+        close_context_engines(context)
 
 
 class ContextForTests:

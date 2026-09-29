@@ -4,21 +4,14 @@ import base64
 import json
 import operator
 from textwrap import indent
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Union
-from typing import cast
-from typing import NamedTuple
-from typing import Optional
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Union, cast
 
-import httpx
+import httpx2
 import requests
 from pprintpp import pformat
 
 from spinta.formats.html.components import Cell
-from spinta.testing.client import TestClient
+from spinta.testing.client import TestClient, TestClientResponse
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
 
@@ -28,7 +21,7 @@ def get_keys_for_row(keys, row: dict):
 
 
 def listdata(
-    resp: Union[httpx.Response, List[Dict[str, Any]]],
+    resp: Union[httpx2.Response, List[Dict[str, Any]]],
     *keys: Union[str, Callable[[], bool]],
     sort: Union[bool, str] = True,
     full: bool = False,  # returns dicts instead of tuples
@@ -90,18 +83,18 @@ def listdata(
         data = resp
 
     elif resp.headers["content-type"].startswith("text/html"):
-        data = resp.context
+        context = cast(TestClientResponse, resp).context
         assert resp.status_code >= 200 and resp.status_code < 400, pformat(
             {
                 "status": resp.status_code,
-                "resp": data,
+                "resp": context,
             }
         )
-        assert "data" in data, pformat(data)
-        assert "header" in data, pformat(data)
-        header = data["header"]
+        assert "data" in context, pformat(context)
+        assert "header" in context, pformat(context)
+        header = context["header"]
         keys = keys or [k for k in header if not k.startswith("_")]
-        data = [{k: v.value for k, v in zip(header, row)} for row in cast(List[List[Cell]], data["data"])]
+        data = [{k: v.value for k, v in zip(header, row)} for row in cast(List[List[Cell]], context["data"])]
 
     else:
         data = resp.json()
@@ -241,7 +234,7 @@ def send(
 
     try:
         resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
+    except httpx2.HTTPStatusError as e:
         dump = indent(pformat(obj.data), "  ").strip()
         raise Exception(f"send error:\n  model={model},\n  action={action},\n  error={e},\n  data: {dump}")
 

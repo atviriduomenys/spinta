@@ -19,7 +19,7 @@ def test_soap_operation_if_source_is_from_dsa(rc: RawConfig) -> None:
     dataset = commands.get_dataset(context, manifest, "example")
     backend = dataset.resources["soap_resource"].backend
 
-    assert isinstance(getattr(backend, "soap_operation", None), OperationProxy)
+    assert isinstance(backend.get_soap_operation({}), OperationProxy)
 
 
 @pytest.mark.parametrize(
@@ -45,7 +45,7 @@ def test_raise_error_if_service_not_found(
     context, manifest = load_manifest_and_context(rc, table, mode=Mode.external)
     dataset = commands.get_dataset(context, manifest, "example")
     with pytest.raises(SoapServiceError) as e:
-        dataset.resources["soap_resource"].backend.soap_operation
+        dataset.resources["soap_resource"].backend.get_soap_operation({})
 
     assert str(e.value) == f"SOAP service {service} with port {port} not found"
 
@@ -60,6 +60,24 @@ def test_raise_error_if_operation_does_not_exist_in_service(rc: RawConfig) -> No
     context, manifest = load_manifest_and_context(rc, table, mode=Mode.external)
     dataset = commands.get_dataset(context, manifest, "example")
     with pytest.raises(SoapServiceError) as e:
-        dataset.resources["soap_resource"].backend.soap_operation
+        dataset.resources["soap_resource"].backend.get_soap_operation({})
 
     assert str(e.value) == "SOAP operation invalid_operation in service CityService does not exist"
+
+
+def test_sets_different_wsdl_client_headers_for_each_requests(rc: RawConfig) -> None:
+    table = """
+    d | r | b | m | property   | type   | source                                          | prepare
+    example                    |        |                                                 |
+        | wsdl_resource        | wsdl   | tests/datasets/backends/wsdl/data/wsdl.xml      |
+        | soap_resource        | soap   | CityService.CityPort.CityPortType.CityOperation | wsdl(wsdl_resource)
+    """
+    context, manifest = load_manifest_and_context(rc, table, mode=Mode.external)
+    dataset = commands.get_dataset(context, manifest, "example")
+    backend = dataset.resources["soap_resource"].backend
+
+    backend.get_soap_operation({"foo": "bar"})
+    assert backend.wsdl_backend.client.transport.session.headers.get("foo") == "bar"
+
+    backend.get_soap_operation({})
+    assert not backend.wsdl_backend.client.transport.session.headers.get("foo")

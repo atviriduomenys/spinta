@@ -1,36 +1,44 @@
-from typing import List, Dict, Tuple
+from copy import deepcopy
 
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
-import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_column_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.migrate import (
-    drop_all_indexes_and_constraints,
-    model_name_key,
-    PostgresqlMigrationContext,
-    CastMatrix,
-    validate_rename_map,
-    RenameMap,
+from spinta.backends.postgresql.helpers.migrate.actions import (
+    MigrationHandler,
+    UndistributeSchema,
 )
+from spinta.backends.postgresql.helpers.migrate.cast import CastMatrix
+from spinta.backends.postgresql.helpers.migrate.citus import (
+    ShardingPlan,
+    create_sharding_plan,
+    distribute_all,
+    gather_current_sharding_plan,
+    invalidate_default_distribution,
+    undistribute_all,
+)
+from spinta.backends.postgresql.helpers.migrate.migrate import (
+    ModelTables,
+    PostgresqlMigrationContext,
+    create_missing_schemas,
+    generate_model_tables_mapping,
+    get_spinta_schemas,
+    name_key,
+    part_of_dataset,
+    validate_rename_map,
+)
+from spinta.backends.postgresql.helpers.migrate.name import RenameMap
 from spinta.backends.postgresql.helpers.name import (
-    get_pg_table_name,
-    get_pg_column_name,
-    get_pg_foreign_key_name,
     PG_NAMING_CONVENTION,
 )
 from spinta.cli.helpers.migrate import MigrationConfig
+from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import migrate_comments
 from spinta.commands import create_exception
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Ref, File
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NA
 from spinta.utils.sqlalchemy import get_metadata_naming_convention
@@ -51,9 +59,12 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         },
     )
     op = Operations(ctx)
+    schemas = get_spinta_schemas(backend.engine)
+
     inspector = sa.inspect(conn)
     metadata = sa.MetaData(bind=conn, naming_convention=get_metadata_naming_convention(PG_NAMING_CONVENTION))
-    metadata.reflect(only=_filter_reflect_datasets(inspector, migration_config.datasets))
+    for schema in schemas:
+        metadata.reflect(only=_filter_reflect_datasets(inspector, schema, migration_config.datasets), schema=schema)
 
     handler = MigrationHandler()
     migration_ctx = PostgresqlMigrationContext(
@@ -62,43 +73,66 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         handler=handler,
         rename=RenameMap(rename_src=migration_config.rename_src),
         cast_matrix=CastMatrix(backend.engine),
+        metadata=metadata,
     )
     validate_rename_map(context, migration_ctx.rename, manifest)
+    create_missing_schemas(
+        backend=backend,
+        handler=handler,
+        schemas=schemas,
+        datasets=migration_config.datasets,
+    )
+
+    mapped_model_tables = generate_model_tables_mapping(metadata, inspector, schemas, EXCLUDED_MODELS)
 
     models = commands.get_models(context, manifest)
     models, tables = _filter_models_and_tables(
         models=models,
-        existing_tables=inspector.get_table_names(),
+        model_tables=mapped_model_tables,
         filtered_datasets=migration_config.datasets,
         rename=migration_ctx.rename,
     )
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
-    sorted_model_names = list([model.name for model in sorted_models])
+    sorted_models_mapping = {model.model_type(): model for model in sorted_models}
+    allowed_old_namespaces = list(
+        set(
+            model_table.main_table.schema
+            for model_table in tables.values()
+            if model_table.main_table is not None and model_table.main_table.schema
+        )
+    )
+    sharding_plan = create_sharding_plan(context, sorted_models).get(backend.name, ShardingPlan())
+    sharding_plan = invalidate_default_distribution(context, backend, sharding_plan)
+    current_sharding_plan = gather_current_sharding_plan(context, schemas=allowed_old_namespaces).get(
+        backend.name, ShardingPlan()
+    )
+    undistribute_plan = current_sharding_plan - sharding_plan
+    requires_undistribute = not undistribute_plan.empty()
+
+    distribute_plan = sharding_plan - current_sharding_plan
+    migration_ctx.distribute_plan = distribute_plan
+    migration_ctx.undistribute_plan = undistribute_plan
+
+    # Undistribute schemas first (always)
+    for schema in deepcopy(sorted(undistribute_plan.schemas)):
+        handler.add_action(UndistributeSchema(schema_name=schema))
+        undistribute_plan.schemas.discard(schema)
+
     # Do reverse zip, to ensure that sorted models get selected first
-    zipped_names = zipitems(sorted_model_names, tables, model_name_key)
-
+    zipped_names = zipitems(sorted_models_mapping.keys(), tables.keys(), name_key)
     for zipped_name in zipped_names:
-        for new_model_name, old_table_name in zipped_name:
-            # Skip special table migrations, because this is done in DataType migration section
-            if old_table_name and any(
-                value in old_table_name
-                for value in (TableType.CHANGELOG.value, TableType.FILE.value, TableType.REDIRECT.value)
-            ):
-                continue
+        for model_name, model_tables_name in zipped_name:
+            model = NA
+            model_tables = NA
+            if model_name:
+                model = sorted_models_mapping[model_name]
+            if model_tables_name:
+                model_tables = tables[model_tables_name]
+            commands.migrate(context, backend, migration_ctx, model_tables, model)
 
-            # Skip excluded tables
-            if old_table_name and old_table_name in EXCLUDED_MODELS:
-                continue
-
-            old = NA
-            if old_table_name:
-                name = get_pg_table_name(migration_ctx.rename.get_old_table_name(old_table_name))
-                old = metadata.tables[name]
-
-            new = commands.get_model(context, manifest, new_model_name) if new_model_name else new_model_name
-            commands.migrate(context, backend, migration_ctx, old, new)
-    _clean_up_file_type(inspector, sorted_models, handler, migration_ctx.rename)
+    undistribute_all(context, backend, undistribute_plan, handler)
+    distribute_all(context, backend, distribute_plan, handler)
 
     try:
         # Handle autocommit migrations differently
@@ -142,24 +176,43 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         except Exception:
             trx.rollback()
             raise
-
+        if requires_undistribute and not migration_config.plan:
+            migrate_comments(context, manifest=manifest, verbose=False)
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
 
 
-def _filter_reflect_datasets(inspector: Inspector, datasets: list):
+def _filter_reflect_datasets(inspector: Inspector, schema: str, datasets: list) -> list[str] | None:
     if not datasets:
         return None
 
-    all_tables = inspector.get_table_names()
-    return [table for table in all_tables if any(table.startswith(dataset) for dataset in datasets)]
+    all_tables = inspector.get_table_names(schema=schema)
+    return [
+        table
+        for table in all_tables
+        if any(
+            part_of_dataset(inspector.get_table_comment(table, schema=schema)["text"] or "", dataset)
+            for dataset in datasets
+        )
+    ]
 
 
 def _filter_models_and_tables(
-    models: Dict[str, Model], existing_tables: List[str], filtered_datasets: List[str], rename: RenameMap
-) -> Tuple[Dict[str, Model], List[str]]:
-    tables = []
+    models: dict[str, Model],
+    model_tables: dict[str, ModelTables],
+    filtered_datasets: list[str],
+    rename: RenameMap,
+) -> tuple[dict[str, Model], dict[str, ModelTables]]:
+    # tables = []
+
+    remapped_tables = {}
+    for name, table in model_tables.items():
+        table_identifier = rename.to_new_table(name)
+        table_name = table_identifier.logical_qualified_name
+        if table_name not in models.keys():
+            table_name = name
+        remapped_tables[table_name] = table
 
     # Filter if only specific dataset can be changed
     if filtered_datasets:
@@ -169,141 +222,11 @@ def _filter_models_and_tables(
                 filtered_models[key] = model
         models = filtered_models
 
-        filtered_names = []
-        for table_name in existing_tables:
+        filtered_names = {}
+        for table_name in remapped_tables:
             for dataset_name in filtered_datasets:
-                if table_name.startswith(f"{dataset_name}/"):
-                    # Check if its model or another sub dataset
-                    additional_check = table_name.replace(f"{dataset_name}/", "", 1)
-                    if "/" not in additional_check:
-                        filtered_names.append(table_name)
-        existing_tables = filtered_names
+                if part_of_dataset(table_name, dataset_name):
+                    filtered_names[table_name] = remapped_tables[table_name]
+        remapped_tables = filtered_names
 
-    for table in existing_tables:
-        # Do not apply `get_pg_table_name`, since this will be done later on while zipping with `model_name_key`
-        name = rename.get_table_name(table)
-        if name not in models.keys():
-            name = table
-        tables.append(name)
-
-    return models, tables
-
-
-def _handle_foreign_key_constraints(
-    inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: RenameMap
-):
-    existing_table_names = set(inspector.get_table_names())
-
-    for model in models:
-        source_name = get_table_name(model)
-        source_table = get_pg_table_name(source_name)
-        old_name = get_pg_table_name(rename.get_old_table_name(source_name))
-        foreign_keys = inspector.get_foreign_keys(old_name) if old_name in existing_table_names else []
-
-        # Handle Base _id foreign key constraints
-        id_constraint = next(
-            (constraint for constraint in foreign_keys if constraint.get("constrained_columns") == ["_id"]), None
-        )
-        if id_constraint is not None:
-            foreign_keys.remove(id_constraint)
-
-        if model.base and commands.identifiable(model.base):
-            add_constraint = True
-            referent_table = get_pg_table_name(get_table_name(model.base.parent))
-            fk_name = get_pg_foreign_key_name(referent_table, "_id")
-            if id_constraint is not None:
-                if id_constraint["name"] == fk_name and id_constraint["referred_table"] == referent_table:
-                    add_constraint = False
-                else:
-                    handler.add_action(
-                        ma.DropConstraintMigrationAction(
-                            table_name=source_table, constraint_name=id_constraint["name"]
-                        ),
-                        True,
-                    )
-
-            if add_constraint:
-                handler.add_action(
-                    ma.CreateForeignKeyMigrationAction(
-                        source_table=source_table,
-                        referent_table=referent_table,
-                        constraint_name=fk_name,
-                        local_cols=["_id"],
-                        remote_cols=["_id"],
-                    ),
-                    True,
-                )
-        else:
-            if id_constraint is not None:
-                handler.add_action(
-                    ma.DropConstraintMigrationAction(table_name=source_table, constraint_name=id_constraint["name"]),
-                    True,
-                )
-
-        # Handle Ref foreign key constraints
-        required_ref_props = {}
-        for prop in model.flatprops.values():
-            if isinstance(prop.dtype, Ref):
-                if not prop.level or prop.level > 3:
-                    column_name = get_pg_column_name(f"{prop.place}._id")
-                    name = get_pg_foreign_key_name(source_table, column_name)
-                    required_ref_props[name] = {
-                        "name": name,
-                        "constrained_columns": [column_name],
-                        "referred_table": get_pg_table_name(get_table_name(prop.dtype.model)),
-                        "referred_columns": ["_id"],
-                    }
-
-        for foreign_key in foreign_keys:
-            if foreign_key["name"] not in required_ref_props.keys():
-                handler.add_action(
-                    ma.DropConstraintMigrationAction(table_name=source_table, constraint_name=foreign_key["name"]), True
-                )
-                continue
-
-            constraint = required_ref_props[foreign_key["name"]]
-            if (
-                foreign_key["constrained_columns"] == constraint["constrained_columns"]
-                and foreign_key["referred_table"] == constraint["referred_table"]
-                and foreign_key["referred_columns"] == constraint["referred_columns"]
-            ):
-                del required_ref_props[foreign_key["name"]]
-            else:
-                handler.add_action(
-                    ma.DropConstraintMigrationAction(table_name=source_table, constraint_name=foreign_key["name"]), True
-                )
-
-        for prop in required_ref_props.values():
-            handler.add_action(
-                ma.CreateForeignKeyMigrationAction(
-                    source_table=source_table,
-                    referent_table=prop["referred_table"],
-                    constraint_name=prop["name"],
-                    local_cols=prop["constrained_columns"],
-                    remote_cols=prop["referred_columns"],
-                ),
-                True,
-            )
-
-
-def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: RenameMap):
-    allowed_file_tables = []
-    existing_tables = []
-    for model in models:
-        existing_tables.append(rename.get_old_table_name(model.name))
-        for prop in model.properties.values():
-            if isinstance(prop.dtype, File):
-                old_table = rename.get_old_table_name(get_table_name(model))
-                old_column = rename.get_old_column_name(old_table, get_column_name(prop))
-                allowed_file_tables.append(get_pg_table_name(old_table, TableType.FILE, old_column))
-
-    for table in inspector.get_table_names():
-        if TableType.FILE.value in table:
-            split = table.split(f"{TableType.FILE.value}/")
-            if split[0] in existing_tables:
-                if table not in allowed_file_tables and not split[1].startswith("__"):
-                    new_name = get_pg_table_name(split[0], TableType.FILE, f"__{split[1]}")
-                    if inspector.has_table(new_name):
-                        handler.add_action(ma.DropTableMigrationAction(table_name=new_name))
-                    handler.add_action(ma.RenameTableMigrationAction(old_table_name=table, new_table_name=new_name))
-                    drop_all_indexes_and_constraints(inspector, table, new_name, handler)
+    return models, remapped_tables

@@ -1,10 +1,10 @@
 import pytest
+from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.postgresql.commands.summary import extract_uuid
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
-from _pytest.fixtures import FixtureRequest
 
 
 def float_equals(a: float, b: float, epsilon=1e-9):

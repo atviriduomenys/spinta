@@ -2,21 +2,9 @@ from __future__ import annotations
 
 import dataclasses
 from builtins import staticmethod
-from typing import Any
+from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypedDict, Union
 
-from typing import Dict
-from typing import IO
-from typing import List
-from typing import Optional
-from typing import TYPE_CHECKING
-from typing import Tuple
-from typing import TypedDict
-from typing import Union
-
-from spinta.components import Component
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Store
+from spinta.components import Component, Model, Namespace, Store
 from spinta.core.enums import Access, Mode
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.prefix.components import UriPrefix
@@ -42,20 +30,20 @@ class ManifestGiven:
 
 
 class Manifest(Component):
-    type: str = None
-    name: str = None
-    keymap: KeyMap = None
-    backend: Backend = None
-    parent: Component = None
-    store: Store = None
-    _objects: MetaDataContainer = None
-    path: str = None
-    access: Access = Access.protected
+    type: str | None = None
+    name: str | None = None
+    keymap: KeyMap | None = None
+    backend: Backend | None = None
+    parent: Component | None = None
+    store: Store | None = None
+    _objects: MetaDataContainer | None = None
+    path: str | None = None
+    access: Access = Access.private
     prefixes: Dict[str, UriPrefix]
     enums: Enums
 
     # Backends defined in the manifest.
-    backends: Dict[str, Backend] = None
+    backends: Optional[Dict[str, Backend]] = None
 
     # List of other source manifests used to populate nodes into the main
     # manifest.
@@ -101,7 +89,7 @@ ManifestSchema = Tuple[Any, NodeSchema]
 @dataclasses.dataclass
 class ManifestPath:
     type: str = "tabular"
-    name: str = None
-    path: str = None
-    file: IO = None
-    prepare: str = None
+    name: str | None = None
+    path: str | None = None
+    file: Optional[IO] = None
+    prepare: str | None = None

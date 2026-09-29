@@ -1,27 +1,17 @@
 from copy import copy
-from typing import Any, List, Union
-from typing import Callable
-from typing import Dict
-from typing import Hashable
-from typing import Iterator
-from typing import Tuple
-from typing import TypeVar
+from typing import Any, Callable, Dict, Hashable, Iterator, List, Tuple, TypeVar, Union
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_manifest
-from spinta.components import Context, Property, Node
-from spinta.core.enums import Mode
-from spinta.components import Model
-from spinta.core.config import RawConfig, Path
-from spinta.core.config import ResourceTuple
-from spinta.core.config import parse_resource_args
+from spinta.components import Context, Model, Node, Property
+from spinta.core.config import Path, RawConfig, ResourceTuple, parse_resource_args
 from spinta.core.context import configure_context, create_context
-from spinta.datasets.components import Dataset, Resource, ExternalBackend
+from spinta.core.enums import Mode
+from spinta.datasets.components import Dataset, ExternalBackend, Resource
 from spinta.datasets.inspect.components import PriorityKey
 from spinta.exceptions import InvalidResourceSource
-from spinta.manifests.components import Manifest
-from spinta.manifests.components import ManifestPath
+from spinta.manifests.components import Manifest, ManifestPath
 from spinta.manifests.helpers import init_manifest
 from spinta.utils.naming import Deduplicator
 from spinta.utils.schema import NA
@@ -225,13 +215,17 @@ def zipitems(
                 res[mapped_key] = [new_value]
                 continue
 
-            extension_list = []
-            for existing_value in res[mapped_key]:
-                if existing_value[1] is NA:
-                    existing_value[1] = value
-                else:
-                    extension_list.append([existing_value[0], value])
-            res[mapped_key] += extension_list
+            existing_list = res[mapped_key]
+
+            # 1) Fill ALL rows that still have NA on the right
+            na_rows = [row for row in existing_list if row[1] is NA]
+            if na_rows:
+                for row in na_rows:
+                    row[1] = value
+            else:
+                # 2) No NA slots left -> append exactly ONE new row
+                left_side = existing_list[0][0] if existing_list else NA
+                existing_list.append([left_side, value])
 
     yield from res.values()
 

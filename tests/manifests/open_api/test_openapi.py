@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 from spinta.core.config import RawConfig
-from spinta.testing.manifest import load_manifest
 from spinta.manifests.open_api.helpers import model_deduplicator
+from spinta.testing.manifest import load_manifest
 
 
 def test_open_api_manifest(rc: RawConfig, tmp_path: Path):

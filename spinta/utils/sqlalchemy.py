@@ -1,11 +1,15 @@
 import enum
 from typing import Any
 
-from sqlalchemy.cimmutabledict import immutabledict
+try:
+    from sqlalchemy.cimmutabledict import immutabledict
+except ModuleNotFoundError:
+    from sqlalchemy.util import immutabledict
+
 from sqlalchemy.dialects import registry
-from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
-from sqlalchemy.dialects.sqlite.base import SQLiteDialect
 from sqlalchemy.dialects.sqlite import base
+from sqlalchemy.dialects.sqlite.base import SQLiteDialect
+from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
 
 # We use SQLiteDialect_pysqlite, instead of SQLiteDialect, because most of the code is the same, we only want to change
 # Where we get dbapi from

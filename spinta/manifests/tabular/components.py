@@ -1,14 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
-from typing import Dict
-from typing import Final
-from typing import IO
-from typing import List
-from typing import Literal
-from typing import Optional
-from typing import TypedDict
+from typing import IO, Any, Dict, Final, List, Literal, Optional, TypedDict
 
 from spinta.components import PrepareGiven
 from spinta.dimensions.lang.components import LangData
@@ -207,6 +200,7 @@ class ModelRow(TypedDict, total=False):
     title: str
     description: str
     properties: Dict[str, PropertyRow]
+    scopes: Dict[str, ScopeRow]
     external: ModelExternalRow
     backend: str
     lang: LangData
@@ -297,7 +291,25 @@ class CommentRow(TypedDict, total=False):
     # TODO: should be datetime
     created: str
     comment: str
+    prepare: str
+    level: str
+    uri: str
 
 
 class CommentData(TypedDict, total=False):
     comments: Optional[List[CommentRow]]
+
+
+class ScopeRow(TypedDict, total=False):
+    id: str
+    name: str
+    prepare: Dict[str, Any]  # formula
+    access: str
+    level: str
+    status: str
+    visibility: str
+    count: int
+    eli: str
+    uri: str
+    title: str
+    description: str

@@ -1,0 +1,93 @@
+name: "User Story (CLI / API)"
+description: "Aprašyk naudotojo istoriją, susijusią su API endpoint'ais arba CLI komandomis."
+title: "User Story (CLI/API): [Trumpas pavadinimas]"
+labels: ["user story", "api"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 🧩 User Story (CLI / API)
+
+        Naudok šį šabloną kuriant istorijas, susijusias su CLI komandomis ar API funkcionalumu.
+
+  - type: textarea
+    id: formuluote
+    attributes:
+      label: "Formuluotė"
+      description: "Kaip <rolė>, tam, kad <tikslas>, noriu <funkcionalumas>."
+      placeholder: |
+        Kaip sistemos integratorius,
+        tam, kad galėčiau automatizuoti duomenų sinchronizavimą,
+        noriu turėti API endpoint'ą duomenų eksportui.
+      render: markdown
+
+  - type: markdown
+    attributes:
+      value: |
+        > [!NOTE]
+        > Ši formuluotė apibrėžia naudotojo poreikį API ar CLI kontekste.
+
+  - type: textarea
+    id: aprasymas
+    attributes:
+      label: "Aprašymas"
+      description: "Ką turi daryti komanda arba endpoint’as, koks tikslas, kokie apribojimai?"
+      placeholder: |
+        Funkcionalumo tikslas ir kontekstas.
+        Pvz.: šis endpoint'as eksportuoja duomenis CSV formatu, naudojamas kitame servise.
+
+    - type: textarea
+    id: DSA pavyzdys (jei taikoma)
+    attributes:
+      label: "Aprašymas"
+      description: "DSA pavyzdys aprašomam atvejui"
+      placeholder: |
+        DSA aprašas, iliustruojantis input arba output CLI komandai.
+        
+
+  - type: textarea
+    id: tobe
+    attributes:
+      label: "To-Be (pagrindinis)"
+      description: "Kaip API ar CLI turėtų elgtis po pakeitimo."
+      placeholder: |
+        Komandos ar endpoint'o elgesys, parametrai, atsako struktūra, klaidų tvarkymas.
+
+  - type: textarea
+    id: input_output
+    attributes:
+      label: "Įvestis / Išvestis"
+      description: "Aprašyk komandų argumentus arba API request/response struktūrą."
+      placeholder: |
+        **Request:**  
+        POST /api/data/export  
+        Body: { "type": "csv" }
+
+        **Response:**  
+        200 OK  
+        { "url": "/exports/123.csv" }
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance Criteria"
+      description: "Sąlygos, kurias įgyvendinus, istorija laikoma atlikta."
+      placeholder: |
+        - [ ] Endpoint'as grąžina status 200 su teisingu turiniu
+        - [ ] CLI komanda grąžina aiškią klaidą netinkamiems argumentams
+        - [ ] Atsakas atitinka dokumentuotą struktūrą
+
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > Acceptance Criteria turi būti patikrinami — pagal juos bus daromas priėmimas, rašomi automatiniai ar rankiniai testai.
+
+  - type: textarea
+    id: priedai
+    attributes:
+      label: "Priedai"
+      description: "Nuorodos į OpenAPI schemas, CLI dokumentaciją ar susijusius testus."
+      placeholder: |
+        - [ ] CLI komandos dokumentacija
+        - [ ] Susijusi užduotis #123

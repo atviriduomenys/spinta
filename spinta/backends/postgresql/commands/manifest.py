@@ -1,12 +1,12 @@
 import logging
 
 from spinta import commands
-from spinta.components import Context
-from spinta.manifests.components import Manifest
-from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.backend.components import BackendManifest
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.manifest import read_manifest_schemas
+from spinta.components import Context
+from spinta.manifests.backend.components import BackendManifest
+from spinta.manifests.components import Manifest
+from spinta.manifests.helpers import load_manifest_nodes
 
 log = logging.getLogger(__name__)
 
@@ -18,19 +18,18 @@ def load(
     backend: PostgreSQL,
     *,
     into: Manifest = None,
-    freezed: bool = True,
 ) -> None:
     if manifest.backend.bootstrapped():
         if into:
             log.info(
-                'Loading manifest %r into %r from %r backend.',
+                "Loading manifest %r into %r from %r backend.",
                 manifest.name,
                 into.name,
                 manifest.backend.name,
             )
         else:
             log.info(
-                'Loading manifest %r from %r backend.',
+                "Loading manifest %r from %r backend.",
                 manifest.name,
                 manifest.backend.name,
             )
@@ -49,12 +48,9 @@ def load(
         )
 
         target = into or manifest
-        if not commands.has_model(context, target, '_schema'):
-            store = context.get('store')
+        if not commands.has_model(context, target, "_schema"):
+            store = context.get("store")
             commands.load(context, store.internal, into=target)
 
         for source in manifest.sync:
-            commands.load(context, source, into=into or manifest, freezed=freezed)
-
-
-
+            commands.load(context, source, into=into or manifest)

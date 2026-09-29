@@ -16,6 +16,10 @@ class Script(enum.Enum):
     CLIENTS = "clients"
     REDIRECT = "redirect"
 
+    # Internal postgresql migrations
+    POSTGRESQL_COMMENTS = "postgresql_comments"
+    POSTGRESQL_SCHEMAS = "postgresql_schemas"
+
     # Sqlalchemy keymap migrations
     SQL_KEYMAP_INITIAL = "sqlalchemy_keymap_001_initial"
     SQL_KEYMAP_REDIRECT = "sqlalchemy_keymap_002_redirect_support"

@@ -3,12 +3,10 @@ from typing import Any
 
 from spinta import commands
 from spinta.components import Model
-from spinta.core.ufuncs import Bind, Expr
-from spinta.core.ufuncs import Env
-from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Bind, Env, Expr, ufunc
 from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder, ParamLoader
-from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
+from spinta.exceptions import InvalidParamSource, KeyNotFound, ModelNotFound, PropertyNotFound
 from spinta.utils.schema import NotAvailable
 
 
@@ -19,7 +17,7 @@ def param(env: Env, bind: Bind) -> Any:
 
 @ufunc.resolver(ParamBuilder, Model)
 def read(env: ParamBuilder, model: Model) -> Any:
-    return commands.getall(env.context, model, model.backend, resolved_params=env.params)
+    return commands.getall(env.context, model, model.backend, resolved_params=env.params, query=env.url_query_params)
 
 
 @ufunc.resolver(ParamBuilder, str)
@@ -72,16 +70,6 @@ def getattr_(env: ParamBuilder, data: dict, bind: Bind):
 @ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
 def getattr_(env: ParamBuilder, _: NotAvailable):
     return env.this
-
-
-# {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}
-# getattr [ loop(read()), bind(more) ]
-#  1 -> stack = [1]
-#  loop stack [1]
-#  read(1) -> 2
-#  pop(1) from stack
-#  2 -> stack
-#  loop until stack is empty
 
 
 @ufunc.executor(ParamBuilder, NotAvailable)

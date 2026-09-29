@@ -1,10 +1,10 @@
-from spinta import commands, exceptions
+import psycopg2.errors as psy_errors
+from sqlalchemy.exc import IntegrityError, OperationalError
+
 import spinta.backends.postgresql.helpers.extractors as extractor
+from spinta import commands, exceptions
 from spinta.components import DataItem
 from spinta.core.enums import Action
-from sqlalchemy.exc import IntegrityError, OperationalError
-import psycopg2.errors as psy_errors
-
 from spinta.exceptions import OutOfMemoryMigrate
 from spinta.manifests.components import Manifest
 
@@ -19,9 +19,7 @@ def create_exception(item: DataItem, error: psy_errors.ForeignKeyViolation):
     error_message = error.diag.message_detail
     if item.action is Action.DELETE:
         error_model = extractor.extract_error_model(error_message)
-        return exceptions.ReferringObjectFound(
-            item.model.properties.get("_id"), model=error_model, id=item.saved.get("_id")
-        )
+        return exceptions.ReferringObjectFound(item.model.id_prop, model=error_model, id=item.saved.get("_id"))
     else:
         error_property_names = extractor.extract_error_property_names(error_message)
         error_ref_id = extractor.extract_error_ref_id(error_message)

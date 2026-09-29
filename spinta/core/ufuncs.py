@@ -3,10 +3,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import importlib
-from typing import Any, Optional, List, Union
-from typing import Dict
-from typing import TYPE_CHECKING
-from typing import Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 from spinta import spyna
 from spinta.dispatcher import Command
@@ -139,6 +136,10 @@ class UFuncRegistry:
             # It is enough to just import module, ufuncs will be collected
             # automatically by __call__.
             importlib.import_module(module)
+
+    def register(self, name: str, func: Callable, types: tuple) -> None:
+        """Register a single (name, func, types) for plugin-discovered resolvers."""
+        self._ufuncs.append((name, func, types))
 
     def ufuncs(self):
         # Create commands from collected ufuncs.

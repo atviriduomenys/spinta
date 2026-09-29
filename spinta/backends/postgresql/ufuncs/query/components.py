@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import List, Union, Any, Tuple
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Tuple, Union
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import array_agg
@@ -10,20 +9,18 @@ from sqlalchemy.sql.functions import Function
 
 from spinta.backends import get_property_base_model
 from spinta.backends.constants import TableType
-
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
-from spinta.exceptions import PropertyNotFound
-from spinta.exceptions import UnknownMethod
+from spinta.exceptions import PropertyNotFound, UnknownMethod
 from spinta.types.datatype import DataType, Denorm
-from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams, Func
+from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.querybuilder.components import Func, QueryBuilder, QueryPage, QueryParams
 from spinta.ufuncs.querybuilder.helpers import (
+    merge_with_page_limit,
     merge_with_page_selected_list,
     merge_with_page_sort,
-    merge_with_page_limit,
 )
-from spinta.ufuncs.components import ForeignProperty
 
 if TYPE_CHECKING:
     from spinta.backends.postgresql.components import PostgreSQL
@@ -60,11 +57,9 @@ class PgQueryBuilder(QueryBuilder):
             self.call("select", Expr("select"))
 
         if not self.aggregate:
-            self.selected["_id"] = Selected(
-                item=self.add_column(self.table.c["_id"]), prop=self.model.properties["_id"]
-            )
+            self.selected["_id"] = Selected(item=self.add_column(self.table.c["_id"]), prop=self.model.id_prop)
             self.selected["_revision"] = Selected(
-                item=self.add_column(self.table.c["_revision"]), prop=self.model.properties["_revision"]
+                item=self.add_column(self.table.c["_revision"]), prop=self.model.revision_prop
             )
         merged_selected = merge_with_page_selected_list(self.columns, self.page)
         merged_sorted = merge_with_page_sort(self.sort, self.page)
@@ -119,7 +114,7 @@ class PgQueryBuilder(QueryBuilder):
             else:
                 rtable = self.backend.get_table(rmodel).alias()
 
-            rpkey = self.backend.get_column(rtable, rmodel.properties["_id"])
+            rpkey = self.backend.get_column(rtable, rmodel.id_prop)
 
             if isinstance(lrkey, list) and not isinstance(rpkey, list):
                 if len(lrkey) == 1:
@@ -202,10 +197,10 @@ class PgQueryBuilder(QueryBuilder):
             raise PropertyNotFound(model, property=prop)
 
         ltable = self.backend.get_table(inherit_model)
-        lrkey = self.backend.get_column(ltable, inherit_model.properties["_id"])
+        lrkey = self.backend.get_column(ltable, inherit_model.id_prop)
 
         rtable = self.backend.get_table(base_model).alias()
-        rpkey = self.backend.get_column(rtable, base_model.properties["_id"])
+        rpkey = self.backend.get_column(rtable, base_model.id_prop)
 
         if base_model.name in self.joins:
             if self.joins[base_model.name] == rtable:

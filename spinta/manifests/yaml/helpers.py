@@ -1,29 +1,25 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, Optional, Tuple, List
-
 import pathlib
 import uuid
+from typing import TYPE_CHECKING, Iterator, Optional, Tuple
 
 import jsonpatch
-
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
 from ruamel.yaml.error import YAMLError
+from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scalarstring import walk_tree
+from ruamel.yaml.scanner import ScannerError
 
-from spinta import spyna
-from spinta import exceptions
+from spinta import exceptions, spyna
+from spinta.components import Context
 from spinta.exceptions import InvalidManifestFile
 from spinta.manifests.yaml.components import InlineManifest
-from spinta.utils.itertools import last
 from spinta.utils.path import is_ignored
-from spinta.components import Context
 
 if TYPE_CHECKING:
-    from spinta.migrations import SchemaVersion
     from spinta.manifests.yaml.components import YamlManifest
+    from spinta.migrations import SchemaVersion
 
 yaml = YAML(typ="safe")
 
@@ -91,15 +87,6 @@ def read_manifest_schemas(
 ) -> Iterator[Tuple[pathlib.Path, Optional[dict]]]:
     for path in list_yaml_files(manifest):
         yield path, next(read_yaml_file(path), None)
-
-
-def read_freezed_manifest_schemas(
-    manifest: YamlManifest,
-) -> Iterator[Tuple[pathlib.Path, Optional[dict], List[dict]]]:
-    for path in list_yaml_files(manifest):
-        freezed = last(read_schema_versions(path), None)
-        if freezed:
-            yield path, freezed["schema"]
 
 
 def read_inline_manifest_schemas(

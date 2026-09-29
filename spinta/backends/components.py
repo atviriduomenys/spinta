@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Type
-from typing import Dict
-from typing import Optional
-from typing import Set
+import dataclasses
+from typing import Any, Dict, Optional, Set, Type
 
-from spinta.backends.constants import BackendOrigin, BackendFeatures
+from spinta.backends.constants import BackendFeatures, BackendOrigin, DistributionType
 from spinta.core.ufuncs import Env
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
@@ -38,6 +36,9 @@ class Backend:
     result_builder_type: str = ""
     result_builder_class: Type[ResultBuilder]
 
+    # Some backends might only work with source given to models and some might not need it
+    model_requires_source: bool = False
+
     def __repr__(self):
         return f"<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}) at 0x{id(self):02x}>"
 
@@ -58,3 +59,9 @@ class Backend:
 
 
 SelectTree = Optional[Dict[str, "SelectTree"]]
+
+
+@dataclasses.dataclass
+class DistributionStrategy:
+    distribution_type: DistributionType
+    property: str | None = None

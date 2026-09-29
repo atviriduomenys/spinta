@@ -1,6 +1,5 @@
 from typing import Optional
 
-
 METADATA = {
     "id": None,
     "pk": "id",

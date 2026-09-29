@@ -1,7 +1,0 @@
----
-type: model
-name: backends/mongo/Continent
-title: Continent
-properties:
-  title:
-    type: string

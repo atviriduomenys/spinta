@@ -1,7 +1,7 @@
 from spinta import commands
+from spinta.backends.fs.components import FileSystem
 from spinta.components import Context
 from spinta.manifests.components import Manifest
-from spinta.backends.fs.components import FileSystem
 
 
 @commands.migrate.register(Context, Manifest, FileSystem)

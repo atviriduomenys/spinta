@@ -7,7 +7,8 @@ ENV PIP_NO_CACHE_DIR=1
 COPY . /app/
 RUN useradd -m -s /bin/bash spinta
 
-RUN chmod +x /app/entrypoint.sh
+RUN chmod +x /app/entrypoint-internal.sh
+RUN chmod +x /app/entrypoint-external.sh
 RUN chown -R spinta:spinta /app
 
 WORKDIR /app

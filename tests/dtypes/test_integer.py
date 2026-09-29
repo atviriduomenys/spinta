@@ -9,8 +9,8 @@ from spinta.backends.memory.components import Memory
 from spinta.commands.write import dataitem_from_payload
 from spinta.components import Store
 from spinta.core.config import RawConfig
-from spinta.testing.manifest import bootstrap_manifest
 from spinta.manifests.components import Manifest
+from spinta.testing.manifest import bootstrap_manifest
 
 
 @pytest.mark.manifests("internal_sql", "csv")

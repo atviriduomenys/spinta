@@ -1,7 +1,6 @@
 import pathlib
 
 import pytest
-
 from responses import GET
 
 from spinta.testing.datasets import pull

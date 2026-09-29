@@ -4,9 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import AsciiManifest
-from spinta.manifests.tabular.components import CsvManifest
-from spinta.manifests.tabular.components import TabularManifest
+from spinta.manifests.tabular.components import AsciiManifest, CsvManifest, TabularManifest
 from spinta.manifests.tabular.helpers import read_tabular_manifest
 
 log = logging.getLogger(__name__)
@@ -18,13 +16,10 @@ def load(
     manifest: TabularManifest,
     *,
     into: Manifest = None,
-    freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
     full_load=False,
 ):
-    assert freezed, "TabularManifest does not have unfreezed version of manifest."
-
     if load_internal:
         target = into or manifest
         if not commands.has_model(context, target, "_schema"):
@@ -74,7 +69,6 @@ def load(
             context,
             source,
             into=into or manifest,
-            freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
             full_load=full_load,

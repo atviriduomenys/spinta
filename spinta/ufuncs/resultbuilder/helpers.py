@@ -9,7 +9,7 @@ from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum
 from spinta.ufuncs.querybuilder.components import Selected
-from spinta.ufuncs.resultbuilder.components import ResultBuilder, EnumResultBuilder
+from spinta.ufuncs.resultbuilder.components import EnumResultBuilder, ResultBuilder
 from spinta.utils.schema import NA
 
 ResultBuilderGetter = abc.Callable[[], ResultBuilder]

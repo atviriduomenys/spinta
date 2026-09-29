@@ -1,16 +1,15 @@
-from typing import Any
-from typing import List
-
 import os
 import sys
 import traceback
+from typing import Any, List
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from spinta.cli import main
 from spinta.core.config import RawConfig
-from spinta.testing.context import create_test_context
+from spinta.testing.context import close_context_engines, create_test_context
 
 
 def _prepare_args(args: List[Any]) -> List[str]:
@@ -34,6 +33,18 @@ def _prepare_args(args: List[Any]) -> List[str]:
     return result
 
 
+def result_contains(
+    result: Result,
+    message: str,
+    *,
+    error_stream: bool = True,
+) -> bool:
+    if error_stream:
+        return message in result.stderr
+
+    return message in result.stdout
+
+
 class SpintaCliRunner(CliRunner):
     def invoke(
         self,
@@ -43,12 +54,21 @@ class SpintaCliRunner(CliRunner):
         **kwargs,
     ):
         assert isinstance(rc, RawConfig)
+        own_context = None
         if "obj" not in kwargs:
-            context = create_test_context(rc, name="pytest/cli")
-            kwargs["obj"] = context
+            own_context = create_test_context(rc, name="pytest/cli")
+            kwargs["obj"] = own_context
 
         args = _prepare_args(args)
-        result = super().invoke(main.app, args, **kwargs)
+        try:
+            result = super().invoke(main.app, args, **kwargs)
+        finally:
+            # Dispose engines created for the context we own here. Otherwise, on a
+            # command failure the traceback kept by pytest pins the context (and
+            # its open connection pool) until the session ends, which on CPython
+            # 3.14 accumulates and exhausts the PostgreSQL connection limit.
+            if own_context is not None:
+                close_context_engines(own_context)
         if result.exc_info is not None:
             t, e, tb = result.exc_info
             if not isinstance(e, SystemExit):

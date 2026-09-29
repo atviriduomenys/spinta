@@ -1,16 +1,15 @@
 from pathlib import Path
 
-from pytest import FixtureRequest
 import pytest
+from pytest import FixtureRequest
+from starlette.datastructures import Headers
+
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
-from starlette.datastructures import Headers
-
 from spinta.testing.utils import error
 
 
@@ -48,8 +47,6 @@ def test_text(
     # Read data
     resp = app.get("/backends/postgres/dtypes/text/Country?select(name@en, name@lt)")
     assert listdata(resp, full=True) == [{"name.en": "Lithuania", "name.lt": "Lietuva"}]
-
-    listdata(resp, full=True)
 
 
 @pytest.mark.manifests("internal_sql", "csv")

@@ -3,17 +3,22 @@ import pathlib
 from typing import Type
 
 from ruamel.yaml import YAML
+from spinta.adapters.soap_plugins import register_soap_ufuncs
 
+from spinta import components
 from spinta.auth import client_name_exists, get_clients_path
-from spinta.formats.components import Format
-from spinta.core.config import DEFAULT_CONFIG_PATH
-from spinta.core.config import DEFAULT_DATA_PATH
-from spinta.utils.config import asbool, get_config_path
-from spinta.utils.imports import importstr
+from spinta.backends.components import DistributionStrategy
+from spinta.backends.constants import DistributionType
 from spinta.commands import load, check
 from spinta.components import Context, Config
-from spinta import components
+from spinta.core.config import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
+from spinta.core.enums import Access
 from spinta.core.ufuncs import ufunc
+from spinta.formats.components import Format
+from spinta.logging_config import setup_logging
+from spinta.utils.config import asbool, get_config_path
+from spinta.utils.enums import get_enum_by_name, get_enum_by_value
+from spinta.utils.imports import importstr
 from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
@@ -37,6 +42,7 @@ def load(context: Context, config: Config) -> Config:
 
     # Load ufuncs.
     ufunc.resolver.collect(rc.get("ufuncs"))
+    register_soap_ufuncs(ufunc.resolver, rc)
     config.resolvers = ufunc.resolver.ufuncs()
     config.executors = ufunc.executor.ufuncs()
 
@@ -66,15 +72,32 @@ def load(context: Context, config: Config) -> Config:
         rc.get("data_path") or DEFAULT_DATA_PATH,
     )
     config.credentials_file = pathlib.Path(rc.get("credentials_file") or DEFAULT_CONFIG_PATH / "credentials.cfg")
-    config.server_url = rc.get("server_url")
+    config.server_url = (rc.get("server_url") or "").rstrip("/")
     config.scope_prefix = rc.get("scope_prefix")
     config.scope_formatter = rc.get("scope_formatter", cast=importstr)
     config.scope_prefix_udts = rc.get("scope_prefix_udts")
     config.scope_max_length = rc.get("scope_max_length", cast=int)
     config.scope_log = rc.get("scope_log", default=False, cast=asbool)
+    config.check_contract_scopes = rc.get("check_contract_scopes", default=False, cast=asbool)
     config.default_auth_client = rc.get("default_auth_client")
+    config.default_access_level = rc.get(
+        "default_access_level",
+        default="private",
+        cast=lambda name: get_enum_by_name(Access, name),
+    )
+    config.access = rc.get(
+        "access",
+        default="open",
+        cast=lambda name: get_enum_by_name(Access, name),
+    )
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
+    config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
+    config.token_issuer = rc.get("token_issuer")
+    config.resource_server = rc.get("resource_server")
+    config.downloaded_public_keys_file = pathlib.Path(
+        rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
+    )
     config.datasets = rc.get("datasets", default={})
     config.env = rc.get("env")
     config.docs_path = rc.get("docs_path", default=None)
@@ -82,25 +105,60 @@ def load(context: Context, config: Config) -> Config:
     config.default_page_size = rc.get("default_page_size", default=100000, cast=int)
     config.enable_pagination = rc.get("enable_pagination", default=True, cast=bool)
     config.sync_page_size = rc.get("sync_page_size", default=100000, cast=int)
+    config.sync_retry_count = rc.get("sync_retry_count", default=5, cast=int)
+    config.sync_retry_delay_range = rc.get("sync_retry_delay_range", default=(1, 5, 10, 30, 60), cast=tuple)
     config.languages = rc.get("languages", default=[])
     config.check_names = rc.get("check", "names", default=False)
+    config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
+    front_page_warning = rc.get("texts", "front_page_warning", default="")
+    if isinstance(front_page_warning, list):
+        # CLI `-o` option values containing commas are split into lists
+        # by CliArgs; join them back into the original text.
+        front_page_warning = ", ".join(str(v) for v in front_page_warning)
+    config.front_page_warning = str(front_page_warning) if front_page_warning else ""
     config.max_api_file_size = rc.get("max_file_size", default=100)
     config.max_error_count_on_insert = rc.get("max_error_count_on_insert", default=100)
-    config.load_backends = rc.get("load_backends", default=True)
+    config.ensure_backends = rc.get("ensure_backends", default=True)
     if config.root is not None:
         config.root = config.root.strip().strip("/")
 
     # XXX: A check to make sure, that I don't add mode to the config root, which
     #      already happened several times. Remove this, when configuration
     #      ensures that there are no unknown configuration options added.
-    if rc.get("mode") is not None:
+    if rc.get("mode", default=None) is not None:
         raise RuntimeError(
             "Configuration option `mode` must be added to a manifest, now it is added to the config root."
         )
     config.upgrade_mode = rc.get("upgrade_mode", default=False)
 
     config.cache_control = rc.get("cache_control_header", default="")
+
+    config.http_strict_transport_security = rc.get("http_strict_transport_security", default="")
+
+    config.health_min_free_disk_space = rc.get("health", "min_free_disk_space", default=2048, cast=int)
+    config.health_min_free_memory = rc.get("health", "min_free_memory", default=256, cast=int)
+
+    if config.token_validation_keys_download_url and config.token_validation_key:
+        raise ValueError(
+            "token_validation_keys_download_url and token_validation_keys_download_url are mutually exclusive and can't be used together. Use one."
+        )
+
+    # Logging configuration
+    config.log_level = rc.get("log_level", default="WARNING")
+    config.file_log_level = rc.get("file_log_level", default="DEBUG")
+    config.file_log_path = pathlib.Path(rc.get("file_log_path", default=pathlib.Path().home() / ".spinta_logs"))
+
+    setup_logging(config)
+
+    config.default_distribution_strategy = rc.get(
+        "default_distribution_strategy",
+        default=DistributionType.UNDISTRIBUTED.value,
+        cast=lambda strategy: DistributionStrategy(
+            get_enum_by_value(DistributionType, strategy),
+            property=rc.get("default_distribution_property", default=None),
+        ),
+    )
 
     config.default_limit_objects = rc.get("default_limit_objects", default=None)
     config.default_limit_bytes = tobytes(rc.get("default_limit_bytes", default="1g"))

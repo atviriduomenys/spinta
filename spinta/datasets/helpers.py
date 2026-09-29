@@ -1,27 +1,29 @@
-from typing import Any
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Set
+import base64
+from typing import Any, List, Optional, Set, Tuple
 
-from spinta import exceptions
+import cbor2
+
+from spinta import commands, exceptions
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.backends.helpers import load_backend
+from spinta.backends.helpers import check_if_model_primary_key_is_composite, load_backend
+from spinta.components import Context, Model, Namespace, Property, ScopeFormatterFunc
 from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ShortExpr
+from spinta.core.ufuncs import Expr, ShortExpr
+from spinta.datasets.backends.helpers import flatten_keymap_encoding_values
 from spinta.datasets.components import Resource
+from spinta.datasets.keymaps.components import KeyMap
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.types.datatype import Ref
+from spinta.exceptions import GivenValueCountMissmatch, PropertyNotFound, ValuesForIdCantHaveSpecialSymbols
+from spinta.types.datatype import Base32, Ref
 from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
 from spinta.utils.naming import to_code_name
+
+INVALID_PREFIXES = ("/", "@", ":", "?")
 
 
 def load_resource_backend(
@@ -166,7 +168,7 @@ def get_ref_filters(
     seen = seen or []
 
     for prop in take(["_id", all], model.properties).values():
-        if prop.external is None or not prop.external.name:
+        if not prop.external or not prop.external.name:
             # Do not include properties, that has no external source, we can't
             # query data if there is no source.
             continue
@@ -189,3 +191,121 @@ def get_ref_filters(
             )
 
     return query
+
+
+def encode_composite_string_id(values: list, pkeys: list) -> str:
+    for primary_key, value in zip(pkeys, values):
+        value = str(value)
+        if "," in value or value.startswith(INVALID_PREFIXES):
+            raise ValuesForIdCantHaveSpecialSymbols(value=value, property=primary_key.name or primary_key)
+    return ",".join(str(value) for value in values)
+
+
+def decode_id_value(id_prop: Property, value: str | list) -> list:
+    decoded_value = value
+    if check_if_model_primary_key_is_composite(id_prop.model):
+        if isinstance(id_prop.dtype, Base32):
+            padded = value + "=" * (-len(value) % 8)
+            decoded_value = cbor2.loads(base64.b32decode(padded.encode("utf-8")))
+        else:
+            decoded_value = value.split(",")
+
+    elif isinstance(id_prop.dtype, Base32):
+        padded = value + "=" * (-len(value) % 8)
+        decoded_value = base64.b32decode(padded.encode("utf-8")).decode("utf-8")
+
+    if not isinstance(decoded_value, list):
+        decoded_value = [decoded_value]
+
+    return decoded_value
+
+
+def extract_and_cast_properties_from_list(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    keymap: KeyMap,
+    data: dict,
+    cache: dict | None = None,
+    prefix: str = "",
+    **kwargs,
+):
+    if cache is None:
+        cache = {}
+
+    result = {}
+
+    for key, value in data.items():
+        prop_key = f"{prefix}.{key}" if prefix else key
+        prop = commands.resolve_property(model, prop_key)
+        if prop is None:
+            raise PropertyNotFound(model, property=prop_key)
+        if prop_key not in cache:
+            cache[prop_key] = commands.cast_backend_to_python(context, prop, backend, value, keymap=keymap, **kwargs)
+        result[key] = cache[prop_key]
+
+    return result
+
+
+def process_data_for_pkey(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    keymap: KeyMap,
+    data: dict,
+    cache: dict | None = None,
+    prefix: str = "",
+    **kwargs,
+) -> list | object | None:
+    processed_data = extract_and_cast_properties_from_list(
+        context=context,
+        backend=backend,
+        model=model,
+        data=data,
+        keymap=keymap,
+        cache=cache,
+        prefix=prefix,
+        **kwargs,
+    )
+    encoding_values = list(processed_data.values())
+
+    if all(value is None for value in encoding_values):
+        return None
+
+    if len(encoding_values) == 1:
+        encoding_values = encoding_values[0]
+
+    # Backwards compatibility, all nested values are converted to list values without keys
+    encoding_values = flatten_keymap_encoding_values(encoding_values)
+
+    return encoding_values
+
+
+def compare_ref_property_count(dtype: Ref, data: list) -> None:
+    prop_count_mapping = {}
+    for prop in dtype.refprops:
+        prop_count_mapping[prop.name] = 1
+    expected_count = sum(item for item in prop_count_mapping.values())
+    if len(data) != expected_count:
+        raise GivenValueCountMissmatch(dtype, given_count=len(data), expected_count=expected_count)
+
+
+def authorized_or_system_request(
+    context: Context,
+    node: Namespace | Model | Property,
+    action: Action,
+    *,
+    throw: bool = False,
+    scope_formatter: ScopeFormatterFunc | None = None,
+) -> bool:
+    # Bypass authorization checks for system-generated requests.
+    # TODO: Remove when `_id` generation no longer needs to select from another model.
+
+    system_request = False
+    if context.has("request.system"):
+        system_request = context.get("request.system")
+
+    if system_request:
+        return True
+
+    return authorized(context=context, node=node, action=action, throw=throw, scope_formatter=scope_formatter)

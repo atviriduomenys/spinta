@@ -1,45 +1,27 @@
 from __future__ import annotations
 
-from typing import Any, Type
-from typing import Dict
-from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import TYPE_CHECKING
-from typing import TypeVar
-from typing import Union
-from typing import overload
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Type, TypeVar, Union, overload
 
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta.components import Namespace
-from spinta.components import Node, DataItem, PageInfo, Page, Base
-from spinta.components import UrlParams
-from spinta.components import Version
+from spinta.components import Base, DataItem, Namespace, Node, Page, PageInfo, UrlParams, Version
 from spinta.dispatcher import command
 from spinta.exceptions import BaseError
-from spinta.manifests.components import ManifestSchema
-from spinta.manifests.components import NodeSchema
+from spinta.manifests.components import ManifestSchema, NodeSchema
 from spinta.typing import ObjectData
 
 if TYPE_CHECKING:
-    from spinta.components import Store
-    from spinta.components import Model
-    from spinta.components import Property
-    from spinta.types.datatype import DataType
-    from spinta.core.enums import Action
     from spinta.backends import Backend
-    from spinta.components import Context
-    from spinta.manifests.components import Manifest
-    from spinta.datasets.components import Dataset
-    from spinta.datasets.components import Resource
-    from spinta.datasets.components import Entity
-    from spinta.datasets.components import ExternalBackend
+    from spinta.components import Context, Model, Property, Store
+    from spinta.core.enums import Action
+    from spinta.core.ufuncs import Expr
+    from spinta.datasets.components import Dataset, Entity, ExternalBackend, Resource
+    from spinta.dimensions.enum.components import EnumItem
     from spinta.formats.components import Format
     from spinta.formats.html.components import ComplexCell
-    from spinta.core.ufuncs import Expr
-    from spinta.dimensions.enum.components import EnumItem
+    from spinta.manifests.components import Manifest
+    from spinta.types.datatype import DataType
 
 T = TypeVar("T")
 
@@ -64,14 +46,6 @@ def manifest_read_current():
 
 
 @command()
-def manifest_read_freezed():
-    """Return last freezed schema by given schema entry id.
-
-    Freezed schema is schema of last freezed version.
-    """
-
-
-@command()
 def manifest_read_versions():
     """Return iterator of all schema versions by given schema entry id."""
 
@@ -90,7 +64,6 @@ def load(
     manifest: Manifest,
     *,
     into: Manifest = None,
-    freezed: bool = True,
     # Do not raise error, when trying to load a node, with a name, that is
     # already loaded, instead rename the new node.
     rename_duplicates: bool = False,
@@ -420,20 +393,6 @@ def prepare_dtype_for_response():
 
 
 @command()
-def freeze():
-    """Create new schema version.
-
-    Freeze commands receive empty manifest instance, returned by create_manifest
-    helper funciton. Then freeze command should fully load two versions of
-    manijest, one version is current and another is freezed.
-
-    Then these two manifests will be compared and a new version will be produced
-    for each model if current differs from freezed.
-
-    """
-
-
-@command()
 def bootstrap():
     """Bootstrap all components.
 
@@ -702,8 +661,7 @@ def move():
 def get_primary_key_type():
     """Return primary key column type.
 
-    This applyies to some backends, for example PostgreSQL, but is not used by
-    other backends, like Mongo.
+    This applies to some backends, for example PostgreSQL.
 
     PostgreSQL returns sqlalchemy.dialects.postgresql.UUID.
     """
@@ -1182,6 +1140,18 @@ def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], *
 
 
 @command()
+def get_model_properties(context: Context, manifest: Manifest, model_name: str, **kwargs) -> dict[str, Property]:
+    """Get all properties of a specific model."""
+
+
+@command()
+def set_property(
+    context: Context, manifest: Manifest, model_name: str, property_name: str, property: Property, **kwargs
+):
+    """Add property to manifest, under a specific model."""
+
+
+@command()
 def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> bool:
     """Check if manifest has specified namespace"""
 
@@ -1222,8 +1192,30 @@ def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset
 
 
 @command()
+def get_dataset_resources(context: Context, manifest: Manifest, dataset_name: str, **kwargs):
+    """Get resources for a particular dataset."""
+
+
+@command()
+def get_resource(context: Context, manifest: Manifest, dataset_name: str, resource_name: str, **kwargs):
+    """Get resource of a specific dataset."""
+
+
+@command()
+def set_resource(
+    context: Context, manifest: Manifest, dataset_name: str, resource_name: str, resource: Resource, **kwargs
+):
+    """Add resource to manifest, under a specific dataset."""
+
+
+@command()
 def get_dataset_models(context: Context, manifest: Manifest, dataset_name: str, **kwargs):
     """Get all models that belong to the dataset"""
+
+
+@command()
+def get_dataset_model_properties(context: Context, manifest: Manifest, dataset_name: str, model_name: str, **kwargs):
+    """Get all model properties of a specific dataset."""
 
 
 @command()

@@ -1,22 +1,32 @@
 from pathlib import Path
 
 import sqlalchemy as sa
-from sqlalchemy.engine.url import URL
+from sqlalchemy.engine import Engine
 
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_identifier
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.migration import (
+    add_changelog_table,
+    add_column_comment,
+    add_index,
+    add_redirect_table,
+    add_schema,
+    add_table_comment,
+    drop_column,
+    drop_table,
+)
 from tests.backends.postgresql.commands.migrate.test_migrations import (
-    cleanup_tables,
-    override_manifest,
     cleanup_table_list,
     configure_migrate,
+    override_manifest,
 )
 
 
 def test_migrate_create_models_with_file_type(
-    postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
+    migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path
 ):
-    cleanup_tables(postgresql_migration)
     initial_manifest = """
      d               | r | b | m    | property     | type | ref | source
     """
@@ -38,24 +48,15 @@ def test_migrate_create_models_with_file_type(
                      |   |      |      | new            | file    |                      | 
     """,
     )
-
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/Test")
+    flag_table_identifier = table_identifier.change_table_type(new_type=TableType.FILE, table_arg="flag")
+    new_table_identifier = table_identifier.change_table_type(new_type=TableType.FILE, table_arg="new")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'CREATE TABLE "migrate/example/Test/:file/flag" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    _block BYTEA, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:file/flag" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:file/new" (\n'
-        "    _id UUID NOT NULL, \n"
-        "    _block BYTEA, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:file/new" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test" (\n'
+        f"{add_schema(schema='migrate/example')}"
+        'CREATE TABLE "migrate/example"."Test" (\n'
         "    _txn UUID, \n"
         "    _created TIMESTAMP WITHOUT TIME ZONE, \n"
         "    _updated TIMESTAMP WITHOUT TIME ZONE, \n"
@@ -74,53 +75,65 @@ def test_migrate_create_models_with_file_type(
         '    "new._size" BIGINT, \n'
         '    "new._bsize" INTEGER, \n'
         '    "new._blocks" UUID[], \n'
-        '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id), \n'
-        '    CONSTRAINT "uq_migrate/example/Test_someText_someNumber" UNIQUE '
+        '    CONSTRAINT "pk_Test" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_Test_someText_someNumber" UNIQUE '
         '("someText", "someNumber")\n'
         ");\n"
         "\n"
-        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
-        "(_txn);\n"
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
-        "    _id BIGSERIAL NOT NULL, \n"
-        "    _revision VARCHAR, \n"
-        "    _txn UUID, \n"
-        "    _rid UUID, \n"
-        "    datetime TIMESTAMP WITHOUT TIME ZONE, \n"
-        "    action VARCHAR(8), \n"
-        "    data JSONB, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
-        '"migrate/example/Test/:changelog" (_txn);\n'
-        "\n"
-        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
+        f"{add_index(table_identifier=table_identifier, index_name='ix_Test__txn', columns=['_txn'])}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_txn')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_created')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_updated')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='_revision')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someText')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someInteger')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='someNumber')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='flag._id')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='flag._content_type')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='flag._size')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='flag._bsize')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='flag._blocks')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='new._id')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='new._content_type')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='new._size')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='new._bsize')}"
+        f"{add_column_comment(table_identifier=table_identifier, column='new._blocks')}"
+        f"{add_table_comment(table_identifier=table_identifier, comment='migrate/example/Test')}"
+        'CREATE TABLE "migrate/example"."Test/:file/flag" (\n'
         "    _id UUID NOT NULL, \n"
-        "    redirect UUID, \n"
-        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
-        ");\n"
-        "\n"
-        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
-        '"migrate/example/Test/:redirect" (redirect);\n'
-        "\n"
+        "    _block BYTEA, \n"
+        '    CONSTRAINT "pk_Test/:file/flag" PRIMARY KEY (_id)\n'
+        ");\n\n"
+        f"{add_column_comment(table_identifier=flag_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=flag_table_identifier, column='_block')}"
+        f"{add_table_comment(table_identifier=flag_table_identifier, comment='migrate/example/Test/:file/flag')}"
+        'CREATE TABLE "migrate/example"."Test/:file/new" (\n'
+        "    _id UUID NOT NULL, \n"
+        "    _block BYTEA, \n"
+        '    CONSTRAINT "pk_Test/:file/new" PRIMARY KEY (_id)\n'
+        ");\n\n"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_id')}"
+        f"{add_column_comment(table_identifier=new_table_identifier, column='_block')}"
+        f"{add_table_comment(table_identifier=new_table_identifier, comment='migrate/example/Test/:file/new')}"
+        f"{add_changelog_table(table_identifier=table_identifier, comment='migrate/example/Test/:changelog')}"
+        f"{add_redirect_table(table_identifier=table_identifier, comment='migrate/example/Test/:redirect')}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:file/flag",
-            "migrate/example/Test/:file/new",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:file/flag",
+            "migrate/example.Test/:file/new",
         }.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",
@@ -149,8 +162,7 @@ def test_migrate_create_models_with_file_type(
         )
 
 
-def test_migrate_remove_file_type(postgresql_migration: URL, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    cleanup_tables(postgresql_migration)
+def test_migrate_remove_file_type(migration_db: Engine, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     initial_manifest = """
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -180,40 +192,34 @@ def test_migrate_remove_file_type(postgresql_migration: URL, rc: RawConfig, cli:
     )
 
     result = cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv", "-p"])
+    table_identifier = get_table_identifier("migrate/example/Test")
+    file_table_identifier = table_identifier.change_table_type(new_type=TableType.FILE, table_arg="new")
     assert result.output.endswith(
         "BEGIN;\n"
         "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._id" TO "__new._id";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._content_type" TO '
-        '"__new._content_type";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._size" TO "__new._size";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._bsize" TO "__new._bsize";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test" RENAME "new._blocks" TO "__new._blocks";\n'
-        "\n"
-        'ALTER TABLE "migrate/example/Test/:file/new" RENAME TO '
-        '"migrate/example/Test/:file/__new";\n'
-        "\n"
+        f"{drop_column(table_identifier=table_identifier, column='new._id')}"
+        f"{drop_column(table_identifier=table_identifier, column='new._content_type')}"
+        f"{drop_column(table_identifier=table_identifier, column='new._size')}"
+        f"{drop_column(table_identifier=table_identifier, column='new._bsize')}"
+        f"{drop_column(table_identifier=table_identifier, column='new._blocks')}"
+        f"{drop_table(table_identifier=file_table_identifier)}"
         "COMMIT;\n"
         "\n"
     )
 
     cli.invoke(rc, ["migrate", f"{tmp_path}/manifest.csv"])
-    with sa.create_engine(postgresql_migration).connect() as conn:
+    with migration_db.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
+        meta.reflect(schema="migrate/example")
         tables = meta.tables
         assert {
-            "migrate/example/Test",
-            "migrate/example/Test/:changelog",
-            "migrate/example/Test/:file/flag",
-            "migrate/example/Test/:file/__new",
+            "migrate/example.Test",
+            "migrate/example.Test/:changelog",
+            "migrate/example.Test/:file/flag",
+            "migrate/example.Test/:file/__new",
         }.issubset(tables.keys())
-        assert not {"migrate/example/Test/:file/new"}.issubset(tables.keys())
-        table = tables["migrate/example/Test"]
+        assert not {"migrate/example.Test/:file/new"}.issubset(tables.keys())
+        table = tables["migrate/example.Test"]
         columns = table.columns
         assert {
             "someText",

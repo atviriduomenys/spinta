@@ -1,18 +1,17 @@
-import inspect
 import importlib
+import inspect
+import itertools
 import pathlib
 import time
 import types
-
-import itertools
 
 from spinta import commands
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
+from spinta.exceptions import RequiredConfigParam
+from spinta.manifests.helpers import create_internal_manifest, create_manifest
 from spinta.urlparams import get_model_by_name
-from spinta.manifests.helpers import create_manifest
-from spinta.manifests.helpers import create_internal_manifest
 
 
 @commands.load.register(Context, Store)
@@ -36,9 +35,10 @@ def load(context: Context, store: Store) -> Store:
     # `spinta.manifests.helpers._load_manifest_backends`.
     store.backends = {}
     config = context.get("config")
-    if config.load_backends:
-        for name in rc.keys("backends"):
-            data = rc.to_dict("backends", name)
+
+    for name in rc.keys("backends"):
+        data = rc.to_dict("backends", name)
+        try:
             store.backends[name] = load_backend(
                 context,
                 config,
@@ -46,6 +46,9 @@ def load(context: Context, store: Store) -> Store:
                 BackendOrigin.config,
                 data,
             )
+        except RequiredConfigParam as e:
+            if config.ensure_backends:
+                raise e
 
     # Create default manifest instance
     manifest = rc.get("manifest", required=True)

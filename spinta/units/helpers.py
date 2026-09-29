@@ -1,11 +1,7 @@
 import re
 
-from spinta.types.datatype import DataType, Time
-from spinta.types.datatype import Date
-from spinta.types.datatype import DateTime
+from spinta.types.datatype import DataType, Date, DateTime, Integer, Number, Time
 from spinta.types.geometry.components import Geometry
-from spinta.types.datatype import Integer
-from spinta.types.datatype import Number
 
 _time_unit_re = re.compile(r"^\d*[YMQWDHTSLUN]$")
 _split_time_unit_pattern = re.compile(r"^(\d+)([YMQWDHTSLUN])$")

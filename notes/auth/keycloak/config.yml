@@ -1,0 +1,51 @@
+# Spinta configuration for external KeyCloak authorization server testing.
+#
+# Used by notes/auth/keycloak/test.md, which sets:
+#
+#   SPINTA_CONFIG=notes/auth/keycloak/config.yml
+#   SPINTA_CONFIG_PATH=var/instances/auth/keycloak
+#
+# All paths below are relative to the repository root — test.md makes sure it
+# is executed from the repo root. Generated runtime state (keys, clients, the
+# downloaded KeyCloak JWKS) is stored in SPINTA_CONFIG_PATH, which is ignored
+# by git via /var/.
+
+env: production
+
+access: protected
+
+default_auth_client: default
+
+data_path: var/instances/auth/keycloak
+
+# KeyCloak realm public keys, downloaded with `spinta key download`.
+# Note: `token_validation_keys_download_url` and `token_validation_key` are
+# mutually exclusive (see spinta/types/config.py).
+token_validation_keys_download_url: http://localhost:8080/realms/spinta/protocol/openid-connect/certs
+downloaded_public_keys_file: var/instances/auth/keycloak/downloaded-well-knowns.json
+
+credentials_file: notes/auth/keycloak/credentials.cfg
+
+keymaps:
+  default:
+    type: sqlalchemy
+    dsn: sqlite:///var/instances/auth/keycloak/keymap.db
+
+backends:
+  # Manifest backend. External manifest binds data models to their resource
+  # backend (SQLite file below), but a manifest backend is still required.
+  default:
+    type: memory
+
+manifest: default
+manifests:
+  default:
+    type: ascii
+    path: notes/auth/keycloak/manifest.txt
+    mode: external
+    keymap: default
+    backend: default
+
+accesslog:
+  type: file
+  file: var/instances/auth/keycloak/accesslog.json

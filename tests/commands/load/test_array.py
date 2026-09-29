@@ -1,7 +1,6 @@
 from spinta import commands
 from spinta.components import Model
-from spinta.types.datatype import Array
-from spinta.types.datatype import Object
+from spinta.types.datatype import Array, Object
 
 
 # TODO: There are at least 3 exaclty the same functions, move it to

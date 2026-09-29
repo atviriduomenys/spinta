@@ -1,10 +1,10 @@
 from typing import Optional
 
 from typer import Argument
+from typer import Context as TyperContext
 
 from spinta.components import Context
 from spinta.manifests.tabular.helpers import write_tabular_manifest
-from typer import Context as TyperContext
 
 
 def init(

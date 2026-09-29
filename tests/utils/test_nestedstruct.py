@@ -2,7 +2,7 @@ import pytest
 
 from spinta.components import Model, Property
 from spinta.types.text.components import Text
-from spinta.utils.nestedstruct import flatten, build_select_tree, sepgetter, flat_dicts_to_nested
+from spinta.utils.nestedstruct import build_select_tree, flat_dicts_to_nested, flatten, sepgetter
 
 
 def test_flatten():

@@ -1,6 +1,6 @@
 from spinta import commands
-from spinta.core.enums import Mode
 from spinta.core.config import RawConfig
+from spinta.core.enums import Mode
 from spinta.testing.manifest import load_manifest_and_context
 
 

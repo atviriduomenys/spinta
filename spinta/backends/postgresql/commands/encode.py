@@ -1,17 +1,15 @@
-from typing import List
-
 import datetime
-from typing import Union
+from typing import List, Union
 
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
 from spinta.backends.components import SelectTree
-from spinta.formats.components import Format
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Context, Model
 from spinta.core.enums import Action
+from spinta.formats.components import Format
 from spinta.types.datatype import Date, DateTime
-from spinta.backends.postgresql.components import PostgreSQL
 
 
 @commands.prepare_data_for_response.register(Context, Model, Format, RowProxy)

@@ -1,13 +1,9 @@
 import pathlib
-from urllib.parse import urlparse
-from urllib.parse import parse_qsl
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urljoin, urlparse
 
-import typer
 import requests
-from lxml import etree
-from lxml import html
-
+import typer
+from lxml import etree, html
 
 app = typer.Typer()
 

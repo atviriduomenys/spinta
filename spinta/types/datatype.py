@@ -2,21 +2,17 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import date, time, datetime
-from typing import Dict
-from typing import List
-from typing import TYPE_CHECKING, Any, Union
+from datetime import date, datetime, time
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from spinta import commands
-from spinta import exceptions
-from spinta import spyna
-from spinta.commands import load, is_object_id
-from spinta.components import Context, Component, Property
-from spinta.components import Model
+from spinta import commands, exceptions, spyna
+from spinta.commands import is_object_id, load
+from spinta.components import Component, Context, Model, Property
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import Base32TypeOnlyAllowedOnIdOrRevision
 from spinta.manifests.components import Manifest
-from spinta.types.helpers import check_no_extra_keys
-from spinta.types.helpers import set_dtype_backend
+from spinta.manifests.tabular.constants import DataTypeEnum
+from spinta.types.helpers import check_no_extra_keys, set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
 from spinta.utils.types import is_str_uuid
 
@@ -152,6 +148,8 @@ class Integer(DataType):
 
         if isinstance(value, int) and not isinstance(value, bool):
             return value
+        elif isinstance(value, str) and (value.removeprefix("-").isdigit() or value.removeprefix("+").isdigit()):
+            return int(value)
         else:
             raise exceptions.InvalidValue(self, value=value)
 
@@ -169,6 +167,10 @@ class URL(String):
 
 
 class URI(String):
+    pass
+
+
+class Base32(DataType):
     pass
 
 
@@ -370,9 +372,20 @@ class UUID(DataType):
         raise exceptions.InvalidValue(self, value=value)
 
 
+class Unknown(DataType):
+    def get_type_repr(self) -> str:
+        return DataTypeEnum.UNKNOWN.value
+
+
 @commands.check.register(Context, DataType)
 def check(context: Context, dtype: DataType):
     pass
+
+
+@commands.check.register(Context, Base32)
+def check(context: Context, dtype: Base32):
+    if dtype.prop.name != "_id" and dtype.prop.name != "_revision":
+        raise Base32TypeOnlyAllowedOnIdOrRevision(dtype.prop, property=dtype.prop.place)
 
 
 @load.register(Context, DataType, dict, Manifest)

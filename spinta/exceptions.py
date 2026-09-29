@@ -1,8 +1,6 @@
-from typing import Optional, Any, Dict, Iterable, Tuple
-
 import logging
 import re
-
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -225,12 +223,22 @@ class ModelNotFound(UserError):
 
 
 class NoModelDefined(UserError):
-    template = "Property {property!r} must be defined on a concrete model."
+    template = "{dimension} {name!r} must be defined on a concrete model."
 
 
 class PropertyNotFound(UserError):
     status_code = 404
     template = "Property {property!r} not found."
+
+
+class ScopeNotFound(UserError):
+    status_code = 404
+    template = "Scope {scope!r} not found in model {model!r}."
+
+
+class PropertiesNotFound(UserError):
+    status_code = 404
+    template = "Properties {properties!r} not found."
 
 
 class NoItemRevision(UserError):
@@ -308,10 +316,6 @@ class NodeNotFound(UserError):
     template = "Node {name!r} of type {type!r} not found."
 
 
-class ModelReferenceNotFound(BaseError):
-    template = "Model reference {ref!r} not found."
-
-
 class ModelReferenceKeyNotFound(BaseError):
     template = "Model reference key {ref!r} not found in {model!r}."
 
@@ -334,6 +338,14 @@ class CoordinatesOutOfRange(UserError):
 
 class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
+
+
+class ManifestFilePathNotGiven(BaseError):
+    template = "Manifest file path should be provided in `config.yml` file."
+
+
+class ManifestFileInvalidPath(BaseError):
+    template = "Cannot create manifest file at {manifest_path}."
 
 
 class UnknownProjectOwner(BaseError):
@@ -645,6 +657,11 @@ class InvalidResourceSource(UserError):
     template = "'{source}' is unacceptable resource source, it must be URL."
 
 
+class CannotReadResource(UserError):
+    status_code = 500
+    template = "Cannot read given resource. Neither source nor prepare function given"
+
+
 class UnknownManifestType(BaseError):
     template = "Can't find manifest component matching given type {type!r}."
 
@@ -946,12 +963,24 @@ class InvalidScopes(UserError):
     template = "Request contains invalid, unknown or malformed scopes: {scopes}."
 
 
+class NoScopesForNamespaces(UserError):
+    template = "Request contains no scopes from available namespaces: {namespaces}."
+
+
+class InvalidExtraScopes(UserError):
+    template = "Request contains extra scopes that are not defined in contract. Extra scopes: {extra_scopes}."
+
+
 class InvalidClientBackend(UserError):
-    template = """Backend "{backend_name}" does not exist in configured client's backends."""
+    template = """Backend "{backend_name}" is not defined in the client file."""
+
+
+class DaskBackendCompareNotSupported(UserError):
+    template = "Dask backend does not support comparison (filter) operators in prepare formula. Found: {operators}."
 
 
 class InvalidClientBackendCredentials(UserError):
-    template = """Credential "{key}" does not exist in client's backend "{backend_name}"."""
+    template = """Credential "{key}" is not defined in the client's file's "{backend_name}" backends variable."""
 
 
 class DirectRefValueUnassignment(UserError):
@@ -1138,6 +1167,104 @@ class InvalidCredentialsConfigurationException(UserError):
         Credentials.cfg is missing required configuration credentials.
         Missing: {missing_credentials}.
     """
+
+
+class AgentRelatedDataServiceDoesNotExist(UserError):
+    template = """
+        Data Service related to the Agent that is executing the synchronization request does not exist. 
+        Please re-create and re-configure the Agent, since the synchronization can not be executed without Data Service.
+    """
+
+
+class UnexpectedErrorReadingData(BaseError):
+    template = """Unexpected error raised while reading data. Original error: {exception}: {message}."""
+
+
+class MissingPostgresqlComments(UpgradeError):
+    template = """
+        {table!r} does not have a comment.
+        Please run `spinta upgrade postgresql_comments` to update all comments.
+    """
+
+
+class InvalidCustomPropertyTypeConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+    """
+
+
+class InvalidCustomPropertyTypeWithArgsConfiguration(UserError):
+    template = """
+        Unable to import custom property type: {custom_property_type!r}.
+        
+        Using args: {args}.
+    """
+
+
+class UnknownConfigurationParameters(UserError):
+    template = """
+        {config_type} {config_object!r} configuration contains unknown parameters: {unknown_params}.
+    """
+
+
+class MissingConfigurationParameter(UserError):
+    template = """
+        {config_type} {config_object!r} configuration is missing parameter: {missing_params!r}.
+    """
+
+
+class UnsupportedDataTypeConfiguration(UserError):
+    template = """
+        DataType {data_type!r} currently does not support custom type assignment in configuration.
+    """
+
+
+class EnumPrepareMissing(UserError):
+    template = """
+        Enum {enum} is missing a required value in the prepare column.
+    """
+
+
+class InlineEnumWithName(UserError):
+    template = (
+        "Named enum {enum!r} is declared directly under property {property!r}. "
+        "Either remove the name to make it an inline enum, or move it to dataset dimension."
+    )
+
+
+class SourceOrPrepareNotAllowed(UserError):
+    template = """
+        The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    
+    """
+
+
+class PartialIncorrectProperty(BaseError):
+    template = (
+        "The composite property {property} is not correct. Check if all parts of the composite property are present."
+    )
+
+
+class ReservedPropertySourceShouldBeRemoved(BaseError):
+    template = "The property {property} should not have a source value, if its model has a ref value."
+
+
+class ReservedPropertyTypeShouldMatchPrimaryKey(BaseError):
+    template = (
+        "The property {property} should have the same type as the primary key of the model {model}. "
+        "Reserved property type: {reserved_type}. Model primary key type: {primary_type}."
+    )
+
+
+class ReservedPropertySourceOrModelRefShouldBeSet(BaseError):
+    template = "The reserved property {property} should be in a model which has a ref value or it itself should have a source value."
+
+
+class Base32TypeOnlyAllowedOnIdOrRevision(BaseError):
+    template = "The 'base32' type is only allowed on the '_id' or '_revision' reserved property, got {property}."
+
+
+class ValuesForIdCantHaveSpecialSymbols(BaseError):
+    template = "The value used for _id can not have special symbols. Found {value} value on {property} property. Change _id type to Base32 or remove the special symbol."
 
 
 class ExceededMaximumLimit(UserError):

@@ -1,16 +1,11 @@
 import importlib
 import pathlib
-from typing import Type
-from typing import TypeVar
+from typing import Type, TypeVar
 
 from spinta.components import Context
-from spinta.core.config import RawConfig
-from spinta.core.config import configure_rc
-
-from spinta.core.config import read_config
+from spinta.core.config import RawConfig, configure_rc, read_config
 from spinta.handlers import CLIErrorHandler, ErrorManager
 from spinta.utils.imports import importstr
-
 
 ContextType = TypeVar("ContextType", bound=Context)
 

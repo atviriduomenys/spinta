@@ -1,7 +1,7 @@
+from decimal import Decimal
 from uuid import UUID
 
 import ujson as json
-from decimal import Decimal
 
 from spinta.formats.components import Format
 

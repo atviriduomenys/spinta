@@ -2,7 +2,7 @@ import pytest
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.exceptions import InvalidValue, InvalidSource
+from spinta.exceptions import InvalidSource, InvalidValue
 from spinta.testing.manifest import load_manifest_and_context
 
 

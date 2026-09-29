@@ -1,4 +1,5 @@
 from typing import Optional
+
 import sqlalchemy as sa
 
 from spinta import commands

@@ -1,28 +1,19 @@
 import logging
 import pathlib
 import types
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 import tqdm
 
-from spinta import commands
-from spinta import components
+from spinta import commands, components
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.formats.components import Format
-from spinta.components import Context, pagination_enabled, Page
-from spinta.components import DataStream
-from spinta.components import Model
+from spinta.components import Context, DataStream, Model, Page, pagination_enabled
 from spinta.core.ufuncs import Expr
-from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.formats.components import Format
 from spinta.types.datatype import Inherit
-from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 

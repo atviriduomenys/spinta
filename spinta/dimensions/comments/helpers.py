@@ -1,10 +1,8 @@
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 from spinta.components import Component
 from spinta.core.enums import Access
-from spinta.dimensions.comments.components import Comment
-from spinta.dimensions.comments.components import CommentGiven
+from spinta.dimensions.comments.components import Comment, CommentGiven
 from spinta.manifests.tabular.components import CommentRow
 from spinta.utils.enums import enum_by_name
 
@@ -20,12 +18,14 @@ def load_comments(
             access_given = params.pop("access")
             access = enum_by_name(parent, "access", Access, access_given)
             access = access or Access.private
+            level = int(level) if (level := params.pop("level", None)) else None
             comments.append(
                 Comment(
                     access=access,
                     given=CommentGiven(
                         access=access_given,
                     ),
+                    level=level,
                     **params,
                 )
             )

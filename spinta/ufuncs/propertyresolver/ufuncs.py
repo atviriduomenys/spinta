@@ -1,12 +1,12 @@
 from spinta.backends.postgresql.ufuncs.query.components import InheritForeignProperty
-from spinta.components import Property, FuncProperty
-from spinta.core.ufuncs import ufunc, Bind, GetAttr
-from spinta.exceptions import PropertyNotFound, FieldNotInResource, LangNotDeclared
-from spinta.types.datatype import DataType, Ref, BackRef, Object, Array, ExternalRef, File, Inherit
+from spinta.components import FuncProperty, Property
+from spinta.core.ufuncs import Bind, GetAttr, ufunc
+from spinta.exceptions import FieldNotInResource, LangNotDeclared, PropertyNotFound
+from spinta.types.datatype import Array, BackRef, DataType, ExternalRef, File, Inherit, Object, Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
-from spinta.ufuncs.querybuilder.components import ReservedProperty, NestedProperty
+from spinta.ufuncs.querybuilder.components import NestedProperty, ReservedProperty
 
 
 @ufunc.resolver(PropertyResolver, Property, object)

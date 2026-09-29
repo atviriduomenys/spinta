@@ -1,5 +1,6 @@
-from spinta.components import PageInfo, Page
 from multipledispatch import dispatch
+
+from spinta.components import Page, PageInfo
 
 
 @dispatch(PageInfo)
@@ -21,6 +22,6 @@ def page_contains_unsupported_keys(page: Page):
 
 
 def get_allowed_page_property_types():
-    from spinta.types.datatype import Integer, Number, String, Date, Time, DateTime, PrimaryKey, UUID
+    from spinta.types.datatype import UUID, Date, DateTime, Integer, Number, PrimaryKey, String, Time
 
     return Integer, Number, String, Date, DateTime, Time, PrimaryKey, UUID

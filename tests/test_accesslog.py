@@ -1,13 +1,13 @@
+import datetime
 import json
 import pathlib
-import datetime
 
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.fixtures import FixtureRequest
 
 from spinta.accesslog.file import FileAccessLog
-from spinta.auth import get_default_auth_client_id, load_key, KeyType, create_access_token
+from spinta.auth import KeyType, create_access_token, get_default_auth_client_id, load_key
 from spinta.components import Store
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
@@ -36,7 +36,6 @@ def _upload_pdf(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_post_accesslog(model, app, context):
@@ -75,7 +74,6 @@ def test_post_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_post_array_accesslog(model, app, context):
@@ -123,7 +121,6 @@ def test_post_array_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_put_accesslog(model, app, context):
@@ -176,7 +173,6 @@ def test_put_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_put_accesslog(model, app, context):
@@ -216,7 +212,6 @@ def test_pdf_put_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_patch_accesslog(model, app, context):
@@ -268,7 +263,6 @@ def test_patch_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_accesslog(app, model, context):
@@ -311,7 +305,6 @@ def test_get_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_array_accesslog(model, app, context):
@@ -362,7 +355,6 @@ def test_get_array_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_get_accesslog(model, app, context):
@@ -401,7 +393,6 @@ def test_pdf_get_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_prop_accesslog(app, model, context):
@@ -445,7 +436,6 @@ def test_get_prop_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_get_w_select_accesslog(app, model, context):
@@ -487,7 +477,6 @@ def test_get_w_select_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_getall_accesslog(app, model, context):
@@ -528,7 +517,6 @@ def test_getall_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_getall_w_select_accesslog(app, model, context):
@@ -802,7 +790,6 @@ def test_accesslog_file_stderr(
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_delete_accesslog(model, app, context):
@@ -846,7 +833,6 @@ def test_delete_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_delete_accesslog(model, app, context):
@@ -895,7 +881,6 @@ def _get_object_rev(app, model: str, id_: str) -> str:
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
@@ -959,7 +944,6 @@ def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_batch_write(model, app, context, tmp_path):
@@ -1011,7 +995,6 @@ def test_batch_write(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_stream_write(model, app, context, tmp_path):
@@ -1063,7 +1046,6 @@ def test_stream_write(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_ns_read(model, app, context, tmp_path):
@@ -1075,7 +1057,6 @@ def test_ns_read(model, app, context, tmp_path):
     assert resp.status_code == 200, resp.json()
 
     objects = {
-        "backends/mongo/Report": 20,
         "backends/postgres/Report": 21,
     }
 
@@ -1108,7 +1089,6 @@ def test_ns_read(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_ns_read_csv(model, app, context, tmp_path):
@@ -1120,7 +1100,6 @@ def test_ns_read_csv(model, app, context, tmp_path):
     assert resp.status_code == 200
 
     objects = {
-        "backends/mongo/Report": 20,
         "backends/postgres/Report": 21,
     }
 
@@ -1152,9 +1131,15 @@ def test_ns_read_csv(model, app, context, tmp_path):
     ]
 
 
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_search"}, {"uapi:/:getall", "uapi:/:search"}])
 @pytest.mark.manifests("internal_sql", "csv")
 def test_get_accesslog_default_user(
-    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest
+    manifest_type: str,
+    tmp_path: pathlib.Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    scopes: set,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1177,7 +1162,7 @@ def test_get_accesslog_default_user(
         load_key(context, KeyType.private),
         default_client_id,
         int(datetime.timedelta(days=10).total_seconds()),
-        {"spinta_getall", "spinta_search"},
+        scopes,
     )
 
     model = "backends/postgres/dtypes/test/Entity"
@@ -1219,8 +1204,16 @@ def test_get_accesslog_default_user(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize(
+    "scopes", [["spinta_getall", "spinta_insert", "spinta_search"], ["uapi:/:getall", "uapi:/:create", "uapi:/:search"]]
+)
 def test_get_accesslog_not_default_user(
-    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest
+    manifest_type: str,
+    tmp_path: pathlib.Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1240,7 +1233,8 @@ def test_get_accesslog_not_default_user(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(["spinta_insert", "spinta_getall", "spinta_search"], creds=("test-insert", "secret"))
+    app.authorize(scopes, creds=("test-insert", "secret"))
+    expected_scope = " ".join(sorted(scopes))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()
@@ -1260,7 +1254,7 @@ def test_get_accesslog_not_default_user(
             "format": "json",
             "method": "POST",
             "rctype": "application/x-www-form-urlencoded",
-            "scope": "spinta_getall spinta_insert spinta_search",
+            "scope": expected_scope,
             "time": accesslog[-5]["time"],
             "token": token,
             "type": "auth",
@@ -1315,8 +1309,14 @@ def test_get_accesslog_not_default_user(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize("scope", [["spinta_insert"], ["uapi:/:create"]])
 def test_get_accesslog_scope_log_false(
-    manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest
+    manifest_type: str,
+    tmp_path: pathlib.Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    scope: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -1339,7 +1339,7 @@ def test_get_accesslog_scope_log_false(
 
     model = "backends/postgres/dtypes/test/Entity"
     app = create_test_client(context)
-    app.authorize(["spinta_insert"], creds=("test-insert", "secret"))
+    app.authorize(scope, creds=("test-insert", "secret"))
 
     resp = app.post("/backends/postgres/dtypes/test/Entity", json={"id": 1})
     assert resp.status_code == 201, resp.json()

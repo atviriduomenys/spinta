@@ -1,21 +1,19 @@
-from typing import Dict, List
-from typing import Union
-
 import contextlib
 import itertools
 import uuid
+from typing import Dict, List, Union
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from spinta import commands
-from spinta.utils.schema import NA
-from spinta.components import Model, Property
-from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.components import Backend
-from spinta.backends.helpers import get_table_name
+from spinta.backends.constants import BackendFeatures, TableType
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailable
+from spinta.components import Model, Property
+from spinta.exceptions import BackendUnavailable, MultipleRowsFound, NotFoundError
+from spinta.utils.schema import NA
 
 
 class PostgreSQL(Backend):
@@ -26,7 +24,13 @@ class PostgreSQL(Backend):
         },
     }
 
-    features = {BackendFeatures.FILE_BLOCKS, BackendFeatures.WRITE, BackendFeatures.EXPAND, BackendFeatures.PAGINATION}
+    features = {
+        BackendFeatures.FILE_BLOCKS,
+        BackendFeatures.WRITE,
+        BackendFeatures.EXPAND,
+        BackendFeatures.PAGINATION,
+        BackendFeatures.DISTRIBUTE,
+    }
 
     engine: Engine = None
     schema: sa.MetaData = None
@@ -97,7 +101,8 @@ class PostgreSQL(Backend):
         node: Union[Model, Property],
         ttype: TableType = TableType.MAIN,
     ):
-        name = get_table_name(node, ttype)
+        table_identifier = get_table_identifier(node, ttype)
+        name = table_identifier.logical_qualified_name
         assert name not in self.tables, name
         self.tables[name] = table
 
@@ -108,7 +113,8 @@ class PostgreSQL(Backend):
         *,
         fail: bool = True,
     ):
-        name = get_table_name(node, ttype)
+        table_identifier = get_table_identifier(node, ttype)
+        name = table_identifier.logical_qualified_name
         if fail:
             return self.tables[name]
         else:
@@ -135,7 +141,7 @@ class PostgreSQL(Backend):
         meta = sa.MetaData(self.engine)
         table = sa.Table("_schema", meta)
         insp = sa.inspect(self.engine)
-        if insp.has_table(table.name):
+        if insp.has_table(table.name, schema=table.schema):
             with self.engine.begin() as conn:
                 query = sa.select([sa.func.count()]).select_from(table)
                 return conn.execute(query).scalar() > 0

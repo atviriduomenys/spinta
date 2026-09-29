@@ -1,13 +1,12 @@
 from typing import List
 
-from spinta.utils.aiotools import adrain
 from spinta import commands
-from spinta.components import Context
 from spinta.commands.write import push_stream
-from spinta.manifests.components import Manifest
-from spinta.manifests.backend.helpers import read_sync_versions
-from spinta.manifests.backend.helpers import versions_to_dstream
+from spinta.components import Context
 from spinta.manifests.backend.components import BackendManifest
+from spinta.manifests.backend.helpers import read_sync_versions, versions_to_dstream
+from spinta.manifests.components import Manifest
+from spinta.utils.aiotools import adrain
 
 
 @commands.sync.register()

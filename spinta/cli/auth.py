@@ -4,28 +4,33 @@ import sys
 import uuid
 
 import click
-from authlib.jose import jwt
-from typer import Argument
+from joserfc import jwt
+from typer import Argument, Option, Typer, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import Typer
-from typer import echo
 
 from spinta import commands
-from spinta.auth import KeyFileExists, get_clients_path, ensure_client_folders_exist
-from spinta.auth import KeyType
-from spinta.auth import create_client_file
-from spinta.auth import gen_auth_server_keys
-from spinta.auth import load_key
+from spinta.auth import (
+    ALLOWED_JWT_ALGORITHMS,
+    KeyFileExists,
+    KeyType,
+    create_client_file,
+    download_and_store_public_keys,
+    ensure_client_folders_exist,
+    gen_auth_server_keys,
+    get_clients_path,
+    load_key,
+)
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.errors import cli_error
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.store import load_config
-from spinta.client import get_access_token
-from spinta.client import get_client_credentials
+from spinta.client import get_access_token, get_client_credentials
 from spinta.components import Context
 from spinta.core.context import configure_context
 
+key = Typer()
 
+
+@key.command("generate", short_help="Generate client token validation keys.")
 def genkeys(
     ctx: TyperContext,
     path: pathlib.Path = Option(None, "--path", "-p", help=("directory where client YAML files are stored")),
@@ -52,6 +57,25 @@ def genkeys(
         click.echo(f"Public key saved to {pub}.")
 
 
+@key.command("download", short_help="Download client token validation keys.")
+def download_keys(ctx: TyperContext):
+    context: Context = ctx.obj
+    config = context.get("config")
+    commands.load(context, config)
+    if not config.token_validation_keys_download_url:
+        echo("Error, config.token_validation_keys_download_url is not set.")
+        return
+    if not config.downloaded_public_keys_file:
+        echo("Error, config.downloaded_public_keys_file is not set.")
+        return
+
+    keys = download_and_store_public_keys(context)
+    if keys:
+        echo(f"Successfully downloaded and stored public keys: {keys}.")
+    else:
+        echo("Failed to download public keys. Check the logs.")
+
+
 token = Typer()
 
 
@@ -68,7 +92,7 @@ def token_decode(
     load_config(context)
     key = load_key(context, KeyType.public)
     token_ = token_ or sys.stdin.read().strip()
-    token_ = jwt.decode(token_, key)
+    token_ = jwt.decode(token_, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     echo(json.dumps(token_, indent="  "))
 
 

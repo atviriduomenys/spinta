@@ -1,10 +1,7 @@
 import base64
 import datetime
 from decimal import Decimal
-from typing import Any, Union, Tuple
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from geoalchemy2.elements import WKBElement
 from lxml import etree
@@ -15,26 +12,34 @@ from starlette.responses import StreamingResponse
 
 from spinta import commands
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import get_model_reserved_props
-from spinta.backends.helpers import select_model_props
-from spinta.components import Namespace, page_in_data
+from spinta.backends.helpers import get_model_reserved_props, select_model_props
+from spinta.components import Context, Model, Namespace, UrlParams, page_in_data
 from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import UrlParams
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import DuplicateRdfPrefixMissmatch
 from spinta.formats.components import Format
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.rdf.components import Rdf
-from spinta.types.datatype import DataType, PageType, Denorm
-from spinta.types.datatype import Date
-from spinta.types.datatype import DateTime
-from spinta.types.datatype import ExternalRef, Array, BackRef, ArrayBackRef, Inherit, JSON, UUID, Object, Binary
-from spinta.types.datatype import File
-from spinta.types.datatype import Number
-from spinta.types.datatype import Ref
-from spinta.types.datatype import Time
+from spinta.types.datatype import (
+    JSON,
+    UUID,
+    Array,
+    ArrayBackRef,
+    BackRef,
+    Binary,
+    DataType,
+    Date,
+    DateTime,
+    Denorm,
+    ExternalRef,
+    File,
+    Inherit,
+    Number,
+    Object,
+    PageType,
+    Ref,
+    Time,
+)
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values

@@ -6,79 +6,80 @@ import decimal
 import json
 import pathlib
 import uuid
-from typing import Any
-from typing import AsyncIterator
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Optional
+from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
 
 import dateutil
 import shapely.geometry.base
-from geoalchemy2.elements import WKTElement, WKBElement
+from cbor2 import dumps as cbor_dumps
+from geoalchemy2.elements import WKBElement, WKTElement
 from geoalchemy2.shape import to_shape
 from shapely import wkt
 
-from spinta import commands
-from spinta import exceptions
-from spinta.backends.components import Backend
-from spinta.backends.components import SelectTree
-from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response
-from spinta.backends.helpers import flat_select_to_nested
-from spinta.backends.helpers import get_model_reserved_props
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import select_keys
-from spinta.backends.helpers import select_model_props
-from spinta.backends.helpers import select_props
-from spinta.commands import gen_object_id
-from spinta.commands import is_object_id
-from spinta.commands import load_operator_value
-from spinta.commands import prepare
-from spinta.components import Context
-from spinta.components import DataItem
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Node
-from spinta.components import Property
-from spinta.components import UrlParams, page_in_data
+from spinta import commands, exceptions
+from spinta.backends.components import Backend, SelectTree
+from spinta.backends.helpers import (
+    check_unknown_props,
+    flat_select_to_nested,
+    get_model_reserved_props,
+    get_select_prop_names,
+    get_select_tree,
+    is_accessible_by_equals_sign,
+    prepare_response,
+    select_keys,
+    select_model_props,
+    select_props,
+)
+from spinta.commands import gen_object_id, is_object_id, load_operator_value, prepare
+from spinta.components import Context, DataItem, Model, Namespace, Node, Property, UrlParams, page_in_data
 from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import (
     ConflictingValue,
-    RequiredProperty,
+    CoordinatesOutOfRange,
+    DirectRefValueUnassignment,
+    InheritPropertyValueMissmatch,
+    InvalidUuidValue,
     LangNotDeclared,
+    NoItemRevision,
+    RequiredProperty,
+    SRIDNotSetForGeometry,
     TooManyLangsGiven,
     UnableToDetermineRequiredLang,
-    CoordinatesOutOfRange,
-    InheritPropertyValueMissmatch,
-    SRIDNotSetForGeometry,
-    InvalidUuidValue,
-    DirectRefValueUnassignment,
 )
-from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
-from spinta.types.datatype import Binary
-from spinta.types.datatype import DataType
-from spinta.types.datatype import Date
-from spinta.types.datatype import DateTime
-from spinta.types.datatype import File
-from spinta.types.datatype import JSON
-from spinta.types.datatype import Number
-from spinta.types.datatype import Object
-from spinta.types.datatype import PrimaryKey
-from spinta.types.datatype import Ref
-from spinta.types.datatype import String
-from spinta.types.datatype import Time
-from spinta.types.datatype import UUID
+from spinta.types.datatype import (
+    JSON,
+    UUID,
+    Array,
+    ArrayBackRef,
+    BackRef,
+    Base32,
+    Binary,
+    Boolean,
+    DataType,
+    Date,
+    DateTime,
+    Denorm,
+    ExternalRef,
+    File,
+    Inherit,
+    Integer,
+    Number,
+    Object,
+    PageType,
+    PrimaryKey,
+    Ref,
+    String,
+    Time,
+)
 from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
-from spinta.utils.schema import NA
-from spinta.utils.schema import NotAvailable
+from spinta.utils.schema import NA, NotAvailable
+from spinta.utils.types import is_nan
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -589,10 +590,29 @@ def is_object_id(context: Context, value: str):
 
 @is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
+    return is_object_id(context, backend, model.id_prop.dtype, value)
+
+
+@is_object_id.register(Context, Backend, PrimaryKey, str)
+def is_object_id(context: Context, backend: Backend, dtype: PrimaryKey, value: str):
     try:
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
+
+
+@is_object_id.register(Context, Backend, DataType, str)
+def is_object_id(context: Context, backend: Backend, dtype: DataType, value: str):
+    candidate = value
+    if is_accessible_by_equals_sign(dtype.prop, value):
+        if not value.startswith("="):
+            return False
+        candidate = value[1:]
+    try:
+        dtype.load(candidate)
+    except exceptions.InvalidValue:
+        return False
+    return True
 
 
 @is_object_id.register(Context, Backend, Model, uuid.UUID)
@@ -1744,14 +1764,21 @@ def cast_backend_to_python(context: Context, prop: Property, backend: Backend, d
 
 @commands.cast_backend_to_python.register(Context, DataType, Backend, object)
 def cast_backend_to_python(context: Context, dtype: DataType, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     return data
 
 
+@commands.cast_backend_to_python.register(Context, String, Backend, object)
+def cast_backend_to_python(context: Context, dtype: String, backend: Backend, data: Any, **kwargs) -> Any:
+    if data is None or is_nan(data):
+        return None
+    return str(data)
+
+
 @commands.cast_backend_to_python.register(Context, UUID, Backend, object)
 def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1763,7 +1790,7 @@ def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, DateTime, Backend, object)
 def cast_backend_to_python(context: Context, dtype: DateTime, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1775,7 +1802,7 @@ def cast_backend_to_python(context: Context, dtype: DateTime, backend: Backend, 
 
 @commands.cast_backend_to_python.register(Context, Time, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Time, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str) and ":" in data:
         try:
@@ -1788,7 +1815,7 @@ def cast_backend_to_python(context: Context, dtype: Time, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, Date, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Date, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1801,7 +1828,7 @@ def cast_backend_to_python(context: Context, dtype: Date, backend: Backend, data
 
 @commands.cast_backend_to_python.register(Context, Integer, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Integer, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1818,7 +1845,7 @@ def cast_backend_to_python(context: Context, dtype: Integer, backend: Backend, d
 
 @commands.cast_backend_to_python.register(Context, Number, Backend, object)
 def cast_backend_to_python(context: Context, dtype: Number, backend: Backend, data: Any, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1835,7 +1862,7 @@ def cast_backend_to_python(context: Context, dtype: Number, backend: Backend, da
 
 @commands.cast_backend_to_python.register(Context, Binary, Backend, str)
 def cast_backend_to_python(context: Context, dtype: Binary, backend: Backend, data: str, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1847,7 +1874,7 @@ def cast_backend_to_python(context: Context, dtype: Binary, backend: Backend, da
 
 @commands.cast_backend_to_python.register(Context, Boolean, Backend, str)
 def cast_backend_to_python(context: Context, dtype: Boolean, backend: Backend, data: str, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1859,7 +1886,7 @@ def cast_backend_to_python(context: Context, dtype: Boolean, backend: Backend, d
 
 @commands.cast_backend_to_python.register(Context, Geometry, Backend, str)
 def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: str, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     if isinstance(data, str):
         try:
@@ -1871,20 +1898,52 @@ def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, 
 
 @commands.cast_backend_to_python.register(Context, Geometry, Backend, WKTElement)
 def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: WKTElement, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     return to_shape(data)
 
 
 @commands.cast_backend_to_python.register(Context, Geometry, Backend, WKBElement)
 def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, data: WKBElement, **kwargs) -> Any:
-    if _check_if_nan(data):
+    if is_nan(data):
         return None
     return to_shape(data)
 
 
 @commands.cast_backend_to_python.register(Context, Ref, Backend, dict)
 def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data: Dict[str, Any], **kwargs) -> Any:
+    if not data:
+        return data
+
+    processed_data = {}
+    for key in data:
+        if key == "_id":
+            # _id reaches this dispatch already in its final form — produced by
+            # handle_ref_key_assignment for external readers, or read directly
+            # from the storage column for internal backends. Re-applying the
+            # referenced model's _id cast double-encodes Base32 ids.
+            processed_data[key] = data[key]
+            continue
+        prop = commands.resolve_property(dtype.prop.model, f"{dtype.prop.place}.{key}")
+        if prop is not None:
+            processed_data[key] = commands.cast_backend_to_python(context, prop, backend, data[key], **kwargs)
+
+    for prop in dtype.refprops:
+        if prop.name not in processed_data and prop.name in data:
+            processed_data[prop.name] = commands.cast_backend_to_python(
+                context, prop, backend, data[prop.name], **kwargs
+            )
+
+    if not processed_data or all(value is None for value in processed_data.values()):
+        return None
+
+    return processed_data
+
+
+@commands.cast_backend_to_python.register(Context, ExternalRef, Backend, dict)
+def cast_backend_to_python(
+    context: Context, dtype: ExternalRef, backend: Backend, data: Dict[str, Any], **kwargs
+) -> Any:
     if not data:
         return data
 
@@ -1938,6 +1997,18 @@ def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, da
     return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
 
 
+@commands.cast_backend_to_python.register(Context, Base32, Backend, object)
+def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
+    if is_nan(data):
+        return None
+    if isinstance(data, (list, tuple)):
+        data = cbor_dumps(list(data))
+    else:
+        data = str(data).encode("utf-8")
+    encoded = base64.b32encode(data)
+    return encoded.rstrip(b"=").decode("utf-8")
+
+
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)
 def reload_backend_metadata(context, manifest, backend):
     pass
@@ -1946,13 +2017,6 @@ def reload_backend_metadata(context, manifest, backend):
 @commands.reload_backend_metadata.register(Context, Manifest, type(None))
 def reload_backend_metadata(context, manifest, backend):
     pass
-
-
-def _check_if_nan(value: Any) -> bool:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if value != value:
-        return True
-    return False
 
 
 @commands.get_error_context.register(Backend)

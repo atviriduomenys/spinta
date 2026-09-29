@@ -5,17 +5,17 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
+from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.backends.postgresql.helpers.redirect import get_redirect_table
+from spinta.backends.postgresql.helpers.type import get_column_type
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
-from spinta.utils.sqlalchemy import Convention
 
 
 @overload
@@ -30,9 +30,8 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest, **kwargs)
 @overload
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicate: bool = False, **kwargs):
-    table_name = get_table_name(model)
-    main_table_name = get_pg_table_name(table_name)
-    if table_name in backend.tables and ignore_duplicate:
+    table_identifier = get_table_identifier(model)
+    if table_identifier.logical_qualified_name in backend.tables and ignore_duplicate:
         return
 
     columns = []
@@ -59,19 +58,21 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
                         name = f"{name}._id"
                     elif prop.dtype:
                         name = f"{name}.{prop.dtype.refprops[0].name}"
-                prop_list.append(name)
+                prop_list.append(get_pg_column_name(name))
 
             columns.append(sa.UniqueConstraint(*prop_list))
 
     # Create main table.
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
-        main_table_name,
+        table_identifier.pg_table_name,
         backend.schema,
-        sa.Column("_txn", pkey_type, index=True),
-        sa.Column("_created", sa.DateTime),
-        sa.Column("_updated", sa.DateTime),
+        sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
+        sa.Column(get_pg_column_name("_created"), sa.DateTime, comment="_created"),
+        sa.Column(get_pg_column_name("_updated"), sa.DateTime, comment="_updated"),
         *columns,
+        schema=table_identifier.pg_schema_name,
+        comment=table_identifier.logical_qualified_name,
     )
     backend.add_table(main_table, model)
 
@@ -113,13 +114,14 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
         "uri": sa.String,
         "denorm": sa.String,
         "uuid": UUID(as_uuid=True),
+        "unknown": sa.Text,
     }
 
     if dtype.name not in types:
         raise Exception(f"Unknown type {dtype.name!r} for property {prop.place!r}.")
-    column_type = types[dtype.name]
+    column_type = get_column_type(dtype, types[dtype.name])
     nullable = not dtype.required
-    return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)
+    return sa.Column(get_pg_column_name(name), column_type, unique=dtype.unique, nullable=nullable, comment=name)
 
 
 @commands.get_primary_key_type.register()
@@ -132,14 +134,14 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
     pkey_type = commands.get_primary_key_type(context, backend)
     base = dtype.prop.model.base
+    column_name = get_pg_column_name("_id")
     if base and commands.identifiable(base):
-        ref_table = get_pg_table_name(base.parent)
+        ref_table_identifier = get_table_identifier(base.parent)
         return [
-            sa.Column("_id", pkey_type, primary_key=True),
+            sa.Column(column_name, pkey_type, primary_key=True, comment="_id"),
             sa.ForeignKeyConstraint(
-                ["_id"],
-                [f"{ref_table}._id"],
-                name=PG_NAMING_CONVENTION[Convention.FK] % {"table_name": ref_table, "column_0_N_name": "_id"},
+                [column_name],
+                [f"{ref_table_identifier.pg_qualified_name}._id"],
             ),
         ]
-    return sa.Column("_id", pkey_type, primary_key=True)
+    return sa.Column(column_name, pkey_type, primary_key=True, comment="_id")

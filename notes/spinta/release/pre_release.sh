@@ -6,10 +6,11 @@ unset SPINTA_CONFIG_PATH
 test -n "$PID" && kill "$PID"
 
 # Setup versions and create prepare branch
+# Change version numbers here
 export MAJOR=0
-export MINOR=2dev6
-export OLD_MINOR=2dev5
-export FUTURE_MINOR=2dev7
+export MINOR=2dev27
+export OLD_MINOR=2dev26
+export FUTURE_MINOR=2dev28
 export RELEASE_VERSION=$MAJOR.$MINOR
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR
@@ -20,7 +21,7 @@ git checkout master
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export PREPARE_BRANCH=prepare_${NEW_VERSION}_version
+export PREPARE_BRANCH=release_${NEW_VERSION}_version
 git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
@@ -55,12 +56,13 @@ git status
 (cd docs && make upgrade)
 
 # Check what was changed and update CHANGES.rst
-xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
+xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...master
 head CHANGES.rst
 # Update CHANGES.rst
 # notes/spinta/release/common.sh    Generate and check changes and readme html files
 
 # notes/docker.sh                   Start docker compose
+# docker stop spinta-app-1
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
@@ -76,6 +78,7 @@ poetry run pytest -vvx --tb=short tests
 
 # Check if new Spinta version works with manifest files
 poetry env activate
+# arba `poetry shell` priklausomai nuo Poetry versijos
 
 # Configure Spinta server instance
 INSTANCE=releases/$NEW_VERSION
@@ -86,6 +89,8 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Configure spinta
 # notes/spinta/release/common.sh    Create manifest file
+
+# Repeat the same with metadata
 
 # notes/spinta/release/common.sh    Run migrations
 #| (3624 rows)
@@ -103,71 +108,10 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 test -n "$PID" && kill "$PID"
 unset SPINTA_CONFIG
-exit
+
 # notes/docker.sh                   Shutdown docker compose
 
-# Update project version in pyproject.toml
-cd ~/dev/data/spinta
-
-ed pyproject.toml <<EOF
-/^version = /c
-version = "$NEW_VERSION"
-.
-wq
-EOF
-
-# Update version release date in CHANGES.rst
-ed CHANGES.rst <<EOF
-/unreleased/c
-$NEW_VERSION ($(date +%Y-%m-%d))
-.
-wq
-EOF
-git diff
-
-git commit -a -m "Releasing version $NEW_VERSION"
-git push origin HEAD
-
 # Create pull request for release version in github and check if all tests run
-
-# notes/spinta/release/common.sh    Publish version to PyPI
-
-# Prepare pyproject.toml and CHANGES.rst for future versions
-git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
-git push origin $NEW_VERSION
-
-ed pyproject.toml <<EOF
-/^version = /c
-version = "$FUTURE_VERSION.dev0"
-.
-wq
-EOF
-ed CHANGES.rst <<EOF
-/^###/a
-
-$FUTURE_VERSION (unreleased)
-===================
-
-.
-wq
-EOF
-head CHANGES.rst
-git diff
-git commit -a -m "Prepare for the next $FUTURE_VERSION release"
-git push origin HEAD
-git log -n3
-
-# Merge pull request with release branch
-
-# Prepare master branch post release
-git status
-git checkout master
-git pull
-
-export POST_RELEASE_BRANCH=post-release_${NEW_VERSION}
-git branch $POST_RELEASE_BRANCH
-git checkout $POST_RELEASE_BRANCH
-git status
 
 
 # Update version release date in CHANGES.rst
@@ -178,20 +122,61 @@ $NEW_VERSION ($(date +%Y-%m-%d))
 wq
 EOF
 
-ed CHANGES.rst <<EOF
-/$NEW_VERSION ($(date +%Y-%m-%d))/i
-$FUTURE_VERSION (unreleased)
-===================
+# notes/spinta/release/common.sh    Publish version to PyPI
 
+# generate hashed requirements file
+
+poetry export -f requirements.txt \
+  --all-extras \
+  --all-groups \
+  -o requirements/spinta-${NEW_VERSION}.txt
+
+todo ištestuoti https://github.com/atviriduomenys/spinta/pull/1912
+
+# get hashes to spinta itself
+
+echo "spinta==${NEW_VERSION}; python_version >= \"3.10\" and python_version < \"4.0\" \\" > spinta-header.txt
+
+curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
+  jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
+  | sed 's/^/    /' >> spinta-header.txt
+
+
+# ADD THOSE HASHES to the file manually
+
+cp requirements/spinta-${NEW_VERSION}.txt requirements/spinta-latest-pre.txt
+
+git add requirements/spinta-${NEW_VERSION}.txt
+git commit -am "Add hashed requirements for ${NEW_VERSION} and update latest"
+git push
+
+# tag the release
+git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
+git push origin $NEW_VERSION
+
+
+# prepare for the future version
+ed pyproject.toml <<EOF
+/^version = /c
+version = "$FUTURE_VERSION"
+.
+wq
+EOF
+
+ed CHANGES.rst <<EOF
+/^###/a
+
+$FUTURE_VERSION (unreleased)
+=====================
 
 .
 wq
 EOF
-head CHANGES.rst
 
+head CHANGES.rst
 git diff
-git commit -a -m "Post-release changes for $NEW_VERSION release"
+git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Create PR for master and merge it if all tests pass
+git checkout master

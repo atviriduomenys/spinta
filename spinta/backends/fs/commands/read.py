@@ -1,15 +1,12 @@
-from typing import Optional
-from typing import overload
 from pathlib import Path
+from typing import Optional, overload
 
-from spinta.typing import ObjectData
-from spinta.typing import FileObjectData
 from spinta import commands
-from spinta.components import Context
-from spinta.components import Property
 from spinta.backends.fs.components import FileSystem
-from spinta.types.datatype import DataType, File
+from spinta.components import Context, Property
 from spinta.exceptions import ItemDoesNotExist
+from spinta.types.datatype import DataType, File
+from spinta.typing import FileObjectData, ObjectData
 
 
 @overload

@@ -1,28 +1,17 @@
 from __future__ import annotations
 
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import TypeVar
-from typing import Union
-from typing import cast
+from typing import Dict, List, Optional, TypeVar, Union, cast
 
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Property
-from spinta.core.access import link_access_param
-from spinta.core.access import load_access_param
+from spinta.components import Context, Model, Namespace, Property
+from spinta.core.access import link_access_param, load_access_param
 from spinta.core.enums import load_level, load_status, load_visibility
 from spinta.core.ufuncs import asttoexpr
-from spinta.dimensions.enum.components import EnumFormula
-from spinta.dimensions.enum.components import EnumItem
-from spinta.dimensions.enum.components import EnumValue
-from spinta.dimensions.enum.components import Enums
-from spinta.exceptions import ValueNotInEnum
+from spinta.dimensions.enum.components import EnumFormula, EnumItem, Enums, EnumValue
+from spinta.exceptions import EnumPrepareMissing, ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
+from spinta.types.datatype import String
 from spinta.utils.schema import NA
 
 
@@ -35,7 +24,11 @@ def _load_enum_item(
     parent = parents[0]
     item = load_node(context, item, data, parent=parent)
     item = cast(EnumItem, item)
-    if item.prepare is not NA:
+
+    if item.prepare is NA:
+        if hasattr(parent, "dtype") and not isinstance(parent.dtype, String):
+            raise EnumPrepareMissing(enum=item.source)
+    else:
         ast = item.prepare
         expr = asttoexpr(ast)
         env = EnumFormula(

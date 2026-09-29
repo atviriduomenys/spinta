@@ -1,10 +1,11 @@
 import csv
 from typing import Any
+
 from multipledispatch import dispatch
 
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.components import Model, Property
-from spinta.types.datatype import DataType, Array
+from spinta.types.datatype import Array, DataType
 
 
 class TableData:

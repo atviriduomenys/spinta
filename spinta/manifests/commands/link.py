@@ -1,6 +1,7 @@
 from spinta import commands
 from spinta.components import Context, MetaData
 from spinta.dimensions.param.helpers import finalize_param_link
+from spinta.dimensions.scope.helpers import finalize_scope_link
 from spinta.manifests.components import Manifest, get_manifest_object_names
 
 
@@ -11,6 +12,7 @@ def link(context: Context, manifest: Manifest):
             commands.link(context, obj)
 
     finalize_param_link(context, manifest)
+    finalize_scope_link(context, manifest)
 
 
 @commands.link.register(Context, MetaData)

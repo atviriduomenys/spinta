@@ -1,9 +1,7 @@
-from typing import Any
-from typing import Dict
+from typing import Any, Dict
 
 from spinta import commands
-from spinta.components import Context
-from spinta.components import Node
+from spinta.components import Context, Node
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.nodes import load_node
 

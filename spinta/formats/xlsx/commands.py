@@ -1,18 +1,13 @@
 import io
 import pathlib
-from typing import Any
-from typing import Dict
-from typing import Iterator
+from typing import Any, Dict, Iterator
 
 from starlette.requests import Request
-from starlette.responses import Response
-from starlette.responses import StreamingResponse
+from starlette.responses import Response, StreamingResponse
 
 from spinta import commands
+from spinta.components import Context, Model, UrlParams
 from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
-from spinta.components import UrlParams
 from spinta.formats.helpers import get_model_tabular_header
 from spinta.formats.xlsx.components import Xlsx
 from spinta.manifests.components import Manifest

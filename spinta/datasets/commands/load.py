@@ -1,30 +1,23 @@
 from string import Formatter
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import overload
+from typing import Any, Dict, List, overload
 
-from spinta import commands
-from spinta import spyna
-from spinta.components import Model
+from spinta import commands, spyna
+from spinta.components import Context, Model
+from spinta.core.access import load_access_param
 from spinta.core.ufuncs import asttoexpr
-from spinta.datasets.components import Attribute
+from spinta.datasets.components import Attribute, Dataset, Entity, Resource
 from spinta.datasets.helpers import load_resource_backend
+from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.prefix.helpers import load_prefixes
-from spinta.exceptions import MultipleErrors
-from spinta.exceptions import PropertyNotFound
-from spinta.nodes import get_node, load_node
-from spinta.components import Context
+from spinta.exceptions import MultipleErrors, PropertyNotFound, RequiredConfigParam
 from spinta.manifests.components import Manifest
-from spinta.datasets.components import Dataset, Resource, Entity
-from spinta.core.access import load_access_param
+from spinta.nodes import get_node, load_node
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.data import take
 from spinta.utils.schema import NA
-from spinta.dimensions.comments.helpers import load_comments
 
 
 @overload
@@ -91,13 +84,17 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     resource.lang = load_lang_data(context, resource.lang)
     resource.comments = load_comments(resource, resource.comments)
     config = context.get("config")
-    if config.load_backends:
+
+    try:
         resource.backend = load_resource_backend(
             context,
             resource,
             # First backend is loaded as string and later becomes Backend.
             resource.backend,
         )
+    except RequiredConfigParam as e:
+        if config.ensure_backends:
+            raise e
     resource.given.name = data.get("given_name", None)
     # Models will be added on `link` command.
     resource.models = {}
@@ -131,7 +128,7 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     else:
         entity.unknown_primary_key = True
         entity.pkeys = sorted(
-            take(entity.model.flatprops).values(),
+            take(entity.model.properties).values(),
             key=lambda p: p.place,
         )
 

@@ -1,9 +1,13 @@
 import pytest
 
-from spinta.utils.naming import Deduplicator, is_valid_model_name, is_valid_property_name
-from spinta.utils.naming import to_model_name
-from spinta.utils.naming import to_property_name
-from spinta.utils.naming import is_valid_namespace_name
+from spinta.utils.naming import (
+    Deduplicator,
+    is_valid_model_name,
+    is_valid_namespace_name,
+    is_valid_property_name,
+    to_model_name,
+    to_property_name,
+)
 
 
 @pytest.mark.parametrize(

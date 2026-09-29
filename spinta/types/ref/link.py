@@ -1,11 +1,11 @@
 from typing import List
 
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, Model
+from spinta.exceptions import MissingRefModel, ModelReferenceKeyNotFound
 from spinta.types.datatype import Ref
-from spinta.exceptions import ModelReferenceNotFound, MissingRefModel
-from spinta.exceptions import ModelReferenceKeyNotFound
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import replace_undeclared_ref_with_object, set_dtype_backend
+from spinta.types.ref import TYPE_REF
 
 
 @commands.link.register(Context, Ref)
@@ -25,8 +25,11 @@ def link(context: Context, dtype: Ref) -> None:
         # Self reference.
         dtype.model = dtype.prop.model
     else:
+        if isinstance(rmodel, Model):
+            rmodel = rmodel.name
         if not commands.has_model(context, dtype.prop.model.manifest, rmodel):
-            raise ModelReferenceNotFound(dtype, ref=rmodel)
+            replace_undeclared_ref_with_object(context, dtype.prop, TYPE_REF, rmodel, dtype.refprops or [])
+            return
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, rmodel)
 
     if dtype.refprops:
@@ -42,7 +45,7 @@ def link(context: Context, dtype: Ref) -> None:
     elif dtype.model.external:
         dtype.refprops = [*dtype.model.external.pkeys]
     else:
-        dtype.refprops = [dtype.model.properties["_id"]]
+        dtype.refprops = [dtype.model.id_prop]
 
     if dtype.model.external and dtype.refprops != dtype.model.external.pkeys:
         dtype.model.add_keymap_property_combination(dtype.refprops)

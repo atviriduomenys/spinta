@@ -1,0 +1,32 @@
+services:
+  spinta:
+    build:
+      context: .
+      dockerfile: production.Dockerfile
+    environment:
+      - AUTHLIB_INSECURE_TRANSPORT=1
+      - HOME=/app/spinta_config
+      - SPINTA_CONFIG=/app/spinta_config/config.yml
+    volumes:
+      - spinta:/app/spinta_config
+    depends_on:
+      spinta-init:
+        condition: service_completed_successfully
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/dev.Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - nginx_cache:/data/nginx_cache
+
+  spinta-init:
+    image: busybox
+    volumes:
+      - spinta:/app/spinta_config
+    command: chown -R 1000:1000 /app/spinta_config
+volumes:
+  nginx_cache:
+  spinta:

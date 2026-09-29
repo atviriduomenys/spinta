@@ -1,11 +1,8 @@
 import csv
 import re
 from io import StringIO
-from typing import Iterator
-from typing import List
-from typing import Tuple
-from urllib.parse import parse_qsl
-from urllib.parse import urlparse
+from typing import Iterator, List, Tuple
+from urllib.parse import parse_qsl, urlparse
 
 import requests
 

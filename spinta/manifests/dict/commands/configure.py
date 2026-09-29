@@ -1,8 +1,8 @@
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.manifests.helpers import check_manifest_path
 from spinta.manifests.dict.components import DictManifest
+from spinta.manifests.helpers import check_manifest_path
 
 
 @commands.configure.register(Context, DictManifest)

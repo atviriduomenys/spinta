@@ -1,5 +1,4 @@
-from typing import Callable
-from typing import Union
+from typing import Callable, Union
 
 from typer import Typer
 

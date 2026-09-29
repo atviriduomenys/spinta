@@ -6,10 +6,8 @@ import pytest
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.testing.client import TestClient
-from spinta.testing.client import create_test_client
-from spinta.testing.data import listdata
-from spinta.testing.data import pushdata
+from spinta.testing.client import TestClient, create_test_client
+from spinta.testing.data import listdata, pushdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
@@ -20,9 +18,9 @@ def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
     country = ns + "/Country"
     capital = ns + "/Capital"
 
-    app.authmodel(continent, ["insert"])
-    app.authmodel(country, ["insert"])
-    app.authmodel(capital, ["insert"])
+    app.authmodel(continent, ["create"])
+    app.authmodel(country, ["create"])
+    app.authmodel(capital, ["create"])
 
     eu = take(
         "_id",
@@ -59,9 +57,14 @@ def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
 
 
 @pytest.mark.models("datasets/backends/postgres/dataset")
-def test_getall(model: str, app: TestClient):
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
+def test_getall(
+    model: str,
+    app: TestClient,
+    scopes: list,
+):
     eu, lt = _create_data(app, model)
-    app.authorize(["spinta_getall"])
+    app.authorize(scopes)
 
     resp = app.get("/datasets/backends/postgres/dataset/:all")
     assert listdata(resp, full=True) == [
@@ -79,9 +82,14 @@ def sha1(s):
 
 
 @pytest.mark.models("datasets/backends/postgres/dataset")
-def test_getall_ns(model, app):
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
+def test_getall_ns(
+    model,
+    app,
+    scopes: list,
+):
     _create_data(app, model)
-    app.authorize(["spinta_getall"])
+    app.authorize(scopes)
 
     resp = app.get("/datasets/backends/postgres/dataset/:ns/:all")
     assert listdata(resp, "name") == [
@@ -94,10 +102,12 @@ def test_getall_ns(model, app):
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_ns_titles(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -117,7 +127,7 @@ def test_ns_titles(
         manifest_type=manifest_type,
         full_load=True,
     )
-    app = create_test_client(context, scope=["spinta_getall"])
+    app = create_test_client(context, scope=scopes)
     assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]
@@ -132,10 +142,12 @@ def test_ns_titles(
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize("scopes", [["spinta_getall"], ["uapi:/:getall"]])
 def test_ns_titles_bare_models(
     manifest_type: str,
     tmp_path: Path,
     rc: RawConfig,
+    scopes: list,
 ):
     context = bootstrap_manifest(
         rc,
@@ -155,7 +167,7 @@ def test_ns_titles_bare_models(
         manifest_type=manifest_type,
         full_load=True,
     )
-    app = create_test_client(context, scope=["spinta_getall"])
+    app = create_test_client(context, scope=scopes)
     assert listdata(app.get("/:ns"), "title", "description") == [
         ("All datasets", "All external datasets."),
     ]

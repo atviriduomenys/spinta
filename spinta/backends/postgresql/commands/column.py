@@ -1,15 +1,15 @@
 from typing import List
 
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
+
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name as gcn
-from spinta.components import Property, Model
+from spinta.components import Model, Property
 from spinta.exceptions import PropertyNotFound
-from spinta.types.datatype import ArrayBackRef, DataType, Ref, BackRef, String, ExternalRef, Array
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
-
+from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, ExternalRef, Ref, String
 from spinta.types.text.components import Text
 
 

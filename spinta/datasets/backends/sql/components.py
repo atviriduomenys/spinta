@@ -5,8 +5,7 @@ from sqlalchemy.engine.base import Engine
 
 from spinta import commands
 from spinta.backends.constants import BackendFeatures
-from spinta.components import Model
-from spinta.components import Property
+from spinta.components import Model, Property
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import BackendUnavailable
 
@@ -36,6 +35,16 @@ class Sql(ExternalBackend):
             raise BackendUnavailable(self)
 
     def get_table(self, model: Model, name: str = None) -> sa.Table:
+        """
+        Get or create a SQLAlchemy Table object for a model.
+
+        Args:
+            model: The model to get the table for
+            name: Optional table name override
+
+        Returns:
+            SQLAlchemy Table object
+        """
         name = name or model.external.name
 
         if self.dbschema:
@@ -44,7 +53,13 @@ class Sql(ExternalBackend):
             key = name
 
         if key not in self.schema.tables:
-            sa.Table(name, self.schema, autoload_with=self.engine)
+            schema = None
+            if "." in key:
+                split = key.split(".", 1)
+                schema = split[0]
+                name = split[1]
+
+            sa.Table(name, self.schema, schema=schema, autoload_with=self.engine)
 
         return self.schema.tables[key]
 

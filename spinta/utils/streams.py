@@ -1,8 +1,6 @@
-from typing import AsyncIterable
-from typing import AsyncIterator
-
-import io
 import codecs
+import io
+from typing import AsyncIterable, AsyncIterator
 
 
 async def splitlines(

@@ -1,24 +1,75 @@
-import io
 import json
 import pathlib
 import shutil
+import time
 import uuid
+from http import HTTPStatus
 
 import pytest
 import ruamel.yaml
-from authlib.jose import JsonWebKey
-from authlib.jose import jwt
+from cryptography.hazmat.primitives.asymmetric import rsa
+from joserfc import jwt
+from joserfc.jwk import RSAKey, import_key
 
-from spinta import auth, commands
-from spinta.auth import get_client_file_path, query_client, get_clients_path, ensure_client_folders_exist
+from spinta import commands
+from spinta.auth import (
+    ALLOWED_JWT_ALGORITHMS,
+    BearerTokenValidator,
+    ClientCredentialsServerMetadata,
+    KeyType,
+    Token,
+    authorized,
+    create_access_token,
+    create_client_file,
+    ensure_client_folders_exist,
+    get_client_file_path,
+    get_clients_path,
+    load_key,
+    load_key_from_file,
+    query_client,
+)
 from spinta.components import Context
-from spinta.core.enums import Action
-from spinta.exceptions import InvalidClientFileFormat
+from spinta.core.config import RawConfig
+from spinta.core.enums import Action, Mode
+from spinta.exceptions import (
+    InvalidClientFileFormat,
+    InvalidExtraScopes,
+    ModelNotFound,
+    NoScopesForNamespaces,
+    RequiredConfigParam,
+    UserError,
+)
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
+from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.utils.config import get_keymap_path
+
+
+def generate_rsa_keypair(kid: str):
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+    public_numbers = public_key.public_numbers()
+
+    # Build JWK dict
+    jwk = {
+        "kty": "RSA",
+        "kid": kid,
+        "use": "sig",
+        "alg": "RS512",
+        "n": int_to_base64(public_numbers.n),
+        "e": int_to_base64(public_numbers.e),
+    }
+
+    return private_key, jwk
+
+
+def int_to_base64(val):
+    import base64
+
+    b = val.to_bytes((val.bit_length() + 7) // 8, "big")
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode("utf-8")
 
 
 def test_app(context, app):
@@ -44,12 +95,13 @@ def test_app(context, app):
     }
 
     config = context.get("config")
-    key = JsonWebKey.import_key(json.loads((config.config_path / "keys/public.json").read_text()))
-    token = jwt.decode(data["access_token"], key)
+    key = import_key(json.loads((config.config_path / "keys/public.json").read_text()))
+    token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token == {
-        "iss": config.server_url,
+        "iss": config.token_issuer,
         "sub": client_id,
-        "aud": client_id,
+        "aud": config.resource_server,
+        "client_id": client_id,
         "iat": int(token["iat"]),
         "jti": token["jti"],
         "exp": int(token["exp"]),
@@ -58,14 +110,52 @@ def test_app(context, app):
 
 
 def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
-    result = cli.invoke(rc, ["genkeys", "-p", tmp_path])
+    result = cli.invoke(rc, ["key", "generate", "-p", tmp_path])
 
     private_path = tmp_path / "keys" / "private.json"
     public_path = tmp_path / "keys" / "public.json"
 
     assert result.output == f"Private key saved to {private_path}.\nPublic key saved to {public_path}.\n"
-    JsonWebKey.import_key(json.loads(private_path.read_text()))
-    JsonWebKey.import_key(json.loads(public_path.read_text()))
+    import_key(json.loads(private_path.read_text()))
+    import_key(json.loads(public_path.read_text()))
+
+
+def test_cant_download_keys(rc, cli: SpintaCliRunner, tmp_path, context, requests_mock):
+    result = cli.invoke(rc, ["key", "download"])
+    assert result.output == "Error, config.token_validation_keys_download_url is not set.\n"
+
+
+def test_download_keys(rc: RawConfig, cli: SpintaCliRunner, tmp_path, context, requests_mock):
+    mock_url = "https://www.example.com/.well-known/jwks.json"
+    rc = rc.fork({"token_validation_keys_download_url": mock_url})
+    config = context.get("config")
+    well_known = {
+        "keys": [
+            {
+                "kid": "rotation-1",
+                "kty": "RSA",
+                "alg": "RS512",
+                "use": "sig",
+                "n": "oAXjeXtZxiEUI7EcG6uITGCuUHmMQxMdTuSkQMaijmX0R1xSN--xBwVRpCJaM_ZYLdmtiBvX7qoNhEXC5H_uzHNxdw",
+                "e": "AQAB",
+            },
+            {
+                "kty": "RSA",
+                "n": "ngg7HGoRkBDkhLFZpFIF5qOSnWPt7FoThHpP5-HOeVZzrM2NlVKhcJ4sRwn9FFQu1_hHwRt-Lx5UyQ",
+                "e": "AQAB",
+            },
+        ]
+    }
+    download_mock = requests_mock.get(
+        mock_url,
+        status_code=HTTPStatus.OK,
+        json=well_known,
+        headers={"Content-Type": "application/json"},
+    )
+    result = cli.invoke(rc, ["key", "download"])
+    assert download_mock.called
+    assert json.loads(config.downloaded_public_keys_file.read_text()) == well_known
+    assert result.output == f"Successfully downloaded and stored public keys: {well_known}.\n"
 
 
 def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
@@ -84,6 +174,7 @@ def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
         "client_secret_hash": client["client_secret_hash"],
         "scopes": [],
         "backends": {},
+        "contract_scopes": {},
     }
 
 
@@ -103,6 +194,7 @@ def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
         "client_secret_hash": client["client_secret_hash"],
         "scopes": [],
         "backends": {},
+        "contract_scopes": {},
     }
 
 
@@ -126,10 +218,19 @@ def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
         "client_secret_hash": client["client_secret_hash"],
         "scopes": [],
         "backends": {},
+        "contract_scopes": {},
     }
 
 
-def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_path):
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope(
+    rc,
+    context: Context,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scopes: set,
+):
+    scopes_in_string_format = " ".join(scopes)
     cli.invoke(
         rc,
         [
@@ -140,20 +241,23 @@ def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_p
             "--name",
             "test",
             "--scope",
-            "spinta_getall spinta_getone",
+            scopes_in_string_format,
         ],
     )
 
     client = query_client(get_clients_path(tmp_path), "test", is_name=True)
     assert client.name == "test"
-    assert client.scopes == {
-        "spinta_getall",
-        "spinta_getone",
-    }
+    assert client.scopes == scopes
 
 
-def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
-    stdin = io.BytesIO(b"spinta_getall\nspinta_getone\n")
+@pytest.mark.parametrize("scopes", [{"spinta_getall", "spinta_getone"}, {"uapi:/:getall", "uapi:/:getone"}])
+def test_client_add_with_scope_via_stdin(
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path,
+    scopes: set,
+):
+    stdin = "\n".join(sorted(scopes)) + "\n"
     cli.invoke(
         rc,
         [
@@ -171,10 +275,7 @@ def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
 
     client = query_client(get_clients_path(tmp_path), "test", is_name=True)
     assert client.name == "test"
-    assert client.scopes == {
-        "spinta_getall",
-        "spinta_getone",
-    }
+    assert client.scopes == scopes
 
 
 def test_empty_scope(context, app):
@@ -197,8 +298,8 @@ def test_empty_scope(context, app):
     config = context.get("config")
     public_path = config.config_path / "keys" / "public.json"
 
-    key = JsonWebKey.import_key(json.loads(public_path.read_text()))
-    token = jwt.decode(data["access_token"], key)
+    key = import_key(json.loads(public_path.read_text()))
+    token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token["scope"] == ""
 
 
@@ -211,157 +312,12 @@ def test_invalid_client(app):
         auth=(client_id, client_secret),
         data={
             "grant_type": "client_credentials",
-            "scope": "",
+            "scopes": "",
         },
     )
     assert resp.status_code == 400, resp.text
 
     assert resp.json() == {"error": "invalid_client", "error_description": "Invalid client name"}
-
-
-@pytest.mark.parametrize(
-    "client, scope, node, action, authorized",
-    [
-        ("default-client", "spinta_getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem", "update", False),
-        ("test-client", "spinta_backends_getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem", "getone", True),
-        ("default-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "spinta_backends_mongo_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "spinta_backends_mongo_subitem_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "spinta_backends_mongo_subitem_subobj_getone", "backends/mongo/Subitem.subobj", "getone", True),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_subobj_getone",
-            "backends/mongo/Subitem.subobj",
-            "insert",
-            False,
-        ),
-        (
-            "default-client",
-            "spinta_backends_mongo_subitem_subobj_getone",
-            "backends/mongo/Subitem.subobj",
-            "getone",
-            False,
-        ),
-        ("test-client", "spinta_getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        ("test-client", "spinta_backends_mongo_getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_hidden_subobj_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            True,
-        ),
-        (
-            "test-client",
-            "spinta_backends_mongo_subitem_hidden_subobj_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "update",
-            False,
-        ),
-        (
-            "default-client",
-            "spinta_backends_mongo_subitem_hidden_subobj_getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        ("default-client", "uapi:/:getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem", "update", False),
-        ("test-client", "uapi:/backends/:getone", "backends/mongo/Subitem", "getone", True),
-        ("test-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem", "getone", True),
-        ("default-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem", "getone", False),
-        ("test-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem", "insert", False),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "uapi:/backends/mongo/:getone", "backends/mongo/Subitem.subobj", "getone", True),
-        ("test-client", "uapi:/backends/mongo/Subitem/:getone", "backends/mongo/Subitem.subobj", "getone", True),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@subobj/:getone",
-            "backends/mongo/Subitem.subobj",
-            "getone",
-            True,
-        ),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@subobj/:getone",
-            "backends/mongo/Subitem.subobj",
-            "insert",
-            False,
-        ),
-        (
-            "default-client",
-            "uapi:/backends/mongo/Subitem/@subobj/:getone",
-            "backends/mongo/Subitem.subobj",
-            "getone",
-            False,
-        ),
-        ("test-client", "uapi:/:getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        ("test-client", "uapi:/backends/mango/:getone", "backends/mongo/Subitem.hidden_subobj", "getone", False),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@hidden_subobj/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            True,
-        ),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/@hidden_subobj/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "update",
-            False,
-        ),
-        (
-            "test-client",
-            "uapi:/backends/mongo/Subitem/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        (
-            "default-client",
-            "uapi:/backends/mongo/Subitem/@hidden_subobj/:getone",
-            "backends/mongo/Subitem.hidden_subobj",
-            "getone",
-            False,
-        ),
-        ("test-client", "uapi:/backends/mongo/Subitem/:create", "backends/mongo/Subitem", "insert", True),
-        ("test-client", "uapi:/:create", "backends/mongo/Subitem", "insert", True),
-    ],
-)
-def test_authorized(context, client, scope, node, action, authorized):
-    if client == "default-client":
-        client = context.get("config").default_auth_client
-    scopes = [scope]
-    pkey = auth.load_key(context, auth.KeyType.private)
-    token = auth.create_access_token(context, pkey, client, scopes=scopes)
-    token = auth.Token(token, auth.BearerTokenValidator(context))
-    context.set("auth.token", token)
-    store = context.get("store")
-    if "." in node:
-        model, prop = node.split(".", 1)
-        node = commands.get_model(context, store.manifest, model).flatprops[prop]
-    elif commands.has_model(context, store.manifest, node):
-        node = commands.get_model(context, store.manifest, node)
-    else:
-        node = commands.get_namespace(context, store.manifest, node)
-    action = getattr(Action, action.upper())
-    assert auth.authorized(context, node, action) is authorized
 
 
 def test_invalid_access_token(app):
@@ -373,7 +329,8 @@ def test_invalid_access_token(app):
     assert get_error_codes(resp.json()) == ["InvalidToken"]
 
 
-def test_token_validation_key_config(backends, rc, tmp_path, request):
+@pytest.mark.parametrize("scopes", [["spinta_report_getall"], ["uapi:/Report/:getall"]])
+def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: list):
     confdir = pathlib.Path(__file__).parent
     prvkey = json.loads((confdir / "config/keys/private.json").read_text())
     pubkey = json.loads((confdir / "config/keys/public.json").read_text())
@@ -389,30 +346,195 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
     context = create_test_context(rc).load()
     request.addfinalizer(context.wipe_all)
 
-    prvkey = JsonWebKey.import_key(prvkey)
+    prvkey = import_key(prvkey)
     client = "RANDOMID"
-    scopes = ["spinta_report_getall"]
-    token = auth.create_access_token(context, prvkey, client, scopes=scopes)
+    scopes = scopes
+    token = create_access_token(context, prvkey, client, scopes=scopes)
 
     client = create_test_client(context)
     resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
 
 
-@pytest.fixture()
+def _report_setup(rc, tmp_path, request, *, token_issuer="https://example.com"):
+    confdir = pathlib.Path(__file__).parent
+    pubkey = json.loads((confdir / "config/keys/public.json").read_text())
+    prvkey = import_key(json.loads((confdir / "config/keys/private.json").read_text()))
+    overrides = {
+        "config_path": str(tmp_path),
+        "default_auth_client": None,
+        "token_validation_key": json.dumps(pubkey),
+    }
+    if token_issuer is not None:
+        overrides["token_issuer"] = token_issuer
+    context = create_test_context(rc.fork(overrides)).load()
+    request.addfinalizer(context.wipe_all)
+    return context, prvkey, create_test_client(context)
+
+
+def _encode_token(
+    private_key,
+    *,
+    kid=None,
+    iss="https://example.com",
+    aud="https://example.com",
+    client="RANDOMID",
+    client_id="RANDOMID",
+    scope="spinta_report_getall",
+    exp_delta=600,
+    iat=True,
+):
+    now = int(time.time())
+    payload = {"sub": client, "scope": scope, "jti": str(uuid.uuid4())}
+    header = {"typ": "JWT", "alg": "RS512"}
+    if kid is not None:
+        header["kid"] = kid
+    if client_id is not None:
+        payload["client_id"] = client_id
+    if aud is not None:
+        payload["aud"] = aud
+    if iat:
+        payload["iat"] = now
+    if iss is not None:
+        payload["iss"] = iss
+    if exp_delta is not None:
+        payload["exp"] = now + exp_delta
+    return jwt.encode(
+        header,
+        payload,
+        private_key,
+        algorithms=ALLOWED_JWT_ALGORITHMS,
+    )
+
+
+def test_auth_accepts_matching_local_issuer(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = create_access_token(context, prvkey, "RANDOMID", scopes=["spinta_report_getall"])
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_auth_rejects_foreign_issuer(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, iss="https://evil.example.com")
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_issuer(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, iss=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_exp(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, exp_delta=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_expired_token(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = create_access_token(context, prvkey, "RANDOMID", expires_in=-10, scopes=["spinta_report_getall"])
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_token_issuer_accepts_configured_issuer(backends, rc, tmp_path, request):
+    issuer = "https://central.example.com"
+    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer=issuer)
+    token = _encode_token(prvkey, iss=issuer)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_auth_rejects_token_without_iat(backends, rc, tmp_path, request):
+    issuer = "https://central.example.com"
+    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer=issuer)
+    token = _encode_token(prvkey, iss=issuer, iat=False)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_token_issuer_rejects_local_issuer_when_configured(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer="https://central.example.com")
+    token = _encode_token(prvkey, iss="https://example.com")
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_default_app_rejects_foreign_issuer(app, context):
+    prvkey = load_key(context, KeyType.private)
+    token = _encode_token(prvkey, iss="https://evil.example.com")
+    resp = app.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_wrong_aud(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, aud="https://other-resource.example.com")
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_aud(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, aud=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_rejects_missing_client_id(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = _encode_token(prvkey, client_id=None)
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_auth_separates_aud_and_client_id(backends, rc, tmp_path, request):
+    # aud is the resource server, client_id is the client — distinct values.
+    context, prvkey, client = _report_setup(rc, tmp_path, request)
+    token = create_access_token(context, prvkey, "RANDOMID", scopes=["spinta_report_getall"])
+    claims = jwt.decode(
+        token,
+        import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/public.json").read_text())),
+        algorithms=ALLOWED_JWT_ALGORITHMS,
+    ).claims
+    assert claims["aud"] == "https://example.com"
+    assert claims["client_id"] == "RANDOMID"
+    assert claims["aud"] != claims["client_id"]
+    resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.parametrize("param", ["token_issuer", "resource_server"])
+def test_issue_token_requires_auth_config(rc, tmp_path, param):
+    prvkey = import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/private.json").read_text()))
+    context = create_test_context(rc.fork({"config_path": str(tmp_path), param: None}))
+    config = context.get("config")
+    commands.load(context, config)
+    with pytest.raises(RequiredConfigParam):
+        create_access_token(context, prvkey, "RANDOMID")
+
+
+@pytest.fixture(params=[["spinta_getall"], ["uapi:/:getall"]])
 def basic_auth(backends, rc, tmp_path, request):
+    scopes = request.param
+
     confdir = pathlib.Path(__file__).parent / "config"
     shutil.copytree(str(confdir / "keys"), str(tmp_path / "keys"))
 
     path = get_clients_path(tmp_path)
     ensure_client_folders_exist(path)
     new_id = uuid.uuid4()
-    auth.create_client_file(
+    create_client_file(
         path,
         name="default",
         client_id=str(new_id),
         secret="secret",
-        scopes=["spinta_getall"],
+        scopes=scopes,
         add_secret=True,
     )
 
@@ -494,35 +616,1085 @@ def test_invalid_scope(context, app):
     assert get_error_codes(resp.json()) == ["InvalidScopes"]
 
 
-def test_invalid_client_file_data_type_list(tmp_path, context, cli, rc):
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [
+            "spinta_getone",
+            "spinta_getall",
+            "spinta_search",
+        ],
+        [
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+        ],
+    ],
+)
+def test_invalid_client_file_data_type_list(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scopes: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
         if not str(child).endswith("keymap.yml"):
             client_file = child
     yaml = ruamel.yaml.YAML(typ="safe")
-    scopes = [
-        "spinta_getone",
-        "spinta_getall",
-        "spinta_search",
-    ]
+    scopes = scopes
     yaml.dump(scopes, client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'list'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)
 
 
-def test_invalid_client_file_data_type_str(tmp_path, context, cli, rc):
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [
+            "spinta_getone",
+            "spinta_getall",
+            "spinta_search",
+        ],
+        [
+            "uapi:/:getone",
+            "uapi:/:getall",
+            "uapi:/:search",
+        ],
+    ],
+)
+def test_invalid_client_file_data_type_str(
+    tmp_path,
+    context,
+    cli,
+    rc,
+    scopes: list,
+):
     cli.invoke(rc, ["client", "add", "-p", tmp_path, "-n", "test"])
 
     for child in tmp_path.glob("**/*"):
         if not str(child).endswith("keymap.yml"):
             client_file = child
     yaml = ruamel.yaml.YAML(typ="safe")
-    scopes = [
-        "spinta_getone",
-        "spinta_getall",
-        "spinta_search",
-    ]
+    scopes = scopes
     yaml.dump(str(scopes), client_file)
     with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'str'>."):
         query_client(get_clients_path(tmp_path), "test", is_name=True)
+
+
+def test_valid_client_file_data(tmp_path: pathlib.Path):
+    clients_path = get_clients_path(tmp_path)
+    ensure_client_folders_exist(clients_path)
+
+    client_id = str(uuid.uuid4())
+    contract_uuid = str(uuid.uuid4())
+    create_client_file(
+        clients_path,
+        name="test_client",
+        client_id=client_id,
+        scopes=["test:scope"],
+        backends={"default": {"foo": "bar"}},
+        contract_scopes={contract_uuid: ["test:scope", "test:scope2"]},
+    )
+
+    client = query_client(clients_path, client_id)
+
+    assert client.id == client_id
+    assert client.name == "test_client"
+    assert client.secret_hash
+    assert client.scopes == {"test:scope"}
+    assert client.backends == {"default": {"foo": "bar"}}
+    assert client.contract_scopes == {contract_uuid: ["test:scope", "test:scope2"]}
+
+
+def test_get_public_jwk_verification_keys_from_config(app, context):
+    config = context.get("config")
+    jwk_keys = [
+        {"alg": "RS512", "e": "AQAB", "kid": "rotation-1", "kty": "RSA", "n": "jwkrimvoifsdvicmdf", "use": "sig"},
+        {"alg": "RS512", "e": "AQAB", "kid": "rotation-2", "kty": "RSA", "n": "asdsad-asd", "use": "sig"},
+    ]
+    config.token_validation_key = {"keys": jwk_keys}
+    resp = app.get("/.well-known/jwks.json")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()
+    received_keys = resp.json()["keys"]
+    assert received_keys
+    for key in jwk_keys:
+        assert key in received_keys
+    assert load_key_from_file(config, KeyType.public) not in received_keys
+    config.token_validation_key = None
+
+
+def test_get_public_jwk_verification_keys_from_file(app, context):
+    config = context.get("config")
+    config.token_validation_key = None
+    resp = app.get("/.well-known/jwks.json")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()
+    received_keys = resp.json()["keys"]
+    assert received_keys
+    assert [load_key_from_file(config, KeyType.public)] == received_keys
+
+
+def test_pick_correct_key(app, context):
+    config = context.get("config")
+
+    private_1, jwk1 = generate_rsa_keypair("rotation-1")
+    private_2, jwk2 = generate_rsa_keypair("rotation-2")
+
+    config.token_validation_key = {"keys": [jwk1, jwk2]}
+
+    token = _encode_token(RSAKey.import_key(private_2), kid="rotation-2", scope="spinta_getall")
+
+    resp = app.get("/datasets/backends/postgres/dataset/:all", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+    config.token_validation_key = None
+
+
+def test_decode_token_selects_key_by_kid(monkeypatch, context):
+    """The ``kid`` header must select the matching public key directly.
+
+    The matching key is placed *second* on purpose: a ``kid``-agnostic
+    implementation would fall back to trial-verifying every key and would try
+    the wrong (first) key before succeeding on the second one. Asserting that
+    ``jwt.decode`` is called exactly once, with the ``kid``-matching key, makes
+    reverting to the old non-standard ``key`` header lookup fail this test.
+    """
+    private_1, jwk1 = generate_rsa_keypair("rotation-1")
+    private_2, jwk2 = generate_rsa_keypair("rotation-2")
+
+    validator = BearerTokenValidator.__new__(BearerTokenValidator)
+    validator._all_public_keys = [import_key(jwk1), import_key(jwk2)]
+    validator._context = context
+
+    token = _encode_token(RSAKey.import_key(private_2), kid="rotation-2", scope="spinta_getall")
+
+    real_decode = jwt.decode
+    tried_keys = []
+
+    def spy_decode(token_string, key, *args, **kwargs):
+        tried_keys.append(key)
+        return real_decode(token_string, key, *args, **kwargs)
+
+    monkeypatch.setattr(jwt, "decode", spy_decode)
+
+    claims = validator.decode_token(token)
+
+    assert claims["sub"] == "RANDOMID"
+    assert len(tried_keys) == 1
+    assert tried_keys[0].kid == "rotation-2"
+
+
+class TestAuthorized:
+    @pytest.mark.parametrize(
+        "client, scopes, node, action, result",
+        [
+            ("default-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.INSERT, False),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem", Action.UPDATE, False),
+            ("test-client", {"spinta_backends_getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "default-client",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem",
+                Action.INSERT,
+                False,
+            ),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem.subobj", Action.GETONE, True),
+            (
+                "test-client",
+                {"spinta_backends_postgres_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_subobj_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_subobj_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.INSERT,
+                False,
+            ),
+            (
+                "default-client",
+                {"spinta_backends_postgres_subitem_subobj_getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            ("test-client", {"spinta_getone"}, "backends/postgres/Subitem.hidden_subobj", Action.GETONE, False),
+            (
+                "test-client",
+                {"spinta_backends_postgres_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_hidden_subobj_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"spinta_backends_postgres_subitem_hidden_subobj_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.UPDATE,
+                False,
+            ),
+            (
+                "default-client",
+                {"spinta_backends_postgres_subitem_hidden_subobj_getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                True,
+            ),
+            ("default-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.INSERT, False),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem", Action.UPDATE, False),
+            ("test-client", {"uapi:/backends/:getone"}, "backends/postgres/Subitem", Action.GETONE, True),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "default-client",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem",
+                Action.INSERT,
+                False,
+            ),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem.subobj", Action.GETONE, True),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/@subobj/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/@subobj/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.INSERT,
+                False,
+            ),
+            (
+                "default-client",
+                {"uapi:/backends/postgres/Subitem/@subobj/:getone"},
+                "backends/postgres/Subitem.subobj",
+                Action.GETONE,
+                True,
+            ),
+            ("test-client", {"uapi:/:getone"}, "backends/postgres/Subitem.hidden_subobj", Action.GETONE, False),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/@hidden_subobj/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/@hidden_subobj/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.UPDATE,
+                False,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                False,
+            ),
+            (
+                "default-client",
+                {"uapi:/backends/postgres/Subitem/@hidden_subobj/:getone"},
+                "backends/postgres/Subitem.hidden_subobj",
+                Action.GETONE,
+                True,
+            ),
+            (
+                "test-client",
+                {"uapi:/backends/postgres/Subitem/:create"},
+                "backends/postgres/Subitem",
+                Action.INSERT,
+                True,
+            ),
+            ("test-client", {"uapi:/:create"}, "backends/postgres/Subitem", Action.INSERT, True),
+        ],
+    )
+    def test_authorized(self, context: Context, client: str, scopes: set[str], node: str, action: Action, result: bool):
+        if client == "default-client":
+            client = context.get("config").default_auth_client
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, client, scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        store = context.get("store")
+
+        if "." in node:
+            model, prop = node.split(".", 1)
+            node = commands.get_model(context, store.manifest, model).flatprops[prop]
+        elif commands.has_model(context, store.manifest, node):
+            node = commands.get_model(context, store.manifest, node)
+        else:
+            node = commands.get_namespace(context, store.manifest, node)
+
+        assert authorized(context, node, action) is result
+
+    @pytest.mark.parametrize(
+        "scopes",
+        [
+            {"uapi:/datasets/test/example/Foo/:getall"},
+            {"uapi:/datasets/test/example/Foo/:getall", "uapi:/datasets/test/example/Bar/:getall"},
+        ],
+    )
+    def test_authorized_contract_scope_check_success(self, rc: RawConfig, scopes: set[str]):
+        rc = rc.fork(
+            {
+                "check_contract_scopes": True,
+                "access": "public",
+            }
+        )
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        assert authorized(context, node, Action.GETALL)
+
+    @pytest.mark.parametrize(
+        "scopes",
+        [
+            set(),  # No scopes
+            {"uapi:/datasets/test/example/Test/:getall"},  # Invalid scope for manifest
+            {"uapi:/datasets/test/:getall"},  # Scope not in contract_scopes
+        ],
+    )
+    def test_authorized_contract_scope_check_failure(self, rc: RawConfig, scopes: set[str]):
+        rc = rc.fork(
+            {
+                "check_contract_scopes": True,
+                "access": "public",
+            }
+        )
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        with pytest.raises(UserError) as e:
+            authorized(context, node, Action.GETALL)
+        assert type(e.value) in (NoScopesForNamespaces, InvalidExtraScopes)
+
+    @pytest.mark.parametrize(
+        "model_access, config_access, result",
+        [
+            ("open", "open", True),
+            ("open", "public", True),
+            ("open", "protected", True),
+            ("open", "private", True),
+            ("public", "open", False),
+            ("public", "public", True),
+            ("public", "protected", True),
+            ("public", "private", True),
+            ("protected", "open", False),
+            ("protected", "public", False),
+            ("protected", "protected", True),
+            ("protected", "private", True),
+            ("private", "open", False),
+            ("private", "public", False),
+            ("private", "protected", False),
+            ("private", "private", True),
+        ],
+    )
+    def test_authorized_with_different_node_and_config_access(
+        self, context, rc: RawConfig, model_access: str, config_access: str, result: bool
+    ):
+        rc = rc.fork({"access": config_access})
+        context, manifest = prepare_manifest(
+            rc,
+            f"""
+            id | d | r | b | m | property | access
+               | datasets/test/example    | 
+               |   | data                 |
+               |   |   |   | Foo          | {model_access}
+            """,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(
+            context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes={"uapi:/datasets/test/example/Foo/:getall"}
+        )
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        assert authorized(context, node, Action.GETALL) is result
+
+    def test_authorized_raises_modelnotfound(self, context, rc: RawConfig):
+        context, manifest = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | 
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(
+            context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes={"uapi:/datasets/test/example/Foo/:getall"}
+        )
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+        node = commands.get_model(context, manifest, "datasets/test/example/Foo")
+
+        with pytest.raises(ModelNotFound):
+            authorized(context, node, Action.GETALL, throw=True)
+
+
+class TestQueryClient:
+    def test_get_all_contract_scopes(self, tmp_path: pathlib.Path):
+        clients_path = get_clients_path(tmp_path)
+        ensure_client_folders_exist(clients_path)
+        client_id = str(uuid.uuid4())
+        contract_uuid = str(uuid.uuid4())
+
+        create_client_file(
+            clients_path,
+            name="test_client",
+            client_id=client_id,
+            scopes=["test:scope"],
+            backends={"default": {"foo": "bar"}},
+            contract_scopes={contract_uuid: ["test:scope", "test:scope2"]},
+        )
+
+        client = query_client(clients_path, client_id)
+        assert client.get_all_contract_scopes() == {"test:scope", "test:scope2"}
+
+    def test_get_all_contract_scopes_without_contract_scopes(self, tmp_path: pathlib.Path):
+        clients_path = get_clients_path(tmp_path)
+        ensure_client_folders_exist(clients_path)
+        client_id = str(uuid.uuid4())
+
+        create_client_file(
+            clients_path,
+            name="test_client",
+            client_id=client_id,
+            scopes=["test:scope"],
+            backends={"default": {"foo": "bar"}},
+            contract_scopes=None,
+        )
+
+        client = query_client(clients_path, client_id)
+        assert client.get_all_contract_scopes() == set()
+
+
+class TestTokenCollectAvailableNamespaces:
+    def test_return_manifest_namespaces(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property
+               | datasets/uuid/example
+               |   | data
+               |   |   |   | Foo
+               |   | data2
+               |   |   |   | Bar
+               | datasets/test/test_example
+               |   |   |   | Buz
+                """,
+            mode=Mode.external,
+        )
+
+        assert Token._collect_available_namespaces(context) == {
+            "datasets",
+            "datasets/uuid",
+            "datasets/uuid/example",
+            "datasets/uuid/example/Foo",
+            "datasets/uuid/example/Bar",
+            "datasets/test",
+            "datasets/test/test_example",
+            "datasets/test/test_example/Buz",
+        }
+
+
+class TestTokenNamespaceScopeMap:
+    def test_get_scopes_from_scope_string(self, context: Context):
+        config = context.get("config")
+
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "datasets/gov/rc/ar/ws/Country",
+            "datasets2/Street",
+            "datasets_gov_rc_ar_ws_Country",
+            "datasets_gov_rc_ar_ws_Town",
+        }
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+
+        assert token._get_namespace_scope_map([config.scope_prefix, config.scope_prefix]) == {
+            "datasets/gov/rc/ar/ws/Country": {"datasets/gov/rc/ar/ws/Country"},
+            "datasets2/Street": {"datasets2/Street"},
+            "datasets_gov_rc_ar_ws_Country": {"datasets_gov_rc_ar_ws_Country"},
+            "datasets_gov_rc_ar_ws_Town": {"datasets_gov_rc_ar_ws_Town"},
+        }
+
+    def test_remove_scope_prefix_and_suffix_from_scope_string(self, context: Context):
+        config = context.get("config")
+
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "uapi:/datasets/gov/rc/ar/ws/Country/:getall",
+            "uapi:/datasets2/Street/:getone",
+            "spinta_datasets_gov_rc_ar_ws_Country_getall",
+            "spinta_datasets_gov_rc_ar_ws_Town_getone",
+        }
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+
+        assert token._get_namespace_scope_map([config.scope_prefix, config.scope_prefix_udts]) == {
+            "datasets/gov/rc/ar/ws/Country": {"uapi:/datasets/gov/rc/ar/ws/Country/:getall"},
+            "datasets2/Street": {"uapi:/datasets2/Street/:getone"},
+            "datasets_gov_rc_ar_ws_Country": {"spinta_datasets_gov_rc_ar_ws_Country_getall"},
+            "datasets_gov_rc_ar_ws_Town": {"spinta_datasets_gov_rc_ar_ws_Town_getone"},
+        }
+
+
+class TestTokenGetScopesFromModelNamespaces:
+    jwt_scopes = {
+        "uapi:/datasets/gov/rc/ar/ws/Country/:getall",
+        "uapi:/datasets/gov/rc/ar/ws/Country/:getone",
+        "uapi:/datasets/gov/rc/ar/ws/Town/:getall",
+        "uapi:/datasets/gov/rc/ar/ws/Town/:getone",
+        "uapi:/datasets/gov/rc/ar/ws/Town",
+        "uapi:/datasets/aa/ba/ca/da/Ea",
+        "uapi:/datasets/aa/ba/Cc",
+        "uapi:/datasets/Ab",
+        "uapi:/Ab",
+        "spinta_datasets_gov_rc_ar_ws_Country_getall",
+        "spinta_datasets_gov_rc_ar_ws_Country_getone",
+        "spinta_datasets_gov_rc_ar_ws_Town_getall",
+        "spinta_datasets_gov_rc_ar_ws_Town_getone",
+        "spinta_datasets_gov_rc_ar_ws_Town",
+        "spinta_datasets2_aa_ba_ca_da_Ea",
+        "spinta_datasets3_ac_bc_Cc",
+        "spinta_datasets3_Ab",
+        "spinta_Ab",
+    }
+
+    @pytest.mark.parametrize(
+        "namespaces, result",
+        [
+            (set(), set()),
+            ("test/test", set()),
+            ({"datasets/gov"}, set()),
+            ({"datasets/gov/rc/ar/ws/Count"}, set()),  # Count model does not exist
+            ({"datasets/aa/ba/ca/da/Ea"}, {"uapi:/datasets/aa/ba/ca/da/Ea"}),
+            (
+                {"datasets3_Ab", "datasets/gov/rc/ar/ws/Town"},
+                {
+                    "spinta_datasets3_Ab",
+                    "uapi:/datasets/gov/rc/ar/ws/Town/:getall",
+                    "uapi:/datasets/gov/rc/ar/ws/Town/:getone",
+                    "uapi:/datasets/gov/rc/ar/ws/Town",
+                },
+            ),
+            (
+                {"datasets_gov_rc_ar_ws_Country"},
+                {"spinta_datasets_gov_rc_ar_ws_Country_getall", "spinta_datasets_gov_rc_ar_ws_Country_getone"},
+            ),
+        ],
+    )
+    def test_return_jwt_scopes_that_starts_with_namespace(
+        self, context: Context, namespaces: set[str], result: set[str]
+    ):
+        config = context.get("config")
+
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=self.jwt_scopes)
+        token = Token(token, BearerTokenValidator(context))
+
+        assert (
+            token._get_scopes_from_model_namespaces(namespaces, [config.scope_prefix, config.scope_prefix_udts])
+            == result
+        )
+
+
+class TestTokenCheckContractScopes:
+    def test_raise_error_if_contracts_has_no_scopes(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_datasets_test_example_Foo",
+            "uapi:/datasets/test/example/Foo",
+        }
+        token = create_access_token(context, pkey, "0a8d30bd-e8c0-4c8f-a2cd-abec9a1f2d6f", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(InvalidExtraScopes) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains extra scopes that are not defined in contract. "
+            "Extra scopes: uapi:/datasets/test/example/Foo."
+        )
+
+    def test_raise_error_if_token_has_no_scopes(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=None)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(NoScopesForNamespaces) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains no scopes from available namespaces: datasets, datasets/test, "
+            "datasets/test/example, datasets/test/example/Foo."
+        )
+
+    def test_raise_error_if_manifest_has_no_models(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=None)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(NoScopesForNamespaces) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == "Request contains no scopes from available namespaces: []."
+
+    def test_raise_error_if_token_has_no_scopes_in_available_namespaces(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {"random_scope1", "random_scope2"}
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(NoScopesForNamespaces) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains no scopes from available namespaces: datasets, datasets/test, "
+            "datasets/test/example, datasets/test/example/Foo."
+        )
+
+    def test_raise_error_if_token_has_more_scopes_than_contracts_in_available_namespace(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_datasets_test_example_Foo",
+            "uapi:/datasets/test/example/Foo",
+            "uapi:/datasets/test/example/Foo/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(InvalidExtraScopes) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains extra scopes that are not defined in contract. "
+            "Extra scopes: uapi:/datasets/test/example/Foo."
+        )
+
+    def test_success_if_token_has_more_scopes_than_contracts_outside_available_namespace(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_extra_scope",
+            "spinta_datasets_test_example_Foo_getall",
+            "uapi:/datasets/test/example/Foo/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        assert token.check_contract_scopes(context) is None
+
+    def test_success_if_token_has_same_scopes_as_contract(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "spinta_datasets_test_example_Foo_getall",
+            "spinta_datasets_test_example_Bar_getall",
+            "spinta_datasets_test_example_Baz_getall",
+            "spinta_datasets_test_example_Buz_getall",
+            "uapi:/datasets/test/example/Foo/:getall",
+            "uapi:/datasets/test/example/Bar/:getall",
+            "uapi:/datasets/test/example/Baz/:getall",
+            "uapi:/datasets/test/example/Buz/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        assert token.check_contract_scopes(context) is None
+
+    def test_success_if_token_has_less_scopes_than_contract(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | access
+               | datasets/test/example    | public
+               |   | data                 |
+               |   |   |   | Foo          | public
+               |   |   |   | Bar          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {
+            "uapi:/datasets/test/example/Foo/:getall",
+            "uapi:/datasets/test/example/Bar/:getall",
+            "uapi:/datasets/test/example/Baz/:getall",
+            "uapi:/datasets/test/example/Buz/:getall",
+        }
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        assert token.check_contract_scopes(context) is None
+
+
+@pytest.fixture
+def introspect_app(backends, rc, tmp_path, request):
+    confdir = pathlib.Path(__file__).parent / "config"
+    shutil.copytree(str(confdir / "keys"), str(tmp_path / "keys"))
+
+    path = get_clients_path(tmp_path)
+    ensure_client_folders_exist(path)
+    create_client_file(
+        path,
+        name="introspector",
+        client_id=str(uuid.uuid4()),
+        secret="introspector-secret",
+        scopes=["spinta_auth_introspect"],
+        add_secret=True,
+    )
+    create_client_file(
+        path,
+        name="reader",
+        client_id=str(uuid.uuid4()),
+        secret="reader-secret",
+        scopes=["spinta_getall"],
+        add_secret=True,
+    )
+
+    rc = rc.fork({"config_path": str(tmp_path), "default_auth_client": None})
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+    return create_test_client(context)
+
+
+def _get_access_token(app, name: str, secret: str, scope: str = "spinta_getall") -> str:
+    resp = app.post(
+        "/auth/token",
+        auth=(name, secret),
+        data={"grant_type": "client_credentials", "scope": scope},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
+def _introspect(app, token: str, auth=("introspector", "introspector-secret")):
+    return app.post("/auth/introspect", auth=auth, data={"token": token})
+
+
+def test_introspect_active_token(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    assert payload["active"] is True
+    assert payload["token_type"] == "Bearer"
+    assert payload["scope"] == "spinta_getall"
+    assert payload["exp"] > payload["iat"]
+    assert payload["jti"]
+    assert payload["aud"] == "https://example.com"
+
+
+def test_introspect_unknown_token(introspect_app):
+    resp = _introspect(introspect_app, "not-a-jwt")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_expired_token(introspect_app, context):
+    private_key = load_key(context, KeyType.private)
+    token = create_access_token(context, private_key, "reader", expires_in=-10, scopes={"spinta_getall"})
+
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}
+
+
+def test_introspect_requires_scope(introspect_app):
+    """A client without `auth_introspect` may not introspect another client's token."""
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+
+    resp = _introspect(introspect_app, token, auth=("reader", "reader-secret"))
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"] == "insufficient_scope"
+
+
+def test_introspect_own_token_requires_scope(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = _introspect(introspect_app, token, auth=("reader", "reader-secret"))
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"] == "insufficient_scope"
+
+
+def test_introspect_requires_client_auth(introspect_app):
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    resp = introspect_app.post("/auth/introspect", data={"token": token})
+    assert resp.status_code == 401, resp.text
+
+
+def test_authorization_server_metadata(introspect_app):
+    resp = introspect_app.get("/.well-known/oauth-authorization-server")
+    assert resp.status_code == 200, resp.text
+
+    metadata = ClientCredentialsServerMetadata(resp.json())
+    metadata.validate()
+
+    issuer = metadata["issuer"]
+    assert not issuer.endswith("/")
+    assert metadata["token_endpoint"] == f"{issuer}/auth/token"
+    assert metadata["introspection_endpoint"] == f"{issuer}/auth/introspect"
+    assert metadata["jwks_uri"] == f"{issuer}/.well-known/jwks.json"
+    assert metadata["grant_types_supported"] == ["client_credentials"]
+    assert metadata["token_endpoint_auth_methods_supported"] == ["client_secret_basic"]
+
+
+def test_metadata_endpoints_use_token_issuer(backends, rc, tmp_path, request):
+    confdir = pathlib.Path(__file__).parent
+    shutil.copytree(str(confdir / "config/keys"), str(tmp_path / "keys"))
+    rc = rc.fork(
+        {
+            "config_path": str(tmp_path),
+            "default_auth_client": None,
+            "server_url": "https://gateway.example.com",
+            "token_issuer": "https://auth.example.com",
+            "resource_server": "https://rs.example.com",
+        }
+    )
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+    client = create_test_client(context)
+
+    metadata = client.get("/.well-known/oauth-authorization-server").json()
+    assert metadata["issuer"] == "https://auth.example.com"
+    assert metadata["token_endpoint"] == "https://auth.example.com/auth/token"
+    assert metadata["introspection_endpoint"] == "https://auth.example.com/auth/introspect"
+    assert metadata["jwks_uri"] == "https://auth.example.com/.well-known/jwks.json"
+
+
+def test_metadata_issuer_matches_token_issuer(introspect_app):
+    """RFC 8414 requires the advertised issuer to match the `iss` claim."""
+    metadata = introspect_app.get("/.well-known/oauth-authorization-server").json()
+    token = _get_access_token(introspect_app, "reader", "reader-secret")
+
+    payload = _introspect(introspect_app, token).json()
+    assert payload["iss"] == metadata["issuer"]
+
+
+def test_introspect_ignores_token_type_hint(introspect_app):
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+    resp = introspect_app.post(
+        "/auth/introspect",
+        auth=("introspector", "introspector-secret"),
+        data={"token": token, "token_type_hint": "access_token"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["active"] is True
+
+
+def test_introspect_rejects_unsupported_token_type_hint(introspect_app):
+    token = _get_access_token(introspect_app, "introspector", "introspector-secret", scope="spinta_auth_introspect")
+    resp = introspect_app.post(
+        "/auth/introspect",
+        auth=("introspector", "introspector-secret"),
+        data={"token": token, "token_type_hint": "refresh_token"},
+    )
+    assert resp.status_code == 401, resp.text
+    assert resp.json()["error"] == "unsupported_token_type"
+
+
+def test_introspect_rejects_foreign_issuer(introspect_app, context):
+    private_key = load_key(context, KeyType.private)
+    token = _encode_token(
+        private_key,
+        iss="https://evil.example.com",
+        client="reader",
+        client_id=None,
+        scope="spinta_getall",
+    )
+    resp = _introspect(introspect_app, token)
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"active": False}

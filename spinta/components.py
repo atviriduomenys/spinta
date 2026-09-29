@@ -1,43 +1,47 @@
 from __future__ import annotations
 
 import base64
-import json
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterator
-from typing import Set
-from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
-
 import contextlib
 import dataclasses
+import json
 import pathlib
-from typing import Type
-from typing import TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypedDict,
+    Union,
+)
 
-from spinta.core.ufuncs import Expr, Bind
-from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
+from spinta.core.enums import Access, Action, Level, Mode, Status, Visibility
+from spinta.core.ufuncs import Bind, Expr
 from spinta.dimensions.lang.components import LangData
+from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
-    from spinta.backends.components import Backend
-    from spinta.types.datatype import DataType
+    from spinta.accesslog import AccessLog
+    from spinta.backends.components import Backend, DistributionStrategy
+    from spinta.core.config import RawConfig
+    from spinta.datasets.components import Attribute, Entity
+    from spinta.datasets.keymaps.components import KeyMap
+    from spinta.dimensions.comments.components import Comment
+    from spinta.dimensions.enum.components import Enums, EnumValue
+    from spinta.dimensions.scope.components import Scope
+    from spinta.formats.components import Format
     from spinta.manifests.components import Manifest
     from spinta.manifests.internal.components import InternalManifest
-    from spinta.datasets.components import Attribute
-    from spinta.datasets.components import Entity
-    from spinta.datasets.keymaps.components import KeyMap
-    from spinta.dimensions.enum.components import Enums
-    from spinta.dimensions.enum.components import EnumValue
-    from spinta.core.config import RawConfig
-    from spinta.accesslog import AccessLog
-    from spinta.formats.components import Format
-    from spinta.dimensions.comments.components import Comment
+    from spinta.types.datatype import DataType
 
 
 class Context:
@@ -620,6 +624,14 @@ def page_in_data(data: dict) -> bool:
     return "_page" in data
 
 
+def revision_in_data(data: dict) -> bool:
+    return "_revision" in data
+
+
+def check_if_revision_explicit(prop: Property) -> bool:
+    return prop.name == "_revision" and prop.explicitly_given
+
+
 class ParamsPage:
     values: List[Any]
     size: int
@@ -642,6 +654,7 @@ class Model(MetaData):
     description: str
     ns: Namespace
     external: Entity = None
+    scopes: Dict[str, Scope]
     properties: Dict[str, Property]
     mode: Mode = None
     given: ModelGiven
@@ -649,7 +662,6 @@ class Model(MetaData):
     comments: List[Comment] = None
     base: Base = None
     uri: str = None
-    uri_prop: Property = None
     page: PageInfo = None
     features: str = None
     status: Status | None = None
@@ -658,7 +670,14 @@ class Model(MetaData):
     count: int | None = None
     origin: str | None = None
 
+    # Systemic fields that are not part of the model definition.
+    distribution_strategy: DistributionStrategy | None = None
     required_keymap_properties = None
+
+    # Quick access properties
+    uri_prop: Property | None = None
+    id_prop: Property
+    revision_prop: Property
 
     limit: int | None = None
 
@@ -668,6 +687,7 @@ class Model(MetaData):
         "unique": {"default": []},
         "base": {},
         "link": {},
+        "scopes": {"default": {}},
         "properties": {"default": {}},
         "external": {},
         "level": {
@@ -728,12 +748,25 @@ class Model(MetaData):
         # return self.name.split('/')[-1]
 
     def add_keymap_property_combination(self, given_props: List[Property]):
-        extract_names = list([prop.name for prop in given_props])
+        extract_names = tuple([prop.place for prop in given_props])
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)
 
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith("_")}
+
+    def get_namespaces(self, include_self: bool = True) -> set[str]:
+        namespaces = []
+        if include_self:
+            namespaces.append(self.name)
+
+        if self.ns:
+            namespaces.append(self.ns.name)
+            namespaces.extend(
+                [parent_namespace.name for parent_namespace in self.ns.parents() if parent_namespace.name]
+            )
+
+        return set(namespaces)
 
 
 class PropertyGiven:
@@ -874,6 +907,7 @@ class Attachment:
 class UrlParseNode(TypedDict):
     name: str
     args: List[Any]
+    id_prop: Property
 
 
 class UrlParams:
@@ -905,6 +939,8 @@ class UrlParams:
     select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
     select_funcs: Optional[Dict[str, FuncProperty]] = None
 
+    custom_scope: str | None = None
+
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None
@@ -914,7 +950,7 @@ class UrlParams:
     # In batch requests, return summary of what was done.
     summary: bool = False
     bbox: Optional[List[float]] = None
-    # In batch requests, continue execution even if some actiones fail.
+    # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
 
     action: Action = None
@@ -1054,6 +1090,16 @@ ScopeFormatterFunc = Callable[
 ]
 
 
+ScopeFormatterFuncUDTS = Callable[
+    [
+        Context,
+        Union[Namespace, Model, Property],
+        Action,
+    ],
+    str,
+]
+
+
 class Config:
     """Spinta configuration
 
@@ -1073,12 +1119,20 @@ class Config:
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
     scope_log: bool
+    check_contract_scopes: bool
     default_auth_client: str
+    default_access_level: Access
+    access: Access
     http_basic_auth: bool
-    token_validation_key: dict = None
+    token_validation_key: dict | None = None
+    token_validation_keys_download_url: str | None = None
+    token_issuer: str | None = None
+    resource_server: str | None = None
+    downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str
     docs_path: pathlib.Path
+    front_page_warning: str = ""
     always_show_id: bool = False
     # Limit access to specified namespace root.
     root: str = None
@@ -1089,7 +1143,10 @@ class Config:
     default_page_size: int
     enable_pagination: bool
     sync_page_size: int = None
+    sync_retry_count: int
+    sync_retry_delay_range: tuple[float]
     languages: List[str]
+    # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
     # MB
     max_api_file_size: int
@@ -1104,6 +1161,19 @@ class Config:
 
     # Cache-Control header
     cache_control: str = ""
+
+    # HTTP Strict Transport Security (HSTS) header
+    http_strict_transport_security: str = ""
+
+    # `/health` probe thresholds, in MB
+    health_min_free_disk_space: int
+    health_min_free_memory: int
+
+    log_level: str
+    file_log_level: str
+    file_log_path: pathlib.Path
+
+    default_distribution_strategy: DistributionStrategy | None = None
 
     def __init__(self):
         self.commands = _CommandsConfig()

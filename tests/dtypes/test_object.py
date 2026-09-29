@@ -1,13 +1,11 @@
 import pytest
 
+from spinta.testing.dtypes import get, patch, path, post, put, search
 from spinta.utils.schema import NA
-from spinta.testing.dtypes import path, post, put, patch, get, search
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/Object",
     "backends/postgres/dtypes/Object",
-    "backends/mongo/dtypes/array/Object",
     "backends/postgres/dtypes/array/Object",
 )
 def test_update_empty(model, app):
@@ -23,7 +21,6 @@ def test_update_empty(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/Object",
     "backends/postgres/dtypes/Object",
 )
 def test_patch_empty(model, app):
@@ -39,7 +36,6 @@ def test_patch_empty(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/array/Object",
     "backends/postgres/dtypes/array/Object",
 )
 def test_patch_empty_array(model, app):

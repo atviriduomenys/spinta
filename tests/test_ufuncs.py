@@ -5,18 +5,13 @@ import pytest
 from spinta import commands
 from spinta.components import Store
 from spinta.core.config import RawConfig
-from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Env
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import Pair
-from spinta.core.ufuncs import UFuncRegistry
+from spinta.core.ufuncs import Bind, Env, Expr, Pair, UFuncRegistry
 from spinta.exceptions import IncompatibleForeignProperties
-from spinta.testing.manifest import load_manifest_and_context
-from spinta.testing.manifest import load_manifest_get_context
+from spinta.testing.manifest import load_manifest_and_context, load_manifest_get_context
 from spinta.testing.ufuncs import UFuncTester
 from spinta.types.datatype import Ref
-from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.changebase.helpers import change_base_model
+from spinta.ufuncs.components import ForeignProperty
 
 
 @pytest.fixture()

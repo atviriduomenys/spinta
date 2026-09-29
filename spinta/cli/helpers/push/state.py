@@ -1,10 +1,7 @@
 import datetime
 import itertools
 import json
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Tuple
+from typing import Iterable, Iterator, List, Tuple
 
 import sqlalchemy as sa
 
@@ -12,8 +9,7 @@ from spinta import spyna
 from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.components import PushRow, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
-from spinta.components import Context, pagination_enabled
-from spinta.components import Model
+from spinta.components import Context, Model, pagination_enabled
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.sqlite import migrate_table
 

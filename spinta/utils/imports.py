@@ -1,7 +1,6 @@
 import importlib
 import inspect
-from typing import Any
-from typing import Type
+from typing import Any, Type
 
 
 def importstr(path):

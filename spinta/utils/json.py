@@ -1,10 +1,10 @@
 import base64
 import datetime
-import pathlib
 import decimal
+import pathlib
+import uuid
 
 from shapely.geometry.base import BaseGeometry
-import uuid
 
 
 def fix_data_for_json(data):

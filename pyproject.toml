@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2dev7"
+version = "1.2.0"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -34,11 +34,15 @@ spinta = "spinta.cli.main:app"
 
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
+pandas = ">=2.3.3,<3"
 aiofiles = "*"
 # https://github.com/atviriduomenys/spinta/issues/675
 # 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
-authlib = ">=1.0.0"
+authlib = ">=1.7.2"
+joserfc = ">=1.6.0"
+nh3 = "*"
+markdown = "*"
 jinja2 = "*"
 jsonpatch = "*"
 lark-parser = "*"
@@ -54,7 +58,7 @@ requests = "*"
 setuptools = "*"
 setuptools-scm = "*"
 # https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
-starlette = ">=0.40"
+starlette = ">=1.3.1,<2.0.0"
 pydantic = "*"
 toposort = "*"
 tqdm = "*"
@@ -84,10 +88,6 @@ sqlalchemy = "~1.4"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/791
 sqlalchemy-utils = "<=0.41.2"
 
-# Mongo backend dependendencies
-# https://github.com/atviriduomenys/spinta/issues/806
-pymongo = "<=4.8.0"
-
 # Excel dependencies
 xlrd = "*"
 
@@ -107,13 +107,16 @@ fsspec = "*"
 dask = { version = "*", extras = ["dataframe"] }
 psutil = "*"
 tabulate = "*"
-pyproj = [{version = ">=3.7.0", python = ">=3.13"}, {version = "3.6.1", python = "<3.13"}]
+pyproj = [{ version = ">=3.7.0", python = ">=3.13" }, { version = "3.6.1", python = "<3.13" }]
 xmltodict = "*"
-# Error when trying to install >=3.50
-sqlean-py = "<=3.49.1"
+# >=3.50.4.5 provides wheels for CPython 3.10-3.14 (older releases fail to
+# build from source on 3.14).
+sqlean-py = ">=3.50.4.5"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
+redis = "^6.4.0"
+cbor2 = "^5.9.0"
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]
@@ -136,8 +139,8 @@ docutils = "*"
 requests-mock = "^1.11.0"
 ruff = "^0.12.10"
 
-# Starlette
-httpx = "*"
+# Starlette test client (starlette >=1.0 requires httpx2)
+httpx2 = "*"
 
 # Docs
 sphinx = "*"
@@ -150,6 +153,7 @@ objprint = "*"
 sphinx-rtd-theme = "*"
 sqlalchemy-stubs = "*"
 types-requests = "^2.32.4.20250809"
+fakeredis = "^2.32.0"
 
 
 [build-system]
@@ -173,4 +177,6 @@ quote-style = "double"
 
 
 [tool.ruff.lint]
+# I (isort) checks import sorting and grouping.
+extend-select = ["I"]
 ignore = ["F811"]

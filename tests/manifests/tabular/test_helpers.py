@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.exceptions import PropertyNotFound
-from spinta.manifests.tabular.helpers import normalizes_columns, _parse_dtype_string
+from spinta.manifests.tabular.helpers import _parse_dtype_string, normalizes_columns
 
 
 def test_normalizes_columns_short_names():

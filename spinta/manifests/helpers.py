@@ -1,33 +1,23 @@
+import pathlib
 import re
 from datetime import datetime
-import pathlib
-from typing import Any
-from typing import Dict
-from typing import List, Iterable, Optional
-from typing import Type
+from typing import Any, Dict, Iterable, List, Optional, Type
 
-import jsonpatch
-
-from spinta import commands
+from spinta import HTTP_URL_PREFIXES, commands
 from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
-from spinta.components import Model
-from spinta.datasets.components import Dataset
-from spinta.datasets.components import Entity
-from spinta.datasets.components import Resource
+from spinta.components import Config, Context, EntryId, MetaData, Model, Store
+from spinta.core.config import RawConfig
+from spinta.core.enums import Access, Mode
+from spinta.datasets.components import Dataset, Entity, Resource
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.prefix.helpers import load_prefixes
-from spinta.exceptions import ManifestFileDoesNotExist, UnknownManifestTypeFromPath, UnknownManifestType
-from spinta.exceptions import UnknownKeyMap
-from spinta.manifests.components import ManifestSchema
-from spinta.nodes import get_node
-from spinta.core.config import RawConfig
-from spinta.components import Context, Config, Store, MetaData, EntryId
-from spinta.manifests.components import Manifest
+from spinta.exceptions import ManifestFileDoesNotExist, UnknownKeyMap, UnknownManifestType, UnknownManifestTypeFromPath
+from spinta.manifests.components import Manifest, ManifestSchema
 from spinta.manifests.internal.components import InternalManifest
+from spinta.nodes import get_node
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.enums import enum_by_name
-from spinta.core.enums import Access, Mode
 from spinta.utils.imports import importstr
 
 
@@ -41,7 +31,7 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.sync = []
     manifest.prefixes = {}
     manifest.enums = {}
-    manifest.access = Access.protected
+    manifest.access = config.default_access_level
     manifest.keymap = None
     manifest.backend = None
     manifest.mode = Mode.internal
@@ -108,7 +98,7 @@ def _configure_manifest(
             raise UnknownKeyMap(manifest, keymap=keymap)
         manifest.keymap = store.keymaps[keymap]
     backend = rc.get("manifests", name, "backend", default=backend)
-    if backend and rc.get("load_backends"):
+    if backend and rc.get("ensure_backends"):
         manifest.backend = store.backends[backend]
     mode = rc.get("manifests", name, "mode")
     if mode:
@@ -195,17 +185,6 @@ def _load_manifest_node(
     node.manifest = manifest
     commands.load(context, node, data, manifest, source=source)
     return node
-
-
-def get_current_schema_changes(
-    context: Context,
-    manifest: Manifest,
-    eid: EntryId,
-) -> List[dict]:
-    freezed = commands.manifest_read_freezed(context, manifest, eid=eid)
-    current = commands.manifest_read_current(context, manifest, eid=eid)
-    patch = jsonpatch.make_patch(freezed, current)
-    return list(patch)
 
 
 def entity_to_schema(entity: Optional[Entity]) -> ManifestSchema:
@@ -324,7 +303,7 @@ def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
 
 
 def check_manifest_path(manifest: Manifest, path: str) -> None:
-    if not path.startswith(("http://", "https://")) and not pathlib.Path(path).exists():
+    if not path.startswith(HTTP_URL_PREFIXES) and not pathlib.Path(path).exists():
         raise ManifestFileDoesNotExist(manifest, path=path)
 
 
@@ -432,7 +411,7 @@ class TypeDetector:
         self.type = new_type
 
     def _assert_url(self, value: str):
-        if value.startswith(("http://", "https://")):
+        if value.startswith(HTTP_URL_PREFIXES):
             self.type = "url"
         else:
             self.type = ""

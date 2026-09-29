@@ -1,14 +1,14 @@
-import operator
 import itertools
+import operator
 
 from spinta import commands
-from spinta.components import Context, UrlParams, Model
+from spinta.components import Context, Model, UrlParams
 from spinta.core.enums import Action
-from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_border, draw_header, draw_row
-from spinta.manifests.components import Manifest
+from spinta.formats.ascii.helpers import draw_border, draw_header, draw_row, get_displayed_cols, get_widths
 from spinta.formats.components import Format
-from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.formats.helpers import get_model_tabular_header, rename_page_col
+from spinta.manifests.components import Manifest
+from spinta.utils.nestedstruct import flatten, sepgetter
 
 
 class Ascii(Format):

@@ -1,22 +1,16 @@
 from __future__ import annotations
 
-from typing import Dict, Any
-from typing import List
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
-from spinta.components import EntryId, ExtraMetaData
-from spinta.components import Namespace
-from spinta.dimensions.comments.components import Comment
-from spinta.dimensions.lang.components import LangData
-from spinta.components import MetaData
-from spinta.components import Model
-from spinta.components import Property
+from spinta.components import EntryId, ExtraMetaData, MetaData, Model, Namespace, Property
 from spinta.core.enums import Access, Level
 from spinta.core.ufuncs import Expr
+from spinta.dimensions.comments.components import Comment
+from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA
@@ -93,6 +87,9 @@ class ExternalBackend(Backend):
     engine: Engine = None
     schema: sa.MetaData = None
 
+    # Majority of external backends require source for their models
+    model_requires_source: bool = True
+
 
 class External(ExtraMetaData):
     pass
@@ -159,6 +156,14 @@ class Resource(External):
         self.params = {}
         self.source_params = set()
 
+    def get_param_http_headers(self) -> dict:
+        headers = {}
+        for param in self.params:
+            if hasattr(param, "http_header"):
+                headers.update(param.http_header)
+
+        return headers
+
 
 class Param(ExtraMetaData):
     name: str
@@ -169,6 +174,8 @@ class Param(ExtraMetaData):
     formulas: List[Expr]
     dependencies: set
     soap_body: dict[str, Any]  # Used to store result of input() function
+    soap_body_value_type: str = "string"  # Type that soap body value will be converted to
+    http_header: dict  # Used to store results of header() function
 
     # Given values
     source: List[Any]
@@ -203,7 +210,6 @@ class Entity(External):
     name: str  # model.source
     prepare: Expr  # model.prepare
     params: List[Param]
-
     schema = {
         "model": {"parent": True},
         "dataset": {"type": "ref", "ref": "context.nodes.dataset"},
@@ -232,9 +238,13 @@ class Attribute(External):
     name: str  # property.source
     prepare: Expr = NA  # property.prepare
 
+    # Type object, that overwrites default types
+    custom_type: Any = None
+
     schema = {
         "prop": {"parent": True},
         "name": {"default": None},
         "prepare": {"type": "spyna", "default": NA},
         "type": {"type": "string"},
+        "custom_type": {"type": "object", "default": None},
     }

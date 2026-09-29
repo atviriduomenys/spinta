@@ -1,34 +1,36 @@
 from __future__ import annotations
 
+import itertools
 import json
+import time
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
-from typing import cast, Optional, List, Dict, Any, Tuple
-
-import itertools
+from typing import Any, Dict, List, Optional, Tuple, cast
 from urllib.error import HTTPError
 
 import requests
+import tqdm
+from spinta.cli.helpers.message import cli_message
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta import commands
-from spinta import exceptions
+from spinta import commands, exceptions
+from spinta.api.inspect import inspect_api
 from spinta.api.schema import schema_api
-from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
+from spinta.backends.helpers import validate_and_return_begin, validate_and_return_transaction
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.components import Model
-from spinta.core.enums import Action
 from spinta.components import Context
+from spinta.components import Model
 from spinta.components import Node
 from spinta.components import Store
 from spinta.components import UrlParams
-from spinta.exceptions import BaseError, ExceededMaximumLimit, LimitOrPageIsRequired
+from spinta.core.enums import Action
+from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
-from spinta.api.inspect import inspect_api
+from spinta.formats.components import Format
 from spinta.renderer import render
 
 
@@ -48,9 +50,7 @@ async def _check_post(context: Context, request: Request, params: UrlParams):
     #      loaded as any other manifest. Here only tabluar manifest loading is
     #      hardcoded.
     from spinta.core.config import RawConfig
-    from spinta.manifests.helpers import clone_manifest
-    from spinta.manifests.helpers import detect_manifest_from_path
-    from spinta.manifests.helpers import load_manifest_nodes
+    from spinta.manifests.helpers import clone_manifest, detect_manifest_from_path, load_manifest_nodes
     from spinta.manifests.tabular.components import TabularManifest
     from spinta.manifests.tabular.helpers import read_tabular_manifest
 
@@ -156,7 +156,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(
                     f"keymap.{model.keymap.name}",
-                    lambda: model.keymap,
+                    lambda: model.keymap.copy(),
                 )
 
             return await commands.getone(
@@ -185,7 +185,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(
                     f"keymap.{model.keymap.name}",
-                    lambda: model.keymap,
+                    lambda: model.keymap.copy(),
                 )
 
             return await commands.getall(
@@ -323,17 +323,19 @@ def get_request(
         ignore_errors = []
 
     try:
-        resp = client.request("GET", server, timeout=timeout)
+        resp = client.get(
+            server,
+            timeout=timeout,
+        )
     except IOError:
         if error_counter:
             error_counter.increase()
         if stop_on_error:
             raise
         return None, None
-
     try:
         resp.raise_for_status()
-    except HTTPError:
+    except (HTTPError, requests.exceptions.HTTPError):
         if resp.status_code not in ignore_errors:
             if error_counter:
                 error_counter.increase()
@@ -348,6 +350,37 @@ def get_request(
         return resp.status_code, None
 
     return resp.status_code, resp.json()
+
+
+def get_request_with_retries(
+    client: requests.Session,
+    server: str,
+    timeout: tuple[float, float],
+    retries: int,
+    delay_range: tuple[float],
+    *,
+    error_counter: ErrorCounter = None,
+    progress_bar: tqdm.tqdm = None,
+):
+    status_code, resp = get_request(client, server, timeout=timeout)
+    if status_code == 200:
+        return status_code, resp
+
+    cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
+    for i in range(retries):
+        delay = delay_range[min(i, len(delay_range) - 1)]
+
+        cli_message(f"Retrying ({i + 1}/{retries}) in {delay} seconds...", progress_bar=progress_bar)
+        time.sleep(delay)
+
+        status_code, resp = get_request(client, server, timeout=timeout)
+        if status_code == 200:
+            return status_code, resp
+
+        cli_message(f"ERROR ({status_code}): Failed to fetch data from {server}", progress_bar=progress_bar)
+
+    error_counter.increase()
+    return status_code, resp
 
 
 def _extract_latest_change(context: Context, model: Model, target_id: str = None) -> dict | None:
@@ -380,6 +413,9 @@ def cache_control_response_headers(context: Context, model: Model, target_id: st
 
     cache_control = {
         "Cache-Control": config.cache_control,
+        # Response body depends on these request headers (content negotiation,
+        # auth scopes), so shared caches must include them in the cache key.
+        "Vary": "Accept, Accept-Language, Authorization",
         "Last-Modified": last_modified,
         "ETag": revision,
     }

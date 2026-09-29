@@ -1,16 +1,15 @@
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
-from typer import Argument
+from typer import Argument, Option, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import echo
 
+from spinta import commands
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.core.enums import Mode
+from spinta.components import Context, Store
 from spinta.core.config import KeyFormat
 from spinta.core.context import configure_context
+from spinta.core.enums import Mode
 
 
 def config(
@@ -32,9 +31,16 @@ def check(
 ):
     """Check configuration and manifests"""
     manifests = convert_str_to_manifest_path(manifests)
-    context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
+    context: Context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
     prepare_manifest(context, ensure_config_dir=True, full_load=True)
     manager = context.get("error_manager")
+
+    store: Store = context.get("store")
+    if store.manifest:
+        for model in commands.get_models(context, store.manifest).values():
+            if model.external and model.external.resource and model.external.resource.backend:
+                commands.check(context, model, model.external.resource.backend)
+
     handler = manager.handler
 
     if handler.get_counts():

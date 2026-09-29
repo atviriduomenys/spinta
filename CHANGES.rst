@@ -1,8 +1,705 @@
 Changes
 #######
 
-0.2dev7 (unreleased)
-===================
+1.2.0 (unreleased)
+=====================
+
+Bug fixes:
+
+- Fixed token validation when ``token_validation_keys_download_url`` was
+  configured (needed when tokens are issued by an external authorization
+  server): the ``downloaded_public_keys_file`` configuration value is a
+  string, but it was stored as-is and later used as a ``pathlib.Path``
+  (``load_downloaded_public_keys`` calls ``.exists()`` on it), so every
+  request failed with ``AttributeError: 'str' object has no attribute
+  'exists'``. The value is now wrapped with ``pathlib.Path``.
+- Fixed incorrect citus distribution script generation when using `spinta migrate`
+  on fresh database, when manifest contains models with cross schema references (`#2008`_).
+
+.. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
+
+1.1.0 (2026-08-19)
+=====================
+
+Backwards incompatible:
+
+- Access tokens are now validated against their ``iss`` (issuer), ``aud``
+  (audience), ``client_id``, ``exp`` (expiration) and ``iat`` (issued-at) claims
+  at decode time: a token is rejected unless its ``iss`` equals the
+  authorization server identifier, its ``aud`` contains this resource server,
+  and it carries ``client_id``, ``exp`` (not expired) and ``iat``. A validated
+  token must now carry a ``client_id`` claim identifying the client; tokens
+  without it (minted before this change, or by an issuer that omits it) are
+  rejected with ``401`` instead of failing later during client lookup.
+  Previously the ``iss`` claim was never checked, so a signature-valid token
+  from a different issuer was accepted; and a token missing ``exp`` or ``iat``
+  raised an unguarded ``KeyError`` (HTTP 500) instead of a clean ``401``.
+  (Expiry itself was already
+  enforced by the bearer-token validator.) (`#631`_).
+- Added the ``token_issuer`` configuration parameter — the identifier of the
+  authorization server, used as the ``iss`` claim of tokens Spinta issues and
+  the value it requires when validating them. It is **required whenever Spinta
+  issues or validates an access token** (acting as its own authorization server
+  or validating an external one) and has no default; the requirement is enforced
+  when a token is issued or validated, not at startup, so operations that never
+  touch tokens (e.g. inspecting a manifest) are unaffected. There is deliberately
+  no fallback to ``server_url``, because ``server_url`` is the public URL (often
+  a gateway) and is not a valid issuer identity. Set it to the authorization
+  server's identifier — the external issuer's ``iss`` when validating tokens
+  minted elsewhere (via ``token_validation_key`` or
+  ``token_validation_keys_download_url``), or this server's own authorization
+  identity when it issues its own tokens (`#631`_).
+- Added the ``resource_server`` configuration parameter — the identifier of
+  this resource server, used as the ``aud`` (audience) claim of tokens Spinta
+  issues and required to be present in tokens it validates. It is **required
+  whenever Spinta issues or validates an access token** (enforced at that point,
+  not at startup) and has no default (no fallback to ``server_url``, which may be
+  a gateway in front of this resource server). Previously the ``aud`` claim was
+  incorrectly set to the client id, conflating the audience with the client;
+  ``aud`` is now the resource server and the client is carried in a separate
+  ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server`` is
+  rejected (`#631`_).
+- The RFC 8414 authorization-server metadata
+  (``GET /.well-known/oauth-authorization-server``) builds its endpoint URLs
+  (``token_endpoint``, ``introspection_endpoint``, ``jwks_uri``) from
+  ``token_issuer``, with any trailing slash stripped, rather than from
+  ``server_url`` or ``resource_server`` (`#631`_).
+- ``server_url`` is normalised (trailing slash stripped) when configuration is
+  loaded, so the ``Location`` header of created resources no longer contains a
+  double slash (`#631`_).
+- The authorization-server endpoints (``POST /auth/token``,
+  ``POST /auth/introspect`` and ``GET /.well-known/oauth-authorization-server``)
+  are now disabled when token validation is configured against an external
+  issuer (``token_validation_key`` or ``token_validation_keys_download_url`` is
+  set): Spinta cannot verify tokens it would sign, so it no longer acts as an
+  authorization server and these endpoints return ``NoAuthServer``. Previously
+  they responded whenever a private key was present, even in agent mode — but
+  any token minted there failed validation against the external key. Agent-mode
+  deployments must obtain tokens from the external authorization server instead
+  (`#631`_).
+- Removed the internal ``mongo`` backend. It was intended as an internal
+  storage for schemaless data sets, but that use case never materialized and
+  the backend was unused. The ``mongo`` backend type, its ``pymongo``
+  dependency and the Mongo service in CI and ``docker-compose`` are gone;
+  models must now use a schema-based internal backend such as ``postgresql``
+  (`#1996`_).
+
+Bug fixes:
+
+- Escape Mermaid/HTML-structural characters (`` ` ``, ``"``, ``{``, ``}``, ``<``, ``>`` and newlines) in
+  generated Mermaid class diagrams (``write_mermaid_manifest``). Model names, labels, property names and
+  enum values were interpolated into the diagram source unescaped, so a crafted enum value could break out
+  of its token and inject Mermaid directives (for example a ``click ... href "javascript:..."`` link),
+  leading to stored XSS or a render-time denial of service for anyone viewing the diagram. Values are now
+  entity-encoded at every interpolation site; Mermaid decodes these back to the original glyph,
+  so display is preserved while the injection is neutralized. Newlines, which cannot be represented in the
+  line-oriented grammar, are collapsed to spaces (`#513`_).
+- Replaced the deprecated ``asyncio.get_event_loop().run_until_complete()`` calls
+  in the ``import``, ``export``, ``pull`` and ``bootstrap`` commands with
+  ``asyncio.run()``. On Python ``3.14`` ``asyncio.get_event_loop()`` no longer
+  creates an event loop when none is running and raises ``RuntimeError: There is
+  no current event loop``, which made these commands fail (`#1556`_).
+- Test contexts now dispose their backend and keymap SQLAlchemy engines when
+  torn down, instead of relying on the garbage collector. On Python ``3.14`` the
+  cyclic garbage collector reclaimed these engines late enough that idle pooled
+  connections accumulated across the test suite and exhausted the PostgreSQL
+  ``max_connections`` limit (``FATAL: sorry, too many clients already``)
+  (`#1556`_).
+
+- Fixed key-id based public key selection in token validation: ``decode_token``
+  now reads the standard ``kid`` JWS header field (previously it looked for a
+  non-standard ``key`` field that is never present, so the ``kid`` fast path was
+  never taken and validation always fell back to trial-verifying every key).
+
+Improvements:
+
+- Added an OAuth2 token introspection endpoint at ``POST /auth/introspect``
+  (`RFC 7662`). Clients authenticate with ``client_secret_basic`` and must have
+  the ``auth_introspect`` scope; the response reports ``active``, ``client_id``,
+  ``scope``, ``sub``, ``aud``, ``iss``, ``exp``, ``iat`` and ``jti`` for a valid
+  access token, and ``{"active": false}`` otherwise (`#631`_).
+- Added an authorization server metadata endpoint at
+  ``GET /.well-known/oauth-authorization-server`` (`RFC 8414`), advertising the
+  issuer, token, introspection and JWKS endpoint URLs, the supported
+  ``client_credentials`` grant and the supported client authentication methods
+  (`#631`_).
+- Added the ``auth_introspect`` scope, which grants a client permission to
+  introspect access tokens issued to any client (`#631`_).
+- Added support for Python ``3.14``. Bumped ``sqlean-py`` to ``>=3.50.4.5``, which
+  is the first release providing prebuilt wheels for CPython ``3.14`` (older
+  releases failed to build from source on ``3.14``), and added ``3.14`` to the CI
+  test matrix (`#1556`_).
+- Migrated JWT handling from the deprecated ``authlib.jose`` module to
+  ``joserfc``, removing the ``AuthlibDeprecationWarning``. Since ``joserfc``
+  rejects non-recommended signing algorithms by default, an explicit
+  ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
+  ``RS512`` used for access tokens) is now passed to token encode/decode.
+- Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
+- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
+  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
+  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
+  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
+  ``memory`` (enough available RAM). Only these flags are reported: since the
+  probe is not authenticated, paths, free space and errors are written to the
+  log instead of to the response. Available memory is measured against the
+  limit of the control group the process belongs to, falling back to the memory
+  of the host when it is not limited, so that a container is not reported as
+  healthy right before being killed for using up the memory it was given. Note
+  that an unhealthy service is reported in the body, not in the status code: the
+  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
+  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
+  container and load balancer probes, must therefore inspect ``healthy`` rather
+  than the status code. Thresholds are configurable via
+  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
+  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
+  routes, ``/health`` is matched before the catch-all route, so it shadows a
+  root level namespace or model named ``health``, if there is one (`#1873`_).
+
+.. _#631: https://github.com/atviriduomenys/dvms/issues/631
+.. _#513: https://github.com/atviriduomenys/dvms/issues/513
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
+.. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
+.. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
+.. _#1915: https://github.com/atviriduomenys/spinta/issues/1915
+
+
+1.0.0 (2026-07-23)
+==================
+
+No changes since 0.2dev29
+
+0.2dev29 (2026-07-13)
+=====================
+
+Backwards incompatible:
+
+- Because `Dask` backend got homogenized to work similar way as `Sql`, certain inconsistencies are changed, for example:
+  `Dask` used to return `ref._id` value when it was inherited and not specified that it needs to be returned (`#1945`_).
+
+Bug fixes:
+
+- Fixed `ref` type not being fully processed when its used as a primary key (`#1945`_).
+- Fixed `conn` issues with `keymap` when context is forked (`#1945`_).
+
+Improvements:
+
+- Upgraded `starlette` to the `1.x` series (`>=1.3.1`). Updated
+  `TemplateResponse` calls to the new request-first signature required since
+  `starlette` `1.0.0`, and migrated the test client helpers from `httpx` to
+  `httpx2`, which `starlette` `1.x` requires for `starlette.testclient`
+  (`#1847`_).
+- Added temporary workaround when trying to generate `ref` keymap values and user does not have permission to access the
+  required model (this will eventually be removed, once we no longer need to access other models to generate `_id` values)
+  (`#1945`_).
+- Improved `Dask` and `Sql` backend `PrimaryKey` `_id` value generation function to be more consistent how other datatypes
+  were handled (`#1945`_).
+
+.. _#1847: https://github.com/atviriduomenys/spinta/issues/1847
+.. _#1945: https://github.com/atviriduomenys/spinta/issues/1945
+
+0.2dev28 (2026-07-02)
+=====================
+
+Bug fixes:
+
+- Fixed data type detection in the tabular manifest reader so that modifiers
+  such as `required` or `unique` no longer interfere with parent and nesting
+  resolution. An `array` of `backref` is now recognised as an array backref, and
+  re-declaring an `object`/`array` property with a modifier no longer raises a
+  spurious nesting error (`#1970`_).
+
+Improvements:
+
+- Safer caching settings.
+
+
+0.2dev27 (2026-06-21)
+=====================
+
+New Features:
+
+- Added `texts.front_page_warning` configuration option, which lets you set the
+  warning message shown on HTML pages. The value is read from the configuration
+  (e.g. `config.yml`), falling back to the default defined in `spinta/config.py`
+  (`#1876`_).
+
+.. _#1876: https://github.com/atviriduomenys/spinta/issues/1876
+
+Improvements:
+
+- Added `--destructive` flag support to `citus_distribution` script (it will commit after each distribution change) (`#1976`_).
+- `spinta inspect` now maps MySQL `JSON` columns to the `object` data type in generated DSA, and supports casting them to `string` using the `cast()` prepare function. (`#1701`_).
+- Added a `Strict-Transport-Security` (HSTS) response header on all responses,
+  configurable via the `http_strict_transport_security` configuration option
+  (defaults to `max-age=31536000; includeSubDomains`) (`dvms#520`).
+
+.. _#1976: https://github.com/atviriduomenys/spinta/issues/1976
+.. _#1701: https://github.com/atviriduomenys/spinta/issues/1701
+
+0.2dev26 (2026-06-10)
+=====================
+
+Improvements:
+
+- Added validation that raises an error when a named enum (with a `ref`) is declared directly under a property (`#1935`_).
+- Added a new helper mirroring the existing replace_undeclared_ref_with_object. When a model's base cannot be resolved in
+  the manifest, instead of raising an error, it drops the base from the model, and append a systemic comment row so it can be restored later. (`#1928`_).
+
+  - `spinta comment` — extended to cover base restore comments
+  - `spinta uncomment` — extended to restore base rows
+- Changed `internal` `postgresql` database engine configuration to check for invalid connections (`#1965`_).
+
+- Added `check_ref_filters` configuration option (defaults to `true`). Set it to
+  `false` to stop a model from being implicitly filtered by the filters of the
+  models it refers to (`#1901`_).
+
+.. _#1901: https://github.com/atviriduomenys/spinta/issues/1901
+.. _#1935: https://github.com/atviriduomenys/spinta/issues/1935
+.. _#1928: https://github.com/atviriduomenys/spinta/issues/1928
+.. _#1965: https://github.com/atviriduomenys/spinta/issues/1965
+
+New Features:
+
+- Implemented named scope enforcement for data access restriction.
+  Scopes are defined in the manifest and applied per request to restrict what rows and fields a consumer can see. (`#1937`_).
+
+  - Scope row filters are appended after user conditions are validated — user cannot override or drop them.
+  - A contradicting user filter (country_code='de' against scope country_code='lt') produces zero rows, not a bypass.
+  - When scope defines select(...), user filter/sort on hidden fields raises `PropertyNotFound` — field existence is not revealed
+
+.. _#1937: https://github.com/atviriduomenys/spinta/issues/1937
+
+Bug fixes:
+
+- Fixed a bug where getone method in sql backend did not get any ref data (`#1900`_)
+- Fixed `count()` function not working properly with `dask` backends (`#1950`_).
+- Fixed `eq` comparison not working properly with `dask` backends on Number, Integer, Boolean values (`#1959`_).
+
+.. _#1900: https://github.com/atviriduomenys/spinta/issues/1900
+.. _#1950: https://github.com/atviriduomenys/spinta/issues/1950
+.. _#1959: https://github.com/atviriduomenys/spinta/issues/1959
+.. _#1970: https://github.com/atviriduomenys/spinta/issues/1970
+
+0.2dev25 (2026-05-22)
+=====================
+
+Improvements:
+
+- Added validation in `scope` dimension (`#1922`_):
+
+  - Added `ScopeLoader` class which loads on link and validates each scope's
+    `prepare` expression. It walks `bind` and `getattr` expressions,
+    resolves them against the manifest, and ensures every referenced property
+    actually exists.
+  - Bind/getattr resolution is implemented via `ufunc.resolver` overloads so
+    new expression shapes can be added without touching the loader.
+  - Invalid `prepare` expressions raise a clear `ModelNotFound` `PropertyNotFound`
+    error pointing at the offending scope.
+
+New Features:
+
+- Added `spinta admin citus_distribution` script, that will apply configured distribution strategy (`#1691`_).
+- Added ability to configure default and model specific distribution strategy (`#1691`_).
+
+
+.. _#1691: https://github.com/atviriduomenys/spinta/issues/1691
+
+Bug fixes:
+
+- Fixed a bug where an empty string literal (``""``) in the ``prepare`` column of an enum row was incorrectly rejected with "At least source or prepare must be specified" (`#1936`_).
+- Fixed a bug where nested backrefs where causing an error (`#1608`_).
+
+.. _#1608: https://github.com/atviriduomenys/spinta/issues/1608
+.. _#1922: https://github.com/atviriduomenys/spinta/issues/1922
+.. _#1936: https://github.com/atviriduomenys/spinta/issues/1936
+
+0.2dev24 (2026-05-08)
+=====================
+
+Improvements:
+
+- Updated Mermaid generation logic using the `spinta copy` command (`#1888`_):
+  - added support for `-d` (`--dataset`) argument that can be used to specify the main dataset for Mermaid generation.
+  - updated code to correctly display visibility, relationships, cardinality.
+  - added custom diagram styling.
+  - added namespaces.
+  - added dot-notated properties.
+
+
+New Features:
+
+- Adding implicit `link` changes; Implicitly change the `property` of type `ref` that refers a model, that does not exist in the file (`#1872`_).
+- Adding new commands `spinta comment` and `spinta uncomment` (`#1886`_);
+  - `spinta comment` comments the requested parts (argument) of the manifest;
+  - `spinta uncomment` looks through the commented rows that are indicating the manifest was updated and uncomments them.
+- Added support for explicitly defined _id fields in the manifest file. Now external backends can include these fields and use them as _id. (`#1905`_).
+- Added support for new `scope` dimension on tabular format. Now scope is understandable by spinta `check` and `copy` commands (`#1882`_).
+
+.. _#1872: https://github.com/atviriduomenys/spinta/issues/1872
+.. _#1886: https://github.com/atviriduomenys/spinta/issues/1886
+.. _#1905: https://github.com/atviriduomenys/spinta/issues/1905
+.. _#1882: https://github.com/atviriduomenys/spinta/issues/1882
+.. _#1888: https://github.com/atviriduomenys/spinta/issues/1888
+
+0.2dev22 (2026-04-23)
+=====================
+
+Bug fixes:
+
+- Fixed a bug where nested SOAP data was not read properly (`#1866`_).
+
+.. _#1866: https://github.com/atviriduomenys/spinta/issues/1866
+
+
+New Features:
+
+- Added `spinta admin enum_list` command that returns csv output of stored invalid enum values (`#1790`_).
+
+.. _#1790: https://github.com/atviriduomenys/spinta/issues/1790
+
+
+Improvements:
+
+- Added support for `spinta admin` `-o` (`--output`) argument, that can be used for scripts to specify output path (`#1790`_).
+
+
+0.2dev22 (2026-04-19)
+=====================
+
+New Features:
+
+- Added new parameter `access` to spinta configuration with default value set to `open` (`#1807`_).
+  This change affects data access permissions:
+  - If `config.access` is lower than `node`, that client is trying to reach, `access` level, spinta always returns `404 ModelNotFound` error.
+  - Whenever an unauthenticated(default client) request is received and `config.access` is set to lower level than `open`, spinta returns `401 AuthorizedClientsOnly`.
+  - `private` nodes can now be accessed with parent node scopes.
+
+.. _#1807: https://github.com/atviriduomenys/spinta/issues/1807
+
+Bug fixes:
+- Fixed a bug where composite properties like x.y and x.y.z... were not returning any data (`#1843`_).
+- Fixed `postgresql_schemas` globally importing optional `alembic` dependency when running spinta (`#1869`_).
+
+.. _#1869: https://github.com/atviriduomenys/spinta/issues/1869
+.. _#1843: https://github.com/atviriduomenys/spinta/issues/1843
+
+0.2dev21 (2026-04-13)
+=====================
+
+Backwards Incompatible:
+
+- `postgresql` backend no longer stores tables under `public` schema. Each dataset will have their own respective schemas.
+  It means that those tables will no longer include `dataset` names as part of their table names. Any new sqlalchemy
+  inspections will need to include table schemas (for easier use `TableIdentifier` with `get_table_identifier` were introduced).
+  When migrating to new version it is important to run either `spinta upgrade postgresql_schemas` or `spinta migrate` before
+  running `spinta bootstrap` (it is not capable of updating table names / schemas, and it will just create new empty tables,
+  causing issues with other migration steps) (`#598`_).
+
+New Features:
+
+- Added `spinta upgrade postgresql_schemas` script, which will move tables from `public` schema to their own respective
+  schemas (`#598`_).
+- New type - `unknown`. Used for to replace unrecognized column types while reading with `spinta inspect` (`#1848`_).
+
+Improvements:
+
+- Changed `postgresql` `backend` table storage logic. Now each table is stored in their own schemas (which are created
+  using dataset names) (`#598`_).
+- `cast()` prepare function now supports conversions from string to `string`, `integer`, `number`,
+  `boolean`, `date`, `time` and `datetime` fields for all backends. (`#1699`_).
+
+.. _#598: https://github.com/atviriduomenys/spinta/issues/598
+.. _#1699: https://github.com/atviriduomenys/spinta/issues/1699
+.. _#1848: https://github.com/atviriduomenys/spinta/issues/1848
+
+0.2dev20 (2026-03-27)
+=====================
+
+New Features:
+
+- Adding SOAP custom adapters support. Now you can add your own SOAP adapters to the SOAP backend in order to extend
+  the functionality of the SOAP backend. (`#1832`_).
+
+.. _#1832: https://github.com/atviriduomenys/spinta/issues/1832
+
+Improvements:
+
+- Added validation to `spinta check` command for comparison operators in Dask backend prepare formulas.
+  The check now detects and reports unsupported comparison operators in expressions (`#1788`_).
+- Added configuration value default_access_value and set its default value to `private`.
+  Set default value of Manifest component access value to private (`#1802`_).
+- Improved `spinta inspect` manifest generation from XML files. XML file is now parsed in memory efficient
+  way using `lxml iterparse` (`#1805`_).
+
+.. _#1788: https://github.com/atviriduomenys/spinta/issues/1788
+.. _#1802: https://github.com/atviriduomenys/spinta/issues/1802
+
+Bug Fixes:
+
+- Fixed a bug where data for properties with language tags was not being returned `select` or other queries (`#1777`_).
+- Fixed a bug which duplicated pagination filters each time new page was fetched during `getall` (`#1829`_).
+- Fixed a bug where a ref property without a source and with a prepare function caused the prepare function to be ignored (`#1813`_).
+
+.. _#1777: https://github.com/atviriduomenys/spinta/issues/1777
+.. _#1829: https://github.com/atviriduomenys/spinta/issues/1829
+.. _#1813: https://github.com/atviriduomenys/spinta/issues/1813
+
+0.2dev19 (2026-03-18)
+======================
+
+Improvements:
+
+- Improved reading of large XML files (Part 1) (`#1805`_)
+- `spinta inspect` doesn't stop on unrecognized types, but instead generates DSA and prints warnings about which columns were not added. (`#1820`_)
+- Added a test ensuring that cross-schema FK find the correct models and are linked correctly (`#1798`_)
+
+.. _#1798: https://github.com/atviriduomenys/spinta/issues/1798
+.. _#1805: https://github.com/atviriduomenys/spinta/issues/1805
+.. _#1820: https://github.com/atviriduomenys/spinta/issues/1820
+
+
+0.2dev18 (2026-03-12)
+=====================
+
+Bug Fixes:
+
+- Fixed a bug where having source and composite prepare was throwing errors, by adding error handling (`#1703`_).
+- Fixed a bug where an expression in the prepare column was not being evaluated (`#2460`_).
+
+.. _#1703: https://github.com/atviriduomenys/spinta/issues/1703
+.. _#2460: https://github.com/atviriduomenys/katalogas/issues/2460
+
+
+0.2dev17 (2026-02-26)
+=====================
+
+New Features:
+
+- Generate OpenAPI schemas for dependant ref models  (`#Katalogas2299`_).
+
+.. _#Katalogas2299: https://github.com/atviriduomenys/katalogas/issues/2299
+
+Bug fixes:
+
+- Fixed a bug where passing boolean values to xml backend was throwing bool-like errors (`#1698`_).
+- Fixed a bug where data for properties with language tags was not being returned (without `select` or other queries) (`#1776`_).
+
+
+.. _#1776: https://github.com/atviriduomenys/spinta/issues/1776
+.. _#1698: https://github.com/atviriduomenys/spinta/issues/1698
+
+0.2dev16 (2026-02-17)
+=====================
+
+New Features:
+
+- Added a call to connection-check endpoint to ensure the connection `Agent -> Catalog` was successful (`#Katalogas2378`_).
+
+.. _#Katalogas2378: https://github.com/atviriduomenys/katalogas/issues/2378
+
+Bug fixes:
+
+- Fixed bugs in the `spinta copy` and `spinta check` commands where properties starting with an underscore
+  were either omitted or caused errors. When the `--format-names` or `--rename-duplicates` options are used with `spinta copy`,
+  strict name validation is skipped, since these options handle name transformations that may temporarily violate naming conventions (`#963`_).
+- Added predefined administrative schema list fallback to `sql` manifest's oracle dialect `is_internal_schema` check (`#1767`_).
+
+.. _#963: https://github.com/atviriduomenys/spinta/issues/963
+.. _#1767: https://github.com/atviriduomenys/spinta/issues/1767
+
+
+0.2dev15 (2026-02-15)
+=====================
+
+0.2dev14 (2026-02-03)
+=====================
+
+New Features:
+
+- Change URL for calls to Data Catalog. Changed the organization type and information system name
+  (from ISRIS to ROR) (`#Katalogas2273`_).
+- Add a script for file having multiple XML defitinions splitting to multiple files (`#dvms428`_).
+
+.. _#Katalogas2273: https://github.com/atviriduomenys/katalogas/issues/2273
+.. _#dvms428: https://github.com/atviriduomenys/dvms/issues/428
+
+Improvements:
+
+- New config option `check_ref_filters` added, with default value set to `True`. When set to `False`, reference checks are skipped during command execution. (`#1659`_).
+- Property `backref` no longer requires a corresponding `ref` entry (`#1314`_).
+
+.. _#1314: https://github.com/atviriduomenys/spinta/issues/1314
+.. _#1659: https://github.com/atviriduomenys/spinta/issues/1659
+
+Bug Fixes:
+
+- Adjusting a bug where tags would be duplicated, due to list mutability (`#Katalogas2291`_).
+- Added `dsa` and `uapi` properties to version endpoint in OpenAPI schema (`#Katalogas2315`_).
+- Added `Boolean` filter support to `postgresql` backend (`#1700`_).
+
+.. _#Katalogas2291: https://github.com/atviriduomenys/katalogas/issues/2291
+.. _#Katalogas2315: https://github.com/atviriduomenys/katalogas/issues/2315
+.. _#1700: https://github.com/atviriduomenys/spinta/issues/1700
+
+
+0.2dev13 (2026-01-14)
+=====================
+
+New Features:
+
+- Added support for Oracle SDO_GEOMETRY data type in the SQL backend. The Oracle backend now properly
+  decodes geometry data using SDO_GEOMETRY format (`#1645`_).
+
+.. _#1645: https://github.com/atviriduomenys/spinta/issues/1645
+
+Bug fixes:
+
+- Fix OpenAPI export for DSA having SOAP params and prepare formulas (`#1630`_).
+- Fix URL parsing to decode "+" symbol into empty space (`#1649`_).
+- Spinta logging configuration is now loaded only when Spinta is ran as a server (using `asgi`) or as cli tool
+  (using `spinta run`). Using Spinta as a package will not enable logging. Also allows configuring log level and file
+  log path via configs: `log_level`, `file_log_level`, `file_log_path` (`#1558`_).
+
+
+.. _#1630: https://github.com/atviriduomenys/spinta/issues/1630
+.. _#1649: https://github.com/atviriduomenys/spinta/pull/1649
+.. _#1558: https://github.com/atviriduomenys/spinta/issues/1588
+
+
+0.2dev12 (2025-12-18)
+=====================
+
+New Features:
+
+- Added support for SAS over JDBC as SqlAlchemy dialect (`#1460`_).
+  `spinta inspect` now supports DSN template `sas+jdbc://username:password@host:8597/?schema=libname` for SAS connections.
+
+.. _#1460: https://github.com/atviriduomenys/spinta/issues/1460
+
+Improvements:
+
+- `spinta migrate` now supports `Array` datatype migrations (`#1501`_)
+- Added new config `check_contract_scopes` that enables additional scope checks on each request. This check
+  compares `contract_scopes` saved in client's file with scopes from JWT token. Fails if JWT token has more
+  scopes with currently loaded manifest namespaces than `contract_scopes`. (`#1598`_)
+
+.. _#1501: https://github.com/atviriduomenys/spinta/issues/1501
+.. _#1598: https://github.com/atviriduomenys/spinta/issues/1598
+
+Bug fixes:
+
+- Added try except block which offers a fallback to `immutables`
+  sqlalchemy python libraries instead of C libraries if those don't exist (`#1637`_).
+
+.. _#1637: https://github.com/atviriduomenys/spinta/issues/1637
+
+
+0.2dev11 (2025-12-03)
+=====================
+
+New Features:
+
+- Added support for URL-friendly query syntax with operators `_or.` and `_and.` as alternatives to `|` and `&`,
+  shorthand functions `_count`, `_select=`, `_sort=`, and `_limit=`, and method-like comparison operators `._gt=`,
+  `._ge`, `._lt=`, `._le`, `._sw=` (starts with), and `._co=` (contains). This makes it easier to construct queries in URL query
+  strings without requiring special character encoding (`#1615`_).
+
+.. _#1615: https://github.com/atviriduomenys/spinta/issues/1615
+
+Improvements:
+
+- `spinta inspect` with `Sql` manifest now inspects all schemas, while trying to ignore system generated ones (`#1483`_).
+- Added ability to customize models and their properties inside config. You can now specify custom type implementation
+  with: `models.<model_name>.properties.<property_name>.type`. It accepts python import path to the implementation (`#599`_).
+
+.. _#1483: https://github.com/atviriduomenys/spinta/issues/1483
+.. _#599: https://github.com/atviriduomenys/spinta/issues/599
+
+0.2dev10 (2025-11-27)
+=====================
+
+Backwards incompatible:
+
+- `spinta migrate` with the `postgresql` backend now requires all tables and columns to have up-to-date comments with
+  their full uncompressed names. Migrations are likely to fail or be incorrect if comments are missing or
+  outdated. Use the `spinta upgrade postgresql_comments` script to validate and update all required comments (`#1579`_).
+
+Improvements:
+
+- `spinta migrate` now uses PostgreSQL comments to map tables and models together (`#1579`_).
+- The `internal` `postgresql` backend now adds full name comments to all its tables and columns. To migrate to the new
+  changes, the `spinta upgrade postgresql_comments` script was added (`#1579`_).
+
+Bug fixes:
+
+- Fixed an issue where `spinta migrate` incorrectly created table drop scripts for `changelog` and `redirect` tables (`#1579`_).
+
+  .. _#1579: https://github.com/atviriduomenys/spinta/issues/1579
+
+0.2dev9 (2025-11-21)
+====================
+
+New Features:
+
+- Spinta as auth server - introduce /.well-known/jwks.json API endpoint to retrieve public verification keys,
+  also known as well-known, jwk.
+- Spinta as Agent:
+    - add support for multiple public keys picked dynamically for each access token by kid value. If not found, then by
+      algorithm (`alg` & `kty`).
+      This unlocks using auth servers with public key rotation, like Gravitee.
+    - add new `spinta key download` command to download public keys (JWKs) to a local file to use it later for
+      verification.
+    - move existing `spinta genkeys` command to `spinta key generate`.
+
+
+.. _#1569: https://github.com/atviriduomenys/spinta/issues/1569
+
+New Features:
+- Added new scope `client_backends_update_self` that only allows updating own client file backends attribute (`#1582`_)
+- Add `param.header()` prepare function that constructs HTTP header. Can be used in `soap` backend (`#1576`_).
+
+
+  .. _#1582: https://github.com/atviriduomenys/spinta/issues/1582
+  .. _#1576: https://github.com/atviriduomenys/spinta/issues/1576
+
+Improvements:
+
+- Keymap and push db sync now attempts to retry data fetch after failing to get valid response from remote server.
+  Retries can be modified with `sync_retry_count` and `sync_retry_delay_range` config values (`#1594`_).
+
+  .. _#1594: https://github.com/atviriduomenys/spinta/issues/1594
+
+Bug fixes:
+
+- Fixed `inspect` command not recognizing Oracle LONG RAW types (`#1532`_).
+
+  .. _#1532: https://github.com/atviriduomenys/spinta/issues/1532
+
+0.2dev8 (2025-11-06)
+====================
+
+Bug fixes:
+
+- Fixed a crash caused by `split()` prepare function with `None` values (`#1570`_).
+- Changed `admin` and `upgrade` command `Argument` default value check (`#1575`_).
+- Fixed an error where MySQL LONGBLOB wasn't recognized (`#1484`_).
+
+  .. _#1570: https://github.com/atviriduomenys/spinta/issues/1570
+  .. _#1575: https://github.com/atviriduomenys/spinta/issues/1575
+
+0.2dev7 (2025-10-23)
+====================
+
+New Features:
+
+- Added `eval()` prepare function for resources. This function allows using the value of a prepare expression
+  as a data source instead of a source column. The `eval(param(..))` syntax can reference a property from
+  another resource, even if it belongs to a different backend. `dask/json` and `dask/xml` backends can now
+  use `eval()` to read data from properties of `dask/json`, `dask/xml`, or `soap` backends. (`#1487`_)
+- Introduce new optional keymap backend - persistent Redis. (`#825`_)
+
+.. _#1487: https://github.com/atviriduomenys/spinta/issues/1487
+.. _#825: https://github.com/atviriduomenys/spinta/issues/825
 
 Backwards incompatible:
 
@@ -28,8 +725,23 @@ Bug fixes:
 
 - Removed `_base` column from HTML response when viewing SOAP data with URL parameters (`#1338`_)
 - Added required parameters validation, when building SOAP query, and raising exception `MissingRequiredProperty` if parameter is missing (`#1338`_)
+- Remove synchronization logic, will be re-introduced with upcoming iterations for the same ticket (`#1488`_).
+- Fixed `spinta migrate -d` argument not collecting correct tables with long names (`#1557`_).
 
   .. _#1338: https://github.com/atviriduomenys/spinta/issues/1338
+  .. _#1557: https://github.com/atviriduomenys/spinta/issues/1557
+
+Security:
+
+- Private keys and client credential files are now created with restrictive permissions (600 for files, 700 for directories) to prevent unauthorized access by other users on the same system. (`APL-1`_)
+
+  .. _APL-1: https://github.com/atviriduomenys/spinta/pull/1573
+
+Improvements:
+
+- Introduce synchronization logic part one: Catalog to Agent (`#1488`_).
+
+  .. _#1488: https://github.com/atviriduomenys/spinta/issues/1488
 
 
 0.2dev6 (2025-10-09)
@@ -59,20 +771,29 @@ Improvements:
   .. _#1461: https://github.com/atviriduomenys/spinta/issues/1461
   .. _#1462: https://github.com/atviriduomenys/spinta/issues/1462
   .. _#1486: https://github.com/atviriduomenys/spinta/issues/1486
+  .. _#1506: https://github.com/atviriduomenys/spinta/issues/1506
 
 Bug fixes:
 
 - Fixed a bug where `spinta` was trying to connect to a wsdl source during `spinta check` (`#1424`_).
-
 - Fixed `spinta copy` ignores resources without any models (`#1512`_)
-
 
   .. _#1512: https://github.com/atviriduomenys/spinta/issues/1512
   .. _#1424: https://github.com/atviriduomenys/spinta/issues/1424
 
 
+Bug fixes:
+
+- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in
+  inspect command. Previously, LONGBLOB columns caused TypeError during
+  ŠDSA generation (`#1484`_).
+
+  .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484
+
 Other:
+
 - Removed dependency `mypy`
+
 
 
 0.2dev5 (2025-09-03)

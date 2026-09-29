@@ -1,5 +1,6 @@
 from typing import Dict, Union
-from spinta.components import UrlParams, Property, Model
+
+from spinta.components import Model, Property, UrlParams
 
 
 def extract_params_sort_values(model: Model, params: UrlParams) -> Union[type(None), Dict[str, Property]]:

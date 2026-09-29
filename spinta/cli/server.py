@@ -1,19 +1,14 @@
 import logging
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
-from typer import Argument
+from typer import Argument, Exit, Option, echo
 from typer import Context as TyperContext
-from typer import Exit
-from typer import Option
-from typer import echo
 
 from spinta import commands
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.store import load_store
-from spinta.cli.helpers.store import prepare_manifest
-from spinta.core.enums import Mode
+from spinta.cli.helpers.store import load_store, prepare_manifest
 from spinta.core.context import configure_context
+from spinta.core.enums import Mode
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +24,9 @@ def run(
 ):
     """Run development server"""
     import os
+
     import uvicorn
+
     import spinta.api
 
     os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "1"

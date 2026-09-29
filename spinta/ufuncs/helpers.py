@@ -1,5 +1,4 @@
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import ShortExpr
+from spinta.core.ufuncs import Expr, ShortExpr
 
 
 def merge_formulas(a: Expr, b: Expr) -> Expr:

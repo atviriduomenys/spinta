@@ -1,7 +1,6 @@
 from operator import itemgetter
 
 import pytest
-
 from responses import GET
 
 from spinta.testing.datasets import pull

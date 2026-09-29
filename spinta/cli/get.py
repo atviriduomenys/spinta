@@ -1,12 +1,12 @@
 import json
-from typer import echo
-from typer import Argument
+
+from typer import Argument, echo
 from typer import Context as TyperContext
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.store import prepare_manifest, attach_keymaps
+from spinta.cli.helpers.store import attach_keymaps, prepare_manifest
 from spinta.core.context import configure_context
 
 

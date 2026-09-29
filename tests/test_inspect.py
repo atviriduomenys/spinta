@@ -3,10 +3,11 @@ import os
 import pathlib
 import tempfile
 from pathlib import Path
-
-import sqlalchemy as sa
+from typing import Callable
 
 import pytest
+import sqlalchemy as sa
+import sqlalchemy_utils as su
 
 from spinta import commands
 from spinta.core.config import RawConfig
@@ -18,7 +19,6 @@ from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-import sqlalchemy_utils as su
 
 
 @pytest.fixture()
@@ -59,6 +59,34 @@ def rc_new(rc, tmp_path: pathlib.Path):
     )
 
 
+@pytest.fixture()
+def make_inspect_db(postgresql):
+    """Factory fixture: call with a function that defines DDL via (engine, meta)."""
+    created_dbs = []
+
+    def factory(db_name: str, setup: Callable[[sa.engine.Connection, sa.MetaData], None]) -> str:
+        db = f"{postgresql}/{db_name}"
+        if su.database_exists(db):
+            su.drop_database(db)
+        su.create_database(db)
+
+        engine = sa.create_engine(db)
+        with engine.begin() as conn:
+            meta = sa.MetaData()
+            setup(conn, meta)
+            meta.create_all(conn)
+
+        created_dbs.append((db, engine))
+        return db
+
+    yield factory
+
+    for db, engine in created_dbs:
+        engine.dispose()
+        if su.database_exists(db):
+            su.drop_database(db)
+
+
 def test_inspect(
     rc_new: RawConfig,
     cli: SpintaCliRunner,
@@ -97,6 +125,7 @@ def test_inspect(
       |   |   |   | name       | string  |         | NAME       |
                                |         |         |            |
       |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | _id        | integer |         |            |
       |   |   |   | code       | string  |         | CODE       |
       |   |   |   | id         | integer |         | ID         |
       |   |   |   | name       | string  |         | NAME       |
@@ -153,6 +182,7 @@ def test_inspect_from_manifest_table(
       | resource1             | sql     |     | sqlite  |
                               |         |     |         |
       |   |   | Country       |         | id  | COUNTRY |
+      |   |   |   | _id       | integer |     |         |
       |   |   |   | id        | integer |     | ID      |
       |   |   |   | name      | string  |     | NAME    |
     """
@@ -206,6 +236,7 @@ def test_inspect_format(
       |   |   |   | name       | string  |         | NAME       |
                                |         |         |            |
       |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | _id        | integer |         |            |
       |   |   |   | code       | string  |         | CODE       |
       |   |   |   | id         | integer |         | ID         |
       |   |   |   | name       | string  |         | NAME       |
@@ -260,11 +291,13 @@ def test_inspect_cyclic_refs(
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         | id      | CITY       |
+      |   |   |   | _id        | integer |         |            |
       |   |   |   | country_id | ref     | Country | COUNTRY_ID |
       |   |   |   | id         | integer |         | ID         |
       |   |   |   | name       | string  |         | NAME       |
                                |         |         |            |
       |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | _id        | integer |         |            |
       |   |   |   | capital    | ref     | City    | CAPITAL    |
       |   |   |   | id         | integer |         | ID         |
       |   |   |   | name       | string  |         | NAME       |
@@ -312,6 +345,7 @@ def test_inspect_self_refs(
       | resource1             | sql     |          | sqlite    |
                               |         |          |           |
       |   |   | Category      |         | id       | CATEGORY  |
+      |   |   |   | _id       | integer |          |           |
       |   |   |   | id        | integer |          | ID        |
       |   |   |   | name      | string  |          | NAME      |
       |   |   |   | parent_id | ref     | Category | PARENT_ID |
@@ -478,6 +512,7 @@ def test_inspect_with_schema(
       | schema               | sql     |     | sqlite | connect(self, schema: null)
                              |         |     |        |
       |   |   | City         |         | id  | CITY   |
+      |   |   |   | _id      | integer |     |        |
       |   |   |   | id       | integer |     | ID     |
       |   |   |   | name     | string  |     | NAME   |
     """,
@@ -545,11 +580,13 @@ def test_inspect_update_existing_manifest(
       | schema               | sql     | sql     |         |         |         |
                              |         |         |         |         |         |
       |   |   | City         |         | id      | CITY    | id>1    |         | City
+      |   |   |   | _id      | integer |         |         |         |         |
       |   |   |   | id       | integer |         | ID      |         | private |
       |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
       |   |   |   | country  | ref     | Country | COUNTRY |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         |
+      |   |   |   | _id      | integer |         |         |         |         |
       |   |   |   | id       | integer |         | ID      |         |         |
       |   |   |   | name     | string  |         | NAME    |         |         |
     """,
@@ -621,10 +658,12 @@ def test_inspect_update_existing_ref_manifest_priority(
       | schema               | sql     | sql     |         |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         | Country
+      |   |   |   | _id      | integer |         |         |         |         |
       |   |   |   | id       | integer |         | ID      |         | private | Primary key
       |   |   |   | name     | string  |         | NAME    |         | open    | Country name
                              |         |         |         |         |         |
       |   |   | City         |         | id      | CITY    | id>1    |         | City
+      |   |   |   | _id      | integer |         |         |         |         |
       |   |   |   | id       | integer |         | ID      |         | private |
       |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
       |   |   |   | country  | integer |         | COUNTRY |         | open    | Country id
@@ -699,10 +738,12 @@ def test_inspect_update_existing_ref_external_priority(
       | schema               | sql     | sql     |         |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         | Country
+      |   |   |   | _id      | integer |         |         |         |         |
       |   |   |   | id       | integer |         | ID      |         | private | Primary key
       |   |   |   | name     | string  |         | NAME    |         | open    | Country name
                              |         |         |         |         |         |
       |   |   | City         |         | id      | CITY    | id>1    |         | City
+      |   |   |   | _id      | integer |         |         |         |         |
       |   |   |   | id       | integer |         | ID      |         | private |
       |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
       |   |   |   | country  | ref     | Country | COUNTRY |         | open    | Country id
@@ -759,6 +800,7 @@ def test_inspect_with_empty_config_dir(
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         | id  | COUNTRY
+      |   |   |   | _id      | integer |     |
       |   |   |   | id       | integer |     | ID
       |   |   |   | name     | string  |     | NAME
     """
@@ -915,6 +957,7 @@ def test_inspect_existing_duplicate_table_names(
          | schema           | sql     | sql |           |         |         |
                             |         |     |           |         |         |
          |   | Country      |         | id  |           |         |         | Country
+         |   |   | _id      | integer |     |           |         |         |
          |   |   | id       | integer |     |           |         | private | Primary key
          |   |   | name     | string  |     |           |         | open    | Country name
                             |         |     |           |         |         |
@@ -1333,6 +1376,7 @@ def test_inspect_multiple_resources_specific(
          |   |   | continent | ref     | Continent | CONTINENT  |         |         |
                              |         |           |            |         |         |
          |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | _id       | integer |           |            |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
@@ -1462,6 +1506,7 @@ def test_inspect_multiple_resources_advanced(
          | schema_1          | sql     |           | sqlite_new |         |         |
                              |         |           |            |         |         |
          |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | _id       | integer |           |            |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
@@ -1627,6 +1672,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
          |   |   | continent | ref     | Continent    | CONTINENT |         |         |
                              |         |              |           |         |         |
          |   | Continent     |         | id           | CONTINENT |         |         |
+         |   |   | _id       | integer |              |           |         |         |
          |   |   | code      | string  |              | CODE      |         |         |
          |   |   | id        | integer |              | ID        |         |         |
          |   |   | name      | string  |              | NAME      |         |         |
@@ -1638,6 +1684,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
          |   |   | continent | ref     | NewContinent | CONTINENT |         |         |
                              |         |              |           |         |         |
          |   | NewContinent  |         | new_id       | CONTINENT |         |         |
+         |   |   | _id       | base32  |              |           |         |         |
          |   |   | name      | string  |              |           |         |         |
          |   |   | new_id    | string  |              | ID        |         |         |
          |   |   | code      | string  |              | CODE      |         |         |
@@ -1721,6 +1768,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
          |   |   | continent | ref     | Continent    | CONTINENT |         |         |
                              |         |              |           |         |         |
          |   | Continent     |         | id           | CONTINENT |         |         |
+         |   |   | _id       | integer |              |           |         |         |
          |   |   | code      | string  |              | CODE      |         |         |
          |   |   | id        | integer |              | ID        |         |         |
          |   |   | name      | string  |              | NAME      |         |         |
@@ -1732,6 +1780,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
          |   |   | continent | ref     | NewContinent | CONTINENT |         |         |
                              |         |              |           |         |         |
          |   | NewContinent  |         | new_id       | CONTINENT |         |         |
+         |   |   | _id       | integer |              |           |         |         |
          |   |   | name      | string  |              |           |         |         |
          |   |   | new_id    | integer |              | ID        |         |         |
          |   |   | code      | string  |              | CODE      |         |         |
@@ -1812,6 +1861,7 @@ def test_inspect_multiple_datasets_different_resources(
          | schema            | sql     |           | sqlite     |         |         |
                              |         |           |            |         |         |
          |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | _id       | integer |           |            |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
@@ -1827,6 +1877,7 @@ def test_inspect_multiple_datasets_different_resources(
          |   |   | name      | string  |           | NAME       |         |         |
                              |         |           |            |         |         |
          |   | Engine        |         | id        | ENGINE     |         |         |
+         |   |   | _id       | integer |           |            |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
@@ -1917,6 +1968,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
          | schema           | sql     |        | sqlite     |         |         |
                             |         |        |            |         |         |
          |   | NewContinent |         | id     | CONTINENT  |         |         |
+         |   |   | _id      | integer |        |            |         |         |
          |   |   | code     | string  |        | CODE       |         |         |
          |   |   | id       | integer |        | ID         |         |         |
          |   |   | name     | string  |        | NAME       |         |         |
@@ -1929,6 +1981,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
          |   |   | engine   | ref     | Engine | ENGINE     |         |         |
                             |         |        |            |         |         |
          |   | Engine       |         | id     | ENGINE     |         |         |
+         |   |   | _id      | integer |        |            |         |         |
          |   |   | code     | string  |        | CODE       |         |         |
          |   |   | id       | integer |        | ID         |         |         |
          |   |   | name     | string  |        | NAME       |         |         |
@@ -1984,6 +2037,7 @@ def test_inspect_with_views(rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: P
          | resource1         | sql     |           | sqlite     |         |         |
                              |         |           |            |         |         |
          |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | _id       | integer |           |            |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
@@ -2003,6 +2057,82 @@ def test_inspect_with_views(rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: P
         context,
     )
     assert a == b
+
+
+def test_inspect_with_postgresql_cross_schema_foreign_key(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    make_inspect_db,
+):
+    def setup(conn: sa.engine.Connection, meta: sa.MetaData):
+        conn.execute(sa.schema.CreateSchema("geography"))
+        conn.execute(sa.schema.CreateSchema("urban"))
+        sa.Table(
+            "country",
+            meta,
+            sa.Column("country_id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.String(100), nullable=False),
+            sa.Column("iso_code", sa.String(2), unique=True, nullable=False),
+            schema="geography",
+        )
+        sa.Table(
+            "city",
+            meta,
+            sa.Column("city_id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.String(100), nullable=False),
+            sa.Column("population", sa.BigInteger),
+            sa.Column(
+                "country_id",
+                sa.Integer,
+                sa.ForeignKey("geography.country.country_id", ondelete="CASCADE"),
+                nullable=False,
+            ),
+            schema="urban",
+        )
+
+    db = make_inspect_db("db", setup)
+    result_file_path = tmp_path / "result.csv"
+
+    cli.invoke(
+        rc_new,
+        [
+            "inspect",
+            "-r",
+            "sql",
+            db,
+            "-o",
+            result_file_path,
+        ],
+    )
+
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, "db/geography").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "db/urban").resources["resource1"].external = "postgresql"
+
+    assert (
+        manifest
+        == """
+    d | r | m | property    | type    | ref                      | source                  | prepare | access  | title
+    db/geography            |         |                          |                         |         |         |
+      | resource1           | sql     |                          | postgresql              |         |         |
+                            |         |                          |                         |         |         |
+      |   | Country         |         | country_id               | geography.country       |         |         |
+      |   |   | _id         | integer |                          |                         |         |         |
+      |   |   | country_id  | integer |                          | country_id              |         |         |
+      |   |   | iso_code    | string  |                          | iso_code                |         |         |
+      |   |   | name        | string  |                          | name                    |         |         |
+    db/urban                |         |                          |                         |         |         |
+      | resource1           | sql     |                          | postgresql              |         |         |
+                            |         |                          |                         |         |         |
+      |   | City            |         | city_id                  | urban.city              |         |         |
+      |   |   | _id         | integer |                          |                         |         |         |
+      |   |   | city_id     | integer |                          | city_id                 |         |         |
+      |   |   | country_id  | ref     | /db/geography/Country    | country_id              |         |         |
+      |   |   | name        | string  |                          | name                    |         |         |
+      |   |   | population  | integer |                          | population              |         |         |
+    """
+    )
 
 
 @pytest.mark.skip(reason="Requires #440 task")
@@ -2133,6 +2263,7 @@ def test_inspect_json_model_ref_change(rc_new: RawConfig, cli: SpintaCliRunner, 
           | resource                    | dask/json              |      | resource.json
                                         |                        |      |
           |   | Pos                     |                        | code | .
+          |   |   | _id                 | base32                 |      |
           |   |   | name                | string required unique |      | name
           |   |   | code                | string required        |      | code
           |   |   | location_latitude   | number unique          |      | location.latitude
@@ -2222,6 +2353,7 @@ def test_inspect_xml_model_ref_change(rc: RawConfig, cli: SpintaCliRunner, tmp_p
           | resource                    | dask/xml               |         | resource.xml
                                         |                        |         |
           |   | Country                 |                        | code    | /countries/country
+          |   |   | _id                 | base32                 |         |
           |   |   | name                | string required unique |         | @name
           |   |   | code                | string required        |         | @code
           |   |   | location_latitude   | number unique          |         | location/@latitude
@@ -2266,13 +2398,17 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, "inspect_schema").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/test_schema").resources["resource1"].external = "postgresql"
     a, b = compare_manifest(
         manifest,
         """
-       d | r | m | property  | type    | ref       | source     | prepare | access  | title
-       inspect_schema        |         |           |            |         |         |
-         | resource1         | sql     |           | postgresql |         |         |
+       d | r | m | property       | type    | ref       | source             | prepare | access  | title
+       inspect_schema/test_schema |         |           |                    |         |         |
+         | resource1              | sql     |           | postgresql         |         |         |
+                                  |         |           |                    |         |         |
+         |   | Cities             |         |           | test_schema.cities |         |         |
+         |   |   | id             | integer |           | id                 |         |         |
+         |   |   | name           | string  |           | name               |         |         |
 """,
         context,
     )
@@ -2311,6 +2447,77 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     )
     assert a == b
 
+    if su.database_exists(db):
+        su.drop_database(db)
+
+
+def test_inspect_with_postgresql_multi_schema_references(
+    rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: Path, postgresql
+):
+    db = f"{postgresql}/inspect_schema"
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        engine.execute(sa.schema.CreateSchema("users"))
+        engine.execute(sa.schema.CreateSchema("finances"))
+        meta = sa.MetaData(conn)
+        sa.Table(
+            "Client", meta, sa.Column("id", sa.Integer, primary_key=True), sa.Column("name", sa.Text), schema="users"
+        )
+        sa.Table(
+            "Record",
+            meta,
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("name", sa.Text),
+            sa.Column("client", sa.Integer),
+            sa.ForeignKeyConstraint(["client"], ["users.Client.id"]),
+            schema="finances",
+        )
+        meta.create_all()
+
+    result_file_path = tmp_path / "result.csv"
+    # Configure Spinta.
+    # Default schema
+    cli.invoke(
+        rc_new,
+        [
+            "inspect",
+            "-r",
+            "sql",
+            db,
+            "-o",
+            tmp_path / "result.csv",
+        ],
+    )
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, "inspect_schema/users").resources["resource1"].external = "postgresql"
+    commands.get_dataset(context, manifest, "inspect_schema/finances").resources["resource1"].external = "postgresql"
+    a, b = compare_manifest(
+        manifest,
+        """
+        d | r | m | property    | type    | ref                          | source          | prepare | access  | title
+        inspect_schema/finances |         |                              |                 |         |         |
+          | resource1           | sql     |                              | postgresql      |         |         |
+                                |         |                              |                 |         |         |
+          |   | Record          |         | id                           | finances.Record |         |         |
+          |   |   | _id         | integer |                              |                 |         |         |
+          |   |   | client      | ref     | /inspect_schema/users/Client | client          |         |         |
+          |   |   | id          | integer |                              | id              |         |         |
+          |   |   | name        | string  |                              | name            |         |         |
+        inspect_schema/users    |         |                              |                 |         |         |
+          | resource1           | sql     |                              | postgresql      |         |         |
+                                |         |                              |                 |         |         |
+          |   | Client          |         | id                           | users.Client    |         |         |
+          |   |   | _id         | integer |                              |                 |         |         |
+          |   |   | id          | integer |                              | id              |         |         |
+          |   |   | name        | string  |                              | name            |         |         |
+""",
+        context,
+    )
+    assert a == b
     if su.database_exists(db):
         su.drop_database(db)
 
@@ -2417,3 +2624,316 @@ def test_priority_key_eq():
     old = PriorityKey(source=("asd", "new"))
     new = PriorityKey(source=tuple(["asd"]))
     assert old in [new]
+
+
+def test_inspect_blob_types(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    """
+    Test binary/BLOB type inspection via CLI (issue #1484).
+
+    This functional test verifies the full inspect workflow generates
+    correct manifests with binary types. Unit tests in
+    tests/datasets/sql/test_inspect.py verify that MySQL-specific BLOB
+    types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) are correctly mapped.
+    """
+    # Setup database with binary columns and real binary data
+    sqlite.init(
+        {
+            "PROVIDERS": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("NAME", sa.Text),
+                sa.Column("LOGO", sa.LargeBinary),
+                sa.Column("ICON", sa.LargeBinary),
+                sa.Column("DOCUMENT", sa.LargeBinary),
+            ],
+        }
+    )
+
+    sqlite.write(
+        "PROVIDERS",
+        [
+            {
+                "ID": 1,
+                "NAME": "Test Provider",
+                "LOGO": b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR",
+                "ICON": b"\xff\xd8\xff",
+                "DOCUMENT": b"%PDF-1.4",
+            },
+        ],
+    )
+
+    # Run inspect via CLI
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Check what was detected
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    # Verify binary columns are correctly mapped
+    assert (
+        manifest
+        == """
+    id | d | r | b | m | property  | type    | ref | source    | source.type | prepare | origin | count | level | status  | visibility | access | uri | eli | title | description
+       | db_sqlite                 |         |     |           |             |         |        |       |       |         |            |        |     |     |       |
+       |   | resource1             | sql     |     | sqlite    |             |         |        |       |       |         |            |        |     |     |       |
+       |                           |         |     |           |             |         |        |       |       |         |            |        |     |     |       |
+       |   |   |   | Providers     |         | id  | PROVIDERS |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | _id       | integer |     |           |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | document  | binary  |     | DOCUMENT  |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | icon      | binary  |     | ICON      |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | id        | integer |     | ID        |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | logo      | binary  |     | LOGO      |             |         |        |       |       | develop | private    |        |     |     |       |
+       |   |   |   |   | name      | string  |     | NAME      |             |         |        |       |       | develop | private    |        |     |     |       |
+    """
+    )
+
+
+def test_inspect_unrecognized_types_are_mapped_to_unknown(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    # Create a table with an unsupported column directly to skip SQLite's type affinity.
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID   INTEGER PRIMARY KEY,
+                CODE TEXT,
+                NAME TEXT,
+                "NULL" BLOB SUBTYPE UNKNOWN
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    # Reset resource.source to a specific value for evaluation.
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property   | type    | ref     | source     | prepare
+    db_sqlite                  |         |         |            |
+      | resource1              | sql     |         | sqlite     |
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | _id        | integer |         |            |
+      |   |   |   | code       | string  |         | CODE       |
+      |   |   |   | id         | integer |         | ID         |
+      |   |   |   | name       | string  |         | NAME       |
+      |   |   |   | null       | unknown |         | NULL       |
+    """
+    )
+
+
+def test_inspect_unknown_type_with_relations(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE CATEGORY
+            (
+                ID   BLOB SUBTYPE UNKNOWN PRIMARY KEY,
+                NAME TEXT
+            )
+        """)
+        )
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID          INTEGER PRIMARY KEY,
+                NAME        TEXT,
+                CATEGORY_ID BLOB SUBTYPE UNKNOWN,
+                FOREIGN KEY (CATEGORY_ID) REFERENCES CATEGORY (ID)
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property    | type    | ref      | source      | prepare
+    db_sqlite                   |         |          |             |
+      | resource1               | sql     |          | sqlite      |
+                                |         |          |             |
+      |   |   | Category        |         | id       | CATEGORY    |
+      |   |   |   | _id         | unknown |          |             |
+      |   |   |   | id          | unknown |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+                                |         |          |             |
+      |   |   | Country         |         | id       | COUNTRY     |
+      |   |   |   | _id         | integer |          |             |
+      |   |   |   | category_id | ref     | Category | CATEGORY_ID |
+      |   |   |   | id          | integer |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+    """
+    )
+
+
+def test_inspect_column_with_json_type(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    # Create a table with an unsupported column directly to skip SQLite's type affinity.
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID   INTEGER PRIMARY KEY,
+                CODE TEXT,
+                NAME TEXT,
+                "NULL" BLOB SUBTYPE UNKNOWN
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Assert
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    # Reset resource.source to a specific value for evaluation.
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property   | type    | ref     | source     | prepare
+    db_sqlite                  |         |         |            |
+      | resource1              | sql     |         | sqlite     |
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | _id        | integer |         |            |
+      |   |   |   | code       | string  |         | CODE       |
+      |   |   |   | id         | integer |         | ID         |
+      |   |   |   | name       | string  |         | NAME       |
+      |   |   |   | null       | unknown |         | NULL       |
+    """
+    )
+
+
+def test_inspect_unknown_type_with_relations(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Arrange
+    with sqlite.engine.begin() as connection:
+        connection.execute(
+            sa.text("""
+            CREATE TABLE CATEGORY
+            (
+                ID   BLOB SUBTYPE UNKNOWN PRIMARY KEY,
+                NAME TEXT
+            )
+        """)
+        )
+        connection.execute(
+            sa.text("""
+            CREATE TABLE COUNTRY
+            (
+                ID          INTEGER PRIMARY KEY,
+                NAME        TEXT,
+                CATEGORY_ID BLOB SUBTYPE UNKNOWN,
+                FOREIGN KEY (CATEGORY_ID) REFERENCES CATEGORY (ID)
+            )
+        """)
+        )
+
+    # Act
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    assert (
+        manifest
+        == """
+    d | r | b | m | property    | type    | ref      | source      | prepare
+    db_sqlite                   |         |          |             |
+      | resource1               | sql     |          | sqlite      |
+                                |         |          |             |
+      |   |   | Category        |         | id       | CATEGORY    |
+      |   |   |   | _id         | unknown |          |             |
+      |   |   |   | id          | unknown |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+                                |         |          |             |
+      |   |   | Country         |         | id       | COUNTRY     |
+      |   |   |   | _id         | integer |          |             |
+      |   |   |   | category_id | ref     | Category | CATEGORY_ID |
+      |   |   |   | id          | integer |          | ID          |
+      |   |   |   | name        | string  |          | NAME        |
+    """
+    )
+
+
+def test_inspect_column_with_json_type(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    """
+    Test JSON type inspection via CLI.
+
+    This test verifies that `spinta inspect` correctly identifies a JSON column
+    in a SQLite database and maps it to the 'object' type in the manifest.
+    SQLite's native JSON support is often reflected as `sa.JSON` by SQLAlchemy.
+    """
+    # Setup database with a JSON column
+    sqlite.init(
+        {
+            "COUNTRY": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("NAME", sa.Text),
+                sa.Column("META", sa.JSON),  # SQLAlchemy's generic JSON type
+            ],
+        }
+    )
+
+    cli.invoke(rc_new, ["inspect", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type    | ref | source    | prepare | access  | title | description
+    db_sqlite                |         |     |           |         |         |       |
+      | resource1            | sql     |     | sqlite    |         |         |       |
+                             |         |     |           |         |         |       |
+      |   |   | Country      |         | id  | COUNTRY   |         |         |       |
+      |   |   |   | _id      | integer |     |           |         |         |       |
+      |   |   |   | id       | integer |     | ID        |         |         |       |
+      |   |   |   | meta     | object  |     | META      |         |         |       |
+      |   |   |   | name     | string  |     | NAME      |         |         |       |
+    """
+    )

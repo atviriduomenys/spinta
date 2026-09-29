@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-
 from collections import defaultdict
 
 from spinta.cli.helpers.script.components import ScriptBase

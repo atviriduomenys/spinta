@@ -1,5 +1,4 @@
-from typing import Dict
-from typing import TypedDict
+from typing import Dict, TypedDict
 
 
 class Lang(TypedDict):

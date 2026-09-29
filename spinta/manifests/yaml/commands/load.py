@@ -4,11 +4,8 @@ from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.yaml.components import InlineManifest
-from spinta.manifests.yaml.components import YamlManifest
-from spinta.manifests.yaml.helpers import read_inline_manifest_schemas
-from spinta.manifests.yaml.helpers import read_manifest_schemas
-from spinta.manifests.yaml.helpers import read_freezed_manifest_schemas
+from spinta.manifests.yaml.components import InlineManifest, YamlManifest
+from spinta.manifests.yaml.helpers import read_inline_manifest_schemas, read_manifest_schemas
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +16,6 @@ def load(
     manifest: YamlManifest,
     *,
     into: Manifest = None,
-    freezed: bool = False,
     rename_duplicates: bool = False,
     load_internal: bool = True,
     full_load: bool = False,
@@ -30,36 +26,20 @@ def load(
             store = context.get("store")
             commands.load(context, store.internal, into=target, full_load=full_load)
 
-    if freezed:
-        if into:
-            log.info(
-                "Loading freezed manifest %r into %r from %s.",
-                manifest.name,
-                into.name,
-                manifest.path.resolve(),
-            )
-        else:
-            log.info(
-                "Loading freezed manifest %r from %s.",
-                manifest.name,
-                manifest.path.resolve(),
-            )
-        schemas = read_freezed_manifest_schemas(manifest)
+    if into:
+        log.info(
+            "Loading manifest %r into %r from %s.",
+            manifest.name,
+            into.name,
+            manifest.path.resolve(),
+        )
     else:
-        if into:
-            log.info(
-                "Loading manifest %r into %r from %s.",
-                manifest.name,
-                into.name,
-                manifest.path.resolve(),
-            )
-        else:
-            log.info(
-                "Loading manifest %r from %s.",
-                manifest.name,
-                manifest.path.resolve(),
-            )
-        schemas = read_manifest_schemas(manifest)
+        log.info(
+            "Loading manifest %r from %s.",
+            manifest.name,
+            manifest.path.resolve(),
+        )
+    schemas = read_manifest_schemas(manifest)
 
     if into:
         load_manifest_nodes(context, into, schemas, source=manifest)
@@ -73,12 +53,10 @@ def load(
     manifest: InlineManifest,
     *,
     into: Manifest = None,
-    freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
     full_load: bool = False,
 ):
-    assert freezed, "InlineManifest does not have unfreezed version of manifest."
     manager = context.get("error_manager")
 
     if load_internal:
@@ -111,7 +89,6 @@ def load(
             context,
             source,
             into=into or manifest,
-            freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
             full_load=full_load,

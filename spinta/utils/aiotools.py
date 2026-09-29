@@ -1,5 +1,4 @@
-from typing import Generic
-from typing import TypeVar, AsyncIterator, List, Callable, Optional, Tuple, Awaitable, Iterable
+from typing import AsyncIterator, Awaitable, Callable, Generic, Iterable, List, Optional, Tuple, TypeVar
 
 T = TypeVar("T")  # iterator item type
 K = TypeVar("K")  # type of a group by item

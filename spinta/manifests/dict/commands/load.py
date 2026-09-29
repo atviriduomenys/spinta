@@ -1,9 +1,9 @@
 from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
-from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.dict.components import DictManifest
 from spinta.manifests.dict.helpers import read_schema
+from spinta.manifests.helpers import load_manifest_nodes
 
 
 @commands.load.register(Context, DictManifest)
@@ -12,7 +12,6 @@ def load(
     manifest: DictManifest,
     *,
     into: Manifest = None,
-    freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
     full_load=False,
@@ -39,7 +38,6 @@ def load(
             context,
             source,
             into=into or manifest,
-            freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
             full_load=full_load,

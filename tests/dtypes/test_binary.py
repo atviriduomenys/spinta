@@ -1,12 +1,11 @@
 import base64
+import xml.etree.ElementTree as ET
 
 import pytest
-
-import xml.etree.ElementTree as ET
+from _pytest.fixtures import FixtureRequest
 
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
-from _pytest.fixtures import FixtureRequest
 
 
 @pytest.mark.models(

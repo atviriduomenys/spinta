@@ -1,6 +1,5 @@
-from spinta.core.ufuncs import ufunc, Bind
-from spinta.datasets.backends.sql.ufuncs.components import Engine
-from spinta.datasets.backends.sql.ufuncs.components import SqlResource
+from spinta.core.ufuncs import Bind, ufunc
+from spinta.datasets.backends.sql.ufuncs.components import Engine, SqlResource
 from spinta.exceptions import UnknownBind
 
 

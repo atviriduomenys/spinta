@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_rc, configure_remote_server
-from spinta.testing.datasets import create_sqlite_db, Sqlite
+from spinta.testing.client import configure_remote_server, create_rc
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -1188,6 +1188,7 @@ def test_export_postgresql_access_private(
     export_db: Sqlite,
     responses,
 ):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -1451,6 +1452,7 @@ def test_export_postgresql_access_protected(
     export_db: Sqlite,
     responses,
 ):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",
@@ -1651,6 +1653,7 @@ def test_export_postgresql_access_public(
     export_db: Sqlite,
     responses,
 ):
+    rc = rc.fork({"access": "private"})
     create_tabular_manifest(
         context,
         tmp_path / "manifest.csv",

@@ -2,28 +2,21 @@ version: "3"
 
 services:
   db:
-    image: postgis/postgis:16-3.4
+    build: ./.docker/citus-postgis
     ports:
-      - "54321:5432"
+      # Overridable so a machine where 54321 is already taken (another spinta
+      # checkout, some other postgres) can still bring this stack up.
+      - "${SPINTA_DB_PORT:-54321}:5432"
     environment:
       - POSTGRES_DB=spinta
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin123
     volumes:
       - postgres:/var/lib/postgresql/data
-  mongo:
-    image: mongo:4.0.9-xenial
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=spinta
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=admin123
-    volumes:
-      - mongo:/data/db
+      - ./.docker/citus-postgis/init:/docker-entrypoint-initdb.d
   app:
     volumes:
-      - ./entrypoint.sh:/app/entrypoint.sh
+    - ./entrypoint-internal.sh:/app/entrypoint.sh:ro
     image: spinta:local
     build:
       context: .
@@ -36,8 +29,26 @@ services:
       - "8000:8000"
     depends_on:
       - db
-      - mongo
 
+  redis-keymap: # sqlite faster alternative
+    image: valkey/valkey:9
+    restart: always
+    command:
+      - "valkey-server"
+      - "--appendonly"
+      - "yes"
+      - "--appendfsync"
+      - "always" # persistence settings to persist always, without any data loss.
+    volumes:
+      - redis_keymap_data:/data # persistent volume
+    ports:
+      - "${SPINTA_REDIS_KEYMAP_PORT:-6379}:6379"
 volumes:
   postgres:
-  mongo:
+  redis_keymap_data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24

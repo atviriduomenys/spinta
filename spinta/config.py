@@ -1,6 +1,5 @@
 import pathlib
 
-
 CONFIG = {
     "config": [],
     "commands": {
@@ -24,7 +23,6 @@ CONFIG = {
     "ufuncs": [
         "spinta.ufuncs",
         "spinta.backends.postgresql.ufuncs",
-        "spinta.backends.mongo.ufuncs",
         "spinta.datasets.backends.sql.ufuncs",
         "spinta.datasets.backends.dataframe.ufuncs",
     ],
@@ -54,7 +52,6 @@ CONFIG = {
             "xml": "spinta.manifests.dict.components:XmlManifest",
             "internal": "spinta.manifests.internal_sql.components:InternalSQLManifest",
             "xsd": "spinta.manifests.xsd.components:XsdManifest",
-            "xsd2": "spinta.manifests.xsd2.components:XsdManifest2",
             "openapi": "spinta.manifests.open_api.components:OpenAPIManifest",
         },
         "backends": {
@@ -62,7 +59,6 @@ CONFIG = {
             "memory": "spinta.backends.memory.components:Memory",
             # Internal backends
             "postgresql": "spinta.backends.postgresql.components:PostgreSQL",
-            "mongo": "spinta.backends.mongo.components:Mongo",
             "fs": "spinta.backends.fs.components:FileSystem",
             # External backends
             # XXX: Probably these should be moved to components.resources?
@@ -73,6 +69,7 @@ CONFIG = {
             "sql/mysql": "spinta.datasets.backends.sql.backends.mysql.components:MySQL",
             "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.components:MariaDB",
             "sql/oracle": "spinta.datasets.backends.sql.backends.oracle.components:Oracle",
+            "sql/sas": "spinta.datasets.backends.sql.backends.sas.components:SAS",
             "sqldump": "spinta.datasets.backends.sqldump.components:SqlDump",
             "dask": "spinta.datasets.backends.dataframe.components:DaskBackend",
             "dask/csv": "spinta.datasets.backends.dataframe.backends.csv.components:Csv",
@@ -94,7 +91,6 @@ CONFIG = {
             "": "spinta.ufuncs.querybuilder.components:QueryBuilder",
             # Internal query builders
             "postgresql": "spinta.backends.postgresql.ufuncs.query.components:PgQueryBuilder",
-            "mongo": "spinta.backends.mongo.ufuncs.components:MongoQueryBuilder",
             # External query builders
             "sql": "spinta.datasets.backends.sql.ufuncs.query.components:SqlQueryBuilder",
             "sql/sqlite": "spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components:SqliteQueryBuilder",
@@ -103,6 +99,7 @@ CONFIG = {
             "sql/oracle": "spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components:OracleQueryBuilder",
             "sql/mysql": "spinta.datasets.backends.sql.backends.mysql.ufuncs.query.components:MySQLQueryBuilder",
             "sql/mariadb": "spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder",
+            "sql/sas": "spinta.datasets.backends.sql.backends.sas.ufuncs.query.components:SASQueryBuilder",
             "dask": "spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder",
             "soap": "spinta.datasets.backends.dataframe.backends.soap.ufuncs.components:SoapQueryBuilder",
         },
@@ -113,9 +110,6 @@ CONFIG = {
             "postgresql": "spinta.backends.postgresql.ufuncs.result.components:PgResultBuilder",
             # External result builders
             "sql": "spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder",
-        },
-        "migrations": {
-            "alembic": "spinta.migrations.schema.alembic:Alembic",
         },
         "nodes": {
             "ns": "spinta.components:Namespace",
@@ -130,6 +124,7 @@ CONFIG = {
         },
         "keymaps": {
             "sqlalchemy": "spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap",
+            "redis": "spinta.datasets.keymaps.redis:RedisKeyMap",
         },
         "types": {
             "any": "spinta.types.datatype:DataType",
@@ -165,6 +160,8 @@ CONFIG = {
             "partial": "spinta.types.datatype:Partial",
             "partial_array": "spinta.types.datatype:PartialArray",
             "uuid": "spinta.types.datatype:UUID",
+            "unknown": "spinta.types.datatype:Unknown",
+            "base32": "spinta.types.datatype:Base32",
         },
         "urlparams": {
             "component": "spinta.urlparams:UrlParams",
@@ -238,6 +235,9 @@ CONFIG = {
     "default_auth_client": "default",
     # Public JWK key for validating auth bearer tokens.
     "token_validation_key": None,
+    # Expected `iss` (issuer) claim of accepted bearer tokens.
+    "token_issuer": None,
+    "resource_server": None,
     # Limit access to specified namespace root.
     "root": None,
     "env": "prod",
@@ -249,7 +249,11 @@ CONFIG = {
     "enable_pagination": True,
     # Limit of objects in a page
     # If None is given default is 100000
-    "sync_page_size": 100000,
+    "sync_page_size": 20000,
+    # Maximum number of retries for sync data fetch
+    "sync_retry_count": 5,
+    # Delay between retries for sync data fetch, in seconds
+    "sync_retry_delay_range": (1, 5, 10, 30, 60),
     # Default languages
     # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
     # Last updated: 2023-11-08
@@ -259,10 +263,23 @@ CONFIG = {
     "max_file_size": 100,
     # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
     "max_error_count_on_insert": 100,
-    # Enables setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
-    "load_backends": True,
+    # Ensures setting backends by default, disabled when Spinta used as library and does not contain configuration of backends
+    "ensure_backends": True,
     # Response Cache-Control header.
     "cache_control_header": "public, max-age=60, must-revalidate",
+    # Response HTTP Strict Transport Security (HSTS) header. `max-age` must be at
+    # least 31536000 seconds (1 year) and `includeSubDomains` must be specified.
+    "http_strict_transport_security": "max-age=31536000; includeSubDomains",
+    # `/health` probe thresholds.
+    "health": {
+        # Minimum amount of free disk space (MB) on `data_path`.
+        "min_free_disk_space": 2048,
+        # Minimum amount of available RAM (MB).
+        "min_free_memory": 256,
+    },
+    # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
+    "default_distribution_strategy": "schema",
+    "default_distribution_property": "_id",
     # Default limit of objects returned by getall, None - no limit
     "default_limit_objects": None,
     # Default approximate size of maximum JSON return that gets used to calculate limits of each model
@@ -278,11 +295,6 @@ CONFIG = {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta",
                     "migrate": "alembic",
-                },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta",
                 },
                 "fs": {
                     "type": "fs",
@@ -316,11 +328,6 @@ CONFIG = {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
                 },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta_tests",
-                },
                 "fs": {
                     "type": "fs",
                     "path": pathlib.Path() / "var/files",
@@ -344,6 +351,22 @@ CONFIG = {
             },
             "config_path": pathlib.Path("tests/config"),
             "default_auth_client": "baa448a8-205c-4faa-a048-a10e4b32a136",
+            "default_access_level": "open",
+            "access": "open",
+            "sync_retry_count": 0,
+            "default_distribution_strategy": "undistributed",
         },
+    },
+    "texts": {
+        "front_page_warning": (
+            "**Dėmesio!** "
+            "[Atvirų duomenų saugykla](https://data.gov.lt/page/saugykla) "
+            "šiuo metu yra "
+            "[aktyviai vystoma]"
+            "(https://atviriduomenys.readthedocs.io/api/index.html#statusas-ir-planas), "
+            "todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie "
+            "kuriuos maloniai prašome pranešti "
+            "[atviriduomenys@vssa.lt](mailto:atviriduomenys@vssa.lt)."
+        )
     },
 }

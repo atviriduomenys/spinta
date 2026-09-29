@@ -1,20 +1,16 @@
 import hashlib
 import json
-from typing import Any
-from typing import List
-from typing import Union
+from typing import Any, List, Union
 
 import msgpack
 import sqlalchemy as sa
-from spinta import commands
-
 from sqlalchemy.engine.row import Row
+
+from spinta import commands
 from spinta.auth import authorized
 from spinta.cli.helpers.push.components import PushRow
-from spinta.components import Page, pagination_enabled
+from spinta.components import Context, Model, Page, pagination_enabled
 from spinta.core.enums import Action
-from spinta.components import Context
-from spinta.components import Model
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json

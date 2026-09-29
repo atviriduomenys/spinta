@@ -1,6 +1,5 @@
-from spinta.manifests.tabular.helpers import render_tabular_manifest
+from spinta.manifests.tabular.helpers import render_tabular_manifest, striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.manifest import load_manifest_and_context
 
 

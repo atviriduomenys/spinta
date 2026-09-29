@@ -1,8 +1,10 @@
+import xml.etree.ElementTree as ET
+
+import pytest
+from _pytest.fixtures import FixtureRequest
+
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
-from _pytest.fixtures import FixtureRequest
-import xml.etree.ElementTree as ET
-import pytest
 
 
 @pytest.mark.manifests("internal_sql", "csv")

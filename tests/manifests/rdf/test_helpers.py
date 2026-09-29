@@ -1,7 +1,7 @@
 from rdflib import Graph
 from rdflib.term import Literal
 
-from spinta.manifests.rdf.helpers import _prepare_data, _get_schemas
+from spinta.manifests.rdf.helpers import _get_schemas, _prepare_data
 
 
 def test_rdf_with_one_schema():

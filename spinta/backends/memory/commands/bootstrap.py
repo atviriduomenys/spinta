@@ -1,6 +1,6 @@
 from spinta import commands
-from spinta.components import Context
 from spinta.backends.memory.components import Memory
+from spinta.components import Context
 
 
 @commands.bootstrap.register(Context, Memory)

@@ -6,24 +6,24 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from spinta import commands
-from spinta.auth import check_scope, Scopes
+from spinta.auth import Scopes, check_scope
 from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Context, UrlParams, Store, Model, Config, Property
+from spinta.components import Config, Context, Model, Property, Store, UrlParams
 from spinta.core.context import configure_context, create_context
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import (
-    NotSupportedManifestType,
-    InvalidSchemaUrlPath,
-    InvalidName,
-    UnknownContentType,
-    FileSizeTooLarge,
     DatasetNameMissmatch,
     DatasetSchemaRequiresIds,
-    ModifySchemaRequiresFile,
+    FileSizeTooLarge,
+    InvalidName,
+    InvalidSchemaUrlPath,
     ModifyOneDatasetSchema,
+    ModifySchemaRequiresFile,
+    NotSupportedManifestType,
+    UnknownContentType,
 )
-from spinta.manifests.components import ManifestPath, Manifest
+from spinta.manifests.components import Manifest, ManifestPath
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.utils.naming import is_valid_namespace_name
 from spinta.utils.schema import NA

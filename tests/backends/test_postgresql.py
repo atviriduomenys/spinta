@@ -1,19 +1,17 @@
 from pathlib import Path
 
 import pytest
+from _pytest.fixtures import FixtureRequest
 
-from spinta.components import Model, Property
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import NAMEDATALEN
-from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers import get_pg_sequence_name
+from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
+from spinta.components import Model, Property
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
-
-from _pytest.fixtures import FixtureRequest
 
 
 def get_model(name: str):

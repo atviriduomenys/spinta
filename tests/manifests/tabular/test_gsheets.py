@@ -1,11 +1,10 @@
 from pathlib import Path
 
-from responses import GET
-from responses import RequestsMock
+from responses import GET, RequestsMock
 
 from spinta.core.config import RawConfig
-from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
+from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_gsheets(context, rc: RawConfig, tmp_path: Path, responses: RequestsMock):

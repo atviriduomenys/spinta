@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import tempfile
@@ -8,21 +9,26 @@ import pprintpp
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
-from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
+from sqlalchemy.engine.url import URL, make_url
 
-from spinta.core.config import RawConfig
-from spinta.core.config import read_config
+from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
+from spinta.core.config import RawConfig, read_config
 from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import TestClient
-from spinta.testing.client import create_test_client
+from spinta.testing.client import TestClient, create_test_client
 from spinta.testing.config import CONFIG
-from spinta.testing.context import ContextForTests
-from spinta.testing.context import create_test_context
+from spinta.testing.context import ContextForTests, close_test_context_engines, create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
+
+
+@pytest.fixture(autouse=True)
+def disable_logging_during_tests():
+    logging.disable(logging.CRITICAL)
+    yield
+    logging.disable(logging.NOTSET)
 
 
 def _remove_push_state(rc: RawConfig) -> None:
@@ -42,6 +48,8 @@ def rc():
             {
                 "env": "test",
                 "data_path": data_dir,
+                "token_issuer": "https://example.com",
+                "resource_server": "https://example.com",
                 "keymaps.default": {
                     "type": "sqlalchemy",
                     "dsn": "sqlite:///{data_dir}/keymap.db",
@@ -60,8 +68,9 @@ def sqlite():
 
 
 def _prepare_postgresql(dsn: str) -> None:
-    engine = sa.create_engine(dsn)
+    engine = create_postgresql_engine(dsn)
     with engine.connect() as conn:
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
@@ -82,30 +91,30 @@ def postgresql(rc) -> str:
 
 
 @pytest.fixture(scope="session")
-def mongo(rc):
-    yield
-    dsn = rc.get("backends", "mongo", "dsn", required=False)
-    db = rc.get("backends", "mongo", "db", required=False)
-    if dsn and db:
-        import pymongo
-
-        client = pymongo.MongoClient(dsn)
-        client.drop_database(db)
-
-
-@pytest.fixture(scope="session")
-def backends(postgresql, mongo):
+def backends(postgresql):
     yield {
         "postgresql": postgresql,
-        "mongo": mongo,
     }
 
 
 @pytest.fixture(scope="session")
-def _context(rc: RawConfig, postgresql, mongo):
-    context: ContextForTests = create_test_context(rc)
+def _context(rc: RawConfig, postgresql):
+    # `track=False`: this session context is shared (reused via `fork`) across the
+    # whole suite, so its single connection pool is bounded and must not be
+    # disposed after every test by `close_test_context_engines`.
+    context: ContextForTests = create_test_context(rc, track=False)
     context.load()
     yield context
+
+
+@pytest.fixture(autouse=True)
+def _dispose_test_context_engines():
+    # Dispose the engines of any short-lived test contexts created during the test.
+    # Their connection pools are otherwise only reclaimed by the garbage collector,
+    # which on CPython 3.14 lags enough that idle connections accumulate across the
+    # suite and exhaust the PostgreSQL `max_connections` limit.
+    yield
+    close_test_context_engines()
 
 
 @pytest.fixture
@@ -173,7 +182,7 @@ def pytest_addoption(parser):
         "--model",
         action="append",
         default=[],
-        help="run tests only for particular model ['postgres', 'mongo', 'postgres/datasets']",
+        help="run tests only for particular model ['postgres', 'postgres/datasets']",
     )
     parser.addoption(
         "--manifest_type",
@@ -253,21 +262,51 @@ def pytest_assertrepr_compare(op: str, left: Any, right: Any):
 
 
 MIGRATION_DATABASE = "spinta_tests_migration"
+MIGRATION_TEMPLATE_DATABASE = "spinta_tests_migration_template"
 
 
-@pytest.fixture(scope="module")
-def postgresql_migration(rc) -> URL:
+@pytest.fixture(scope="session")
+def postgresql_migration_template(rc: RawConfig) -> URL:
+    url = make_url(rc.get("backends", "default", "dsn", required=True))
+    url = url.set(database=MIGRATION_TEMPLATE_DATABASE)
+
+    if su.database_exists(url):
+        tmp_engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
+        with tmp_engine.connect() as conn:
+            conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = false'))
+        su.drop_database(url)
+
+    su.create_database(url)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
+    _prepare_migration_postgresql_template(engine)
+    yield url
+    with engine.connect() as conn:
+        conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = false'))
+    su.drop_database(url)
+
+
+@pytest.fixture(scope="function")
+def postgresql_migration(rc: RawConfig, postgresql_migration_template: URL) -> URL:
     url = make_url(rc.get("backends", "default", "dsn", required=True))
     url = url.set(database=MIGRATION_DATABASE)
 
     if su.database_exists(url):
-        _prepare_migration_postgresql(url)
-        yield url
-    else:
-        su.create_database(url)
-        _prepare_migration_postgresql(url)
-        yield url
         su.drop_database(url)
+
+    su.create_database(url, template=MIGRATION_TEMPLATE_DATABASE)
+    engine = create_postgresql_engine(url, poolclass=sa.pool.NullPool)
+    # Need to add citus extension here, because template database does not support citus
+    # Citus creates maintenance daemon, which keeps active connection to db and prevents template reuse.
+    with engine.connect() as conn:
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS citus"))
+    yield url
+    su.drop_database(url)
+
+
+@pytest.fixture(scope="function")
+def migration_db(postgresql_migration: URL) -> sa.engine.Engine:
+    engine = create_postgresql_engine(postgresql_migration)
+    yield engine
 
 
 @pytest.fixture(scope="function")
@@ -289,13 +328,12 @@ def reset_keymap(context):
     _reset_keymap(excluded)
 
 
-def _prepare_migration_postgresql(dsn: URL) -> None:
-    engine = sa.create_engine(dsn)
+def _prepare_migration_postgresql_template(engine: sa.engine.Engine) -> None:
     with engine.connect() as conn:
-        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
-        conn.execute(sa.text("CREATE SCHEMA public"))
+        conn.execute(sa.text("CREATE SCHEMA IF NOT EXISTS public"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+        conn.execute(sa.text(f'ALTER DATABASE "{MIGRATION_TEMPLATE_DATABASE}" WITH is_template = true'))

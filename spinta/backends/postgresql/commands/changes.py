@@ -7,7 +7,7 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.components import Context, Model, Property, DataItem
+from spinta.components import Context, DataItem, Model, Property
 from spinta.core.enums import Action
 from spinta.utils.json import fix_data_for_json
 

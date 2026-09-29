@@ -8,18 +8,16 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands, spyna
 from spinta.auth import AdminToken
-from spinta.components import Model, Context
-from spinta.core.enums import Mode
+from spinta.components import Context, Model
 from spinta.core.config import RawConfig
+from spinta.core.enums import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.helpers import get_enum_filters
-from spinta.datasets.helpers import get_ref_filters
+from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.utils import create_empty_backend
-from spinta.types.datatype import DataType, Integer, String, Boolean
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Boolean, DataType, Integer, Ref, String
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
@@ -28,7 +26,7 @@ from spinta.ufuncs.querybuilder.helpers import add_page_expr
 _SUPPORT_NULLS = ["sql/postgresql", "sql/oracle", "sql/sqlite"]
 _DEFAULT_NULL_IMPL = ["sql", "sql/mysql", "sql/mariadb", "sql/mssql"]
 
-_DEFAULT_FLIP_IMPL = ["sql", "sql/sqlite", "sql/mysql", "sql/mssql", "sql/mariadb", "sql/oracle"]
+_DEFAULT_FLIP_IMPL = ["sql", "sql/sqlite", "sql/mysql", "sql/mssql", "sql/mariadb"]
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -940,6 +938,85 @@ def test_flip_postgresql_combined(rc: RawConfig):
       |   |   |   | id       | string         |         | ID         |         | open
       |   |   |   | code     | string         |         | CODE       |         | open
       |   |   |   | geo      | geometry       |         | GEO        | flip()  | open
+        """,
+            "example/Planet",
+            query="select(flip(geo))",
+        )
+        == """
+    SELECT
+      "PLANET"."GEO"
+    FROM "PLANET"
+    """
+    )
+
+
+def test_flip_oracle(rc: RawConfig):
+    assert (
+        _build(
+            rc,
+            """
+    d | r | b | m | property | type       | ref     | source     | prepare          | access
+    example                  |            |         |            |                  |
+      | data                 | sql/oracle |         |            |                  |
+      |   |                  |            |         |            |                  |
+      |   |   | Planet       |            |         | PLANET     |                  |
+      |   |   |   | id       | string     |         | ID         |                  | open
+      |   |   |   | code     | string     |         | CODE       |                  | open
+      |   |   |   | geo      | geometry   |         | GEO        | flip()           | open
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "-code": 5,
+            },
+        )
+        == """
+    SELECT
+      "PLANET"."CODE", SDO_UTIL.REVERSE_LINESTRING("PLANET"."GEO") AS "REVERSE_LINESTRING_1",
+      "PLANET"."ID"
+    FROM "PLANET"
+    """
+    )
+
+
+def test_flip_oracle_select(rc: RawConfig):
+    assert (
+        _build(
+            rc,
+            """
+    d | r | b | m | property | type       | ref     | source     | prepare | access
+    example                  |            |         |            |         |
+      | data                 | sql/oracle |         |            |         |
+      |   |                  |            |         |            |         |
+      |   |   | Planet       |            |         | PLANET     |         |
+      |   |   |   | id       | string     |         | ID         |         | open
+      |   |   |   | code     | string     |         | CODE       |         | open
+      |   |   |   | geo      | geometry   |         | GEO        |         | open
+        """,
+            "example/Planet",
+            query="select(flip(geo))",
+        )
+        == """
+    SELECT
+      SDO_UTIL.REVERSE_LINESTRING("PLANET"."GEO") AS "REVERSE_LINESTRING_1"
+    FROM "PLANET"
+    """
+    )
+
+
+def test_flip_oracle_combined(rc: RawConfig):
+    assert (
+        _build(
+            rc,
+            """
+    d | r | b | m | property | type       | ref     | source     | prepare | access
+    example                  |            |         |            |         |
+      | data                 | sql/oracle |         |            |         |
+      |   |                  |            |         |            |         |
+      |   |   | Planet       |            |         | PLANET     |         |
+      |   |   |   | id       | string     |         | ID         |         | open
+      |   |   |   | code     | string     |         | CODE       |         | open
+      |   |   |   | geo      | geometry   |         | GEO        | flip()  | open
         """,
             "example/Planet",
             query="select(flip(geo))",

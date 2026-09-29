@@ -3,22 +3,21 @@ import pathlib
 from typing import List, Optional
 
 import requests
-from typer import Argument, Option, Typer, echo, Exit
+from typer import Argument, Exit, Option, Typer, echo
 from typer import Context as TyperContext
 
 from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
-
-from spinta.cli.helpers.errors import ErrorCounter, cli_error
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
+from spinta.cli.helpers.message import cli_error
 from spinta.cli.helpers.push.utils import extract_dependant_nodes
-
-from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
+from spinta.cli.helpers.store import attach_backends, attach_keymaps, prepare_manifest
 from spinta.client import get_access_token, get_client_credentials
 from spinta.components import Config
-from spinta.core.enums import Action, Mode
 from spinta.core.context import configure_context
+from spinta.core.enums import Action, Mode
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.types.namespace import sort_models_by_ref_and_base
 
@@ -67,6 +66,9 @@ def keymap_sync(
     context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context, full_load=True)
     config: Config = context.get("config")
+
+    max_retries = config.sync_retry_count
+    delay_range = config.sync_retry_delay_range
 
     if credentials:
         credsfile = pathlib.Path(credentials)
@@ -118,6 +120,8 @@ def keymap_sync(
                 reset_cid=True,
                 dry_run=dry_run,
                 timeout=(connect_timeout, read_timeout),
+                max_retries=max_retries,
+                delay_range=delay_range,
             )
 
         if error_counter.has_errors():

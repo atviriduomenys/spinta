@@ -2,17 +2,18 @@ from typing import Optional
 
 from starlette.requests import Request
 from starlette.responses import Response
+
 from spinta import commands
 from spinta.accesslog import log_response
-from spinta.backends.helpers import get_select_tree, get_select_prop_names
+from spinta.backends.helpers import get_select_prop_names, get_select_tree
 from spinta.compat import urlparams_to_expr
-from spinta.manifests.internal_sql.commands.manifest import get_model_name_list
-from spinta.renderer import render
 from spinta.components import Context, Namespace, UrlParams
 from spinta.core.enums import Action
+from spinta.manifests.internal_sql.commands.manifest import get_model_name_list
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import get_namespace_partial_data
-from spinta.types.namespace import check_if_model_has_backend_and_source, _model_matches_params
+from spinta.renderer import render
+from spinta.types.namespace import _model_matches_params, check_if_model_has_backend_and_source
 
 
 @commands.traverse_ns_models.register(Context, Namespace, InternalSQLManifest, Action)

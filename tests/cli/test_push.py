@@ -1,19 +1,21 @@
 import datetime
 import logging
 import os
+import pathlib
 import re
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
-from requests.exceptions import ReadTimeout, ConnectTimeout
+from requests.exceptions import ConnectTimeout, ReadTimeout
 
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import configure_remote_server, create_client, create_rc
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db, Sqlite
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.push import compare_push_state_rows
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -316,9 +318,9 @@ def test_push_with_progress_bar(context, postgresql, rc, cli: SpintaCliRunner, r
     )
 
     assert result.exit_code == 0
-    assert "Count rows:   0%" in result.stderr
-    assert "PUSH:   0%|          | 0/3" in result.stderr
-    assert "PUSH: 100%|##########| 3/3" in result.stderr
+    assert re.search(r"Count rows:\s*0%", result.stderr)
+    assert re.search(r"PUSH:\s*0%.*0/3", result.stderr)
+    assert re.search(r"PUSH:\s*100%.*3/3", result.stderr)
 
 
 def test_push_without_progress_bar(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
@@ -573,17 +575,17 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         context,
         tmp_path / "manifest.csv",
         striptable("""
-    d | r | b | m | property  | type   | ref     | source       | access
-    datasets/gov/exampleRes   |        |         |              |
-      | data                  | sql    |         |              |
-      |   |   | CountryRes    |        | code    | salis        |
-      |   |   |   | code      | string |         | kodas        | open
-      |   |   |   | name      | string |         | pavadinimas  | open
-      |   |                   |        |         |              |
-    datasets/gov/exampleNoRes |        |         |              |
-      |   |   | CountryNoRes  |        |         |              |
-      |   |   |   | code      | string |         |              | open
-      |   |   |   | name      | string |         |              | open
+    d | r | b | m | property    | type   | ref     | source       | access
+    datasets/gov/example_res    |        |         |              |
+      | data                    | sql    |         |              |
+      |   |   | CountryRes      |        | code    | salis        |
+      |   |   |   | code        | string |         | kodas        | open
+      |   |   |   | name        | string |         | pavadinimas  | open
+      |   |                     |        |         |              |
+    datasets/gov/example_no_res |        |         |              |
+      |   |   | CountryNoRes    |        |         |              |
+      |   |   |   | code        | string |         |              | open
+      |   |   |   | name        | string |         |              | open
     """),
     )
 
@@ -601,7 +603,7 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         [
             "push",
             "-d",
-            "datasets/gov/exampleRes",
+            "datasets/gov/example_res",
             "-o",
             remote.url,
             "--credentials",
@@ -616,7 +618,7 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
         [
             "push",
             "-d",
-            "datasets/gov/exampleNoRes",
+            "datasets/gov/example_no_res",
             "-o",
             remote.url,
             "--credentials",
@@ -626,12 +628,12 @@ def test_push_with_resource_check(context, postgresql, rc, cli: SpintaCliRunner,
     )
     assert result.exit_code == 0
 
-    remote.app.authmodel("datasets/gov/exampleRes/CountryRes", ["getall"])
-    resp_res = remote.app.get("/datasets/gov/exampleRes/CountryRes")
+    remote.app.authmodel("datasets/gov/example_res/CountryRes", ["getall"])
+    resp_res = remote.app.get("/datasets/gov/example_res/CountryRes")
     assert len(listdata(resp_res)) == 3
 
-    remote.app.authmodel("datasets/gov/exampleNoRes/CountryNoRes", ["getall"])
-    resp_no_res = remote.app.get("/datasets/gov/exampleNoRes/CountryNoRes")
+    remote.app.authmodel("datasets/gov/example_no_res/CountryNoRes", ["getall"])
+    resp_no_res = remote.app.get("/datasets/gov/example_no_res/CountryNoRes")
     assert len(listdata(resp_no_res)) == 0
 
 
@@ -657,7 +659,7 @@ def test_push_ref_with_level_no_source(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel("leveldataset", ["getall"])
     resp = app.get("leveldataset/City")
-    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": 2})
+    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": "2"})
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
@@ -711,7 +713,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel("leveldataset", ["getall"])
     resp = app.get("leveldataset/City")
-    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": 2})
+    assert listdata(resp, "id", "name", "country")[0] == (1, "Vilnius", {"code": "2"})
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb, "external")
@@ -769,7 +771,7 @@ def test_push_pagination_incremental(
     assert remote.url == "https://example.com/"
     result = cli.invoke(localrc, ["push", "-d", "paginated", "-o", remote.url, "--credentials", remote.credsfile])
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 3/3" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*3/3", result.stderr)
 
     geodb.write(
         "salis",
@@ -782,7 +784,7 @@ def test_push_pagination_incremental(
         localrc, ["push", "-d", "paginated", "-o", remote.url, "--credentials", remote.credsfile, "--incremental"]
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 1/1" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*1/1", result.stderr)
 
 
 def test_push_pagination_without_incremental(
@@ -816,7 +818,7 @@ def test_push_pagination_without_incremental(
         localrc, ["push", "-d", "paginated/without", "-o", remote.url, "--credentials", remote.credsfile]
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 3/3" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*3/3", result.stderr)
 
     geodb.write(
         "salis",
@@ -829,7 +831,7 @@ def test_push_pagination_without_incremental(
         localrc, ["push", "-d", "paginated/without", "-o", remote.url, "--credentials", remote.credsfile]
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 4/4" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*4/4", result.stderr)
 
 
 def test_push_pagination_incremental_with_page_valid(
@@ -877,7 +879,7 @@ def test_push_pagination_incremental_with_page_valid(
         ],
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 1/1" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*1/1", result.stderr)
 
     geodb.write(
         "salis",
@@ -904,7 +906,7 @@ def test_push_pagination_incremental_with_page_valid(
         ],
     )
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 2/2" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*2/2", result.stderr)
 
 
 def test_push_pagination_incremental_with_page_invalid(
@@ -1027,17 +1029,17 @@ def test_push_with_base_different_ref(
         tmp_path / "manifest.csv",
         striptable("""
     d | r | b | m | property | type     | ref      | source      | level | access
-    level4basedatasetref           |          |          |             |       |
+    level4basedatasetref     |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | Location     |          | id       | location    | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
       |   |   |   | name     | string   |          | name        | 4     | open
       |   |   |   | code     | string   |          | code        | 4     | open
       |   |   |   |          |          |          |             |       |
-      |   | Location |           |          |          | name     |             | 4     |
+      |   | Location | |     |          | name     |             | 4     |
       |   |   | City         |          | id       | city        | 4     |
-      |   |   |   | code     |    |          | code        | 4     | open
-      |   |   |   | name     |    |          | name        | 4     | open
+      |   |   |   | code     |          |          | code        | 4     | open
+      |   |   |   | name     |          |          | name        | 4     | open
       |   |   |   | id       | integer  |          | id          | 4     | open
       |   |   |   | location | string   |          | location    | 4     | open
     """),
@@ -1408,11 +1410,11 @@ def test_push_postgresql(
     assert remote.url == "https://example.com/"
     result = cli.invoke(localrc, ["push", "-o", remote.url, "--credentials", remote.credsfile], fail=False)
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 2/2" in result.stderr
+    assert re.search(r"PUSH:\s*100%.*2/2", result.stderr)
 
     result = cli.invoke(localrc, ["push", "-o", remote.url, "--credentials", remote.credsfile, "-i"], fail=False)
     assert result.exit_code == 0
-    assert "PUSH: 100%|##########| 2/2" not in result.stderr
+    assert not re.search(r"PUSH:\s*100%.*2/2", result.stderr)
     su.drop_database(db)
 
 
@@ -1592,8 +1594,23 @@ def test_push_with_errors_rollback(
     assert listdata(cities, "id", "name", sort=True) == []
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_set_meta_fields", "spinta_patch", "spinta_update"],
+        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"],
+    ],
+)
 def test_push_sync_state_insert(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -1615,7 +1632,7 @@ def test_push_sync_state_insert(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["spinta_set_meta_fields", "spinta_patch", "spinta_update"])
+    remote.app.authorize(scope)
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -1738,8 +1755,23 @@ def test_push_sync_state_insert(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_set_meta_fields", "spinta_patch", "spinta_update"],
+        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"],
+    ],
+)
 def test_push_sync_state_delete(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -1761,7 +1793,7 @@ def test_push_sync_state_delete(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["spinta_set_meta_fields", "spinta_patch", "spinta_update"])
+    remote.app.authorize(scope)
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe", "delete"])
 
     result = cli.invoke(
@@ -1864,8 +1896,23 @@ def test_push_sync_state_delete(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"],
+        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"],
+    ],
+)
 def test_push_sync_state_update(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -1887,7 +1934,7 @@ def test_push_sync_state_update(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"])
+    remote.app.authorize(scope)
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -1998,8 +2045,23 @@ def test_push_sync_state_update(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"],
+        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"],
+    ],
+)
 def test_push_sync_state_update_revision(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2021,7 +2083,7 @@ def test_push_sync_state_update_revision(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"])
+    remote.app.authorize(scope)
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2146,8 +2208,23 @@ def test_push_sync_state_update_revision(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"],
+        ["uapi:/:set_meta_fields", "uapi:/:delete", "uapi:/:update", "uapi:/:patch"],
+    ],
+)
 def test_push_sync_state_combined(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2169,7 +2246,7 @@ def test_push_sync_state_combined(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["spinta_set_meta_fields", "spinta_delete", "spinta_update", "spinta_patch"])
+    remote.app.authorize(scope)
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2288,8 +2365,23 @@ def test_push_sync_state_combined(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["spinta_set_meta_fields", "spinta_patch", "spinta_update"],
+        ["uapi:/:set_meta_fields", "uapi:/:patch", "uapi:/:update"],
+    ],
+)
 def test_push_sync_state_migrate_page_values(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2311,7 +2403,7 @@ def test_push_sync_state_migrate_page_values(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(["spinta_set_meta_fields", "spinta_patch", "spinta_update"])
+    remote.app.authorize(scope)
     remote.app.authmodel("datasets/push/state/Country", ["insert", "getall", "search", "wipe"])
 
     result = cli.invoke(
@@ -2419,8 +2511,39 @@ def test_push_sync_state_migrate_page_values(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_sync_state_skip_no_auth(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, push_state_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2446,17 +2569,7 @@ def test_push_sync_state_skip_no_auth(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
 
     result = cli.invoke(
         localrc,
@@ -2566,7 +2679,7 @@ def test_push_sync_state_skip_no_auth(
         ],
     )
     assert result.exit_code == 0
-    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stdout
+    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stderr
 
     compare_push_state_rows(
         engine,
@@ -2640,8 +2753,39 @@ def test_push_sync_state_skip_no_auth(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_page_multiple_keys(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, multi_type_geodb, request
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    multi_type_geodb,
+    request,
+    scope: list,
 ):
     state_db = os.path.join(tmp_path, "sync.sqlite")
     table = """
@@ -2668,17 +2812,7 @@ def test_push_page_multiple_keys(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
 
     result = cli.invoke(
         localrc,
@@ -2801,8 +2935,39 @@ def test_push_page_multiple_keys(
     remote.app.delete("https://example.com/syncdataset/countries/City/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_with_geometry(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -2841,17 +3006,7 @@ def test_push_with_geometry(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
 
     result = cli.invoke(
         localrc,
@@ -3117,8 +3272,105 @@ def test_push_connect_and_read_timeout(
     )
 
 
+def test_push_timeout_with_retries(
+    context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request, caplog
+):
+    rc = rc.fork({"sync_retry_count": 6, "sync_retry_delay_range": [0.1, 0.2, 0.3]})
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+     d | r | b | m | property| type   | ref     | source       | access
+     datasets/gov/example    |        |         |              |
+       | data                | sql    |         |              |
+       |   |                 |        |         |              |
+       |   |   | Country     |        | code    | salis        |
+       |   |   |   | code    | string |         | kodas        | open
+       |   |   |   | name    | string |         | pavadinimas  | open
+     """),
+    )
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+    assert remote.url == "https://example.com/"
+
+    responses.add(
+        responses.POST,
+        remote.url,
+        body=ReadTimeout(),
+    )
+    responses.add(
+        responses.GET,
+        re.compile(r"https://example.com/datasets/gov/example/Country/.*"),
+        body=ReadTimeout(),
+    )
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(
+            localrc,
+            [
+                "push",
+                "-d",
+                "datasets/gov/example",
+                "-o",
+                remote.url,
+                "--credentials",
+                remote.credsfile,
+                "--sync",
+                "--no-progress-bar",
+            ],
+            fail=False,
+        )
+
+    assert result.exit_code == 1
+    assert any(
+        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 300.0s)."
+        in message
+        for message in caplog.messages
+    )
+    assert "Retrying (1/6) in 0.1 seconds..." in result.output
+    assert "Retrying (2/6) in 0.2 seconds..." in result.output
+    assert "Retrying (3/6) in 0.3 seconds..." in result.output
+    assert "Retrying (4/6) in 0.3 seconds..." in result.output
+    assert "Retrying (5/6) in 0.3 seconds..." in result.output
+    assert "Retrying (6/6) in 0.3 seconds..." in result.output
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_with_geometry_flip_both(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3156,17 +3408,7 @@ def test_push_with_geometry_flip_both(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
 
     result = cli.invoke(
         localrc,
@@ -3190,8 +3432,39 @@ def test_push_with_geometry_flip_both(
     remote.app.delete("https://example.com/datasets/push/geo/flip/Test/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_with_geometry_flip_source(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3245,17 +3518,7 @@ def test_push_with_geometry_flip_source(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
 
     result = cli.invoke(
         localrc,
@@ -3280,8 +3543,39 @@ def test_push_with_geometry_flip_source(
     remote.app.delete("https://example.com/datasets/push/geo/flip/Test/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_with_geometry_flip_invalid_bounding_box(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, sqlite
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite,
+    scope: list,
 ):
     sqlite.init(
         {
@@ -3335,17 +3629,7 @@ def test_push_with_geometry_flip_invalid_bounding_box(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
 
     result = cli.invoke(
         localrc,
@@ -3367,8 +3651,39 @@ def test_push_with_geometry_flip_invalid_bounding_box(
     remote.app.delete("https://example.com/datasets/push/geo/flip/Test/:wipe")
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_with_array_intermediate_table(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, array_geodb
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    array_geodb,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -3419,17 +3734,7 @@ def test_push_with_array_intermediate_table(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
     result = cli.invoke(
         localrc,
         [
@@ -3461,8 +3766,39 @@ def test_push_with_array_intermediate_table(
     ]
 
 
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
 def test_push_with_array_split(
-    context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, request, array_geodb
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    array_geodb,
+    scope: list,
 ):
     create_tabular_manifest(
         context,
@@ -3510,17 +3846,7 @@ def test_push_with_array_split(
 
     # Push data from local to remote.
     assert remote.url == "https://example.com/"
-    remote.app.authorize(
-        [
-            "spinta_set_meta_fields",
-            "spinta_patch",
-            "spinta_update",
-            "spinta_insert",
-            "spinta_getall",
-            "spinta_search",
-            "spinta_wipe",
-        ]
-    )
+    remote.app.authorize(scope)
     result = cli.invoke(
         localrc,
         [
@@ -3550,3 +3876,106 @@ def test_push_with_array_split(
         ),
         (2, "Poland", [{"_id": lang_mapping[1]["_id"]}, {"_id": lang_mapping[2]["_id"]}]),
     ]
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        [
+            "spinta_set_meta_fields",
+            "spinta_patch",
+            "spinta_update",
+            "spinta_insert",
+            "spinta_getall",
+            "spinta_search",
+            "spinta_wipe",
+        ],
+        [
+            "uapi:/:set_meta_fields",
+            "uapi:/:patch",
+            "uapi:/:update",
+            "uapi:/:create",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:wipe",
+        ],
+    ],
+)
+def test_push_with_ref_primary_key(
+    scope: list,
+    context: Context,
+    postgresql: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    geodb: Sqlite,
+    responses,
+    request,
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type     | ref      | source      | level | access
+    level4dataset/ref        |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | country  | cities      | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | country  | ref      | Country  | country     | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    """),
+    )
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == "https://example.com/"
+    remote.app.authorize(scope)
+
+    result = cli.invoke(
+        localrc,
+        [
+            "push",
+            "-o",
+            remote.url,
+            "--credentials",
+            remote.credsfile,
+        ],
+    )
+    assert result.exit_code == 0
+
+    result = remote.app.get("level4dataset/ref/Country")
+    assert result.status_code == 200
+    result_json = result.json()["_data"]
+    country_ids = {data["id"]: data["_id"] for data in result_json}
+
+    assert listdata(result, "id", "name", "code", sort=True) == [
+        (1, "Lietuva", "lt"),
+        (2, "Latvija", "lv"),
+        (3, "Estija", "ee"),
+    ]
+
+    result = remote.app.get("level4dataset/ref/City")
+    assert result.status_code == 200
+    city_id = result.json()["_data"][0]["_id"]
+    assert listdata(result, "id", "name", "country", sort=True) == [
+        (1, "Vilnius", {"_id": country_ids[2]}),
+    ]
+
+    with context.get("store").manifest.keymap as km:
+        assert km.contains("level4dataset/ref/City", country_ids[2])
+
+        assert km.encode("level4dataset/ref/City", country_ids[2]) == city_id
+        assert km.decode("level4dataset/ref/City", city_id) == country_ids[2]
+
+    remote.app.delete("https://example.com/level4dataset/ref/City/:wipe")
+    remote.app.delete("https://example.com/level4dataset/ref/Country/:wipe")

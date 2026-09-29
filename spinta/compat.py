@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-
 from typing import TYPE_CHECKING
 
 from spinta.core.ufuncs import asttoexpr

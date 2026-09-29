@@ -4,27 +4,33 @@ import os
 import re
 import sys
 import time as time_module
-from itertools import chain
-from itertools import islice
+from itertools import chain, islice
 from traceback import format_stack
-from typing import Any
-from typing import Dict
-from typing import Iterator
-from typing import TextIO
-from typing import Type
+from typing import Any, Dict, Iterator, TextIO, Type
+from urllib.parse import parse_qs
 
 import objprint
 import pprintpp
 import sqlparse
 from pygments import highlight
 from pygments.formatters.terminal256 import Terminal256Formatter
-from pygments.lexers.python import Python3Lexer
-from pygments.lexers.python import Python3TracebackLexer
+from pygments.lexers.python import Python3Lexer, Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
+from requests_mock.adapter import _Matcher
 from sqlalchemy.sql import ClauseElement
 
-
 objprint.config(honor_existing=False, depth=1)
+
+
+def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> list[dict[str, Any]]:
+    """Helper method to build context of what the mocked URL was called with (Content, query params, URL)."""
+    calls = []
+    for request in mocked_request.request_history:
+        data = {"method": request.method, "url": request.url, "params": request.qs, "data": parse_qs(request.text)}
+        if with_text:
+            data.update({"text": request.text.replace("\r\n", "\n").rstrip("\n")})
+        calls.append(data)
+    return calls
 
 
 def formatter():

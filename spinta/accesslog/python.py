@@ -1,6 +1,5 @@
-from typing import Dict, Any
-
 import json
+from typing import Any, Dict
 
 from spinta import commands
 from spinta.accesslog import AccessLog
