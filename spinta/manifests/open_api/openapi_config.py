@@ -1243,7 +1243,7 @@ COMMON_SCHEMAS = {
     },
     "page": {
         "type": "object",
-        "description": "Where the next page of a listing starts. Given back in `_page.next` and asked for as `page('<token>')` of the next request; the token carries `=` padding, which the query syntax reads only in quotes.",
+        "description": "Where the next page of a listing starts. Given back in `_page.next` and passed as the `_page` query parameter of the next request.",
         # `_page` is written only when there is a token to write, see
         # `spinta.formats.json`, so an object without one is not an answer.
         "required": ["next"],
