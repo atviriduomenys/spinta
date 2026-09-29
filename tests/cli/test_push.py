@@ -1418,6 +1418,120 @@ def test_push_postgresql(
     su.drop_database(db)
 
 
+@pytest.fixture
+def non_paginated_ref_push(
+    context: Context,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path: pathlib.Path,
+    geodb: Sqlite,
+    request,
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type     | ref      | source      | level | access
+    nonpaginated/ref         |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | country  | cities      | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | country  | ref      | Country  | country     | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    """),
+    )
+    rc = rc.fork({"enable_pagination": False})
+    localrc = create_rc(rc, tmp_path, geodb)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+    return localrc, remote
+
+
+def test_push_without_pagination_insert(
+    cli: SpintaCliRunner,
+    non_paginated_ref_push,
+):
+    localrc, remote = non_paginated_ref_push
+
+    result = cli.invoke(
+        localrc,
+        ["push", "-o", remote.url, "--credentials", remote.credsfile, "--no-progress-bar"],
+    )
+
+    assert result.exit_code == 0
+    remote.app.authmodel("nonpaginated/ref", ["getall"])
+    countries = remote.app.get("nonpaginated/ref/Country")
+    country_ids = {row["id"]: row["_id"] for row in countries.json()["_data"]}
+    assert listdata(countries, "id", "name", "code", sort=True) == [
+        (1, "Lietuva", "lt"),
+        (2, "Latvija", "lv"),
+        (3, "Estija", "ee"),
+    ]
+
+    cities = remote.app.get("nonpaginated/ref/City")
+    assert listdata(cities, "id", "name", "country", sort=True) == [
+        (1, "Vilnius", {"_id": country_ids[2]}),
+    ]
+
+
+def test_push_without_pagination_update(
+    cli: SpintaCliRunner,
+    geodb: Sqlite,
+    non_paginated_ref_push,
+):
+    localrc, remote = non_paginated_ref_push
+    args = ["push", "-o", remote.url, "--credentials", remote.credsfile, "--no-progress-bar"]
+
+    result = cli.invoke(localrc, args)
+    assert result.exit_code == 0
+    remote.app.authmodel("nonpaginated/ref", ["getall"])
+    city_before = remote.app.get("nonpaginated/ref/City").json()["_data"][0]
+
+    with geodb.engine.connect() as conn:
+        table = geodb.tables["cities"]
+        conn.execute(table.update().where(table.c.country == 2).values(name="Riga"))
+
+    result = cli.invoke(localrc, args)
+
+    assert result.exit_code == 0
+    city_after = remote.app.get("nonpaginated/ref/City").json()["_data"][0]
+    assert city_after["_id"] == city_before["_id"]
+    assert city_after["_revision"] != city_before["_revision"]
+    assert city_after["name"] == "Riga"
+    assert city_after["name"] != city_before["name"]
+    assert city_after["country"] == city_before["country"]
+
+
+def test_push_without_pagination_delete(
+    cli: SpintaCliRunner,
+    geodb: Sqlite,
+    non_paginated_ref_push,
+):
+    localrc, remote = non_paginated_ref_push
+    args = ["push", "-o", remote.url, "--credentials", remote.credsfile, "--no-progress-bar"]
+
+    result = cli.invoke(localrc, args)
+    assert result.exit_code == 0
+    remote.app.authmodel("nonpaginated/ref", ["getall"])
+    assert len(listdata(remote.app.get("nonpaginated/ref/City"))) == 1
+
+    with geodb.engine.connect() as conn:
+        table = geodb.tables["cities"]
+        conn.execute(table.delete().where(table.c.country == 2))
+
+    result = cli.invoke(localrc, args)
+
+    assert result.exit_code == 0
+    assert listdata(remote.app.get("nonpaginated/ref/City")) == []
+    assert len(listdata(remote.app.get("nonpaginated/ref/Country"))) == 3
+
+
 def test_push_postgresql_big_datastream(
     context,
     postgresql,

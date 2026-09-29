@@ -1,8 +1,21 @@
-from typing import Any, Dict, NamedTuple, Optional, TypedDict
+import enum
+from collections.abc import Iterator
+from typing import Any, NamedTuple, TypedDict
 
 import sqlalchemy as sa
 
 from spinta.components import Model
+
+PUSH_SESSION_ID = "push.session_id"
+
+
+class PushOperation(enum.Enum):
+    INSERT = "insert"
+    PATCH = "patch"
+    DELETE = "delete"
+
+    # Used for rows that do not need any changes (mainly used to know which rows need `session_id` updates
+    UNCHANGED = "unchanged"
 
 
 class State(NamedTuple):
@@ -11,16 +24,16 @@ class State(NamedTuple):
 
 
 class PushRow:
-    model: Optional[Model]
-    data: Dict[str, Any]
+    model: Model | None
+    data: dict[str, Any]
     # SHA1 checksum of data generated with _get_data_rev.
-    checksum: Optional[str]
+    checksum: str | None
     # True if data has already been sent.
     saved: bool = False
     # If push request received an error
     error: bool = False
     # Row operation
-    op: Optional[str] = None
+    op: PushOperation | None = None
     # If True, need to push data immediately
     push: bool = False
     # If True, need to include in request
@@ -28,12 +41,12 @@ class PushRow:
 
     def __init__(
         self,
-        model: Optional[Model],
-        data: Dict[str, Any],
-        checksum: str = None,
+        model: Model | None,
+        data: dict[str, Any],
+        checksum: str | None = None,
         saved: bool = False,
         error: bool = False,
-        op: str = None,
+        op: PushOperation | None = None,
         push: bool = False,
         send: bool = True,
     ):
@@ -45,6 +58,9 @@ class PushRow:
         self.op = op
         self.push = push
         self.send = send
+
+
+PushRows = Iterator[PushRow]
 
 
 class ErrorContext(TypedDict):

@@ -11,7 +11,7 @@ BYTE_MULTIPLES = {
 }
 
 
-def tobytes(s, default: str = "b"):
+def tobytes(s, default: str = "b") -> int:
     unit = s[-1].lower()
     if unit in BYTE_MULTIPLES:
         s = s[:-1]
@@ -32,7 +32,7 @@ TIME_UNITS = {
 }
 
 
-def toseconds(s, default: str = "s"):
+def toseconds(s, default: str = "s") -> int:
     unit = s[-1].lower()
     if unit in TIME_UNITS:
         s = s[:-1]

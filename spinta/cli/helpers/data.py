@@ -36,11 +36,11 @@ def _get_row_count(context: components.Context, model: components.Model, page_da
 def count_rows(
     context: Context,
     models: List[Model],
-    limit: int = None,
     *,
-    initial_page_data: dict = None,
+    limit: int | None = None,
+    initial_page_data: dict | None = None,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
     no_progress_bar: bool = False,
 ) -> Dict[str, int]:
     counts = {}
