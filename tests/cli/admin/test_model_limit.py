@@ -62,7 +62,7 @@ def test_admin_model_limit_skip_empty(
         ],
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.MODEL_LIMIT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.MODEL_LIMIT.value, ScriptStatus.REQUIRED) in result.stderr
     assert limit_path.exists()
     yml = YAML()
     data = yml.load(limit_path)
@@ -135,7 +135,7 @@ def test_admin_model_limit_skip_too_small(
         ],
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.MODEL_LIMIT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.MODEL_LIMIT.value, ScriptStatus.REQUIRED) in result.stderr
     assert limit_path.exists()
     yml = YAML()
     data = yml.load(limit_path)
@@ -208,7 +208,7 @@ def test_admin_model_limit(
         ],
     )
     assert result.exit_code == 0
-    assert script_check_status_message(Script.MODEL_LIMIT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.MODEL_LIMIT.value, ScriptStatus.REQUIRED) in result.stderr
     assert limit_path.exists()
     yml = YAML()
     data = yml.load(limit_path)
