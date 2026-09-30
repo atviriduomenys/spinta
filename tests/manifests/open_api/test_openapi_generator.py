@@ -445,6 +445,18 @@ def test_processing_unit_schema_details(open_manifest_path: ManifestPath):
     assert (properties["capacity"]["type"], properties["capacity"].get("nullable")) == ("integer", True)
 
 
+def test_integer_property_is_int64_without_bounds(open_manifest_path: ManifestPath):
+    """The width is agreed on, the bounds are not known, see ADR-0005."""
+    open_api_spec = create_openapi_manifest(open_manifest_path)
+    schema = open_api_spec["components"]["schemas"]["datasets_demo_system_data_ProcessingUnit"]
+
+    capacity = schema["properties"]["capacity"]
+
+    assert capacity["format"] == "int64"
+    assert "minimum" not in capacity
+    assert "maximum" not in capacity
+
+
 def test_version_schema_structure(open_manifest_path: ManifestPath):
     open_api_spec = create_openapi_manifest(open_manifest_path)
     version_schema = open_api_spec["components"]["schemas"]["version"]
@@ -2250,7 +2262,7 @@ def test_limit_lower_bound_is_the_one_spinta_holds_to(model, app, open_manifest_
     limit = parameters["limit"]["schema"]
     assert limit["minimum"] == 1
     assert limit["maximum"] == DEFAULT_MAX_LIMIT
-    assert limit["format"] == "int32"
+    assert limit["format"] == "int64"
 
 
 def test_limit_upper_bound_comes_from_the_configuration(open_manifest_path_factory):

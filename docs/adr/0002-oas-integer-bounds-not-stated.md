@@ -1,6 +1,6 @@
 # ADR-0002: OAS integer properties carry no `format` or bounds
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0005](0005-oas-integer-format-int64.md)
 - **Date:** 2026-09-17
 - **Related:** [#2004](https://github.com/atviriduomenys/spinta/issues/2004),
   [PR #2012](https://github.com/atviriduomenys/spinta/pull/2012)

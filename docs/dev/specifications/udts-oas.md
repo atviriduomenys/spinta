@@ -33,10 +33,10 @@ on the response side.
 | `tests/cli/test_udts_oas.py` | CLI tests |
 
 Related ADRs: [ADR-0001](../../adr/0001-oas-429-open-object.md) (`429`),
-[ADR-0002](../../adr/0002-oas-integer-bounds-not-stated.md) (integer bounds),
+[ADR-0002](../../adr/0002-oas-integer-bounds-not-stated.md) (integer bounds, superseded),
 [ADR-0003](../../adr/0003-oas-version-3-0.md) (OpenAPI 3.0),
 [ADR-0004](../../adr/0004-oas-empty-identifier-not-described.md) (empty
-identifier).
+identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`).
 
 ## Inputs
 
@@ -178,7 +178,7 @@ gateway reads the operation alone.
 | `{id}` (model declares `_id`) | `id_{Schema}` | by type: `string` one segment up to 512; `base32` `=` + Base32; `integer` `int64` bounds; `enum` the values |
 | `_select` | `select_{Schema}` | names, paths, functions, `*`; up to 1000 characters; example from model properties |
 | `_sort` | `sort_{Schema}` | names with `+`/`-`; up to 1000 characters |
-| `_limit` | `limit` | `integer`, `minimum: 1`, `maximum: limits.max_limit`, `int32` if it fits, else `int64` |
+| `_limit` | `limit` | `integer`, `minimum: 1`, `maximum: limits.max_limit`, `int64` |
 | `_page` | `page` | URL safe Base64 with `=` padding, up to 8192 characters |
 | `traceparent` | | W3C Trace Context; not version `ff`, no all-zero identifiers (`not`) |
 | `tracestate`, `Cache-Control`, `If-None-Match`, `Accept-Language`, `Range` | | printable ASCII, `maxLength: 1024` |
@@ -220,7 +220,7 @@ Tags and `operationId`s use the same names.
 - No `required`: a response holds what was asked for (`_select`).
 - A property not marked `required` in the manifest is `nullable`; an `enum`
   gets `null` added; a reference becomes `anyOf: [{$ref}, NULL_OBJECT_SCHEMA]`.
-- `integer` properties have no `format` or bounds (ADR-0002).
+- `integer` properties are `format: int64`, with no bounds (ADR-0005).
 - A `uuid` property is lower case v4 (`UUID.load`); `base32` the RFC 4648
   alphabet without padding.
 

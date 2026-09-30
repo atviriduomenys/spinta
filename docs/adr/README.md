@@ -24,6 +24,7 @@ described in the developer documentation, [`docs/dev`](../dev/README.md).
 | No. | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-oas-429-open-object.md) | OAS `429` response is an open object; rate limits are applied by the gateway | Accepted | 2026-09-17 |
-| [0002](0002-oas-integer-bounds-not-stated.md) | OAS integer properties carry no `format` or bounds | Accepted | 2026-09-17 |
+| [0002](0002-oas-integer-bounds-not-stated.md) | OAS integer properties carry no `format` or bounds | Superseded by ADR-0005 | 2026-09-17 |
 | [0003](0003-oas-version-3-0.md) | Data service specification is written as OpenAPI 3.0 | Accepted | 2026-09-15 |
 | [0004](0004-oas-empty-identifier-not-described.md) | An empty declared identifier is not described in OAS | Accepted | 2026-09-17 |
+| [0005](0005-oas-integer-format-int64.md) | OAS integers are `int64`, still without bounds | Accepted | 2026-09-30 |
