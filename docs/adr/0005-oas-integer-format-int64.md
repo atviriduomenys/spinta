@@ -1,7 +1,7 @@
 # ADR-0005: OAS integers are `int64`, still without bounds
 
 - **Status:** Accepted
-- **Date:** 2026-09-30
+- **Date:** 2026-09-29
 - **Supersedes:** [ADR-0002](0002-oas-integer-bounds-not-stated.md)
 - **Related:** [#2004](https://github.com/atviriduomenys/spinta/issues/2004),
   [PR #2012](https://github.com/atviriduomenys/spinta/pull/2012)
@@ -21,7 +21,7 @@ These were the only errors left in real data service specifications.
 
 ## Decision
 
-The team agreed on 2026-09-30 that **every** `integer` schema in the generated
+It was agreed with Tomas on 2026-09-29 that **every** `integer` schema in the generated
 document carries `format: int64`: model properties, array items, `_limit`
 (until now `int32` when `limits.max_limit` fit into it) and the other integer
 fields.
