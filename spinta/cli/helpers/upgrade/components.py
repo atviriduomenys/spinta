@@ -24,3 +24,7 @@ class Script(enum.Enum):
     SQL_KEYMAP_INITIAL = "sqlalchemy_keymap_001_initial"
     SQL_KEYMAP_REDIRECT = "sqlalchemy_keymap_002_redirect_support"
     SQL_KEYMAP_MODIFIED = "sqlalchemy_keymap_003_add_modified_time"
+
+    # Push state migrations
+    PUSH_STATE_INITIAL = "push_state_db_001_initial"
+    PUSH_REV_RENAME = "push_state_db_002_rev_rename"
