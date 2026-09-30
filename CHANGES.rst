@@ -42,6 +42,8 @@ Bug fixes:
 - A page token that Spinta did not write, ``page(123)`` or Base64 that holds no
   list of values for example, is refused with ``InvalidPageKey`` instead of a
   server error (`#2004`_).
+- A CSV manifest written on Windows no longer has an empty line after every
+  row and is written as UTF-8, the encoding it is read back in.
 - Fixed token validation when ``token_validation_keys_download_url`` was
   configured (needed when tokens are issued by an external authorization
   server): the ``downloaded_public_keys_file`` configuration value is a

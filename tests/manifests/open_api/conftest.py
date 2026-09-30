@@ -527,7 +527,7 @@ def open_manifest_path(tmp_path, rc):
         MANIFEST,
     )
     publish_unmarked(path)
-    file_handle = open(path, "r")
+    file_handle = open(path, "r", encoding="utf-8")
     yield ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
     file_handle.close()
 
@@ -581,7 +581,7 @@ def open_manifest_path_factory(tmp_path, rc):
         )
         if publish:
             publish_unmarked(path)
-        file_handle = open(path, "r")
+        file_handle = open(path, "r", encoding="utf-8")
         opened_files.append(file_handle)
         return ManifestPath(type="tabular", name="test_manifest", path=None, file=file_handle, prepare=None)
 
