@@ -22,6 +22,8 @@ Backwards incompatible:
     ``access``.
   - Properties that are not ``required`` accept ``null``, and model schemas
     list no required properties.
+  - Every ``integer`` schema is ``format: int64``, with no ``minimum`` or
+    ``maximum`` on model properties.
   - ``_select``, ``_limit``, ``_sort`` and ``_page`` are separate query
     parameters instead of one ``query`` object. ``_limit`` is bounded by
     ``limits.max_limit`` of the configuration (default ``100000``).

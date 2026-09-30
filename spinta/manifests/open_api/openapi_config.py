@@ -99,7 +99,8 @@ PROPERTY_MAPPING = {
     # A `base32` value is built by Spinta, not read from the data, so its shape
     # is known, see `spinta.backends.cast_backend_to_python`.
     "base32": {"type": "string", "pattern": BASE32_VALUE_PATTERN},
-    "integer": {"type": "integer"},
+    # Agreed to be stated as `int64`, although DSA gives no width, see ADR-0005.
+    "integer": {"type": "integer", "format": "int64"},
     "number": {"type": "number"},
     "boolean": {"type": "boolean"},
     "datetime": {"type": "string", "format": "date-time"},
@@ -1031,6 +1032,7 @@ PARAMETER_COMPONENTS = {
             # A limit below one is refused. Spinta holds to no upper bound, so
             # `maximum` is the one an API gateway applies in front of it, set
             # per document, see `PathGenerator._limit_parameter`.
+            "format": "int64",
             "minimum": 1,
             "example": 10,
         },
@@ -1162,6 +1164,7 @@ COMMON_SCHEMAS = {
             },
             "crs": {
                 "type": "integer",
+                "format": "int64",
                 "description": "A [SRID](https://en.wikipedia.org/wiki/Spatial_reference_system#Identifier) number, which is an identification number of a coordinate system in [EPSG](https://epsg.org/home.html) database. If the number is not provided, it is assumed that data corresponds to `4326` ( [WGS84](https://epsg.io/4326) )",
             },
         },

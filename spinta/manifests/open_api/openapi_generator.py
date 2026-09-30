@@ -981,7 +981,6 @@ class PathGenerator:
         """
         parameter = copy.deepcopy(PARAMETER_COMPONENTS["limit"])
         schema = parameter["schema"]
-        schema["format"] = "int32" if self.max_limit <= 2**31 - 1 else "int64"
         schema["maximum"] = self.max_limit
         schema["example"] = min(schema["example"], self.max_limit)
         return parameter
