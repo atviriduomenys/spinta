@@ -17,6 +17,7 @@ from spinta.manifests.open_api.openapi_config import (
     COMMON_SCHEMAS,
     EQUALS_ID_PATTERN,
     PARAMETER_COMPONENTS,
+    PROPERTY_EXAMPLE,
     RESPONSE_COMPONENTS,
 )
 from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS, NULL_OBJECT_SCHEMA
@@ -27,6 +28,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_ARRAY_IN_REFERENCE,
     MANIFEST_WITH_ARRAY_LAYERS,
+    MANIFEST_WITH_PRIMITIVE_ARRAYS,
     MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_BASE32_ID,
     MANIFEST_WITH_COLLIDING_DATASETS,
@@ -2095,6 +2097,18 @@ def test_dynamic_array_holds_anything(open_manifest_path_factory):
     zymos = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["zymos"]
 
     assert zymos == {"type": "array", "example": [], "nullable": True}
+
+
+def test_array_example_holds_an_item_of_the_item_type(open_manifest_path_factory):
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_PRIMITIVE_ARRAYS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    properties = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]
+
+    assert properties["skaiciai"]["example"] == [PROPERTY_EXAMPLE["integer"]]
+    assert properties["datos"]["example"] == [PROPERTY_EXAMPLE["date"]]
+    for name in ("skaiciai", "datos"):
+        assert not list(_validator(open_api_spec, properties[name]).iter_errors(properties[name]["example"]))
 
 
 def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):

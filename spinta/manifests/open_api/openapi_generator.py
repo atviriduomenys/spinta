@@ -619,7 +619,9 @@ class DataTypeHandler:
             if not getattr(dtype.items.dtype, "required", False):
                 items_schema = _nullable(items_schema)
 
-            example_item = items_schema.get("example", "example_item")
+            example_item = items_schema.get("example")
+            if example_item is None:
+                example_item = self.get_example_value(dtype.items, schemas=schemas)
             return {"type": "array", "items": items_schema, "example": [example_item]}
 
         if self.is_reference_type(dtype):
