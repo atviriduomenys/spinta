@@ -298,6 +298,18 @@ id | d | r | b | m | property   | type            | ref                         
    |   |   |   |   | kalbos[][] | ref             | datasets/gov/rc/x/ext/1/ext/Kalba | 4     | open
 """)
 
+MANIFEST_WITH_PRIMITIVE_ARRAYS = striptable("""
+id | d | r | b | m | property   | type    | ref | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |   |     |       |
+   |   | test                   | memory  |     |       |
+   |   |   |   | Israsas        |         | id  |       |
+   |   |   |   |   | id         | string required |  | 4 | open
+   |   |   |   |   | skaiciai   | array   |     | 4     | open
+   |   |   |   |   | skaiciai[] | integer |     | 4     | open
+   |   |   |   |   | datos      | array   |     | 4     | open
+   |   |   |   |   | datos[]    | date    |     | 4     | open
+""")
+
 #: An array standing among the reference properties of a reference.
 MANIFEST_WITH_ARRAY_IN_REFERENCE = striptable("""
 id | d | r | b | m | property | type            | ref                                   | level | access
