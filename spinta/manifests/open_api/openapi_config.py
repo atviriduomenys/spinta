@@ -999,7 +999,7 @@ PARAMETER_COMPONENTS = {
         "name": "_select",
         "in": "query",
         "required": False,
-        "description": "Comma separated list of properties to include in the result. Written as `select(...)` as well.",
+        "description": "Comma separated list of properties to include in the result.",
         "schema": {
             "type": "string",
             # Names, dotted paths and function calls, which is what the query
@@ -1014,7 +1014,7 @@ PARAMETER_COMPONENTS = {
         "name": "_sort",
         "in": "query",
         "required": False,
-        "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction. Written as `sort(...)` as well.",
+        "description": "Comma separated list of properties, optionally prefixed with `+` or `-` operators to control sort direction.",
         "schema": {
             "type": "string",
             # The same, with `+` or `-` for the direction and no calls.
@@ -1026,7 +1026,7 @@ PARAMETER_COMPONENTS = {
         "name": "_limit",
         "in": "query",
         "required": False,
-        "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`. Written as `limit(...)` as well.",
+        "description": "Limit result to given number of objects. A larger listing is answered a page at a time, see `_page`.",
         "schema": {
             "type": "integer",
             # A limit below one is refused. Spinta holds to no upper bound, so
@@ -1041,7 +1041,7 @@ PARAMETER_COMPONENTS = {
         "name": "_page",
         "in": "query",
         "required": False,
-        "description": "Continues a listing where the previous answer ended, taking the token that answer gave in `_page.next`. The token is given as it is, `=` padding included, or percent encoded. Written as `page('<token>')` as well.",
+        "description": "Continues a listing where the previous answer ended, taking the token that answer gave in `_page.next`. The token is given as it is, `=` padding included, or percent encoded.",
         "schema": {
             "type": "string",
             # The token `spinta.utils.encoding.encode_page_values` writes. It
