@@ -4,6 +4,10 @@ from spinta.cli.helpers.admin.components import ADMIN_SCRIPT_TYPE, AdminScript, 
 from spinta.cli.helpers.admin.scripts.add_local_ids import add_local_ids
 from spinta.cli.helpers.admin.scripts.changelog import cli_requires_changelog_migrations, migrate_changelog_duplicates
 from spinta.cli.helpers.admin.scripts.citus_shard import cli_requires_citus_distribution, migrate_citus_distributions
+from spinta.cli.helpers.admin.scripts.compress_changelogs import (
+    check_if_need_to_compress_changelogs,
+    compress_changelogs,
+)
 from spinta.cli.helpers.admin.scripts.deduplicate import cli_requires_deduplicate_migrations, migrate_duplicates
 from spinta.cli.helpers.admin.scripts.enums import gather_invalid_enum_values
 from spinta.cli.helpers.admin.scripts.remove_local_ids import remove_local_ids
@@ -48,3 +52,6 @@ script_registry.register(
 )
 script_registry.register(AdminScript(name=Script.ADD_LOCAL_IDS.value, run=add_local_ids, required=[]))
 script_registry.register(AdminScript(name=Script.REMOVE_LOCAL_IDS.value, run=remove_local_ids, required=[]))
+script_registry.register(
+    AdminScript(name=Script.COMPRESS_CHANGELOGS.value, run=compress_changelogs, check=check_if_need_to_compress_changelogs,targets={ScriptTarget.BACKEND.value})
+)

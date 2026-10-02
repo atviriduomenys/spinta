@@ -32,10 +32,11 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
         sa.Column(get_pg_column_name("_id"), BIGINT, primary_key=True, comment="_id"),
         sa.Column(get_pg_column_name("_revision"), sa.String, comment="_revision"),
         sa.Column(get_pg_column_name("_txn"), pkey_type, index=True, comment="_txn"),
-        sa.Column(get_pg_column_name("_rid"), pkey_type, comment="_rid"),  # reference to main table
+        sa.Column(get_pg_column_name("_rid"), pkey_type, index=True, comment="_rid"),  # reference to main table
+        sa.Column(get_pg_column_name("_compressed"), sa.DateTime, comment="_compressed", index=True),
         sa.Column(get_pg_column_name("datetime"), sa.DateTime, comment="datetime"),
         # FIXME: Change `action` to `_op` for consistency.
-        sa.Column(get_pg_column_name("action"), sa.String(8), comment="action"),  # insert, update, delete
+        sa.Column(get_pg_column_name("action"), sa.String(8), index=True, comment="action"),  # insert, update, delete
         sa.Column(get_pg_column_name("data"), JSONB, comment="data"),
         schema=table_identifier.pg_schema_name,
         comment=table_identifier.logical_qualified_name,
