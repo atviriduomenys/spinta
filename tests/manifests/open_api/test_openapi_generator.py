@@ -20,7 +20,7 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_EXAMPLE,
     RESPONSE_COMPONENTS,
 )
-from spinta.manifests.open_api.openapi_generator import AGENT_UTILITY_PATHS, NULL_OBJECT_SCHEMA
+from spinta.manifests.open_api.openapi_generator import NULL_OBJECT_SCHEMA
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.utils.encoding import encode_base32
@@ -28,8 +28,6 @@ from tests.manifests.open_api.conftest import (
     MANIFEST,
     MANIFEST_WITH_ARRAY_IN_REFERENCE,
     MANIFEST_WITH_ARRAY_LAYERS,
-    MANIFEST_WITH_PRIMITIVE_ARRAYS,
-    MANIFEST_WITH_SEMANTIC_FORMATS,
     MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_BASE32_ID,
     MANIFEST_WITH_COLLIDING_DATASETS,
@@ -47,9 +45,11 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_INTERMEDIATE_TABLE,
     MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
+    MANIFEST_WITH_PRIMITIVE_ARRAYS,
     MANIFEST_WITH_PRIVATE_VISIBILITY,
     MANIFEST_WITH_REF_SHAPES,
     MANIFEST_WITH_REFS,
+    MANIFEST_WITH_SEMANTIC_FORMATS,
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SOAP_PREPARE,
     MANIFEST_WITH_UNNAMABLE_NAMES,
@@ -110,12 +110,6 @@ def test_components_paths(open_manifest_path: ManifestPath):
 
     assert expected_paths.issubset(actual_paths), f"Missing paths: {expected_paths - actual_paths}"
 
-    # A whole manifest export has no data service base, so agent endpoints are
-    # given at the addresses the agent serves them at, and the action form,
-    # which only an API gateway routes, is left out.
-    assert {"/version", "/health", "/auth/token"} <= actual_paths
-    assert "/:version" not in actual_paths
-
 
 def test_model_path_contents(open_manifest_path: ManifestPath):
     dataset_name = "datasets/demo/system_data"
@@ -162,8 +156,8 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
             "description": "Test title\n\nTest description",
         },
         "externalDocs": {"url": "https://ivpk.github.io/uapi"},
-        # Utility is a default tag, others are generated from models, none is
-        # duplicated, and they are sorted, which is how a reader looks a name up.
+        # Tags are generated from models, none is duplicated, and they are
+        # sorted, which is how a reader looks a name up.
         "tags": [
             {
                 "name": "datasets_demo_system_data_Organization",
@@ -172,10 +166,6 @@ def test_multiple_function_calls_do_not_duplicate_specification(open_manifest_pa
             {
                 "name": "datasets_demo_system_data_ProcessingUnit",
                 "description": "Operations with datasets_demo_system_data_ProcessingUnit",
-            },
-            {
-                "name": "utility",
-                "description": "Utility operations performed on the API itself",
             },
         ],
     }
@@ -278,9 +268,6 @@ def test_only_head_and_get_operations(open_manifest_path: ManifestPath):
     allowed_methods = {method.lower() for method in SUPPORTED_HTTP_METHODS}
 
     for path, operations in paths.items():
-        if path in ("/:token", "/auth/token"):
-            continue
-
         actual_methods = set(operations.keys())
 
         http_methods = {
@@ -458,31 +445,6 @@ def test_integer_property_is_int64_without_bounds(open_manifest_path: ManifestPa
     assert capacity["format"] == "int64"
     assert "minimum" not in capacity
     assert "maximum" not in capacity
-
-
-def test_version_schema_structure(open_manifest_path: ManifestPath):
-    open_api_spec = create_openapi_manifest(open_manifest_path)
-    version_schema = open_api_spec["components"]["schemas"]["version"]
-
-    properties = version_schema["properties"]
-
-    assert set(properties.keys()) == {
-        "api",
-        "implementation",
-        "dsa",
-        "uapi",
-        "build",
-    }
-
-    assert properties["api"]["properties"]["version"]["type"] == "string"
-
-    implementation = properties["implementation"]["properties"]
-
-    assert implementation["name"]["type"] == "string"
-    assert implementation["version"]["type"] == "string"
-    assert properties["dsa"]["properties"]["version"]["type"] == "string"
-    assert properties["uapi"]["properties"]["version"]["type"] == "string"
-    assert properties["build"]["properties"]["version"]["type"] == "string"
 
 
 def test_cross_dataset_ref_schemas_created(open_manifest_path_factory):
@@ -685,16 +647,22 @@ def _store_spec(context):
         return create_openapi_manifest(manifest)
 
 
+@pytest.mark.parametrize("service_path", [SERVICE_PATH, None])
+def test_agent_endpoints_are_not_described(open_manifest_path_factory, service_path):
+    """The gateway routes them by hand, see ADR-0007."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SERVICES)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=service_path)
+
+    agent_paths = {"/:version", "/:health", "/:token", "/version", "/health", "/auth/token"}
+    assert not agent_paths & set(open_api_spec["paths"])
+    assert "utility" not in {tag["name"] for tag in open_api_spec["tags"]}
+    assert not {"health", "version", "token", "tokenError"} & set(open_api_spec["components"]["schemas"])
+
+
 def test_service_includes_all_its_datasets(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
     assert set(open_api_spec["paths"]) == {
-        "/:version",
-        "/:health",
-        "/:token",
-        "/version",
-        "/health",
-        "/auth/token",
         "/at280_israsas/DalyvioAsmensIsrasas",
         "/at280_israsas/DalyvioAsmensIsrasas/{id}",
         "/at280_israsas/Adresas",
@@ -712,12 +680,6 @@ def test_service_filter_matches_on_segment_boundary(open_manifest_path_factory):
 
     other = _service_spec(open_manifest_path_factory, service_path="datasets/gov/rc/jadis/at280/10")
     assert set(other["paths"]) == {
-        "/:version",
-        "/:health",
-        "/:token",
-        "/version",
-        "/health",
-        "/auth/token",
         "/at280_kitas/Adresas",
         "/at280_kitas/Adresas/{id}",
     }
@@ -789,70 +751,14 @@ def test_service_ref_to_missing_dataset_does_not_break_generation(open_manifest_
     assert "vieta" in properties
 
 
-def test_service_utility_paths(open_manifest_path_factory):
-    open_api_spec = _service_spec(open_manifest_path_factory)
-
-    paths = open_api_spec["paths"]
-    # A gateway reaches an agent endpoint in the action form, under the data
-    # service path; a client calling the agent reaches it at its own address.
-    assert paths["/:version"]["get"]["operationId"] == "apiVersion"
-    assert paths["/:health"]["get"]["operationId"] == "apiHealth"
-    assert paths["/:token"]["post"]["operationId"] == "apiToken"
-    assert "servers" not in paths["/:version"]
-
-    assert paths["/version"]["get"]["operationId"] == "apiVersionOfAgent"
-    assert paths["/health"]["get"]["operationId"] == "apiHealthOfAgent"
-    assert paths["/auth/token"]["post"]["operationId"] == "apiTokenOfAgent"
-
-
-def test_agent_endpoints_are_the_routes_spinta_serves():
-    """The address form has to be an address Spinta answers at."""
-    import inspect
-    import re
-
-    from spinta.api import init
-
-    routes = set(re.findall(r'Route\("([^"]+)"', inspect.getsource(init)))
-
-    assert set(AGENT_UTILITY_PATHS) <= routes, f"not served: {sorted(set(AGENT_UTILITY_PATHS) - routes)}"
-
-
-def test_service_agent_endpoints_drop_the_data_service_path(open_manifest_path_factory):
-    """They are served by the agent, not under the data service path."""
-    config = UdtsConfig(servers=[{"url": "https://get.data.gov.lt"}])
-    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
-
-    assert open_api_spec["servers"] == [{"url": f"https://get.data.gov.lt/{SERVICE_PATH}"}]
-    for path in ("/version", "/health", "/auth/token"):
-        assert open_api_spec["paths"][path]["servers"] == [{"url": "https://get.data.gov.lt"}]
-
-
-def test_service_health_is_not_authorized(open_manifest_path_factory):
-    """A probe calls it without credentials, see `spinta.api.health`."""
-    open_api_spec = _service_spec(open_manifest_path_factory)
-
-    assert open_api_spec["paths"]["/:health"]["get"]["security"] == [{}]
-
-
-def test_service_health_response_matches_what_spinta_answers(open_manifest_path_factory, app):
-    """The document has to describe the probe Spinta actually serves."""
-    open_api_spec = _service_spec(open_manifest_path_factory)
-    schemas = open_api_spec["components"]["schemas"]
-
-    response = app.get("/health")
-
-    assert response.status_code == 200
-    assert response.headers["cache-control"] == "no-store"
-    _validate(response.json(), schemas["health"])
-
-
 def test_service_security_schemes(open_manifest_path_factory):
     config = UdtsConfig(auth={"token_url": "https://rc-agentas.lt/auth/token"})
     open_api_spec = _service_spec(open_manifest_path_factory, config=config)
 
     schemes = open_api_spec["components"]["securitySchemes"]
     assert schemes["UAPI_auth"]["flows"]["clientCredentials"]["tokenUrl"] == "https://rc-agentas.lt/auth/token"
-    assert schemes["UAPI_client"]["scheme"] == "basic"
+    # Client credentials are sent to the token endpoint alone, which is not described.
+    assert set(schemes) == {"UAPI_auth"}
 
 
 def test_service_security_schemes_default_token_url(open_manifest_path_factory):
@@ -1128,20 +1034,6 @@ def test_file_reference_revision_is_the_one_the_model_builds(open_manifest_path_
     _validate(1, revision)
     # And nothing references the shared one any more.
     assert "fileRef" not in schemas
-
-
-def test_a_media_type_keeps_what_the_configuration_says_about_it(open_manifest_path_factory):
-    """A schema of alternatives carries no example, so one sits beside it."""
-    open_api_spec = _service_spec(open_manifest_path_factory)
-    components = open_api_spec["components"]
-
-    content = components["responses"]["tokenError400"]["content"]["application/json"]
-    assert "example" in content
-    # And it is an answer the schema beside it accepts.
-    _validate(
-        content["example"],
-        {**content["schema"], "components": components},
-    )
 
 
 def test_no_schema_carries_what_openapi_3_0_does_not_have(open_manifest_path_factory):
@@ -1511,14 +1403,6 @@ def test_yaml_output_has_no_anchors(open_manifest_path_factory, tmp_path):
     assert "*id" not in written
 
 
-def test_token_response_requires_rfc_6749_fields(open_manifest_path_factory):
-    """Without `required` the response validation would accept an empty body."""
-    open_api_spec = _service_spec(open_manifest_path_factory)
-
-    schema = open_api_spec["components"]["schemas"]["token"]
-    assert schema["required"] == ["access_token", "token_type"]
-
-
 def test_schema_names_of_colliding_dataset_paths_are_disambiguated(open_manifest_path_factory):
     """`a_b` and `a/b` map to one name, so one schema would replace the other."""
     open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_COLLIDING_DATASETS)
@@ -1702,38 +1586,6 @@ def test_file_and_image_schemas_use_runtime_field_names(open_manifest_path: Mani
     assert set(example) == {"_id", "_content_type"}
 
 
-def test_token_endpoint_errors(open_manifest_path_factory):
-    """The token endpoint answers with an RFC 6749 error, or with a Spinta one.
-
-    An unknown scope raises `InvalidScopes`, see `tests/test_auth.py`, while
-    authlib answers a failed client authentication with an OAuth error.
-    """
-    open_api_spec = _service_spec(open_manifest_path_factory)
-
-    responses = open_api_spec["paths"]["/:token"]["post"]["responses"]
-    assert responses["400"] == {"$ref": "#/components/responses/tokenError400"}
-    assert responses["401"] == {"$ref": "#/components/responses/tokenError401"}
-
-    components = open_api_spec["components"]["responses"]
-    alternatives = components["tokenError400"]["content"]["application/json"]["schema"]["anyOf"]
-    assert alternatives[0] == {"$ref": "#/components/schemas/tokenError"}
-    assert _envelope_shape(alternatives[1]) == _errors_envelope(
-        {
-            "anyOf": [
-                {"$ref": "#/components/schemas/InvalidScopes"},
-                {"$ref": "#/components/schemas/Error"},
-            ],
-        },
-    )
-    assert components["tokenError401"]["content"]["application/json"]["schema"] == {
-        "$ref": "#/components/schemas/tokenError",
-    }
-
-    schema = open_api_spec["components"]["schemas"]["tokenError"]
-    assert schema["required"] == ["error"]
-    assert "invalid_client" in schema["properties"]["error"]["enum"]
-
-
 def _errors_envelope(items: dict) -> dict:
     """The shape of the envelope, without the descriptions and examples of it."""
     return {"type": "object", "required": ["errors"], "properties": {"errors": {"type": "array", "items": items}}}
@@ -1798,22 +1650,6 @@ def test_operation_ids_of_colliding_names_are_disambiguated(open_manifest_path_f
     assert len(operation_ids) == len(set(operation_ids))
 
 
-def test_token_request_example_uses_a_scope_of_the_service(open_manifest_path_factory):
-    """A hardcoded example would disagree with a configured scope prefix."""
-    open_api_spec = _service_spec(open_manifest_path_factory, scope_prefix="kita:/")
-
-    content = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]
-    example = content["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]["example"]
-    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
-
-    assert example in declared
-    assert example.startswith("kita:/")
-    # A scope of a model of this data service, not of the agent, which the
-    # widest of the declared alternatives, the root namespace, would be.
-    assert example.startswith(f"kita:/{SERVICE_PATH}/")
-    assert example != sorted(declared)[0]
-
-
 def test_authorized_operations_declare_authentication_errors(open_manifest_path_factory):
     """Response validation has to accept an ordinary authentication failure."""
     open_api_spec = _service_spec(open_manifest_path_factory)
@@ -1865,8 +1701,6 @@ def _error_body(code: str) -> dict:
         ("error400", _error_body("SomeOtherError")),
         ("error401", _error_body("InvalidToken")),
         ("error404", _error_body("ItemDoesNotExist")),
-        ("tokenError400", {"error": "invalid_client", "error_description": "Invalid client name"}),
-        ("tokenError400", _error_body("InvalidScopes")),
     ],
 )
 def test_error_responses_accept_real_bodies(open_manifest_path_factory, response, body):
@@ -2452,12 +2286,12 @@ def test_revision_header_accepts_a_revision_a_model_builds(open_manifest_path_fa
     _validate("123,14", components["parameters"]["If-None-Match"]["schema"])
 
 
-def test_token_url_of_a_catalog_export_is_a_path_it_holds(open_manifest_path: ManifestPath):
-    """Without a data service base the action form is not written, so not used."""
+def test_token_url_of_a_catalog_export_is_where_the_agent_serves_it(open_manifest_path: ManifestPath):
+    """Without a data service base there is no gateway route to point at."""
     open_api_spec = create_openapi_manifest(open_manifest_path)
 
     flow = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]
-    assert flow["tokenUrl"] in open_api_spec["paths"]
+    assert flow["tokenUrl"] == "/auth/token"
 
 
 def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_factory):
@@ -2469,66 +2303,6 @@ def test_limit_example_stays_inside_the_configured_bound(open_manifest_path_fact
 
     assert limit["example"] == 5
     _validate(limit["example"], limit)
-
-
-def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_factory):
-    """`scope_formatter` is configured, so it builds what it likes, RFC 6749."""
-    request_body = _service_spec(open_manifest_path_factory)["paths"]["/:token"]["post"]["requestBody"]
-    scope = request_body["content"]["application/x-www-form-urlencoded"]["schema"]["properties"]["scope"]
-
-    for value in ("uapi:/datasets/gov/rc/:getall", "kita:modelis:getall", "tenant+read", "tenant$read", "a b"):
-        _validate(value, scope)
-    # An empty scope is accepted and answered with a token, see
-    # `tests/test_auth.py::test_empty_scope`.
-    _validate("", scope)
-
-    # A space separates scopes, and neither a quotation mark nor a backslash is
-    # part of one, RFC 6749 section 3.3.
-    for value in ('blogas"cituotas', "su\\pasviru", "du  tarpai"):
-        with pytest.raises(ValidationError):
-            _validate(value, scope)
-
-
-@pytest.mark.models("backends/postgres/Report")
-def test_health_schema_requires_what_the_probe_answers(model, app, context):
-    """`health` writes both fields every time, so fewer is not its answer."""
-    schemas = _store_spec(context)["components"]["schemas"]
-
-    _validate(app.get("/health").json(), schemas["health"])
-    with pytest.raises(ValidationError):
-        _validate({}, schemas["health"])
-
-    # Which dependencies are reported is up to the service, what is said about
-    # one is not: both fields are written for every entry.
-    answer = app.get("/health").json()
-    assert answer["dependencies"]
-    for field in ("name", "healthy"):
-        without = {
-            **answer,
-            "dependencies": [{key: value for key, value in answer["dependencies"][0].items() if key != field}],
-        }
-        with pytest.raises(ValidationError):
-            _validate(without, schemas["health"])
-
-
-def test_agent_servers_drop_a_path_of_their_own(open_manifest_path_factory):
-    """A server URL can carry a path the data service path is not part of."""
-    config = UdtsConfig(servers=[{"url": "https://host.lt/kitas/kelias"}])
-
-    with pytest.warns(UserWarning, match="does not match data service path"):
-        open_api_spec = _service_spec(open_manifest_path_factory, config=config)
-
-    # The agent serves its own endpoints at its root, not under that path.
-    assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "https://host.lt"}]
-
-
-def test_agent_servers_of_a_relative_server_hold_the_root(open_manifest_path_factory):
-    """A relative server URL emptied of its path would point at the document."""
-    config = UdtsConfig(servers=[{"url": "/?env=prod"}])
-
-    open_api_spec = _service_spec(open_manifest_path_factory, config=config)
-
-    assert open_api_spec["paths"]["/version"]["servers"] == [{"url": "/?env=prod"}]
 
 
 def test_object_property_reference_gets_a_schema(open_manifest_path_factory):
@@ -2627,22 +2401,6 @@ def test_every_model_carries_the_configured_limit(open_manifest_path_factory):
     assert not [name for name, parameter in parameters.items() if parameter["name"] == "query"]
 
 
-def test_scope_of_a_token_request_is_bounded(open_manifest_path_factory):
-    """A request may not ask for more than every scope of the document."""
-    open_api_spec = _service_spec(open_manifest_path_factory)
-
-    declared = open_api_spec["components"]["securitySchemes"]["UAPI_auth"]["flows"]["clientCredentials"]["scopes"]
-    schema = open_api_spec["paths"]["/:token"]["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"][
-        "schema"
-    ]["properties"]["scope"]
-
-    every_scope = " ".join(sorted(declared))
-    assert schema["maxLength"] == len(every_scope)
-    _validate(every_scope, schema)
-    with pytest.raises(ValidationError):
-        _validate(every_scope + " uapi:/one/more/:getall", schema)
-
-
 def test_subresource_answers_carry_their_envelope(open_manifest_path_factory):
     """Both fields are written whatever the request asks for."""
     open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_OBJECT_REF)
@@ -2654,33 +2412,6 @@ def test_subresource_answers_carry_their_envelope(open_manifest_path_factory):
         assert schemas[name]["required"] == ["_type", "_revision"], name
 
     assert COMMON_SCHEMAS["fileRef"]["required"] == ["_type", "_revision"]
-
-
-def test_token_paths_are_offered_wherever_the_service_is(open_manifest_path_factory):
-    """The transport is ensured where the service is deployed, not here.
-
-    A deployment reached over `http`, a testing one for instance, serves the
-    token endpoint like any other, so leaving it out of the document would
-    describe a service that is not the one running.
-    """
-    for servers in (
-        [{"url": "https://get.data.gov.lt"}],
-        [{"url": "/datasets/gov/rc/jadis/at280/1"}],
-        [{"url": "http://localhost:8000"}],
-        [{"url": "https://get.data.gov.lt"}, {"url": "http://localhost:8000"}],
-    ):
-        config = UdtsConfig(
-            info={"title": "JADIS"},
-            servers=servers,
-            auth={"token_url": "https://am.example.lt/auth/token"},
-        )
-        open_api_spec = _service_spec(open_manifest_path_factory, config=config)
-
-        assert "/:token" in open_api_spec["paths"], servers
-        assert "/auth/token" in open_api_spec["paths"], servers
-        # Every environment of the document, none of them singled out.
-        assert "servers" not in open_api_spec["paths"]["/:token"], servers
-        assert len(open_api_spec["paths"]["/auth/token"]["servers"]) == len(servers), servers
 
 
 @pytest.mark.models("backends/postgres/City")
@@ -2717,12 +2448,8 @@ def test_an_insecure_environment_is_described_like_any_other(open_manifest_path_
 
     assert len(open_api_spec["servers"]) == 2
     # No operation singles an environment out.
-    for path in ("/:token", "/:version", "/:health"):
-        assert "servers" not in open_api_spec["paths"][path], path
-    assert [server["url"] for server in open_api_spec["paths"]["/auth/token"]["servers"]] == [
-        "https://get.data.gov.lt",
-        "http://test.local:8000",
-    ]
+    for path, operations in open_api_spec["paths"].items():
+        assert "servers" not in operations, path
 
 
 def test_rate_limit_answer_is_an_open_object(open_manifest_path_factory):
@@ -2760,19 +2487,6 @@ def test_every_operation_names_its_path_parameters(open_manifest_path_factory):
     assert missing == []
     identifier = {"$ref": "#/components/parameters/id_at280_israsas_DalyvioAsmensIsrasas"}
     assert identifier in open_api_spec["paths"]["/at280_israsas/DalyvioAsmensIsrasas/{id}"]["get"]["parameters"]
-
-
-def test_every_agent_endpoint_says_which_context_it_is_for(open_manifest_path_factory):
-    """A gateway importing the document keeps its own form of an endpoint and leaves the other out."""
-    paths = _service_spec(open_manifest_path_factory)["paths"]
-
-    contexts = {path: item.get("x-spinta-context") for path, item in paths.items()}
-    assert {path: contexts[path] for path in ("/:version", "/:health", "/:token")} == dict.fromkeys(
-        ("/:version", "/:health", "/:token"), "gateway"
-    )
-    assert {path: contexts[path] for path in AGENT_UTILITY_PATHS} == dict.fromkeys(AGENT_UTILITY_PATHS, "agent-direct")
-    # A path of the data is served in both, so it is marked for neither.
-    assert contexts["/at280_israsas/DalyvioAsmensIsrasas"] is None
 
 
 @pytest.mark.models("backends/postgres/City")

@@ -29,3 +29,4 @@ described in the developer documentation, [`docs/dev`](../dev/README.md).
 | [0004](0004-oas-empty-identifier-not-described.md) | An empty declared identifier is not described in OAS | Accepted | 2026-09-17 |
 | [0005](0005-oas-integer-format-int64.md) | OAS integers are `int64`, still without bounds | Accepted | 2026-09-29 |
 | [0006](0006-oas-format-from-dsa.md) | OAS `format` is taken from the DSA where the DSA states it | Accepted | 2026-10-02 |
+| [0007](0007-oas-agent-endpoints-not-described.md) | Agent endpoints are not described in the data service OAS | Accepted | 2026-10-02 |

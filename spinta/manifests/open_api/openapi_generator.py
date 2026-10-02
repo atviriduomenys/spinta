@@ -20,7 +20,6 @@ from spinta.manifests.components import ManifestPath
 from spinta.manifests.open_api.openapi_config import (
     BASE32_ID_MAX_LENGTH,
     BASE32_ID_PATTERN,
-    BASE_TAGS,
     COMMON_SCHEMAS,
     DECLARED_ID_PATTERN,
     EQUALS_ID_PATTERN,
@@ -53,7 +52,7 @@ from spinta.manifests.open_api.service import (
     relative_path,
     service_schema_name,
 )
-from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
+from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.types.datatype import Base32, DataType, Object, PrimaryKey, String
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_base32
@@ -62,30 +61,9 @@ from spinta.utils.scopes import name_to_scope
 
 AUTH_SCHEME = "UAPI_auth"
 
-#: Endpoints of the agent, as an API gateway routes them inside a data service,
-#: each service having a context path of its own.
-GATEWAY_UTILITY_PATHS = ["/:version", "/:health", "/:token"]
-
-#: The same endpoints at the addresses the agent serves them at. A data service
-#: export carries both forms, because the file is read by a gateway and by a
-#: client calling the agent.
-AGENT_UTILITY_PATHS = ["/version", "/health", "/auth/token"]
-
-#: Names which of the two forms above a path is, so a tool importing the document
-#: picks the one it needs: a gateway takes `gateway` and leaves `agent-direct`.
-#: A path of the data is served in both and carries neither.
-CONTEXT_EXTENSION = "x-spinta-context"
-GATEWAY_CONTEXT = "gateway"
-AGENT_CONTEXT = "agent-direct"
-
-#: Where the agent serves the token endpoint, see `spinta.api`.
+#: Where the agent serves the token endpoint, see `spinta.api`. Agent endpoints
+#: are not described, see ADR-0007, but a token is asked for somewhere.
 AGENT_TOKEN_PATH = "/auth/token"
-
-#: Paths that carry client credentials, in both of the forms they are written.
-TOKEN_PATHS = frozenset([TOKEN_PATH, AGENT_TOKEN_PATH])
-
-#: Paths that authorize against no model.
-UTILITY_PATHS = GATEWAY_UTILITY_PATHS + AGENT_UTILITY_PATHS
 
 GLOBAL_ID_LEVEL_THRESHOLD = 4
 
@@ -712,8 +690,6 @@ class PathGenerator:
         self.operation_ids: set[str] = set()
         #: Parameters built for one model, added to the components of the document.
         self.model_parameters: dict[str, dict] = {}
-        #: Servers of the agent root, for the endpoints served there.
-        self.agent_servers: list[dict[str, Any]] = []
         #: Largest `_limit` a request may ask for, see `UdtsConfig.max_limit`.
         self.max_limit: int = DEFAULT_MAX_LIMIT
 
@@ -767,7 +743,7 @@ class PathGenerator:
     def create_path(
         self, path_config: dict, model: Model | None = None, path_type: str = None, model_property: tuple | None = None
     ) -> dict[str, Any]:
-        """Generic path creation for both utility and model endpoints"""
+        """Generic path creation for model endpoints"""
         operations = {}
 
         # Parameters of a path are given to each of its operations rather than
@@ -776,13 +752,8 @@ class PathGenerator:
         # leave `{id}` of every such operation undescribed and unvalidated.
         path_parameters = path_config.get("parameters", [])
 
-        # An endpoint of the agent is not served under the data service path,
-        # so it carries a server of its own, which OpenAPI allows per path.
-        if path_config.get("servers") == "agent" and self.agent_servers:
-            operations["servers"] = copy.deepcopy(self.agent_servers)
-
         for method_name, method_config in path_config.items():
-            if method_name in ("parameters", "servers"):
+            if method_name == "parameters":
                 continue
 
             operations[method_name] = self._build_operation(
@@ -1777,7 +1748,7 @@ class OpenAPIGenerator:
             "openapi": VERSION,
             "info": copy.deepcopy(INFO),
             "externalDocs": copy.deepcopy(EXTERNAL_DOCS),
-            "tags": copy.deepcopy(BASE_TAGS),
+            "tags": [],
             "components": {},
         }
         specification["info"]["version"] = self.api_version
@@ -1785,9 +1756,9 @@ class OpenAPIGenerator:
         datasets, all_models = self._extract_manifest_data(manifest)
         models = all_models
 
-        # Common schemas and base tags are added to the same dict and list, so a
-        # model must not take a name of either.
-        reserved = set(COMMON_SCHEMAS) | {tag["name"] for tag in BASE_TAGS}
+        # Common schemas are added to the same dict, so a model must not take
+        # a name of one.
+        reserved = set(COMMON_SCHEMAS)
 
         if self.service_path is not None:
             datasets, models = self._filter_by_service_path(datasets, models)
@@ -1815,8 +1786,6 @@ class OpenAPIGenerator:
         self.schema_generator = SchemaGenerator(self.dtype_handler, self.schema_registry, namer)
         self.path_generator = PathGenerator(self.dtype_handler, namer, self.scope_name)
         self.path_generator.max_limit = self.config.max_limit()
-        if self.service_path is not None:
-            self.path_generator.agent_servers = self.config.resolve_agent_servers(self.service_path)
         self.namer = namer
 
         self._set_servers(specification)
@@ -1913,68 +1882,6 @@ class OpenAPIGenerator:
         flow["scopes"] = {scope: SCOPE_DESCRIPTION for scope in scopes}
         spec.setdefault("components", {})["securitySchemes"] = schemes
 
-        self._bound_requested_scopes(spec, scopes)
-        self._set_scope_example(spec)
-
-    def _bound_requested_scopes(self, spec: dict[str, Any], scopes: list[str]) -> None:
-        """Bound the `scope` a token request may carry.
-
-        A request cannot ask for more than every scope the document declares,
-        so that is the bound: it refuses an oversized value while refusing no
-        request the service would answer. Without declared scopes there is
-        nothing to measure, and the field keeps its shape alone.
-        """
-        if not scopes:
-            return
-
-        max_length = len(" ".join(scopes))
-        for path in TOKEN_PATHS:
-            token_path = spec.get("paths", {}).get(path)
-            if not token_path:
-                continue
-            content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
-            scope = content["schema"]["properties"]["scope"]
-            scope["maxLength"] = max_length
-            scope["description"] += (
-                f" At most {max_length} characters, which is every scope of this data service asked for "
-                "at once. This is a bound an API gateway applies in front of the service, not one the "
-                "service holds to: it answers a scope repeated as many times as a request cares to "
-                "repeat it, since the authorization server reads the value as a set."
-            )
-
-    def _set_scope_example(self, spec: dict[str, Any]) -> None:
-        """Show a scope of one model of this data service in the token request.
-
-        Namespaces above the model are requested as alternatives too, and the
-        root namespace of the agent is among them, so a scope is taken from a
-        data path, where the narrowest one comes first, and not from the
-        declared ones, where sorting would put the widest first.
-        """
-        token_paths = [spec.get("paths", {}).get(path) for path in (TOKEN_PATH, "/auth/token")]
-        token_paths = [path for path in token_paths if path]
-        if not token_paths:
-            return
-
-        scope = next(
-            (
-                requirement[AUTH_SCHEME][0]
-                for path, operations in spec.get("paths", {}).items()
-                if path not in UTILITY_PATHS
-                for method, operation in operations.items()
-                if method != "parameters" and isinstance(operation, dict)
-                for requirement in operation.get("security", [])
-                if requirement.get(AUTH_SCHEME)
-            ),
-            None,
-        )
-        if scope is None:
-            return
-
-        for token_path in token_paths:
-            content = token_path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]
-            content["schema"]["properties"]["scope"]["example"] = scope
-            content["example"] = {"grant_type": "client_credentials", "scope": scope}
-
     def _set_tags(self, spec: dict[str, Any], models: dict):
         """Tags of the document, in the order a reader looks for a name in."""
         for model in models.values():
@@ -1983,20 +1890,9 @@ class OpenAPIGenerator:
         spec["tags"].sort(key=lambda tag: tag["name"])
 
     def _create_paths(self, spec: dict[str, Any], datasets: Any, models: dict):
+        # Agent endpoints, `/:version`, `/:health` and `/:token`, are not
+        # described: the gateway routes them by hand, see ADR-0007.
         paths = {}
-
-        # Only a data service export has a base of its own, so only there is
-        # the action form of an agent endpoint of any use.
-        utility_paths = AGENT_UTILITY_PATHS if self.service_path is None else UTILITY_PATHS
-
-        for path in utility_paths:
-            path_config = PATHS_CONFIG.get(path)
-            if not path_config:
-                raise ValueError(f"No config found for path: {path}")
-            paths[path] = {
-                CONTEXT_EXTENSION: GATEWAY_CONTEXT if path in GATEWAY_UTILITY_PATHS else AGENT_CONTEXT,
-                **self.path_generator.create_path(path_config),
-            }
 
         for dataset_name, _ in datasets:
             # Model paths are relative to the data service base, which is given

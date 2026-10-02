@@ -16,8 +16,6 @@ INFO = {
 
 EXTERNAL_DOCS = {"url": "https://ivpk.github.io/uapi"}
 
-BASE_TAGS = [{"name": "utility", "description": "Utility operations performed on the API itself"}]
-
 PROPERTY_EXAMPLE = {
     "string": "Example string",
     "integer": 42,
@@ -178,13 +176,6 @@ TRACEPARENT_PATTERN = (
 )
 TRACEPARENT_OF_ZEROES_PATTERN = "^[0-9a-f]{2}-(?:0{32}-[0-9a-f]{16}|[0-9a-f]{32}-0{16})-"
 
-#: Scopes separated by spaces, each of them a `scope-token` of RFC 6749 section
-#: 3.3: a printable character other than a space, a quotation mark or a
-#: backslash. Narrower than that would refuse a scope a configured
-#: `scope_formatter` builds, and it is free to build what it likes.
-SCOPE_TOKEN = "[\\x21\\x23-\\x5B\\x5D-\\x7E]+"
-SCOPE_PATTERN = f"^({SCOPE_TOKEN}( {SCOPE_TOKEN})*)?$"
-
 #: An identifier a model declares itself holds the key of the data, of a shape
 #: only that data knows, see `spinta.backends.is_object_id`. What can be said is
 #: that it is one path segment, so it carries no slash, and that it is bounded.
@@ -203,205 +194,6 @@ COMMON_RESPONSE_HEADERS = ["ETag", "Content-Type", "Content-Length"]
 NOT_MODIFIED_HEADERS = ["ETag", "Cache-Control"]
 
 PATHS_CONFIG = {
-    "/:version": {
-        "parameters": ["traceparent", "tracestate"],
-        "get": {
-            "tags": ["utility"],
-            "security": [{}],
-            "summary": "Get API version",
-            "description": "Get the version of the API that is being called\n",
-            "operationId": "apiVersion",
-            "responses": {
-                "200": {
-                    "description": "OK",
-                    "headers": COMMON_RESPONSE_HEADERS,
-                    "content": {"application/json": {"schema": "version"}},
-                },
-                "400": {"$ref": "error400"},
-                "500": {"$ref": "error500"},
-                "429": {"$ref": "error429"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
-    "/:health": {
-        "parameters": ["traceparent", "tracestate"],
-        "get": {
-            "tags": ["utility"],
-            "security": [{}],
-            "summary": "Check whether the service is operational",
-            "description": (
-                "Report whether the service is operational: it answered, and the disk and the memory "
-                "of the machine it runs on are within the limits it was given. Backends holding the "
-                "data are not probed, so a healthy service can still be answering off a backend that "
-                "is not, see `spinta.api.health`.\n\n"
-                "An unhealthy service is reported in the body, not in the status code: the answer is "
-                "`200` with `healthy` set to `false`, because `503` says the service did not answer at "
-                "all. A probe has to read `healthy` rather than the status code.\n"
-            ),
-            "operationId": "apiHealth",
-            "responses": {
-                "200": {
-                    "description": "OK",
-                    "headers": [*COMMON_RESPONSE_HEADERS, "Cache-Control"],
-                    "content": {"application/json": {"schema": "health"}},
-                },
-                "400": {"$ref": "error400"},
-                "500": {"$ref": "error500"},
-                "429": {"$ref": "error429"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
-    "/:token": {
-        "parameters": ["traceparent", "tracestate"],
-        "post": {
-            "tags": ["utility"],
-            "security": [{"UAPI_client": []}],
-            "summary": "Get an access token",
-            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\n\nRFC 6749 section 2.3.1 asks for TLS here: the credentials are sent in plain, base64 of them being plain. The transport of an environment is not stated by this document — a server URL may be relative, and a deployment reached over `http` is described the same way — so it is ensured where the service is deployed.\n",
-            "operationId": "apiToken",
-            "requestBody": {
-                "required": True,
-                "description": "Credentials of the client, given as an OAuth 2.0 `client_credentials` request, see RFC 6749 section 4.4.2.",
-                "content": {
-                    "application/x-www-form-urlencoded": {
-                        "schema": {
-                            "type": "object",
-                            "required": ["grant_type"],
-                            "properties": {
-                                "grant_type": {
-                                    "type": "string",
-                                    "enum": ["client_credentials"],
-                                    "description": "The only grant this endpoint serves.",
-                                    "example": "client_credentials",
-                                },
-                                "scope": {
-                                    "type": "string",
-                                    "pattern": SCOPE_PATTERN,
-                                    "description": "Space separated list of requested scopes.",
-                                },
-                            },
-                        }
-                    }
-                },
-            },
-            "responses": {
-                "200": {
-                    "description": "OK",
-                    "headers": COMMON_RESPONSE_HEADERS,
-                    "content": {"application/json": {"schema": "token"}},
-                },
-                "400": {"$ref": "tokenError400"},
-                "401": {"$ref": "tokenError401"},
-                "500": {"$ref": "error500"},
-                "429": {"$ref": "error429"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
-    "/version": {
-        "servers": "agent",
-        "parameters": ["traceparent", "tracestate"],
-        "get": {
-            "tags": ["utility"],
-            "security": [{}],
-            "summary": "Get API version, from the agent itself",
-            "description": "Get the version of the API that is being called.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:version`.\n",
-            "operationId": "apiVersionOfAgent",
-            "responses": {
-                "200": {
-                    "description": "OK",
-                    "headers": COMMON_RESPONSE_HEADERS,
-                    "content": {"application/json": {"schema": "version"}},
-                },
-                "400": {"$ref": "error400"},
-                "500": {"$ref": "error500"},
-                "429": {"$ref": "error429"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
-    "/health": {
-        "servers": "agent",
-        "parameters": ["traceparent", "tracestate"],
-        "get": {
-            "tags": ["utility"],
-            "security": [{}],
-            "summary": "Check whether the service is operational, from the agent itself",
-            "description": (
-                "Report whether the service is operational: it answered, and the disk and the memory "
-                "of the machine it runs on are within the limits it was given. Backends holding the "
-                "data are not probed, so a healthy service can still be answering off a backend that "
-                "is not, see `spinta.api.health`.\n\n"
-                "An unhealthy service is reported in the body, not in the status code: the answer is "
-                "`200` with `healthy` set to `false`, because `503` says the service did not answer at "
-                "all. A probe has to read `healthy` rather than the status code.\n\n"
-                "This is the endpoint of the agent, called at its own address. An API gateway serves the "
-                "same endpoint inside a data service, as `/:health`.\n"
-            ),
-            "operationId": "apiHealthOfAgent",
-            "responses": {
-                "200": {
-                    "description": "OK",
-                    "headers": [*COMMON_RESPONSE_HEADERS, "Cache-Control"],
-                    "content": {"application/json": {"schema": "health"}},
-                },
-                "400": {"$ref": "error400"},
-                "500": {"$ref": "error500"},
-                "429": {"$ref": "error429"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
-    "/auth/token": {
-        "servers": "agent",
-        "parameters": ["traceparent", "tracestate"],
-        "post": {
-            "tags": ["utility"],
-            "security": [{"UAPI_client": []}],
-            "summary": "Get an access token, from the agent itself",
-            "description": "Get an OAuth 2.0 access token using the `client_credentials` grant.\n\nClient credentials are given in the `Authorization` header using HTTP Basic authentication scheme.\n\nThis is the endpoint of the agent, called at its own address. An API gateway serves the same endpoint inside a data service, as `/:token`.\n\n\nRFC 6749 section 2.3.1 asks for TLS here: the credentials are sent in plain, base64 of them being plain. The transport of an environment is not stated by this document — a server URL may be relative, and a deployment reached over `http` is described the same way — so it is ensured where the service is deployed.\n",
-            "operationId": "apiTokenOfAgent",
-            "requestBody": {
-                "required": True,
-                "description": "Credentials of the client, given as an OAuth 2.0 `client_credentials` request, see RFC 6749 section 4.4.2.",
-                "content": {
-                    "application/x-www-form-urlencoded": {
-                        "schema": {
-                            "type": "object",
-                            "required": ["grant_type"],
-                            "properties": {
-                                "grant_type": {
-                                    "type": "string",
-                                    "enum": ["client_credentials"],
-                                    "description": "The only grant this endpoint serves.",
-                                    "example": "client_credentials",
-                                },
-                                "scope": {
-                                    "type": "string",
-                                    "pattern": SCOPE_PATTERN,
-                                    "description": "Space separated list of requested scopes.",
-                                },
-                            },
-                        }
-                    }
-                },
-            },
-            "responses": {
-                "200": {
-                    "description": "OK",
-                    "headers": COMMON_RESPONSE_HEADERS,
-                    "content": {"application/json": {"schema": "token"}},
-                },
-                "400": {"$ref": "tokenError400"},
-                "401": {"$ref": "tokenError401"},
-                "500": {"$ref": "error500"},
-                "429": {"$ref": "error429"},
-                "503": {"$ref": "error503"},
-            },
-        },
-    },
     "/{model_name}": {
         "parameters": ["traceparent", "tracestate", "Cache-Control", "If-None-Match", "Accept-Language"],
         "head": {
@@ -799,28 +591,6 @@ GENERIC_ERROR = {
         },
         "additionalProperties": False,
     },
-    "InvalidScopes": {
-        "type": "object",
-        "description": "Error object of a token request naming a scope that does not exist.",
-        "required": ["type", "code", "template", "context", "message"],
-        "properties": {
-            "type": {"type": "string", "example": "system"},
-            "code": {"type": "string", "enum": ["InvalidScopes"], "example": "InvalidScopes"},
-            "template": {
-                "type": "string",
-                "enum": ["Request contains invalid, unknown or malformed scopes: {scopes}."],
-                "example": "Request contains invalid, unknown or malformed scopes: {scopes}.",
-            },
-            # The message of this error, not of whichever one `ERROR_MESSAGE`
-            # stands for; `error_response` sends it filled in.
-            "message": {
-                **ERROR_MESSAGE,
-                "example": _example_message("Request contains invalid, unknown or malformed scopes: {scopes}."),
-            },
-            "context": dict(ERROR_CONTEXT),
-        },
-        "additionalProperties": False,
-    },
 }
 
 
@@ -839,24 +609,6 @@ RESPONSE_COMPONENTS = {
         # and never by Spinta. The gateway answers with an object, whose fields
         # are its own, see `RateLimited`.
         "content": {"*/*": {"schema": "RateLimited"}},
-    },
-    # Token endpoint answers with an OAuth 2.0 error, see RFC 6749 section 5.2,
-    # not with a Spinta one.
-    "tokenError400": {
-        "description": "Bad Request",
-        "headers": [],
-        "content": {
-            "application/json": {
-                "schema": {"anyOf": ["tokenError", {"errors": ["InvalidScopes", "Error"]}]},
-                # An alternative of two, so neither schema example answers for it.
-                "example": {"error": "invalid_client", "error_description": "Client authentication failed."},
-            }
-        },
-    },
-    "tokenError401": {
-        "description": "Unauthorized",
-        "headers": [],
-        "content": {"application/json": {"schema": "tokenError"}},
     },
     # An error response names the errors of its status code and accepts any
     # other: `400` alone has over a hundred of them, and an error that is not
@@ -1230,37 +982,6 @@ COMMON_SCHEMAS = {
         "type": "string",
         "description": "Backwards link showing that another model has a link to this one. This item does not hold any data",
     },
-    "health": {
-        "type": "object",
-        "description": "Whether the service is operational, together with what it checked to say so.",
-        "required": ["healthy", "dependencies"],
-        "properties": {
-            "healthy": {
-                "type": "boolean",
-                "description": "Whether every dependency below is healthy.",
-                "example": True,
-            },
-            "dependencies": {
-                "type": "array",
-                "example": [
-                    {"name": "spinta", "healthy": True},
-                    {"name": "disk", "healthy": True},
-                    {"name": "memory", "healthy": True},
-                ],
-                "description": "What the service checked, one entry per dependency. Which ones are reported is up to the service and can change between versions, so read the entries rather than expect a given set.",
-                "items": {
-                    "type": "object",
-                    # Which dependencies are reported can change, what is
-                    # reported about one can not, see `spinta.api.health`.
-                    "required": ["name", "healthy"],
-                    "properties": {
-                        "name": {"type": "string", "example": "spinta"},
-                        "healthy": {"type": "boolean"},
-                    },
-                },
-            },
-        },
-    },
     "fileRef": {
         "type": "object",
         "description": "What is known about a file a property holds. `_id` and `_content_type` are null while the property holds no file.",
@@ -1293,83 +1014,6 @@ COMMON_SCHEMAS = {
                 "description": "Token of the next page.",
                 "example": "WyIyMDI2LTA4LTMxIl0=",
             }
-        },
-    },
-    "version": {
-        "type": "object",
-        "description": "Versions of the API, of its implementation and of the specifications it follows.",
-        "properties": {
-            "api": {"type": "object", "properties": {"version": {"type": "string", "example": "0.0.1"}}},
-            "implementation": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "example": "Spinta"},
-                    # A version is a string, and `0.1` was a number.
-                    "version": {"type": "string", "example": "1.2.0"},
-                },
-            },
-            "dsa": {"type": "object", "properties": {"version": {"type": "string", "example": "0.1.0"}}},
-            "uapi": {"type": "object", "properties": {"version": {"type": "string", "example": "0.1.0"}}},
-            "build": {"type": "object", "properties": {"version": {"type": "string", "example": "0.0.1"}}},
-        },
-    },
-    "tokenError": {
-        "type": "object",
-        "description": "An OAuth 2.0 error of the token endpoint, see RFC 6749 section 5.2.",
-        "required": ["error"],
-        "properties": {
-            "error": {
-                "type": "string",
-                "enum": [
-                    "invalid_request",
-                    "invalid_client",
-                    "invalid_grant",
-                    "unauthorized_client",
-                    "unsupported_grant_type",
-                    "invalid_scope",
-                ],
-                "description": "Error code of the token endpoint, see RFC 6749 section 5.2.",
-                "example": "invalid_client",
-            },
-            "error_description": {
-                "type": "string",
-                "description": "What went wrong, for a person reading it.",
-                "example": "Client authentication failed.",
-            },
-            "error_uri": {
-                "type": "string",
-                "description": "Address of a page describing the error.",
-                "format": "uri",
-                "example": "https://ivpk.github.io/uapi",
-            },
-        },
-    },
-    "token": {
-        "type": "object",
-        "description": "An OAuth 2.0 access token, see RFC 6749 section 5.1.",
-        # `access_token` and `token_type` are required by RFC 6749, so a
-        # response without them is not a successful token response.
-        "required": ["access_token", "token_type"],
-        "properties": {
-            "access_token": {
-                "type": "string",
-                "description": "Access token to be used as a `Bearer` token.",
-                "example": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dldC5kYXRhLmdvdi5sdCJ9.-",
-            },
-            "token_type": {"type": "string", "enum": ["Bearer"], "example": "Bearer"},
-            "expires_in": {
-                "type": "integer",
-                "format": "int64",
-                "minimum": 0,
-                "maximum": 9223372036854775807,
-                "description": "Token lifetime in seconds.",
-                "example": 864000,
-            },
-            "scope": {
-                "type": "string",
-                "description": "Space separated list of granted scopes.",
-                "example": "uapi:/datasets/gov/rc/jadis/at280/1/:getall",
-            },
         },
     },
     "image": {
@@ -1424,10 +1068,5 @@ SECURITY_SCHEMES = {
                 "scopes": {},
             }
         },
-    },
-    "UAPI_client": {
-        "type": "http",
-        "scheme": "basic",
-        "description": "Client identifier and secret, used to get an access token. Basic authentication is what RFC 6749 section 2.3.1 defines for the token endpoint, and it is used there alone. That section asks for TLS, which is ensured where the service is deployed rather than stated by this document.",
     },
 }

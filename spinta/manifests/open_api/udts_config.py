@@ -219,28 +219,6 @@ class UdtsConfig:
         """
         return self.limits.get("max_limit") or DEFAULT_MAX_LIMIT
 
-    def resolve_agent_servers(self, service_path: str) -> list[dict[str, Any]]:
-        """Build `servers` of the agent root, where its own endpoints live.
-
-        `/version`, `/health` and `/auth/token` are served by the agent itself,
-        not under the data service path, so a request sent straight to the agent
-        needs a server without that path. An API gateway reaches the same
-        endpoints inside the data service instead, through a routing rule, and
-        those paths are written in the action form, `/:version` for one.
-        """
-        servers = []
-        for server in self.resolve_servers(service_path):
-            server = dict(server)
-            parts = urlsplit(server.get("url", ""))
-            # The whole path goes, not the data service path alone: a server URL
-            # may carry a path of its own, and the agent serves nothing under it.
-            # A relative URL keeps the root, which emptied would be resolved
-            # against the path the document itself is served at.
-            path = "" if parts.netloc else "/"
-            server["url"] = urlunsplit(parts._replace(path=path)) or "/"
-            servers.append(server)
-        return servers
-
     def resolve_token_url(self, servers: list[dict[str, Any]]) -> str:
         """Return the authorization server token endpoint.
 
