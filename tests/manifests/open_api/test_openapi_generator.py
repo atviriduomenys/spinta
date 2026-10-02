@@ -29,6 +29,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_ARRAY_IN_REFERENCE,
     MANIFEST_WITH_ARRAY_LAYERS,
     MANIFEST_WITH_PRIMITIVE_ARRAYS,
+    MANIFEST_WITH_SEMANTIC_FORMATS,
     MANIFEST_WITH_ARRAY_REFS,
     MANIFEST_WITH_BASE32_ID,
     MANIFEST_WITH_COLLIDING_DATASETS,
@@ -2109,6 +2110,25 @@ def test_array_example_holds_an_item_of_the_item_type(open_manifest_path_factory
     assert properties["datos"]["example"] == [PROPERTY_EXAMPLE["date"]]
     for name in ("skaiciai", "datos"):
         assert not list(_validator(open_api_spec, properties[name]).iter_errors(properties[name]["example"]))
+
+
+def test_format_follows_from_type_and_uri(open_manifest_path_factory):
+    """A vocabulary term says what a string holds, see ADR-0006."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SEMANTIC_FORMATS)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    schema = open_api_spec["components"]["schemas"]["ds_Israsas"]
+    properties = schema["properties"]
+
+    assert properties["el_pastas"]["format"] == "email"
+    # A prefix the DSA declares is read the way it declares it.
+    assert properties["kitas_pastas"]["format"] == "email"
+    # No format of OpenAPI says what a phone number looks like.
+    assert "format" not in properties["telefonas"]
+    assert properties["svetaine"]["format"] == "uri"
+    assert properties["nuoroda"]["format"] == "uri"
+    assert properties["pastai"]["items"]["format"] == "email"
+    assert not list(_validator(open_api_spec, schema).iter_errors(schema["example"]))
 
 
 def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):

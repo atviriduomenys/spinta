@@ -35,6 +35,8 @@ PROPERTY_EXAMPLE = {
     "object": {},
     "geometry": "POINT (6088198 505579)",
     "money": 99.99,
+    "url": "https://example.com/",
+    "uri": "https://example.com/",
 }
 
 #: A revision is a UUID, as is an identifier, see `spinta.backends`. This is the
@@ -115,6 +117,38 @@ PROPERTY_MAPPING = {
     "geometry": {"type": "string", "description": "Geometry data in WKT format"},
     "money": {"type": "number"},
     "object": {"type": "object"},
+    "url": {"type": "string", "format": "uri"},
+    "uri": {"type": "string", "format": "uri"},
+}
+
+#: Namespaces of the vocabularies below, for a prefix a DSA uses without
+#: declaring it. A prefix the DSA declares takes precedence.
+KNOWN_PREFIXES = {
+    "vcard": "http://www.w3.org/2006/vcard/ns#",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "schema": "http://schema.org/",
+    "dcat": "http://www.w3.org/ns/dcat#",
+}
+
+#: `format` of a `string` property, by the vocabulary term in its `uri`, see
+#: ADR-0006. `foaf:mbox` is left out: its value is a `mailto:` URI.
+FORMAT_BY_URI = {
+    "http://www.w3.org/2006/vcard/ns#email": "email",
+    "http://www.w3.org/2006/vcard/ns#hasEmail": "email",
+    "http://schema.org/email": "email",
+    "https://schema.org/email": "email",
+    "http://xmlns.com/foaf/0.1/homepage": "uri",
+    "http://xmlns.com/foaf/0.1/page": "uri",
+    "http://schema.org/url": "uri",
+    "https://schema.org/url": "uri",
+    "http://www.w3.org/ns/dcat#accessURL": "uri",
+    "http://www.w3.org/ns/dcat#downloadURL": "uri",
+    "http://www.w3.org/ns/dcat#landingPage": "uri",
+}
+
+FORMAT_EXAMPLE = {
+    "email": "info@example.com",
+    "uri": "https://example.com/",
 }
 
 #: A header value is printable ASCII, RFC 9110 section 5.5, bounded so that a

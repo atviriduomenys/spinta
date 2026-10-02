@@ -298,6 +298,24 @@ id | d | r | b | m | property   | type            | ref                         
    |   |   |   |   | kalbos[][] | ref             | datasets/gov/rc/x/ext/1/ext/Kalba | 4     | open
 """)
 
+#: Properties whose `format` follows from their type or from `uri`. `ex` is a
+#: prefix of its own, standing for the vCard namespace under another name.
+MANIFEST_WITH_SEMANTIC_FORMATS = striptable("""
+id | d | r | b | m | property     | type    | ref   | level | access | uri
+   | datasets/gov/rc/jadis/at280/1/ds |   |       |       |        |
+   |                              | prefix  | ex    |       |        | http://www.w3.org/2006/vcard/ns#
+   |   | test                     | memory  |       |       |        |
+   |   |   |   | Israsas          |         | id    |       |        |
+   |   |   |   |   | id           | string required |  | 4 | open |
+   |   |   |   |   | el_pastas    | string  |       | 4     | open   | vcard:hasEmail
+   |   |   |   |   | kitas_pastas | string  |       | 4     | open   | ex:email
+   |   |   |   |   | telefonas    | string  |       | 4     | open   | vcard:tel
+   |   |   |   |   | svetaine     | string  |       | 4     | open   | foaf:homepage
+   |   |   |   |   | nuoroda      | url     |       | 4     | open   |
+   |   |   |   |   | pastai       | array   |       | 4     | open   |
+   |   |   |   |   | pastai[]     | string  |       | 4     | open   | vcard:email
+""")
+
 MANIFEST_WITH_PRIMITIVE_ARRAYS = striptable("""
 id | d | r | b | m | property   | type    | ref | level | access
    | datasets/gov/rc/jadis/at280/1/ds |   |     |       |
