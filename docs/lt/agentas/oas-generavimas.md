@@ -104,12 +104,10 @@ schema ir hostu: tada jis išvedamas iš to įrašo ir `/:token`, t. y. iš to p
 adreso, kuriuo token'ą per vartus pasiekia gavėjas.
 
 Kliento identifikatorius ir slaptažodis siunčiami atviru tekstu, o RFC 6749
-(2.3.1) prašo TLS. Aprašas transporto **nenustato**: token'o keliai `/:token` ir
-`/auth/token` aprašomi visoms aplinkoms, kaip ir visi kiti keliai, nes paslauga
-juos ten ir aptarnauja. Adresas per `http` (pavyzdžiui, testavimo ar vietinis
-diegimas) priimamas, tik skaitant konfigūraciją parodomas įspėjimas, kad
-kredencialai eis atviru tekstu. TLS užtikrinamas ten, kur paslauga diegiama, o
-ne išimant kelius iš aprašo.
+(2.3.1) prašo TLS. Aprašas transporto **nenustato**. Adresas per `http`
+(pavyzdžiui, testavimo ar vietinis diegimas) priimamas, tik skaitant
+konfigūraciją parodomas įspėjimas, kad kredencialai eis atviru tekstu. TLS
+užtikrinamas ten, kur paslauga diegiama.
 
 Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
 pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
@@ -198,24 +196,9 @@ Kadangi `paths` yra reliatyvūs paslaugos bazei, rankomis jų karpyti nereikia.
 Jei paslaugos kelias vartuose vis dėlto skiriasi, jį galima nurodyti politikos
 `basePath` lauke.
 
-Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) guli agento
-šaknyje, o ne po paslaugos keliu. Specifikacijoje kiekvienas jų aprašomas
-**dukart**, nes failą skaito du skirtingi vartotojai:
-
-- **`/:version`, `/:health`, `/:token`** – forma, kuria vartai juos
-  maršrutizuoja paslaugos viduje. Šie keliai eina nuo dokumento `servers`, t. y.
-  nuo paslaugos bazės;
-- **`/version`, `/health`, `/auth/token`** – adresai, kuriais juos aptarnauja
-  pati Spinta. Šie keliai turi savo `servers` įrašą (paslaugos kelias
-  nukirptas), tad veikia ir kreipiantis tiesiai į agentą – pavyzdžiui,
-  įsikėlus specifikaciją į Postmaną.
-
-Kuri forma kuri, pasako kelio žyma `x-spinta-context`: `gateway` – `:`-formai,
-`agent-direct` – agento adresams. Importuojant į vartus pagal ją galima palikti
-tik `gateway` kelius. Duomenų keliai aptarnaujami abiem atvejais, todėl žymos
-neturi.
-
-Vartuose `:`-formai reikia Dynamic Routing taisyklių:
+Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) aprašyme
+**neaprašomi**. Vartai juos prideda rankomis, Dynamic Routing taisyklėmis,
+paslaugos viduje naudodami veiksmo formą:
 
 | Match expression | Redirect to |
 |---|---|
@@ -224,14 +207,9 @@ Vartuose `:`-formai reikia Dynamic Routing taisyklių:
 | `/:token` | `{#api.properties['uapi_token']}` |
 | `/(.*)` | `{#api.properties['uapi_data_prefix']}{#group[0]}` |
 
-`/health` atsako visada `200`; ar paslauga sveika, sako `healthy` laukas, nes
-`503` reiškia, kad paslauga apskritai neatsakė. Tikrinantis komponentas turi
-skaityti `healthy`, o ne atsakymo kodą.
-
-Tikrinama tai, kas išvardyta `dependencies`: pati paslauga atsakė, o mašinos,
-kurioje ji sukasi, diskas ir atmintis neperžengė jai duotų ribų. Duomenis
-laikančios saugyklos netikrinamos, tad sveika paslauga vis tiek gali dirbti su
-neprieinama saugykla.
+Aprašyme lieka tik `tokenUrl` (`components.securitySchemes.UAPI_auth`), nes
+OAuth 2.0 srautas be jo neaprašomas. Pagal nutylėjimą jis rodo į `/:token`
+taisyklę.
 
 ## Užklausų tikrinimas vartuose
 

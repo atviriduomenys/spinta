@@ -36,7 +36,8 @@ Related ADRs: [ADR-0001](../../adr/0001-oas-429-open-object.md) (`429`),
 [ADR-0002](../../adr/0002-oas-integer-bounds-not-stated.md) (integer bounds, superseded),
 [ADR-0003](../../adr/0003-oas-version-3-0.md) (OpenAPI 3.0),
 [ADR-0004](../../adr/0004-oas-empty-identifier-not-described.md) (empty
-identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`), [ADR-0006](../../adr/0006-oas-format-from-dsa.md) (`format`).
+identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`), [ADR-0006](../../adr/0006-oas-format-from-dsa.md) (`format`),
+[ADR-0007](../../adr/0007-oas-agent-endpoints-not-described.md) (agent endpoints).
 
 ## Inputs
 
@@ -44,10 +45,10 @@ identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`), [
 
 `create_openapi_manifest` works in two modes:
 
-| Mode | Called with | `servers` | Agent endpoints | Schema names |
+| Mode | Called with | `servers` | `tokenUrl` default | Schema names |
 |---|---|---|---|---|
-| **Data service** | `service_path=…` (`spinta udts oas`) | from `--udts-cfg` | both forms | path within the service |
-| **Catalog** | no `service_path` (whole manifest or `main_dataset_name`) | none | agent addresses only | full name or `basename` |
+| **Data service** | `service_path=…` (`spinta udts oas`) | from `--udts-cfg` | first server + `/:token` | path within the service |
+| **Catalog** | no `service_path` (whole manifest or `main_dataset_name`) | none | `/auth/token` | full name or `basename` |
 
 The rest describes the data service mode; catalog differences are in the table.
 
@@ -119,8 +120,8 @@ openapi: 3.0.3
 info            ← --udts-cfg info (+ --api-version)
 externalDocs    ← --udts-cfg externalDocs
 servers         ← --udts-cfg servers, each with the data service path
-tags            ← utility + one per model, sorted
-paths           ← agent endpoints + model paths
+tags            ← one per model, sorted
+paths           ← model paths
 components
   schemas       ← models, listings, references, shared schemas
   parameters    ← headers; per model: id, _select, _sort; per document: _limit; _page
@@ -146,16 +147,9 @@ Without a configuration (Python API only): one relative `/{data service path}`.
 
 ### Paths
 
-**Agent endpoints** are given in two forms, marked by the path extension
-`x-spinta-context`:
-
-| Path | `x-spinta-context` | `servers` | Purpose |
-|---|---|---|---|
-| `/:version`, `/:health`, `/:token` | `gateway` | the document's (data service base) | how the gateway routes them inside a data service |
-| `/version`, `/health`, `/auth/token` | `agent-direct` | its own: server address without a path | how the agent itself serves them |
-
-Catalog mode gives the `agent-direct` form only. Data paths carry no
-`x-spinta-context`, since both contexts serve them.
+**Agent endpoints** (`/version`, `/health`, `/auth/token` and their gateway
+forms `/:version`, `/:health`, `/:token`) are not described: the gateway adds
+them by hand with Dynamic Routing rules (ADR-0007).
 
 **Model paths** (relative to the data service base, `{dataset}/{Model}`):
 
@@ -240,14 +234,14 @@ that schema. Identifiers are derived deterministically from the model name
 reference example is the identifier of the referenced model's example.
 
 **Shared schemas** (`COMMON_SCHEMAS`) are included only when referenced: error
-objects, `page`, `file`, `image`, `health`, `RateLimited`,
+objects, `page`, `file`, `image`, `RateLimited`,
 `UnpublishedReference` and others.
 
 ### Responses
 
 | Code | When | Body |
 |---|---|---|
-| `200` | all operations | model, listing, property, `version`, `health`, token |
+| `200` | all operations | model, listing, property |
 | `206`, `416` | `file`/`image` content | binary |
 | `301` | single object | none; `Location` header |
 | `304` | `get`, `head` | none; cache headers only |
@@ -259,15 +253,13 @@ objects, `page`, `file`, `image`, `health`, `RateLimited`,
 built from `spinta.exceptions` classes (`code` and `template` are an `enum` of
 the class value); the last alternative is the generic `Error`, because Spinta
 has more errors than can be listed and `authlib` errors carry only `code` and
-`message`. The token endpoint's `400`/`401` is an OAuth 2.0 error (RFC 6749
-5.2).
+`message`.
 
 ### Security
 
 | Scheme | Type | Where |
 |---|---|---|
 | `UAPI_auth` | `oauth2` `clientCredentials` | data operations |
-| `UAPI_client` | `http` `basic` | token endpoints |
 
 - `tokenUrl` is `auth.token_url`, or the first server + `/:token`.
 - `scopes` lists only those operations request.

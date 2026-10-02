@@ -281,12 +281,6 @@ Example
        {"url": "https://test-get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Testing"}
      ],
      "paths": {
-       "/:version": {},
-       "/:health": {},
-       "/:token": {},
-       "/version": {},
-       "/health": {},
-       "/auth/token": {},
        "/at280_israsas/DalyvioAsmensIsrasas": {},
        "/at280_israsas/DalyvioAsmensIsrasas/{id}": {}
      }
