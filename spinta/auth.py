@@ -720,9 +720,7 @@ class StarletteOAuth2Request(OAuth2Request):
         return self._data.form
 
 
-def authenticate_token(
-    protector: ResourceProtector, token: str, type_: str, *, check_audience: bool = True
-) -> Token:
+def authenticate_token(protector: ResourceProtector, token: str, type_: str, *, check_audience: bool = True) -> Token:
     type_ = type_.lower()
     validator = protector.get_token_validator(type_)
     return validator.authenticate_token(token, check_audience=check_audience)
