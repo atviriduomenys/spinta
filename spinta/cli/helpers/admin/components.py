@@ -19,3 +19,4 @@ class Script(enum.Enum):
     CITUS_DISTRIBUTION = "citus_distribution"
     ADD_LOCAL_IDS = "add_local_ids"
     REMOVE_LOCAL_IDS = "remove_local_ids"
+    COMPRESS_CHANGELOGS = "compress_changelogs"
