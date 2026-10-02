@@ -4,6 +4,39 @@ Changes
 1.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Renamed the authorization configuration parameters added in 1.1.0, to keep
+  identifiers apart from URLs (`katalogas#2799`_):
+
+  - ``token_issuer`` is now ``auth_server_id`` (the ``iss`` claim) and
+    ``auth_server_url`` (the base of the endpoints advertised in the
+    authorization server metadata).
+  - ``resource_server`` is now ``resource_server_id`` (the ``aud`` claim).
+
+  The old names are not read any more.
+- Tokens Spinta issues now carry ``aud`` as a list (`katalogas#2799`_).
+
+New features:
+
+- The token endpoint accepts ``resource`` parameters (RFC 8707) and issues the
+  token for them: they become its ``aud``. Without them, ``aud`` is
+  ``[resource_server_id]``. An invalid ``resource`` (not an absolute URI, or
+  with a fragment) is rejected with ``invalid_target``. Token introspection
+  and the token endpoint's access log no longer check ``aud`` against this
+  server, so tokens issued for another resource server work too
+  (`katalogas#2799`_).
+- Added ``resource_server_url``, the public URL of this resource server.
+  ``server_url`` is its old name and is still read (`katalogas#2799`_).
+- ``credentials.cfg``: ``spinta sync`` reads the ``[katalogas]`` section, or
+  the old ``[default]`` one. ``auth_server_url`` and ``resource_server_url``
+  replace ``server`` and ``resource_server``, which are still read.
+  ``resource_server_id`` is sent as the ``resource`` of the token request.
+  ``organization`` and ``organization_type`` are no longer required
+  (`katalogas#2799`_).
+
+.. _katalogas#2799: https://github.com/atviriduomenys/katalogas/issues/2799
+
 Bug fixes:
 
 - Fixed token validation when ``token_validation_keys_download_url`` was

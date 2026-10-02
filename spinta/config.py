@@ -235,9 +235,12 @@ CONFIG = {
     "default_auth_client": "default",
     # Public JWK key for validating auth bearer tokens.
     "token_validation_key": None,
-    # Expected `iss` (issuer) claim of accepted bearer tokens.
-    "token_issuer": None,
-    "resource_server": None,
+    # Authorization server identifier (`iss`) and URL.
+    "auth_server_id": None,
+    "auth_server_url": None,
+    # Resource server identifier (`aud`) and public URL (old name: `server_url`).
+    "resource_server_id": None,
+    "resource_server_url": None,
     # Limit access to specified namespace root.
     "root": None,
     "env": "prod",

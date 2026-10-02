@@ -1,6 +1,9 @@
+import pytest
 from ruamel.yaml import YAML
 
+from spinta import commands
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
+from spinta.testing.context import create_test_context
 
 yaml = YAML(typ="safe")
 
@@ -706,3 +709,21 @@ def test_to_dict():
         "type": "internal",
         "backend": "default",
     }
+
+
+@pytest.mark.parametrize(
+    "overrides, expected",
+    [
+        ({"server_url": "https://old.example.com/"}, "https://old.example.com"),
+        (
+            {"server_url": "https://old.example.com", "resource_server_url": "https://new.example.com/"},
+            "https://new.example.com",
+        ),
+    ],
+)
+def test_resource_server_url_falls_back_to_server_url(rc, overrides, expected):
+    context = create_test_context(rc.fork(overrides))
+    config = context.get("config")
+    commands.load(context, config)
+    assert config.resource_server_url == expected
+    assert config.server_url == expected
