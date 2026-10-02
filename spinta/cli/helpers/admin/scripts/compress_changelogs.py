@@ -92,7 +92,6 @@ def _compress_model_changelog(model: Model, backend: PostgreSQL):
 
         total_start = perf_counter()
         start = perf_counter()
-
         removed_count = prepare_changelog_for_compression(conn, changelog_table, cutoff=cutoff)
         preprocessing_time = perf_counter() - start
         cli_message(model.model_type())
@@ -140,7 +139,7 @@ def delete_expired_lifecycles(
     """
     Delete complete lifecycles that:
 
-      1. are not the latest lifecycle for their _id;
+      1. are not the latest lifecycle for their _rid;
       2. have no rows inside the retention period.
 
     The latest lifecycle is always preserved, regardless of age.
@@ -150,27 +149,29 @@ def delete_expired_lifecycles(
         name="expired_lifecycle_rows",
     )
 
-    protected = (
+    protected_lifecycle = sa.func.coalesce(
+        sa.func.min(rows.c.lifecycle)
+        .filter(rows.c.datetime > cutoff)
+        .over(
+            partition_by=rows.c._rid,
+        ),
+        sa.func.max(rows.c.lifecycle).over(
+            partition_by=rows.c._rid,
+        ),
+    ).label("protected_lifecycle")
+
+    retention_rows = (
         sa.select(
+            rows.c._id,
             rows.c._rid,
-            sa.func.coalesce(
-                sa.func.min(rows.c.lifecycle).filter(rows.c.datetime > cutoff),
-                sa.func.max(rows.c.lifecycle),
-            ).label("protected_lifecycle"),
+            rows.c.lifecycle,
+            protected_lifecycle,
         )
         .where(rows.c.lifecycle > 0)
-        .group_by(rows.c._rid)
-        .cte("protected_lifecycles")
+        .cte("retention_rows")
     )
 
-    removable = (
-        sa.select(rows.c._id)
-        .join(
-            protected,
-            protected.c._rid == rows.c._rid,
-        )
-        .where(rows.c.lifecycle < protected.c.protected_lifecycle)
-    )
+    removable = sa.select(retention_rows.c._id).where(retention_rows.c.lifecycle < retention_rows.c.protected_lifecycle)
 
     stmt = sa.delete(table).where(table.c._id.in_(removable))
 
