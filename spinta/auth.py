@@ -248,7 +248,8 @@ class IntrospectionEndpoint(rfc7662.IntrospectionEndpoint):
     def query_token(self, token_string: str, token_type_hint: str | None) -> Token | None:
         protector: ResourceProtector = self.server.context.get("auth.resource_protector")
         try:
-            return authenticate_token(protector, token_string, "bearer")
+            # As the authorization server, introspect tokens issued for any resource server.
+            return authenticate_token(protector, token_string, "bearer", check_audience=False)
         except (InvalidToken, JoseError):
             return None
 
@@ -348,20 +349,22 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._default_public_key: RSAKey = load_key(context, KeyType.public)
         self._all_public_keys: list[RSAKey] = load_all_public_keys(context)
 
-    def _decode(self, token_string: str, key) -> dict:
+    def _decode(self, token_string: str, key, check_audience: bool = True) -> dict:
         claims = jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
         config = self._context.get("config")
         _require_auth_config(config)
-        JWTClaimsRegistry(
-            iss={"essential": True, "value": config.auth_server_id},
-            aud={"essential": True, "value": config.resource_server_id},
-            client_id={"essential": True},
-            exp={"essential": True},
-            iat={"essential": True},
-        ).validate(claims)
+        options = {
+            "iss": {"essential": True, "value": config.auth_server_id},
+            "client_id": {"essential": True},
+            "exp": {"essential": True},
+            "iat": {"essential": True},
+        }
+        if check_audience:
+            options["aud"] = {"essential": True, "value": config.resource_server_id}
+        JWTClaimsRegistry(**options).validate(claims)
         return claims
 
-    def decode_token(self, token_string: str) -> dict:
+    def decode_token(self, token_string: str, *, check_audience: bool = True) -> dict:
         if not token_string:
             raise InvalidToken("Token string is required")
 
@@ -370,7 +373,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
             if kid := (token_header.get("kid") or token_header.get("key")):
                 for key in self._all_public_keys:
                     if key.kid and str(key.kid) == str(kid):
-                        return self._decode(token_string, key)
+                        return self._decode(token_string, key, check_audience)
             if "alg" not in token_header:
                 raise InvalidToken(error="Token header missing 'alg'")
             token_kty = decode_kty_from_alg(token_header["alg"])
@@ -381,15 +384,15 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
                 is_same_algorithm_type = key.key_type and key.key_type == token_kty
                 if is_not_encryption_key and (is_same_algorithm or is_same_algorithm_type):
                     try:
-                        return self._decode(token_string, key)
+                        return self._decode(token_string, key, check_audience)
                     except BadSignatureError:
                         continue
         except (JoseError, DecodeError, InvalidTokenError) as e:
             raise InvalidToken(error=str(e))
         raise InvalidToken(f"No public key found for token {token_header=}")
 
-    def authenticate_token(self, token_string: str) -> Token:
-        return Token(token_string, self)
+    def authenticate_token(self, token_string: str, *, check_audience: bool = True) -> Token:
+        return Token(token_string, self, check_audience=check_audience)
 
 
 class Client(rfc6749.ClientMixin):
@@ -494,8 +497,8 @@ def decode_kty_from_alg(alg: str) -> Literal["RSA", "EC", None]:
 
 
 class Token(rfc6749.TokenMixin):
-    def __init__(self, token_string, validator: BearerTokenValidator):
-        self._token = validator.decode_token(token_string)
+    def __init__(self, token_string, validator: BearerTokenValidator, *, check_audience: bool = True):
+        self._token = validator.decode_token(token_string, check_audience=check_audience)
 
         self.expires_in = self._token["exp"] - self._token["iat"]
         self.client_id = self.get_client_id()
@@ -717,10 +720,12 @@ class StarletteOAuth2Request(OAuth2Request):
         return self._data.form
 
 
-def authenticate_token(protector: ResourceProtector, token: str, type_: str) -> Token:
+def authenticate_token(
+    protector: ResourceProtector, token: str, type_: str, *, check_audience: bool = True
+) -> Token:
     type_ = type_.lower()
     validator = protector.get_token_validator(type_)
-    return validator.authenticate_token(token)
+    return validator.authenticate_token(token, check_audience=check_audience)
 
 
 def get_auth_token(context: Context) -> Token:

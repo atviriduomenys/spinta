@@ -22,7 +22,10 @@ New features:
 - The token endpoint accepts ``resource`` parameters (RFC 8707) and issues the
   token for them: they become its ``aud``. Without them, ``aud`` is
   ``[resource_server_id]``. An invalid ``resource`` (not an absolute URI, or
-  with a fragment) is rejected with ``invalid_target`` (`katalogas#2799`_).
+  with a fragment) is rejected with ``invalid_target``. Token introspection
+  and the token endpoint's access log no longer check ``aud`` against this
+  server, so tokens issued for another resource server work too
+  (`katalogas#2799`_).
 - Added ``resource_server_url``, the public URL of this resource server.
   ``server_url`` is its old name and is still read (`katalogas#2799`_).
 - ``credentials.cfg``: ``spinta sync`` reads the ``[katalogas]`` section, or
