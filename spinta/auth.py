@@ -9,6 +9,7 @@ import logging
 import os
 import pathlib
 import time
+import urllib.parse
 import uuid
 from collections import defaultdict
 from functools import cached_property
@@ -80,6 +81,8 @@ WORLD_READABLE_FILE = 0o644  # rw-r--r-- (owner read/write, others read)
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
+# `credentials.cfg` section with the Catalog credentials; `default` is its old name.
+KATALOGAS_CREDENTIALS_SECTION = "katalogas"
 DEFAULT_CREDENTIALS_SECTION = "default"
 DEPRECATED_SCOPE_PREFIX = "spinta_"
 
@@ -138,17 +141,39 @@ class Scopes(enum.Enum):
         return self.value
 
 
+class InvalidTargetError(OAuth2Error):
+    """The requested resource is invalid (RFC 8707, section 2)."""
+
+    error = "invalid_target"
+
+
+def get_requested_audience(request: OAuth2Request) -> list[str]:
+    """Return the `resource` parameters of a token request (RFC 8707)."""
+    resources = request.payload.datalist.get("resource", [])
+    for resource in resources:
+        parsed = urllib.parse.urlparse(resource)
+        if not parsed.scheme or parsed.fragment:
+            raise InvalidTargetError(f"The resource must be an absolute URI without a fragment: {resource}")
+    return resources
+
+
+class ClientCredentialsGrant(grants.ClientCredentialsGrant):
+    """Client credentials grant that issues tokens for the requested `resource`."""
+
+    audience: list[str]
+
+    def validate_token_request(self) -> None:
+        super().validate_token_request()
+        self.audience = get_requested_audience(self.request)
+
+    def generate_token(self, user=None, scope=None, grant_type=None, expires_in=None, include_refresh_token=True):
+        return self.server.generate_client_token(self.client, scope, self.audience)
+
+
 class AuthorizationServer(rfc6749.AuthorizationServer):
     def __init__(self, context):
         super().__init__()
-        self.register_grant(grants.ClientCredentialsGrant)
-        self.register_token_generator(
-            "default",
-            rfc6750.BearerToken(
-                access_token_generator=self._generate_token,
-                expires_generator=self._get_expires_in,
-            ),
-        )
+        self.register_grant(ClientCredentialsGrant)
         self._context = context
         self._private_key = None
 
@@ -189,13 +214,21 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def save_token(self, token, request):
         pass
 
-    def _get_expires_in(self, client: Client, grant_type: str) -> int:
-        return int(datetime.timedelta(days=10).total_seconds())
-
-    def _generate_token(self, grant_type: str, client: Client, user: str, scope: str, **kwargs) -> str:
-        expires_in = self._get_expires_in(client, grant_type)
+    def generate_client_token(self, client: Client, scope: str | None, audience: list[str]) -> dict:
+        """Issue a bearer token response; `audience` defaults to this resource server."""
+        scope = client.get_allowed_scope(scope) if scope else scope
+        expires_in = int(datetime.timedelta(days=10).total_seconds())
         scopes = set(scope.split()) if scope else set()
-        return create_access_token(self._context, self._private_key, client.id, expires_in, scopes)
+        token = {
+            "token_type": "Bearer",
+            "access_token": create_access_token(
+                self._context, self._private_key, client.id, expires_in, scopes, audience=audience
+            ),
+            "expires_in": expires_in,
+        }
+        if scope:
+            token["scope"] = scope
+        return token
 
 
 class ResourceProtector(rfc6749.ResourceProtector):
@@ -320,8 +353,8 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         config = self._context.get("config")
         _require_auth_config(config)
         JWTClaimsRegistry(
-            iss={"essential": True, "value": config.token_issuer},
-            aud={"essential": True, "value": config.resource_server},
+            iss={"essential": True, "value": config.auth_server_id},
+            aud={"essential": True, "value": config.resource_server_id},
             client_id={"essential": True},
             exp={"essential": True},
             iat={"essential": True},
@@ -509,7 +542,7 @@ class Token(rfc6749.TokenMixin):
     def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self) -> str:  # Resource server (audience).
+    def get_aud(self) -> str | list[str]:  # Resource server (audience).
         return self._token.get("aud", "")
 
     def get_jti(self) -> str:
@@ -817,10 +850,12 @@ class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
 def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
     config = context.get("config")
     _require_auth_config(config)
-    base = config.token_issuer.rstrip("/")
+    if not config.auth_server_url:
+        raise RequiredConfigParam(name="auth_server_url")
+    base = config.auth_server_url
     return ClientCredentialsServerMetadata(
         {
-            "issuer": config.token_issuer,
+            "issuer": config.auth_server_id,
             "token_endpoint": f"{base}/auth/token",
             "introspection_endpoint": f"{base}/auth/introspect",
             "jwks_uri": f"{base}/.well-known/jwks.json",
@@ -833,10 +868,10 @@ def get_authorization_server_metadata(context: Context) -> ClientCredentialsServ
 
 
 def _require_auth_config(config) -> None:
-    if not config.token_issuer:
-        raise RequiredConfigParam(name="token_issuer")
-    if not config.resource_server:
-        raise RequiredConfigParam(name="resource_server")
+    if not config.auth_server_id:
+        raise RequiredConfigParam(name="auth_server_id")
+    if not config.resource_server_id:
+        raise RequiredConfigParam(name="resource_server_id")
 
 
 def create_access_token(
@@ -845,6 +880,8 @@ def create_access_token(
     client: str,
     expires_in: int = None,
     scopes: Set[str] = None,
+    *,
+    audience: list[str] | None = None,
 ):
     config = context.get("config")
     _require_auth_config(config)
@@ -862,9 +899,9 @@ def create_access_token(
     scopes = " ".join(sorted(scopes)) if scopes else ""
     jti = str(uuid.uuid4())
     payload = {
-        "iss": config.token_issuer,
+        "iss": config.auth_server_id,
         "sub": client,
-        "aud": config.resource_server,
+        "aud": audience or [config.resource_server_id],
         "client_id": client,
         "iat": iat,
         "exp": exp,

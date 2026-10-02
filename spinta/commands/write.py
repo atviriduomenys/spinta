@@ -1312,8 +1312,8 @@ async def wipe(  # noqa
 def prepare_headers(context: Context, node: Node, resp: dict, action: Action, is_batch: Optional[bool] = False):
     headers = {}
     if action == Action.INSERT and not is_batch:
-        server_url = context.get("config").server_url
-        headers["location"] = f"{server_url}/{node.name}/{resp['_id']}"
+        resource_server_url = context.get("config").resource_server_url
+        headers["location"] = f"{resource_server_url}/{node.name}/{resp['_id']}"
     return headers
 
 
