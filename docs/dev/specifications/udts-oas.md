@@ -36,7 +36,7 @@ Related ADRs: [ADR-0001](../../adr/0001-oas-429-open-object.md) (`429`),
 [ADR-0002](../../adr/0002-oas-integer-bounds-not-stated.md) (integer bounds, superseded),
 [ADR-0003](../../adr/0003-oas-version-3-0.md) (OpenAPI 3.0),
 [ADR-0004](../../adr/0004-oas-empty-identifier-not-described.md) (empty
-identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`).
+identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`), [ADR-0006](../../adr/0006-oas-format-from-dsa.md) (`format`).
 
 ## Inputs
 
@@ -221,6 +221,8 @@ Tags and `operationId`s use the same names.
 - A property not marked `required` in the manifest is `nullable`; an `enum`
   gets `null` added; a reference becomes `anyOf: [{$ref}, NULL_OBJECT_SCHEMA]`.
 - `integer` properties are `format: int64`, with no bounds (ADR-0005).
+- `url` and `uri` properties are `format: uri`; a `string` gets `email` or
+  `uri` from the vocabulary term in its `uri` (ADR-0006).
 - A `uuid` property is lower case v4 (`UUID.load`); `base32` the RFC 4648
   alphabet without padding.
 

@@ -24,6 +24,9 @@ Backwards incompatible:
     list no required properties.
   - Every ``integer`` schema is ``format: int64``, with no ``minimum`` or
     ``maximum`` on model properties.
+  - ``url`` and ``uri`` properties are ``format: uri``, and a ``string``
+    property is ``format: email`` or ``uri`` when its ``uri`` names an e-mail
+    or web address term, ``vcard:hasEmail`` or ``foaf:homepage`` for example.
   - ``_select``, ``_limit``, ``_sort`` and ``_page`` are separate query
     parameters instead of one ``query`` object. ``_limit`` is bounded by
     ``limits.max_limit`` of the configuration (default ``100000``).

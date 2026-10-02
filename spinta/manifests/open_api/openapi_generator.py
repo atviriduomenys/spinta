@@ -25,8 +25,11 @@ from spinta.manifests.open_api.openapi_config import (
     DECLARED_ID_PATTERN,
     EQUALS_ID_PATTERN,
     EXTERNAL_DOCS,
+    FORMAT_BY_URI,
+    FORMAT_EXAMPLE,
     HEADER_COMPONENTS,
     INFO,
+    KNOWN_PREFIXES,
     OBJECT_PROPERTY_TYPE,
     PARAMETER_COMPONENTS,
     PATH_TYPE_ACTIONS,
@@ -287,6 +290,31 @@ def _example_id(model: Model) -> str:
 
 def _example_revision(model: Model) -> str:
     return _example_uuid(f"{model.name} revision")
+
+
+def _expand_uri(model_property: Property, uri: str) -> str:
+    prefix, sep, local = uri.partition(":")
+    if not sep or local.startswith("//"):
+        return uri
+    model = getattr(model_property, "model", None)
+    dataset = getattr(getattr(model, "external", None), "dataset", None)
+    for prefixes in (getattr(dataset, "prefixes", None), getattr(getattr(model, "manifest", None), "prefixes", None)):
+        if prefixes and (declared := prefixes.get(prefix)):
+            namespace = getattr(declared, "uri", None) or (declared.get("uri") if isinstance(declared, dict) else None)
+            if namespace:
+                return namespace + local
+    if prefix in KNOWN_PREFIXES:
+        return KNOWN_PREFIXES[prefix] + local
+    return uri
+
+
+def _semantic_format(model_property: Property) -> str | None:
+    """`format` a `string` property takes from the vocabulary term in `uri`."""
+    uri = getattr(model_property, "uri", None)
+    # `URL` and `URI` are subclasses of `String` with a format of their own.
+    if not uri or type(model_property.dtype) is not String:
+        return None
+    return FORMAT_BY_URI.get(_expand_uri(model_property, uri))
 
 
 @dataclass
@@ -637,9 +665,12 @@ class DataTypeHandler:
             return {"type": "object", "properties": self.object_properties(dtype, schemas=schemas)}
 
         dtype_name = self.get_dtype_name(dtype)
-        return copy.deepcopy(
+        schema = copy.deepcopy(
             self.schema_registry.type_mapping.mappings.get(dtype_name, {"type": "string", "example": "Example value"})
         )
+        if semantic_format := _semantic_format(model_property):
+            schema["format"] = semantic_format
+        return schema
 
     def get_example_value(
         self,
@@ -663,6 +694,9 @@ class DataTypeHandler:
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return copy.deepcopy(ref_schema["example"])
             return {"_id": _example_id(dtype.model)}
+
+        if semantic_format := _semantic_format(model_property):
+            return FORMAT_EXAMPLE[semantic_format]
 
         dtype_name = self.get_dtype_name(dtype)
         return copy.deepcopy(self.schema_registry.example_values.values.get(dtype_name, "Example value"))
