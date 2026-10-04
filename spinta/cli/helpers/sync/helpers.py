@@ -105,12 +105,25 @@ def get_catalog_credentials_section(credentials_file: Path) -> str:
     return DEFAULT_CREDENTIALS_SECTION
 
 
+def read_catalog_credentials(credentials_file: Path) -> RemoteClientCredentials:
+    """Read the Catalog credentials, leaving URLs the section does not give empty for validation."""
+    section = get_catalog_credentials_section(credentials_file)
+    credentials = get_client_credentials(credentials_file, section)
+    parser = configparser.ConfigParser()
+    parser.read(credentials_file)
+    options = set(parser.options(section))
+    # get_client_credentials falls back to URLs made from the section name, e.g. `https://katalogas`.
+    if not options & {"auth_server_url", "server"}:
+        credentials.server = None
+    if not options & {"resource_server_url", "resource_server"}:
+        credentials.resource_server = None
+    return credentials
+
+
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
     """Retrieve remote client credentials from configuration."""
     config: Config = context.get("config")
-    section = get_catalog_credentials_section(config.credentials_file)
-    credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, section)
-    return credentials
+    return read_catalog_credentials(config.credentials_file)
 
 
 def validate_credentials(credentials: RemoteClientCredentials) -> None:

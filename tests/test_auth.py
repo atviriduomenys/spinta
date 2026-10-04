@@ -1672,7 +1672,16 @@ def test_token_aud_is_requested_resource(introspect_app):
     assert payload["aud"] == ["https://data.gov.lt/uapi/", "https://other.example.com/"]
 
 
-@pytest.mark.parametrize("resource", ["data.gov.lt/uapi/", "https://data.gov.lt/uapi/#fragment"])
+@pytest.mark.parametrize(
+    "resource",
+    [
+        "data.gov.lt/uapi/",
+        "https://data.gov.lt/uapi/#fragment",
+        "https://data.gov.lt/uapi/#",
+        "https://[",
+        'https://a"b',
+    ],
+)
 def test_token_rejects_invalid_resource(introspect_app, resource):
     resp = introspect_app.post(
         "/auth/token",

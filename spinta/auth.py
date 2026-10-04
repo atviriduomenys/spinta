@@ -151,9 +151,13 @@ def get_requested_audience(request: OAuth2Request) -> list[str]:
     """Return the `resource` parameters of a token request (RFC 8707)."""
     resources = request.payload.datalist.get("resource", [])
     for resource in resources:
-        parsed = urllib.parse.urlparse(resource)
-        if not parsed.scheme or parsed.fragment:
-            raise InvalidTargetError(f"The resource must be an absolute URI without a fragment: {resource}")
+        try:
+            scheme = urllib.parse.urlparse(resource).scheme
+        except ValueError:
+            scheme = ""
+        if not scheme or "#" in resource:
+            # Not echoing `resource`: error descriptions may not contain some characters it can.
+            raise InvalidTargetError("The resource must be an absolute URI without a fragment.")
     return resources
 
 
