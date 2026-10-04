@@ -1680,6 +1680,8 @@ def test_token_aud_is_requested_resource(introspect_app):
         "https://data.gov.lt/uapi/#",
         "https://[",
         'https://a"b',
+        "https://a.lt/%zz",
+        "https://a b",
     ],
 )
 def test_token_rejects_invalid_resource(introspect_app, resource):

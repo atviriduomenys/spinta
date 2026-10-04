@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import time
 import urllib.parse
 import uuid
@@ -147,15 +148,21 @@ class InvalidTargetError(OAuth2Error):
     error = "invalid_target"
 
 
+# Absolute URI (RFC 3986): scheme, then only allowed characters and percent escapes, no `#` fragment.
+RESOURCE_URI_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:(?:[A-Za-z0-9\-._~:/?\[\]@!$&'()*+,;=]|%[0-9A-Fa-f]{2})*")
+
+
 def get_requested_audience(request: OAuth2Request) -> list[str]:
     """Return the `resource` parameters of a token request (RFC 8707)."""
     resources = request.payload.datalist.get("resource", [])
     for resource in resources:
         try:
-            scheme = urllib.parse.urlparse(resource).scheme
+            urllib.parse.urlparse(resource)
         except ValueError:
-            scheme = ""
-        if not scheme or "#" in resource:
+            valid = False
+        else:
+            valid = RESOURCE_URI_RE.fullmatch(resource) is not None
+        if not valid:
             # Not echoing `resource`: error descriptions may not contain some characters it can.
             raise InvalidTargetError("The resource must be an absolute URI without a fragment.")
     return resources
