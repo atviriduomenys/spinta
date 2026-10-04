@@ -98,9 +98,9 @@ def test_app(context, app):
     key = import_key(json.loads((config.config_path / "keys/public.json").read_text()))
     token = jwt.decode(data["access_token"], key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     assert token == {
-        "iss": config.token_issuer,
+        "iss": config.auth_server_id,
         "sub": client_id,
-        "aud": config.resource_server,
+        "aud": [config.resource_server_id],
         "client_id": client_id,
         "iat": int(token["iat"]),
         "jti": token["jti"],
@@ -356,7 +356,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request, scopes: li
     assert resp.status_code == 200
 
 
-def _report_setup(rc, tmp_path, request, *, token_issuer="https://example.com"):
+def _report_setup(rc, tmp_path, request, *, auth_server_id="https://example.com"):
     confdir = pathlib.Path(__file__).parent
     pubkey = json.loads((confdir / "config/keys/public.json").read_text())
     prvkey = import_key(json.loads((confdir / "config/keys/private.json").read_text()))
@@ -365,8 +365,8 @@ def _report_setup(rc, tmp_path, request, *, token_issuer="https://example.com"):
         "default_auth_client": None,
         "token_validation_key": json.dumps(pubkey),
     }
-    if token_issuer is not None:
-        overrides["token_issuer"] = token_issuer
+    if auth_server_id is not None:
+        overrides["auth_server_id"] = auth_server_id
     context = create_test_context(rc.fork(overrides)).load()
     request.addfinalizer(context.wipe_all)
     return context, prvkey, create_test_client(context)
@@ -442,9 +442,9 @@ def test_auth_rejects_expired_token(backends, rc, tmp_path, request):
     assert resp.status_code == 401, resp.text
 
 
-def test_token_issuer_accepts_configured_issuer(backends, rc, tmp_path, request):
+def test_auth_server_id_accepts_configured_issuer(backends, rc, tmp_path, request):
     issuer = "https://central.example.com"
-    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer=issuer)
+    context, prvkey, client = _report_setup(rc, tmp_path, request, auth_server_id=issuer)
     token = _encode_token(prvkey, iss=issuer)
     resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
@@ -452,14 +452,14 @@ def test_token_issuer_accepts_configured_issuer(backends, rc, tmp_path, request)
 
 def test_auth_rejects_token_without_iat(backends, rc, tmp_path, request):
     issuer = "https://central.example.com"
-    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer=issuer)
+    context, prvkey, client = _report_setup(rc, tmp_path, request, auth_server_id=issuer)
     token = _encode_token(prvkey, iss=issuer, iat=False)
     resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 401, resp.text
 
 
-def test_token_issuer_rejects_local_issuer_when_configured(backends, rc, tmp_path, request):
-    context, prvkey, client = _report_setup(rc, tmp_path, request, token_issuer="https://central.example.com")
+def test_auth_server_id_rejects_local_issuer_when_configured(backends, rc, tmp_path, request):
+    context, prvkey, client = _report_setup(rc, tmp_path, request, auth_server_id="https://central.example.com")
     token = _encode_token(prvkey, iss="https://example.com")
     resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 401, resp.text
@@ -502,14 +502,14 @@ def test_auth_separates_aud_and_client_id(backends, rc, tmp_path, request):
         import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/public.json").read_text())),
         algorithms=ALLOWED_JWT_ALGORITHMS,
     ).claims
-    assert claims["aud"] == "https://example.com"
+    assert claims["aud"] == ["https://example.com"]
     assert claims["client_id"] == "RANDOMID"
-    assert claims["aud"] != claims["client_id"]
+    assert claims["client_id"] not in claims["aud"]
     resp = client.get("/Report", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
 
 
-@pytest.mark.parametrize("param", ["token_issuer", "resource_server"])
+@pytest.mark.parametrize("param", ["auth_server_id", "resource_server_id"])
 def test_issue_token_requires_auth_config(rc, tmp_path, param):
     prvkey = import_key(json.loads((pathlib.Path(__file__).parent / "config/keys/private.json").read_text()))
     context = create_test_context(rc.fork({"config_path": str(tmp_path), param: None}))
@@ -1574,7 +1574,7 @@ def test_introspect_active_token(introspect_app):
     assert payload["scope"] == "spinta_getall"
     assert payload["exp"] > payload["iat"]
     assert payload["jti"]
-    assert payload["aud"] == "https://example.com"
+    assert payload["aud"] == ["https://example.com"]
 
 
 def test_introspect_unknown_token(introspect_app):
@@ -1632,16 +1632,17 @@ def test_authorization_server_metadata(introspect_app):
     assert metadata["token_endpoint_auth_methods_supported"] == ["client_secret_basic"]
 
 
-def test_metadata_endpoints_use_token_issuer(backends, rc, tmp_path, request):
+def test_metadata_uses_auth_server_id_and_url(backends, rc, tmp_path, request):
     confdir = pathlib.Path(__file__).parent
     shutil.copytree(str(confdir / "config/keys"), str(tmp_path / "keys"))
     rc = rc.fork(
         {
             "config_path": str(tmp_path),
             "default_auth_client": None,
-            "server_url": "https://gateway.example.com",
-            "token_issuer": "https://auth.example.com",
-            "resource_server": "https://rs.example.com",
+            "resource_server_url": "https://gateway.example.com",
+            "auth_server_id": "https://id.example.com/auth",
+            "auth_server_url": "https://auth.example.com/",
+            "resource_server_id": "https://rs.example.com",
         }
     )
     context = create_test_context(rc).load()
@@ -1649,10 +1650,48 @@ def test_metadata_endpoints_use_token_issuer(backends, rc, tmp_path, request):
     client = create_test_client(context)
 
     metadata = client.get("/.well-known/oauth-authorization-server").json()
-    assert metadata["issuer"] == "https://auth.example.com"
+    assert metadata["issuer"] == "https://id.example.com/auth"
     assert metadata["token_endpoint"] == "https://auth.example.com/auth/token"
     assert metadata["introspection_endpoint"] == "https://auth.example.com/auth/introspect"
     assert metadata["jwks_uri"] == "https://auth.example.com/.well-known/jwks.json"
+
+
+def test_token_aud_is_requested_resource(introspect_app):
+    resp = introspect_app.post(
+        "/auth/token",
+        auth=("reader", "reader-secret"),
+        data={
+            "grant_type": "client_credentials",
+            "scope": "spinta_getall",
+            "resource": ["https://data.gov.lt/uapi/", "https://other.example.com/"],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    payload = _introspect(introspect_app, resp.json()["access_token"]).json()
+    assert payload["aud"] == ["https://data.gov.lt/uapi/", "https://other.example.com/"]
+
+
+@pytest.mark.parametrize(
+    "resource",
+    [
+        "data.gov.lt/uapi/",
+        "https://data.gov.lt/uapi/#fragment",
+        "https://data.gov.lt/uapi/#",
+        "https://[",
+        'https://a"b',
+        "https://a.lt/%zz",
+        "https://a b",
+    ],
+)
+def test_token_rejects_invalid_resource(introspect_app, resource):
+    resp = introspect_app.post(
+        "/auth/token",
+        auth=("reader", "reader-secret"),
+        data={"grant_type": "client_credentials", "scope": "spinta_getall", "resource": resource},
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_target"
 
 
 def test_metadata_issuer_matches_token_issuer(introspect_app):

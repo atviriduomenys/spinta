@@ -7,10 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import spinta
-from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL
+from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL, get_catalog_base_path
 from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
     execute_manifest_synchronization_catalog_to_agent,
 )
+from spinta.cli.helpers.sync.helpers import get_catalog_credentials_section, read_catalog_credentials
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
 from spinta.exceptions import AgentRelatedDataServiceDoesNotExist, InvalidCredentialsConfigurationException
@@ -24,6 +25,60 @@ from tests.test_api import ensure_temp_context_and_app
 DATABASE_URL = "default"  # TODO: Replace when data source logic is introduced.
 
 
+@pytest.mark.parametrize(
+    "sections, expected",
+    [
+        (["katalogas", "default"], "katalogas"),
+        (["default"], "default"),
+        ([], "default"),
+    ],
+)
+def test_get_catalog_credentials_section(tmp_path: Path, sections: list[str], expected: str):
+    credentials_file = tmp_path / "credentials.cfg"
+    credentials_file.write_text("".join(f"[{section}]\nclient = spinta\n" for section in sections))
+    assert get_catalog_credentials_section(credentials_file) == expected
+
+
+@pytest.mark.parametrize(
+    "resource_server",
+    [
+        "https://data.gov.lt",
+        "https://data.gov.lt/",
+        "https://data.gov.lt/uapi",
+        "https://data.gov.lt/uapi/",
+    ],
+)
+def test_get_catalog_base_path(resource_server: str):
+    credentials = RemoteClientCredentials(
+        section="katalogas",
+        remote="katalogas",
+        client="client",
+        secret="secret",
+        server="https://auth.example.com",
+        resource_server=resource_server,
+        scopes="scope1",
+    )
+    assert get_catalog_base_path(credentials) == "https://data.gov.lt/uapi/datasets/gov/vssa/ror/dcat"
+
+
+@pytest.mark.parametrize(
+    "options, missing",
+    [
+        ("auth_server_url = https://auth.example.com\n", "resource_server_url"),
+        ("resource_server_url = https://data.gov.lt/uapi/\n", "auth_server_url"),
+        ("server = https://auth.example.com\nresource_server = https://data.gov.lt\n", None),
+    ],
+)
+def test_read_catalog_credentials_keeps_missing_urls_empty(tmp_path: Path, options: str, missing: str | None):
+    credentials_file = tmp_path / "credentials.cfg"
+    credentials_file.write_text(f"[katalogas]\n{options}client = spinta\nsecret = secret\nscopes = scope1\n")
+
+    credentials = read_catalog_credentials(credentials_file)
+
+    urls = {"auth_server_url": credentials.server, "resource_server_url": credentials.resource_server}
+    assert [name for name, url in urls.items() if not url] == ([missing] if missing else [])
+
+
 @pytest.fixture
 def credentials() -> Iterator[RemoteClientCredentials]:
     credentials = RemoteClientCredentials(
@@ -34,8 +89,6 @@ def credentials() -> Iterator[RemoteClientCredentials]:
         server="https://example.com",
         resource_server="https://example2.com",
         scopes="scope1 scope2",
-        organization="vssa",
-        organization_type="gov",
     )
     with patch("spinta.cli.sync.get_configuration_credentials", return_value=credentials):
         yield credentials
@@ -206,6 +259,7 @@ class TestSynchronization:
 
         assert exception.value.status_code == HTTPStatus.BAD_REQUEST
         assert "Credentials.cfg is missing required configuration credentials." in exception.value.message
+        assert "resource_server_url, auth_server_url, client" in exception.value.message
 
     def test_failure_auth_server_returned_unexpected_response(
         self,

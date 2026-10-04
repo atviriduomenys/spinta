@@ -44,11 +44,13 @@ def extract_identifier_from_response(response: Response, response_type: str) -> 
     return identifier
 
 
+def get_catalog_base_path(credentials: RemoteClientCredentials) -> str:
+    """Catalog API base path; the resource server URL may end with `/uapi` (new) or not (old)."""
+    resource_server = (credentials.resource_server or credentials.server).rstrip("/").removesuffix("/uapi")
+    return f"{resource_server}{STATIC_BASE_PATH_TAIL}"
+
+
 def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str, dict[str, str]]:
     access_token = get_access_token(credentials)
     headers = {"Authorization": f"Bearer {access_token}"}
-
-    resource_server = credentials.resource_server or credentials.server
-    base_path = f"{resource_server}{STATIC_BASE_PATH_TAIL}"
-
-    return base_path, headers
+    return get_catalog_base_path(credentials), headers

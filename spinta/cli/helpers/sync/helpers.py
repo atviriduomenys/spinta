@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import configparser
 from io import StringIO
 from pathlib import Path
 from typing import Optional, Union
@@ -7,7 +8,7 @@ from typing import Optional, Union
 from typer import Context as TyperContext
 from typer import echo
 
-from spinta.auth import DEFAULT_CREDENTIALS_SECTION
+from spinta.auth import DEFAULT_CREDENTIALS_SECTION, KATALOGAS_CREDENTIALS_SECTION
 from spinta.cli.helpers.store import load_manifest
 from spinta.cli.helpers.sync import ContentType
 from spinta.cli.manifest import _read_and_return_manifest
@@ -95,21 +96,42 @@ def prepare_local_manifest_file(manifest_path: str) -> None:
         raise ManifestFileInvalidPath(manifest_path=manifest_path)
 
 
+def get_catalog_credentials_section(credentials_file: Path) -> str:
+    """Return the `credentials.cfg` section with the Catalog credentials, `katalogas` or the old `default`."""
+    credentials = configparser.ConfigParser()
+    credentials.read(credentials_file)
+    if credentials.has_section(KATALOGAS_CREDENTIALS_SECTION):
+        return KATALOGAS_CREDENTIALS_SECTION
+    return DEFAULT_CREDENTIALS_SECTION
+
+
+def read_catalog_credentials(credentials_file: Path) -> RemoteClientCredentials:
+    """Read the Catalog credentials, leaving URLs the section does not give empty for validation."""
+    section = get_catalog_credentials_section(credentials_file)
+    credentials = get_client_credentials(credentials_file, section)
+    parser = configparser.ConfigParser()
+    parser.read(credentials_file)
+    options = set(parser.options(section))
+    # get_client_credentials falls back to URLs made from the section name, e.g. `https://katalogas`.
+    if not options & {"auth_server_url", "server"}:
+        credentials.server = None
+    if not options & {"resource_server_url", "resource_server"}:
+        credentials.resource_server = None
+    return credentials
+
+
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
     """Retrieve remote client credentials from configuration."""
     config: Config = context.get("config")
-    credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
-    return credentials
+    return read_catalog_credentials(config.credentials_file)
 
 
 def validate_credentials(credentials: RemoteClientCredentials) -> None:
     """Validates the credentials required for calls to the Catalog."""
     required = {
-        "resource_server": credentials.resource_server,
-        "server": credentials.server,
+        "resource_server_url": credentials.resource_server,
+        "auth_server_url": credentials.server,
         "client": credentials.client,
-        "organization_type": credentials.organization_type,
-        "organization": credentials.organization,
     }
 
     missing = [name for name, value in required.items() if not value]

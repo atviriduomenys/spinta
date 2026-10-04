@@ -71,7 +71,8 @@ def load(context: Context, config: Config) -> Config:
         rc.get("data_path") or DEFAULT_DATA_PATH,
     )
     config.credentials_file = pathlib.Path(rc.get("credentials_file") or DEFAULT_CONFIG_PATH / "credentials.cfg")
-    config.server_url = (rc.get("server_url") or "").rstrip("/")
+    config.resource_server_url = (rc.get("resource_server_url") or rc.get("server_url") or "").rstrip("/")
+    config.server_url = config.resource_server_url
     config.scope_prefix = rc.get("scope_prefix")
     config.scope_formatter = rc.get("scope_formatter", cast=importstr)
     config.scope_prefix_udts = rc.get("scope_prefix_udts")
@@ -92,8 +93,9 @@ def load(context: Context, config: Config) -> Config:
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
-    config.token_issuer = rc.get("token_issuer")
-    config.resource_server = rc.get("resource_server")
+    config.auth_server_id = rc.get("auth_server_id")
+    config.auth_server_url = (rc.get("auth_server_url") or "").rstrip("/") or None
+    config.resource_server_id = rc.get("resource_server_id")
     config.downloaded_public_keys_file = pathlib.Path(
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )
