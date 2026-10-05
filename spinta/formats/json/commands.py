@@ -8,7 +8,7 @@ from spinta.components import Context, Node, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.json.components import Json
 from spinta.types.text.components import Text
-from spinta.utils.response import aiter, peek_and_stream
+from spinta.utils.response import peek_and_stream
 
 
 @commands.render.register(Context, Request, Node, Json)
@@ -51,7 +51,7 @@ def _render(
         # a list or a generator of dicts.
         assert not isinstance(data, dict), data
         return StreamingResponse(
-            aiter(peek_and_stream(fmt(data))),
+            peek_and_stream(fmt(data)),
             status_code=status_code,
             media_type=fmt.content_type,
             headers=headers,

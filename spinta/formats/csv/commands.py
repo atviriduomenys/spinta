@@ -15,7 +15,6 @@ from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular, write_csv
 from spinta.utils.nestedstruct import flatten, sepgetter
-from spinta.utils.response import aiter
 
 
 @commands.render.register(Context, Request, Model, Csv)
@@ -34,7 +33,7 @@ def render(
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{model.basename}.csv"'
     return StreamingResponse(
-        aiter(_render_model_csv(context, model, action, params, data)),
+        _render_model_csv(context, model, action, params, data),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
@@ -59,7 +58,7 @@ def render(
         headers = headers or {}
         headers["Content-Disposition"] = f'attachment; filename="{manifest.name}.csv"'
         return StreamingResponse(
-            aiter(_render_manifest_csv(rows)),
+            _render_manifest_csv(rows),
             status_code=status_code,
             media_type=fmt.content_type,
             headers=headers,

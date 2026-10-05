@@ -9,7 +9,7 @@ from spinta import commands
 from spinta.components import Context, Model, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.ascii.components import Ascii
-from spinta.utils.response import aiter, peek_and_stream
+from spinta.utils.response import peek_and_stream
 
 
 @commands.render.register(Context, Request, Model, Ascii)
@@ -59,18 +59,16 @@ def _render(
         max_col_width = 42
 
     return StreamingResponse(
-        aiter(
-            peek_and_stream(
-                fmt(
-                    context,
-                    model,
-                    action,
-                    params,
-                    data,
-                    width,
-                    max_col_width,
-                    max_value_length,
-                )
+        peek_and_stream(
+            fmt(
+                context,
+                model,
+                action,
+                params,
+                data,
+                width,
+                max_col_width,
+                max_value_length,
             )
         ),
         status_code=status_code,

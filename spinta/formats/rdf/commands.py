@@ -244,7 +244,7 @@ def render(
     )
 
 
-async def _stream(context: Context, request: Request, model: Model, action: Action, data):
+def _stream(context: Context, request: Request, model: Model, action: Action, data):
     namespaces = []
     prefixes = _get_available_prefixes(context, model)
     root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
@@ -265,7 +265,7 @@ async def _stream(context: Context, request: Request, model: Model, action: Acti
     yield f"</{root_name}>\n"
 
 
-async def _stream_namespace(context: Context, request: Request, ns: Namespace, action: Action, data):
+def _stream_namespace(context: Context, request: Request, ns: Namespace, action: Action, data):
     namespaces = []
     models = commands.traverse_ns_models(
         context,
