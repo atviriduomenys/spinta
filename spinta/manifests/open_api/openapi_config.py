@@ -128,17 +128,28 @@ KNOWN_PREFIXES = {
     "dcat": "http://www.w3.org/ns/dcat#",
 }
 
+#: Namespaces DSA files give for these vocabularies instead of the ones above,
+#: read as the vocabulary they mean.
+NAMESPACE_ALIASES = {
+    "https://www.w3.org/TR/vcard-rdf/": "http://www.w3.org/2006/vcard/ns#",
+    "https://www.w3.org/2006/vcard/ns#": "http://www.w3.org/2006/vcard/ns#",
+    "https://xmlns.com/foaf/0.1/": "http://xmlns.com/foaf/0.1/",
+    "https://schema.org/": "http://schema.org/",
+    "https://www.w3.org/ns/dcat#": "http://www.w3.org/ns/dcat#",
+}
+
+#: Namespaces as correct as the ones in `KNOWN_PREFIXES`, so not warned about.
+STANDARD_NAMESPACES = frozenset([*KNOWN_PREFIXES.values(), "https://schema.org/"])
+
 #: `format` of a `string` property, by the vocabulary term in its `uri`, see
 #: ADR-0006. `foaf:mbox` is left out: its value is a `mailto:` URI.
 FORMAT_BY_URI = {
     "http://www.w3.org/2006/vcard/ns#email": "email",
     "http://www.w3.org/2006/vcard/ns#hasEmail": "email",
     "http://schema.org/email": "email",
-    "https://schema.org/email": "email",
     "http://xmlns.com/foaf/0.1/homepage": "uri",
     "http://xmlns.com/foaf/0.1/page": "uri",
     "http://schema.org/url": "uri",
-    "https://schema.org/url": "uri",
     "http://www.w3.org/ns/dcat#accessURL": "uri",
     "http://www.w3.org/ns/dcat#downloadURL": "uri",
     "http://www.w3.org/ns/dcat#landingPage": "uri",

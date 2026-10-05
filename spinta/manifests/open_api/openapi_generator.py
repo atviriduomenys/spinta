@@ -29,6 +29,7 @@ from spinta.manifests.open_api.openapi_config import (
     HEADER_COMPONENTS,
     INFO,
     KNOWN_PREFIXES,
+    NAMESPACE_ALIASES,
     OBJECT_PROPERTY_TYPE,
     PARAMETER_COMPONENTS,
     PATH_TYPE_ACTIONS,
@@ -42,6 +43,7 @@ from spinta.manifests.open_api.openapi_config import (
     SCOPE_DESCRIPTION,
     SCOPE_TEMPLATE,
     SECURITY_SCHEMES,
+    STANDARD_NAMESPACES,
     STANDARD_OBJECT_PROPERTIES,
     UNPUBLISHED_REFERENCE,
     VERSION,
@@ -280,9 +282,22 @@ def _expand_uri(model_property: Property, uri: str) -> str:
         if prefixes and (declared := prefixes.get(prefix)):
             namespace = getattr(declared, "uri", None) or (declared.get("uri") if isinstance(declared, dict) else None)
             if namespace:
-                return namespace + local
+                if prefix in KNOWN_PREFIXES and namespace not in STANDARD_NAMESPACES:
+                    warnings.warn(
+                        f"Prefix {prefix!r} is declared as {namespace!r}, while its namespace is "
+                        f"{KNOWN_PREFIXES[prefix]!r}; fix the prefix in the DSA.",
+                        UserWarning,
+                    )
+                return _normalize_namespace(namespace + local)
     if prefix in KNOWN_PREFIXES:
         return KNOWN_PREFIXES[prefix] + local
+    return uri
+
+
+def _normalize_namespace(uri: str) -> str:
+    for alias, namespace in NAMESPACE_ALIASES.items():
+        if uri.startswith(alias):
+            return namespace + uri[len(alias) :]
     return uri
 
 
@@ -292,7 +307,7 @@ def _semantic_format(model_property: Property) -> str | None:
     # `URL` and `URI` are subclasses of `String` with a format of their own.
     if not uri or type(model_property.dtype) is not String:
         return None
-    return FORMAT_BY_URI.get(_expand_uri(model_property, uri))
+    return FORMAT_BY_URI.get(_normalize_namespace(_expand_uri(model_property, uri)))
 
 
 @dataclass

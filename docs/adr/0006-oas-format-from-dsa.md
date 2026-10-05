@@ -38,6 +38,12 @@ text markup (`html`, `md`, `rst`, `tei` of a string with a language tag).
    | `foaf:homepage`, `foaf:page`, `schema:url`, `dcat:accessURL`, `dcat:downloadURL`, `dcat:landingPage` | `uri` |
 
    The example of such a property is one of that format.
+
+   A namespace DSA files give in place of the right one, such as
+   `https://www.w3.org/TR/vcard-rdf/` for `vcard` or `https` for `http`, is read
+   as the vocabulary it means. A known prefix declared with a namespace other
+   than its own is reported with a warning, so the DSA can be fixed.
+
 3. Nothing is derived from `property.ref` of primitive types.
 
 ## Alternatives considered

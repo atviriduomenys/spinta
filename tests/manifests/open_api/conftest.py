@@ -316,6 +316,17 @@ id | d | r | b | m | property     | type    | ref   | level | access | uri
    |   |   |   |   | pastai[]     | string  |       | 4     | open   | vcard:email
 """)
 
+#: `vcard` declared as the address of the vCard RDF document, as RRT does.
+MANIFEST_WITH_MISDECLARED_PREFIX = striptable("""
+id | d | r | b | m | property     | type    | ref   | level | access | uri
+   | datasets/gov/rc/jadis/at280/1/ds |   |       |       |        |
+   |                              | prefix  | vcard |       |        | https://www.w3.org/TR/vcard-rdf/
+   |   | test                     | memory  |       |       |        |
+   |   |   |   | Israsas          |         | id    |       |        |
+   |   |   |   |   | id           | string required |  | 4 | open |
+   |   |   |   |   | el_pastas    | string  |       | 4     | open   | vcard:hasEmail
+""")
+
 MANIFEST_WITH_PRIMITIVE_ARRAYS = striptable("""
 id | d | r | b | m | property   | type    | ref | level | access
    | datasets/gov/rc/jadis/at280/1/ds |   |     |       |
