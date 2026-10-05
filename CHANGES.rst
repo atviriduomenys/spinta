@@ -15,8 +15,11 @@ Bug fixes:
   'exists'``. The value is now wrapped with ``pathlib.Path``.
 - Fixed incorrect citus distribution script generation when using `spinta migrate`
   on fresh database, when manifest contains models with cross schema references (`#2008`_).
+- Fixed `aiter` function not working as `async` iterator (no awaits), which caused
+  issues with services that utilized await workflow in order to run cancellation checks (`#2047`_).
 
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
+.. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
 
 1.1.0 (2026-08-19)
 =====================
