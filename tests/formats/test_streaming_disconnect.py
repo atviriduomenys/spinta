@@ -24,7 +24,7 @@ from spinta.formats.json.components import Json
 from spinta.formats.jsonlines.components import JsonLines
 from spinta.formats.rdf.components import Rdf
 from spinta.formats.xlsx.components import Xlsx
-from spinta.utils.response import aiter
+from spinta.utils.aiotools import aiter
 
 if TYPE_CHECKING:
     from tests.formats.conftest import LiveResponse
@@ -144,8 +144,8 @@ def test_xlsx_stops_after_client_disconnect(
     assert caplog.messages == []
 
 
-@pytest.mark.parametrize("use_aiter", [False, True], ids=["sync", "aiter"])
-def test_aiter_reproduces_socket_warnings(
+@pytest.mark.parametrize("use_aiter", [True, True], ids=["sync", "aiter"])
+def test_aiter_does_not_reproduce_socket_warnings(
     use_aiter: bool,
     live_response: LiveResponse,
     caplog: pytest.LogCaptureFixture,
@@ -183,12 +183,8 @@ def test_aiter_reproduces_socket_warnings(
             finally:
                 continue_reading.set()
 
-    if use_aiter:
-        assert len(chunks_read) == 1000
-        assert caplog.messages.count("socket.send() raised exception.") > 1
-    else:
-        assert 0 < len(chunks_read) < 1000
-        assert caplog.messages == []
+    assert 0 < len(chunks_read) < 1000
+    assert caplog.messages == []
 
 
 def _format_params(fmt: Format) -> UrlParams:

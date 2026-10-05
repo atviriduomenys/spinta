@@ -42,6 +42,7 @@ from spinta.types.datatype import (
 )
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
+from spinta.utils.aiotools import aiter
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
@@ -214,7 +215,7 @@ def render(
     headers["Content-Disposition"] = f'attachment; filename="{model.basename}.rdf"'
 
     return StreamingResponse(
-        _stream(context, request, model, action, data),
+        aiter(_stream(context, request, model, action, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
@@ -237,7 +238,7 @@ def render(
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{ns.basename}.rdf"'
     return StreamingResponse(
-        _stream_namespace(context, request, ns, action, data),
+        aiter(_stream_namespace(context, request, ns, action, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,

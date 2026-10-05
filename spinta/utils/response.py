@@ -262,11 +262,6 @@ def peek_and_stream(stream):
     return _iter()
 
 
-async def aiter(stream):
-    for data in stream:
-        yield data
-
-
 async def get_request_data(node: Node, request: Request):
     ct = request.headers.get("content-type")
     if ct != "application/json":
