@@ -216,7 +216,8 @@ Tags and `operationId`s use the same names.
   gets `null` added; a reference becomes `anyOf: [{$ref}, NULL_OBJECT_SCHEMA]`.
 - `integer` properties are `format: int64`, with no bounds (ADR-0005).
 - `url` and `uri` properties are `format: uri`; a `string` gets `email` or
-  `uri` from the vocabulary term in its `uri` (ADR-0006).
+  `uri` from the vocabulary term in its `uri`, a misdeclared `vcard`, `foaf`,
+  `schema` or `dcat` namespace being read as the one meant (ADR-0006).
 - A `uuid` property is lower case v4 (`UUID.load`); `base32` the RFC 4648
   alphabet without padding.
 

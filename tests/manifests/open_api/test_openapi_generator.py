@@ -43,6 +43,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_FILE_AND_DECLARED_REVISION,
     MANIFEST_WITH_INTEGER_ID,
     MANIFEST_WITH_INTERMEDIATE_TABLE,
+    MANIFEST_WITH_MISDECLARED_PREFIX,
     MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
     MANIFEST_WITH_PRIMITIVE_ARRAYS,
@@ -1963,6 +1964,16 @@ def test_format_follows_from_type_and_uri(open_manifest_path_factory):
     assert properties["nuoroda"]["format"] == "uri"
     assert properties["pastai"]["items"]["format"] == "email"
     assert not list(_validator(open_api_spec, schema).iter_errors(schema["example"]))
+
+
+def test_misdeclared_vocabulary_prefix_still_gives_a_format(open_manifest_path_factory):
+    """A namespace DSA files get wrong is read as the one meant, with a warning."""
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_MISDECLARED_PREFIX)
+
+    with pytest.warns(UserWarning, match="Prefix 'vcard' is declared as 'https://www.w3.org/TR/vcard-rdf/'"):
+        open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    assert open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["el_pastas"]["format"] == "email"
 
 
 def test_arrays_of_arrays_keep_every_layer(open_manifest_path_factory):
