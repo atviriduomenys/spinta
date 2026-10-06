@@ -53,5 +53,10 @@ script_registry.register(
 script_registry.register(AdminScript(name=Script.ADD_LOCAL_IDS.value, run=add_local_ids, required=[]))
 script_registry.register(AdminScript(name=Script.REMOVE_LOCAL_IDS.value, run=remove_local_ids, required=[]))
 script_registry.register(
-    AdminScript(name=Script.COMPRESS_CHANGELOGS.value, run=compress_changelogs, check=check_if_need_to_compress_changelogs,targets={ScriptTarget.BACKEND.value})
+    AdminScript(
+        name=Script.COMPRESS_CHANGELOGS.value,
+        run=compress_changelogs,
+        check=check_if_need_to_compress_changelogs,
+        targets={ScriptTarget.BACKEND.value},
+    )
 )
