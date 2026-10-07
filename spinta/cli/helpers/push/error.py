@@ -1,12 +1,10 @@
-from typing import Dict, Iterable, List
-
 import requests
 import sqlalchemy as sa
 import tqdm
 
 from spinta import commands
-from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.push.components import PushRows
 from spinta.cli.helpers.push.utils import construct_where_condition_from_page
 from spinta.cli.helpers.push.write import prepare_rows_with_errors
 from spinta.components import Context, Model, get_page_size, pagination_enabled
@@ -16,15 +14,16 @@ from spinta.exceptions import InfiniteLoopWithPagination, TooShortPageSize
 def get_rows_with_errors(
     client: requests.Session,
     server: str,
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
-    counts: Dict[str, int],
+    counts: dict[str, int],
     retry: int,
     timeout: tuple[float, float],
+    *,
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None,
-):
+    error_counter: ErrorCounter | None = None,
+) -> PushRows:
     rows = _iter_rows_with_errors(
         client,
         server,
@@ -43,7 +42,7 @@ def get_rows_with_errors(
 
 
 def get_rows_with_errors_counts(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
 ) -> dict:
@@ -61,14 +60,14 @@ def get_rows_with_errors_counts(
 def _iter_rows_with_errors(
     client: requests.Session,
     server: str,
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
-    counts: Dict[str, int],
+    counts: dict[str, int],
     timeout: tuple[float, float],
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None,
-) -> Iterable[ModelRow]:
+    error_counter: ErrorCounter | None = None,
+) -> PushRows:
     conn = context.get("push.state.conn")
     config = context.get("config")
 
@@ -88,7 +87,16 @@ def _iter_rows_with_errors(
         if not no_progress_bar:
             rows = tqdm.tqdm(rows, model.name, ascii=True, total=counts.get(model.name), leave=False)
 
-        yield from prepare_rows_with_errors(client, server, context, rows, model, table, timeout, error_counter)
+        yield from prepare_rows_with_errors(
+            client,
+            server,
+            context,
+            rows,
+            model,
+            table,
+            timeout,
+            error_counter=error_counter,
+        )
 
 
 def _get_error_rows_with_page(

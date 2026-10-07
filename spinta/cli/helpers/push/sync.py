@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List
+from typing import Any
 
 import sqlalchemy as sa
 import tqdm
@@ -18,7 +18,13 @@ from spinta.core.enums import Action
 from spinta.utils.response import get_request_with_retries
 
 
-def _build_push_state_sync_url(server: str, model: str, page: str, page_columns: List[str], limit: int):
+def _build_push_state_sync_url(
+    server: str,
+    model: str,
+    page: str,
+    page_columns: list[str],
+    limit: int,
+):
     base = f"{server}/{model}?format(json)&"
 
     required = ["_id", "_revision", "_page", "checksum()"]
@@ -92,7 +98,11 @@ def _fetch_all_model_data(
             break
 
 
-def _get_state_rows_with_id(context: Context, table: sa.Table, size: int) -> sa.engine.LegacyCursorResult:
+def _get_state_rows_with_id(
+    context: Context,
+    table: sa.Table,
+    size: int,
+) -> sa.engine.LegacyCursorResult:
     conn = context.get("push.state.conn")
 
     model_page = Page()
@@ -119,7 +129,11 @@ def _get_state_rows_with_id(context: Context, table: sa.Table, size: int) -> sa.
         yield from get_paginated_values(model_page, page_meta, rows, extract_state_page_id_key)
 
 
-def _delete_row_from_push_state(conn: sa.engine.Connection, table: sa.Table, id_: str):
+def _delete_row_from_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    id_: str,
+):
     conn.execute(table.delete().where(table.c.id == id_))
 
 
@@ -180,6 +194,7 @@ def _update_row_from_push_state(
                 "revision": target_row.get("_revision"),
                 "checksum": target_checksum,
                 "pushed": datetime.datetime.now(),
+                "session_id": None,
                 "error": False,
                 "data": None,
                 **page_mapping,
@@ -189,7 +204,11 @@ def _update_row_from_push_state(
 
 
 def _insert_row_to_push_state(
-    context: Context, model: Model, conn: sa.engine.Connection, table: sa.Table, target_row: dict
+    context: Context,
+    model: Model,
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    target_row: dict,
 ):
     page_keys = []
     reserved_keys = ["_id", "_revision", "checksum()"]
@@ -211,6 +230,7 @@ def _insert_row_to_push_state(
                 "revision": target_row.get("_revision"),
                 "checksum": target_row.get("checksum()"),
                 "pushed": datetime.datetime.now(),
+                "session_id": None,
                 "error": False,
                 "data": None,
                 **page_mapping,
@@ -223,7 +243,7 @@ def sync_push_state(
     context: Context,
     client,
     server: str,
-    models: List[Model],
+    models: list[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
     metadata: sa.MetaData,
