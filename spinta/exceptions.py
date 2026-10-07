@@ -1265,3 +1265,16 @@ class Base32TypeOnlyAllowedOnIdOrRevision(BaseError):
 
 class ValuesForIdCantHaveSpecialSymbols(BaseError):
     template = "The value used for _id can not have special symbols. Found {value} value on {property} property. Change _id type to Base32 or remove the special symbol."
+
+
+class ExceededMaximumLimit(UserError):
+    template = """
+        Currently {model_name!r} model only supports up to limit({maximum_limit}), but was given limit({given_limit}).
+    """
+
+
+class LimitOrPageIsRequired(UserError):
+    template = """
+        Currently {model_name!r} model data exceeds maximum limit of {maximum_limit} per request.
+        Please use page() function to get paginated data or set limit() with value of <= {maximum_limit}.
+    """

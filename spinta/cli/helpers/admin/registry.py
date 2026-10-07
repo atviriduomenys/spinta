@@ -6,6 +6,7 @@ from spinta.cli.helpers.admin.scripts.changelog import cli_requires_changelog_mi
 from spinta.cli.helpers.admin.scripts.citus_shard import cli_requires_citus_distribution, migrate_citus_distributions
 from spinta.cli.helpers.admin.scripts.deduplicate import cli_requires_deduplicate_migrations, migrate_duplicates
 from spinta.cli.helpers.admin.scripts.enums import gather_invalid_enum_values
+from spinta.cli.helpers.admin.scripts.model_limits import generate_model_limits
 from spinta.cli.helpers.admin.scripts.remove_local_ids import remove_local_ids
 from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
 from spinta.cli.helpers.script.registry import script_registry
@@ -48,3 +49,10 @@ script_registry.register(
 )
 script_registry.register(AdminScript(name=Script.ADD_LOCAL_IDS.value, run=add_local_ids, required=[]))
 script_registry.register(AdminScript(name=Script.REMOVE_LOCAL_IDS.value, run=remove_local_ids, required=[]))
+script_registry.register(
+    AdminScript(
+        name=Script.MODEL_LIMIT.value,
+        run=generate_model_limits,
+        targets={ScriptTarget.BACKEND.value},
+    )
+)

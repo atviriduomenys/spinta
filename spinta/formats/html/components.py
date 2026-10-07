@@ -12,6 +12,7 @@ class Html(Format):
     }
     params = {}
     streamable = False
+    limit = 100
 
 
 class Color(str, Enum):
