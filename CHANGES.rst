@@ -18,6 +18,12 @@ Bug fixes:
 
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
 
+Improvements:
+
+- Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
+
+.. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
+
 1.1.0 (2026-08-19)
 =====================
 
