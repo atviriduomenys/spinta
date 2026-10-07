@@ -84,10 +84,8 @@ class CompressionStats:
 @dispatch(Model, PostgreSQL)
 def _compress_model_changelog(model: Model, backend: PostgreSQL):
     with backend.begin() as conn:
-        # Remove unneeded data
-        # TODO this should come from model
-        cutoff = datetime(year=2024, month=5, day=17)
-        compressed_at = datetime(year=2035, month=1, day=1, hour=12)
+        # retention_policy cannot be None at this point, since _compress_model_changelog can only be called on valid models
+        cutoff: datetime = datetime.now() - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
 
         total_start = perf_counter()
@@ -101,7 +99,6 @@ def _compress_model_changelog(model: Model, backend: PostgreSQL):
             conn,
             changelog_table,
             cutoff=cutoff,
-            compressed_at=compressed_at,
         )
         cli_message(f"COMPRESSED: Compressed {stats.lifecycles} lifecycles in changelog.")
         cli_message(
@@ -600,6 +597,10 @@ def _compress_model_changelog(model: Model, backend: Backend):
 @dispatch(Model, PostgreSQL)
 def _requires_changelog_compression(model: Model, backend: PostgreSQL) -> bool:
     if model.name.startswith("_"):
+        return False
+
+    if not model.external or not model.external.dataset or not model.external.dataset.enable_retention_policy:
+        cli_message(f"Skipped {model.name} changelog compression, model's dataset has disabled retention policy")
         return False
 
     return True

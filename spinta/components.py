@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import json
 import pathlib
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1168,6 +1169,10 @@ class Config:
     file_log_path: pathlib.Path
 
     default_distribution_strategy: DistributionStrategy | None = None
+
+    # Retention policy
+    minimal_retention_periodicity: timedelta
+    default_retention_periodicity: timedelta | None = None
 
     def __init__(self):
         self.commands = _CommandsConfig()
