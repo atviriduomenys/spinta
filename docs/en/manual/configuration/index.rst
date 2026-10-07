@@ -87,6 +87,36 @@ Output::
   ---------------  -----------------  -----
   /tmp/custom.yml  backends.foo.type  postgresql
 
+Response compression
+********************
+
+Spinta uses gzip compression when the client accepts it through the
+`Accept-Encoding` request header. The `minimum_encoding_size` option controls
+the minimum uncompressed response size in bytes. Its default is `512`.
+
+Set the option in a configuration file, for example:
+
+.. code-block:: yaml
+
+    minimum_encoding_size: 10k
+
+Values can be integer byte counts or strings with a unit suffix such as `b`,
+`k`, `m`, or `g`. Units use decimal multiples: `10k` means 10,000 bytes.
+The equivalent environment variable is `SPINTA_MINIMUM_ENCODING_SIZE`.
+
+Complete responses below the threshold are sent without compression. Streaming
+responses can be compressed even when their total size is below the threshold,
+because their final size is not known when transmission starts. Responses with
+an existing `Content-Encoding` and `text/event-stream` responses are excluded
+from gzip compression.
+
+When a request accepts gzip, responses use weak ETags, such as `W/"revision"`,
+even if the response is below the compression threshold. This lets an early
+`304 Not Modified` response use the same ETag as the corresponding `200 OK`
+response without rendering the body to determine its size. Requests using
+`Accept-Encoding: identity` retain strong revision ETags, such as `"revision"`.
+
+
 Keymap
 ******
 

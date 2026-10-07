@@ -62,9 +62,9 @@ def test_cache_control_postgres_get_one(context, app):
     )
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
-    # Vary might change depending on GzipMiddleware min size parameter, in this case response was less than 512 bytes, so it did not add compression
+    # This response is below the compression threshold, but still varies by encoding.
     assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization, Accept-Encoding"
-    assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
+    assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
@@ -237,10 +237,54 @@ def test_cache_control_etag(context, app):
     assert resp.status_code == 304
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["Vary"] == ("Accept, Accept-Language, Authorization, Accept-Encoding")
-    assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
+    assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
+
+
+@pytest.mark.parametrize(
+    "accept_encoding,status_size,content_encoding,etag_prefix",
+    [
+        ("gzip", 1, None, "W/"),
+        ("gzip", 1000, "gzip", "W/"),
+        ("identity", 1, None, ""),
+        ("identity", 1000, None, ""),
+        ("br", 1, None, ""),
+        ("", 1, None, ""),
+        ("gzip, deflate", 1, None, "W/"),
+        ("gzip, deflate", 1000, "gzip", "W/"),
+    ],
+)
+@pytest.mark.parametrize("condition", ["If-None-Match", "If-Modified-Since"])
+def test_cache_control_etag_encoding(
+    context, app, accept_encoding, status_size, content_encoding, etag_prefix, condition
+):
+    model = "backends/postgres/Report"
+    app.authmodel(model, ["insert", "getone"])
+
+    resp = app.post(f"/{model}", json={"_type": "Report", "status": "1" * status_size})
+    assert resp.status_code == 201, resp.text
+    entry_id = resp.json()["_id"]
+    revision = resp.json()["_revision"]
+
+    resp = app.get(f"/{model}/{entry_id}", headers={"Accept-Encoding": accept_encoding})
+    assert resp.status_code == 200, resp.text
+    assert resp.headers.get("Content-Encoding") == content_encoding
+    assert resp.headers["ETag"] == f'{etag_prefix}"{revision}"'
+    etag = resp.headers["ETag"]
+    last_modified = resp.headers["Last-Modified"]
+    vary = resp.headers["Vary"]
+
+    condition_value = etag if condition == "If-None-Match" else last_modified
+    resp = app.get(
+        f"/{model}/{entry_id}",
+        headers={"Accept-Encoding": accept_encoding, condition: condition_value},
+    )
+    assert resp.status_code == 304, resp.text
+    assert resp.headers["ETag"] == etag
+    assert resp.headers["Vary"] == vary
+    assert resp.content == b""
 
 
 def test_cache_control_last_modified(context, app):
@@ -303,7 +347,7 @@ def test_cache_control_last_modified(context, app):
     )
     assert resp.status_code == 304
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
-    assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
+    assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
@@ -355,7 +399,7 @@ def test_cache_control_priority(context, app):
     )
     assert resp.status_code == 304
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
-    assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
+    assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
@@ -370,7 +414,7 @@ def test_cache_control_priority(context, app):
     )
     assert resp.status_code == 304
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
-    assert resp.headers["ETag"] == f'"{changelog_data["_revision"]}"'
+    assert resp.headers["ETag"] == f'W/"{changelog_data["_revision"]}"'
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )

@@ -99,7 +99,7 @@ async def test_gzip_preserves_template_debug_metadata(accept_encoding: str):
     "accept_encoding,body_size,etag,expected_encoding,expected_etag",
     [
         ("gzip", 100, '"revision"', "gzip", 'W/"revision"'),
-        ("gzip", 99, '"revision"', None, '"revision"'),
+        ("gzip", 99, '"revision"', None, 'W/"revision"'),
         ("identity", 100, '"revision"', None, '"revision"'),
         ("gzip", 100, 'W/"revision"', "gzip", 'W/"revision"'),
         ("gzip", 100, None, "gzip", None),
@@ -140,7 +140,7 @@ async def test_gzip_preserves_existing_content_encoding():
 
     headers = _response_headers(messages)
     assert headers["content-encoding"] == "br"
-    assert headers["etag"] == '"revision"'
+    assert headers["etag"] == 'W/"revision"'
     assert _response_body(messages) == body
 
 
@@ -233,3 +233,30 @@ async def test_gzip_passes_through_non_http_events(scope_type: str, scope_messag
 
     middleware = DebugAwareGZipMiddleware(app)
     assert await _collect_messages(middleware, {"type": scope_type}) == [{"type": scope_message}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "accept_encoding,expected_etag",
+    [
+        ("gzip", 'W/"revision"'),
+        ("gzip, deflate", 'W/"revision"'),
+        ("identity", '"revision"'),
+        ("br", '"revision"'),
+        ("", '"revision"'),
+    ],
+)
+async def test_gzip_304_response_etag(accept_encoding: str, expected_etag: str):
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        response = Response(status_code=304, headers={"ETag": '"revision"'})
+        await response(scope, receive, send)
+
+    middleware = DebugAwareGZipMiddleware(app, minimum_size=100)
+    messages = await _collect_messages(middleware, _http_scope(accept_encoding))
+
+    start = next(message for message in messages if message["type"] == "http.response.start")
+    assert start["status"] == 304
+    headers = Headers(raw=start["headers"])
+    assert headers["etag"] == expected_etag
+    assert "content-encoding" not in headers
+    assert _response_body(messages) == b""

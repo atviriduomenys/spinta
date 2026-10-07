@@ -1,11 +1,12 @@
 import posixpath
 
-from starlette.datastructures import MutableHeaders
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from spinta.components import Context
+from spinta.utils.http.etag import ETag
 
 
 def _is_normalized_path(scope: Scope) -> bool:
@@ -166,6 +167,9 @@ class DebugAwareGZipMiddleware:
         # Copy rather than modify the caller's scope.
         request_scope = dict(scope)
         request_scope["_spinta_gzip_original_send"] = send
+        # Match Starlette's gzip negotiation. Decide tag strength from the
+        # request so early 304s and small uncompressed 200s stay consistent.
+        accepts_gzip = scope["type"] == "http" and "gzip" in Headers(scope=scope).get("accept-encoding", "")
 
         async def send_response(message: Message) -> None:
             if message["type"] == "http.response.start":
@@ -174,8 +178,8 @@ class DebugAwareGZipMiddleware:
 
                 _append_accept_encoding(headers)
 
-                if headers.get("content-encoding") == "gzip" and etag and not etag.startswith("W/"):
-                    headers["etag"] = f"W/{etag}"
+                if etag and (accepts_gzip or headers.get("content-encoding") == "gzip"):
+                    headers["etag"] = str(ETag.from_header(etag).to_weak())
 
             await send(message)
 
