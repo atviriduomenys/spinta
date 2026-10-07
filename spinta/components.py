@@ -1169,6 +1169,9 @@ class Config:
 
     default_distribution_strategy: DistributionStrategy | None = None
 
+    # Script configurations
+    citus_reference_script_size: int
+
     def __init__(self):
         self.commands = _CommandsConfig()
         self.components = {}
