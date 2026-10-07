@@ -23,7 +23,6 @@ CONFIG = {
     "ufuncs": [
         "spinta.ufuncs",
         "spinta.backends.postgresql.ufuncs",
-        "spinta.backends.mongo.ufuncs",
         "spinta.datasets.backends.sql.ufuncs",
         "spinta.datasets.backends.dataframe.ufuncs",
     ],
@@ -60,7 +59,6 @@ CONFIG = {
             "memory": "spinta.backends.memory.components:Memory",
             # Internal backends
             "postgresql": "spinta.backends.postgresql.components:PostgreSQL",
-            "mongo": "spinta.backends.mongo.components:Mongo",
             "fs": "spinta.backends.fs.components:FileSystem",
             # External backends
             # XXX: Probably these should be moved to components.resources?
@@ -93,7 +91,6 @@ CONFIG = {
             "": "spinta.ufuncs.querybuilder.components:QueryBuilder",
             # Internal query builders
             "postgresql": "spinta.backends.postgresql.ufuncs.query.components:PgQueryBuilder",
-            "mongo": "spinta.backends.mongo.ufuncs.components:MongoQueryBuilder",
             # External query builders
             "sql": "spinta.datasets.backends.sql.ufuncs.query.components:SqlQueryBuilder",
             "sql/sqlite": "spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components:SqliteQueryBuilder",
@@ -238,6 +235,9 @@ CONFIG = {
     "default_auth_client": "default",
     # Public JWK key for validating auth bearer tokens.
     "token_validation_key": None,
+    # Expected `iss` (issuer) claim of accepted bearer tokens.
+    "token_issuer": None,
+    "resource_server": None,
     # Limit access to specified namespace root.
     "root": None,
     "env": "prod",
@@ -270,6 +270,13 @@ CONFIG = {
     # Response HTTP Strict Transport Security (HSTS) header. `max-age` must be at
     # least 31536000 seconds (1 year) and `includeSubDomains` must be specified.
     "http_strict_transport_security": "max-age=31536000; includeSubDomains",
+    # `/health` probe thresholds.
+    "health": {
+        # Minimum amount of free disk space (MB) on `data_path`.
+        "min_free_disk_space": 2048,
+        # Minimum amount of available RAM (MB).
+        "min_free_memory": 256,
+    },
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",
@@ -286,11 +293,6 @@ CONFIG = {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta",
                     "migrate": "alembic",
-                },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta",
                 },
                 "fs": {
                     "type": "fs",
@@ -324,11 +326,6 @@ CONFIG = {
                     "type": "postgresql",
                     "dsn": "postgresql://admin:admin123@localhost:54321/spinta_tests",
                 },
-                "mongo": {
-                    "type": "mongo",
-                    "dsn": "mongodb://admin:admin123@localhost:27017/",
-                    "db": "spinta_tests",
-                },
                 "fs": {
                     "type": "fs",
                     "path": pathlib.Path() / "var/files",
@@ -355,6 +352,7 @@ CONFIG = {
             "default_access_level": "open",
             "access": "open",
             "sync_retry_count": 0,
+            "default_distribution_strategy": "undistributed",
         },
     },
     "texts": {

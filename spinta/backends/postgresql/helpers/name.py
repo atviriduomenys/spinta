@@ -102,6 +102,10 @@ def get_pg_index_name(table_name: str, columns: Any) -> str:
     return PG_NAMING_CONVENTION[Convention.IX] % {"table_name": table_name, "column_0_N_name": "_".join(column_names)}
 
 
+def get_pg_pkey_name(table_name: str) -> str:
+    return PG_NAMING_CONVENTION[Convention.PK] % {"table_name": table_name}
+
+
 def is_removed(name: str) -> bool:
     if "/" in name:
         last = name.split("/")[-1]

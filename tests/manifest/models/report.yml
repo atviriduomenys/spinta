@@ -1,7 +1,7 @@
 ---
 type: model
 name: Report
-backend: mongo
+backend: default
 title: "Report"
 version:
   id: 1

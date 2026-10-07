@@ -4,8 +4,7 @@ from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.backends.constants import TableType
 from spinta.backends.fs.components import FileSystem
-from spinta.backends.mongo.components import WriteTransaction
-from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.components import PostgreSQL, WriteTransaction
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.commands.write import get_filename, prepare_patch, simple_response, validate_data
 from spinta.components import Context, DataItem, DataSubItem, UrlParams

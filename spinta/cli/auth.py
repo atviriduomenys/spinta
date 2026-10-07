@@ -4,12 +4,13 @@ import sys
 import uuid
 
 import click
-from authlib.jose import jwt
+from joserfc import jwt
 from typer import Argument, Option, Typer, echo
 from typer import Context as TyperContext
 
 from spinta import commands
 from spinta.auth import (
+    ALLOWED_JWT_ALGORITHMS,
     KeyFileExists,
     KeyType,
     create_client_file,
@@ -91,7 +92,7 @@ def token_decode(
     load_config(context)
     key = load_key(context, KeyType.public)
     token_ = token_ or sys.stdin.read().strip()
-    token_ = jwt.decode(token_, key)
+    token_ = jwt.decode(token_, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
     echo(json.dumps(token_, indent="  "))
 
 

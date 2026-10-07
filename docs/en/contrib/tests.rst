@@ -142,8 +142,6 @@ module):
 
     - `postgresql` - PostgreSQL with PostGiS extension (session scope).
 
-    - `mongo` - Mongo (session scope).
-
     Keep in mind, that if backend is session scope, then all tests will reuse
     same database. It is possible to remove all data from tables by passing
     `request` to `bootstrap_manifest` function, but tables will not be dropped.

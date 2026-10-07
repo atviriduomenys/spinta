@@ -8,7 +8,7 @@ Agentas veikia ir yra testuotas Linux operacinėse sistemose, konkrečiai naudoj
 Pateikiama instrukcija yra kaip pavyzdys, kai naudojama Debian/Ubuntu OS
 :::
 
-Spinta yra sukurta naudojant Python programavimo kalbą ir veikia su Python versijomis 3.10-3.13. Naujose Agento versijose reikalavimas Python versijai gali keistis.
+Spinta yra sukurta naudojant Python programavimo kalbą ir veikia su Python versijomis 3.10-3.14. Naujose Agento versijose reikalavimas Python versijai gali keistis.
 
 Dėl serverio resursų, tokių kaip CPU, RAM ir HDD, reikalingi resursai tiesiogiai priklauso nuo publikuojamų duomenų kiekio ir naudotojų srauto, kurie naudosis duomenų publikavimo paslauga.
 
@@ -27,6 +27,14 @@ Taip pat rekomenduojama bent 10 GB HDD laisvos vietos, kuri lieka pilnai įdiegu
 Pats savaime Agentas su visomis Python priklausomybėmis diske užima apie 2 GB vietos, tačiau sunaudojamos vietos skaičius gali skirtis, skirtingose distribucijose.
 
 Agento veikimas turėtu būti nuolat stebimas ir reikiami resursai didinami, pagal poreikį.
+
+Disko vietos ir atminties likutį Agentas stebi ir pats — `/health` adresu jis pateikia savo būsenos suvestinę, kurią galima naudoti stebėsenos sistemoje ar konteinerio būsenos tikrinime. Pagal nutylėjimą būsena tampa nesveika, kai lieka mažiau nei 2 GB laisvos vietos diske arba mažiau nei 256 MB prieinamos atminties. Šios ribos parinktos taip, kad aukščiau nurodytus minimalius reikalavimus atitinkanti sistema būtų sveika, o įspėjimas ateitų dar likus laiko sureaguoti.
+
+:::{note}
+Nesveika būsena nurodoma atsakymo `healthy` lauke, o ne HTTP statuso kode — endpoint'as visada grąžina `200`. Stebėsenos sistemą reikia konfigūruoti tikrinti būtent šį lauką.
+:::
+
+Ribas galima keisti `health.min_free_disk_space` ir `health.min_free_memory` parametrais; jas verta didinti kartu su Agentui skiriamais resursais. Plačiau apie šiuos parametrus rašoma angliškos dokumentacijos skyriuje „Configuration → Health probe configuration“.
 
 ## Operacinės sistemos paruošimas
 

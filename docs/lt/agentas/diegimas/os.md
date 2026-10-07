@@ -8,14 +8,14 @@ Daugelis Linux distribucijų ateina su įdiegta Python versija, tačiau reikia �
 python3 --version
 ```
 
-Jei sisteminė Python versija yra tarp 3.10 ir 3.13 imtinai ir ji jums tinkama, gali būti, kad operacinėje sistemoje nėra Python virtualių aplinkų kūrimo įrankio. Jį galite sudiegti taip:
+Jei sisteminė Python versija yra tarp 3.10 ir 3.14 imtinai ir ji jums tinkama, gali būti, kad operacinėje sistemoje nėra Python virtualių aplinkų kūrimo įrankio. Jį galite sudiegti taip:
 
 ```bash
 sudo apt install python3-venv
 ```
 
 :::{note}
-Jei Python versija yra tarp 3.10 ir 3.13 imtinai bei turite Python virtualių aplinkų kūrimo įrankį, tada galite praleisti sekantį žingsnį, kitu atveju reikia įsidiegti tinkamą Python versiją.
+Jei Python versija yra tarp 3.10 ir 3.14 imtinai bei turite Python virtualių aplinkų kūrimo įrankį, tada galite praleisti sekantį žingsnį, kitu atveju reikia įsidiegti tinkamą Python versiją.
 :::
 
 ## Tinkamos Python versijos diegimas
@@ -31,7 +31,7 @@ xz-utils tk-dev libffi-dev liblzma-dev
 sudo git clone https://github.com/pyenv/pyenv.git /opt/pyenv/
 export PYENV_ROOT=/opt/pyenv
 /opt/pyenv/bin/pyenv install --list | grep -v - | tail
-sudo PYENV_ROOT=/opt/pyenv /opt/pyenv/bin/pyenv install 3.13.9
+sudo PYENV_ROOT=/opt/pyenv /opt/pyenv/bin/pyenv install 3.14.6
 ```
 
 arba pridedant repozitoriją **deadsnake/ppa**:
@@ -40,7 +40,7 @@ arba pridedant repozitoriją **deadsnake/ppa**:
 sudo apt install software-properties-common
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install python3.13 python3.13-venv python3.13-dev build-essential
+sudo apt install python3.14 python3.14-venv python3.14-dev build-essential
 ```
 
 ## Spinta diegimas
@@ -67,7 +67,7 @@ python3 -m venv env
 Jei diegėte Python versiją **Pyenv** metodu - nepamirškite nurodyti jūsų naudojamos Python versijos numerio, kuris gali skirtis:
 
 ```bash
-/opt/pyenv/versions/3.13.9/bin/python -m venv env
+/opt/pyenv/versions/3.14.6/bin/python -m venv env
 ```
 
 ### Deadsnake/ppa
@@ -75,7 +75,7 @@ Jei diegėte Python versiją **Pyenv** metodu - nepamirškite nurodyti jūsų na
 Jei diegėte python versiją deadsnake/ppa metodu:
 
 ```bash
-python3.13 -m venv env
+python3.14 -m venv env
 ```
 
 Toliau diekite Spintą.

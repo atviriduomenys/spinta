@@ -97,7 +97,7 @@ def pull(
 
                 exporter = config.exporters[fmt]
 
-            asyncio.get_event_loop().run_until_complete(process_stream(dataset.name, stream, exporter, path))
+            asyncio.run(process_stream(dataset.name, stream, exporter, path))
 
     except exceptions.BaseError as e:
         cli_error(str(e))

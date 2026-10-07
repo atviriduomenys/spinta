@@ -4,7 +4,9 @@ services:
   db:
     build: ./.docker/citus-postgis
     ports:
-      - "54321:5432"
+      # Overridable so a machine where 54321 is already taken (another spinta
+      # checkout, some other postgres) can still bring this stack up.
+      - "${SPINTA_DB_PORT:-54321}:5432"
     environment:
       - POSTGRES_DB=spinta
       - POSTGRES_USER=admin
@@ -12,16 +14,6 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
       - ./.docker/citus-postgis/init:/docker-entrypoint-initdb.d
-  mongo:
-    image: mongo:4.0.9-xenial
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=spinta
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=admin123
-    volumes:
-      - mongo:/data/db
   app:
     volumes:
     - ./entrypoint-internal.sh:/app/entrypoint.sh:ro
@@ -37,7 +29,6 @@ services:
       - "8000:8000"
     depends_on:
       - db
-      - mongo
 
   redis-keymap: # sqlite faster alternative
     image: valkey/valkey:9
@@ -54,7 +45,6 @@ services:
       - "${SPINTA_REDIS_KEYMAP_PORT:-6379}:6379"
 volumes:
   postgres:
-  mongo:
   redis_keymap_data:
 
 networks:

@@ -2,7 +2,6 @@ import pytest
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_update_object(model, app):
@@ -29,7 +28,6 @@ def test_update_object(model, app):
 
 
 @pytest.mark.models(
-    "backends/mongo/Report",
     "backends/postgres/Report",
 )
 def test_update_object_array(model, app):

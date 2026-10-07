@@ -2,7 +2,6 @@ import pytest
 
 
 @pytest.mark.models(
-    "backends/mongo/dtypes/array/Two_arrays",
     "backends/postgres/dtypes/array/Two_arrays",
 )
 def test_update_with_two_array(model, app):

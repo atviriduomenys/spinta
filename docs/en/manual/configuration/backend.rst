@@ -19,7 +19,6 @@ supported backends are defined in `components.backends`. You can look it up::
     ------  ----------------------------------  ----------------------------------------------------------------------
     spinta  components.backends.memory          spinta.backends.memory.components:Memory
     spinta  components.backends.postgresql      spinta.backends.postgresql.components:PostgreSQL
-    spinta  components.backends.mongo           spinta.backends.mongo.components:Mongo
     spinta  components.backends.fs              spinta.backends.fs.components:FileSystem
     spinta  components.backends.sql             spinta.datasets.backends.sql.components:Sql
     spinta  components.backends.sql/sqlite      spinta.datasets.backends.sql.backends.sqlite.components:Sqlite
@@ -58,7 +57,7 @@ Currently there are two backends that allow it:
   - `dask/xml` - Xml format (formally `xml`).
   - `dask/json` - Json format (formally `json`).
 
-Each supported backend has a human readable name, like `postgresql` or `mongo`.
+Each supported backend has a human readable name, like `postgresql`.
 You can use these names to add backend instances. Backend instance is a
 physical backend instance, for example a specific database running on a server.
 
@@ -105,8 +104,8 @@ Each model, can explicitly set backend like this:
   backend: reports
 
 Here, model `reports`, uses a a non-default backend. If at some point you will
-decide to migrate you reports from PostgreSQL to Mongo, all you need to do is
-change two configuration options::
+decide to migrate your reports to another PostgreSQL instance, all you need to do
+is change two configuration options::
 
-  SPINTA_BACKENDS__REPORTS__TYPE=mongo
-  SPINTA_BACKENDS__REPORTS__DSN=mongo://server-3.io/db3
+  SPINTA_BACKENDS__REPORTS__TYPE=postgresql
+  SPINTA_BACKENDS__REPORTS__DSN=postgresql://server-3.io/db3
