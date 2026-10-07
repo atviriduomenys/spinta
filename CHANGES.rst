@@ -24,6 +24,14 @@ Improvements:
 
 .. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
 
+New Features:
+
+- Added `citus_reference_config` admin script that is capable of generating new configuration file, which
+  contains all models that fit under citus reference sharding optimization criteria (`#1989`_).
+
+.. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
+
+
 1.1.0 (2026-08-19)
 =====================
 
