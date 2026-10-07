@@ -66,6 +66,17 @@ def load(
             manifest,
         )
 
+    commands.configure(context, dataset)
+    # Retention periodicity is dependent on accrual_periodicity, which can change during `configure` step
+    # Requirement: 3 * accrual_periodicity if result is more than minimal_retention_periodicity
+    dataset.retention_periodicity = (
+        max(dataset.accrual_periodicity * 3, config.minimal_retention_periodicity)
+        if dataset.accrual_periodicity is not None
+        else config.default_retention_periodicity
+    )
+    if dataset.retention_periodicity is None:
+        dataset.enable_retention_policy = False
+
     return dataset
 
 

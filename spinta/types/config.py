@@ -1,5 +1,6 @@
 import json
 import pathlib
+from datetime import timedelta
 from typing import Type
 
 from ruamel.yaml import YAML
@@ -19,6 +20,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
+from spinta.utils.units import toseconds
 
 yaml = YAML(typ="safe")
 
@@ -90,7 +92,7 @@ def load(context: Context, config: Config) -> Config:
         cast=lambda name: get_enum_by_name(Access, name),
     )
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
-    config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
+    config.token_validation_key = rc.get("token_validation_key", default=None, cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
     config.token_issuer = rc.get("token_issuer")
     config.resource_server = rc.get("resource_server")
@@ -157,6 +159,15 @@ def load(context: Context, config: Config) -> Config:
             get_enum_by_value(DistributionType, strategy),
             property=rc.get("default_distribution_property", default=None),
         ),
+    )
+
+    config.minimal_retention_periodicity = rc.get(
+        "minimal_retention_periodicity", default="1n", cast=lambda value: timedelta(seconds=toseconds(value))
+    )
+    config.default_retention_periodicity = rc.get(
+        "default_retention_periodicity",
+        default=None,
+        cast=lambda value: timedelta(seconds=toseconds(value)) if value is not None else None,
     )
 
     return config

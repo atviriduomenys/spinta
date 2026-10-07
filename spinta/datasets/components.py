@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy as sa
@@ -40,6 +41,9 @@ class Dataset(MetaData):
     lang: LangData = None
     ns: Namespace = None
     prefixes: Dict[str, UriPrefix]
+    accrual_periodicity: timedelta | None = None
+    retention_periodicity: timedelta | None = None
+    enable_retention_policy: bool = True
 
     schema = {
         "type": {"type": "string", "required": True},
@@ -76,6 +80,8 @@ class Dataset(MetaData):
         "source": {"type": "string"},
         "given_name": {"type": "string", "default": None},
         "count": {"type": "integer", "default": None},
+        "accrual_periodicity": {"default": None},
+        "enable_retention_policy": {"type": "boolean", "default": True},
     }
 
     def __init__(self):
