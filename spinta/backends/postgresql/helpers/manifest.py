@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 def read_manifest_schemas(context: Context, backend: PostgreSQL, conn):
     meta = sa.MetaData(backend.engine)
-    table = sa.Table('_schema', meta, autoload_with=backend.engine)
+    table = sa.Table("_schema", meta, autoload_with=backend.engine)
     query = sa.select([table.c._id, table.c.schema])
     i = 0
     for i, row in enumerate(conn.execute(query), 1):
@@ -21,6 +21,4 @@ def read_manifest_schemas(context: Context, backend: PostgreSQL, conn):
             row[table.c.schema],
         )
     if i == 0:
-        raise Exception(
-            "Empty _schema table, nothing is loaded into manifest."
-        )
+        raise Exception("Empty _schema table, nothing is loaded into manifest.")
