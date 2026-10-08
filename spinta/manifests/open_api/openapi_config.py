@@ -327,7 +327,7 @@ PATHS_CONFIG = {
                 "200": {"description": "OK"},
                 "206": {"description": "Partial Content", "headers": COMMON_RESPONSE_HEADERS},
                 "304": {"description": "Not Modified", "headers": NOT_MODIFIED_HEADERS},
-                "400": {"$ref": "error400"},
+                "400": {"$ref": "fileError400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
@@ -362,7 +362,7 @@ PATHS_CONFIG = {
                     "description": "Not Modified",
                     "headers": NOT_MODIFIED_HEADERS,
                 },
-                "400": {"$ref": "error400"},
+                "400": {"$ref": "fileError400"},
                 "401": {"$ref": "error401"},
                 "403": {"$ref": "error403"},
                 "404": {"$ref": "error404"},
@@ -632,6 +632,16 @@ RESPONSE_COMPONENTS = {
         "description": "Bad Request",
         "headers": [],
         "content": {"application/json": {"schema": {"errors": _named_errors(400)}}},
+    },
+    # File content is served by `FileResponse`, which answers a malformed `Range`
+    # with plain text of its own rather than with a Spinta error.
+    "fileError400": {
+        "description": "Bad Request",
+        "headers": [],
+        "content": {
+            "application/json": {"schema": {"errors": _named_errors(400)}},
+            "text/plain": {"schema": {"type": "string"}, "example": "Malformed range header."},
+        },
     },
     "error401": {
         "description": "Unauthorized",

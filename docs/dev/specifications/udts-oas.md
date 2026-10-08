@@ -243,10 +243,11 @@ objects, `page`, `file`, `image`, `RateLimited`,
 | Code | When | Body |
 |---|---|---|
 | `200` | all operations | model, listing, property |
-| `206`, `416` | `file`/`image` content | binary |
+| `206`, `416` | `file`/`image` content | binary (`multipart/byteranges` for several ranges); `416` none |
 | `301` | single object | none; `Location` header |
 | `304` | `get`, `head` | none; cache headers only |
 | `400`, `401`, `403`, `404`, `500`, `503` | per operation | `{"errors": [...]}` |
+| `400` | `file`/`image` content, malformed `Range` | plain text of `FileResponse` (`fileError400`) |
 | `429` | all operations | `RateLimited`, an open object (ADR-0001) |
 
 **Errors:** an error object has five fields (`type`, `code`, `template`,
