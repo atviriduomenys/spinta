@@ -514,7 +514,8 @@ def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
 
 def _check_no_credentials(url: str, path: pathlib.Path, what: str) -> None:
     # The URL is published, so credentials in it would be too; it is not quoted back either.
-    authority = url_authority_re.match(url)
+    # Whitespace and backslashes, rejected later, must not hide the authority here.
+    authority = url_authority_re.match(re.sub(r"\s", "", url).replace("\\", "/"))
     if authority and "@" in authority.group(1):
         raise InvalidUdtsConfig(
             path=str(path),

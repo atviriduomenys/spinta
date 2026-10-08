@@ -271,6 +271,10 @@ def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
         "servers:\n  - url: https://agentas:slaptas@get.data.gov.lt/ą\n",
         "servers:\n  - url: https://agentas:slaptas@get.data.gov.lt/%zz\n",
         "auth:\n  token_url: https://agentas:slaptas@[::1/auth/token\n",
+        'servers:\n  - url: "https:\\t//agentas:slaptas@get.data.gov.lt"\n',
+        'servers:\n  - url: "https://\\nagentas:slaptas@get.data.gov.lt"\n',
+        'servers:\n  - url: "https: //agentas:slaptas@get.data.gov.lt"\n',
+        "servers:\n  - url: https:\\\\agentas:slaptas@get.data.gov.lt\n",
     ],
 )
 def test_config_rejects_credentials_in_an_url(tmp_path, config):
