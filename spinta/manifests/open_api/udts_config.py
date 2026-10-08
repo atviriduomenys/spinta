@@ -79,6 +79,10 @@ EMAIL_MAX_LENGTH = 254
 #: into an OpenAPI URL field.
 invalid_uri_character_re = re.compile(r"[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]")
 
+#: Authority of an URL, read as `urlsplit` reads it, but without failing on a
+#: malformed URL, so it can be checked before any error quotes the URL back.
+url_authority_re = re.compile(r"^(?:[^:/?#]*:)?//([^/?#]*)")
+
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
 TOKEN_PATH = "/:token"
@@ -246,6 +250,7 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     if not isinstance(url, str) or not url:
         raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
 
+    _check_no_credentials(url, path, "server URL")
     if "{" in url or "}" in url:
         raise InvalidUdtsConfig(
             path=str(path),
@@ -507,6 +512,16 @@ def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {url!r}.")
 
 
+def _check_no_credentials(url: str, path: pathlib.Path, what: str) -> None:
+    # The URL is published, so credentials in it would be too; it is not quoted back either.
+    authority = url_authority_re.match(url)
+    if authority and "@" in authority.group(1):
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} holds a user name or a password, which would be published with the document.",
+        )
+
+
 def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = False) -> None:
     """Check a value copied into an URL field of the document.
 
@@ -523,6 +538,7 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
     again without checking the schema of the OpenAPI version being generated.
     """
     _check_string(url, path, what)
+    _check_no_credentials(url, path, what)
 
     # `urlsplit` parses an URL, it does not validate one.
     if any(character.isspace() for character in url):
@@ -545,13 +561,6 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
         parts.port  # noqa: B018  Port is parsed only when it is read.
     except ValueError as error:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
-
-    # The URL is published, so credentials in it would be too; it is not quoted back either.
-    if "@" in parts.netloc:
-        raise InvalidUdtsConfig(
-            path=str(path),
-            error=f"{what} holds a user name or a password, which would be published with the document.",
-        )
 
     if not parts.scheme:
         # A network-path reference (`//host/path`) has a host but inherits the
