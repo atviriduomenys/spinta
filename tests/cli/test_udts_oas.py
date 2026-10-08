@@ -57,7 +57,7 @@ def _manifest(context, tmp_path, manifest=MANIFEST):
 
 def _config(tmp_path, config=UDTS_CFG):
     path = tmp_path / "vartai.yml"
-    path.write_text(config)
+    path.write_text(config, encoding="utf-8")
     return path
 
 
@@ -124,7 +124,7 @@ def test_path_is_not_service_level(context, rc, cli: SpintaCliRunner, tmp_path):
 def test_output_json(context, rc, cli: SpintaCliRunner, tmp_path):
     path = _manifest(context, tmp_path)
     cfg = tmp_path / "vartai.yml"
-    cfg.write_text(UDTS_CFG)
+    cfg.write_text(UDTS_CFG, encoding="utf-8")
     output = tmp_path / "at280.json"
 
     cli.invoke(
@@ -142,7 +142,7 @@ def test_output_json(context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    spec = json.loads(output.read_text())
+    spec = json.loads(output.read_text(encoding="utf-8"))
     assert spec["info"]["title"] == "JADIS duomenų paslauga"
     assert spec["servers"] == [
         {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Production"},
@@ -165,7 +165,7 @@ def test_output_yaml(context, rc, cli: SpintaCliRunner, tmp_path):
         ["udts", "oas", path, "-o", output, "--path", "datasets/gov/rc/jadis/at280/1", "--udts-cfg", _config(tmp_path)],
     )
 
-    written = output.read_text()
+    written = output.read_text(encoding="utf-8")
     spec = yaml.load(written)
     assert spec["openapi"] == "3.0.3"
     assert "/at280_israsas/Israsas" in spec["paths"]
