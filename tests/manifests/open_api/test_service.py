@@ -287,6 +287,28 @@ def test_config_rejects_credentials_in_an_url(tmp_path, config):
     assert "slaptas" not in str(error.value)
 
 
+@pytest.mark.parametrize(
+    "config",
+    [
+        "servers:\n  - https://agentas:slaptas@get.data.gov.lt\n",
+        "servers:\n  - ur1: https://agentas:slaptas@get.data.gov.lt\n",
+        "auth:\n  token_url: [https://agentas:slaptas@am.example.lt/auth/token]\n",
+        "info:\n  contact: [https://agentas:slaptas@lnb.lt]\n",
+        "info:\n  title: [https://agentas:slaptas@lnb.lt]\n",
+        "info:\n  x-logo: !!binary aHR0cHM6Ly9hZ2VudGFzOnNsYXB0YXNAbG5iLmx0\n",
+        "limits:\n  max_limit: https://agentas:slaptas@lnb.lt\n",
+    ],
+)
+def test_config_error_quotes_no_password(tmp_path, config):
+    """A value of a wrong type or a missing key is reported without the value."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig) as error:
+        UdtsConfig.from_path(path)
+    assert "slaptas" not in str(error.value)
+
+
 def test_config_accepts_token_url(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text("auth:\n  token_url: https://am.example.lt/auth/token\n", encoding="utf-8")

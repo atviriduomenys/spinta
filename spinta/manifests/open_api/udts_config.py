@@ -83,6 +83,9 @@ invalid_uri_character_re = re.compile(r"[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]")
 #: malformed URL, so it can be checked before any error quotes the URL back.
 url_authority_re = re.compile(r"^(?:[^:/?#]*:)?//([^/?#]*)")
 
+#: User information of anything that looks like an URL inside quoted text.
+url_userinfo_re = re.compile(r"(?<=[/\\][/\\])[^/?#@'\"]*@")
+
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
 TOKEN_PATH = "/:token"
@@ -243,12 +246,12 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
     if not isinstance(server, dict):
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"every `servers` entry must be a mapping with an `url`, got {server!r}.",
+            error=f"every `servers` entry must be a mapping with an `url`, got {_shown(server)}.",
         )
 
     url = server.get("url")
     if not isinstance(url, str) or not url:
-        raise InvalidUdtsConfig(path=str(path), error=f"`servers` entry {server!r} has no `url`.")
+        raise InvalidUdtsConfig(path=str(path), error="a `servers` entry has no `url`, or it is not a string.")
 
     _check_no_credentials(url, path, "server URL")
     if "{" in url or "}" in url:
@@ -405,13 +408,15 @@ def _check_json_value(value: Any, path: pathlib.Path, what: str, enclosing: froz
     if isinstance(value, dict):
         for key, item in value.items():
             if not isinstance(key, str):
-                raise InvalidUdtsConfig(path=str(path), error=f"{what} holds a key {key!r}, which is not a string.")
+                raise InvalidUdtsConfig(
+                    path=str(path), error=f"{what} holds a key {_shown(key)}, which is not a string."
+                )
             _check_json_value(item, path, what, enclosing)
         return
 
     raise InvalidUdtsConfig(
         path=str(path),
-        error=f"{what} holds {value!r} of type {type(value).__name__}, which JSON has no value for, quote it.",
+        error=f"{what} holds a value of type {type(value).__name__}, which JSON has no value for, quote it.",
     )
 
 
@@ -426,14 +431,23 @@ def _clean_info(info: dict, path: pathlib.Path) -> dict:
     return info
 
 
+def _shown(value: Any) -> str:
+    """A configured value as an error quotes it, without a password it may hold."""
+    if isinstance(value, (bool, int, float)) or value is None:
+        return repr(value)
+    if isinstance(value, str):
+        return url_userinfo_re.sub("***@", repr(value))
+    return f"a {type(value).__name__}"
+
+
 def _check_string(value: Any, path: pathlib.Path, what: str) -> None:
     if not isinstance(value, str) or not value:
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {value!r}.")
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a non empty string, got {_shown(value)}.")
 
 
 def _check_optional_string(value: Any, path: pathlib.Path, what: str) -> None:
     if value is not None and not isinstance(value, str):
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a string, got {value!r}.")
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must be a string, got {_shown(value)}.")
 
 
 def _check_info(info: dict, path: pathlib.Path) -> None:
@@ -448,7 +462,7 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
     for key in ("contact", "license"):
         value = info.get(key)
         if value is not None and not isinstance(value, dict):
-            raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a mapping, got {value!r}.")
+            raise InvalidUdtsConfig(path=str(path), error=f"`info.{key}` must be a mapping, got {_shown(value)}.")
 
     contact = info.get("contact") or {}
     for key in ("name", "email"):
@@ -484,7 +498,9 @@ def _check_limits(limits: dict, path: pathlib.Path) -> None:
     if not isinstance(max_limit, int) or isinstance(max_limit, bool) or not 1 <= max_limit <= MAX_LIMIT_CEILING:
         raise InvalidUdtsConfig(
             path=str(path),
-            error=(f"`limits.max_limit` must be a whole number from one to {MAX_LIMIT_CEILING}, got {max_limit!r}."),
+            error=(
+                f"`limits.max_limit` must be a whole number from one to {MAX_LIMIT_CEILING}, got {_shown(max_limit)}."
+            ),
         )
 
 
