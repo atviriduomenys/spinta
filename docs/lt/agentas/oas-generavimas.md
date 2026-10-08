@@ -64,6 +64,10 @@ pakete, `spinta/manifests/open_api/udts_cfg.example.yml`.
 - **`servers`** – bent vienas įrašas; iš pirmojo vartai išsiveda API
   context-path.
 
+`servers[].url` – **vartų** bazinis adresas, ne agento. Vartai jį rodo kūrėjų
+portalo dokumentacijoje, o `endpoint.targetUrl` nustatomas rankomis. Nurodykite
+vieną serverį: kelis vartai naudotų pakaitomis (round-robin).
+
 Be jų aprašo į vartus įkelti nepavyktų, todėl `spinta udts oas` to nė
 nebando ir nutraukia darbą su aiškia klaida. `--list` konfigūracijos
 nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
@@ -81,9 +85,7 @@ info:
 
 servers:
   - url: https://get.data.gov.lt
-    description: Gamybinė (išoriniai vartai)
-  - url: https://test-get.data.gov.lt
-    description: Testavimo
+    description: Vartai
 ```
 
 Laukai, kurių OpenAPI neapibrėžia, į specifikaciją nepatenka – apie tokį lauką
@@ -205,7 +207,6 @@ paslaugos viduje naudodami veiksmo formą:
 | `/:version` | `{#api.properties['uapi_version']}` |
 | `/:health` | `{#api.properties['uapi_health']}` |
 | `/:token` | `{#api.properties['uapi_token']}` |
-| `/(.*)` | `{#api.properties['uapi_data_prefix']}{#group[0]}` |
 
 Aprašyme lieka tik `tokenUrl` (`components.securitySchemes.UAPI_auth`), nes
 OAuth 2.0 srautas be jo neaprašomas. Pagal nutylėjimą jis rodo į `/:token`

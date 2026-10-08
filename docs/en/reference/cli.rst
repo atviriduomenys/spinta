@@ -174,8 +174,10 @@ A UDTS data service is identified by the leading part of a dataset path::
 
 The generated specification is meant to be used both for importing endpoints
 into an API gateway and for validating requests and responses against it, so
-``servers`` hold the data service base URL of every environment, while ``paths``
-are relative to it.
+``servers`` hold the data service base URL at the API gateway, while ``paths``
+are relative to it. The URL is the gateway's, not the agent's: the gateway shows
+it in its developer portal, and a single server is given, since the gateway
+would use several in turn (round-robin).
 
 Usage
 -----
@@ -263,9 +265,7 @@ Example
        email: info@registrucentras.lt
    servers:
      - url: https://get.data.gov.lt
-       description: Production
-     - url: https://test-get.data.gov.lt
-       description: Testing
+       description: Gateway
    auth:
      token_url: https://get.data.gov.lt/auth/token
 
@@ -277,8 +277,7 @@ Example
      "openapi": "3.0.3",
      "info": {"title": "JADIS data service", "version": "1"},
      "servers": [
-       {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Production"},
-       {"url": "https://test-get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Testing"}
+       {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Gateway"}
      ],
      "paths": {
        "/at280_israsas/DalyvioAsmensIsrasas": {},
