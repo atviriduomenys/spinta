@@ -46,6 +46,7 @@ from spinta.manifests.open_api.openapi_config import (
     STANDARD_NAMESPACES,
     STANDARD_OBJECT_PROPERTIES,
     UNPUBLISHED_REFERENCE,
+    UUID_VALUE_PATTERN,
     VERSION,
 )
 from spinta.manifests.open_api.service import (
@@ -55,7 +56,7 @@ from spinta.manifests.open_api.service import (
     service_schema_name,
 )
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
-from spinta.types.datatype import Base32, DataType, Object, PrimaryKey, String
+from spinta.types.datatype import UUID, Base32, DataType, Object, PrimaryKey, String
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_base32
 from spinta.utils.schema import NA
@@ -928,6 +929,9 @@ class PathGenerator:
         if isinstance(dtype, Base32):
             schema["pattern"] = BASE32_ID_PATTERN
             schema["maxLength"] = BASE32_ID_MAX_LENGTH
+        elif isinstance(dtype, UUID):
+            # A request is read by `is_str_uuid`, stricter than a response is.
+            schema["pattern"] = UUID_VALUE_PATTERN
         elif schema.get("enum"):
             # The manifest lists the values, which is all there is to say. A
             # pattern beside them would leave nothing that satisfies both: the

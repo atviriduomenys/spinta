@@ -493,6 +493,17 @@ id | d | r | b | m | property | type             | ref                          
 """)
 
 
+# A model declaring `_id` a `uuid` of its own.
+MANIFEST_WITH_UUID_ID = striptable("""
+id | d | r | b | m | property | type          | ref   | source | level | access
+   | datasets/gov/rc/jadis/at280/1/ds |       |       |        |       |
+   |   | test                 | memory        |       |        |       |
+   |   |   |   | Salis        |               | kodas | salys  |       |
+   |   |   |   |   | _id      | uuid          |       |        |       | open
+   |   |   |   |   | kodas    | uuid required |       | kodas  | 4     | open
+""")
+
+
 # A model building `_revision` out of its own data, `123,14` for one, see
 # `tests/datasets/sql/test_reserved_props.py`.
 MANIFEST_WITH_DECLARED_REVISION = striptable("""

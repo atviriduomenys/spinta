@@ -48,12 +48,16 @@ UUID_PATTERN = f"^{_UUID_CANONICAL}$"
 #: on asserting the version and the variant.
 _UUID_COMPACT = "[0-9a-fA-F]{12}4[0-9a-fA-F]{3}[89abAB][0-9a-fA-F]{15}"
 
-#: A value of a property declared `uuid`, an `_id` of a model among them. It is
-#: read by `UUID.load` through `is_str_uuid`, which builds the value again and
-#: compares it with what was given, so only the canonical lower case spelling of
-#: a version 4 UUID passes; the looser reading above is of `is_object_id`, which
-#: an identifier Spinta itself gives goes through.
+#: A value of a property declared `uuid`, an `_id` of a model among them, as a
+#: request gives it. It is read by `UUID.load` through `is_str_uuid`, which builds
+#: the value again and compares it with what was given, so only the canonical
+#: lower case spelling of a version 4 UUID passes; the looser reading above is of
+#: `is_object_id`, which an identifier Spinta itself gives goes through.
 UUID_VALUE_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+
+#: The same value as a response carries it. The source is read with `uuid.UUID`,
+#: which takes any version, see `cast_backend_to_python`.
+UUID_RESPONSE_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 UUID_REQUEST_PATTERN = f"^(?:urn:)?(?:uuid:)?\\{{?(?:{_UUID_CANONICAL}|{_UUID_COMPACT})\\}}?$"
 
 STANDARD_OBJECT_PROPERTIES = {
@@ -95,7 +99,7 @@ BASE32_ID_MAX_LENGTH = 513
 
 PROPERTY_MAPPING = {
     "string": {"type": "string"},
-    "uuid": {"type": "string", "format": "uuid", "pattern": UUID_VALUE_PATTERN},
+    "uuid": {"type": "string", "format": "uuid", "pattern": UUID_RESPONSE_PATTERN},
     # A `base32` value is built by Spinta, not read from the data, so its shape
     # is known, see `spinta.backends.cast_backend_to_python`.
     "base32": {"type": "string", "pattern": BASE32_VALUE_PATTERN},
