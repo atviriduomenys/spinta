@@ -265,6 +265,12 @@ def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
         "servers:\n  - url: //agentas@get.data.gov.lt\n",
         "auth:\n  token_url: https://agentas:slaptas@am.example.lt/auth/token\n",
         "externalDocs:\n  url: https://agentas:slaptas@ivpk.github.io/uapi\n",
+        # Checked before the errors that quote the URL back.
+        'servers:\n  - url: "https://agentas:slaptas@{env}.example.lt"\n',
+        'servers:\n  - url: "https://agentas:slaptas@get.data.gov.lt/a b"\n',
+        "servers:\n  - url: https://agentas:slaptas@get.data.gov.lt/ą\n",
+        "servers:\n  - url: https://agentas:slaptas@get.data.gov.lt/%zz\n",
+        "auth:\n  token_url: https://agentas:slaptas@[::1/auth/token\n",
     ],
 )
 def test_config_rejects_credentials_in_an_url(tmp_path, config):
