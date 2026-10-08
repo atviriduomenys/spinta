@@ -130,13 +130,15 @@ def test_generated_specification_is_valid(open_manifest_path_factory, manifest_d
     open_api_spec = create_openapi_manifest(open_manifest_path, **kwargs)
     _assert_valid(open_api_spec)
     _assert_examples_satisfy_their_schemas(open_api_spec)
+    _assert_arrays_declare_items(open_api_spec)
 
 
 def _assert_examples_satisfy_their_schemas(open_api_spec: dict) -> None:
     """An example a schema refuses sends a reader, and an API client, down a wrong path.
 
     Every schema of the document carrying an example is checked, the ones nested
-    in properties, items and alternatives among them.
+    in properties, items and alternatives among them, and the ones of
+    parameters, headers and responses.
     """
     openapi_schema_validator = pytest.importorskip("openapi_schema_validator")
     components = open_api_spec.get("components", {})
@@ -157,8 +159,26 @@ def _assert_examples_satisfy_their_schemas(open_api_spec: dict) -> None:
             for index, item in enumerate(node):
                 walk(item, f"{where}/{index}")
 
-    walk(components.get("schemas", {}), "#/components/schemas")
+    walk(open_api_spec, "#")
     assert refused == []
+
+
+def _assert_arrays_declare_items(open_api_spec: dict) -> None:
+    """OpenAPI 3.0 requires `items` of an array, which a validator of the document does not check."""
+    missing = []
+
+    def walk(node, where):
+        if isinstance(node, dict):
+            if node.get("type") == "array" and "items" not in node:
+                missing.append(where)
+            for key, value in node.items():
+                walk(value, f"{where}/{key}")
+        elif isinstance(node, list):
+            for index, item in enumerate(node):
+                walk(item, f"{where}/{index}")
+
+    walk(open_api_spec, "#")
+    assert missing == []
 
 
 def test_specification_of_the_example_configuration_is_valid(open_manifest_path: ManifestPath, tmp_path):

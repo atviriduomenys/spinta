@@ -631,7 +631,8 @@ class DataTypeHandler:
         # makes it look like a reference, while it is a list all the same.
         if self.is_array_type(dtype):
             if dtype.items is None:
-                return {"type": "array", "example": []}
+                # OpenAPI 3.0 requires `items` on every array; an empty one holds anything.
+                return {"type": "array", "items": {}, "example": []}
 
             items_schema = self.convert_to_openapi_schema(dtype.items, schemas=schemas)
 

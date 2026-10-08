@@ -1932,7 +1932,7 @@ def test_dynamic_array_holds_anything(open_manifest_path_factory):
 
     zymos = open_api_spec["components"]["schemas"]["ds_Israsas"]["properties"]["zymos"]
 
-    assert zymos == {"type": "array", "example": [], "nullable": True}
+    assert zymos == {"type": "array", "items": {}, "example": [], "nullable": True}
 
 
 def test_array_example_holds_an_item_of_the_item_type(open_manifest_path_factory):
