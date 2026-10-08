@@ -1123,6 +1123,8 @@ class Config:
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
+    token_issuer: str | None = None
+    resource_server: str | None = None
     downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str
@@ -1159,11 +1161,18 @@ class Config:
     # HTTP Strict Transport Security (HSTS) header
     http_strict_transport_security: str = ""
 
+    # `/health` probe thresholds, in MB
+    health_min_free_disk_space: int
+    health_min_free_memory: int
+
     log_level: str
     file_log_level: str
     file_log_path: pathlib.Path
 
     default_distribution_strategy: DistributionStrategy | None = None
+
+    # Script configurations
+    citus_reference_script_size: int
 
     def __init__(self):
         self.commands = _CommandsConfig()
