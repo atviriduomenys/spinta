@@ -275,6 +275,10 @@ def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
         'servers:\n  - url: "https://\\nagentas:slaptas@get.data.gov.lt"\n',
         'servers:\n  - url: "https: //agentas:slaptas@get.data.gov.lt"\n',
         "servers:\n  - url: https:\\\\agentas:slaptas@get.data.gov.lt\n",
+        # A mistyped number of slashes.
+        "auth:\n  token_url: https:/agentas:slaptas@am.example.lt/auth/token\n",
+        "auth:\n  token_url: https:agentas:slaptas@am.example.lt/auth/token\n",
+        "servers:\n  - url: https:///agentas:slaptas@get.data.gov.lt\n",
     ],
 )
 def test_config_rejects_credentials_in_an_url(tmp_path, config):
@@ -297,6 +301,8 @@ def test_config_rejects_credentials_in_an_url(tmp_path, config):
         "info:\n  title: [https://agentas:slaptas@lnb.lt]\n",
         "info:\n  x-logo: !!binary aHR0cHM6Ly9hZ2VudGFzOnNsYXB0YXNAbG5iLmx0\n",
         "limits:\n  max_limit: https://agentas:slaptas@lnb.lt\n",
+        "info:\n  contact:\n    email: https://agentas:slaptas@lnb.lt\n",
+        "info:\n  contact:\n    email: https:/agentas:slaptas@lnb.lt\n",
     ],
 )
 def test_config_error_quotes_no_password(tmp_path, config):
