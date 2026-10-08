@@ -30,8 +30,9 @@ info:
     name: CC-BY 4.0
     url: https://creativecommons.org/licenses/by/4.0/
 
-# Aplinkos. Kiekviena aplinka – atskiras įrašas; vartai iš PIRMOJO įrašo kelio
-# dalies išsiveda API context-path.
+# Vartų bazinis adresas, ne agento: jis rodomas kūrėjų portalo dokumentacijoje,
+# o vartai iš jo kelio dalies išsiveda API context-path. Nurodykite vieną
+# serverį – kelis vartai naudotų pakaitomis (round-robin).
 #
 # `url` galima nurodyti dviem būdais:
 #   - tik adresas (be kelio) – tuomet prilipdomas `--path` paslaugos kelias.
@@ -40,9 +41,7 @@ info:
 # PRIVALOMA. Bent vienas įrašas.
 servers:
   - url: https://get.data.gov.lt
-    description: Gamybinė (išoriniai vartai)
-  - url: https://test-get.data.gov.lt
-    description: Testavimo
+    description: Vartai
 
 # Autorizacijos serveris. `token_url` patenka į
 # `components.securitySchemes.UAPI_auth` kaip `clientCredentials` srauto adresas.
