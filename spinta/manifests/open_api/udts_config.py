@@ -79,12 +79,13 @@ EMAIL_MAX_LENGTH = 254
 #: into an OpenAPI URL field.
 invalid_uri_character_re = re.compile(r"[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]")
 
-#: Authority of an URL, read as `urlsplit` reads it, but without failing on a
-#: malformed URL, so it can be checked before any error quotes the URL back.
-url_authority_re = re.compile(r"^(?:[^:/?#]*:)?//([^/?#]*)")
+#: Authority of an URL, read without failing on a malformed URL, and after a
+#: scheme followed by any number of slashes, as a mistyped URL may have.
+url_authority_re = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:/*|//)([^/?#]*)")
 
-#: User information of anything that looks like an URL inside quoted text.
-url_userinfo_re = re.compile(r"(?<=[/\\][/\\])[^/?#@'\"]*@")
+#: User information of anything that looks like an URL inside quoted text, read
+#: more loosely than `url_authority_re`, as masking too much does no harm here.
+url_userinfo_re = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*:)[^?#@'\"\s]*@")
 
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
@@ -119,7 +120,7 @@ class UdtsConfig:
             raise InvalidUdtsConfig(path=str(path), error="configuration must be a mapping.")
 
         for key in sorted(set(data) - KNOWN_KEYS, key=str):
-            warnings.warn(f"{path}: unknown UDTS configuration key {key!r}, ignoring it.", UserWarning)
+            warnings.warn(f"{path}: unknown UDTS configuration key {_shown(key)}, ignoring it.", UserWarning)
 
         for key in ("info", "auth", "externalDocs", "limits"):
             if key in data and data[key] is not None and not isinstance(data[key], dict):
@@ -258,14 +259,14 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
         raise InvalidUdtsConfig(
             path=str(path),
             error=(
-                f"server URL {url!r} is a template, which is not supported, give each environment an URL of its own."
+                f"server URL {_shown(url)} is a template, which is not supported, give each environment an URL of its own."
             ),
         )
 
     _check_url(url, path, "server URL", relative=True)
     # A server URL is the base of every path, and the token endpoint is derived
     # from it, so a fragment of its own would end up in both.
-    _check_no_fragment(url, path, f"server URL {url!r}")
+    _check_no_fragment(url, path, f"server URL {_shown(url)}")
     parts = urlsplit(url)
     if not parts.scheme and not url.startswith("/"):
         # Without a scheme `urlsplit` reads the host as a path
@@ -274,7 +275,7 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
         raise InvalidUdtsConfig(
             path=str(path),
             error=(
-                f"server URL {url!r} has no scheme and host, "
+                f"server URL {_shown(url)} has no scheme and host, "
                 "use `https://host.example.com` or a path starting with `/`."
             ),
         )
@@ -282,13 +283,13 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
         raise InvalidUdtsConfig(
             path=str(path),
             error=(
-                f"server URL {url!r} is served over {parts.scheme!r}, while the data service is an "
+                f"server URL {_shown(url)} is served over {parts.scheme!r}, while the data service is an "
                 "HTTP API, use `https` or, for a local deployment, `http`."
             ),
         )
 
-    _warn_if_insecure(url, path, f"server URL {url!r}, which")
-    _check_optional_string(server.get("description"), path, f"`description` of server {url!r}")
+    _warn_if_insecure(url, path, f"server URL {_shown(url)}, which")
+    _check_optional_string(server.get("description"), path, f"`description` of server {_shown(url)}")
 
 
 def _check_http_scheme(url: str, path: pathlib.Path, what: str) -> None:
@@ -312,7 +313,7 @@ def _warn_if_insecure(url: str, path: pathlib.Path, what: str) -> None:
     """
     if urlsplit(url).scheme.lower() == "http":
         warnings.warn(
-            f"{path}: {what} {url!r} is reached over `http`, so client credentials sent to the token "
+            f"{path}: {what} {_shown(url)} is reached over `http`, so client credentials sent to the token "
             "endpoint go in the clear; RFC 6749 section 2.3.1 asks for TLS.",
             UserWarning,
         )
@@ -357,7 +358,7 @@ def _keep_known(
     for key, value in mapping.items():
         is_extension = extensions and isinstance(key, str) and key.startswith("x-")
         if not isinstance(key, str) or (key not in known and not is_extension):
-            warnings.warn(f"{path}: {what} key {key!r} is not supported, leaving it out.", UserWarning)
+            warnings.warn(f"{path}: {what} key {_shown(key)} is not supported, leaving it out.", UserWarning)
             continue
 
         # OpenAPI objects hold no null values, so a null of a known field is the
@@ -366,7 +367,7 @@ def _keep_known(
             continue
 
         if is_extension:
-            _check_json_value(value, path, f"{what} key {key!r}")
+            _check_json_value(value, path, f"{what} key {_shown(key)}")
 
         kept[key] = value
     return kept
@@ -436,7 +437,7 @@ def _shown(value: Any) -> str:
     if isinstance(value, (bool, int, float)) or value is None:
         return repr(value)
     if isinstance(value, str):
-        return url_userinfo_re.sub("***@", repr(value))
+        return url_userinfo_re.sub(r"\1***@", repr(value))
     return f"a {type(value).__name__}"
 
 
@@ -485,7 +486,7 @@ def _check_info(info: dict, path: pathlib.Path) -> None:
 def _check_email(email: str, path: pathlib.Path) -> None:
     local, _, _ = email.rpartition("@")
     if not email_re.fullmatch(email) or len(local) > EMAIL_LOCAL_MAX_LENGTH or len(email) > EMAIL_MAX_LENGTH:
-        raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.email` {email!r} is not an email address.")
+        raise InvalidUdtsConfig(path=str(path), error=f"`info.contact.email` {_shown(email)} is not an email address.")
 
 
 def _check_limits(limits: dict, path: pathlib.Path) -> None:
@@ -525,7 +526,7 @@ def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
     looked for. An escaped `%23` is a character of the path and stays allowed.
     """
     if "#" in url:
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {url!r}.")
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} must hold no fragment, got {_shown(url)}.")
 
 
 def _check_no_credentials(url: str, path: pathlib.Path, what: str) -> None:
@@ -559,25 +560,25 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
 
     # `urlsplit` parses an URL, it does not validate one.
     if any(character.isspace() for character in url):
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, it holds whitespace.")
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} {_shown(url)} is not a valid URL, it holds whitespace.")
 
     if invalid := invalid_uri_character_re.search(url):
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"{what} {url!r} is not a valid URL, it holds invalid character {invalid.group()!r}.",
+            error=f"{what} {_shown(url)} is not a valid URL, it holds invalid character {invalid.group()!r}.",
         )
 
     if malformed_escape_re.search(url):
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"{what} {url!r} is not a valid URL, a percent sign has to start an escape of two hex digits.",
+            error=f"{what} {_shown(url)} is not a valid URL, a percent sign has to start an escape of two hex digits.",
         )
 
     try:
         parts = urlsplit(url)
         parts.port  # noqa: B018  Port is parsed only when it is read.
     except ValueError as error:
-        raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
+        raise InvalidUdtsConfig(path=str(path), error=f"{what} {_shown(url)} is not a valid URL, {error}.")
 
     if not parts.scheme:
         # A network-path reference (`//host/path`) has a host but inherits the
@@ -587,13 +588,13 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
 
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"{what} {url!r} has no scheme and host, use `https://host.example.com`.",
+            error=f"{what} {_shown(url)} has no scheme and host, use `https://host.example.com`.",
         )
 
     if not parts.hostname:
         raise InvalidUdtsConfig(
             path=str(path),
-            error=f"{what} {url!r} has a scheme but no host, use `https://host.example.com`.",
+            error=f"{what} {_shown(url)} has a scheme but no host, use `https://host.example.com`.",
         )
 
 
@@ -609,7 +610,7 @@ def _resolve_server_url(url: str, service_path: str) -> str:
 
     if path != f"/{service_path}":
         warnings.warn(
-            f"Server URL {url!r} path does not match data service path {service_path!r}. "
+            f"Server URL {_shown(url)} path does not match data service path {service_path!r}. "
             "Leaving it as given, API gateway will derive a different context path.",
             UserWarning,
         )
