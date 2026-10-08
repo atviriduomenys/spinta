@@ -316,6 +316,14 @@ class NodeNotFound(UserError):
     template = "Node {name!r} of type {type!r} not found."
 
 
+class InvalidUdtsConfig(UserError):
+    template = "Invalid UDTS configuration {path!r}: {error}"
+
+
+class DataServiceNotFound(UserError):
+    template = "Data service {service!r} has no datasets in manifest. Available data services: {available}."
+
+
 class ModelReferenceKeyNotFound(BaseError):
     template = "Model reference key {ref!r} not found in {model!r}."
 

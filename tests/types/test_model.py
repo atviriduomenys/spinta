@@ -157,3 +157,37 @@ def test_configure_missing_distribution_property_parameter(tmp_path, rc):
             manifest=_GENERIC_COUNTRY_MANIFEST,
             tmp_path=tmp_path,
         )
+
+
+_VISIBILITY_MANIFEST = """
+ d | r | b | m | property | type   | access | visibility
+ example                  |        |        |
+   |   |   | City         |        | open   | public
+   |   |   |   | name     | string | open   | public
+   |   |   |   | secret   | string | open   | private
+   |   |   |   | nothing  | string | open   |
+"""
+
+
+def test_given_visibility_is_what_the_tabular_manifest_gives(rc):
+    context, manifest = load_manifest_and_context(rc, _VISIBILITY_MANIFEST)
+    model = commands.get_model(context, manifest, "example/City")
+
+    assert model.given.visibility == "public"
+    assert model.properties["name"].given.visibility == "public"
+    assert model.properties["secret"].given.visibility == "private"
+    # Nothing given is recorded as nothing given, and loads with no visibility.
+    assert not model.properties["nothing"].given.visibility
+    assert model.properties["nothing"].visibility is None
+
+
+@pytest.mark.models("backends/postgres/City")
+def test_given_visibility_is_not_the_default(model, context):
+    """A manifest without the column gets the default, but it was not given."""
+    city = commands.get_model(context, context.get("store").manifest, model)
+
+    assert city.visibility.name == "private"
+    assert city.given.visibility is None
+    title = city.properties["title"]
+    assert title.visibility.name == "private"
+    assert title.given.visibility is None
