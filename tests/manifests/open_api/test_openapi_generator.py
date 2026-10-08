@@ -1896,8 +1896,14 @@ def test_file_download_declares_range_responses(open_manifest_path: ManifestPath
         ("bytes=abc", 400),
     ],
 )
-def test_ranged_file_response_is_one_the_document_declares(model, app, context, method, range_, status):
-    """A file kept in a file system is served by `FileResponse`, not by Spinta's renderer."""
+def test_ranged_file_response_is_one_the_document_declares(
+    model, app, open_manifest_path: ManifestPath, method, range_, status
+):
+    """A file kept in a file system is served by `FileResponse`, not by Spinta's renderer.
+
+    The model of the service belongs to no dataset, so it has no path in the
+    document; every file content path declares the same responses.
+    """
     app.authmodel(model, ["insert", "pdf_update", "pdf_getone"])
     created = app.post(f"/{model}", json={"report_type": "pdf"}).json()
     uploaded = app.put(
@@ -1914,8 +1920,9 @@ def test_ranged_file_response_is_one_the_document_declares(model, app, context, 
     response = app.request(method, f"/{model}/{created['_id']}/pdf", headers={"Range": range_})
 
     assert response.status_code == status, response.text
-    spec = _store_spec(context)
-    declared = spec["paths"][f"/{model}/{{id}}/pdf"][method.lower()]["responses"][str(status)]
+    spec = create_openapi_manifest(open_manifest_path)
+    file_path = spec["paths"]["/datasets/demo/system_data/Organization/{id}/org_logo"]
+    declared = file_path[method.lower()]["responses"][str(status)]
     if "$ref" in declared:
         declared = spec["components"]["responses"][declared["$ref"].rsplit("/", 1)[-1]]
 
