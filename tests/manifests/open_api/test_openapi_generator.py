@@ -1884,6 +1884,50 @@ def test_file_download_declares_range_responses(open_manifest_path: ManifestPath
     assert "content" not in responses["304"]
 
 
+@pytest.mark.models("backends/postgres/Report")
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+@pytest.mark.parametrize(
+    "range_, status",
+    [
+        ("bytes=0-3", 206),
+        ("bytes=0-1,4-5", 206),
+        ("bytes=100-200", 416),
+        ("items=0-3", 400),
+        ("bytes=abc", 400),
+    ],
+)
+def test_ranged_file_response_is_one_the_document_declares(model, app, context, method, range_, status):
+    """A file kept in a file system is served by `FileResponse`, not by Spinta's renderer."""
+    app.authmodel(model, ["insert", "pdf_update", "pdf_getone"])
+    created = app.post(f"/{model}", json={"report_type": "pdf"}).json()
+    uploaded = app.put(
+        f"/{model}/{created['_id']}/pdf",
+        content=b"0123456789",
+        headers={
+            "revision": created["_revision"],
+            "content-type": "application/pdf",
+            "content-disposition": 'attachment; filename="report.pdf"',
+        },
+    )
+    assert uploaded.status_code == 200, uploaded.text
+
+    response = app.request(method, f"/{model}/{created['_id']}/pdf", headers={"Range": range_})
+
+    assert response.status_code == status, response.text
+    spec = _store_spec(context)
+    declared = spec["paths"][f"/{model}/{{id}}/pdf"][method.lower()]["responses"][str(status)]
+    if "$ref" in declared:
+        declared = spec["components"]["responses"][declared["$ref"].rsplit("/", 1)[-1]]
+
+    if method == "HEAD" or not response.content:
+        return
+    media_type = response.headers["content-type"].split(";")[0].strip()
+    content = declared.get("content", {})
+    assert media_type in content or "*/*" in content, (media_type, sorted(content))
+    if media_type == "application/json":
+        _validate(response.json(), {**content[media_type]["schema"], "components": spec["components"]})
+
+
 def test_error_responses_name_their_status(open_manifest_path_factory):
     open_api_spec = _service_spec(open_manifest_path_factory)
 
