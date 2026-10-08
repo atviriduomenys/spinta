@@ -52,8 +52,10 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_REFS,
     MANIFEST_WITH_SEMANTIC_FORMATS,
     MANIFEST_WITH_SERVICES,
+    MANIFEST_WITH_SHAPED_EXAMPLES,
     MANIFEST_WITH_SOAP_PREPARE,
     MANIFEST_WITH_UNNAMABLE_NAMES,
+    MANIFEST_WITH_UUID_ID,
 )
 
 SUPPORTED_HTTP_METHODS = {"get", "head"}
@@ -1000,6 +1002,31 @@ def test_identifier_pattern_accepts_the_identifier_spinta_gives(model, app, open
     assert app.get(f"/{model}/{identifier}urn:").status_code == 200
     with pytest.raises(ValidationError):
         _validate(f"{identifier}urn:", schema)
+
+
+def test_uuid_value_of_any_version_is_answered(open_manifest_path_factory):
+    """The source is read with `uuid.UUID`, which takes any version."""
+    import uuid as uuid_module
+
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_SHAPED_EXAMPLES)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+    kodas = open_api_spec["components"]["schemas"]["ds_Adresas"]["properties"]["kodas"]
+
+    validator = _validator(open_api_spec, kodas)
+    for value in (uuid_module.uuid1(), uuid_module.uuid4(), uuid_module.uuid5(uuid_module.NAMESPACE_DNS, "lt")):
+        assert not list(validator.iter_errors(str(value))), value
+    assert list(validator.iter_errors(str(uuid_module.uuid4()).upper()))
+
+
+def test_declared_uuid_identifier_is_asked_for_as_spinta_reads_it(open_manifest_path_factory):
+    """A request is read by `is_str_uuid`, which takes version 4 alone."""
+    from spinta.manifests.open_api.openapi_config import UUID_VALUE_PATTERN
+
+    open_manifest_path = open_manifest_path_factory(MANIFEST_WITH_UUID_ID)
+    open_api_spec = create_openapi_manifest(open_manifest_path, service_path=SERVICE_PATH)
+
+    parameter = open_api_spec["components"]["parameters"]["id_ds_Salis"]
+    assert parameter["schema"]["pattern"] == UUID_VALUE_PATTERN
 
 
 def test_declared_uuid_identifier_is_the_one_spinta_reads():
