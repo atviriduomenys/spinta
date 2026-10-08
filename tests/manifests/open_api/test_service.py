@@ -258,6 +258,25 @@ def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
         UdtsConfig.from_path(path)
 
 
+@pytest.mark.parametrize(
+    "config",
+    [
+        "servers:\n  - url: https://agentas:slaptas@get.data.gov.lt\n",
+        "servers:\n  - url: //agentas@get.data.gov.lt\n",
+        "auth:\n  token_url: https://agentas:slaptas@am.example.lt/auth/token\n",
+        "externalDocs:\n  url: https://agentas:slaptas@ivpk.github.io/uapi\n",
+    ],
+)
+def test_config_rejects_credentials_in_an_url(tmp_path, config):
+    """An URL is published with the document, and so would a password in it be."""
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match="holds a user name or a password") as error:
+        UdtsConfig.from_path(path)
+    assert "slaptas" not in str(error.value)
+
+
 def test_config_accepts_token_url(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text("auth:\n  token_url: https://am.example.lt/auth/token\n", encoding="utf-8")

@@ -546,6 +546,13 @@ def _check_url(url: Any, path: pathlib.Path, what: str, *, relative: bool = Fals
     except ValueError as error:
         raise InvalidUdtsConfig(path=str(path), error=f"{what} {url!r} is not a valid URL, {error}.")
 
+    # The URL is published, so credentials in it would be too; it is not quoted back either.
+    if "@" in parts.netloc:
+        raise InvalidUdtsConfig(
+            path=str(path),
+            error=f"{what} holds a user name or a password, which would be published with the document.",
+        )
+
     if not parts.scheme:
         # A network-path reference (`//host/path`) has a host but inherits the
         # scheme, so it is relative as well.
