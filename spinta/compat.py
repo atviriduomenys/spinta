@@ -8,6 +8,7 @@ from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
 from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
+from spinta.warnings import SpintaDeprecationWarning
 
 if TYPE_CHECKING:
     from spinta.components import UrlParams
@@ -79,7 +80,7 @@ class XmlDeprecated(Xml):
 
     def __init__(self):
         super().__init__()
-        warnings.warn("'xml' backend type is deprecated, use 'dask/xml'.", FutureWarning)
+        warnings.warn("'xml' backend type is deprecated, use 'dask/xml'.", SpintaDeprecationWarning, stacklevel=2)
 
 
 # Backwards compatibility `json` backend class.
@@ -93,7 +94,7 @@ class JsonDeprecated(Json):
 
     def __init__(self):
         super().__init__()
-        warnings.warn("'json' backend type is deprecated, use 'dask/json'.", FutureWarning)
+        warnings.warn("'json' backend type is deprecated, use 'dask/json'.", SpintaDeprecationWarning, stacklevel=2)
 
 
 # Backwards compatibility `csv` backend class.
@@ -107,4 +108,4 @@ class CsvDeprecated(Csv):
 
     def __init__(self):
         super().__init__()
-        warnings.warn("'csv' backend type is deprecated, use 'dask/csv'.", FutureWarning)
+        warnings.warn("'csv' backend type is deprecated, use 'dask/csv'.", SpintaDeprecationWarning, stacklevel=2)

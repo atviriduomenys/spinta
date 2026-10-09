@@ -6,6 +6,36 @@ Changes
 
 Bug fixes:
 
+- Fixed ``spinta_*`` scope prefix deprecation notice spamming the log once per
+  request or per written row (`#2046`_): deprecation notices are now emitted
+  via the `warnings` module (`warnings.warn`) instead of ``log.warning``, so
+  they are shown at most once per call site and can be controlled via the
+  ``PYTHONWARNINGS`` environment variable or the ``-W`` option, for example::
+
+    # Silence all Spinta deprecation warnings:
+    PYTHONWARNINGS="ignore::DeprecationWarning" spinta run
+
+    # Turn all deprecation warnings into errors (useful in CI):
+    PYTHONWARNINGS="error::DeprecationWarning" pytest
+
+  All Spinta deprecation notices now use ``SpintaDeprecationWarning`` (or a
+  subclass of it) from the new ``spinta.warnings`` module: the ``spinta_*``
+  scope prefix deprecation (``ScopeFormatDeprecationWarning``), the deprecated
+  ``--log-file`` / ``--log-level`` CLI options and the deprecated ``csv`` /
+  ``json`` / ``xml`` backend classes (previously plain ``FutureWarning``,
+  which, unlike ``DeprecationWarning``, was shown by default).
+  Note that, like all ``DeprecationWarning`` subclasses, these are hidden by
+  default (shown only in ``__main__`` or with ``PYTHONDEVMODE=1``); in dev use
+  ``-W default::DeprecationWarning`` to make them visible. Unfiltered
+  warnings are routed into the file log under the ``py.warnings`` logger via
+  ``logging.captureWarnings``. Also note that ``PYTHONWARNINGS`` and the
+  ``-W`` interpreter option only work with the stdlib
+  ``DeprecationWarning`` category, not with the dotted
+  ``spinta.warnings.SpintaDeprecationWarning`` path, because Python applies
+  warning filters before third-party packages are importable (use
+  ``pytest -W "error::spinta.warnings.SpintaDeprecationWarning"`` or the
+  ``filterwarnings`` pytest setting for Spinta-specific filtering in CI).
+  See :ref:`deprecation-warnings` for the permanent documentation.
 - Fixed token validation when ``token_validation_keys_download_url`` was
   configured (needed when tokens are issued by an external authorization
   server): the ``downloaded_public_keys_file`` configuration value is a
@@ -15,11 +45,29 @@ Bug fixes:
   'exists'``. The value is now wrapped with ``pathlib.Path``.
 - Fixed incorrect citus distribution script generation when using `spinta migrate`
   on fresh database, when manifest contains models with cross schema references (`#2008`_).
+- Fixed push cli request system crashing when receiving non-json response (`#2020`_).
 - Added cancellation checkpoints between streamed response chunks to prevent
   repeated socket warnings after a client disconnects (`#2047`_).
 
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
+.. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
+.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 .. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
+
+Improvements:
+
+- Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
+- Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
+
+.. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
+
+New Features:
+
+- Added `citus_reference_config` admin script that is capable of generating new configuration file, which
+  contains all models that fit under citus reference sharding optimization criteria (`#1989`_).
+
+.. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
+
 
 1.1.0 (2026-08-19)
 =====================
