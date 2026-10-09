@@ -55,7 +55,12 @@ from spinta.exceptions import (
     error_response,
 )
 from spinta.formats.html.helpers import get_templates
-from spinta.middlewares import ContextMiddleware, PathNormalizationMiddleware, StrictTransportSecurityMiddleware
+from spinta.middlewares import (
+    ContextMiddleware,
+    DebugAwareGZipMiddleware,
+    PathNormalizationMiddleware,
+    StrictTransportSecurityMiddleware,
+)
 from spinta.urlparams import Version, get_response_type
 
 log = logging.getLogger(__name__)
@@ -509,6 +514,7 @@ def init(context: Context):
         ),
         Middleware(PathNormalizationMiddleware),
         Middleware(ContextMiddleware, context=context),
+        Middleware(DebugAwareGZipMiddleware, minimum_size=config.minimum_encoding_size),
     ]
 
     exception_handlers = {

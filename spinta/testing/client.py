@@ -75,10 +75,18 @@ def create_remote_server(
 ) -> RemoteServer:
     def remote(request: PreparedRequest):
         path = request.url[len(url.rstrip("/")) :]
+
+        headers = dict(request.headers)
+        # TestClient/httpx automatically decodes compressed responses.
+        # This callback then exposes resp.content through `responses`, which
+        # would otherwise preserve Content-Encoding and cause the outer
+        # `requests` client to decode the body a second time.
+        headers["Accept-Encoding"] = "identity"
+
         resp = app.request(
             request.method,
             path,
-            headers=dict(request.headers),
+            headers=headers,
             content=request.body,
         )
         return resp.status_code, resp.headers, resp.content

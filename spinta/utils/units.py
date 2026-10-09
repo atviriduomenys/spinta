@@ -11,7 +11,10 @@ BYTE_MULTIPLES = {
 }
 
 
-def tobytes(s, default: str = "b"):
+def tobytes(s: str | int, default: str = "b") -> int:
+    if isinstance(s, int):
+        return s * BYTE_MULTIPLES[default]
+
     unit = s[-1].lower()
     if unit in BYTE_MULTIPLES:
         s = s[:-1]

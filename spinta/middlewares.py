@@ -1,9 +1,12 @@
 import posixpath
 
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from spinta.components import Context
+from spinta.utils.http.etag import ETag
 
 
 def _is_normalized_path(scope: Scope) -> bool:
@@ -111,3 +114,73 @@ class ContextMiddleware:
                 await self.app(scope, receive, send)
         else:
             await self.app(scope, receive, send)
+
+
+def _append_accept_encoding(headers: MutableHeaders) -> None:
+    # Gzip negotiation can affect the selected representation.
+    # Normalize Vary after Starlette has processed the response.
+    vary_values = [value.strip() for value in headers.get("vary", "").split(",") if value.strip()]
+
+    if "accept-encoding" not in {value.lower() for value in vary_values}:
+        vary_values.append("Accept-Encoding")
+
+    headers["vary"] = ", ".join(vary_values)
+
+
+class DebugAwareGZipMiddleware:
+    """
+    Currently, starlette's GZipMiddleware does not handle debug messages, and it just removes them.
+
+    Since GZipMiddleware does not support injecting custom responders without copying and pasting the entire call logic, we have to
+    create a separate ` app ` and ` send ` wrappers that are able to intercept events.
+
+    To achieve this, we have to store GZipMiddleware object as a variable, instead of extending it as a parent,
+    this allows us to create a custom ` app ` wrapper, which would skip parsing debug messages and just return them as given.
+
+    To pass the original send function, we have to hijack the scope variable and insert the original function there. (This could be considered
+    a hack, but prior to that, the original scope is copied to not create issues later on.)
+
+    During the ` __call__ ` method we also hijack the send function to change etags from strong to weak (this is needed for compression
+    if we cannot ensure that compressed data will have unique revisions, this is also done inside nginx compression module.)
+
+    """
+
+    def __init__(self, app: ASGIApp, **gzip_options) -> None:
+        self.app = app
+        self.gzip = GZipMiddleware(
+            self.app_with_debug,
+            **gzip_options,
+        )
+
+    async def app_with_debug(self, scope: Scope, receive: Receive, gzip_send: Send) -> None:
+        original_send: Send = scope["_spinta_gzip_original_send"]
+
+        async def send_with_debug(message: Message) -> None:
+            if message["type"] == "http.response.debug":
+                await original_send(message)
+            else:
+                await gzip_send(message)
+
+        await self.app(scope, receive, send_with_debug)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # Copy rather than modify the caller's scope.
+        request_scope = dict(scope)
+        request_scope["_spinta_gzip_original_send"] = send
+        # Match Starlette's gzip negotiation. Decide tag strength from the
+        # request so early 304s and small uncompressed 200s stay consistent.
+        accepts_gzip = scope["type"] == "http" and "gzip" in Headers(scope=scope).get("accept-encoding", "")
+
+        async def send_response(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(raw=message["headers"])
+                etag = headers.get("etag")
+
+                _append_accept_encoding(headers)
+
+                if etag and (accepts_gzip or headers.get("content-encoding") == "gzip"):
+                    headers["etag"] = str(ETag.from_header(etag).to_weak())
+
+            await send(message)
+
+        await self.gzip(request_scope, receive, send_response)
