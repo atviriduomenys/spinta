@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import itertools
 import json
 import time
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, AsyncIterator, Dict, Iterable, List, Optional, Tuple, TypeVar, cast
 from urllib.error import HTTPError
 
 import requests
@@ -26,6 +27,24 @@ from spinta.core.enums import Action
 from spinta.exceptions import BaseError, NoBackendConfigured, error_response
 from spinta.formats.components import Format
 from spinta.renderer import render
+
+T = TypeVar("T")
+
+
+async def async_response_iterator(stream: Iterable[T]) -> AsyncIterator[T]:
+    """Adapt a synchronous response stream, closing its iterator if interrupted."""
+    iterator = iter(stream)
+    completed = False
+    try:
+        for chunk in iterator:
+            yield chunk
+            await asyncio.sleep(0)
+        completed = True
+    finally:
+        if not completed:
+            close = getattr(iterator, "close", None)
+            if close is not None:
+                close()
 
 
 async def _check_post(context: Context, request: Request, params: UrlParams):

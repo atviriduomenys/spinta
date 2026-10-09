@@ -1,4 +1,3 @@
-import asyncio
 from typing import AsyncIterator, Awaitable, Callable, Generic, Iterable, List, Optional, Tuple, TypeVar
 
 T = TypeVar("T")  # iterator item type
@@ -54,8 +53,6 @@ async def alist(it: AsyncIterator[T]) -> List[T]:
 async def aiter(it: Iterable[T]) -> AsyncIterator[T]:
     for x in it:
         yield x
-        # anyio.lowlevel.checkpoint() is more technical, but it's the same behind the scenes and calling it adds overhead
-        await asyncio.sleep(0)
 
 
 async def aslice(it: AsyncIterator[T], *args: int) -> AsyncIterator[T]:
