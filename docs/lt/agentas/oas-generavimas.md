@@ -66,7 +66,8 @@ pakete, `spinta/manifests/open_api/udts_cfg.example.yml`.
 
 `servers[].url` – **vartų** bazinis adresas, ne agento. Vartai jį rodo kūrėjų
 portalo dokumentacijoje, o `endpoint.targetUrl` nustatomas rankomis. Nurodykite
-vieną serverį: kelis vartai naudotų pakaitomis (round-robin).
+vieną serverį: kelis vartai naudotų pakaitomis (round-robin), todėl nurodžius
+kelis, generuojant parodomas įspėjimas.
 
 Be jų aprašo į vartus įkelti nepavyktų, todėl `spinta udts oas` to nė
 nebando ir nutraukia darbą su aiškia klaida. `--list` konfigūracijos
