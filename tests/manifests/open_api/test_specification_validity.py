@@ -39,7 +39,6 @@ UDTS_CONFIG = UdtsConfig(
     info={"title": "JADIS", "version": "1", "contact": {"email": "info@example.lt"}},
     servers=[
         {"url": "https://get.data.gov.lt", "description": "Production"},
-        {"url": "https://test-get.data.gov.lt", "description": "Testing"},
     ],
     auth={"token_url": "https://get.data.gov.lt/auth/token"},
     external_docs={"url": "https://ivpk.github.io/uapi"},

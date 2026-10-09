@@ -41,8 +41,6 @@ info:
 servers:
   - url: https://get.data.gov.lt
     description: Production
-  - url: https://test-get.data.gov.lt
-    description: Testing
 auth:
   token_url: https://get.data.gov.lt/auth/token
 """
@@ -146,7 +144,6 @@ def test_output_json(context, rc, cli: SpintaCliRunner, tmp_path):
     assert spec["info"]["title"] == "JADIS duomenų paslauga"
     assert spec["servers"] == [
         {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Production"},
-        {"url": "https://test-get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Testing"},
     ]
     assert set(spec["paths"]) == {
         "/at280_israsas/Israsas",

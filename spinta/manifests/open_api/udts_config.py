@@ -195,6 +195,16 @@ class UdtsConfig:
                 error="`servers` is required, give at least one environment the data service is served at.",
             )
 
+        # Several servers are valid OpenAPI, but Gravitee takes them as targets
+        # to call in turn, not as environments.
+        if len(self.servers) > 1:
+            warnings.warn(
+                f"{path}: {len(self.servers)} servers are given, and an API gateway such as Gravitee "
+                "uses every one of them in turn (round-robin), so give one server per document "
+                "imported into the gateway.",
+                UserWarning,
+            )
+
         # A token endpoint is `format: uri` in the OpenAPI schema, so it has to
         # be absolute. Derived from a relative server it would not be, and the
         # document would not pass the validation it exists to pass.

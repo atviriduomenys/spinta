@@ -1,6 +1,7 @@
 import json
 import pathlib
 import re
+import warnings
 
 import pytest
 
@@ -336,6 +337,31 @@ def test_config_warns_when_the_token_url_stays_relative(tmp_path):
 
     with pytest.warns(UserWarning, match="is left relative"):
         UdtsConfig.from_path(path)
+
+
+PUBLISHABLE_INFO = {
+    "title": "JADIS",
+    "contact": {"name": "Registrų centras", "url": "https://www.registrucentras.lt", "email": "info@example.lt"},
+}
+
+
+def test_publishing_several_servers_warns():
+    """Gravitee calls every server in turn, so several are said, not refused."""
+    config = UdtsConfig(
+        info=PUBLISHABLE_INFO,
+        servers=[{"url": "https://apigw.gov.lt"}, {"url": "https://test-apigw.gov.lt"}],
+    )
+
+    with pytest.warns(UserWarning, match="round-robin"):
+        config.check_publishable("vartai.yml")
+
+
+def test_publishing_one_server_does_not_warn():
+    config = UdtsConfig(info=PUBLISHABLE_INFO, servers=[{"url": "https://apigw.gov.lt"}])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        config.check_publishable("vartai.yml")
 
 
 def test_config_warns_about_an_insecure_server(tmp_path):
