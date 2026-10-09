@@ -303,6 +303,11 @@ def test_config_rejects_credentials_in_an_url(tmp_path, config):
         "limits:\n  max_limit: https://agentas:slaptas@lnb.lt\n",
         "info:\n  contact:\n    email: https://agentas:slaptas@lnb.lt\n",
         "info:\n  contact:\n    email: https:/agentas:slaptas@lnb.lt\n",
+        "info:\n  contact:\n    email: //123:slaptas@lnb.lt\n",
+        "info:\n  contact:\n    email: https://agentas:slap'tas@lnb.lt\n",
+        "info:\n  contact:\n    email: 'https://agentas:slap\"tas@lnb.lt'\n",
+        "servers:\n  - //123:slaptas@get.data.gov.lt\n",
+        "servers:\n  - https://agentas:slap'tas@get.data.gov.lt\n",
     ],
 )
 def test_config_error_quotes_no_password(tmp_path, config):
@@ -312,7 +317,7 @@ def test_config_error_quotes_no_password(tmp_path, config):
 
     with pytest.raises(InvalidUdtsConfig) as error:
         UdtsConfig.from_path(path)
-    assert "slaptas" not in str(error.value)
+    assert "slap" not in str(error.value)
 
 
 def test_config_accepts_token_url(tmp_path):

@@ -83,10 +83,6 @@ invalid_uri_character_re = re.compile(r"[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]")
 #: scheme followed by any number of slashes, as a mistyped URL may have.
 url_authority_re = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:/*|//)([^/?#]*)")
 
-#: User information of anything that looks like an URL inside quoted text, read
-#: more loosely than `url_authority_re`, as masking too much does no harm here.
-url_userinfo_re = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*:)[^?#@'\"\s]*@")
-
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
 TOKEN_PATH = "/:token"
@@ -437,7 +433,11 @@ def _shown(value: Any) -> str:
     if isinstance(value, (bool, int, float)) or value is None:
         return repr(value)
     if isinstance(value, str):
-        return url_userinfo_re.sub(r"\1***@", repr(value))
+        # Anything with `:` or a slash before an `@` may be an URL with a
+        # password, however malformed; an email address has neither.
+        if "@" in value and any(c in value[: value.rindex("@")] for c in ":/\\"):
+            return "(not shown, it may hold a password)"
+        return repr(value)
     return f"a {type(value).__name__}"
 
 
