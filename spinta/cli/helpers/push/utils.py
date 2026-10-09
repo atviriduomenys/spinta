@@ -1,5 +1,6 @@
 import hashlib
 import json
+import pathlib
 from typing import Any, List, Union
 
 import msgpack
@@ -8,13 +9,17 @@ from sqlalchemy.engine.row import Row
 
 from spinta import commands
 from spinta.auth import authorized
-from spinta.cli.helpers.push.components import PushRow
-from spinta.components import Context, Model, Page, pagination_enabled
+from spinta.cli.helpers.push.components import PushRow, PushState
+from spinta.components import Config, Context, Model, Page, pagination_enabled
 from spinta.core.enums import Action
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten, sepgetter
+
+
+def default_push_state_dir(config: Config) -> pathlib.Path:
+    return config.data_path / "push"
 
 
 def get_model(row: PushRow) -> Model:
@@ -79,14 +84,12 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
     return extracted_models
 
 
-def load_initial_page_data(
-    context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, override_page: dict
-) -> dict:
+def load_initial_page_data(push_state: PushState, models: List[Model], incremental: bool, override_page: dict) -> dict:
     if not incremental:
         return {}
 
-    conn = context.get("push.state.conn")
-    table = metadata.tables["_page"]
+    conn = push_state.db.conn
+    table = push_state.db.get_table(push_state.pagination_table_name)
     result = {}
 
     for model in models:

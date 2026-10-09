@@ -4,7 +4,7 @@ from collections import Counter
 
 import pytest
 
-from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.script.components import ScriptStatus, ScriptTag, ScriptTarget
 from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
@@ -59,6 +59,22 @@ def test_upgrade_all(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
 
     for script in upgrade_script_registry.get_all_names():
         assert result_contains(result, script_check_status_message(script, ScriptStatus.PASSED))
+
+
+def test_upgrade_target(context, rc, cli: SpintaCliRunner):
+    result = cli.invoke(rc, ["upgrade", "--target", ScriptTarget.AUTH.value, "-c"])
+
+    assert result.exit_code == 0
+    assert result_contains(result, script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED))
+    assert f"Script {Script.SQL_KEYMAP_INITIAL.value!r} check." not in result.stderr
+
+
+def test_upgrade_tag(context, rc, cli: SpintaCliRunner):
+    result = cli.invoke(rc, ["upgrade", "--tag", ScriptTag.DB_MIGRATION.value, "-c"])
+
+    assert result.exit_code == 0
+    assert result_contains(result, script_check_status_message(Script.SQL_KEYMAP_INITIAL.value, ScriptStatus.PASSED))
+    assert f"Script {Script.CLIENTS.value!r} check." not in result.stderr
 
 
 def test_upgrade_multiple(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
