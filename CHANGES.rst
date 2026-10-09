@@ -46,10 +46,13 @@ Bug fixes:
 - Fixed incorrect citus distribution script generation when using `spinta migrate`
   on fresh database, when manifest contains models with cross schema references (`#2008`_).
 - Fixed push cli request system crashing when receiving non-json response (`#2020`_).
+- Added cancellation checkpoints between streamed response chunks to prevent
+  repeated socket warnings after a client disconnects (`#2047`_).
 
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
 .. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
 .. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
+.. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
 
 Improvements:
 

@@ -43,6 +43,7 @@ from spinta.types.datatype import (
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values
+from spinta.utils.response import async_response_iterator
 from spinta.utils.schema import NotAvailable
 
 RDF = "rdf"
@@ -214,7 +215,7 @@ def render(
     headers["Content-Disposition"] = f'attachment; filename="{model.basename}.rdf"'
 
     return StreamingResponse(
-        _stream(context, request, model, action, data),
+        async_response_iterator(_stream(context, request, model, action, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
@@ -237,14 +238,14 @@ def render(
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{ns.basename}.rdf"'
     return StreamingResponse(
-        _stream_namespace(context, request, ns, action, data),
+        async_response_iterator(_stream_namespace(context, request, ns, action, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
     )
 
 
-async def _stream(context: Context, request: Request, model: Model, action: Action, data):
+def _stream(context: Context, request: Request, model: Model, action: Action, data):
     namespaces = []
     prefixes = _get_available_prefixes(context, model)
     root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
@@ -265,7 +266,7 @@ async def _stream(context: Context, request: Request, model: Model, action: Acti
     yield f"</{root_name}>\n"
 
 
-async def _stream_namespace(context: Context, request: Request, ns: Namespace, action: Action, data):
+def _stream_namespace(context: Context, request: Request, ns: Namespace, action: Action, data):
     namespaces = []
     models = commands.traverse_ns_models(
         context,
