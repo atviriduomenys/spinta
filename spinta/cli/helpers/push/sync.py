@@ -79,7 +79,9 @@ def _fetch_all_model_data(
 
         resp_data = result.data
         if not isinstance(resp_data, dict):
-            cli_message(f"ERROR: Unknown data format from response {type(resp_data)}, expected dictionary", progress_bar)
+            cli_message(
+                f"ERROR: Unknown data format from response {type(resp_data)}, expected dictionary", progress_bar
+            )
             break
 
         data = resp_data.get("_data")
