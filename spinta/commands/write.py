@@ -1313,7 +1313,7 @@ def prepare_headers(context: Context, node: Node, resp: dict, action: Action, is
     headers = {}
     if action == Action.INSERT and not is_batch:
         server_url = context.get("config").server_url
-        headers["location"] = f"{server_url}{node.name}/{resp['_id']}"
+        headers["location"] = f"{server_url}/{node.name}/{resp['_id']}"
     return headers
 
 

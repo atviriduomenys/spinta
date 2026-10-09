@@ -1123,6 +1123,8 @@ class Config:
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
+    token_issuer: str | None = None
+    resource_server: str | None = None
     downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str
@@ -1166,6 +1168,9 @@ class Config:
     file_log_path: pathlib.Path
 
     default_distribution_strategy: DistributionStrategy | None = None
+
+    # Script configurations
+    citus_reference_script_size: int
 
     def __init__(self):
         self.commands = _CommandsConfig()

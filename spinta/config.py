@@ -235,6 +235,9 @@ CONFIG = {
     "default_auth_client": "default",
     # Public JWK key for validating auth bearer tokens.
     "token_validation_key": None,
+    # Expected `iss` (issuer) claim of accepted bearer tokens.
+    "token_issuer": None,
+    "resource_server": None,
     # Limit access to specified namespace root.
     "root": None,
     "env": "prod",
@@ -277,6 +280,8 @@ CONFIG = {
     # Default postgresql backend sharding distribution strategy (set it to `undistributed` to disable sharding)
     "default_distribution_strategy": "schema",
     "default_distribution_property": "_id",
+    # Script configuration parameters
+    "citus_reference_script_size": "10g",
     "environments": {
         "dev": {
             "keymaps.default": {

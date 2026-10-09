@@ -19,6 +19,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
+from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
 
@@ -71,7 +72,7 @@ def load(context: Context, config: Config) -> Config:
         rc.get("data_path") or DEFAULT_DATA_PATH,
     )
     config.credentials_file = pathlib.Path(rc.get("credentials_file") or DEFAULT_CONFIG_PATH / "credentials.cfg")
-    config.server_url = rc.get("server_url")
+    config.server_url = (rc.get("server_url") or "").rstrip("/")
     config.scope_prefix = rc.get("scope_prefix")
     config.scope_formatter = rc.get("scope_formatter", cast=importstr)
     config.scope_prefix_udts = rc.get("scope_prefix_udts")
@@ -92,7 +93,9 @@ def load(context: Context, config: Config) -> Config:
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
-    config.downloaded_public_keys_file = (
+    config.token_issuer = rc.get("token_issuer")
+    config.resource_server = rc.get("resource_server")
+    config.downloaded_public_keys_file = pathlib.Path(
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )
     config.datasets = rc.get("datasets", default={})
@@ -154,8 +157,10 @@ def load(context: Context, config: Config) -> Config:
         cast=lambda strategy: DistributionStrategy(
             get_enum_by_value(DistributionType, strategy),
             property=rc.get("default_distribution_property", default=None),
+            default=True,
         ),
     )
+    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
 
     return config
 

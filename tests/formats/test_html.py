@@ -16,7 +16,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Config, Context, Namespace, Store, UrlParams, Version
 from spinta.core.config import RawConfig
 from spinta.core.enums import Action
-from spinta.formats.html.commands import _LimitIter
+from spinta.formats.html.commands import _is_safe_url, _LimitIter
 from spinta.formats.html.components import Cell, Color, Html
 from spinta.formats.html.helpers import (
     CurrentLocation,
@@ -541,6 +541,31 @@ def test_limit_iter(limit, exhausted, result):
     it = _LimitIter(limit, iter([1, 2, 3]))
     assert list(it) == result
     assert it.exhausted is exhausted
+
+
+@pytest.mark.parametrize(
+    "url, result",
+    [
+        ("https://www.example.com/path", True),
+        ("HTTP://www.example.com", True),
+        ("ftp://files.example.com/file.txt", True),
+        ("ftps://files.example.com/file.txt", True),
+        ("mailto:user@example.com", True),
+        ("www.example.com", False),
+        ("/example/Country", False),
+        ("javascript:alert(1)", False),
+        ("data:text/html,<script>alert(1)</script>", False),
+        ("//evil.example.com", False),
+        ("https:///missing-host", False),
+        ("mailto:", False),
+        ("https://example.com/\npath", False),
+        ("http://[::1", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_is_safe_url(url, result):
+    assert _is_safe_url(url) is result
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -1416,3 +1441,91 @@ def test_front_page_warning_rendered(
 
     resp = app.get("/example/html/warning/Country/:format/html")
     assert resp.context["front_page_warning"] == "**Custom** warning"
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_html_url(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/html/url         |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | id      |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | link     | url     |         |         |       |
+
+    """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True,
+    )
+    app = create_test_client(context)
+    app.authmodel("example/html", ["insert", "getall", "search"])
+
+    countries = [
+        pushdata(app, "/example/html/url/Country", {"id": 0, "link": "https://www.example.com"}),
+        pushdata(app, "/example/html/url/Country", {"id": 1, "link": "mailto:email@example.com"}),
+        pushdata(app, "/example/html/url/Country", {"id": 2, "link": "javascript:alert(1)"}),
+        pushdata(app, "/example/html/url/Country", {"id": 3, "link": " https://www.example.com/path "}),
+    ]
+
+    resp = app.get(
+        "/example/html/url/Country/:format/html?select(_id,id,link)&sort(id)",
+    )
+
+    assert _table_with_header(resp) == [
+        {
+            "_id": {
+                "value": short_id(countries[0]["_id"]),
+                "link": f"/example/html/url/Country/{countries[0]['_id']}",
+            },
+            "id": {"value": 0},
+            "link": {"value": "https://www.example.com", "link": "https://www.example.com"},
+        },
+        {
+            "_id": {
+                "value": short_id(countries[1]["_id"]),
+                "link": f"/example/html/url/Country/{countries[1]['_id']}",
+            },
+            "id": {"value": 1},
+            "link": {"value": "mailto:email@example.com", "link": "mailto:email@example.com"},
+        },
+        {
+            "_id": {
+                "value": short_id(countries[2]["_id"]),
+                "link": f"/example/html/url/Country/{countries[2]['_id']}",
+            },
+            "id": {"value": 2},
+            "link": {"value": "javascript:alert(1)"},
+        },
+        {
+            "_id": {
+                "value": short_id(countries[3]["_id"]),
+                "link": f"/example/html/url/Country/{countries[3]['_id']}",
+            },
+            "id": {"value": 3},
+            "link": {
+                "value": " https://www.example.com/path ",
+                "link": "https://www.example.com/path",
+            },
+        },
+    ]
+
+    assert (
+        '<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">https://www.example.com</a>'
+        in resp.text
+    )
+    internal_link = f"/example/html/url/Country/{countries[0]['_id']}"
+    assert f'<a href="{internal_link}">{short_id(countries[0]["_id"])}</a>' in resp.text
