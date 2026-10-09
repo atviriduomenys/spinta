@@ -8,8 +8,13 @@ from requests import ConnectTimeout, HTTPError, JSONDecodeError, ReadTimeout, Ti
 from responses import GET, RequestsMock
 
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.utils.response import RequestResult, format_request_error, get_request_with_retries, request
-from spinta.utils.response import async_response_iterator
+from spinta.utils.response import (
+    RequestResult,
+    async_response_iterator,
+    format_request_error,
+    get_request_with_retries,
+    request,
+)
 
 
 def test_request_error_counter(responses: RequestsMock):
