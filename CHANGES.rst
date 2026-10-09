@@ -45,13 +45,16 @@ Bug fixes:
   'exists'``. The value is now wrapped with ``pathlib.Path``.
 - Fixed incorrect citus distribution script generation when using `spinta migrate`
   on fresh database, when manifest contains models with cross schema references (`#2008`_).
+- Fixed push cli request system crashing when receiving non-json response (`#2020`_).
 
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
 .. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
+.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 
 Improvements:
 
 - Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
+- Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
 
 .. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
 

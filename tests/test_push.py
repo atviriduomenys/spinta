@@ -1,22 +1,35 @@
 import datetime
 import hashlib
 import json
+import logging
 import textwrap
 from typing import Any, Callable, Dict, Tuple
+from unittest.mock import Mock
 
 import pytest
 import requests
 import sqlalchemy as sa
 from pprintpp import pformat
 from requests import PreparedRequest
-from responses import POST, RequestsMock
+from responses import GET, POST, RequestsMock
 
 from spinta import commands
+from spinta.backends.components import Backend
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push.components import PushRow, State
 from spinta.cli.helpers.push.state import init_push_state, reset_pushed
-from spinta.cli.helpers.push.write import _map_sent_and_recv, get_row_for_error, push, send_request
+from spinta.cli.helpers.push.sync import _build_push_state_sync_url, _fetch_all_model_data
+from spinta.cli.helpers.push.write import (
+    _map_sent_and_recv,
+    _send_and_receive,
+    get_row_for_error,
+    prepare_rows_with_errors,
+    push,
+    send_request,
+)
+from spinta.components import Config, Model
 from spinta.core.config import RawConfig
+from spinta.core.context import load_commands
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import configure_remote_server, create_rc
@@ -205,17 +218,211 @@ def test__get_row_for_error__errors(rc: RawConfig):
     ]
 
 
-def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
-    model = "example/City"
-    url = f"https://example.com/{model}"
+def test__send_data__json_error(responses: RequestsMock):
+    model = Model()
+    model.name = "example/City"
+    url = f"https://example.com/{model.name}"
     responses.add(POST, url, status=500, body="{INVALID JSON}")
     rows = [
         PushRow(model, {"name": "Vilnius"}),
     ]
     data = '{"name": "Vilnius"}'
     session = requests.Session()
-    _, resp = send_request(session, url, "POST", rows, data, timeout=(5, 300))
-    assert resp is None
+    result = send_request(session, url, "POST", rows, data, timeout=(5, 300))
+    assert result.status_code == 500
+    assert result.data is None
+    assert not result.ok
+    assert isinstance(result.exception, requests.JSONDecodeError)
+
+
+def test_send_request_logs_before_raising_http_error(responses: RequestsMock, caplog: pytest.LogCaptureFixture):
+    server = "https://example.com"
+    responses.add(POST, server, json={"errors": []}, status=400)
+    _assert_send_request_logs_before_raising(server, caplog, requests.HTTPError)
+
+
+def test_send_request_logs_before_raising_json_decode_error(responses: RequestsMock, caplog: pytest.LogCaptureFixture):
+    server = "https://example.com"
+    responses.add(POST, server, body="INVALID JSON", status=200)
+    _assert_send_request_logs_before_raising(server, caplog, requests.JSONDecodeError)
+
+
+def test_send_request_logs_before_raising_read_timeout(responses: RequestsMock, caplog: pytest.LogCaptureFixture):
+    server = "https://example.com"
+    responses.add(POST, server, body=requests.ReadTimeout())
+    _assert_send_request_logs_before_raising(server, caplog, requests.ReadTimeout)
+
+
+def test_send_request_logs_before_raising_connect_timeout(responses: RequestsMock, caplog: pytest.LogCaptureFixture):
+    server = "https://example.com"
+    responses.add(POST, server, body=requests.ConnectTimeout())
+    _assert_send_request_logs_before_raising(server, caplog, requests.ConnectTimeout)
+
+
+def _assert_send_request_logs_before_raising(
+    server: str, caplog: pytest.LogCaptureFixture, expected_exception: type[Exception]
+):
+    model = Model()
+    model.name = "example/City"
+    rows = [PushRow(model, {"name": "Vilnius"})]
+    error_counter = ErrorCounter(max_count=10)
+
+    with caplog.at_level(logging.ERROR), pytest.raises(expected_exception):
+        send_request(
+            requests.Session(),
+            server,
+            "POST",
+            rows,
+            "{}",
+            (5, 300),
+            stop_on_error=True,
+            error_counter=error_counter,
+        )
+
+    assert "Error when sending and receiving data." in caplog.text
+    assert "Model example/City" in caplog.text
+    assert error_counter.count == 1
+
+
+@pytest.mark.parametrize("status", [200, 201, 400])
+def test_send_and_receive_only_maps_successful_payloads(responses: RequestsMock, status: int):
+    server = "https://example.com"
+    responses.add(POST, server, json={"_data": [{"_id": "id", "_revision": "rev"}]}, status=status)
+    model = Model()
+    model.name = "example/City"
+    row = PushRow(model, {"_id": "id", "name": "Vilnius"})
+    error_counter = ErrorCounter(max_count=10)
+
+    assert list(_send_and_receive(requests.Session(), server, [row], "{}", (5, 300), error_counter=error_counter)) == [
+        row
+    ]
+
+    assert row.error is (status == 400)
+    assert row.data.get("_revision") == (None if status == 400 else "rev")
+    assert error_counter.count == (1 if status == 400 else 0)
+
+
+@pytest.mark.parametrize("body", ["INVALID JSON", '{"errors": []}'])
+def test_send_request_ignored_404_is_silent(responses: RequestsMock, caplog: pytest.LogCaptureFixture, body: str):
+    server = "https://example.com"
+    responses.add(GET, server, body=body, status=404)
+    error_counter = ErrorCounter(max_count=10)
+
+    with caplog.at_level(logging.ERROR):
+        result = send_request(
+            requests.Session(),
+            server,
+            "GET",
+            [],
+            "",
+            (5, 300),
+            ignore_statuses=[404],
+            stop_on_error=True,
+            error_counter=error_counter,
+        )
+
+    assert result.status_code == 404
+    assert result.ok
+    assert result.ignored
+    assert error_counter.count == 0
+    assert caplog.text == ""
+
+
+def test_send_and_receive_null_response_marks_rows_failed(responses: RequestsMock):
+    server = "https://example.com"
+    responses.add(POST, server, body="null", status=200)
+    model = Model()
+    model.name = "example/City"
+    row = PushRow(model, {"_id": "id", "name": "Vilnius"})
+
+    assert list(_send_and_receive(requests.Session(), server, [row], "{}", (5, 300))) == [row]
+    assert row.error
+
+
+def test_prepare_rows_with_errors_handles_ignored_404(responses: RequestsMock):
+    model = Model()
+    model.name = "example/City"
+    server = "https://example.com"
+    responses.add(GET, f"{server}/{model.name}/id", body="Not found", status=404)
+    table = sa.Table(
+        "City", sa.MetaData(), sa.Column("id", sa.Text), sa.Column("checksum", sa.Text), sa.Column("data", sa.Text)
+    )
+    saved = {table.c.id: "id", table.c.checksum: "checksum", table.c.data: '{"_id": "id", "name": "Vilnius"}'}
+    error_counter = ErrorCounter(max_count=10)
+
+    rows = list(
+        prepare_rows_with_errors(
+            requests.Session(), server, Mock(), [saved], model, table, (5, 300), error_counter=error_counter
+        )
+    )
+
+    assert len(rows) == 1
+    assert rows[0].op == "insert"
+    assert rows[0].error
+    assert error_counter.count == 0
+
+
+@pytest.mark.parametrize("status", [200, 201])
+def test_fetch_all_model_data_non_json_response(responses: RequestsMock, capsys: pytest.CaptureFixture, status: int):
+    load_commands(["spinta.types.model"])
+    server = "https://example.com"
+    model = Model()
+    model.name = "example/City"
+    model.backend = Backend()
+    config = Config()
+    config.sync_page_size = 10
+    url = _build_push_state_sync_url(server, model.name, "", [], 10)
+    responses.add(GET, url, body="INVALID JSON", status=status)
+    error_counter = ErrorCounter(max_count=10)
+
+    rows = list(
+        _fetch_all_model_data(
+            config,
+            model,
+            requests.Session(),
+            server,
+            error_counter=error_counter,
+            timeout=(5, 300),
+            retries=2,
+            delay_range=(0,),
+        )
+    )
+
+    assert rows == []
+    assert len(responses.calls) == 3
+    assert error_counter.count == 1
+    assert "ERROR: Failed to fetch data for model example/City." in capsys.readouterr().err
+
+
+def test_fetch_all_model_data_successful_201(responses: RequestsMock):
+    load_commands(["spinta.types.model"])
+    server = "https://example.com"
+    model = Model()
+    model.name = "example/City"
+    model.backend = Backend()
+    config = Config()
+    config.sync_page_size = 10
+    url = _build_push_state_sync_url(server, model.name, "", [], 10)
+    responses.add(GET, url, json={"_data": [{"_id": "id"}]}, status=201)
+    responses.add(GET, url, json={"_data": []}, status=201)
+    error_counter = ErrorCounter(max_count=10)
+
+    rows = list(
+        _fetch_all_model_data(
+            config,
+            model,
+            requests.Session(),
+            server,
+            error_counter=error_counter,
+            timeout=(5, 300),
+            retries=0,
+            delay_range=(0,),
+        )
+    )
+
+    assert rows == [{"_id": "id"}]
+    assert len(responses.calls) == 2
+    assert error_counter.count == 0
 
 
 def _match_dict(d: Dict[str, Any], m: Dict[str, Any]) -> bool:
