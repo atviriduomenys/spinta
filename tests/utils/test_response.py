@@ -1,5 +1,4 @@
 import json
-import sys
 
 import pytest
 import requests
@@ -8,7 +7,7 @@ from requests import ConnectTimeout, HTTPError, JSONDecodeError, ReadTimeout, Ti
 from responses import GET, RequestsMock
 
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.utils.response import RequestResult, get_request_with_retries, request
+from spinta.utils.response import RequestResult, format_request_error, get_request_with_retries, request
 
 
 def test_request_error_counter(responses: RequestsMock):
@@ -34,15 +33,12 @@ def test_request_error_counter(responses: RequestsMock):
     assert error_counter.count == 1
 
 
-def test_request_on_error(responses: RequestsMock, capsys: CaptureFixture):
-    def _on_error(response: RequestResult):
-        print("ON ERROR INTERCEPTION", file=sys.stderr)
-
+def test_format_request_error(responses: RequestsMock):
     server = "https://www.example.com"
     responses.add(GET, server, body="RESULT", status=400)
 
     client = requests.Session()
-    result = request(client, server, "GET", on_error=_on_error)
+    result = request(client, server, "GET")
     assert isinstance(result, RequestResult)
     assert result.status_code == 400
     assert result.data is None
@@ -50,8 +46,9 @@ def test_request_on_error(responses: RequestsMock, capsys: CaptureFixture):
     assert result.ok is False
     assert isinstance(result.exception, requests.JSONDecodeError)
 
-    cap = capsys.readouterr()
-    assert cap.err == "ON ERROR INTERCEPTION\n"
+    assert format_request_error(result, server, (5, 300)) == (
+        "Given response is not in JSON format.\nServer (https://www.example.com) response (status=400):\n    RESULT"
+    )
 
 
 def test_request_ignore_status(responses: RequestsMock):
@@ -182,12 +179,54 @@ def test_get_retry_non_json_response_message(responses: RequestsMock, capsys: Ca
     responses.add(GET, server, body="RESULT", status=400)
 
     client = requests.Session()
-    status_code, result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
-    assert status_code == 400
-    assert result is None
+    result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
+    assert result.status_code == 400
+    assert result.data is None
+    assert not result.ok
 
     cap = capsys.readouterr()
-    assert cap.err == "ERROR (400): Given response from https://www.example.com is not in JSON format:\n    RESULT\n"
+    assert cap.err == (
+        "Given response is not in JSON format.\nServer (https://www.example.com) response (status=400):\n    RESULT\n"
+    )
+
+
+@pytest.mark.parametrize("retries", [0, 2])
+@pytest.mark.parametrize("http_status", [200, 201])
+def test_get_retry_non_json_success_exhausted(
+    responses: RequestsMock, capsys: CaptureFixture, retries: int, http_status: int
+):
+    server = "https://www.example.com"
+    responses.add(GET, server, body="INVALID JSON", status=http_status)
+    error_counter = ErrorCounter(max_count=10)
+
+    result = get_request_with_retries(
+        requests.Session(), server, timeout=(5, 300), retries=retries, delay_range=(0,), error_counter=error_counter
+    )
+
+    assert result.status_code == http_status
+    assert result.data is None
+    assert not result.ok
+    assert isinstance(result.exception, JSONDecodeError)
+    assert len(responses.calls) == retries + 1
+    assert error_counter.count == 1
+    assert f"response (status={http_status}):" in capsys.readouterr().err
+
+
+def test_get_retry_non_json_success_recovers(responses: RequestsMock):
+    server = "https://www.example.com"
+    responses.add(GET, server, body="INVALID JSON", status=200)
+    responses.add(GET, server, json={"_data": []}, status=200)
+    error_counter = ErrorCounter(max_count=10)
+
+    result = get_request_with_retries(
+        requests.Session(), server, timeout=(5, 300), retries=2, delay_range=(0,), error_counter=error_counter
+    )
+
+    assert result.status_code == 200
+    assert result.data == {"_data": []}
+    assert result.ok
+    assert len(responses.calls) == 2
+    assert error_counter.count == 0
 
 
 def test_get_retry_read_timeout_message(responses: RequestsMock, capsys: CaptureFixture):
@@ -195,9 +234,10 @@ def test_get_retry_read_timeout_message(responses: RequestsMock, capsys: Capture
     responses.add(GET, server, body=ReadTimeout())
 
     client = requests.Session()
-    status_code, result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
-    assert status_code is None
-    assert result is None
+    result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
+    assert result.status_code is None
+    assert result.data is None
+    assert not result.ok
 
     cap = capsys.readouterr()
     assert cap.err == "Read timeout occurred. Current timeout settings are (connect: 5s, read: 300s).\n"
@@ -208,9 +248,10 @@ def test_get_retry_connect_timeout_message(responses: RequestsMock, capsys: Capt
     responses.add(GET, server, body=ConnectTimeout())
 
     client = requests.Session()
-    status_code, result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
-    assert status_code is None
-    assert result is None
+    result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
+    assert result.status_code is None
+    assert result.data is None
+    assert not result.ok
 
     cap = capsys.readouterr()
     assert cap.err == "Connect timeout occurred. Current timeout settings are (connect: 5s, read: 300s).\n"
@@ -221,12 +262,13 @@ def test_get_retry_io_error(responses: RequestsMock, capsys: CaptureFixture):
     responses.add(GET, server, body=IOError("IO Error"))
 
     client = requests.Session()
-    status_code, result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
-    assert status_code is None
-    assert result is None
+    result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
+    assert result.status_code is None
+    assert result.data is None
+    assert not result.ok
 
     cap = capsys.readouterr()
-    assert cap.err == "ERROR: Failed to fetch data from https://www.example.com:\n    IO Error\n"
+    assert cap.err == "Server (https://www.example.com) response (status=None):\n    IO Error\n"
 
 
 def test_get_retry_spinta_error(responses: RequestsMock, capsys: CaptureFixture):
@@ -234,11 +276,25 @@ def test_get_retry_spinta_error(responses: RequestsMock, capsys: CaptureFixture)
     responses.add(GET, server, body=json.dumps({"_errors": ["SpintaError"]}), status=400)
 
     client = requests.Session()
-    status_code, result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
-    assert status_code == 400
-    assert result == {"_errors": ["SpintaError"]}
+    result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())
+    assert result.status_code == 400
+    assert result.data == {"_errors": ["SpintaError"]}
+    assert not result.ok
 
     cap = capsys.readouterr()
-    assert cap.err == (
-        "ERROR (400): Failed to fetch data from https://www.example.com:\n    {'_errors': ['SpintaError']}\n"
+    assert cap.err == ("Server (https://www.example.com) response (status=400):\n    {'_errors': ['SpintaError']}\n")
+
+
+def test_get_retry_http_errors_count_once(responses: RequestsMock):
+    server = "https://www.example.com"
+    responses.add(GET, server, json={"errors": []}, status=500)
+    error_counter = ErrorCounter(max_count=10)
+
+    result = get_request_with_retries(
+        requests.Session(), server, timeout=(5, 300), retries=2, delay_range=(0,), error_counter=error_counter
     )
+
+    assert result.status_code == 500
+    assert not result.ok
+    assert len(responses.calls) == 3
+    assert error_counter.count == 1

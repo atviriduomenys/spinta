@@ -1,6 +1,5 @@
 import itertools
 import json
-import textwrap
 import time
 import uuid
 from copy import copy
@@ -20,7 +19,7 @@ from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.response import RequestResult, request
+from spinta.utils.response import RequestResult, format_request_error, request
 
 
 def _prepare_rows_for_push(rows: Iterable[PushRow]) -> Iterator[PushRow]:
@@ -63,7 +62,7 @@ def prepare_rows_with_errors(
         checksum = row[table.c.checksum]
         data = json.loads(row[table.c.data]) if row[table.c.data] else {}
 
-        status_code, resp = send_request(
+        result = send_request(
             client,
             f"{server}/{type}/{_id}",
             "GET",
@@ -74,7 +73,17 @@ def prepare_rows_with_errors(
             timeout=timeout,
         )
 
-        if status_code == 200:
+        if result.status_code == 404:
+            # Was deleted on both - local and target servers
+            if not data:
+                conn.execute(table.delete().where((table.c.id == _id)))
+                yield PushRow(model, {"_type": type}, send=False)
+            # Need to push again
+            else:
+                yield PushRow(model, data, checksum=checksum, saved=True, op="insert", error=True)
+
+        elif result.ok and not result.ignored:
+            resp = result.data
             # Was deleted on local server, but found on target server,
             # which means we need to delete it
             if not data:
@@ -89,15 +98,6 @@ def prepare_rows_with_errors(
             else:
                 data["_revision"] = resp["_revision"]
                 yield PushRow(model, data, checksum=checksum, saved=True, op="patch", error=True)
-
-        elif status_code == 404:
-            # Was deleted on both - local and target servers
-            if not data:
-                conn.execute(table.delete().where((table.c.id == _id)))
-                yield PushRow(model, {"_type": type}, send=False)
-            # Need to push again
-            else:
-                yield PushRow(model, data, checksum=checksum, saved=True, op="insert", error=True)
 
 
 def prepare_rows_for_deletion(model: Model, _id: str, error: bool = False):
@@ -223,7 +223,7 @@ def _send_and_receive(
     if dry_run:
         recv = _send_data_dry_run(data)
     else:
-        _, recv = send_request(
+        result = send_request(
             client,
             server,
             "POST",
@@ -233,8 +233,9 @@ def _send_and_receive(
             error_counter=error_counter,
             timeout=timeout,
         )
+        recv = result.data if result.ok and not result.ignored else None
         if isinstance(recv, dict):
-            recv = recv.get("_data", None)
+            recv = recv.get("_data")
     yield from _map_sent_and_recv(rows, recv)
 
 
@@ -313,42 +314,7 @@ def send_request(
     stop_on_error: bool = False,
     ignore_statuses: list[int] | None = None,
     error_counter: ErrorCounter | None = None,
-) -> tuple[int | None, dict[str, Any] | None]:
-    def on_error(result: RequestResult) -> None:
-        exception = result.exception
-        if isinstance(exception, requests.exceptions.ReadTimeout):
-            cli_push.log.error(
-                f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-            )
-        elif isinstance(exception, requests.exceptions.ConnectTimeout):
-            cli_push.log.error(
-                f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-            )
-        elif isinstance(exception, requests.JSONDecodeError):
-            cli_push.log.error(
-                "Error when sending and receiving data.\nServer response (status=%s):\n%s",
-                result.status_code,
-                textwrap.indent(result.text or "", "    "),
-            )
-        elif isinstance(exception, IOError):
-            # requests.RequestException is child of IOError
-            cli_push.log.error(
-                "Error when sending and receiving data.%s\nError: %s",
-                get_row_for_error(rows),
-                result.exception,
-            )
-        else:
-            errors = result.data.get("errors") if isinstance(result.data, dict) else None
-            error_message = result.data
-            if not result.data and result.text:
-                error_message = result.text
-            cli_push.log.error(
-                "Error when sending and receiving data.%s\nServer response (status=%s):\n%s",
-                get_row_for_error(rows, errors),
-                result.status_code,
-                textwrap.indent(pprintpp.pformat(error_message), "    "),
-            )
-
+) -> RequestResult:
     data = data.encode("utf-8")
     resp = request(
         client,
@@ -356,13 +322,22 @@ def send_request(
         method,
         data=data,
         timeout=timeout,
-        stop_on_error=stop_on_error,
         ignore_statuses=ignore_statuses,
         error_counter=error_counter,
-        on_error=on_error,
+        # Cannot add stop_on_error here; otherwise we will lose error message, since its handled separately
     )
 
-    return resp.status_code, resp.data
+    if not resp.ok:
+        errors = resp.data.get("errors") if isinstance(resp.data, dict) else None
+        cli_push.log.error(
+            "Error when sending and receiving data.\n%s\n%s",
+            format_request_error(resp, server, timeout),
+            get_row_for_error(rows, errors),
+        )
+        if stop_on_error:
+            resp.raise_for_error()
+
+    return resp
 
 
 def push(

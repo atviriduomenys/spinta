@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import pprintpp
 import requests
@@ -319,7 +319,6 @@ def request(
     stop_on_error: bool = False,
     ignore_statuses: list[int] | None = None,
     error_counter: ErrorCounter | None = None,
-    on_error: Callable[[RequestResult], None] | None = None,
 ) -> RequestResult:
     if ignore_statuses is None:
         ignore_statuses = []
@@ -351,14 +350,44 @@ def request(
         )
 
     if not result.ok:
-        if on_error:
-            on_error(result)
         if error_counter:
             error_counter.increase()
         if stop_on_error:
             result.raise_for_error()
 
     return result
+
+
+def format_request_error(
+    result: RequestResult,
+    server: str,
+    timeout: tuple[float, float],
+) -> str:
+    exception = result.exception
+    if isinstance(exception, requests.exceptions.ReadTimeout):
+        return f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+    elif isinstance(exception, requests.exceptions.ConnectTimeout):
+        return f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+    elif isinstance(exception, requests.JSONDecodeError):
+        return (
+            f"Given response is not in JSON format.\n"
+            f"Server ({server}) response (status={result.status_code}):\n"
+            f"{textwrap.indent(result.text or '', '    ')}"
+        )
+    elif isinstance(exception, IOError):
+        # requests.RequestException is child of IOError
+        return (
+            f"Server ({server}) response (status={result.status_code}):\n"
+            f"{textwrap.indent(str(exception) or '', '    ')}"
+        )
+
+    error_message = result.data
+    if not result.data and result.text:
+        error_message = result.text
+    return (
+        f"Server ({server}) response (status={result.status_code}):\n"
+        f"{textwrap.indent(pprintpp.pformat(error_message), '    ')}"
+    )
 
 
 def get_request_with_retries(
@@ -370,55 +399,17 @@ def get_request_with_retries(
     *,
     error_counter: ErrorCounter | None = None,
     progress_bar: tqdm.tqdm | None = None,
-) -> tuple[int | None, dict | None]:
-    def on_error(result: RequestResult) -> None:
-        exception = result.exception
-        if isinstance(exception, requests.exceptions.ReadTimeout):
-            cli_message(
-                f"Read timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
-                progress_bar=progress_bar,
-            )
-        elif isinstance(exception, requests.exceptions.ConnectTimeout):
-            cli_message(
-                f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s).",
-                progress_bar=progress_bar,
-            )
-        elif isinstance(exception, requests.JSONDecodeError):
-            cli_message(
-                (
-                    f"ERROR ({result.status_code}): Given response from {server} is not in JSON format:\n"
-                    f"{textwrap.indent(result.text or '', '    ')}"
-                ),
-                progress_bar=progress_bar,
-            )
-        elif isinstance(exception, IOError):
-            # requests.RequestException is child of IOError
-            cli_message(
-                f"ERROR: Failed to fetch data from {server}:\n{textwrap.indent(str(exception) or '', '    ')}",
-                progress_bar=progress_bar,
-            )
-        else:
-            error_message = result.data
-            if not result.data and result.text:
-                error_message = result.text
-            cli_message(
-                (
-                    f"ERROR ({result.status_code}): Failed to fetch data from {server}:\n"
-                    f"{textwrap.indent(pprintpp.pformat(error_message), '    ')}"
-                ),
-                progress_bar=progress_bar,
-            )
-
+) -> RequestResult:
     resp = request(
         client,
         server,
         "GET",
         timeout=timeout,
-        on_error=on_error,
     )
-    status_code = resp.status_code
     if resp.ok:
-        return status_code, resp.data
+        return resp
+    else:
+        cli_message(format_request_error(resp, server, timeout), progress_bar=progress_bar)
 
     for i in range(retries):
         delay = delay_range[min(i, len(delay_range) - 1)]
@@ -431,17 +422,17 @@ def get_request_with_retries(
             server,
             "GET",
             timeout=timeout,
-            on_error=on_error,
         )
-        status_code = resp.status_code
         if resp.ok:
-            return status_code, resp.data
+            return resp
+        else:
+            cli_message(format_request_error(resp, server, timeout), progress_bar=progress_bar)
 
     if not resp.ok:
         if error_counter:
             error_counter.increase()
 
-    return status_code, resp.data
+    return resp
 
 
 def _extract_latest_change(context: Context, model: Model, target_id: str = None) -> dict | None:

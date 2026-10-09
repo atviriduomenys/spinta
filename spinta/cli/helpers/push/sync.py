@@ -59,12 +59,12 @@ def _fetch_all_model_data(
         for page_by in page.by.values():
             page_columns.append(page_by.prop.name)
 
-    while True:
+    while page_hash is not None:
         url = _build_push_state_sync_url(
             server=server, model=model.model_type(), page=page_hash, page_columns=page_columns, limit=limit
         )
 
-        status_code, resp = get_request_with_retries(
+        result = get_request_with_retries(
             client,
             url,
             error_counter=error_counter,
@@ -73,23 +73,24 @@ def _fetch_all_model_data(
             progress_bar=progress_bar,
             delay_range=delay_range,
         )
-        if status_code != 200:
+        if not result.ok:
             cli_message(f"ERROR: Failed to fetch data for model {model.model_type()}.", progress_bar)
             break
 
-        if status_code == 200:
-            data = resp["_data"]
-            if not data:
-                break
-
-            if "_page" in resp:
-                page_hash = resp["_page"]["next"]
-
-            for row in data:
-                yield row
-
-        else:
+        resp_data = result.data
+        if not isinstance(resp_data, dict):
+            cli_message(f"ERROR: Unknown data format from response {type(resp_data)}, expected dictionary", progress_bar)
             break
+
+        data = resp_data.get("_data")
+        if not data:
+            break
+
+        if "_page" in resp_data:
+            page_hash = resp_data["_page"].get("next", None)
+
+        for row in data:
+            yield row
 
 
 def _get_state_rows_with_id(context: Context, table: sa.Table, size: int) -> sa.engine.LegacyCursorResult:

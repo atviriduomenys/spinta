@@ -3083,7 +3083,7 @@ def test_push_default_timeout(
 
     assert result.exit_code == 1
     assert any(
-        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 300.0s)."
+        "Read timeout occurred. Current timeout settings are (connect: 5.0s, read: 300.0s)."
         in message
         for message in caplog.messages
     )
@@ -3142,7 +3142,7 @@ def test_push_read_timeout(context, postgresql, rc, cli: SpintaCliRunner, respon
 
     assert result.exit_code == 1
     assert any(
-        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 0.1s)."
+        "Read timeout occurred. Current timeout settings are (connect: 5.0s, read: 0.1s)."
         in message
         for message in caplog.messages
     )
@@ -3266,7 +3266,7 @@ def test_push_connect_and_read_timeout(
 
     assert result.exit_code == 1
     assert any(
-        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 0.1s, read: 0.1s)."
+        "Read timeout occurred. Current timeout settings are (connect: 0.1s, read: 0.1s)."
         in message
         for message in caplog.messages
     )
@@ -3326,7 +3326,7 @@ def test_push_timeout_with_retries(
 
     assert result.exit_code == 1
     assert any(
-        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 300.0s)."
+        "Read timeout occurred. Current timeout settings are (connect: 5.0s, read: 300.0s)."
         in message
         for message in caplog.messages
     )
