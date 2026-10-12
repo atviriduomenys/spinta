@@ -134,7 +134,9 @@ def _parse_json(data: str, source: str, model_props: dict) -> Iterator[dict[str,
     yield from _parse_json_with_params(data, source_list, model_props)
 
 
-def _get_data_json(data_source: str, source: str, model_props: dict, headers: dict | None = None) -> Iterator[dict[str, Any]]:
+def _get_data_json(
+    data_source: str, source: str, model_props: dict, headers: dict | None = None
+) -> Iterator[dict[str, Any]]:
     if data_source.startswith("http"):
         response = requests.get(data_source, headers=headers or None, timeout=30)
         yield from _parse_json(response.text, source, model_props)

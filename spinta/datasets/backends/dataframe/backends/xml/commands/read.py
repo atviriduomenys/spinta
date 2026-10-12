@@ -94,7 +94,9 @@ def _parse_xml(data, source: str, model_props: dict, namespaces={}) -> Iterator[
             yield _parse_xml_loop_model_properties(value, added_root_elements, model_props, namespaces)
 
 
-def _get_data_xml(data_source: str, source: str, model_props: dict, namespaces: dict, headers: dict | None = None) -> Iterator[dict[str, Any]]:
+def _get_data_xml(
+    data_source: str, source: str, model_props: dict, namespaces: dict, headers: dict | None = None
+) -> Iterator[dict[str, Any]]:
     if data_source.startswith("http"):
         response = requests.get(data_source, headers=headers or None, timeout=30)
         yield from _parse_xml(io.BytesIO(response.content), source, model_props, namespaces)

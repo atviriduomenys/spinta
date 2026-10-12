@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import ANY
 
 import pytest
-from responses import GET, RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
