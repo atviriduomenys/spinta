@@ -134,9 +134,9 @@ def _parse_json(data: str, source: str, model_props: dict) -> Iterator[dict[str,
     yield from _parse_json_with_params(data, source_list, model_props)
 
 
-def _get_data_json(data_source: str, source: str, model_props: dict) -> Iterator[dict[str, Any]]:
+def _get_data_json(data_source: str, source: str, model_props: dict, headers: dict | None = None) -> Iterator[dict[str, Any]]:
     if data_source.startswith("http"):
-        response = requests.get(data_source, timeout=30)
+        response = requests.get(data_source, headers=headers or None, timeout=30)
         yield from _parse_json(response.text, source, model_props)
 
     elif is_file_path(data_source):
@@ -182,9 +182,13 @@ def getall(
     else:
         raise CannotReadResource(resource)
 
+    http_headers = resource.get_param_http_headers()
+    for header_name, header_value in http_headers.items():
+        http_headers[header_name] = builder.resolve(header_value)
+
     df = (
         from_sequence(data_source)
-        .map(_get_data_json, source=model.external.name, model_props=props)
+        .map(_get_data_json, source=model.external.name, model_props=props, headers=http_headers)
         .flatten()
         .to_dataframe(meta=meta)
     )
