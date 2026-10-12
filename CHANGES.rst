@@ -33,9 +33,10 @@ Backwards incompatible:
   - Schema names, tags and operation ids of a data service keep the dataset
     path (``at280_israsas_DalyvioAsmensIsrasas``); a whole manifest export uses
     the full model name.
-  - Agent endpoints, ``/version`` and ``/health``, and the token endpoint are
-    no longer described, nor the ``utility`` tag. The API gateway routes them
-    by hand, as ``/:version``, ``/:health`` and ``/:token``.
+  - Agent endpoints are described as ``/version``, ``/health`` and
+    ``/token``, the paths the API gateway routes inside a data service; the
+    ``x-spinta-context`` extension and the agent's own ``/auth/token`` path
+    are gone.
   - ``traceparent`` and ``tracestate`` headers are no longer required.
 
 Bug fixes:

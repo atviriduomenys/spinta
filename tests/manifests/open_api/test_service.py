@@ -137,7 +137,7 @@ def test_resolve_servers_appends_to_a_host_only_url(url):
     resolved = config.resolve_servers(SERVICE)[0]["url"]
 
     assert resolved.startswith(f"https://get.data.gov.lt/{SERVICE}")
-    assert config.resolve_token_url([{"url": resolved}]).startswith(f"https://get.data.gov.lt/{SERVICE}/:token")
+    assert config.resolve_token_url([{"url": resolved}]).startswith(f"https://get.data.gov.lt/{SERVICE}/token")
 
 
 def test_resolve_servers_keeps_given_service_path():
@@ -408,10 +408,10 @@ def test_config_accepts_empty_file(tmp_path, config):
 @pytest.mark.parametrize(
     "server, expected",
     [
-        (f"https://get.data.gov.lt/{SERVICE}", f"https://get.data.gov.lt/{SERVICE}/:token"),
+        (f"https://get.data.gov.lt/{SERVICE}", f"https://get.data.gov.lt/{SERVICE}/token"),
         # Query and fragment stay where they belong.
-        (f"https://get.data.gov.lt/{SERVICE}?env=prod", f"https://get.data.gov.lt/{SERVICE}/:token?env=prod"),
-        (f"/{SERVICE}", f"/{SERVICE}/:token"),
+        (f"https://get.data.gov.lt/{SERVICE}?env=prod", f"https://get.data.gov.lt/{SERVICE}/token?env=prod"),
+        (f"/{SERVICE}", f"/{SERVICE}/token"),
     ],
 )
 def test_default_token_url_is_built_from_the_server_path(server, expected):
@@ -421,7 +421,7 @@ def test_default_token_url_is_built_from_the_server_path(server, expected):
 
 
 def test_default_token_url_without_servers():
-    assert UdtsConfig().resolve_token_url([]) == "/:token"
+    assert UdtsConfig().resolve_token_url([]) == "/token"
 
 
 def test_resolve_servers_drops_a_trailing_slash_of_the_path():

@@ -280,6 +280,9 @@ Example
        {"url": "https://get.data.gov.lt/datasets/gov/rc/jadis/at280/1", "description": "Gateway"}
      ],
      "paths": {
+       "/version": {},
+       "/health": {},
+       "/token": {},
        "/at280_israsas/DalyvioAsmensIsrasas": {},
        "/at280_israsas/DalyvioAsmensIsrasas/{id}": {}
      }

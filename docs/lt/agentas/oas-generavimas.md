@@ -103,14 +103,16 @@ Kiekviena aplinka aprašoma savo `url`, todėl OpenAPI `servers[].variables`
 šablonai nenaudojami – nurodyti juos galima, bet jie praleidžiami.
 
 `auth.token_url` neprivalomas, kol pirmasis `servers` įrašas turi adresą su
-schema ir hostu: tada jis išvedamas iš to įrašo ir `/:token`, t. y. iš to paties
+schema ir hostu: tada jis išvedamas iš to įrašo ir `/token`, t. y. iš to paties
 adreso, kuriuo token'ą per vartus pasiekia gavėjas.
 
 Kliento identifikatorius ir slaptažodis siunčiami atviru tekstu, o RFC 6749
-(2.3.1) prašo TLS. Aprašas transporto **nenustato**. Adresas per `http`
-(pavyzdžiui, testavimo ar vietinis diegimas) priimamas, tik skaitant
-konfigūraciją parodomas įspėjimas, kad kredencialai eis atviru tekstu. TLS
-užtikrinamas ten, kur paslauga diegiama.
+(2.3.1) prašo TLS. Aprašas transporto **nenustato**: token'o kelias `/token`
+aprašomas visoms aplinkoms, kaip ir visi kiti keliai, nes paslauga jį ten ir
+aptarnauja. Adresas per `http` (pavyzdžiui, testavimo ar vietinis
+diegimas) priimamas, tik skaitant konfigūraciją parodomas įspėjimas, kad
+kredencialai eis atviru tekstu. TLS užtikrinamas ten, kur paslauga diegiama, o
+ne išimant kelius iš aprašo.
 
 Nurodyti **būtina** dviem atvejais: kai autorizacijos serveris yra kitur, ir kai
 pirmasis serveris nurodytas reliatyviu keliu – tada absoliutaus adreso išvesti
@@ -199,19 +201,29 @@ Kadangi `paths` yra reliatyvūs paslaugos bazei, rankomis jų karpyti nereikia.
 Jei paslaugos kelias vartuose vis dėlto skiriasi, jį galima nurodyti politikos
 `basePath` lauke.
 
-Agento lygmens endpoint'ai (`/version`, `/health`, `/auth/token`) aprašyme
-**neaprašomi**. Vartai juos prideda rankomis, Dynamic Routing taisyklėmis,
-paslaugos viduje naudodami veiksmo formą:
+Agento endpoint'ai aprašomi keliais `/version`, `/health` ir `/token`, kuriais
+vartai juos pasiekia paslaugos viduje (ADR-0008). Jie, kaip ir duomenų keliai,
+eina nuo dokumento `servers`, t. y. nuo paslaugos bazės. Pats agentas juos
+aptarnauja savo šaknyje, o token'ą – adresu `/auth/token`, todėl vartuose jiems
+reikia Dynamic Routing taisyklių:
 
 | Match expression | Redirect to |
 |---|---|
-| `/:version` | `{#api.properties['uapi_version']}` |
-| `/:health` | `{#api.properties['uapi_health']}` |
-| `/:token` | `{#api.properties['uapi_token']}` |
+| `/version` | `{#api.properties['uapi_version']}` |
+| `/health` | `{#api.properties['uapi_health']}` |
+| `/token` | `{#api.properties['uapi_token']}` |
 
-Aprašyme lieka tik `tokenUrl` (`components.securitySchemes.UAPI_auth`), nes
-OAuth 2.0 srautas be jo neaprašomas. Pagal nutylėjimą jis rodo į `/:token`
-taisyklę.
+Visos Spintos manifesto eksportas (be `--path`) šių kelių neturi, nes neturi ir
+paslaugos bazės, po kuria vartai juos maršrutizuotų.
+
+`/health` atsako visada `200`; ar paslauga sveika, sako `healthy` laukas, nes
+`503` reiškia, kad paslauga apskritai neatsakė. Tikrinantis komponentas turi
+skaityti `healthy`, o ne atsakymo kodą.
+
+Tikrinama tai, kas išvardyta `dependencies`: pati paslauga atsakė, o mašinos,
+kurioje ji sukasi, diskas ir atmintis neperžengė jai duotų ribų. Duomenis
+laikančios saugyklos netikrinamos, tad sveika paslauga vis tiek gali dirbti su
+neprieinama saugykla.
 
 ## Užklausų tikrinimas vartuose
 

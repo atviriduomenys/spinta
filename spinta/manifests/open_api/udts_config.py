@@ -85,7 +85,7 @@ url_authority_re = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:/*|//)([^/?#]*)")
 
 #: Path of the token endpoint, as routed by the API gateway inside a data
 #: service. See `UTILITY_PATHS` in `openapi_generator`.
-TOKEN_PATH = "/:token"
+TOKEN_PATH = "/token"
 
 
 @dataclass

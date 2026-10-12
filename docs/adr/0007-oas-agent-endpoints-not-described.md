@@ -1,6 +1,6 @@
 # ADR-0007: Agent endpoints are not described in the data service OAS
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0008](0008-oas-agent-endpoints-without-colon.md)
 - **Date:** 2026-10-02
 - **Related:** [#2004](https://github.com/atviriduomenys/spinta/issues/2004),
   [PR #2012](https://github.com/atviriduomenys/spinta/pull/2012)
