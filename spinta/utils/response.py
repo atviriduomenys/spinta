@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import itertools
 import json
 import textwrap
@@ -8,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
-from typing import Any, cast
+from typing import Any, AsyncIterator, Iterable, TypeVar, cast
 
 import pprintpp
 import requests
@@ -28,6 +29,24 @@ from spinta.core.enums import Action
 from spinta.exceptions import BaseError, NoBackendConfigured, error_response
 from spinta.formats.components import Format
 from spinta.renderer import render
+
+T = TypeVar("T")
+
+
+async def async_response_iterator(stream: Iterable[T]) -> AsyncIterator[T]:
+    """Adapt a synchronous response stream, closing its iterator if interrupted."""
+    iterator = iter(stream)
+    completed = False
+    try:
+        for chunk in iterator:
+            yield chunk
+            await asyncio.sleep(0)
+        completed = True
+    finally:
+        if not completed:
+            close = getattr(iterator, "close", None)
+            if close is not None:
+                close()
 
 
 @dataclass(frozen=True)
@@ -285,11 +304,6 @@ def peek_and_stream(stream):
             yield data
 
     return _iter()
-
-
-async def aiter(stream):
-    for data in stream:
-        yield data
 
 
 async def get_request_data(node: Node, request: Request):

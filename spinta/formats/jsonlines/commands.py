@@ -8,7 +8,7 @@ from spinta.components import Context, Model, Node, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.jsonlines.components import JsonLines
 from spinta.types.text.components import Text
-from spinta.utils.response import aiter, peek_and_stream
+from spinta.utils.response import async_response_iterator, peek_and_stream
 
 
 @commands.render.register(Context, Request, Model, JsonLines)
@@ -45,7 +45,10 @@ def render(
 
 def _render(fmt: JsonLines, data, status_code: int, headers: dict):
     return StreamingResponse(
-        aiter(peek_and_stream(fmt(data))), status_code=status_code, media_type=fmt.content_type, headers=headers
+        async_response_iterator(peek_and_stream(fmt(data))),
+        status_code=status_code,
+        media_type=fmt.content_type,
+        headers=headers,
     )
 
 
