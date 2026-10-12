@@ -46,8 +46,8 @@ identifier), [ADR-0005](../../adr/0005-oas-integer-format-int64.md) (`int64`), [
 
 | Mode | Called with | `servers` | Agent endpoints | Schema names |
 |---|---|---|---|---|
-| **Data service** | `service_path=…` (`spinta udts oas`) | from `--udts-cfg` | both forms | path within the service |
-| **Catalog** | no `service_path` (whole manifest or `main_dataset_name`) | none | agent addresses only | full name or `basename` |
+| **Data service** | `service_path=…` (`spinta udts oas`) | from `--udts-cfg` | `/version`, `/health`, `/token` | path within the service |
+| **Catalog** | no `service_path` (whole manifest or `main_dataset_name`) | none | none | full name or `basename` |
 
 The rest describes the data service mode; catalog differences are in the table.
 
