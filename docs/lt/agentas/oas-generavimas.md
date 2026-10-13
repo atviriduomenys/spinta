@@ -257,5 +257,6 @@ Atsakymų laukams ribų nededama: jų formos aprašo manifestas, ir bet koks
 spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
 
 `components.securitySchemes.UAPI_auth` token'o adresas išvedamas iš pirmojo
-`servers` įrašo, t. y. `:`-forma. Kreipiantis tiesiai į agentą, tinkamą adresą
-reikia nurodyti `auth.token_url` lauke.
+`servers` įrašo ir `/token`, t. y. vartų taisyklės adreso. Kreipiantis tiesiai į
+agentą (jis token'ą aptarnauja adresu `/auth/token`) arba naudojant kitą
+autorizacijos serverį, adresą reikia nurodyti `auth.token_url` lauke.

@@ -238,8 +238,26 @@ def test_config_reports_malformed_yaml(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text("info: [\n", encoding="utf-8")
 
-    with pytest.raises(InvalidUdtsConfig, match="not a valid YAML file"):
+    with pytest.raises(InvalidUdtsConfig, match="not a valid YAML file, .* at line 2, column 1"):
         UdtsConfig.from_path(path)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        # A repeated key is reported with both of its values.
+        "auth:\n  token_url: https://agentas:slaptas@am.lt\n  token_url: https://agentas:slaptas@am.lt\n",
+        'servers:\n  - url: "https://agentas:slaptas@get.data.gov.lt\n',
+        "servers:\n  - url: https://agentas:slaptas@get.data.gov.lt: x\n",
+    ],
+)
+def test_malformed_yaml_error_quotes_no_password(tmp_path, config):
+    path = tmp_path / "vartai.yml"
+    path.write_text(config, encoding="utf-8")
+
+    with pytest.raises(InvalidUdtsConfig, match="not a valid YAML file") as error:
+        UdtsConfig.from_path(path)
+    assert "slaptas" not in str(error.value)
 
 
 @pytest.mark.parametrize(

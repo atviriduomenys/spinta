@@ -108,7 +108,7 @@ class UdtsConfig:
         except UnicodeDecodeError as error:
             raise InvalidUdtsConfig(path=str(path), error=f"is not a UTF-8 file, {error}.")
         except YAMLError as error:
-            raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {error}.")
+            raise InvalidUdtsConfig(path=str(path), error=f"is not a valid YAML file, {_yaml_error(error)}.")
 
         if data is None:
             data = {}
@@ -438,17 +438,35 @@ def _clean_info(info: dict, path: pathlib.Path) -> dict:
     return info
 
 
+def _may_hold_password(text: str) -> bool:
+    # Anything with `:` or a slash before an `@` may be an URL with a password,
+    # however malformed; an email address has neither.
+    return "@" in text and any(c in text[: text.rindex("@")] for c in ":/\\")
+
+
 def _shown(value: Any) -> str:
     """A configured value as an error quotes it, without a password it may hold."""
     if isinstance(value, (bool, int, float)) or value is None:
         return repr(value)
     if isinstance(value, str):
-        # Anything with `:` or a slash before an `@` may be an URL with a
-        # password, however malformed; an email address has neither.
-        if "@" in value and any(c in value[: value.rindex("@")] for c in ":/\\"):
+        if _may_hold_password(value):
             return "(not shown, it may hold a password)"
         return repr(value)
     return f"a {type(value).__name__}"
+
+
+def _yaml_error(error: YAMLError) -> str:
+    """Where the file can not be read, without the source it quotes.
+
+    A parser error can quote a value of the file, a repeated key its values.
+    """
+    problem = getattr(error, "problem", None)
+    if not isinstance(problem, str) or _may_hold_password(problem):
+        problem = "it can not be parsed"
+    mark = getattr(error, "problem_mark", None) or getattr(error, "context_mark", None)
+    if mark is None:
+        return problem
+    return f"{problem} at line {mark.line + 1}, column {mark.column + 1}"
 
 
 def _check_string(value: Any, path: pathlib.Path, what: str) -> None:
