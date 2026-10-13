@@ -20,7 +20,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
-from spinta.utils.units import toseconds, tobytes
+from spinta.utils.units import tobytes, toseconds
 
 yaml = YAML(typ="safe")
 
