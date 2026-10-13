@@ -147,7 +147,8 @@ def _auth_accesslog(context: Context, request: Request, payload: dict, output_fo
     type_ = payload["token_type"]
 
     resource_protector = context.get("auth.resource_protector")
-    token = authenticate_token(resource_protector, token=token, type_=type_)
+    # The token was just issued here, possibly for another resource server (RFC 8707 `resource`).
+    token = authenticate_token(resource_protector, token=token, type_=type_, check_audience=False)
     params = UrlParams()
     params.format = output_format
     context.attach("accesslog", create_accesslog, context, loaders=(context.get("store"), request, token, params))
