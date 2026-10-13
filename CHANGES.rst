@@ -41,6 +41,13 @@ Backwards incompatible:
 
 Bug fixes:
 
+- A model's or property's ``visibility`` recorded as given is the one the
+  manifest gave, not the default ``private`` (`#2004`_).
+- A page token that Spinta did not write, ``page(123)`` or Base64 that holds no
+  list of values for example, is refused with ``InvalidPageKey`` instead of a
+  server error (`#2004`_).
+- A CSV manifest written on Windows no longer has an empty line after every
+  row and is written as UTF-8, the encoding it is read back in.
 - Fixed ``spinta_*`` scope prefix deprecation notice spamming the log once per
   request or per written row (`#2046`_): deprecation notices are now emitted
   via the `warnings` module (`warnings.warn`) instead of ``log.warning``, so
@@ -71,19 +78,6 @@ Bug fixes:
   ``pytest -W "error::spinta.warnings.SpintaDeprecationWarning"`` or the
   ``filterwarnings`` pytest setting for Spinta-specific filtering in CI).
   See :ref:`deprecation-warnings` for the permanent documentation.
-- The ``visibility`` a model or a property records as given is the one its
-  manifest gave. A manifest written without the column had its default,
-  ``private``, recorded as given, and a property recorded nothing given at all,
-  because the node loader had already taken the value by then. Enum items and
-  scopes recorded it right already. The ``visibility`` loaded is unchanged
-  (`#2004`_).
-- A model's or property's ``visibility`` recorded as given is the one the
-  manifest gave, not the default ``private`` (`#2004`_).
-- A page token that Spinta did not write, ``page(123)`` or Base64 that holds no
-  list of values for example, is refused with ``InvalidPageKey`` instead of a
-  server error (`#2004`_).
-- A CSV manifest written on Windows no longer has an empty line after every
-  row and is written as UTF-8, the encoding it is read back in.
 - Fixed token validation when ``token_validation_keys_download_url`` was
   configured (needed when tokens are issued by an external authorization
   server): the ``downloaded_public_keys_file`` configuration value is a
@@ -97,6 +91,13 @@ Bug fixes:
 - Added cancellation checkpoints between streamed response chunks to prevent
   repeated socket warnings after a client disconnects (`#2047`_).
 
+.. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
+.. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
+.. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
+.. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
+.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
+.. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
+
 Improvements:
 
 - New ``spinta udts oas`` command exports the OpenAPI specification of one UDTS
@@ -107,20 +108,11 @@ Improvements:
   services of a manifest (`#2004`_).
 - A listing can be continued with ``?_page=<token>``, as well as with
   ``page('<token>')`` (`#2004`_, `#2023`_).
-
-.. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
-.. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
-.. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
-.. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
-.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
-.. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
-
-Improvements:
-
 - Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
 - Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
 
 .. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
+.. _#2023: https://github.com/atviriduomenys/spinta/issues/2023
 
 New Features:
 
@@ -129,7 +121,6 @@ New Features:
 
 .. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
 
-.. _#2023: https://github.com/atviriduomenys/spinta/issues/2023
 
 1.1.0 (2026-08-19)
 =====================
