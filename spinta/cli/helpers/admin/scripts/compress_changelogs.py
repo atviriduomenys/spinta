@@ -1,4 +1,5 @@
 import pathlib
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from time import perf_counter
@@ -56,7 +57,14 @@ def check_if_need_to_compress_changelogs(context: Context, **kwargs) -> bool:
     return False
 
 
-def compress_changelogs(context: Context, output_path: pathlib.Path | None = None, **kwargs):
+def compress_changelogs(
+    context: Context,
+    output_path: pathlib.Path | None = None,
+    *,
+    cutoff: datetime | None = None,
+    compressed_at: datetime | None = None,
+    **kwargs,
+):
     ensure_store_is_loaded(context)
     store = context.get("store")
     manifest = store.manifest
@@ -65,7 +73,7 @@ def compress_changelogs(context: Context, output_path: pathlib.Path | None = Non
         if not _requires_changelog_compression(model, model.backend):
             continue
 
-        _compress_model_changelog(model, model.backend)
+        _compress_model_changelog(model, model.backend, cutoff=cutoff, compressed_at=compressed_at)
 
 
 @dataclass
@@ -82,10 +90,17 @@ class CompressionStats:
 
 
 @dispatch(Model, PostgreSQL)
-def _compress_model_changelog(model: Model, backend: PostgreSQL):
+def _compress_model_changelog(
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    cutoff: datetime | None = None,
+    compressed_at: datetime | None = None,
+):
     with backend.begin() as conn:
         # retention_policy cannot be None at this point, since _compress_model_changelog can only be called on valid models
-        cutoff: datetime = datetime.now() - model.external.dataset.retention_periodicity
+        if cutoff is None:
+            cutoff = datetime.now() - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
 
         total_start = perf_counter()
@@ -99,6 +114,7 @@ def _compress_model_changelog(model: Model, backend: PostgreSQL):
             conn,
             changelog_table,
             cutoff=cutoff,
+            compressed_at=compressed_at,
         )
         cli_message(f"COMPRESSED: Compressed {stats.lifecycles} lifecycles in changelog.")
         cli_message(
@@ -342,13 +358,22 @@ def merge_compression_rows(
     data: dict[str, Any] = {}
     for row in rows:
         if row.op == Action.UPDATE.value:
-            data = dict(row.data)
+            data = deepcopy(row.data)
         elif row.op in (Action.PATCH.value, Action.UPSERT.value):
-            data.update(row.data)
+            _merge_compression_patch(data, row.data)
         else:
             raise ValueError(f"Unexpected compression operation: {row.op!r}")
 
     return data
+
+
+def _merge_compression_patch(target: dict[str, Any], patch: dict[str, Any]) -> None:
+    """Merge objects recursively into the accumulated payload; replace other values."""
+    for key, value in patch.items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _merge_compression_patch(target[key], value)
+        else:
+            target[key] = deepcopy(value)
 
 
 def iter_compression_groups(
@@ -590,7 +615,13 @@ def lifecycle_rows(
 
 
 @dispatch(Model, Backend)
-def _compress_model_changelog(model: Model, backend: Backend):
+def _compress_model_changelog(
+    model: Model,
+    backend: Backend,
+    *,
+    cutoff: datetime | None = None,
+    compressed_at: datetime | None = None,
+):
     raise NotImplementedError()
 
 
