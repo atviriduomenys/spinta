@@ -20,8 +20,32 @@ Usage:
   plain `output:` (or `output:markdown`) inserts raw markdown without a
   fence. Blocks without output markers are still executed (state setup,
   cleanups, ...) but their output is discarded.
+- `<!-- input:NAME -->` / `<!-- input:end -->` regions hold one fenced code
+  block whose content is materialized verbatim as a file named NAME, right
+  before the first `nu` block that follows the marker (re-declaring the
+  same NAME materializes the file again with the new content). This keeps
+  inline scripts (e.g. `python -c "..."` payloads) readable in the document
+  while `nu` blocks stay short runners. The file is written under the path
+  given by the most recent `<!-- cwd:PATH -->` marker, or the process CWD
+  when no `cwd` marker has been seen yet — place `cwd`/input markers after
+  any block that wipes the target directory:
+
+      <!-- cwd:.tmp/scratch -->
+      <!-- input:helper.py -->
+      ```python
+      print("hello")
+      ```
+      <!-- input:end -->
+
+      ```nu
+      python ($scratch + "/helper.py")
+      ```
 - Code blocks and captured output are syntax highlighted when printed to a
   terminal (pygments, optional — plain text if not installed).
+- The process CWD (usually the repository root) is stripped from captured
+  output, so tools printing absolute paths (e.g. `Initializing auth server
+  keys: <cwd>/var/instances/...`) don't embed machine-specific paths into
+  the document — paths come out CWD-relative. Pass `--keep-cwd` to disable.
 - A sentinel command is sent after every block, so block completion is
    detected reliably even if the block fails; a failed block is reported and
    the run stops at the first failing block, the file is not written when
@@ -51,6 +75,14 @@ LANGS = {"nu"}  # fence languages supported by the persistent session
 # `output:end` is the closing marker and must not match as an opening one.
 OUTPUT_OPEN = re.compile(r"^\s*<!--\s*output:(?!end\b)(?P<type>[A-Za-z0-9_-]*)\s*-->\s*$")
 OUTPUT_CLOSE = re.compile(r"^\s*<!--\s*output:end\s*-->\s*$")
+
+# Input materialization: <!-- cwd:PATH --> sets the directory for the
+# <!-- input:NAME --> / <!-- input:end --> regions that follow it (defaults
+# to the process CWD). Each input region holds exactly one fenced code block
+# whose content is written verbatim to PATH/NAME before `nu` blocks run.
+CWD_OPEN = re.compile(r"^\s*<!--\s*cwd:(?P<path>.+?)\s*-->\s*$")
+INPUT_OPEN = re.compile(r"^\s*<!--\s*input:(?!end\b)(?P<name>[A-Za-z0-9_./-]+)\s*-->\s*$")
+INPUT_CLOSE = re.compile(r"^\s*<!--\s*input:end\s*-->\s*$")
 
 # ANSI escape sequences: CSI, OSC (with BEL or ST terminator), simple
 # two-byte escapes and other single-byte escapes.
@@ -159,6 +191,16 @@ except ImportError:
     pygments = None
 
 
+def strip_cwd(output: str) -> str:
+    """Remove the process CWD (with a trailing separator) from captured
+    output, turning absolute paths that start with it into CWD-relative
+    paths — see the module docstring."""
+    cwd = os.getcwd()
+    if not cwd.endswith(os.sep):
+        cwd += os.sep
+    return output.replace(cwd, "")
+
+
 def highlight(text: str, lang: str = "nu") -> str:
     """Syntax highlight text for terminal display, plain text if pygments is
     not installed or stdout is not a terminal."""
@@ -210,8 +252,11 @@ def parse_blocks(text: str) -> list[Block]:
     """Find fenced code blocks and pair them with following output markers."""
     lines = text.splitlines()
     # collect output marker regions first, fences inside a marker region are
-    # rendered output (e.g. ```code fences), not executable code blocks
+    # rendered output (e.g. ```code fences), not executable code blocks;
+    # input regions are excluded the same way — their fenced blocks are
+    # materialized as files, not executed
     regions: list[tuple[int, int, str]] = []  # (open line, close line, type)
+    excluded: list[tuple[int, int]] = []  # (open line, close line)
     i = 0
     while i < len(lines):
         m = OUTPUT_OPEN.match(lines[i])
@@ -225,6 +270,19 @@ def parse_blocks(text: str) -> list[Block]:
             if j == len(lines):
                 raise MarkerError(f"output marker at line {open_line + 1} is missing `<!-- output:end -->`")
             regions.append((open_line, j, m.group("type") or "markdown"))
+            excluded.append((open_line, j))
+            i = j + 1
+            continue
+        m = INPUT_OPEN.match(lines[i])
+        if m:
+            j = i + 1
+            while j < len(lines):
+                if INPUT_CLOSE.match(lines[j]):
+                    break
+                j += 1
+            if j == len(lines):
+                raise MarkerError(f"input marker at line {i + 1} is missing `<!-- input:end -->`")
+            excluded.append((i, j))
             i = j + 1
             continue
         i += 1
@@ -232,7 +290,7 @@ def parse_blocks(text: str) -> list[Block]:
     i = 0
     while i < len(lines):
         m = re.match(r"^(\s*)([`]{3,}|[~]{3,})\s*([A-Za-z0-9_-]*)", lines[i])
-        if not m or any(open_line < i < close_line for open_line, close_line, _ in regions):
+        if not m or any(open_line < i < close_line for open_line, close_line in excluded):
             i += 1
             continue
         fence = m.group(2)
@@ -274,6 +332,75 @@ def parse_blocks(text: str) -> list[Block]:
                 block.output_type = output_type
                 break
     return blocks
+
+
+class Input:
+    def __init__(self, name: str, lang: str, lines: list[str], cwd: str | None, open_line: int):
+        self.name = name  # file name passed in the input marker, e.g. "main.py"
+        self.lang = lang  # fence info string, e.g. "python"
+        self.lines = lines  # block content lines
+        self.cwd = cwd  # path from the most recent <!-- cwd:... --> marker
+        self.open_line = open_line  # line number of the <!-- input:... --> marker (0-based)
+
+    @property
+    def code(self) -> str:
+        return "\n".join(self.lines) + "\n"
+
+    @property
+    def path(self) -> str:
+        """Absolute (or CWD-relative) path the content is materialized at."""
+        base = self.cwd if self.cwd is not None else os.getcwd()
+        return os.path.join(base, self.name)
+
+
+def parse_inputs(text: str) -> list[Input]:
+    """Find `<!-- input:NAME -->` regions, each holding one fenced block;
+    resolve the materialization directory for each from the most recent
+    preceding `<!-- cwd:PATH -->` marker (or the process CWD)."""
+    lines = text.splitlines()
+    inputs: list[Input] = []
+    cwd: str | None = None
+    i = 0
+    while i < len(lines):
+        cm = CWD_OPEN.match(lines[i])
+        if cm:
+            cwd = os.path.expanduser(cm.group("path"))
+            i += 1
+            continue
+        im = INPUT_OPEN.match(lines[i])
+        if im:
+            open_line = i
+            # find the first fenced opening fence inside the region
+            j = i + 1
+            fence_info: tuple[str, str, int, str] | None = None  # (indent, fence chars, len, lang)
+            while j < len(lines):
+                fm = re.match(r"^(\s*)([`]{3,}|[~]{3,})\s*([A-Za-z0-9_-]*)", lines[j])
+                if fm and fm.group(3):
+                    fence_info = (fm.group(1), fm.group(2), len(fm.group(2)), fm.group(3))
+                    break
+                if fm and not fence_info:
+                    raise MarkerError(f"input at line {open_line + 1} has a bare fence without a language")
+                j += 1
+            if not fence_info:
+                raise MarkerError(f"input at line {open_line + 1} has no fenced code block")
+            indent, fence, fence_len, lang = fence_info
+            j += 1
+            content: list[str] = []
+            while j < len(lines):
+                if re.match(rf"^{re.escape(indent)}{re.escape(fence[0])}{{{fence_len},}}\s*$", lines[j]):
+                    break
+                content.append(lines[j])
+                j += 1
+            if j == len(lines):
+                raise MarkerError(f"input at line {open_line + 1} has an unclosed code fence")
+            close_line = next((k for k in range(j, len(lines)) if INPUT_CLOSE.match(lines[k])), None)
+            if close_line is None:
+                raise MarkerError(f"input at line {open_line + 1} is missing `<!-- input:end -->`")
+            inputs.append(Input(im.group("name"), lang, content, cwd, open_line))
+            i = close_line + 1
+            continue
+        i += 1
+    return inputs
 
 
 class Session:
@@ -459,6 +586,11 @@ def main() -> int:
         help="do not write the file back (useful with --dry-run)",
     )
     parser.add_argument(
+        "--keep-cwd",
+        action="store_true",
+        help="keep the absolute process CWD in captured output (by default it is stripped, see the module docstring)",
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=300.0,
@@ -476,6 +608,7 @@ def main() -> int:
 
     try:
         blocks = parse_blocks(text)
+        inputs = parse_inputs(text)
     except MarkerError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -485,6 +618,10 @@ def main() -> int:
         for block in blocks:
             markers = f"output:{block.output_type}" if block.has_markers else "no output"
             print(f"  line {block.start + 1:>4}: ```{block.lang}``` ({markers})")
+        if inputs:
+            print(f"{len(inputs)} input block(s) found")
+            for inp in inputs:
+                print(f"  {inp.path}: ```{inp.lang}```")
         return 0
 
     unknown = sorted({block.lang for block in blocks} - LANGS)
@@ -498,11 +635,31 @@ def main() -> int:
     cmd = [args.shell, "--no-config-file", "-i"]
     session = Session(cmd)
 
+    # each input region is materialized once, right before the first code
+    # block that follows it (place markers after any block that wipes the
+    # target directory); re-declaring the same name re-materializes it
+    materialized: set[int] = set()
+
     lines = text.splitlines()
     failures: list[str] = []
     executed = 0
     succeeded = 0
     for block in blocks:
+        # inputs whose markers appear before this block and have not been
+        # materialized yet are written now, in document order
+        pending_inputs = [i for i, inp in enumerate(inputs) if i not in materialized and inp.open_line < block.start]
+        for i in pending_inputs:
+            inp = inputs[i]
+            materialized.add(i)
+            directory = os.path.dirname(inp.path)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(inp.path, "w", encoding="utf-8") as f:
+                f.write(inp.code)
+            print(f"== input file: {inp.path}")
+            for line in highlight(inp.code, inp.lang).splitlines():
+                print(f" | {line}")
+            print()
         print(f"== running block at line {block.start + 1} ({block.lang})")
         for line in highlight(block.code, block.lang).splitlines():
             print(f" | {line}")
@@ -514,6 +671,8 @@ def main() -> int:
             print(f"error: block at line {block.start + 1} failed: {e}", file=sys.stderr)
             failures.append(f"block at line {block.start + 1}: {e}")
             break
+        if not args.keep_cwd:
+            output = strip_cwd(output)
         error_lines = output.splitlines()
         # exit code comes from the OSC 133 `D;<code>` marker; nu prints
         # errors as an `Error: ...` block, the session survives and

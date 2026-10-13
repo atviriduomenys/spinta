@@ -20,7 +20,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
-from spinta.utils.units import toseconds
+from spinta.utils.units import toseconds, tobytes
 
 yaml = YAML(typ="safe")
 
@@ -158,8 +158,10 @@ def load(context: Context, config: Config) -> Config:
         cast=lambda strategy: DistributionStrategy(
             get_enum_by_value(DistributionType, strategy),
             property=rc.get("default_distribution_property", default=None),
+            default=True,
         ),
     )
+    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
 
     config.minimal_retention_periodicity = rc.get(
         "minimal_retention_periodicity", default="1n", cast=lambda value: timedelta(seconds=toseconds(value))

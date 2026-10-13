@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 import pathlib
+import warnings
 from typing import List, Optional
 
 from typer import Context as TyperContext
@@ -18,8 +18,7 @@ from spinta.cli.show import show
 from spinta.cli.uncomment import uncomment
 from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
-
-log = logging.getLogger(__name__)
+from spinta.warnings import SpintaDeprecationWarning
 
 app = Typer()
 
@@ -90,14 +89,16 @@ def main(
     ctx.obj = ctx.obj or create_context("cli", args=option, envfile=env_file)
 
     if log_file:
-        log.warning(
-            "Deprecation warning: log_file option is deprecated and will be removed in a future version. "
-            "Set file_log_path via env file instead."
+        warnings.warn(
+            "The 'log_file' option is deprecated and will be removed in a future version. "
+            "Set file_log_path via env file instead.",
+            SpintaDeprecationWarning,
         )
     if log_level:
-        log.warning(
-            "Deprecation warning:log_level option is deprecated and will be removed in a future version. "
-            "Set log_level and file_log_level via env file instead."
+        warnings.warn(
+            "The 'log_level' option is deprecated and will be removed in a future version. "
+            "Set log_level and file_log_level via env file instead.",
+            SpintaDeprecationWarning,
         )
 
     if version:

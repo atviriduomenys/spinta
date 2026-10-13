@@ -3,6 +3,7 @@ import pathlib
 import shutil
 import time
 import uuid
+import warnings
 from http import HTTPStatus
 
 import pytest
@@ -45,6 +46,21 @@ from spinta.testing.context import create_test_context
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.utils.config import get_keymap_path
+from spinta.warnings import ScopeFormatDeprecationWarning, SpintaDeprecationWarning
+
+
+def _make_token(scope: str):
+    """Create a minimal Token with a raw access-token payload for direct
+    ``check_scope`` calls, bypassing full token parsing."""
+
+    class Validator:
+        def scope_insufficient(self, token_scopes, required_scopes):
+            return False
+
+    token = Token.__new__(Token)
+    token._token = {"scope": scope}
+    token._validator = Validator()  # type: ignore[assignment]  # stub validator
+    return token
 
 
 def generate_rsa_keypair(kid: str):
@@ -1698,3 +1714,33 @@ def test_introspect_rejects_foreign_issuer(introspect_app, context):
     resp = _introspect(introspect_app, token)
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"active": False}
+
+
+def test_check_scope_warns_on_deprecated_spinta_scope_prefix():
+    token = _make_token("spinta_getall spinta_getone")
+
+    with pytest.warns(ScopeFormatDeprecationWarning, match=r"using 'spinta_\*' scopes is deprecated"):
+        assert token.check_scope("uapi:/:getall") is True
+
+
+def test_check_scope_does_not_warn_on_uapi_scopes():
+    token = _make_token("uapi:/:getall uapi:/:getone")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert token.check_scope("uapi:/:getall") is True
+
+
+def test_check_scope_warning_is_shown_at_most_once():
+    token = _make_token("spinta_getall")
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("default")
+        for _ in range(100):
+            token.check_scope("uapi:/:getall")
+        assert len(w) <= 1
+
+
+def test_scope_format_deprecation_warning_is_spinta_deprecation_warning():
+    assert issubclass(ScopeFormatDeprecationWarning, SpintaDeprecationWarning)
+    assert issubclass(SpintaDeprecationWarning, DeprecationWarning)

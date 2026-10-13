@@ -1170,6 +1170,9 @@ class Config:
 
     default_distribution_strategy: DistributionStrategy | None = None
 
+    # Script configurations
+    citus_reference_script_size: int
+
     # Retention policy
     minimal_retention_periodicity: timedelta
     default_retention_periodicity: timedelta | None = None
