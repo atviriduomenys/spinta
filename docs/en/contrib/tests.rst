@@ -10,23 +10,23 @@ Spinta uses pytest_ test framework.
 
 You can run all tests like this::
 
-    poetry run pytest -vvx --tb=short tests
+    pytest -vvx --tb=short tests
 
 If you want to run only one test function, then you do it like this::
 
-    poetry run pytest -vvx --tb=short tests/path/to/file.py::test_func_name
+    pytest -vvx --tb=short tests/path/to/file.py::test_func_name
 
 Similarly, you can run whole test file::
 
-    poetry run pytest -vvx --tb=short tests/path/to/file.py
+    pytest -vvx --tb=short tests/path/to/file.py
 
 Or even a module::
 
-    poetry run pytest -vvx --tb=short tests/path/to
+    pytest -vvx --tb=short tests/path/to
 
 You can turn on `live logs`__ like this::
 
-    poetry run pytest -vvx --tb=short -o log_cli=true --log-cli-level=DEBUG tests
+    pytest -vvx --tb=short -o log_cli=true --log-cli-level=DEBUG tests
 
 __ https://docs.pytest.org/en/7.1.x/how-to/logging.html#live-logs
 
