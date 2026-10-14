@@ -80,10 +80,15 @@ Opening and publishing your data has never been so simple!
    reference/cli
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
+   :titlesonly:
    :caption: Contributing
 
-   contrib/index
+   Issues <contrib/issues>
+   Development environment <contrib/setup>
+   Writing tests <contrib/tests>
+   Git flow <contrib/git-flow>
+   Architecture <contrib/architecture/index>
 
 
 Indices and tables
