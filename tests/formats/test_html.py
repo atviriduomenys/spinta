@@ -450,19 +450,17 @@ def test_file_type_changes(
             "Accept": "text/html",
         },
     )
-    assert _table(resp.context["data"])[0][6:] == [
-        {"color": "#f5f5f5", "value": ""},
-        {
-            "value": "Lithuania",
-        },
-        {
+    row = _table_with_header(resp)[0]
+    assert row["_compressed"] == {"color": Color.null.value, "value": ""}
+    assert row["_same_as"] == {"color": Color.null.value, "value": ""}
+    assert take(row) == {
+        "name": {"value": "Lithuania"},
+        "flag._id": {
             "link": f"/example/html/file/Country/{_id}/flag",
             "value": "flag.png",
         },
-        {
-            "value": "image/png",
-        },
-    ]
+        "flag._content_type": {"value": "image/png"},
+    }
 
 
 @pytest.mark.manifests("internal_sql", "csv")
@@ -480,19 +478,17 @@ def test_file_type_changes_single_object(
             "Accept": "text/html",
         },
     )
-    assert _table(resp.context["data"])[0][6:] == [
-        {"color": "#f5f5f5", "value": ""},
-        {
-            "value": "Lithuania",
-        },
-        {
+    row = _table_with_header(resp)[0]
+    assert row["_compressed"] == {"color": Color.null.value, "value": ""}
+    assert row["_same_as"] == {"color": Color.null.value, "value": ""}
+    assert take(row) == {
+        "name": {"value": "Lithuania"},
+        "flag._id": {
             "value": "flag.png",
             "link": f"/example/html/file/Country/{_id}/flag",
         },
-        {
-            "value": "image/png",
-        },
-    ]
+        "flag._content_type": {"value": "image/png"},
+    }
 
 
 @pytest.mark.manifests("internal_sql", "csv")
