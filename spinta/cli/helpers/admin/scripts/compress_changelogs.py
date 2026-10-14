@@ -2,12 +2,12 @@ import pathlib
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from time import perf_counter
-from typing import Any, Callable, Iterator, Sequence
+from typing import Any, Iterator
 
 import sqlalchemy as sa
 from multipledispatch import dispatch
 from sqlalchemy.engine import Connection
+from tqdm import tqdm
 
 from spinta import commands
 from spinta.backends import Backend
@@ -41,12 +41,6 @@ class CompressionGroup:
     rows: list[CompressionRow]
 
 
-MergeChanges = Callable[
-    [Sequence[CompressionRow]],
-    tuple[str, dict[str, Any]],
-]
-
-
 def check_if_need_to_compress_changelogs(context: Context, **kwargs) -> bool:
     ensure_store_is_loaded(context)
     store = context.get("store")
@@ -69,24 +63,26 @@ def compress_changelogs(
     store = context.get("store")
     manifest = store.manifest
 
-    for model in commands.get_models(context, manifest).values():
-        if not _requires_changelog_compression(model, model.backend):
-            continue
+    models = [
+        model
+        for model in commands.get_models(context, manifest).values()
+        if _requires_changelog_compression(model, model.backend)
+    ]
+    if not models:
+        return
 
-        _compress_model_changelog(model, model.backend, cutoff=cutoff, compressed_at=compressed_at)
-
-
-@dataclass
-class CompressionStats:
-    lifecycles: int = 0
-    rows_read: int = 0
-    rows_deleted: int = 0
-    max_rows_per_lifecycle: int = 0
-
-    fetch_seconds: float = 0.0
-    merge_seconds: float = 0.0
-    update_seconds: float = 0.0
-    delete_seconds: float = 0.0
+    with tqdm(total=len(models), desc="Compressing changelogs", unit="model", ascii=True) as progress_bar:
+        for model in models:
+            progress_bar.set_postfix_str(model.model_type())
+            _compress_model_changelog(
+                model,
+                model.backend,
+                cutoff=cutoff,
+                compressed_at=compressed_at,
+                batch_size=context.get("config").changelog_compression_batch_size,
+                progress_bar=progress_bar,
+            )
+            progress_bar.update(1)
 
 
 @dispatch(Model, PostgreSQL)
@@ -96,6 +92,8 @@ def _compress_model_changelog(
     *,
     cutoff: datetime | None = None,
     compressed_at: datetime | None = None,
+    batch_size: int = COMPRESSION_BATCH_SIZE,
+    progress_bar: tqdm | None = None,
 ):
     with backend.begin() as conn:
         # retention_policy cannot be None at this point, since _compress_model_changelog can only be called on valid models
@@ -103,31 +101,28 @@ def _compress_model_changelog(
             cutoff = datetime.now() - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
 
-        total_start = perf_counter()
-        start = perf_counter()
+        cli_message(f"Starting changelog preprocessing for {model.model_type()}", progress_bar=progress_bar)
         removed_count = prepare_changelog_for_compression(conn, changelog_table, cutoff=cutoff)
-        preprocessing_time = perf_counter() - start
-        cli_message(model.model_type())
-        cli_message(f"PREPROCESSING: Removed {removed_count} rows from changelog. {preprocessing_time}s")
+        cli_message(f"{model.model_type()}: preprocessing removed {removed_count} rows", progress_bar=progress_bar)
 
-        stats = compress_lifecycles(
-            conn,
-            changelog_table,
-            cutoff=cutoff,
-            compressed_at=compressed_at,
-        )
-        cli_message(f"COMPRESSED: Compressed {stats.lifecycles} lifecycles in changelog.")
-        cli_message(
-            f"\tRead rows:{stats.rows_read}\n"
-            f"\tDeleted rows:{stats.rows_deleted}\n"
-            f"\tMax rows per lifecycle:{stats.max_rows_per_lifecycle}\n"
-            f"\tUpdate time:{stats.update_seconds}s\n"
-            f"\tMerge time:{stats.merge_seconds}s\n"
-            f"\tDelete time:{stats.delete_seconds}s\n"
-            f"\tFetch time:{stats.fetch_seconds}s\n"
-        )
-        total_time = perf_counter() - total_start
-        cli_message(f"TOTAL: Total time: {total_time}s")
+        cli_message(f"Starting changelog compression for {model.model_type()}", progress_bar=progress_bar)
+        with tqdm(
+            desc="Processing changelog rows",
+            unit="row",
+            position=1 if progress_bar is not None else 0,
+            leave=False,
+            ascii=True,
+        ) as row_progress_bar:
+            processed_count = compress_lifecycles(
+                conn,
+                changelog_table,
+                cutoff=cutoff,
+                compressed_at=compressed_at,
+                batch_size=batch_size,
+                progress_bar=row_progress_bar,
+            )
+
+    cli_message(f"{model.model_type()}: compression processed {processed_count} rows", progress_bar=progress_bar)
 
 
 def prepare_changelog_for_compression(
@@ -199,42 +194,41 @@ def compress_lifecycles(
     cutoff: datetime,
     compressed_at: datetime | None = None,
     batch_size: int = COMPRESSION_BATCH_SIZE,
-) -> CompressionStats:
-    stats = CompressionStats()
-
+    progress_bar: tqdm | None = None,
+) -> int:
     if compressed_at is None:
         compressed_at = datetime.now()
 
     batch: list[CompressionGroup] = []
+    processed_count = 0
 
     for group in iter_compression_groups(
         conn,
         table,
         cutoff=cutoff,
-        stats=stats,
     ):
         batch.append(group)
 
         if len(batch) >= batch_size:
-            compress_groups(
+            processed_count += compress_groups(
                 conn,
                 table,
                 batch,
                 compressed_at=compressed_at,
-                stats=stats,
+                progress_bar=progress_bar,
             )
             batch.clear()
 
     if batch:
-        compress_groups(
+        processed_count += compress_groups(
             conn,
             table,
             batch,
             compressed_at=compressed_at,
-            stats=stats,
+            progress_bar=progress_bar,
         )
 
-    return stats
+    return processed_count
 
 
 def compress_groups(
@@ -243,8 +237,8 @@ def compress_groups(
     groups: list[CompressionGroup],
     *,
     compressed_at: datetime,
-    stats: CompressionStats | None = None,
-) -> None:
+    progress_bar: tqdm | None = None,
+) -> int:
     mark_updates = []
     data_updates = []
     delete_cids = []
@@ -260,14 +254,6 @@ def compress_groups(
         if target.cid != group.target_cid:
             raise RuntimeError(f"Expected target {group.target_cid}, got {target.cid}.")
 
-        if stats is not None:
-            stats.rows_read += len(rows)
-            stats.max_rows_per_lifecycle = max(
-                stats.max_rows_per_lifecycle,
-                len(rows),
-            )
-            stats.lifecycles += 1
-
         if len(rows) == 1:
             mark_updates.append(
                 {
@@ -275,13 +261,11 @@ def compress_groups(
                     "compressed_at": compressed_at,
                 }
             )
+            if progress_bar is not None:
+                progress_bar.update(1)
             continue
 
-        start = perf_counter()
         result_data = merge_compression_rows(rows)
-
-        if stats is not None:
-            stats.merge_seconds += perf_counter() - start
 
         data_updates.append(
             {
@@ -292,6 +276,8 @@ def compress_groups(
         )
 
         delete_cids.extend(row.cid for row in rows[:-1])
+        if progress_bar is not None:
+            progress_bar.update(len(rows))
 
     # Single-row lifecycle:
     # only mark target as compressed.
@@ -304,15 +290,10 @@ def compress_groups(
             )
         )
 
-        start = perf_counter()
-
         conn.execute(
             stmt,
             mark_updates,
         )
-
-        if stats is not None:
-            stats.update_seconds += perf_counter() - start
 
     # Multi-row lifecycle:
     # replace target data + mark compressed.
@@ -326,27 +307,18 @@ def compress_groups(
             )
         )
 
-        start = perf_counter()
-
         conn.execute(
             stmt,
             data_updates,
         )
 
-        if stats is not None:
-            stats.update_seconds += perf_counter() - start
-
     # All obsolete rows from this batch can be deleted together.
     if delete_cids:
         stmt = sa.delete(table).where(table.c._id.in_(delete_cids))
 
-        start = perf_counter()
-
         conn.execute(stmt)
 
-        if stats is not None:
-            stats.delete_seconds += perf_counter() - start
-            stats.rows_deleted += len(delete_cids)
+    return sum(len(group.rows) for group in groups)
 
 
 def merge_compression_rows(
@@ -381,38 +353,25 @@ def iter_compression_groups(
     table: sa.Table,
     *,
     cutoff: datetime,
-    stats: CompressionStats | None = None,
 ) -> Iterator[CompressionGroup]:
     stmt = compression_query(
         table,
         cutoff=cutoff,
     )
 
-    start = perf_counter()
-
     result = conn.execution_options(
         stream_results=True,
         yield_per=5000,
     ).execute(stmt)
 
-    if stats is not None:
-        stats.fetch_seconds += perf_counter() - start
-
     current_key = None
     current_rows = []
     target_cid = None
 
-    start = perf_counter()
     for row in result:
         key = (row._rid, row.lifecycle)
 
         if current_key is not None and key != current_key:
-            if stats is not None:
-                stats.max_rows_per_lifecycle = max(
-                    stats.max_rows_per_lifecycle,
-                    len(current_rows),
-                )
-
             yield CompressionGroup(
                 id=current_key[0],
                 lifecycle=current_key[1],
@@ -435,20 +394,12 @@ def iter_compression_groups(
         )
 
     if current_key is not None:
-        if stats is not None:
-            stats.max_rows_per_lifecycle = max(
-                stats.max_rows_per_lifecycle,
-                len(current_rows),
-            )
-
         yield CompressionGroup(
             id=current_key[0],
             lifecycle=current_key[1],
             target_cid=target_cid,
             rows=current_rows,
         )
-    if stats is not None:
-        stats.fetch_seconds += perf_counter() - start
 
 
 def compression_query(
@@ -621,6 +572,8 @@ def _compress_model_changelog(
     *,
     cutoff: datetime | None = None,
     compressed_at: datetime | None = None,
+    batch_size: int = COMPRESSION_BATCH_SIZE,
+    progress_bar: tqdm | None = None,
 ):
     raise NotImplementedError()
 
@@ -640,25 +593,3 @@ def _requires_changelog_compression(model: Model, backend: PostgreSQL) -> bool:
 @dispatch(Model, Backend)
 def _requires_changelog_compression(model: Model, backend: Backend) -> bool:
     return False
-
-
-def explain_analyze(
-    conn: Connection,
-    stmt,
-) -> None:
-    compiled = stmt.compile(
-        dialect=conn.dialect,
-        compile_kwargs={
-            "render_postcompile": True,
-        },
-    )
-
-    sql = "EXPLAIN (ANALYZE, BUFFERS) " + str(compiled)
-
-    result = conn.exec_driver_sql(
-        sql,
-        compiled.params,
-    )
-
-    for row in result:
-        print(row[0])

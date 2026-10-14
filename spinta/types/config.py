@@ -162,6 +162,9 @@ def load(context: Context, config: Config) -> Config:
         ),
     )
     config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
+    config.changelog_compression_batch_size = rc.get("changelog_compression_batch_size", cast=int, default=10000)
+    if config.changelog_compression_batch_size <= 0:
+        raise ValueError("changelog_compression_batch_size must be a positive integer")
 
     config.minimal_retention_periodicity = rc.get(
         "minimal_retention_periodicity", default="1n", cast=lambda value: timedelta(seconds=toseconds(value))

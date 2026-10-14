@@ -282,9 +282,11 @@ CONFIG = {
     "default_distribution_property": "_id",
     # Script configuration parameters
     "citus_reference_script_size": "10g",
+    # Number of resource lifecycles processed in one compression batch.
+    "changelog_compression_batch_size": 10000,
     # Retention policy parameters
     # 1n is 1 month
-    "minimum_retention_periodicity": "1n",
+    "minimal_retention_periodicity": "1n",
     "default_retention_periodicity": None,
     "environments": {
         "dev": {

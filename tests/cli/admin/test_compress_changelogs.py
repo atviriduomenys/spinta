@@ -8,14 +8,21 @@ import pytest
 import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
 from sqlalchemy.engine import Connection
+from tqdm import tqdm
 
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.cli.helpers.admin.components import Script
 from spinta.cli.helpers.admin.scripts import compress_changelogs as compression
+from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.script.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
 from spinta.components import Context, Model
 from spinta.core.config import RawConfig
+from spinta.testing.cli import SpintaCliRunner, result_contains
 from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.tabular import create_tabular_manifest
 
 CREATED_AT = datetime(2020, 1, 1)
 COMPRESSED_AT = datetime(2020, 2, 1)
@@ -24,14 +31,13 @@ ChangelogFixture = tuple[Context, PostgreSQL, Model, sa.Table]
 
 
 @pytest.fixture
-def changelog(rc: RawConfig, postgresql: str, tmp_path: Path, request: FixtureRequest) -> Iterator[ChangelogFixture]:
-    context = bootstrap_manifest(
-        rc.fork(
-            {
-                "default_retention_periodicity": "1d",
-                "datasets": {"datasets/compression/disabled": {"enable_retention_policy": False}},
-            }
-        ),
+def changelog(
+    context: Context, rc: RawConfig, postgresql: str, tmp_path: Path, request: FixtureRequest
+) -> Iterator[ChangelogFixture]:
+    manifest_path = tmp_path / "manifest.csv"
+    create_tabular_manifest(
+        context,
+        manifest_path,
         """
         d | r | b | m | property | type   | access
         datasets/compression/tests |    |
@@ -43,6 +49,15 @@ def changelog(rc: RawConfig, postgresql: str, tmp_path: Path, request: FixtureRe
           |   |   | Country     |        |
           |   |   |   | name    | string | open
         """,
+    )
+    context = bootstrap_manifest(
+        rc.fork(
+            {
+                "default_retention_periodicity": "1d",
+                "datasets": {"datasets/compression/disabled": {"enable_retention_policy": False}},
+            }
+        ),
+        manifest_path,
         backend=postgresql,
         tmp_path=tmp_path,
         request=request,
@@ -79,6 +94,54 @@ def read_changelog(backend: PostgreSQL, table: sa.Table) -> list[dict[str, Any]]
 
 def compressed_row(row: dict[str, Any], data: dict[str, Any] | None = None) -> dict[str, Any]:
     return {**row, "data": row["data"] if data is None else data, "_compressed": COMPRESSED_AT}
+
+
+@pytest.mark.parametrize("batch_size", [0, -1, "invalid"])
+def test_admin_compress_changelogs_rejects_invalid_batch_size(
+    rc: RawConfig, cli: SpintaCliRunner, batch_size: int | str
+) -> None:
+    rc = rc.fork({"changelog_compression_batch_size": batch_size})
+    result = cli.invoke(rc, ["admin", Script.COMPRESS_CHANGELOGS.value], fail=False)
+    assert result.exit_code == 1
+    assert isinstance(result.exception, ValueError)
+
+
+def test_admin_compress_changelogs_requires_changelog_upgrade(
+    changelog: ChangelogFixture, cli: SpintaCliRunner
+) -> None:
+    context, backend, _, table = changelog
+    rows = [
+        changelog_row(1, "insert"),
+        changelog_row(2, "patch", {"a": 1}),
+        changelog_row(3, "patch", {"b": 2}),
+    ]
+    with backend.begin() as conn:
+        conn.execute(table.insert(), rows)
+        conn.execute('ALTER TABLE "datasets/compression/tests"."Country/:changelog" DROP COLUMN _compressed')
+
+    rc = context.get("rc")
+    result = cli.invoke(rc, ["admin", Script.COMPRESS_CHANGELOGS.value])
+    assert result_contains(result, script_check_status_message(Script.COMPRESS_CHANGELOGS.value, ScriptStatus.SKIPPED))
+    legacy_table = sa.Table(table.name, sa.MetaData(), schema=table.schema, autoload_with=backend.engine)
+    assert "_compressed" not in legacy_table.c
+    assert read_changelog(backend, legacy_table) == [
+        {key: value for key, value in row.items() if key != "_compressed"} for row in rows
+    ]
+
+    result = cli.invoke(rc, ["upgrade", UpgradeScript.POSTGRESQL_CHANGELOG_COMPRESSED.value])
+    assert result_contains(
+        result, script_check_status_message(UpgradeScript.POSTGRESQL_CHANGELOG_COMPRESSED.value, ScriptStatus.REQUIRED)
+    )
+    assert "_compressed" in sa.Table(table.name, sa.MetaData(), schema=table.schema, autoload_with=backend.engine).c
+
+    started_at = datetime.now()
+    result = cli.invoke(rc, ["admin", Script.COMPRESS_CHANGELOGS.value])
+    finished_at = datetime.now()
+    assert result_contains(result, script_check_status_message(Script.COMPRESS_CHANGELOGS.value, ScriptStatus.REQUIRED))
+    actual = read_changelog(backend, table)
+    compressed_at = actual[1]["_compressed"]
+    assert started_at <= compressed_at <= finished_at
+    assert actual == [rows[0], {**rows[2], "data": {"a": 1, "b": 2}, "_compressed": compressed_at}]
 
 
 @pytest.mark.parametrize("action", ["patch", "update", "upsert"])
@@ -455,9 +518,9 @@ def test_retention_compressed_timestamp_does_not_protect_expired_lifecycle(chang
     assert read_changelog(backend, table) == [rows[3]]
 
 
-@pytest.mark.parametrize("batch_size", [None, 1, 2, 10000])
+@pytest.mark.parametrize("batch_size", [1, 2, 10000])
 def test_retention_and_compression_keep_resources_independent_across_batches(
-    changelog: ChangelogFixture, batch_size: int | None
+    changelog: ChangelogFixture, cli: SpintaCliRunner, batch_size: int
 ) -> None:
     context, backend, _, table = changelog
     rows = [
@@ -475,22 +538,21 @@ def test_retention_and_compression_keep_resources_independent_across_batches(
     ]
     with backend.begin() as conn:
         conn.execute(table.insert(), rows)
-    if batch_size is None:
-        compression.compress_changelogs(context, cutoff=COMPRESSED_AT, compressed_at=COMPRESSED_AT)
-    else:
-        # Keep focused component coverage of batching without exposing it in the orchestration API.
-        with backend.begin() as conn:
-            compression.prepare_changelog_for_compression(conn, table, cutoff=COMPRESSED_AT)
-            compression.compress_lifecycles(
-                conn, table, cutoff=COMPRESSED_AT, compressed_at=COMPRESSED_AT, batch_size=batch_size
-            )
-    assert read_changelog(backend, table) == [
+    rc = context.get("rc").fork({"changelog_compression_batch_size": batch_size})
+    started_at = datetime.now()
+    result = cli.invoke(rc, ["admin", Script.COMPRESS_CHANGELOGS.value])
+    finished_at = datetime.now()
+    assert result_contains(result, script_check_status_message(Script.COMPRESS_CHANGELOGS.value, ScriptStatus.REQUIRED))
+    actual = read_changelog(backend, table)
+    compressed_at = actual[1]["_compressed"]
+    assert started_at <= compressed_at <= finished_at
+    assert actual == [
         rows[1],
-        compressed_row(rows[5], {"a": 2, "b": 3}),
+        {**rows[5], "data": {"a": 2, "b": 3}, "_compressed": compressed_at},
         rows[6],
-        compressed_row(rows[8], {"new": 4, "extra": 5}),
+        {**rows[8], "data": {"new": 4, "extra": 5}, "_compressed": compressed_at},
         rows[9],
-        compressed_row(rows[10]),
+        {**rows[10], "_compressed": compressed_at},
     ]
 
 
@@ -512,10 +574,23 @@ def test_model_compression_rolls_back_retention_and_compression_on_error(
     compress_lifecycles = compression.compress_lifecycles
 
     def fail_during_model_processing(
-        conn: Connection, changelog_table: sa.Table, *, cutoff: datetime, compressed_at: datetime
+        conn: Connection,
+        changelog_table: sa.Table,
+        *,
+        cutoff: datetime,
+        compressed_at: datetime,
+        batch_size: int,
+        progress_bar: tqdm,
     ) -> None:
         if failure_phase == "after_compression":
-            compress_lifecycles(conn, changelog_table, cutoff=cutoff, compressed_at=compressed_at)
+            compress_lifecycles(
+                conn,
+                changelog_table,
+                cutoff=cutoff,
+                compressed_at=compressed_at,
+                batch_size=batch_size,
+                progress_bar=progress_bar,
+            )
         actual = [dict(row._mapping) for row in conn.execute(sa.select(table).order_by(table.c._id))]
         expected = (
             [rows[3], compressed_row(rows[5], {"a": 2, "b": 3})] if failure_phase == "after_compression" else rows[3:]

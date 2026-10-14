@@ -66,6 +66,7 @@ script_registry.register(
         name=Script.COMPRESS_CHANGELOGS.value,
         run=compress_changelogs,
         check=check_if_need_to_compress_changelogs,
+        required=[(UPGRADE_SCRIPT_TYPE, UpgradeScript.POSTGRESQL_CHANGELOG_COMPRESSED.value)],
         targets={ScriptTarget.BACKEND.value},
     )
 )
