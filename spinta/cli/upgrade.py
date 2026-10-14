@@ -1,5 +1,6 @@
 import logging
 import sys
+from collections import defaultdict
 from typing import List, Optional
 
 from typer import Argument, Option, echo
@@ -28,8 +29,8 @@ def upgrade(
         """
         ),
     ),
-    ensure_config_dir: bool = Option(True, "--ensure-config", help=("Ensures that all config files are created.")),
-    force: bool = Option(False, "-f", "--force", help=("Skips all checks when running upgrades.")),
+    ensure_config_dir: bool = Option(True, "--ensure-config", help="Ensures that all config files are created."),
+    force: bool = Option(False, "-f", "--force", help="Skips all checks when running upgrades."),
     destructive: bool = Option(
         False,
         "-d",
@@ -45,12 +46,30 @@ def upgrade(
         False,
         "-c",
         "--check",
-        help=("Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."),
+        help="Only runs script checks, skipping execution part (used to find out what scripts are needed to run).",
     ),
+    targets: list[str] | None = Option(None, "--target", help="Target specific script type"),
+    tags: list[str] | None = Option(None, "--tag", help="Target specific script tag"),
 ):
     rc = ctx.obj.get("rc")
     rc.add("upgrade", {"upgrade_mode": True})
     context = configure_context(ctx.obj)
+
+    targets = set(targets) if targets else None
+    target_mapping = defaultdict(set)
+    if targets:
+        updated_targets = set()
+        for target in targets:
+            if "=" not in target:
+                updated_targets.add(target)
+                continue
+
+            target_type, target_param = target.split("=", 1)
+            target_mapping[target_type].add(target_param)
+            updated_targets.add(target_type)
+        targets = updated_targets
+
+    tags = set(tags) if tags else None
 
     if force and check_only:
         echo("Cannot run force mode with check only mode", err=True)
@@ -71,6 +90,9 @@ def upgrade(
             force=force,
             check_only=check_only,
             status_cache=status_cache,
+            targets=targets,
+            tags=tags,
+            target_mapping=target_mapping,
         )
         return
 
@@ -90,4 +112,5 @@ def upgrade(
             script_name=script,
             check_only=check_only,
             status_cache=status_cache,
+            target_mapping=target_mapping,
         )
