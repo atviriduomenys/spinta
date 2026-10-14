@@ -1,41 +1,53 @@
-# Minimal makefile for Sphinx documentation
+# Makefile for Sphinx documentation.
 #
+# Documentation sources are split by language: `en` and `lt`, each has its
+# own `conf.py`. HTML output is written to `_build/html/<language>/`.
+#
+# Sphinx and documentation dependencies are installed into a local `.venv`
+# from `requirements.txt` (which is compiled from `requirements.in` with
+# pip-tools), because these dependencies are not needed to run Spinta itself
+# and are not managed by Poetry.
 
-# You can set these variables from the command line, and also
-# from the environment for the first two.
-VENVDIR       = ../.venv
+VENVDIR       = .venv
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= $(VENVDIR)/bin/sphinx-build
-SOURCEDIR     = .
+LANGUAGES     = en lt
 BUILDDIR      = _build
 
-.venv/bin/pip:
-	python -m venv .venv
-	.venv/bin/pip install -r requirements.txt
+$(VENVDIR)/bin/sphinx-build:
+	python3 -m venv $(VENVDIR)
+	$(VENVDIR)/bin/pip install -r requirements.txt
 
-.venv/bin/pip-compile: .venv/bin/pip
-	.venv/bin/pip install pip-tools
+$(VENVDIR)/bin/pip-compile: $(VENVDIR)/bin/pip
+	$(VENVDIR)/bin/pip install pip-tools
 
-requirements.txt: .venv/bin/pip-compile requirements.in
-	.venv/bin/pip-compile requirements.in -o requirements.txt
+.PHONY: requirements
+requirements: $(VENVDIR)/bin/pip-compile
+	$(VENVDIR)/bin/pip-compile requirements.in -o requirements.txt
+	$(VENVDIR)/bin/pip install -r requirements.txt
 
-.PHONY: upgrade
-upgrade: .venv/bin/pip-compile
-	.venv/bin/pip-compile --upgrade requirements.in -o requirements.txt
-
-# Put it first so that "make" without argument is like "make help".
+.PHONY: help
 help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@echo "Available targets:"
+	@echo "  html   build HTML documentation for all languages ($(LANGUAGES))"
+	@echo "  auto   start sphinx-autobuild for the English documentation"
+	@echo "  clean  remove build output"
 
-auto:
-		$(VENVDIR)/bin/sphinx-autobuild --port 8000 -b html $(SOURCEDIR) $(BUILDDIR)/html
+.PHONY: html
+html: $(VENVDIR)/bin/sphinx-build
+	@for lang in $(LANGUAGES); do \
+	    echo "Building $$lang documentation..."; \
+	    $(SPHINXBUILD) -b html $$lang $(BUILDDIR)/html/$$lang $(SPHINXOPTS) || exit 1; \
+	done
 
+.PHONY: auto
+auto: $(VENVDIR)/bin/sphinx-build
+	$(VENVDIR)/bin/sphinx-autobuild --port 8101 -b html en $(BUILDDIR)/html/en $(SPHINXOPTS)
+
+.PHONY: open
 open:
-		xdg-open http://127.0.0.1:8000
+	xdg-open http://127.0.0.1:8101
 
-.PHONY: help auto open Makefile
-
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+.PHONY: clean
+clean:
+	rm -rf $(BUILDDIR)
