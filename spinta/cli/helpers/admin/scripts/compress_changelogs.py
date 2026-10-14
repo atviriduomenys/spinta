@@ -2,6 +2,7 @@ import pathlib
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
+from time import perf_counter
 from typing import Any, Iterator
 
 import sqlalchemy as sa
@@ -101,11 +102,20 @@ def _compress_model_changelog(
             cutoff = datetime.now() - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
 
-        cli_message(f"Starting changelog preprocessing for {model.model_type()}", progress_bar=progress_bar)
-        removed_count = prepare_changelog_for_compression(conn, changelog_table, cutoff=cutoff)
-        cli_message(f"{model.model_type()}: preprocessing removed {removed_count} rows", progress_bar=progress_bar)
+        compressed_at = datetime(year=2035, month=1, day=1, hour=12)
+        cutoff = datetime(year=2024, month=5, day=15, hour=23, minute=59, second=59)
 
-        cli_message(f"Starting changelog compression for {model.model_type()}", progress_bar=progress_bar)
+        cli_message(f"{model.model_type()}: preprocessing started", progress_bar=progress_bar)
+        preprocessing_started_at = perf_counter()
+        removed_count = prepare_changelog_for_compression(conn, changelog_table, cutoff=cutoff)
+        preprocessing_elapsed = perf_counter() - preprocessing_started_at
+        cli_message(
+            f"{model.model_type()}: preprocessing completed ({removed_count} rows removed, {preprocessing_elapsed:.2f}s)",
+            progress_bar=progress_bar,
+        )
+
+        cli_message(f"{model.model_type()}: compression started", progress_bar=progress_bar)
+        compression_started_at = perf_counter()
         with tqdm(
             desc="Processing changelog rows",
             unit="row",
@@ -122,7 +132,11 @@ def _compress_model_changelog(
                 progress_bar=row_progress_bar,
             )
 
-    cli_message(f"{model.model_type()}: compression processed {processed_count} rows", progress_bar=progress_bar)
+    compression_elapsed = perf_counter() - compression_started_at
+    cli_message(
+        f"{model.model_type()}: compression completed ({processed_count} rows processed, {compression_elapsed:.2f}s)",
+        progress_bar=progress_bar,
+    )
 
 
 def prepare_changelog_for_compression(
