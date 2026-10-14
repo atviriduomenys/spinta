@@ -139,6 +139,7 @@ jobs:
           env: production
           data_path: $BASEDIR
           default_auth_client: default
+          token_issuer: http://localhost:8000
 
           # TEMPORARY-CITUS-WORKAROUND, same as in notes/spinta/release/stable.sh
           default_distribution_strategy: undistributed

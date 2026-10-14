@@ -303,6 +303,7 @@ cat > "$BASEDIR"/config.yml <<EOF
 env: production
 data_path: $BASEDIR
 default_auth_client: default
+token_issuer: http://localhost:8000
 
 # vvv TEMPORARY-CITUS-WORKAROUND vvv  (grep this tag to find every piece to revert)
 # Disables citus sharding for the release smoke test. Without it `spinta migrate`
