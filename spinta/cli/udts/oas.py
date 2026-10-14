@@ -82,8 +82,6 @@ def oas(
         service_path=service_path,
         config=config,
         api_version=api_version,
-        # Scopes are built by the formatter Spinta authorizes with, see
-        # `spinta.auth.authorized`, so a deployment replacing it is followed.
         scope_name=scope_name,
     )
     write_openapi_manifest(spec, output)
@@ -112,8 +110,6 @@ def _resolve_service_path(path: str | None, services: dict[str, list[str]], data
 
     path = path.strip("/")
 
-    # A path of another shape is not an error, it just is not what UDTS
-    # describes, so datasets under it are still exported.
     if not is_service_level_path(path):
         cli_message(
             f"Given path {path!r} is not an UDTS data service path "
