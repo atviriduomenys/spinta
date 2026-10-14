@@ -64,6 +64,10 @@ def test_page_is_still_a_name_to_select(context):
         "bm90LWpzb24=",
         # Canonical Base64 of `{}`, JSON that is not a list of values.
         "e30=",
+        # `[{}]`, `[[1]]` and `[1, {"a": 1}]`: a value of a column is a scalar.
+        "W3t9XQ==",
+        "W1sxXV0=",
+        "WzEsIHsiYSI6IDF9XQ==",
     ],
 )
 def test_invalid_page_token_is_refused(context, token):

@@ -257,7 +257,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
                         values = decode_page_values(arg)
                     except ValueError:
                         raise InvalidPageKey(key=arg)
-                    if not isinstance(values, list):
+                    # Spinta writes a value of a column, which JSON holds as a scalar.
+                    if not isinstance(values, list) or any(isinstance(value, (list, dict)) for value in values):
                         raise InvalidPageKey(key=arg)
                     params.page.values = values
                     key_given = True
