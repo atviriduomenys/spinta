@@ -102,9 +102,6 @@ def _compress_model_changelog(
             cutoff = datetime.now() - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
 
-        compressed_at = datetime(year=2035, month=1, day=1, hour=12)
-        cutoff = datetime(year=2024, month=5, day=15, hour=23, minute=59, second=59)
-
         cli_message(f"{model.model_type()}: preprocessing started", progress_bar=progress_bar)
         preprocessing_started_at = perf_counter()
         removed_count = prepare_changelog_for_compression(conn, changelog_table, cutoff=cutoff)
