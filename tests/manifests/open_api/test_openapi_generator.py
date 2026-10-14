@@ -2557,10 +2557,10 @@ def test_scope_pattern_accepts_what_a_formatter_may_build(open_manifest_path_fac
             _validate(value, scope)
 
 
-@pytest.mark.models("backends/postgres/Report")
-def test_health_schema_requires_what_the_probe_answers(model, app, context):
+def test_health_schema_requires_what_the_probe_answers(open_manifest_path_factory, app):
     """`health` writes both fields every time, so fewer is not its answer."""
-    schemas = _store_spec(context)["components"]["schemas"]
+    # Only a data service document describes `/health`, see ADR-0008.
+    schemas = _service_spec(open_manifest_path_factory)["components"]["schemas"]
 
     _validate(app.get("/health").json(), schemas["health"])
     with pytest.raises(ValidationError):
