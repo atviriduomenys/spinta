@@ -391,10 +391,13 @@ def test_config_warns_about_an_insecure_server(tmp_path):
     path = tmp_path / "vartai.yml"
     path.write_text("servers:\n  - url: http://get.data.gov.lt\n", encoding="utf-8")
 
-    with pytest.warns(UserWarning, match="go in the clear"):
+    with pytest.warns(UserWarning, match="go in the clear") as caught:
         config = UdtsConfig.from_path(path)
 
     assert config.servers == [{"url": "http://get.data.gov.lt"}]
+    # Each warning, of the server and of the token endpoint derived from it,
+    # names the URL once.
+    assert {str(w.message).count("http://get.data.gov.lt") for w in caught} == {1}
 
 
 def test_config_warns_about_an_insecure_token_url(tmp_path):

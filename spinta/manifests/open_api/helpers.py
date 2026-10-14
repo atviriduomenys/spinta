@@ -402,9 +402,10 @@ def write_openapi_manifest(spec: dict, output: str | None = None) -> None:
         return
 
     path = Path(output)
+    path.parent.mkdir(parents=True, exist_ok=True)
     # Specification holds non ASCII text, so the encoding can not be left to the
     # platform default.
-    if path.suffix in (".yml", ".yaml"):
+    if path.suffix.lower() in (".yml", ".yaml"):
         yaml = YAML()
         yaml.default_flow_style = False
         # One object reached from two places, which a `--udts-cfg` anchor also

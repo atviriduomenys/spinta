@@ -188,9 +188,16 @@ def _innermost_property(model_property):
 
 
 def _reference_shape(model_property, dtype) -> tuple:
-    level = getattr(model_property, "level", None)
-    refprops = getattr(dtype, "refprops", None) or []
-    return getattr(level, "value", level), tuple(prop.name for prop in refprops if hasattr(prop, "name"))
+    return _ref_shape(getattr(model_property, "level", None), getattr(dtype, "refprops", None) or [])
+
+
+def _ref_shape(level, refprops: list) -> tuple:
+    """What a reference carries, which its schema is named after."""
+    value = getattr(level, "value", level)
+    # An identifiable reference carries the identifier alone, whatever its level.
+    if value is None or value >= GLOBAL_ID_LEVEL_THRESHOLD:
+        return ("_id",)
+    return value, tuple(prop.name for prop in refprops if hasattr(prop, "name"))
 
 
 def _authorized_nodes(model: Model, path_type: str, model_property: tuple | None) -> list[Model | Property | Namespace]:
@@ -1635,10 +1642,7 @@ class SchemaGenerator:
     ) -> str:
         if not _published(nested_ref_model):
             return UNPUBLISHED_REFERENCE
-        shape = (
-            getattr(ref_level, "value", ref_level),
-            tuple(prop.name for prop in nested_refprops if hasattr(prop, "name")),
-        )
+        shape = _ref_shape(ref_level, nested_refprops)
         schema_name = self.namer.ref_name(nested_ref_model, shape)
 
         if schema_name not in schemas:
@@ -1664,7 +1668,9 @@ class SchemaGenerator:
         if ref_level is not None:
             level_value = ref_level.value if isinstance(ref_level, Level) else int(ref_level)
 
-        is_global_ref = level_value is not None and level_value >= GLOBAL_ID_LEVEL_THRESHOLD
+        # An unset level is identifiable, as `commands.identifiable` reads it, so
+        # the reference is a `Ref` and is answered with the identifier alone.
+        is_global_ref = level_value is None or level_value >= GLOBAL_ID_LEVEL_THRESHOLD
 
         if is_global_ref:
             # A reference of this level is serialized as the identifier alone,

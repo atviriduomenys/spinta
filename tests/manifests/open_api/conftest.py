@@ -222,6 +222,12 @@ id | d | r | b | m | property | type            | ref                           
    |   |   |   | B            |                 | id                                |       |
    |   |   |   |   | id       | string required |                                   | 4     | open
    |   |   |   |   | vieta    | ref             | datasets/gov/rc/x/ext/1/ext/Vieta | 3     | open
+   |                          |                 |                                   |       |
+   | datasets/gov/rc/jadis/at280/1/trecias |  |                                   |       |
+   |   | test                 | memory          |                                   |       |
+   |   |   |   | C            |                 | id                                |       |
+   |   |   |   |   | id       | string required |                                   | 4     | open
+   |   |   |   |   | vieta    | ref             | datasets/gov/rc/x/ext/1/ext/Vieta |       | open
 """)
 
 

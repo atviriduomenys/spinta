@@ -1518,6 +1518,15 @@ def test_yaml_output_has_no_anchors(open_manifest_path_factory, tmp_path):
     assert "*id" not in written
 
 
+def test_output_extension_is_read_in_any_case_into_a_new_directory(tmp_path):
+    """`SPEC.YAML` is YAML too, and a directory not made yet is made."""
+    output = tmp_path / "nauja" / "SPEC.YAML"
+
+    write_openapi_manifest({"openapi": "3.0.3"}, str(output))
+
+    assert output.read_text(encoding="utf-8").strip() == "openapi: 3.0.3"
+
+
 def test_token_response_requires_rfc_6749_fields(open_manifest_path_factory):
     """Without `required` the response validation would accept an empty body."""
     open_api_spec = _service_spec(open_manifest_path_factory)
@@ -1968,6 +1977,10 @@ def test_one_referenced_model_gets_a_schema_per_shape(open_manifest_path_factory
     assert "_id" in schemas[global_ref]["properties"]
     assert "kodas" in schemas[local_ref]["properties"]
     assert "_id" not in schemas[local_ref]["properties"]
+    # Without a level a reference is identifiable, as `commands.identifiable`
+    # reads it, so Spinta answers it with the identifier alone.
+    unset_ref = schemas["trecias_C"]["properties"]["vieta"]["anyOf"][0]["$ref"].rsplit("/", 1)[1]
+    assert unset_ref == global_ref
 
 
 def test_model_schemas_require_nothing(rc, open_manifest_path_factory):

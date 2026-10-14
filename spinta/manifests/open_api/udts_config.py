@@ -294,7 +294,7 @@ def _check_server(server: Any, path: pathlib.Path) -> None:
             ),
         )
 
-    _warn_if_insecure(url, path, f"server URL {_shown(url)}, which")
+    _warn_if_insecure(url, path, "server URL")
     _check_optional_string(server.get("description"), path, f"`description` of server {_shown(url)}")
 
 
