@@ -48,11 +48,18 @@ Bug fixes:
 - Fixed push cli request system crashing when receiving non-json response (`#2020`_).
 - Added cancellation checkpoints between streamed response chunks to prevent
   repeated socket warnings after a client disconnects (`#2047`_).
+- Fixed ``header()`` prepare function not working in ``dask/json`` and ``dask/xml``
+  backends (`#2055`_). Previously, HTTP headers defined via ``param.header()``
+  were only sent with requests in the ``dask/soap`` backend. Now all three
+  external backends (``dask/soap``, ``dask/json``, ``dask/xml``) correctly
+  pass resolved header parameters to their HTTP requests, enabling API
+  authentication scenarios that require header-based auth.
 
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
 .. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
 .. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 .. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
+.. _#2055: https://github.com/atviriduomenys/spinta/issues/2055
 
 Improvements:
 
