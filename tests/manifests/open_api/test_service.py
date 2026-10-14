@@ -298,6 +298,10 @@ def test_config_rejects_malformed_token_url(tmp_path, token_url, error):
         "auth:\n  token_url: https:/agentas:slaptas@am.example.lt/auth/token\n",
         "auth:\n  token_url: https:agentas:slaptas@am.example.lt/auth/token\n",
         "servers:\n  - url: https:///agentas:slaptas@get.data.gov.lt\n",
+        # An escaped `@`.
+        "servers:\n  - url: https://agentas%3Aslaptas%40get.data.gov.lt\n",
+        "servers:\n  - url: https://agentas:slaptas%40get.data.gov.lt\n",
+        "auth:\n  token_url: https://agentas:slaptas%40am.example.lt/auth/token\n",
     ],
 )
 def test_config_rejects_credentials_in_an_url(tmp_path, config):

@@ -439,9 +439,14 @@ def _clean_info(info: dict, path: pathlib.Path) -> dict:
 
 
 def _may_hold_password(text: str) -> bool:
-    # Anything with `:` or a slash before an `@` may be an URL with a password,
-    # however malformed; an email address has neither.
+    # Anything with `:` or a slash before an `@`, escaped or not, may be an URL
+    # with a password, however malformed; an email address has neither.
+    text = _unescape_at(text)
     return "@" in text and any(c in text[: text.rindex("@")] for c in ":/\\")
+
+
+def _unescape_at(text: str) -> str:
+    return re.sub("%40", "@", text, flags=re.IGNORECASE)
 
 
 def _shown(value: Any) -> str:
@@ -559,8 +564,9 @@ def _check_no_fragment(url: str, path: pathlib.Path, what: str) -> None:
 
 def _check_no_credentials(url: str, path: pathlib.Path, what: str) -> None:
     # The URL is published, so credentials in it would be too; it is not quoted back either.
-    # Whitespace and backslashes, rejected later, must not hide the authority here.
-    authority = url_authority_re.match(re.sub(r"\s", "", url).replace("\\", "/"))
+    # Whitespace, backslashes and an escaped `@`, refused or not later, must not
+    # hide the authority here.
+    authority = url_authority_re.match(_unescape_at(re.sub(r"\s", "", url).replace("\\", "/")))
     if authority and "@" in authority.group(1):
         raise InvalidUdtsConfig(
             path=str(path),
