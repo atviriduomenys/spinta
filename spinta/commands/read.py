@@ -564,7 +564,7 @@ async def changes(
         action,
         params,
         rows,
-        reserved=["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as"],
+        reserved=["_cid", "_created", "_compressed", "_op", "_id", "_txn", "_revision", "_same_as"],
     )
 
     return render(context, request, model, params, rows, action=action, headers=cache_control)
