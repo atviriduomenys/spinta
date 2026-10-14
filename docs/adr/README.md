@@ -17,7 +17,7 @@ A new ADR follows the structure of the existing ones: *Context*, *Decision*,
 *Alternatives considered*, *Consequences*.
 
 An ADR explains **why** something was decided. **How** a feature works is
-described in the developer documentation, [`docs/dev`](../dev/README.md).
+described in the developer documentation, [`docs/en/contrib`](../en/contrib/specifications.md).
 
 ## Index
 
