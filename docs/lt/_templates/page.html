@@ -1,0 +1,16 @@
+{% extends "!page.html" %}
+
+{#- Visuose puslapiuose rodomas pranešimas apie perėjimą prie stabilių versijų.
+    Atnaujinimo puslapyje tas pats pranešimas yra pačiame tekste, todėl ten nerodomas. -#}
+{% block body %}
+{%- if pagename != "agentas/atnaujinimas" %}
+<div class="admonition important">
+<p class="admonition-title">Svarbu</p>
+<p>Nuo versijos <code class="docutils literal notranslate"><span class="pre">1.0.0</span></code> Spinta leidžiama stabiliomis versijomis (<code class="docutils literal notranslate"><span class="pre">1.x.x</span></code>).
+Pre-release (<code class="docutils literal notranslate"><span class="pre">0.2devN</span></code>) versijų <strong>nebenaudokite</strong>!
+Atnaujinant naudokite <code class="docutils literal notranslate"><span class="pre">spinta-latest.txt</span></code>.
+Žr. <a href="{{ pathto('agentas/atnaujinimas') }}">Spinta Agento atnaujinimas</a>.</p>
+</div>
+{%- endif %}
+{{ super() }}
+{% endblock %}

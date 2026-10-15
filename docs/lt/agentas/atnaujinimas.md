@@ -16,6 +16,11 @@ Naujienos apie Spinta Agento atnaujinimus skelbiamos [data.gov.lt](https://data.
 Detalus visų versijų pakeitimų sąrašas —
 [`CHANGES.rst`](https://github.com/atviriduomenys/spinta/blob/master/CHANGES.rst).
 
+:::{important}
+Nuo versijos `1.0.0` Spinta leidžiama stabiliomis versijomis (`1.x.x`). Pre-release
+(`0.2devN`) versijų **nebenaudokite**! Atnaujinant naudokite `spinta-latest.txt`.
+:::
+
 :::{warning}
 Prieš atnaujinant **peržiūrėkite pakeitimus** — naujoje versijoje gali būti nesuderinamų
 (*backwards incompatible*) pakeitimų. Pavyzdžiui, nuo `0.2dev22` pasikeitė numatytoji
@@ -56,7 +61,7 @@ Oficialiame `vssadevops/spinta` atvaizde komanda `spinta` yra tiesiai `PATH`, to
 
 `docker compose pull` parsisiunčia tą versijos žymą, kuri nurodyta jūsų
 `docker-compose.yml` (`latest` = naujausia). Norėdami pereiti prie konkrečios versijos,
-faile pakeiskite žymą, pvz. `vssadevops/spinta:0.2dev26`, ir tik tada vykdykite `pull`.
+faile pakeiskite žymą, pvz. `vssadevops/spinta:1.2.0`, ir tik tada vykdykite `pull`.
 :::
 
 :::{caution}
@@ -74,7 +79,7 @@ Jei Agentas įdiegtas tiesiai operacinėje sistemoje (Python virtualioje aplinko
 
 ```bash
 # 1. Atnaujinkite paketus iš to paties pinned requirements šaltinio, kaip diegiant
-env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest-pre.txt
+env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest.txt
 
 # 2. Paleiskite atnaujinimo skriptus
 env/bin/spinta upgrade

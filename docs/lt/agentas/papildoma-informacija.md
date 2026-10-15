@@ -3,23 +3,16 @@
 Norint pasitikrinti, ar Spinta versija yra naujausia, galima paleisti šias dvi eilutes:
 
 ```bash
-spinta --version
-pip index versions --pre spinta
+env/bin/spinta --version
+env/bin/pip index versions spinta
 ```
 
 Jei versijos sutampa - naujinti nereikia.
 
-Jei versijos skiriasi - reikėtų atnaujinti Spintą.
+Jei versijos skiriasi - reikėtų atnaujinti Spintą. Kaip tai padaryti, aprašyta puslapyje
+[Spinta Agento atnaujinimas](atnaujinimas.md).
 
 Visus naujausius ir kitoje versijoje numatomus pakeitimus galima rasti čia: [Spinta - Github](https://github.com/atviriduomenys/spinta/blob/master/CHANGES.rst "Spinta - Github")
-
-Norint atnaujinti Spinta versiją, reikia įvykdyti tokias komandas:
-
-```bash
-sudo -Hsu spinta
-cd
-env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest-pre.txt
-```
 
 ## Struktūros aprašo naujinimas
 

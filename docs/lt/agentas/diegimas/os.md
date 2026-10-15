@@ -80,10 +80,10 @@ python3.13 -m venv env
 
 Toliau diekite Spintą.
 
-DVMS partneriams projekto vystymo metu reikia diegti naujausią pre-release versiją, kadangi joje yra naujausi projekto vystymui ir partnerių darbui atlikti pakeitimai. Spintą diegti rekomenduojama su VSSA patvirtintais paketais:
+Diekite naujausią stabilią Spintos versiją (1.x). Spintą diegti rekomenduojama su VSSA patvirtintais paketais:
 
 ```bash
-env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest-pre.txt
+env/bin/pip install --require-hashes -r https://raw.githubusercontent.com/atviriduomenys/spinta/refs/heads/master/requirements/spinta-latest.txt
 ```
 
 Sudiegę, galite patikrinti sudiegtą Spintos versiją:
@@ -264,9 +264,14 @@ Keymap (Redis) yra kritinis elementas, tad privalote užtikrinti, kad duomenys n
 ## Spinta Agento web serverio serviso konfigūravimas
 
 :::{note}
-`uvicorn`, `uvloop` ir `httptools` bibliotekos yra įtrauktos į standartinį Spinta
-requirements failą, todėl papildomai jų diegti nereikia. Šios komandos reikalingos
-tik tuo atveju, jei Spintą diegėte ne iš `spinta-latest-pre.txt` failo:
+Web serveriui reikalingos `uvicorn`, `uvloop` ir `httptools` bibliotekos į kai kurių
+versijų requirements failus neįtrauktos. Patikrinkite, ar `uvicorn` įdiegtas:
+
+```bash
+env/bin/pip show uvicorn
+```
+
+Jei komanda praneša, kad paketas nerastas, įdiekite bibliotekas:
 
 ```bash
 env/bin/pip install uvicorn uvloop httptools
