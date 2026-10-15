@@ -5,10 +5,10 @@
 
 
 export MAJOR=1
-export MINOR=1
+export MINOR=2
 export PATCH=0
 export OLD_MINOR=1
-export FUTURE_MINOR=2
+export FUTURE_MINOR=3
 export RELEASE_VERSION=$MAJOR.$MINOR.$PATCH
 export CURRENT_VERSION=$MAJOR.$OLD_MINOR.$PATCH
 export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR.$PATCH
@@ -303,6 +303,8 @@ cat > "$BASEDIR"/config.yml <<EOF
 env: production
 data_path: $BASEDIR
 default_auth_client: default
+token_issuer: http://localhost:8000
+resource_server: http://localhost:8000
 
 # vvv TEMPORARY-CITUS-WORKAROUND vvv  (grep this tag to find every piece to revert)
 # Disables citus sharding for the release smoke test. Without it `spinta migrate`
@@ -641,10 +643,11 @@ if [ "$REPLY" = "y" ]; then
     # Build the header line for spinta itself with its PyPI hashes
     echo "spinta==${NEW_VERSION}; python_version >= \"3.10\" and python_version < \"4.0\" \\" > spinta-header.txt
 
-    # Fetch sha256 hashes for the published release from PyPI and append to header
+    # Fetch sha256 hashes for the published release from PyPI and append to header.
+    # Every hash line but the last needs a trailing backslash, or pip stops reading the requirement.
     curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
       jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
-      | sed 's/^/    /' >> spinta-header.txt
+      | sed -e 's/^/    /' -e '$!s/$/ \\/' >> spinta-header.txt
     [ $? -eq 0 ] || { echo "ERROR: Failed to fetch spinta hashes from PyPI"; exit 1; }
 
     # Prepend the spinta hash header to the exported requirements file

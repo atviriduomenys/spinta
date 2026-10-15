@@ -1,7 +1,11 @@
 Changes
 #######
 
-1.2.0 (unreleased)
+1.3.0 (unreleased)
+=====================
+
+
+1.2.0 (2026-10-14)
 =====================
 
 Backwards incompatible:
