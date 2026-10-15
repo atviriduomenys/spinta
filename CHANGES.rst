@@ -38,6 +38,29 @@ Backwards incompatible:
     ``x-spinta-context`` extension and the agent's own ``/auth/token`` path
     are gone.
   - ``traceparent`` and ``tracestate`` headers are no longer required.
+- Simplified ``RawConfig`` internals: removed ``InnerKeys``, ``ForkConfig``,
+  ``merge`` flag and the ``after`` argument of ``RawConfig.read()`` and
+  ``RawConfig.fork()``. Sources argument order now decides priority, and
+  ``read_config()`` collects ``config`` files first and then reads sources in
+  the order ``spinta -> config files -> envfile -> envvars -> cliargs``.
+  ``RawConfig.fork()`` with a ``dict`` now flattens nested structures into
+  dotted keys and merges with lower priority sources.
+- ``RawConfig`` now builds the whole configuration tree in ``RawConfig._keys``
+  on ``_rebuild()``: values from all sources, ``environments.<env>.*``
+  overlays of the active environment (with the prefix dropped) and schema
+  structure with default values. All read methods (``get``, ``getall``,
+  ``keys``, ``has``, ...) read only this tree and no longer interpret
+  ``environments.*`` or the configuration schema at read time. As a side
+  effect, ``rc.get()`` on an unset option under a dynamic subtree (e.g.
+  ``rc.get("keymaps", "default")`` with no keymaps configured, or
+  ``rc.get("manifests", name, "mode")`` when nothing is set under
+  ``manifests.<name>``) now returns ``NA`` instead of an empty list or the
+  schema default value.
+- ``spinta config`` (``RawConfig.dump()``) output has a new ``Env`` column,
+  showing which environment overlay (``environments.<env>``) provided each
+  value.
+- ``environments.*`` keys are no longer accessible via ``rc.get()``, they are
+  merged into the main tree for the active environment.
 
 Bug fixes:
 
@@ -96,7 +119,60 @@ Bug fixes:
   external backends (``dask/soap``, ``dask/json``, ``dask/xml``) correctly
   pass resolved header parameters to their HTTP requests, enabling API
   authentication scenarios that require header-based auth.
+- Fixed configuration keys removed by a higher-priority source (for example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
+  through ``rc.get()`` from lower-priority sources. Removed keys are now
+  unavailable at all levels (`#1990`_).
+- Fixed configuration values set through `RawConfig.fork()` shadowing
+  configuration from lower priority sources. A fork often contains only a
+  partial configuration, for example a `keymaps.default` with only `type` set,
+  which previously dropped the `dsn` defined by lower priority sources. Forked
+  configuration is now merged with lower priority sources, while explicitly
+  set values (e.g. via environment variables or CLI arguments) still replace
+  lower priority ones (`#2001`_).
+- Fixed `RawConfig` modifying the configuration dictionaries it reads from.
+  A global `spinta.config:CONFIG` dict imported by multiple `RawConfig`
+  instances lost its `environments` section after the first read, which made
+  environment specific configuration (e.g. test backend DSNs) unavailable in
+  long running processes and in later configuration reads (`#2001`_).
+- Fixed configuration keys removed by a higher-priority source (for example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
+  through ``rc.get()`` from lower-priority sources. Removed keys are now
+  unavailable at all levels (`#1990`_).
+- Configuration keys that hold a list of subkeys (for example ``backends``) no
+  longer accept a scalar value, such as ``backends: one``, in configuration
+  files and other configuration sources that support complex values. A list of
+  subkey names (for example ``backends: [one]``) or a mapping declaring the
+  whole subtree must be used instead. Comma separated subkey names in
+  environment variables (for example ``SPINTA_BACKENDS=one,two``), ``.env``
+  files and command line arguments (for example ``backends=one,two``) are
+  still supported. To migrate, replace scalar values with lists in YAML
+  configuration files, for example ``backends: one`` becomes
+  ``backends: [one]`` (`#1990`_).
+- Setting a configuration key to an empty value (for example
+  ``SPINTA_BACKENDS=``) now removes all subkeys in that subtree recursively,
+  and a key with a non-empty list of subkey names (for example
+  ``SPINTA_BACKENDS=one``) keeps only the listed subkeys. Removed subkeys are
+  no longer available from any configuration source, including lower priority
+  sources like defaults. If you relied on values removed by an override still
+  being read from lower priority sources, remove those overrides entirely or
+  explicitly list the subkeys to keep (`#1990`_).
 
+Improvements:
+
+- ``spinta config`` output now has an ``Env`` column, showing which
+  environment overlay provided each configuration value (`#1990`_).
+- Custom property types in manifests can now be configured with parameters
+  given as a mapping, for example ``type: {name: sqlalchemy.types.BigInteger}``,
+  in addition to a list of parameter names (`#1990`_).
+- Configuration is now documented: configuration sources with their precedence
+  order (defaults, configuration files, ``.env`` file, environment variables
+  and command line arguments), the ``config_path`` directory with the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file, and the configuration syntax: simple and complex values,
+  merging and reset semantics (`#1990`_).
+
+.. _#2001: https://github.com/atviriduomenys/spinta/pull/2001
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
 .. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
 .. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
@@ -104,6 +180,7 @@ Bug fixes:
 .. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 .. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
 .. _#2055: https://github.com/atviriduomenys/spinta/issues/2055
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 
 Improvements:
 
@@ -117,9 +194,19 @@ Improvements:
   ``page('<token>')`` (`#2004`_, `#2023`_).
 - Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
 - Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
+- Configuration sources are now documented with their precedence order
+  (defaults, configuration files, ``.env`` file, environment variables and
+  command line arguments), and the ``config_path`` directory and the
+  recommended ``{config_path}/config.yaml`` location for the main
+  configuration file are described. Setting a configuration key to an empty
+  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
+  subtree recursively, while a parent key with a non-empty list of names
+  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
+  (`#1990`_).
 
 .. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
 .. _#2023: https://github.com/atviriduomenys/spinta/issues/2023
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 
 New Features:
 
@@ -127,7 +214,6 @@ New Features:
   contains all models that fit under citus reference sharding optimization criteria (`#1989`_).
 
 .. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
-
 
 1.1.0 (2026-08-19)
 =====================

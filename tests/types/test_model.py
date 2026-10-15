@@ -191,3 +191,29 @@ def test_given_visibility_is_not_the_default(model, context):
     title = city.properties["title"]
     assert title.visibility.name == "private"
     assert title.given.visibility is None
+
+
+def test_configure_custom_type_with_parameters(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "properties": {
+                        "code": {
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    )
+    context, manifest = load_manifest_and_context(
+        rc,
+        manifest=_GENERIC_COUNTRY_MANIFEST,
+        tmp_path=tmp_path,
+    )
+    model = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    prop = model.properties["code"]
+    assert isinstance(prop.external.custom_type, BigInteger)
