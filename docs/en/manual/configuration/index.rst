@@ -88,6 +88,126 @@ Output::
   ---------------  -----------------  -----
   /tmp/custom.yml  backends.foo.type  postgresql
 
+.. _nested-config-file:
+
+Nested configuration files
+==========================
+
+Configuration files can include other configuration files using the same
+setting. Included files are loaded in the order in which they are listed, then
+the file that includes them is loaded. Thus, a value in the including file
+overrides the same value in an included file.
+
+For example, this structure separates model-related settings from Citus
+distribution settings:
+
+.. code-block:: text
+
+    .env
+    config.yml
+    models.yml
+    citus.yml
+    citus_generated.yml
+
+The `.env` file points to the main configuration file:
+
+.. code-block:: sh
+
+    SPINTA_CONFIG=config.yml
+
+The main configuration file includes the two specialised files:
+
+.. code-block:: yaml
+    :caption: config.yml
+
+    config:
+      - models.yml
+      - citus.yml
+
+`models.yml` can contain backend and model property-type settings. `citus.yml`
+can contain manually maintained Citus distribution settings and include
+automatically generated distribution settings:
+
+.. code-block:: yaml
+    :caption: citus.yml
+
+    config:
+      - citus_generated.yml
+
+The resulting loading order is:
+
+1. Spinta's built-in default settings.
+2. `models.yml`.
+3. `citus_generated.yml`.
+4. `citus.yml`.
+5. `config.yml`.
+6. `.env`.
+7. Environment variables.
+8. Command-line settings.
+
+The following simplified example shows how the model settings are combined.
+It illustrates configuration merging only; it is not a complete manifest.
+
+.. code-block:: yaml
+    :caption: models.yml
+
+    models:
+      dataset/Country:
+        backend: default
+        properties:
+          code: string
+      dataset/City:
+        backend: default
+        properties:
+          name: string
+
+.. code-block:: yaml
+    :caption: citus.yml
+
+    config:
+      - citus_generated.yml
+    models:
+      dataset/Country:
+        distribution: schema
+      dataset/Place:
+        distribution: copy
+
+.. code-block:: yaml
+    :caption: citus_generated.yml
+
+    models:
+      dataset/Place:
+        distribution: undistributed
+      dataset/Origin:
+        distribution: copy
+
+To inspect the effective model settings and the file from which each value was
+taken, run:
+
+.. code-block:: sh
+
+    spinta config models
+
+The output will contain the combined settings, for example:
+
+.. code-block:: text
+
+    Origin               Name                                          Value
+    -------------------  --------------------------------------------  -------------
+    models.yml           models.dataset/Country.backend                default
+    models.yml           models.dataset/Country.properties.code        string
+    citus.yml            models.dataset/Country.distribution           schema
+    models.yml           models.dataset/City.backend                   default
+    models.yml           models.dataset/City.properties.name           string
+    citus.yml            models.dataset/Place.distribution             copy
+    citus_generated.yml  models.dataset/Origin.distribution            copy
+
+In this example, the manually maintained distribution setting for
+`dataset/Country` supplements the model settings from `models.yml`. The `copy`
+setting for `dataset/Place` overrides the `undistributed` setting from
+`citus_generated.yml`, while `dataset/Origin` retains the generated `copy`
+setting.
+
 Keymap
 ******
 
