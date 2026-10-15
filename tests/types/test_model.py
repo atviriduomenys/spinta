@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy.types import BigInteger
 
 from spinta import commands
 from spinta.core.enums import Level
