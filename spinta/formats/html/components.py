@@ -25,6 +25,7 @@ class Cell:
     value: str
     link: Optional[str] = None
     color: Optional[Color] = None
+    external: bool = False
 
     def as_dict(self) -> Dict[str, Any]:
         data = {

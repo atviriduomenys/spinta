@@ -152,7 +152,9 @@ def create_sharding_plan(context: Context, models: list[Model], **kwargs) -> dic
         if not isinstance(model.backend, PostgreSQL):
             continue
 
-        if not model.external or not model.external.dataset:
+        if (not model.external or not model.external.dataset) and (
+            model.distribution_strategy is None or model.distribution_strategy.default
+        ):
             continue
 
         distribution_strategy = model.distribution_strategy

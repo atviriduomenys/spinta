@@ -40,6 +40,8 @@
           pkgs.curl
           pkgs.httpie
           pkgs.sqlite
+          pkgs.postgresql  # psql
+          pkgs.gettext     # envsubst
           markout
         ];
 

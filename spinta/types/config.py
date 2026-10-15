@@ -157,8 +157,10 @@ def load(context: Context, config: Config) -> Config:
         cast=lambda strategy: DistributionStrategy(
             get_enum_by_value(DistributionType, strategy),
             property=rc.get("default_distribution_property", default=None),
+            default=True,
         ),
     )
+    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
 
     config.default_limit_objects = rc.get("default_limit_objects", default=None)
     config.default_limit_bytes = tobytes(rc.get("default_limit_bytes", default="1g"))

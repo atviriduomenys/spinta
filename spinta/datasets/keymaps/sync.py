@@ -42,17 +42,24 @@ def _fetch_changelog_data(
     offset = offset_cid
     while True:
         url = _build_changelog_url(server=server, model=model.model_type(), offset_cid=offset, limit=limit)
-        status_code, resp = get_request_with_retries(
+        result = get_request_with_retries(
             client, url, error_counter=error_counter, timeout=timeout, retries=retries, delay_range=delay_range
         )
-        if status_code != 200:
+        if not result.ok:
             cli_message(
                 f'ERROR: Failed to fetch changelog data for model {model.model_type()}. Using "{server}" url.',
                 progress_bar,
             )
             break
 
-        data = resp.get("_data")
+        result_data = result.data
+        if not isinstance(result_data, dict):
+            cli_message(
+                f"ERROR: Unknown data format from response {type(result_data)}, expected dictionary", progress_bar
+            )
+            break
+
+        data = result_data.get("_data")
         if not data:
             break
 

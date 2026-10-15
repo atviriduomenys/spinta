@@ -341,35 +341,47 @@ class TableIdentifier:
 
     Attributes:
         schema (str | None): Logical schema/namespace (e.g. "datasets/gov/rc").
-        base_name (str): Base table name (e.g. "Building").
+        base_name (str): Base table name (e.g. "Buildings").
         table_type (TableType): Table type suffix (default: TableType.MAIN).
         table_arg (str | None): Optional argument appended used for table types that require property.
         default_pg_schema (str | None): Fallback PG schema if schema is not given.
 
         logical_name (str): Computed name (base + type + optional arg).
-            Example: "Building/:list/apartments"
+            Example: "Buildings/:list/apartments"
         logical_qualified_name (str): Logical name with schema (dataset).
-            Example: "datasets/gov/rc/Building/:list/apartments"
+            Example: "datasets/gov/rc/Buildings/:list/apartments"
 
         pg_table_name (str): PG-safe (compressed) table name from logical_name.
         pg_schema_name (str | None): PG-safe (compressed) schema name.
         pg_qualified_name (str): PG-safe (compressed) schema with table name.
-            Example: "datasets/gov/rc.Building/:list/apartments" (unescaped).
+            Example: "datasets/gov/rc.Buildings/:list/apartments" (unescaped).
         pg_escaped_qualified_name (str): Quoted version of pg_qualified_name, used for queries.
-            Example: '"datasets/gov/rc"."Building/:list/apartments"' (escaped).
+            Example: '"datasets/gov/rc"."Buildings/:list/apartments"' (escaped).
 
     Example:
-        >>> TableIdentifier("datasets/gov/rc", "Buildings", TableType.LIST, "apartments")
-        # logical_qualified_name: "datasets/gov/rc/Buildings/:list/apartments"
-        # pg_qualified_name: "datasets/gov/rc.Building/:list/apartments"
+        >>> t = TableIdentifier("datasets/gov/rc", "Buildings", TableType.LIST, "apartments")
+        >>> t.logical_qualified_name
+        'datasets/gov/rc/Buildings/:list/apartments'
+        >>> t.pg_qualified_name
+        'datasets/gov/rc.Buildings/:list/apartments'
+        >>> t.pg_escaped_qualified_name
+        '"datasets/gov/rc"."Buildings/:list/apartments"'
 
-        >>> TableIdentifier("datasets/gov/rc", "Buildings")
-        # logical_qualified_name: "datasets/gov/rc/Buildings"
-        # pg_qualified_name: "datasets/gov/rc.Building"
+        >>> t = TableIdentifier("datasets/gov/rc", "Buildings")
+        >>> t.logical_qualified_name
+        'datasets/gov/rc/Buildings'
+        >>> t.pg_qualified_name
+        'datasets/gov/rc.Buildings'
+        >>> t.pg_escaped_qualified_name
+        '"datasets/gov/rc"."Buildings"'
 
-        >>> TableIdentifier("datasets/gov/rc/very/long/dataset/name/that/does/not/fit/withing/limits", "Buildings")
-        # logical_qualified_name: "datasets/gov/rc/very/long/dataset/name/that/does/not/fit/withing/limits/Buildings"
-        # pg_qualified_name: "datasets/gov/rc/very/long/dataset/nam_e5985b69_t/withing/limits.Building"
+        >>> t = TableIdentifier("datasets/gov/rc/very/long/dataset/name/that/does/not/fit/withing/limits", "Buildings")
+        >>> t.logical_qualified_name
+        'datasets/gov/rc/very/long/dataset/name/that/does/not/fit/withing/limits/Buildings'
+        >>> t.pg_qualified_name
+        'datasets/gov/rc/very/long/dataset/nam_e5985b69_t/withing/limits.Buildings'
+        >>> t.pg_escaped_qualified_name
+        '"datasets/gov/rc/very/long/dataset/nam_e5985b69_t/withing/limits"."Buildings"'
     """
 
     schema: str | None

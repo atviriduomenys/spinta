@@ -15,13 +15,15 @@ upgrade: .venv/bin/pip-compile
 
 .PHONY: test
 test: env
-	@# XXX: I have no idea what is going on, but if I run doctests together
-	@#      with other tests in `py.test --doctest-modules tests spinta`, then
-	@#      for some reason `spinta.config:CONFIG` looses 'environments' item.
-	@#      Could not found reason why this happens, bet if I remove `spinta`
-	@#      from test paths, then tests pass. Maybe this has something to do
-	@#      with py.test?
-	poetry run py.test -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --doctest-modules spinta
+	@# XXX: import-mode=importlib is needed, because `spinta/formats/rdf/components.py`
+	@#      and `spinta/manifests/rdf/components.py` have the same basename and
+	@#      their parent directories do not have `__init__.py`, so with the
+	@#      default prepend import mode pytest fails to collect them with an
+	@#      "import file mismatch" error. `SPINTA_ENV=dev` is needed, because
+	@#      doctest collection imports `spinta.asgi`, which on import loads the
+	@#      default manifest, which requires a `keymaps.default` keymap, defined
+	@#      only in the `dev` and `test` environments.
+	poetry run py.test -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --import-mode=importlib --doctest-modules spinta
 	poetry run py.test -vvxra --tb=native --log-level=debug --disable-warnings --cov=spinta --cov-report=term-missing tests
 
 .PHONY: test-github

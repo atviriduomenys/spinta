@@ -10,6 +10,7 @@ import os
 import pathlib
 import time
 import uuid
+import warnings
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
@@ -62,6 +63,7 @@ from spinta.utils import passwords
 from spinta.utils.config import get_clients_path, get_helpers_path, get_id_path, get_keymap_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
+from spinta.warnings import ScopeFormatDeprecationWarning
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ="safe")
@@ -476,8 +478,12 @@ class Token(rfc6749.TokenMixin):
     def check_scope(self, scope: SCOPE_TYPE) -> bool:
         token_scopes = set(scope_to_list(self._token.get("scope", "")))
         if any(token_scope for token_scope in token_scopes if token_scope.startswith(DEPRECATED_SCOPE_PREFIX)):
-            log.warning(
-                "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
+            warnings.warn(
+                "using 'spinta_*' scopes is deprecated and will be removed in a future version."
+                " Use 'uapi:*' scopes instead, see:"
+                " https://ivpk.github.io/uapi/#section/Authorization/Scope",
+                ScopeFormatDeprecationWarning,
+                stacklevel=2,
             )
 
         if self.valid_scope(scope):
