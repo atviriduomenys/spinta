@@ -1,13 +1,64 @@
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta import commands
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.sqlalchemy import create_postgresql_engine
+from spinta.cli.helpers.admin.scripts.compress_changelogs import compress_lifecycles
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata, send
 from spinta.testing.manifest import bootstrap_manifest
+
+
+@pytest.mark.parametrize("resource_changes", [False, True])
+def test_changes_include_compression_timestamp(
+    rc: RawConfig, postgresql: str, tmp_path: Path, request: FixtureRequest, resource_changes: bool
+) -> None:
+    context = bootstrap_manifest(
+        rc,
+        """
+        d | r | b | m | property | type   | access
+        example/changes/compression |    |
+          |   |   | Report      |        | open
+          |   |   |   | status  | string |
+        """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        request=request,
+        full_load=True,
+    )
+    app = create_test_client(context)
+    model = "example/changes/compression/Report"
+    app.authmodel(model, ["insert", "patch", "changes"])
+    obj = send(app, model, "insert", {"status": "1"})
+    obj = send(app, model, "patch", obj, {"status": "2"})
+    obj = send(app, model, "patch", obj, {"status": "3"})
+    url = f"{model}/{obj.id}/:changes" if resource_changes else f"{model}/:changes"
+
+    assert listdata(app.get(url), "_cid", "_compressed", "status") == [
+        (1, None, "1"),
+        (2, None, "2"),
+        (3, None, "3"),
+    ]
+
+    node = commands.get_model(context, context.get("store").manifest, model)
+    table = node.backend.get_table(node, TableType.CHANGELOG)
+    compressed_at = datetime(2035, 1, 1, 12)
+    with node.backend.begin() as conn:
+        compress_lifecycles(conn, table, cutoff=compressed_at, compressed_at=compressed_at)
+
+    assert listdata(app.get(url), "_cid", "_compressed", "status") == [
+        (1, None, "1"),
+        (3, "2035-01-01T12:00:00", "3"),
+    ]
+    assert app.get(f"{url}?select(_cid,_compressed)").json()["_data"] == [
+        {"_cid": 1, "_compressed": None},
+        {"_cid": 3, "_compressed": "2035-01-01T12:00:00"},
+    ]
 
 
 @pytest.mark.models(
@@ -107,6 +158,7 @@ def test_changes_with_ref(context, app):
     assert header == [
         "_cid",
         "_created",
+        "_compressed",
         "_op",
         "_id",
         "_txn",
@@ -148,6 +200,7 @@ def test_changes_with_ref_reassign(context, app):
     assert header == [
         "_cid",
         "_created",
+        "_compressed",
         "_op",
         "_id",
         "_txn",
@@ -195,6 +248,7 @@ def test_changes_with_ref_unassign(context, app):
     assert header == [
         "_cid",
         "_created",
+        "_compressed",
         "_op",
         "_id",
         "_txn",
@@ -295,6 +349,7 @@ def test_changes_invalid_ref_changelog(
     assert header == [
         "_cid",
         "_created",
+        "_compressed",
         "_op",
         "_id",
         "_txn",

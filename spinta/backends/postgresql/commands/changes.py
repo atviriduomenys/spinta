@@ -76,6 +76,7 @@ def changes(
         yield {
             "_cid": row[table.c["_id"]],
             "_created": row[table.c["datetime"]],
+            "_compressed": row[table.c["_compressed"]],
             "_op": row[table.c["action"]],
             "_id": row[table.c["_rid"]],
             "_txn": row[table.c["_txn"]],

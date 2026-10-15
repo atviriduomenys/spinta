@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import json
 import pathlib
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1171,6 +1172,11 @@ class Config:
 
     # Script configurations
     citus_reference_script_size: int
+    changelog_compression_batch_size: int
+
+    # Retention policy
+    minimal_retention_periodicity: timedelta
+    default_retention_periodicity: timedelta | None = None
 
     def __init__(self):
         self.commands = _CommandsConfig()

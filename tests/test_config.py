@@ -1,3 +1,4 @@
+import pytest
 from ruamel.yaml import YAML
 
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
@@ -678,6 +679,28 @@ def test_schema_default_value():
     rc = RawConfig()
     rc.add("defaults", {"accesslog.type": "file"})
     assert rc.get("accesslog", "buffer_size") == 300
+
+
+@pytest.mark.parametrize("default", [None, False, 0, "", [], {}])
+@pytest.mark.parametrize("configured", [False, True])
+def test_cast_preserves_explicit_default_for_null(default, configured):
+    rc = RawConfig()
+    if configured:
+        rc.add("test", {"value": None})
+
+    def cast(value):
+        assert value is not None
+        return value
+
+    result = rc.get("value", default=default, cast=cast)
+    assert type(result) is type(default)
+    assert result == default
+
+
+def test_cast_null_required_value():
+    rc = RawConfig().add("test", {"value": None})
+    with pytest.raises(Exception, match="required configuration option"):
+        rc.get("value", default=None, cast=int, required=True)
 
 
 def test_to_dict():

@@ -5,6 +5,14 @@ import unittest.mock
 import pytest
 
 from spinta.components import Context
+from spinta.core.config import read_config
+from spinta.core.context import create_context
+
+
+def test_create_context_null_command_modules():
+    rc = read_config().fork({"commands.modules": None})
+    context = create_context(rc=rc)
+    assert context.get("rc") is rc
 
 
 def test_set_overwrite():
