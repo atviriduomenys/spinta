@@ -20,6 +20,32 @@ The fastest way to configure Spinta is to create a YAML configuration file and
 inspect the result with `spinta config`. A full configuration example, with a
 keymap, a backend, a manifest and an access log, might look like this:
 
+.. toctree::
+   :maxdepth: 1
+
+   auth
+   backend
+   keymap
+   manifest
+   soap-custom-adapters
+   front-page
+   health
+
+.. _config-file:
+
+Configuration file
+******************
+
+After reading configuration values from command line arguments, environment
+variables and `.env` file, Spinta reads additional configuration sources set
+via `config` option.
+
+`config` option can contain list of comma separated values. Each value can be a
+path to `.yml` file or it can be a python dotted path like
+`myapp.config:CONFIG`, pointing to a dict.
+
+For example we can create an `/tmp/custom.yaml` configuration file:
+
 .. code-block:: yaml
 
     env: production
@@ -65,17 +91,6 @@ Output::
 `spinta config` lists all configuration values and tells the source of origin
 of each value. You can also filter listed options by providing a list of
 prefixes, see :ref:`inspecting-config` for details.
-
-.. toctree::
-   :maxdepth: 1
-
-   auth
-   backend
-   keymap
-   manifest
-   soap-custom-adapters
-   front-page
-
 
 .. _inspecting-config:
 

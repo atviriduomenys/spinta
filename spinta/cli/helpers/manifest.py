@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from spinta.core.config import RawConfig, Path, parse_manifest_path, check_if_manifest_valid
+from spinta.core.config import Path, RawConfig, check_if_manifest_valid, parse_manifest_path
 from spinta.exceptions import UnknownManifestType
 from spinta.manifests.components import ManifestPath
 
@@ -11,7 +11,7 @@ def convert_str_to_manifest_path(manifests: Union[List[str], str]) -> Union[Mani
 
     new_manifest = []
     rc = RawConfig()
-    rc.read([Path('spinta', 'spinta.config:CONFIG')])
+    rc.read([Path("spinta", "spinta.config:CONFIG")])
     if isinstance(manifests, list):
         for manifest in manifests:
             new_manifest.append(_parse_cli_manifest_path(rc, manifest))
@@ -24,6 +24,7 @@ def _parse_cli_manifest_path(
     path: Union[str, ManifestPath],
 ) -> ManifestPath:
     from spinta.manifests.components import ManifestPath
+
     if isinstance(path, ManifestPath):
         return path
     if ":" in path:

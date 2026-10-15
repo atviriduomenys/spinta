@@ -1,12 +1,12 @@
 import logging
 
 from spinta import commands
-from spinta.components import Context
-from spinta.manifests.components import Manifest
-from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.backend.components import BackendManifest
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.manifest import read_manifest_schemas
+from spinta.components import Context
+from spinta.manifests.backend.components import BackendManifest
+from spinta.manifests.components import Manifest
+from spinta.manifests.helpers import load_manifest_nodes
 
 log = logging.getLogger(__name__)
 

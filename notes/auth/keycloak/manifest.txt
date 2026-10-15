@@ -1,0 +1,10 @@
+d | r | b | m | property | type    | ref                        | source      | level | access
+auth/keycloak |         |         |            |       |
+  | data | sql |    | sqlite:///var/instances/auth/keycloak/source.db | |
+  |   |   | Country        |         | id                         | countries   | 4     |
+  |   |   |   | id       | integer |                            | id          | 4     | protected
+  |   |   |   | name     | string  |                            | name        | 4     | protected
+  |   |   | City           |         | id                         | cities      | 4     |
+  |   |   |   | id       | integer |                            | id          | 4     | protected
+  |   |   |   | name     | string  |                            | name        | 4     | protected
+  |   |   |   | country  | ref     | /auth/keycloak/Country     | country_id  | 3     | protected

@@ -1,11 +1,7 @@
-from typing import Iterator, Union
-from typing import List
+from typing import Iterator, List, Union
 
-from typer import Argument
+from typer import Argument, Option, Typer, echo
 from typer import Context as TyperContext
-from typer import Option
-from typer import Typer
-from typer import echo
 
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
@@ -14,13 +10,14 @@ from spinta.core.enums import Access
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
-from spinta.manifests.tabular.components import ManifestColumn
-from spinta.manifests.tabular.components import ManifestRow
-from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.mermaid.helpers import write_mermaid_manifest
-from spinta.manifests.tabular.helpers import normalizes_columns
-from spinta.manifests.tabular.helpers import render_tabular_manifest_rows
-from spinta.manifests.tabular.helpers import write_tabular_manifest
+from spinta.manifests.tabular.components import ManifestColumn, ManifestRow
+from spinta.manifests.tabular.helpers import (
+    datasets_to_tabular,
+    normalizes_columns,
+    render_tabular_manifest_rows,
+    write_tabular_manifest,
+)
 from spinta.naming.helpers import reformat_names
 from spinta.utils.enums import get_enum_by_name
 

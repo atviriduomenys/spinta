@@ -1,12 +1,10 @@
-from typing import Iterator
-
 import pathlib
+from typing import Iterator
 
 from spinta import commands
 from spinta.components import Context
 from spinta.manifests.backend.components import BackendManifest
-from spinta.manifests.backend.helpers import list_schemas
-from spinta.manifests.backend.helpers import read_schema
+from spinta.manifests.backend.helpers import list_schemas, read_schema
 
 
 @commands.manifest_list_schemas.register(Context, BackendManifest)

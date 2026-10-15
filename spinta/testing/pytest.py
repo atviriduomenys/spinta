@@ -48,6 +48,8 @@ def rc():
             {
                 "env": "test",
                 "data_path": data_dir,
+                "token_issuer": "https://example.com",
+                "resource_server": "https://example.com",
                 "keymaps.default": {
                     "type": "sqlalchemy",
                     "dsn": "sqlite:///{data_dir}/keymap.db",

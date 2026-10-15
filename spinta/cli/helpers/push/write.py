@@ -1,6 +1,5 @@
 import itertools
 import json
-import textwrap
 import time
 import uuid
 from copy import copy
@@ -9,7 +8,6 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 import pprintpp
 import requests
 import sqlalchemy as sa
-from requests import HTTPError
 
 import spinta.cli.push as cli_push
 from spinta import spyna
@@ -21,6 +19,7 @@ from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.json import fix_data_for_json
+from spinta.utils.response import RequestResult, format_request_error, request
 
 
 def _prepare_rows_for_push(rows: Iterable[PushRow]) -> Iterator[PushRow]:
@@ -63,18 +62,28 @@ def prepare_rows_with_errors(
         checksum = row[table.c.checksum]
         data = json.loads(row[table.c.data]) if row[table.c.data] else {}
 
-        status_code, resp = send_request(
+        result = send_request(
             client,
             f"{server}/{type}/{_id}",
             "GET",
             rows=[],
             data="",
-            ignore_errors=[404],
+            ignore_statuses=[404],
             error_counter=error_counter,
             timeout=timeout,
         )
 
-        if status_code == 200:
+        if result.status_code == 404:
+            # Was deleted on both - local and target servers
+            if not data:
+                conn.execute(table.delete().where((table.c.id == _id)))
+                yield PushRow(model, {"_type": type}, send=False)
+            # Need to push again
+            else:
+                yield PushRow(model, data, checksum=checksum, saved=True, op="insert", error=True)
+
+        elif result.ok and not result.ignored:
+            resp = result.data
             # Was deleted on local server, but found on target server,
             # which means we need to delete it
             if not data:
@@ -89,15 +98,6 @@ def prepare_rows_with_errors(
             else:
                 data["_revision"] = resp["_revision"]
                 yield PushRow(model, data, checksum=checksum, saved=True, op="patch", error=True)
-
-        elif status_code == 404:
-            # Was deleted on both - local and target servers
-            if not data:
-                conn.execute(table.delete().where((table.c.id == _id)))
-                yield PushRow(model, {"_type": type}, send=False)
-            # Need to push again
-            else:
-                yield PushRow(model, data, checksum=checksum, saved=True, op="insert", error=True)
 
 
 def prepare_rows_for_deletion(model: Model, _id: str, error: bool = False):
@@ -161,11 +161,11 @@ def _push_to_remote_spinta(
 
         data = fix_data_for_json(row.data)
         tmp = data
+
         if "_page" in data:
             tmp = copy(data)
             tmp.pop("_page")
         data = json.dumps(tmp, ensure_ascii=False)
-
         if ready and (len(chunk) + len(data) + slen > chunk_size or row.push):
             yield from _send_and_receive(
                 client,
@@ -218,12 +218,12 @@ def _send_and_receive(
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: ErrorCounter = None,
+    error_counter: ErrorCounter | None = None,
 ) -> Iterator[PushRow]:
     if dry_run:
         recv = _send_data_dry_run(data)
     else:
-        _, recv = send_request(
+        result = send_request(
             client,
             server,
             "POST",
@@ -233,8 +233,9 @@ def _send_and_receive(
             error_counter=error_counter,
             timeout=timeout,
         )
-        if recv:
-            recv = recv["_data"]
+        recv = result.data if result.ok and not result.ignored else None
+        if isinstance(recv, dict):
+            recv = recv.get("_data")
     yield from _map_sent_and_recv(rows, recv)
 
 
@@ -306,79 +307,37 @@ def send_request(
     client: requests.Session,
     server: str,
     method: str,
-    rows: List[PushRow],
+    rows: list[PushRow],
     data: str,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
     stop_on_error: bool = False,
-    ignore_errors: Optional[List[int]] = None,
-    error_counter: ErrorCounter = None,
-) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
+    ignore_statuses: list[int] | None = None,
+    error_counter: ErrorCounter | None = None,
+) -> RequestResult:
     data = data.encode("utf-8")
-    if not ignore_errors:
-        ignore_errors = []
+    resp = request(
+        client,
+        server,
+        method,
+        data=data,
+        timeout=timeout,
+        ignore_statuses=ignore_statuses,
+        error_counter=error_counter,
+        # Cannot add stop_on_error here; otherwise we will lose error message, since its handled separately
+    )
 
-    try:
-        resp = client.request(method, server, data=data, timeout=timeout)
-    except requests.exceptions.ReadTimeout:
-        if error_counter:
-            error_counter.increase()
+    if not resp.ok:
+        errors = resp.data.get("errors") if isinstance(resp.data, dict) else None
         cli_push.log.error(
-            f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+            "Error when sending and receiving data.\n%s\n%s",
+            format_request_error(resp, server, timeout),
+            get_row_for_error(rows, errors),
         )
         if stop_on_error:
-            raise
-        return None, None
-    except requests.exceptions.ConnectTimeout:
-        if error_counter:
-            error_counter.increase()
-        cli_push.log.error(
-            f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
-        )
-        if stop_on_error:
-            raise
-        return None, None
-    except IOError as e:
-        if error_counter:
-            error_counter.increase()
-        cli_push.log.error(
-            ("Error when sending and receiving data.%s\nError: %s"),
-            get_row_for_error(rows),
-            e,
-        )
-        if stop_on_error:
-            raise
-        return None, None
+            resp.raise_for_error()
 
-    try:
-        resp.raise_for_status()
-    except HTTPError:
-        if resp.status_code not in ignore_errors:
-            if error_counter:
-                error_counter.increase()
-            try:
-                recv = resp.json()
-            except requests.JSONDecodeError:
-                cli_push.log.error(
-                    ("Error when sending and receiving data.\nServer response (status=%s):\n%s"),
-                    resp.status_code,
-                    textwrap.indent(resp.text, "    "),
-                )
-                if stop_on_error:
-                    raise
-            else:
-                errors = recv.get("errors")
-                cli_push.log.error(
-                    ("Error when sending and receiving data.%s\nServer response (status=%s):\n%s"),
-                    get_row_for_error(rows, errors),
-                    resp.status_code,
-                    textwrap.indent(pprintpp.pformat(recv), "    "),
-                )
-            if stop_on_error:
-                raise
-        return resp.status_code, None
-
-    return resp.status_code, resp.json()
+    return resp
 
 
 def push(

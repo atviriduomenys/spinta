@@ -2920,11 +2920,10 @@ def test_error_handling_server_error(
             fail=False,
         )
 
-    message = (
-        "Error when sending and receiving data. Model example/errors/City, items in chunk: 2, first item in chunk:"
-    )
+    message = " Model example/errors/City, items in chunk: 2, first item in chunk:"
+    assert "Error when sending and receiving data.\n" in caplog.text
     assert message in caplog.text
-    assert "Server response (status=400):" in caplog.text
+    assert "Server (https://example.com) response (status=400):" in caplog.text
 
 
 def test_error_handling_io_error(
@@ -2959,11 +2958,10 @@ def test_error_handling_io_error(
             fail=False,
         )
 
-    message = (
-        "Error when sending and receiving data. Model example/errors/City, items in chunk: 2, first item in chunk:"
-    )
+    message = " Model example/errors/City, items in chunk: 2, first item in chunk:"
+    assert "Error when sending and receiving data.\n" in caplog.text
     assert message in caplog.text
-    assert "Error: I/O error." in caplog.text
+    assert "Server (https://example.com) response (status=None):\n    I/O error." in caplog.text
 
 
 def test_sql_views(context, rc: RawConfig, tmp_path: pathlib.Path, sqlite: Sqlite):

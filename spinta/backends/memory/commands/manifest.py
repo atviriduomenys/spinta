@@ -1,10 +1,10 @@
 import logging
 
 from spinta import commands
-from spinta.components import Context
-from spinta.manifests.components import Manifest
-from spinta.manifests.backend.components import BackendManifest
 from spinta.backends.memory.components import Memory
+from spinta.components import Context
+from spinta.manifests.backend.components import BackendManifest
+from spinta.manifests.components import Manifest
 
 log = logging.getLogger(__name__)
 

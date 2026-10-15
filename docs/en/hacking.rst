@@ -650,3 +650,37 @@ How do we resolve all this?
             )
         }
 
+
+
+Deprecation notices
+===================
+
+.. versionadded:: 1.2.0
+
+End-user deprecation notices (for example, the notice about the deprecated
+`spinta_*` scope prefix) must be emitted via the Python `warnings` module,
+not via `log.warning`::
+
+    from spinta.warnings import ScopeFormatDeprecationWarning
+
+    warnings.warn(
+        "using 'spinta_*' scopes is deprecated and will be removed in a "
+        "future version, use 'uapi:*' scopes instead",
+        ScopeFormatDeprecationWarning,
+        stacklevel=2,
+    )
+
+`warnings.warn` deduplicates notices automatically (with the `default`
+filter each location is shown at most once) and lets users silence or
+escalate them with standard mechanisms, like the `PYTHONWARNINGS` variable
+or the `-W` command line option. `log.warning` ignores warning filters
+entirely and duplicates the notice on every call.
+
+Use `stacklevel=2` to attribute the warning to the caller of your function,
+not to the `warnings.warn` call itself.
+
+Warning categories live in the `spinta.warnings` module. That module must
+stay import-light, it must not import any other Spinta modules, so that
+emitting a warning can never cause import cycles or unwanted side effects.
+End-user documentation about warning visibility and control is in
+:ref:`deprecation-warnings`.
