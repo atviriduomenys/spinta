@@ -139,28 +139,38 @@ Bug fixes:
   ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one``) still being accessible
   through ``rc.get()`` from lower-priority sources. Removed keys are now
   unavailable at all levels (`#1990`_).
-
+- Configuration keys that hold a list of subkeys (for example ``backends``) no
+  longer accept a scalar value, such as ``backends: one``, in configuration
+  files and other configuration sources that support complex values. A list of
+  subkey names (for example ``backends: [one]``) or a mapping declaring the
+  whole subtree must be used instead. Comma separated subkey names in
+  environment variables (for example ``SPINTA_BACKENDS=one,two``), ``.env``
+  files and command line arguments (for example ``backends=one,two``) are
+  still supported. To migrate, replace scalar values with lists in YAML
+  configuration files, for example ``backends: one`` becomes
+  ``backends: [one]`` (`#1990`_).
+- Setting a configuration key to an empty value (for example
+  ``SPINTA_BACKENDS=``) now removes all subkeys in that subtree recursively,
+  and a key with a non-empty list of subkey names (for example
+  ``SPINTA_BACKENDS=one``) keeps only the listed subkeys. Removed subkeys are
+  no longer available from any configuration source, including lower priority
+  sources like defaults. If you relied on values removed by an override still
+  being read from lower priority sources, remove those overrides entirely or
+  explicitly list the subkeys to keep (`#1990`_).
 
 Improvements:
 
-- Configuration values for keys that hold a list of keys (for example
-  ``{'backends': 'one'}``) now raise an error in all configuration sources
-  that support complex values, such as configuration files, `rc.add()` and
-  `RawConfig.fork()`. A list of key names (for example ``{'backends':
-  ['one']}``) or a mapping declaring the whole subtree must be used instead.
-  Comma separated key names in environment variables (for example
-  ``SPINTA_BACKENDS=one``), `.env` files and command line arguments (for
-  example ``backends=one``) are still supported (`#2001`_).
-- Configuration sources are now documented with their precedence order
-  (defaults, configuration files, ``.env`` file, environment variables and
-  command line arguments), and the ``config_path`` directory and the
+- ``spinta config`` output now has an ``Env`` column, showing which
+  environment overlay provided each configuration value (`#1990`_).
+- Custom property types in manifests can now be configured with parameters
+  given as a mapping, for example ``type: {name: sqlalchemy.types.BigInteger}``,
+  in addition to a list of parameter names (`#1990`_).
+- Configuration is now documented: configuration sources with their precedence
+  order (defaults, configuration files, ``.env`` file, environment variables
+  and command line arguments), the ``config_path`` directory with the
   recommended ``{config_path}/config.yaml`` location for the main
-  configuration file are described. Setting a configuration key to an empty
-  value (for example ``SPINTA_BACKENDS=``) now removes all keys in that
-  subtree recursively, while a parent key with a non-empty list of names
-  (for example ``SPINTA_BACKENDS=one``) keeps only the listed subkeys
-  (`#1990`_).
-
+  configuration file, and the configuration syntax: simple and complex values,
+  merging and reset semantics (`#1990`_).
 
 .. _#2001: https://github.com/atviriduomenys/spinta/pull/2001
 .. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
@@ -292,6 +302,7 @@ Bug fixes:
   connections accumulated across the test suite and exhausted the PostgreSQL
   ``max_connections`` limit (``FATAL: sorry, too many clients already``)
   (`#1556`_).
+
 - Fixed key-id based public key selection in token validation: ``decode_token``
   now reads the standard ``kid`` JWS header field (previously it looked for a
   non-standard ``key`` field that is never present, so the ``kid`` fast path was
