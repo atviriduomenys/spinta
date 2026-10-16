@@ -18,6 +18,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Context, Model, Node, Property
 from spinta.core.config import RawConfig
 from spinta.core.enums import Action
+from spinta.datasets.keymaps.helpers import keymap_copy_lambda
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.helpers import render_tabular_manifest, write_tabular_manifest
@@ -220,7 +221,7 @@ def detect(
                         f"transaction.{resource.backend.name}", validate_and_return_begin, context, resource.backend
                     )
         for keymap in store.keymaps.values():
-            context.attach(f"keymap.{keymap.name}", lambda: keymap.copy())
+            context.attach(f"keymap.{keymap.name}", keymap_copy_lambda(keymap))
 
         ns = commands.get_namespace(context, manifest, "")
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH)
