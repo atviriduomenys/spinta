@@ -171,7 +171,7 @@ def _absolute_uri_re() -> re.Pattern:
             f"(?:(?:{h16}:){{0,6}}{h16})?::",
         ]
     )
-    ipvfuture = rf"v[0-9A-Fa-f]+\.(?:{unreserved}|{sub_delims}|:)+"
+    ipvfuture = rf"[vV][0-9A-Fa-f]+\.(?:{unreserved}|{sub_delims}|:)+"
     ip_literal = rf"\[(?:{ipv6}|{ipvfuture})\]"
     reg_name = f"(?:{unreserved}|{pct_encoded}|{sub_delims})*"
     userinfo = f"(?:{unreserved}|{pct_encoded}|{sub_delims}|:)*"
@@ -191,7 +191,8 @@ def get_requested_audience(request: OAuth2Request) -> list[str]:
     """Return the `resource` parameters of a token request (RFC 8707)."""
     resources = request.payload.datalist.get("resource", [])
     for resource in resources:
-        if RESOURCE_URI_RE.fullmatch(resource) is None:
+        # A multipart request can send `resource` as a file.
+        if not isinstance(resource, str) or RESOURCE_URI_RE.fullmatch(resource) is None:
             # Not echoing `resource`: error descriptions may not contain some characters it can.
             raise InvalidTargetError("The resource must be an absolute URI without a fragment.")
     return resources

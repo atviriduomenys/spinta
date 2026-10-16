@@ -98,7 +98,7 @@ def get_client_credentials(
                     fallback=config.get(creds.section, "resource_server", fallback=creds.server),
                 )
                 creds.resource_server_id = creds.resource_server_id or config.get(
-                    creds.section, "resource_server_id", fallback=None
+                    creds.section, "resource_server_id", raw=True, fallback=None
                 )
                 creds.organization = creds.organization or config.get(creds.section, "organization", fallback=None)
                 creds.organization_type = creds.organization_type or config.get(

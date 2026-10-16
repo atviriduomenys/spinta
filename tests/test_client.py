@@ -187,6 +187,22 @@ def test_get_client_credentials_old_keys(tmp_path: Path):
     assert creds.resource_server_id is None
 
 
+def test_get_client_credentials_percent_encoded_resource_server_id(tmp_path: Path):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent("""
+    [default]
+    server = https://auth.example.com
+    resource_server_id = urn:example:tenant%2Fname
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    creds = get_client_credentials(credsfile, "default")
+    assert creds.resource_server_id == "urn:example:tenant%2Fname"
+
+
 @pytest.mark.parametrize("resource_server_id", [None, "https://data.gov.lt/uapi/"])
 def test_get_access_token_sends_resource(responses: RequestsMock, tmp_path: Path, resource_server_id):
     credsfile = Path(tmp_path / "credentials.cfg")

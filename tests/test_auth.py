@@ -1672,6 +1672,27 @@ def test_token_aud_is_requested_resource(introspect_app):
     assert payload["aud"] == ["https://data.gov.lt/uapi/", "https://other.example.com/"]
 
 
+@pytest.mark.parametrize("resource", ["https://[v1.example]/", "https://[V1.example]/", "https://[::1]:8080/"])
+def test_token_accepts_ip_literal_resource(introspect_app, resource):
+    resp = introspect_app.post(
+        "/auth/token",
+        auth=("reader", "reader-secret"),
+        data={"grant_type": "client_credentials", "scope": "spinta_getall", "resource": resource},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_token_rejects_file_resource(introspect_app):
+    resp = introspect_app.post(
+        "/auth/token",
+        auth=("reader", "reader-secret"),
+        data={"grant_type": "client_credentials", "scope": "spinta_getall"},
+        files={"resource": ("resource.txt", b"https://data.gov.lt/uapi/")},
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["error"] == "invalid_target"
+
+
 @pytest.mark.parametrize(
     "resource",
     [
