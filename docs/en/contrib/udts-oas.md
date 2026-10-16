@@ -211,7 +211,8 @@ Tags and `operationId`s use the same names.
 
 - `_type` is an `enum` of the full model name; `_id` a UUID v4 (canonical
   form) or the declared `_id` type; `_revision` a UUID or the type of the value
-  the model builds.
+  the model builds; `_base` a `nullable` object, which a search (`select`,
+  `limit`, `sort`, a filter) answers with.
 - No `required`: a response holds what was asked for (`_select`).
 - A property not marked `required` in the manifest is `nullable`; an `enum`
   gets `null` added; a reference becomes `anyOf: [{$ref}, NULL_OBJECT_SCHEMA]`.
