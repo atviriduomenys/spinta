@@ -1682,6 +1682,10 @@ def test_token_aud_is_requested_resource(introspect_app):
         'https://a"b',
         "https://a.lt/%zz",
         "https://a b",
+        "https://example.com:not-a-port",
+        "https://a@b@c",
+        "https://[::1",
+        "https://[12345::1]/",
     ],
 )
 def test_token_rejects_invalid_resource(introspect_app, resource):

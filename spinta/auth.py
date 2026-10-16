@@ -10,7 +10,6 @@ import os
 import pathlib
 import re
 import time
-import urllib.parse
 import uuid
 from collections import defaultdict
 from functools import cached_property
@@ -148,21 +147,51 @@ class InvalidTargetError(OAuth2Error):
     error = "invalid_target"
 
 
-# Absolute URI (RFC 3986): scheme, then only allowed characters and percent escapes, no `#` fragment.
-RESOURCE_URI_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:(?:[A-Za-z0-9\-._~:/?\[\]@!$&'()*+,;=]|%[0-9A-Fa-f]{2})*")
+def _absolute_uri_re() -> re.Pattern:
+    """`absolute-URI` grammar of RFC 3986, appendix A (no fragment)."""
+    unreserved = r"[A-Za-z0-9\-._~]"
+    pct_encoded = r"%[0-9A-Fa-f]{2}"
+    sub_delims = r"[!$&'()*+,;=]"
+    pchar = f"(?:{unreserved}|{pct_encoded}|{sub_delims}|[:@])"
+
+    dec_octet = r"(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+    ipv4 = rf"{dec_octet}(?:\.{dec_octet}){{3}}"
+    h16 = "[0-9A-Fa-f]{1,4}"
+    ls32 = f"(?:{h16}:{h16}|{ipv4})"
+    ipv6 = "|".join(
+        [
+            f"(?:{h16}:){{6}}{ls32}",
+            f"::(?:{h16}:){{5}}{ls32}",
+            f"(?:{h16})?::(?:{h16}:){{4}}{ls32}",
+            f"(?:(?:{h16}:){{0,1}}{h16})?::(?:{h16}:){{3}}{ls32}",
+            f"(?:(?:{h16}:){{0,2}}{h16})?::(?:{h16}:){{2}}{ls32}",
+            f"(?:(?:{h16}:){{0,3}}{h16})?::{h16}:{ls32}",
+            f"(?:(?:{h16}:){{0,4}}{h16})?::{ls32}",
+            f"(?:(?:{h16}:){{0,5}}{h16})?::{h16}",
+            f"(?:(?:{h16}:){{0,6}}{h16})?::",
+        ]
+    )
+    ipvfuture = rf"v[0-9A-Fa-f]+\.(?:{unreserved}|{sub_delims}|:)+"
+    ip_literal = rf"\[(?:{ipv6}|{ipvfuture})\]"
+    reg_name = f"(?:{unreserved}|{pct_encoded}|{sub_delims})*"
+    userinfo = f"(?:{unreserved}|{pct_encoded}|{sub_delims}|:)*"
+    authority = f"(?:{userinfo}@)?(?:{ip_literal}|{ipv4}|{reg_name})(?::[0-9]*)?"
+
+    segment = f"{pchar}*"
+    segment_nz = f"{pchar}+"
+    hier_part = f"//{authority}(?:/{segment})*|/(?:{segment_nz}(?:/{segment})*)?|{segment_nz}(?:/{segment})*|"
+    query = f"(?:{pchar}|[/?])*"
+    return re.compile(rf"[A-Za-z][A-Za-z0-9+.\-]*:(?:{hier_part})(?:\?{query})?")
+
+
+RESOURCE_URI_RE = _absolute_uri_re()
 
 
 def get_requested_audience(request: OAuth2Request) -> list[str]:
     """Return the `resource` parameters of a token request (RFC 8707)."""
     resources = request.payload.datalist.get("resource", [])
     for resource in resources:
-        try:
-            urllib.parse.urlparse(resource)
-        except ValueError:
-            valid = False
-        else:
-            valid = RESOURCE_URI_RE.fullmatch(resource) is not None
-        if not valid:
+        if RESOURCE_URI_RE.fullmatch(resource) is None:
             # Not echoing `resource`: error descriptions may not contain some characters it can.
             raise InvalidTargetError("The resource must be an absolute URI without a fragment.")
     return resources
