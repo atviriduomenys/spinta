@@ -93,6 +93,7 @@ Agento atnaujinimas <agentas/atnaujinimas>
 agentas/autentifikacija
 agentas/web-serverio-konfigūravimas
 agentas/duomenų-gavimo-testavimas
+agentas/oas-generavimas
 Registracija ir diegimas į vartus <agentas/registracija>
 agentas/tinklo-konfigūravimas
 agentas/udts-suderinamumas
