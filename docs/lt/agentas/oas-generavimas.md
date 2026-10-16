@@ -249,13 +249,25 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
 
 ## Greita instrukcija
 
-1. Pažiūrėkite, kokios paslaugos yra manifeste:
+1. Nurodykite agento konfigūracijos failą – tą patį `config.yml`, kurį naudoja
+   agentas:
+
+   ```sh
+   export SPINTA_CONFIG=/opt/spinta/config.yml
+   ```
+
+   Praleidus šį žingsnį, Spinta neranda manifeste minimų backend'ų ir generavimas
+   nutrūksta su klaida (pavyzdžiui, `BackendNotFound`), iš kurios nematyti, kad
+   trūksta konfigūracijos.
+
+2. Pažiūrėkite, kokios paslaugos yra manifeste:
 
    ```sh
    spinta udts oas manifest.csv --list
    ```
 
-2. Paruoškite konfigūracijos failą `vartai.yml`. Užtenka privalomų laukų ir token'o adreso:
+3. Paruoškite OAS konfigūracijos failą `vartai.yml` (tai ne agento `config.yml`).
+   Užtenka privalomų laukų ir token'o adreso:
 
    ```yaml
    info:
@@ -274,7 +286,7 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
 
    Visi laukai aprašyti skyriuje {ref}`Konfigūracijos failas <oas-config>`.
 
-3. Sugeneruokite OAS pasirinktai paslaugai:
+4. Sugeneruokite OAS pasirinktai paslaugai:
 
    ```sh
    spinta udts oas manifest.csv -o at280.json \
@@ -282,5 +294,5 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
        --udts-cfg vartai.yml
    ```
 
-4. Peržiūrėkite generuojant parodytus įspėjimus. Jei apraše trūksta modelių ar
+5. Peržiūrėkite generuojant parodytus įspėjimus. Jei apraše trūksta modelių ar
    savybių, DSA patikrinkite jų `visibility` (žr. {ref}`visibility <oas-visibility>`).
