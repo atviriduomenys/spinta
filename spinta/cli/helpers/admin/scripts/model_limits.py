@@ -1,22 +1,26 @@
 import json
 import pathlib
+import sys
+from contextlib import nullcontext
 from typing import Optional
 
-import ruamel.yaml
 import sqlalchemy as sa
 import tqdm
-from click import echo
 from multipledispatch import dispatch
+from ruamel.yaml import YAML
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, parse_input_path
+from spinta.cli.helpers.message import cli_message
+from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, parse_input_path, validate_config_file_output_path
 from spinta.components import Context, Model, Property
 from spinta.types.datatype import Boolean, DataType, Date, DateTime, ExternalRef, Integer, Number, Ref
 from spinta.types.geometry.components import Geometry
-from spinta.utils.config import get_limit_path
 from spinta.utils.nestedstruct import flat_dicts_to_nested
+
+yaml = YAML(typ="safe")
+yaml.default_flow_style = False
 
 
 @dispatch(Context, Model)
@@ -44,9 +48,6 @@ def extract_limit(context: Context, backend: PostgreSQL, model: Model):
     ).select_from(table)
     result = dict(backend.engine.execute(query).fetchone())
     count = result.pop("_count")
-
-    if result is None:
-        return None
 
     return generate_limit_with_json_overhead(context, model, count, result)
 
@@ -113,7 +114,7 @@ def adjust_bytes(backend: PostgreSQL, dtype: Date, totals: dict, count: int):
 
 
 @dispatch(PostgreSQL, DateTime, dict, int)
-def adjust_bytes(backend: PostgreSQL, dtype: Date, totals: dict, count: int):
+def adjust_bytes(backend: PostgreSQL, dtype: DateTime, totals: dict, count: int):
     name, data = _extract_column_byte_data(backend, dtype.prop, totals)
     if data is not None:
         # Postgresql stores datetime as 8 bytes, so converting to string increases by 3.25x
@@ -175,16 +176,19 @@ def generate_limit_with_json_overhead(context: Context, model: Model, count: int
     if result >= count:
         return None  # No need to add limit, if limit is higher than number of rows
 
-    return result
+    return max(1, result)
 
 
 def generate_model_limits(
     context: Context,
-    input_path: pathlib.Path = None,
+    destructive: bool,
+    input_path: pathlib.Path | None = None,
+    output_path: pathlib.Path | None = None,
     **kwargs,
 ):
     store = ensure_store_is_loaded(context)
-    config = context.get("config")
+
+    validate_config_file_output_path(destructive, output_path)
 
     whitelist = parse_input_path(context, input_path, required=False)
     if whitelist:
@@ -195,24 +199,22 @@ def generate_model_limits(
     models = [model for model in models if not model.name.startswith("_")]
     model_count = len(models)
     counter = tqdm.tqdm(desc="GENERATING MODEL LIMITS", ascii=True, total=model_count)
-    yml = ruamel.yaml.YAML()
 
     data = {}
     try:
         for model in models:
-            counter.write(f"\t{model.model_type()}", end=" - ")
             limit = extract_limit(context, model)
             if limit is not None:
-                data[model.model_type()] = limit
-                counter.write(f"{limit}")
+                data[model.model_type()] = {
+                    "limit": limit,
+                }
+                cli_message(f"\t{model.model_type()} - {limit}", progress_bar=counter)
             else:
-                counter.write("Skipped")
+                cli_message(f"\t{model.model_type()} - Skipped", progress_bar=counter)
             counter.update(1)
     finally:
         counter.close()
 
-    limit_path = get_limit_path(config)
-    echo(f"WRITING MODEL LIMITS TO {limit_path}")
-
-    with limit_path.open("w") as file:
-        yml.dump(data, file)
+    output_stream = nullcontext(sys.stdout) if output_path is None else output_path.open("w")
+    with output_stream as out:
+        yaml.dump({"models": data} if data else {}, out)

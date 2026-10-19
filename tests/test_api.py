@@ -17,14 +17,12 @@ from spinta.core.config import RawConfig, configure_rc
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import TestClient, TestClientResponse, create_test_client, get_html_tree, get_yaml_data
 from spinta.testing.context import create_test_context
 from spinta.testing.data import listdata, pushdata, send
 from spinta.testing.manifest import bootstrap_manifest, prepare_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error, get_error_codes
-from spinta.utils.config import get_limit_path
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.types import is_str_uuid
 
@@ -2183,15 +2181,54 @@ def test_get_maximum_limit_error(app):
     }
 
 
-def test_get_default_limit(rc):
+@pytest.mark.parametrize(
+    "limit_config",
+    [
+        {"default_limit_objects": 5},
+        {"models": {"datasets/json/Rinkimai": {"limit": 5}}},
+    ],
+    ids=["default", "model"],
+)
+@pytest.mark.parametrize("accept", ["application/json", "text/html"])
+@pytest.mark.parametrize("suffix", ["", "/:changes"], ids=["getall", "changes"])
+def test_get_configured_maximum_limit_error(
+    rc: RawConfig, request: FixtureRequest, limit_config: dict, accept: str, suffix: str
+):
+    app = create_test_client(rc.fork(limit_config), request)
+    app.authmodel("datasets/json/Rinkimai", ["getall", "search", "changes"])
+
+    resp = app.get(f"/datasets/json/Rinkimai{suffix}?limit(6)", headers={"accept": accept})
+    assert resp.status_code == 400
+    assert error(resp, "code", ["maximum_limit", "given_limit"]) == {
+        "code": "ExceededMaximumLimit",
+        "context": {"maximum_limit": 5, "given_limit": 6},
+    }
+
+
+@pytest.mark.parametrize("suffix", ["", "/:changes"], ids=["getall", "changes"])
+def test_page_without_limit_uses_configured_maximum(rc: RawConfig, request: FixtureRequest, suffix: str):
+    app = create_test_client(rc.fork({"default_limit_objects": 2}), request)
+    model = "datasets/json/Rinkimai"
+    app.authmodel(model, ["insert", "getall", "search", "changes"])
+    for i in range(3):
+        resp = app.post(f"/{model}", json={"id": str(i), "pavadinimas": f"Rinkimai {i}"})
+        assert resp.status_code == 201
+
+    resp = app.get(f"/{model}{suffix}?limit(3)")
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["ExceededMaximumLimit"]
+
+    resp = app.get(f"/{model}{suffix}?page()")
+    assert resp.status_code == 200
+    assert len(resp.json()["_data"]) == 2
+
+
+@pytest.mark.parametrize("configured_limit", [5, "5"])
+def test_get_default_limit(rc, configured_limit, request):
     limit = 5
-    rc = rc.fork({"default_limit_objects": 5})
-    context = create_test_context(rc)
+    rc = rc.fork({"default_limit_objects": configured_limit})
+    context = create_test_context(rc, request)
     app = create_test_client(context)
-
-    config = app.context.get("config")
-
-    config.default_limit_objects = limit
 
     app.authmodel("datasets/json/Rinkimai", ["insert", "getall", "search"])
     pks = []
@@ -2241,13 +2278,9 @@ def test_limit_by_model(
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
-    cli: SpintaCliRunner,
 ):
-    config = context.get("config")
-    limit_path = get_limit_path(config)
     limit = 20
-    with limit_path.open("w") as file:
-        file.write(f"datasets/limit/data/Country: {limit}")
+    rc = rc.fork({"models": {"datasets/limit/data/Country": {"limit": limit}}})
 
     create_tabular_manifest(
         context,

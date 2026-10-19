@@ -17,6 +17,7 @@ from spinta.components import (
     UrlParams,
     Version,
     decode_page_values,
+    pagination_enabled,
 )
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
@@ -92,7 +93,10 @@ def calculate_enforced_limit(context: Context, params: UrlParams) -> int | None:
     fmt_limit = fmt.limit
     model_limit = model.limit if isinstance(model, Model) else None
     default_limit = config.default_limit_objects
-    model_limit = model_limit or default_limit
+    if model_limit is None:
+        model_limit = default_limit
+    if isinstance(model, Model) and not pagination_enabled(model):
+        model_limit = None
 
     return min((value for value in (fmt_limit, model_limit) if value is not None), default=None)
 

@@ -97,3 +97,11 @@ def parse_input_path(
 
     with input_path.open("r") as f:
         return f.read().splitlines()
+
+
+def validate_config_file_output_path(destructive: bool, output_path: pathlib.Path | None = None) -> pathlib.Path | None:
+    if output_path and output_path.suffix not in {".yml", ".yaml"}:
+        cli_error(f"Output file '{output_path}' has unsupported format. Use '.yml' or '.yaml'.")
+
+    if output_path and output_path.exists() and not destructive:
+        cli_error(f"Output file '{output_path}' already exists. Use --destructive to overwrite.")

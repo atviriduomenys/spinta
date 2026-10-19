@@ -162,8 +162,8 @@ def load(context: Context, config: Config) -> Config:
     )
     config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
 
-    config.default_limit_objects = rc.get("default_limit_objects", default=None)
-    config.default_limit_bytes = tobytes(rc.get("default_limit_bytes", default="1g"))
+    config.default_limit_objects = rc.get("default_limit_objects", cast=int, default=None)
+    config.default_limit_bytes = rc.get("default_limit_bytes", cast=tobytes, default="1g")
 
     return config
 

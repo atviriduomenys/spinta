@@ -76,6 +76,19 @@ class RequestResult:
         if not self.ok and self.response is not None:
             self.response.raise_for_status()
 
+    def has_error(self, code: str) -> bool:
+        return self.get_error(code) is not None
+
+    def get_error(self, code: str) -> dict | None:
+        if not isinstance(self.data, dict):
+            return None
+        errors = self.data.get("errors")
+        if isinstance(errors, list):
+            for error in errors:
+                if isinstance(error, dict) and error.get("code") == code:
+                    return error
+        return None
+
 
 async def _check_post(context: Context, request: Request, params: UrlParams):
     form = await request.form()
@@ -296,7 +309,7 @@ def _enforce_limit(context: Context, params: UrlParams):
         return
 
     model = params.model
-    if hasattr(model, "limit") and params.limit_enforced_to is not None and params.fmt.streamable:
+    if hasattr(model, "limit") and params.fmt.streamable:
         if params.limit is None and params.page is None:
             raise LimitOrPageIsRequired(
                 model,
@@ -438,6 +451,7 @@ def get_request_with_retries(
     *,
     error_counter: ErrorCounter | None = None,
     progress_bar: tqdm.tqdm | None = None,
+    stop_on_errors: list[str] | None = None,
 ) -> RequestResult:
     resp = request(
         client,
@@ -451,6 +465,8 @@ def get_request_with_retries(
         cli_message(format_request_error(resp, server, timeout), progress_bar=progress_bar)
 
     for i in range(retries):
+        if any(resp.has_error(code) for code in stop_on_errors or []):
+            break
         delay = delay_range[min(i, len(delay_range) - 1)]
 
         cli_message(f"Retrying ({i + 1}/{retries}) in {delay} seconds...", progress_bar=progress_bar)

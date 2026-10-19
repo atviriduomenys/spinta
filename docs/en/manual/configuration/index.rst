@@ -33,6 +33,7 @@ directory where additional configuration files are looked for.
    soap-custom-adapters
    front-page
    health
+   limits
 
 .. _config-file:
 

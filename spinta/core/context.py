@@ -20,7 +20,7 @@ def create_context(
     if rc is None:
         rc = read_config(args, envfile)
 
-    load_commands(rc.get("commands", "modules", cast=list))
+    load_commands(rc.get("commands", "modules", cast=list, default=[]))
 
     if context is None:
         Context_: Type[Context] = rc.get("components", "core", "context", cast=importstr, required=True)
