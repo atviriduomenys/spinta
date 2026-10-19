@@ -98,4 +98,5 @@ Registracija ir diegimas į vartus <agentas/registracija>
 agentas/tinklo-konfigūravimas
 agentas/udts-suderinamumas
 agentas/papildoma-informacija
+Pakeitimai pagal versijas <agentas/versiju-pakeitimai>
 ```

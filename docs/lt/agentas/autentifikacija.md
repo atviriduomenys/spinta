@@ -247,8 +247,31 @@ curl -s http://localhost:8000/version \
 
 ## Introspekcijos kliento sukūrimas
 
+```{versionadded} 1.2.0
+Introspekcijos endpoint'as `/auth/introspect` ir leidimas `uapi:/:auth_introspect`.
+Senesnėse versijose šio žingsnio atlikti negalima.
+```
+
 Introspekcijos klientas leidžia per `/auth/introspect` patikrinti, ar agento išduotas žetonas galioja. Šiam klientui
 reikia leidimo (scope) `uapi:/:auth_introspect`.
+
+:::{important}
+Šiuo metu introspekcijos klientas **reikalingas publikuojant duomenų paslaugas į vartus**.
+Sukūrę klientą, **išsaugokite kliento pavadinimą ir `secret`** — abu reikės nurodyti
+konfigūruojant paslaugą vartuose (Gravitee).
+
+- **Kliento pavadinimas** — tai reikšmė, nurodyta su `-n` (žemiau esančiuose pavyzdžiuose —
+  `introspector`). Jei pasirinksite kitą pavadinimą, išsaugokite būtent jį.
+- **`secret`** — vėliau jo pamatyti nebegalėsite (konfigūracijos faile saugomas tik hash'as).
+
+Kaip pasiimti `secret`, priklauso nuo diegimo būdo:
+
+- **Docker diegimas** — `secret` ekrane nerodomas, jis įrašomas į kintamąjį
+  `INTROSPECT_SECRET`. Jį pamatysite ir išsisaugosite komanda `echo $INTROSPECT_SECRET`
+  (prieš uždarydami terminalo sesiją).
+- **OS diegimas** — `secret` parodomas ekrane po eilute `Client secret:`. Nukopijuokite ir
+  išsisaugokite jį iš karto.
+:::
 
 **Docker diegimas:**
 
@@ -272,6 +295,12 @@ export SPINTA_CONFIG=/opt/spinta/config.yml
 env/bin/spinta client add -n introspector --scope - << 'EOF'
 uapi:/:auth_introspect
 EOF
+```
+
+Išsisaugokite ekrane parodytą `secret`. Žemiau esančiam patikrinimui jį priskirkite kintamajam:
+
+```bash
+INTROSPECT_SECRET=<ekrane parodytas secret>
 ```
 
 Žetono patikrinimas:

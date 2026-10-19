@@ -75,6 +75,13 @@ EOF
 | .type              |                             | Tipas - ar saugoma faile, ar kitaip                                                                                                                                                                                                     |
 | .file              |                             | Jei saugoma faile, nurodo, kuriame faile                                                                                                                                                                                                |
 
+```{versionchanged} 1.3.0
+`resource_server_id`, `auth_server_id` ir `auth_server_url` atsirado 1.3.0 versijoje. 1.2.0 versijoje
+tie patys nustatymai vadinasi `resource_server` ir `token_issuer` (seni pavadinimai vis dar skaitomi).
+Iki 1.2.0 šių parametrų nebuvo. Žr. [Pakeitimai pagal versijas](../versiju-pakeitimai.md).
+```
+
+
 Prieš testuojant ar konfigūracija veikia, sukuriame reikalingus katalogus:
 
 ```bash

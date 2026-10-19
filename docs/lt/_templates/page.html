@@ -1,8 +1,15 @@
 {% extends "!page.html" %}
 
-{#- Visuose puslapiuose rodomas pranešimas apie perėjimą prie stabilių versijų.
-    Atnaujinimo puslapyje tas pats pranešimas yra pačiame tekste, todėl ten nerodomas. -#}
+{#- Visuose puslapiuose rodomi du pranešimai: kokią Spinta versiją atitinka dokumentacija
+    ir apie perėjimą prie stabilių versijų. Antrasis atnaujinimo puslapyje yra pačiame tekste,
+    todėl ten nerodomas. -#}
 {% block body %}
+<div class="admonition note">
+<p class="admonition-title">Dokumentacijos versija</p>
+<p>Ši dokumentacija atitinka <a href="https://github.com/atviriduomenys/spinta/releases/latest">naujausią
+Spinta versiją</a> (<em>latest</em>). Jei naudojate senesnę versiją, dalis komandų ar parametrų gali skirtis. Žr.
+<a href="{{ pathto('agentas/versiju-pakeitimai') }}">Pakeitimai pagal versijas</a>.</p>
+</div>
 {%- if pagename != "agentas/atnaujinimas" %}
 <div class="admonition important">
 <p class="admonition-title">Svarbu</p>
