@@ -11,7 +11,11 @@ from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL, get_catal
 from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
     execute_manifest_synchronization_catalog_to_agent,
 )
-from spinta.cli.helpers.sync.helpers import get_catalog_credentials_section, read_catalog_credentials
+from spinta.cli.helpers.sync.helpers import (
+    get_catalog_credentials_section,
+    read_catalog_credentials,
+    validate_credentials,
+)
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
 from spinta.exceptions import AgentRelatedDataServiceDoesNotExist, InvalidCredentialsConfigurationException
@@ -77,6 +81,19 @@ def test_read_catalog_credentials_keeps_missing_urls_empty(tmp_path: Path, optio
 
     urls = {"auth_server_url": credentials.server, "resource_server_url": credentials.resource_server_url}
     assert [name for name, url in urls.items() if not url] == ([missing] if missing else [])
+
+
+def test_read_catalog_credentials_legacy_server_is_also_resource_server(tmp_path: Path):
+    credentials_file = tmp_path / "credentials.cfg"
+    credentials_file.write_text(
+        "[default]\nserver = https://data.gov.lt\nclient = spinta\nsecret = secret\nscopes = s\n"
+    )
+
+    credentials = read_catalog_credentials(credentials_file)
+
+    assert credentials.server == "https://data.gov.lt"
+    assert credentials.resource_server_url == "https://data.gov.lt"
+    validate_credentials(credentials)
 
 
 @pytest.fixture

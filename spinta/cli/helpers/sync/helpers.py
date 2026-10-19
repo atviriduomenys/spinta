@@ -115,7 +115,8 @@ def read_catalog_credentials(credentials_file: Path) -> RemoteClientCredentials:
     # get_client_credentials falls back to URLs made from the section name, e.g. `https://katalogas`.
     if not options & {"auth_server_url", "server"}:
         credentials.server = None
-    if not options & {"resource_server_url", "resource_server"}:
+    # The old `server` alone stood for both, so `resource_server_url` keeps falling back to it.
+    if not options & {"resource_server_url", "resource_server", "server"}:
         credentials.resource_server_url = None
     return credentials
 
