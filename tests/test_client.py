@@ -244,3 +244,22 @@ def test_get_access_token_sends_resource(responses: RequestsMock, tmp_path: Path
 
     body = parse_qs(responses.calls[0].request.body)
     assert body.get("resource") == ([resource_server_id] if resource_server_id else None)
+
+
+def test_get_access_token_auth_server_url_with_trailing_slash(responses: RequestsMock, tmp_path: Path):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent("""
+    [katalogas]
+    auth_server_url = https://auth.example.com/
+    resource_server_id = https://data.gov.lt/uapi/
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    responses.add(POST, "https://auth.example.com/auth/token", json={"access_token": "TOKEN"})
+
+    get_access_token(get_client_credentials(credsfile, "katalogas"))
+
+    assert responses.calls[0].request.url == "https://auth.example.com/auth/token"

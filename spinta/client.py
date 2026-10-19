@@ -90,6 +90,8 @@ def get_client_credentials(
                     raw=True,
                     fallback=config.get(creds.section, "server", raw=True, fallback=creds.server),
                 )
+                # Paths are appended to it, e.g. `/auth/token`.
+                creds.server = creds.server.rstrip("/") if creds.server else creds.server
                 creds.client = creds.client or config.get(creds.section, "client", fallback=None)
                 creds.secret = creds.secret or config.get(creds.section, "secret", fallback=None)
                 creds.scopes = config.get(creds.section, "scopes", fallback=[])
