@@ -203,6 +203,27 @@ def test_get_client_credentials_percent_encoded_resource_server_id(tmp_path: Pat
     assert creds.resource_server_id == "urn:example:tenant%2Fname"
 
 
+@pytest.mark.parametrize(
+    "auth_key, resource_key",
+    [("auth_server_url", "resource_server_url"), ("server", "resource_server")],
+)
+def test_get_client_credentials_percent_encoded_urls(tmp_path: Path, auth_key: str, resource_key: str):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent(f"""
+    [katalogas]
+    {auth_key} = https://auth.example.com/tenant%2Fname
+    {resource_key} = https://data.gov.lt/tenant%2Fname/uapi/
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    creds = get_client_credentials(credsfile, "katalogas")
+    assert creds.server == "https://auth.example.com/tenant%2Fname"
+    assert creds.resource_server_url == "https://data.gov.lt/tenant%2Fname/uapi/"
+
+
 @pytest.mark.parametrize("resource_server_id", [None, "https://data.gov.lt/uapi/"])
 def test_get_access_token_sends_resource(responses: RequestsMock, tmp_path: Path, resource_server_id):
     credsfile = Path(tmp_path / "credentials.cfg")

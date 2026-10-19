@@ -83,10 +83,12 @@ def get_client_credentials(
             config.read(credsfile)
 
             if config.has_section(creds.section):
+                # URLs and identifiers are read raw: a percent-encoded `%2F` is not interpolation.
                 creds.server = config.get(
                     creds.section,
                     "auth_server_url",
-                    fallback=config.get(creds.section, "server", fallback=creds.server),
+                    raw=True,
+                    fallback=config.get(creds.section, "server", raw=True, fallback=creds.server),
                 )
                 creds.client = creds.client or config.get(creds.section, "client", fallback=None)
                 creds.secret = creds.secret or config.get(creds.section, "secret", fallback=None)
@@ -95,7 +97,8 @@ def get_client_credentials(
                 creds.resource_server_url = creds.resource_server_url or config.get(
                     creds.section,
                     "resource_server_url",
-                    fallback=config.get(creds.section, "resource_server", fallback=creds.server),
+                    raw=True,
+                    fallback=config.get(creds.section, "resource_server", raw=True, fallback=creds.server),
                 )
                 creds.resource_server_id = creds.resource_server_id or config.get(
                     creds.section, "resource_server_id", raw=True, fallback=None
