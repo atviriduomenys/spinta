@@ -204,16 +204,16 @@ def test_get_client_credentials_percent_encoded_resource_server_id(tmp_path: Pat
 
 
 @pytest.mark.parametrize(
-    "auth_key, resource_key",
+    "auth_option, resource_option",
     [("auth_server_url", "resource_server_url"), ("server", "resource_server")],
 )
-def test_get_client_credentials_percent_encoded_urls(tmp_path: Path, auth_key: str, resource_key: str):
+def test_get_client_credentials_percent_encoded_urls(tmp_path: Path, auth_option: str, resource_option: str):
     credsfile = Path(tmp_path / "credentials.cfg")
     credsfile.write_text(
         dedent(f"""
     [katalogas]
-    {auth_key} = https://auth.example.com/tenant%2Fname
-    {resource_key} = https://data.gov.lt/tenant%2Fname/uapi/
+    {auth_option} = https://auth.example.com/tenant%2Fname
+    {resource_option} = https://data.gov.lt/tenant%2Fname/uapi/
     client = spinta
     secret = verysecret
     scopes = uapi:/:getall
