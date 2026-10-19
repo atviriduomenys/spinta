@@ -165,7 +165,7 @@ def test_get_client_credentials_new_keys(tmp_path: Path):
     )
     creds = get_client_credentials(credsfile, "katalogas")
     assert creds.server == "https://auth.example.com"
-    assert creds.resource_server == "https://data.gov.lt/uapi/"
+    assert creds.resource_server_url == "https://data.gov.lt/uapi/"
     assert creds.resource_server_id == "https://data.gov.lt/uapi/"
 
 
@@ -183,7 +183,7 @@ def test_get_client_credentials_old_keys(tmp_path: Path):
     )
     creds = get_client_credentials(credsfile, "default")
     assert creds.server == "https://auth.example.com"
-    assert creds.resource_server == "https://data.gov.lt"
+    assert creds.resource_server_url == "https://data.gov.lt"
     assert creds.resource_server_id is None
 
 

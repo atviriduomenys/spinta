@@ -1656,67 +1656,21 @@ def test_metadata_uses_auth_server_id_and_url(backends, rc, tmp_path, request):
     assert metadata["jwks_uri"] == "https://auth.example.com/.well-known/jwks.json"
 
 
-def test_token_aud_is_requested_resource(introspect_app):
+def test_token_aud_is_this_resource_server(introspect_app):
+    """Spinta issues tokens only for itself, so a requested `resource` is ignored."""
     resp = introspect_app.post(
         "/auth/token",
         auth=("reader", "reader-secret"),
         data={
             "grant_type": "client_credentials",
             "scope": "spinta_getall",
-            "resource": ["https://data.gov.lt/uapi/", "https://other.example.com/"],
+            "resource": "https://other.example.com/",
         },
     )
     assert resp.status_code == 200, resp.text
 
     payload = _introspect(introspect_app, resp.json()["access_token"]).json()
-    assert payload["aud"] == ["https://data.gov.lt/uapi/", "https://other.example.com/"]
-
-
-@pytest.mark.parametrize("resource", ["https://[v1.example]/", "https://[V1.example]/", "https://[::1]:8080/"])
-def test_token_accepts_ip_literal_resource(introspect_app, resource):
-    resp = introspect_app.post(
-        "/auth/token",
-        auth=("reader", "reader-secret"),
-        data={"grant_type": "client_credentials", "scope": "spinta_getall", "resource": resource},
-    )
-    assert resp.status_code == 200, resp.text
-
-
-def test_token_rejects_file_resource(introspect_app):
-    resp = introspect_app.post(
-        "/auth/token",
-        auth=("reader", "reader-secret"),
-        data={"grant_type": "client_credentials", "scope": "spinta_getall"},
-        files={"resource": ("resource.txt", b"https://data.gov.lt/uapi/")},
-    )
-    assert resp.status_code == 400, resp.text
-    assert resp.json()["error"] == "invalid_target"
-
-
-@pytest.mark.parametrize(
-    "resource",
-    [
-        "data.gov.lt/uapi/",
-        "https://data.gov.lt/uapi/#fragment",
-        "https://data.gov.lt/uapi/#",
-        "https://[",
-        'https://a"b',
-        "https://a.lt/%zz",
-        "https://a b",
-        "https://example.com:not-a-port",
-        "https://a@b@c",
-        "https://[::1",
-        "https://[12345::1]/",
-    ],
-)
-def test_token_rejects_invalid_resource(introspect_app, resource):
-    resp = introspect_app.post(
-        "/auth/token",
-        auth=("reader", "reader-secret"),
-        data={"grant_type": "client_credentials", "scope": "spinta_getall", "resource": resource},
-    )
-    assert resp.status_code == 400, resp.text
-    assert resp.json()["error"] == "invalid_target"
+    assert payload["aud"] == ["https://example.com"]
 
 
 def test_metadata_issuer_matches_token_issuer(introspect_app):

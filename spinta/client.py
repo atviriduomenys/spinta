@@ -24,8 +24,8 @@ class RemoteClientCredentials:
     server: str  # authorization server URL (`auth_server_url`, old name `server`)
     remote: str  # remote name given in credentials.cfg section
     scopes: List[str]  # allowed scopes given in credentials.cfg section
-    # resource server URL if separate from auth server (`resource_server_url`, old name `resource_server`)
-    resource_server: Optional[str] = None
+    # resource server URL if separate from auth server (old name in credentials.cfg `resource_server`)
+    resource_server_url: Optional[str] = None
     resource_server_id: Optional[str] = None  # resource server identifier, sent as the `resource` of token requests
     client_id: Optional[str] = None  # identification of client, could be same as client (username)
     organization: Optional[str] = None  # name of the clients organization
@@ -92,7 +92,7 @@ def get_client_credentials(
                 creds.secret = creds.secret or config.get(creds.section, "secret", fallback=None)
                 creds.scopes = config.get(creds.section, "scopes", fallback=[])
                 creds.client_id = creds.client_id or config.get(creds.section, "client_id", fallback=creds.client)
-                creds.resource_server = creds.resource_server or config.get(
+                creds.resource_server_url = creds.resource_server_url or config.get(
                     creds.section,
                     "resource_server_url",
                     fallback=config.get(creds.section, "resource_server", fallback=creds.server),

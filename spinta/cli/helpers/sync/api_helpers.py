@@ -46,7 +46,7 @@ def extract_identifier_from_response(response: Response, response_type: str) -> 
 
 def get_catalog_base_path(credentials: RemoteClientCredentials) -> str:
     """Catalog API base path; the resource server URL may end with `/uapi` (new) or not (old)."""
-    resource_server = (credentials.resource_server or credentials.server).rstrip("/").removesuffix("/uapi")
+    resource_server = (credentials.resource_server_url or credentials.server).rstrip("/").removesuffix("/uapi")
     return f"{resource_server}{STATIC_BASE_PATH_TAIL}"
 
 

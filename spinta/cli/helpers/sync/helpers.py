@@ -116,7 +116,7 @@ def read_catalog_credentials(credentials_file: Path) -> RemoteClientCredentials:
     if not options & {"auth_server_url", "server"}:
         credentials.server = None
     if not options & {"resource_server_url", "resource_server"}:
-        credentials.resource_server = None
+        credentials.resource_server_url = None
     return credentials
 
 
@@ -129,7 +129,7 @@ def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
 def validate_credentials(credentials: RemoteClientCredentials) -> None:
     """Validates the credentials required for calls to the Catalog."""
     required = {
-        "resource_server_url": credentials.resource_server,
+        "resource_server_url": credentials.resource_server_url,
         "auth_server_url": credentials.server,
         "client": credentials.client,
     }

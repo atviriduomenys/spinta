@@ -67,9 +67,8 @@ normalised); a URL is where the server is reached.
 `resource_server_id`
     Identifier of this resource server: the token's `aud` (audience) claim.
     Spinta requires the `aud` of tokens it validates to contain it, so a token
-    issued for another resource server is rejected. Tokens Spinta issues carry
-    `aud` as a list: the `resource` parameters of the token request (`RFC 8707`_)
-    or, without them, `[resource_server_id]`.
+    issued for another resource server is rejected. Spinta issues tokens only
+    for itself: their `aud` is `[resource_server_id]`.
 
 `resource_server_url`
     Public URL of this resource server, which may be a gateway in front of it.
@@ -82,8 +81,6 @@ issues or validates access tokens**. They have no default and do not fall back
 to the URLs, because a URL (often a gateway) is not a valid identity. The
 requirement is enforced at the moment a token is issued or validated (not at
 startup), so operations that never touch tokens do not need them.
-
-.. _RFC 8707: https://datatracker.ietf.org/doc/html/rfc8707
 
 
 Catalog credentials (``credentials.cfg``)
@@ -104,5 +101,7 @@ Catalog credentials (``credentials.cfg``)
 
 `auth_server_url` and `resource_server_url` replace the old `server` and
 `resource_server` options, which are still read when the new ones are not set.
-`resource_server_id` is sent as the `resource` parameter of the token request,
-so the authorization server issues a token for the Catalog.
+`resource_server_id` is sent as the `resource` parameter of the token request
+(`RFC 8707`_), so the authorization server issues a token for the Catalog.
+
+.. _RFC 8707: https://datatracker.ietf.org/doc/html/rfc8707
