@@ -4,6 +4,14 @@ Changes
 1.3.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Generated OpenAPI specifications describe ``_base``, which a search answers
+  with, so a gateway refusing undescribed properties accepts the answer
+  (`#2063`_).
+
+.. _#2063: https://github.com/atviriduomenys/spinta/issues/2063
+
 
 1.2.0 (2026-10-14)
 =====================

@@ -78,6 +78,13 @@ STANDARD_OBJECT_PROPERTIES = {
         "pattern": UUID_PATTERN,
         "description": "Revision of the object, which changes with every change of it.",
     },
+    # Given by a search (`select`, `limit`, `sort`, a filter), see
+    # `get_model_reserved_props`; `null` unless the model has a base.
+    "_base": {
+        "type": "object",
+        "nullable": True,
+        "description": "Properties the object takes from its base model, given by a search.",
+    },
 }
 
 #: A page token, as `spinta.utils.encoding.encode_page_values` writes one: URL
