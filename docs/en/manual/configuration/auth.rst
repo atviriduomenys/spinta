@@ -82,6 +82,10 @@ to the URLs, because a URL (often a gateway) is not a valid identity. The
 requirement is enforced at the moment a token is issued or validated (not at
 startup), so operations that never touch tokens do not need them.
 
+Spinta 1.2.0 named these `token_issuer` (now `auth_server_id` and
+`auth_server_url`) and `resource_server` (now `resource_server_id`). The old
+names are still read when the new ones are not set.
+
 
 Catalog credentials (``credentials.cfg``)
 -----------------------------------------

@@ -93,9 +93,11 @@ def load(context: Context, config: Config) -> Config:
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
-    config.auth_server_id = rc.get("auth_server_id")
-    config.auth_server_url = (rc.get("auth_server_url") or "").rstrip("/") or None
-    config.resource_server_id = rc.get("resource_server_id")
+    # token_issuer and resource_server are the 1.2.0 names, still read
+    token_issuer = rc.get("token_issuer")
+    config.auth_server_id = rc.get("auth_server_id") or token_issuer
+    config.auth_server_url = (rc.get("auth_server_url") or token_issuer or "").rstrip("/") or None
+    config.resource_server_id = rc.get("resource_server_id") or rc.get("resource_server")
     config.downloaded_public_keys_file = pathlib.Path(
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )

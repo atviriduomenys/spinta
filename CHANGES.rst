@@ -6,7 +6,12 @@ Changes
 
 Backwards incompatible:
 
-- Renamed the authorization configuration parameters added in 1.1.0, to keep
+- Tokens Spinta issues now carry ``aud`` as a list, ``[resource_server_id]``:
+  Spinta issues tokens only for itself (`katalogas#2799`_).
+
+New features:
+
+- Renamed the authorization configuration parameters added in 1.2.0, to keep
   identifiers apart from URLs (`katalogas#2799`_):
 
   - ``token_issuer`` is now ``auth_server_id`` (the ``iss`` claim) and
@@ -14,12 +19,7 @@ Backwards incompatible:
     authorization server metadata).
   - ``resource_server`` is now ``resource_server_id`` (the ``aud`` claim).
 
-  The old names are not read any more.
-- Tokens Spinta issues now carry ``aud`` as a list, ``[resource_server_id]``:
-  Spinta issues tokens only for itself (`katalogas#2799`_).
-
-New features:
-
+  The old names are still read when the new ones are not set.
 - Added ``resource_server_url``, the public URL of this resource server.
   ``server_url`` is its old name and is still read (`katalogas#2799`_).
 - ``credentials.cfg``: ``spinta sync`` reads the ``[katalogas]`` section, or
