@@ -43,9 +43,22 @@ def _fetch_changelog_data(
     while True:
         url = _build_changelog_url(server=server, model=model.model_type(), offset_cid=offset, limit=limit)
         result = get_request_with_retries(
-            client, url, error_counter=error_counter, timeout=timeout, retries=retries, delay_range=delay_range
+            client,
+            url,
+            timeout=timeout,
+            retries=retries,
+            delay_range=delay_range,
+            stop_on_errors=["ExceededMaximumLimit"],
         )
         if not result.ok:
+            error = result.get_error("ExceededMaximumLimit")
+            if error and isinstance(error.get("context"), dict):
+                maximum = error["context"].get("maximum_limit")
+                if type(maximum) is int and 0 < maximum < limit:
+                    limit = maximum
+                    continue
+            if error_counter:
+                error_counter.increase()
             cli_message(
                 f'ERROR: Failed to fetch changelog data for model {model.model_type()}. Using "{server}" url.',
                 progress_bar,

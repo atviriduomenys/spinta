@@ -188,6 +188,127 @@ def geodb_denorm():
         yield db
 
 
+@pytest.mark.parametrize("limit_source", ["model", "default"])
+def test_limit_by_model_external(
+    context: Context, rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite, limit_source: str
+):
+    if limit_source == "model":
+        rc = rc.fork({"models": {"datasets/limit/external/Country": {"limit": 2}}})
+    else:
+        rc = rc.fork({"default_limit_objects": 2})
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source      | level | access
+    datasets/limit/external   |        |      |             |       |
+      | data                 |        | sql  |             |       |
+      |   |   | Country      |        | code | salis       |       | open
+      |   |   |   | code     | string |      | kodas       | 3     | open
+      |   |   |   | name     | string |      | pavadinimas | 3     | open
+      |   |   | City         |        | name | miestas     |       | open
+      |   |   |   | name     | string |      | pavadinimas | 3     | open
+    """),
+    )
+    app = create_client(rc, tmp_path, geodb, mode="external")
+
+    resp = app.get("/datasets/limit/external/Country")
+    assert resp.status_code == 400
+    assert error(resp, "code", ["maximum_limit"]) == {
+        "code": "LimitOrPageIsRequired",
+        "context": {"maximum_limit": 2},
+    }
+
+    for query in ["sort(code)&page()", "sort(code)&limit(2)"]:
+        resp = app.get(f"/datasets/limit/external/Country?{query}")
+        assert resp.status_code == 200
+        assert listdata(resp, "code", "name") == [("ee", "Estija"), ("lt", "Lietuva")]
+
+    resp = app.get("/datasets/limit/external/City?sort(name)")
+    if limit_source == "model":
+        assert resp.status_code == 200
+        assert listdata(resp, "name") == ["Ryga", "Talinas", "Vilnius"]
+    else:
+        assert resp.status_code == 400
+        resp = app.get("/datasets/limit/external/City?sort(name)&page()")
+        assert resp.status_code == 200
+        assert listdata(resp, "name") == ["Ryga", "Talinas"]
+
+
+@pytest.mark.parametrize("limit_source", ["model", "default"])
+@pytest.mark.parametrize("page_keys", ["", "code, extra"])
+def test_model_limit_without_pagination(context, rc, tmp_path, geodb, limit_source, page_keys):
+    if limit_source == "model":
+        rc = rc.fork({"models": {"datasets/limit/external/Country": {"limit": 2}}})
+    else:
+        rc = rc.fork({"default_limit_objects": 2})
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(f"""
+    d | r | b | m | property | type   | ref         | source      | level | access
+    datasets/limit/external   |        |             |             |       |
+      | data                 |        | sql         |             |       |
+      |   |   | Country      |        | {page_keys} | salis       |       | open
+      |   |   |   | code     | string |             | kodas       | 3     | open
+      |   |   |   | name     | string |             | pavadinimas | 3     | open
+      |   |   |   | extra    | object |             | pavadinimas | 3     | open
+    """),
+    )
+    app = create_client(rc, tmp_path, geodb, mode="external")
+
+    for query in ["sort(code)", "sort(code)&limit(3)"]:
+        resp = app.get(f"/datasets/limit/external/Country?{query}")
+        assert resp.status_code == 200
+        assert listdata(resp, "code", "name") == [("ee", "Estija"), ("lt", "Lietuva"), ("lv", "Latvija")]
+        assert "_page" not in resp.json()
+
+    resp = app.get("/datasets/limit/external/Country?sort(code)&limit(1)")
+    assert resp.status_code == 200
+    assert listdata(resp, "code", "name") == [("ee", "Estija")]
+
+    html_limit = app.context.get("config").exporters["html"].limit
+    resp = app.get(f"/datasets/limit/external/Country?limit({html_limit + 1})", headers={"accept": "text/html"})
+    assert resp.status_code == 400
+    assert error(resp, "code", ["maximum_limit", "given_limit"]) == {
+        "code": "ExceededMaximumLimit",
+        "context": {"maximum_limit": html_limit, "given_limit": html_limit + 1},
+    }
+
+
+@pytest.mark.parametrize("limit_source", ["model", "default"])
+def test_format_limit_without_pagination(context, rc, tmp_path, limit_source):
+    if limit_source == "model":
+        rc = rc.fork({"models": {"datasets/limit/external/Country": {"limit": 2}}})
+    else:
+        rc = rc.fork({"default_limit_objects": 2})
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref | source    | level | access
+    datasets/limit/external   |        |     |           |       |
+      | data                 |        | sql |           |       |
+      |   |   | Country      |        |     | countries |       | open
+      |   |   |   | name     | string |     | name      | 3     | open
+    """),
+    )
+    with create_sqlite_db({"countries": [sa.Column("name", sa.Text)]}) as db:
+        app = create_client(rc, tmp_path, db, mode="external")
+        html_limit = app.context.get("config").exporters["html"].limit
+        db.write("countries", [{"name": f"Country {i:03}"} for i in range(html_limit + 1)])
+
+        resp = app.get("/datasets/limit/external/Country?sort(name)")
+        assert resp.status_code == 200
+        assert len(resp.json()["_data"]) == html_limit + 1
+        assert "_page" not in resp.json()
+
+        resp = app.get("/datasets/limit/external/Country?sort(name)", headers={"accept": "text/html"})
+        assert resp.status_code == 200
+        assert len(resp.context["data"]) == html_limit
+        assert [row[-1].value for row in resp.context["data"]] == [f"Country {i:03}" for i in range(html_limit)]
+
+
 def test_filter(context, rc, tmp_path, geodb):
     create_tabular_manifest(
         context,

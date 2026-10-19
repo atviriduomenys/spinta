@@ -119,6 +119,8 @@ def configure(context: Context, model: Model):
     if distribute := model_config.get("distribute"):
         model.distribution_strategy = _parse_distribution_strategy(model, distribute)
 
+    model.limit = model_config.get("limit")
+
 
 @load.register(Context, Model, dict, Manifest)
 def load(

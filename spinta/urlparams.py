@@ -17,6 +17,7 @@ from spinta.components import (
     UrlParams,
     Version,
     decode_page_values,
+    pagination_enabled,
 )
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
@@ -84,6 +85,22 @@ def parse_url_query(query):
         return [rql]
 
 
+def calculate_enforced_limit(context: Context, params: UrlParams) -> int | None:
+    config = context.get("config")
+
+    fmt = params.fmt
+    model = params.model
+    fmt_limit = fmt.limit
+    model_limit = model.limit if isinstance(model, Model) else None
+    default_limit = config.default_limit_objects
+    if model_limit is None:
+        model_limit = default_limit
+    if isinstance(model, Model) and not pagination_enabled(model):
+        model_limit = None
+
+    return min((value for value in (fmt_limit, model_limit) if value is not None), default=None)
+
+
 def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
@@ -95,6 +112,7 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     params.lang = get_required_lang(context, params)
     config: Config = context.get("config")
     params.fmt = config.exporters[params.format if params.format else "json"]
+    params.limit_enforced_to = calculate_enforced_limit(context, params)
 
     if params.select:
         params_builder = RequestParamsBuilder(context).init(params)

@@ -5,6 +5,7 @@ import logging
 import textwrap
 from typing import Any, Callable, Dict, Tuple
 from unittest.mock import Mock
+from urllib.parse import unquote
 
 import pytest
 import requests
@@ -30,6 +31,7 @@ from spinta.cli.helpers.push.write import (
 from spinta.components import Config, Model
 from spinta.core.config import RawConfig
 from spinta.core.context import load_commands
+from spinta.exceptions import ExceededMaximumLimit, error_response
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import configure_remote_server, create_rc
@@ -422,6 +424,55 @@ def test_fetch_all_model_data_successful_201(responses: RequestsMock):
 
     assert rows == [{"_id": "id"}]
     assert len(responses.calls) == 2
+    assert error_counter.count == 0
+
+
+@pytest.mark.parametrize("retries", [0, 2])
+def test_fetch_all_model_data_server_limit(responses: RequestsMock, retries: int):
+    load_commands(["spinta.types.model", "spinta.manifests.commands.error"])
+    server = "https://example.com"
+    model = Model()
+    model.name = "example/City"
+    model.eid = "example/City"
+    model.backend = Backend()
+    config = Config()
+    config.sync_page_size = 10
+    limit_error = ExceededMaximumLimit(model, model_name=model.name, maximum_limit=2, given_limit=config.sync_page_size)
+    responses.add(
+        GET,
+        _build_push_state_sync_url(server, model.name, "", [], 10),
+        json={"errors": [error_response(limit_error)]},
+        status=limit_error.status_code,
+    )
+    responses.add(
+        GET,
+        f"{server}/{model.name}?format(json)&select(_id,_revision,_page,checksum())&sort(_id)&page()&limit(2)",
+        json={"_data": [{"_id": "first"}, {"_id": "second"}], "_page": {"next": "next-page"}},
+    )
+    responses.add(
+        GET,
+        f"{server}/{model.name}?format(json)&select(_id,_revision,_page,checksum())&sort(_id)&page('next-page')&limit(2)",
+        json={"_data": [{"_id": "third"}], "_page": {"next": None}},
+    )
+    error_counter = ErrorCounter(max_count=10)
+    rows = list(
+        _fetch_all_model_data(
+            config,
+            model,
+            requests.Session(),
+            server,
+            error_counter=error_counter,
+            timeout=(5, 300),
+            retries=retries,
+            delay_range=(0,),
+        )
+    )
+    assert rows == [{"_id": "first"}, {"_id": "second"}, {"_id": "third"}]
+    assert [unquote(call.request.url) for call in responses.calls] == [
+        f"{server}/{model.name}?format(json)&select(_id,_revision,_page,checksum())&sort(_id)&page()&limit(10)",
+        f"{server}/{model.name}?format(json)&select(_id,_revision,_page,checksum())&sort(_id)&page()&limit(2)",
+        f"{server}/{model.name}?format(json)&select(_id,_revision,_page,checksum())&sort(_id)&page('next-page')&limit(2)",
+    ]
     assert error_counter.count == 0
 
 

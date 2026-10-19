@@ -156,6 +156,8 @@ models:
           type: string
         values:
           type: any
+      limit:
+        type: integer
 manifest:
   type: ref
   ref: manifests
