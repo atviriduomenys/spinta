@@ -21,10 +21,12 @@ class RemoteClientCredentials:
     section: str  # client section in credentials.cfg
     client: str  # client username
     secret: str  # client secret
-    server: str  # server URL
+    server: str  # authorization server URL (`auth_server_url`, old name `server`)
     remote: str  # remote name given in credentials.cfg section
     scopes: List[str]  # allowed scopes given in credentials.cfg section
-    resource_server: Optional[str] = None  # host of a server where resources are stored if separate from auth server
+    # resource server URL if separate from auth server (old name in credentials.cfg `resource_server`)
+    resource_server_url: Optional[str] = None
+    resource_server_id: Optional[str] = None  # resource server identifier, sent as the `resource` of token requests
     client_id: Optional[str] = None  # identification of client, could be same as client (username)
     organization: Optional[str] = None  # name of the clients organization
     organization_type: Optional[str] = None  # type of the clients organization
@@ -81,13 +83,27 @@ def get_client_credentials(
             config.read(credsfile)
 
             if config.has_section(creds.section):
-                creds.server = config.get(creds.section, "server", fallback=creds.server)
+                # URLs and identifiers are read raw: a percent-encoded `%2F` is not interpolation.
+                creds.server = config.get(
+                    creds.section,
+                    "auth_server_url",
+                    raw=True,
+                    fallback=config.get(creds.section, "server", raw=True, fallback=creds.server),
+                )
+                # Paths are appended to it, e.g. `/auth/token`.
+                creds.server = creds.server.rstrip("/") if creds.server else creds.server
                 creds.client = creds.client or config.get(creds.section, "client", fallback=None)
                 creds.secret = creds.secret or config.get(creds.section, "secret", fallback=None)
                 creds.scopes = config.get(creds.section, "scopes", fallback=[])
                 creds.client_id = creds.client_id or config.get(creds.section, "client_id", fallback=creds.client)
-                creds.resource_server = creds.resource_server or config.get(
-                    creds.section, "resource_server", fallback=creds.server
+                creds.resource_server_url = creds.resource_server_url or config.get(
+                    creds.section,
+                    "resource_server_url",
+                    raw=True,
+                    fallback=config.get(creds.section, "resource_server", raw=True, fallback=creds.server),
+                )
+                creds.resource_server_id = creds.resource_server_id or config.get(
+                    creds.section, "resource_server_id", raw=True, fallback=None
                 )
                 creds.organization = creds.organization or config.get(creds.section, "organization", fallback=None)
                 creds.organization_type = creds.organization_type or config.get(
@@ -165,6 +181,7 @@ def get_access_token(creds: RemoteClientCredentials) -> str:
         data={
             "grant_type": "client_credentials",
             "scope": creds.scopes,
+            **({"resource": creds.resource_server_id} if creds.resource_server_id else {}),
         },
         timeout=REQUEST_TIMEOUT,
     )

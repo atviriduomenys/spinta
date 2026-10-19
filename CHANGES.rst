@@ -4,6 +4,33 @@ Changes
 1.3.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Tokens Spinta issues now carry ``aud`` as a list, ``[resource_server_id]``:
+  Spinta issues tokens only for itself (`katalogas#2799`_).
+
+New features:
+
+- Renamed the authorization configuration parameters added in 1.2.0, to keep
+  identifiers apart from URLs (`katalogas#2799`_):
+
+  - ``token_issuer`` is now ``auth_server_id`` (the ``iss`` claim) and
+    ``auth_server_url`` (the base of the endpoints advertised in the
+    authorization server metadata).
+  - ``resource_server`` is now ``resource_server_id`` (the ``aud`` claim).
+
+  The old names are still read when the new ones are not set.
+- Added ``resource_server_url``, the public URL of this resource server.
+  ``server_url`` is its old name and is still read (`katalogas#2799`_).
+- ``credentials.cfg``: ``spinta sync`` reads the ``[katalogas]`` section, or
+  the old ``[default]`` one. ``auth_server_url`` and ``resource_server_url``
+  replace ``server`` and ``resource_server``, which are still read.
+  ``resource_server_id`` is sent as the ``resource`` of the token request.
+  ``organization`` and ``organization_type`` are no longer required
+  (`katalogas#2799`_).
+
+.. _katalogas#2799: https://github.com/atviriduomenys/katalogas/issues/2799
+
 Bug fixes:
 
 - Generated OpenAPI specifications describe ``_base``, which a search answers

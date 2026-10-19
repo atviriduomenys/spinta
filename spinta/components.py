@@ -1110,6 +1110,8 @@ class Config:
     rc: RawConfig
     debug: bool = False
     config_path: pathlib.Path
+    resource_server_url: str
+    # Old name of `resource_server_url`, kept for code that still reads it.
     server_url: str
     scope_prefix: str
     scope_prefix_udts: str
@@ -1123,8 +1125,9 @@ class Config:
     http_basic_auth: bool
     token_validation_key: dict | None = None
     token_validation_keys_download_url: str | None = None
-    token_issuer: str | None = None
-    resource_server: str | None = None
+    auth_server_id: str | None = None
+    auth_server_url: str | None = None
+    resource_server_id: str | None = None
     downloaded_public_keys_file: pathlib.Path
     datasets: dict
     env: str

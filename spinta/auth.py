@@ -82,6 +82,8 @@ WORLD_READABLE_FILE = 0o644  # rw-r--r-- (owner read/write, others read)
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
+# `credentials.cfg` section with the Catalog credentials; `default` is its old name.
+KATALOGAS_CREDENTIALS_SECTION = "katalogas"
 DEFAULT_CREDENTIALS_SECTION = "default"
 DEPRECATED_SCOPE_PREFIX = "spinta_"
 
@@ -322,8 +324,8 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         config = self._context.get("config")
         _require_auth_config(config)
         JWTClaimsRegistry(
-            iss={"essential": True, "value": config.token_issuer},
-            aud={"essential": True, "value": config.resource_server},
+            iss={"essential": True, "value": config.auth_server_id},
+            aud={"essential": True, "value": config.resource_server_id},
             client_id={"essential": True},
             exp={"essential": True},
             iat={"essential": True},
@@ -515,7 +517,7 @@ class Token(rfc6749.TokenMixin):
     def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self) -> str:  # Resource server (audience).
+    def get_aud(self) -> str | list[str]:  # Resource server (audience).
         return self._token.get("aud", "")
 
     def get_jti(self) -> str:
@@ -823,10 +825,12 @@ class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
 def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
     config = context.get("config")
     _require_auth_config(config)
-    base = config.token_issuer.rstrip("/")
+    if not config.auth_server_url:
+        raise RequiredConfigParam(name="auth_server_url")
+    base = config.auth_server_url
     return ClientCredentialsServerMetadata(
         {
-            "issuer": config.token_issuer,
+            "issuer": config.auth_server_id,
             "token_endpoint": f"{base}/auth/token",
             "introspection_endpoint": f"{base}/auth/introspect",
             "jwks_uri": f"{base}/.well-known/jwks.json",
@@ -839,10 +843,10 @@ def get_authorization_server_metadata(context: Context) -> ClientCredentialsServ
 
 
 def _require_auth_config(config) -> None:
-    if not config.token_issuer:
-        raise RequiredConfigParam(name="token_issuer")
-    if not config.resource_server:
-        raise RequiredConfigParam(name="resource_server")
+    if not config.auth_server_id:
+        raise RequiredConfigParam(name="auth_server_id")
+    if not config.resource_server_id:
+        raise RequiredConfigParam(name="resource_server_id")
 
 
 def create_access_token(
@@ -868,9 +872,9 @@ def create_access_token(
     scopes = " ".join(sorted(scopes)) if scopes else ""
     jti = str(uuid.uuid4())
     payload = {
-        "iss": config.token_issuer,
+        "iss": config.auth_server_id,
         "sub": client,
-        "aud": config.resource_server,
+        "aud": [config.resource_server_id],
         "client_id": client,
         "iat": iat,
         "exp": exp,
