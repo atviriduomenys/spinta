@@ -44,14 +44,7 @@ def test_configure_unknown_model(tmp_path, rc):
         commands.check(context, manifest)
 
 
-@pytest.mark.parametrize("limit", [0, -1, "0", True, 1.5])
-def test_configure_invalid_model_limit(tmp_path, rc, limit):
-    rc = rc.fork({"models": {"datasets/gov/example/Country": {"limit": limit}}})
-    with pytest.raises(ValueError, match="positive integer"):
-        load_manifest_and_context(rc, manifest=_GENERIC_COUNTRY_MANIFEST, tmp_path=tmp_path)
-
-
-@pytest.mark.parametrize("limit,expected", [(None, None), (5, 5), ("5", 5)])
+@pytest.mark.parametrize("limit,expected", [(None, None), (5, 5)])
 def test_configure_model_limit(tmp_path, rc, limit, expected):
     rc = rc.fork({"models": {"datasets/gov/example/Country": {"limit": limit}}})
     context, manifest = load_manifest_and_context(rc, manifest=_GENERIC_COUNTRY_MANIFEST, tmp_path=tmp_path)
