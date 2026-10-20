@@ -3,8 +3,8 @@ from ruamel.yaml import YAML
 
 from spinta import commands
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
-from spinta.utils.schema import NA
 from spinta.testing.context import create_test_context
+from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")
 
